@@ -1,0 +1,282 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-25-shared-prerequisite",
+  "base": "d12abe61cd90a45d45935bb057be65bf3dfd5abd",
+  "unresolved": 0,
+  "undispositioned": 0,
+  "runtime_paths": [
+    "crates/checker/src/node_builder/statements.rs",
+    "crates/checker/src/node_builder/signatures.rs"
+  ],
+  "steps": [
+    "A6-25-4",
+    "A6-25-5",
+    "A6-25-6",
+    "A6-25-7"
+  ],
+  "owners": [
+    {
+      "owner": "elideInitializerAndSetEmitFlags",
+      "start": 52880,
+      "end": 52907,
+      "sha256": "f8bdbba84cdea52719e327d0bb00c48532bd6d5d35b61b62620ccddfc12a6099"
+    },
+    {
+      "owner": "trackComputedName",
+      "start": 52910,
+      "end": 52938,
+      "sha256": "747771ab8de848541c5687c87f5865240522be824fb4b335ebd8884e26e437ed"
+    },
+    {
+      "owner": "isLateBindableName",
+      "start": 57616,
+      "end": 57618,
+      "sha256": "a3ca84f693cd555a61ef5703f86728ddd264868531c337681ab9c95f38d397ba"
+    },
+    {
+      "owner": "isLateBindableAST",
+      "start": 57622,
+      "end": 57628,
+      "sha256": "59c4b435e4afe281eb82962635f3f7d2b9656bffe8d030005b431226a59f1a0b"
+    },
+    {
+      "owner": "isTypeUsableAsPropertyName",
+      "start": 19351,
+      "end": 19353,
+      "sha256": "7f27114b05645570b64cd4fa6e83275753a40f1fb2ad7deef7a16335d60e0acd"
+    },
+    {
+      "owner": "checkComputedPropertyName",
+      "start": 74061,
+      "end": 74082,
+      "sha256": "9f89c9f08a99020384ee9ddada6d5172dd05aee82d8d3bc8aa6be2499f0bc7e3"
+    },
+    {
+      "owner": "cloneNode",
+      "start": 24436,
+      "end": 24466,
+      "sha256": "d223dcea6ccf14e9212d40d5b8df188197023622ea3e5d624ffb974a25db19d6"
+    },
+    {
+      "owner": "nodeIsSynthesized",
+      "start": 16000,
+      "end": 16002,
+      "sha256": "d5eb53abaa73cfcae3a8c02425faff560733177bd619f5e0db719a6f9f603f4c"
+    },
+    {
+      "owner": "positionIsSynthesized",
+      "start": 18811,
+      "end": 18813,
+      "sha256": "d7c8efa6a3407c62a96399f410fac2ae254372213b526c0c0c96811612cfb7b7"
+    },
+    {
+      "owner": "setEmitFlags",
+      "start": 25318,
+      "end": 25321,
+      "sha256": "433f76eb52bda18764000c020a783490cd7f87d060b7daca70c2a0427085df34"
+    },
+    {
+      "owner": "visitEachChild",
+      "start": 91318,
+      "end": 91324,
+      "sha256": "77052fb8845fc55cd604db6cb8fe5c3e22bfc7f435b2efc90dc0a57fc2adcc7c"
+    },
+    {
+      "owner": "visitNodes2",
+      "start": 91087,
+      "end": 91115,
+      "sha256": "211c41370d3526081e4f4c696ed20f63ade07e0407cab76facb848ceb8a9eff9"
+    },
+    {
+      "owner": "createObjectBindingPattern",
+      "start": 22407,
+      "end": 22415,
+      "sha256": "23d7a5579cd4dfaa4635b01de2c532bbaeabc4068a99d8ababa9f708fc61c827"
+    },
+    {
+      "owner": "updateObjectBindingPattern",
+      "start": 22416,
+      "end": 22418,
+      "sha256": "a1877f7e9c670537afcd95fa37782cc6ceb2f526f24b395c6a82041793550d3f"
+    },
+    {
+      "owner": "createArrayBindingPattern",
+      "start": 22419,
+      "end": 22424,
+      "sha256": "bfaf580f0cf09f3625153d01c95fece6e5bed1ef4870c7b59651a14268e6a21c"
+    },
+    {
+      "owner": "updateArrayBindingPattern",
+      "start": 22425,
+      "end": 22427,
+      "sha256": "ae9ab75e1a9b7dcc480dc265373b88b3e065b2ab608c71268602266ff8d74d2e"
+    },
+    {
+      "owner": "createBindingElement",
+      "start": 22428,
+      "end": 22437,
+      "sha256": "53d5a02d4d99e09ae5b8f52777e56e6bdb06131543f763f573cf767b5735b7df"
+    },
+    {
+      "owner": "updateBindingElement",
+      "start": 22438,
+      "end": 22440,
+      "sha256": "ceb986743d45f7b61e48c74a230ec55ddc7d87cdd373504d1461c786efe5c0e7"
+    },
+    {
+      "owner": "visitEachChildOfComputedPropertyName",
+      "start": 91333,
+      "end": 91338,
+      "sha256": "2195eb2d1676d5af17d17d82545d081010ca362e1c5b7cdc28043731308e712d"
+    },
+    {
+      "owner": "visitEachChildOfObjectBindingPattern",
+      "start": 91644,
+      "end": 91649,
+      "sha256": "c414876fc423b9403d02e40d427ab23d103b1da8395946ad8d38a4387933ac18"
+    },
+    {
+      "owner": "visitEachChildOfArrayBindingPattern",
+      "start": 91650,
+      "end": 91655,
+      "sha256": "c6675d07772807c640c77b9defc3d34a836f582348da7037ba3cbf83e090c331"
+    },
+    {
+      "owner": "visitEachChildOfBindingElement",
+      "start": 91656,
+      "end": 91664,
+      "sha256": "03d788123083a4fd377397fd6efc4e5244efd568418195eaad3ece4cc8f80906"
+    },
+    {
+      "owner": "visitEachChildOfPropertyAccessExpression",
+      "start": 91678,
+      "end": 91689,
+      "sha256": "0c69c8bc929840ed1088405511c335835fe86b057d98f790512c7cf904898eb2"
+    },
+    {
+      "owner": "visitEachChildOfElementAccessExpression",
+      "start": 91690,
+      "end": 91701,
+      "sha256": "f819b2db2d942b7f07ee7460f27e1364b1f0d961b29c23e1f3427d53d37485a4"
+    }
+  ],
+  "architecture": [
+    {
+      "id": "E-RESOLVER-BASE",
+      "disposition": "modified-requalify"
+    },
+    {
+      "id": "E-ARENA",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-POSITIONS",
+      "disposition": "modified-requalify"
+    },
+    {
+      "id": "E-METADATA-BASE",
+      "disposition": "modified-requalify"
+    },
+    {
+      "id": "E-CONTEXT",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-PROTOCOL",
+      "disposition": "premise-unchanged"
+    }
+  ],
+  "authorities": [
+    {
+      "path": "docs/design/README.md",
+      "sha256": "c2843bea19df08c887bd6461f10b7daf4ea2c86c32ca9ecc908008316a3497e0"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    },
+    {
+      "path": "docs/design/greenfield/post-h1-completion-slices.md",
+      "sha256": "df4e630f4fe348119e43714261d1193a880453fa6847b42c7bf52d086bd840fb"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-setter-names-readiness.v1.json",
+      "sha256": "a021bdf9c79299e231361710160b781d13376971c901216377d84bed58a040ce"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-setter-names-first-after.v1.json",
+      "sha256": "83da646d49308fe67148e5eae044139610c17ecd08e256c5769606cc3bcca774"
+    },
+    {
+      "path": "ratchets/h2-8a-binding-name-map-ranges-before.v1.json",
+      "sha256": "a9e43f0616e97fc8779294b233529c2dce3e3102fd6fc09c95a1eab7267a32fd"
+    },
+    {
+      "path": "ratchets/h2-8a-binding-name-map-ranges-source-before.v1.json",
+      "sha256": "6472748c245be333a6dacccb59cabdc5085cf9c7e7cbc55589da4edd4757c1e0"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-binding-name-map-ranges.md",
+      "sha256": "8e2f400c2d5a8a9dc7a88910c30c9c92454b7ed7cd111762fcf5527386c829c9"
+    },
+    {
+      "path": "scripts/observe-binding-name-map-ranges.mjs",
+      "sha256": "39ff81289e8148b97df197399674decce503e39dc74d4fb57904f6561f1a7f68"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/binding-name-map-ranges.json",
+      "sha256": "c04ecf94865c90fc39958e7967b7b10e594065147dd8d982edaf8b917b5e75c5"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_binding_name_map_ranges.rs",
+      "sha256": "0d82d8478b7149f7c55019aff81fdb74f4f6250d924d5789723229a07085fc92"
+    },
+    {
+      "path": "crates/checker/tests/unit/node_builder_signatures/tests.rs",
+      "sha256": "5ae1d6f8be9c41fdafeb77d5f3c6f9c4161b1a30c06720c59ed1d15cc067b393"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/checker/src/node_builder/signatures.rs",
+      "sha256": "d46a6c370c777dc7f90624d8a7efcd7c277ba3350f84a8db5fbfa9bbb70c4a3a"
+    },
+    {
+      "path": "crates/checker/src/node_builder/type_nodes.rs",
+      "sha256": "751892a7a600c2df5642035d4f62d8c2350586b22fc0b5b9f3fe639a8657ba22"
+    },
+    {
+      "path": "crates/checker/src/node_builder/serialize.rs",
+      "sha256": "0ab71141dac64fdf557c93d30a1a8ed2ce9ccf6c2f10daa5cbba5ea19f053330"
+    },
+    {
+      "path": "crates/checker/src/syntactic_type_node_builder.rs",
+      "sha256": "a543c48150b86f6444bb1bad2d57f6948d40fd9e644247a6d22cb1d86ac65717"
+    },
+    {
+      "path": "crates/checker/src/literals.rs",
+      "sha256": "1e7ec2bf7c4cfe1a9182150e825d67068e5827490be48b89bf1a389772d0f8b0"
+    },
+    {
+      "path": "crates/checker/src/indexed.rs",
+      "sha256": "22dd3ba6fec4ade0108db3d075a70f17d5fa4b0a8d8c6853eaeddfad904ccf79"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/emitter/src/metadata.rs",
+      "sha256": "c9eaf94391d3eb0893a1d1e7d4c65ff9d876f8b3772634505325a72cf7430e23"
+    },
+    {
+      "path": "crates/syntax/src/for_each_child.rs",
+      "sha256": "20fd808bde00d377865d8a14f924fb23fbb82a8182708218581b20338c7bd8ce"
+    }
+  ],
+  "after_required_complete_commands": 261,
+  "after_target_exact_twice": 253,
+  "checker_node_builder_units_required": 65,
+  "first_after_outside_readonly_failures": 8,
+  "shared_before_complete_comparison_and_supplemental_executions": 180
+}

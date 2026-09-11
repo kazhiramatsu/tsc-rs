@@ -16,9 +16,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # GitHub Actions owns one acceptance signal only. Fine-grained phase tests,
-  # static checks, stress, performance, and evidence production stay in the
-  # complete local `cargo xtask ci --baseline <trusted-base>` gate.
+  # GitHub Actions owns one acceptance signal only. Local CI uses the same
+  # `cargo xtask acceptance` entrypoint; use focused owner checks while editing.
+  # Historical evidence regeneration is separate from routine local CI.
   gates:
     name: gates
     runs-on: ubuntu-latest

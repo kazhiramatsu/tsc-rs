@@ -165,13 +165,8 @@ fn validate_emit_options(
     if !matches!(options.jsx, None | Some(1..=5)) {
         return unsupported("jsx");
     }
-    for (present, name) in [
-        (options.root_dir.is_some(), "rootDir"),
-        (options.ts_build_info_file.is_some(), "tsBuildInfoFile"),
-    ] {
-        if present {
-            return unsupported(name);
-        }
+    if options.ts_build_info_file.is_some() {
+        return unsupported("tsBuildInfoFile");
     }
     Ok(())
 }
@@ -206,9 +201,6 @@ fn validate_emit_request(host: &dyn EmitHost, operation: EmitOperation) -> Resul
             return unsupported("useCaseSensitiveFileNames");
         }
     }
-    let mut emit_eligible_sources = 0usize;
-    let mut javascript_sources = 0usize;
-    let mut json_sources = 0usize;
     for source_id in host.source_file_ids() {
         let source = host.source_file(*source_id).ok_or(EmitFailure::Contract(
             EmitContractViolation::PlannedSourceMissing(*source_id),
@@ -221,7 +213,6 @@ fn validate_emit_request(host: &dyn EmitHost, operation: EmitOperation) -> Resul
         if !eligible {
             continue;
         }
-        emit_eligible_sources += 1;
         let name = source.path().to_string_lossy().to_ascii_lowercase();
         let is_typescript = name.ends_with(".ts")
             || name.ends_with(".mts")
@@ -244,20 +235,6 @@ fn validate_emit_request(host: &dyn EmitHost, operation: EmitOperation) -> Resul
             return Err(EmitFailure::UnsupportedSourceExtension {
                 path: source.path().to_path_buf(),
             });
-        }
-        javascript_sources += usize::from(is_javascript);
-        json_sources += usize::from(is_json);
-    }
-    if let Some(out_dir) = options.out_dir.as_deref() {
-        // H2.3a owns JavaScript-only relocation. H2.3d additionally owns the
-        // narrow mixed source set needed to materialize an admitted JSON
-        // artifact. H2.8a retains outDir without either source family and the
-        // general rootDir/common-source-directory matrix.
-        let javascript_only =
-            javascript_sources != 0 && javascript_sources == emit_eligible_sources;
-        let json_relocation = json_sources != 0;
-        if !(javascript_only || json_relocation) || !std::path::Path::new(out_dir).is_absolute() {
-            return unsupported("outDir");
         }
     }
     Ok(())
@@ -995,19 +972,12 @@ pub fn emit_files_with_activity(
                 } else if options.declaration == Some(true) {
                     activity.observe_runtime_slice(H2RuntimeSlice::H2_6c);
                 }
-                let printed_result = match &transformed_root {
-                    TransformRoot::Bundle(_) => printer.print_javascript_with_global_names(
-                        &mut transformation,
-                        print_request.clone(),
-                        recording_inputs.clone(),
-                        &ResolverGlobalNameOracle(resolver),
-                    ),
-                    TransformRoot::SourceFile(_) => printer.print(
-                        &mut transformation,
-                        print_request.clone(),
-                        recording_inputs.clone(),
-                    ),
-                };
+                let printed_result = printer.print_javascript_with_global_names(
+                    &mut transformation,
+                    print_request.clone(),
+                    recording_inputs.clone(),
+                    &ResolverGlobalNameOracle(resolver),
+                );
                 let (printed, fallback_source_map) = match printed_result {
                     Ok(printed) => (printed, None),
                     Err(crate::PrinterError::Unsupported(
@@ -1019,7 +989,12 @@ pub fn emit_files_with_activity(
                         let TransformRoot::SourceFile(transform_source) = transformed_root else {
                             unreachable!()
                         };
-                        let printed = printer.print(&mut transformation, print_request, None)?;
+                        let printed = printer.print_javascript_with_global_names(
+                            &mut transformation,
+                            print_request,
+                            None,
+                            &ResolverGlobalNameOracle(resolver),
+                        )?;
                         let syntax = transformation.arena().source(transform_source)?.syntax();
                         let mut recording = crate::source_map::SourceMapRecording::new(
                             recording_inputs.expect("recording input matched above"),

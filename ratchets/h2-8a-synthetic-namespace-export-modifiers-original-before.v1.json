@@ -1,0 +1,173 @@
+{
+  "version": 1,
+  "status": "complete-original-before-four-failures-with-captured-second-job",
+  "base": "e6bebf7b76501984a7ebba9bc57e81e23e7b2429",
+  "eligible": 4,
+  "exact": 0,
+  "failed": [
+    "typescript-6.0.3/compiler/jsFileAlternativeUseOfOverloadTag.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionKeywordPropExhaustive.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionKeywordPropExhaustive.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/jsdocImplements_class.ts#default"
+  ],
+  "native_jobs": 2,
+  "native_executions_per_case": 4,
+  "full_tuple_capture_job": 2,
+  "full_tuples": 8,
+  "first_job_full_tuple_capture": false,
+  "seconds": [
+    20.54,
+    26.33
+  ],
+  "exit_codes": [
+    101,
+    101
+  ],
+  "same_first_boundaries_across_jobs": true,
+  "first_boundaries": [
+    {
+      "case_id": "typescript-6.0.3/compiler/jsFileAlternativeUseOfOverloadTag.ts#default",
+      "repetition": 0,
+      "boundary": "writes[1].callback_utf8_base64: UTF-8 byte 765, actual length 2210, expected length 2224"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsFileAlternativeUseOfOverloadTag.ts#default",
+      "repetition": 1,
+      "boundary": "writes[1].callback_utf8_base64: UTF-8 byte 765, actual length 2210, expected length 2224"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionKeywordPropExhaustive.ts#target%3Des2015",
+      "repetition": 0,
+      "boundary": "writes[1].callback_utf8_base64: UTF-8 byte 60, actual length 3528, expected length 3759"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionKeywordPropExhaustive.ts#target%3Des2015",
+      "repetition": 1,
+      "boundary": "writes[1].callback_utf8_base64: UTF-8 byte 60, actual length 3528, expected length 3759"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionKeywordPropExhaustive.ts#target%3Des5",
+      "repetition": 0,
+      "boundary": "writes[1].callback_utf8_base64: UTF-8 byte 60, actual length 3528, expected length 3759"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionKeywordPropExhaustive.ts#target%3Des5",
+      "repetition": 1,
+      "boundary": "writes[1].callback_utf8_base64: UTF-8 byte 60, actual length 3528, expected length 3759"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_class.ts#default",
+      "repetition": 0,
+      "boundary": "writes[0].callback_utf8_base64: UTF-8 byte 114, actual length 808, expected length 880"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_class.ts#default",
+      "repetition": 1,
+      "boundary": "writes[0].callback_utf8_base64: UTF-8 byte 114, actual length 808, expected length 880"
+    }
+  ],
+  "working_files": [
+    {
+      "path": "crates/checker/src/emit.rs",
+      "sha256": "d43e9507e0f925b4e06ed4956a2bf2e436daf48c605b0876e4b5fc5b432e4dd6"
+    },
+    {
+      "path": "crates/checker/src/node_builder/context.rs",
+      "sha256": "beba5a3add26b6e917101adfb73796b1370e1d47de501d2dd010c340297910c4"
+    },
+    {
+      "path": "crates/checker/src/node_builder/mod.rs",
+      "sha256": "fd29baeb9104f3da2ea3db5fda94eafea7623ae3f4e103590d8732d48e703c1b"
+    },
+    {
+      "path": "crates/checker/src/node_builder/signatures.rs",
+      "sha256": "d46a6c370c777dc7f90624d8a7efcd7c277ba3350f84a8db5fbfa9bbb70c4a3a"
+    },
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "3689fe549b0b64dc85473471dccd4f5a19b5e1ab5484f5d23093e502abb2d514"
+    },
+    {
+      "path": "crates/checker/src/node_builder/type_nodes.rs",
+      "sha256": "751892a7a600c2df5642035d4f62d8c2350586b22fc0b5b9f3fe639a8657ba22"
+    },
+    {
+      "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
+      "sha256": "038608a39021304808e6275d8063734af585b2cc32a172d5184267c7d6f274cb"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+      "sha256": "90aff72e27fac502da3ff3f06980c55c4923e35554c3e64800a60213cb1b04ba"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/emitter/src/metadata.rs",
+      "sha256": "c9eaf94391d3eb0893a1d1e7d4c65ff9d876f8b3772634505325a72cf7430e23"
+    },
+    {
+      "path": "ratchets/h2-8a-candidate-inputs.v1.json",
+      "sha256": "6ff7ea8d1d986e8a9d833d45ec694ab0b8616604fdf065ba52e24a34ac86759b"
+    },
+    {
+      "path": "ratchets/h2-8a-candidates.v1.json",
+      "sha256": "e33fbf9b6c7eb96dae5186013e054e57eae371a48fca461a809ae4e6e2a1095c"
+    },
+    {
+      "path": "ratchets/h2-8a-global-after-a6-14.v1.json",
+      "sha256": "2902e23044cb6d8d0d15d433a2ba51468ee72aeb628c486e511f525803bd7c8d"
+    },
+    {
+      "path": "ratchets/h2-8a-observations.v1.json",
+      "sha256": "91fc28206d663eab46fef98f72ba296d29e02def72518e012616c4d0d01acc87"
+    },
+    {
+      "path": "target/h2-8a-synthetic-namespace-export-modifiers-original-before-captured.log",
+      "sha256": "1a9a61f25632088c4f0fbc6633d11e9671df9080109de8483d7dd7a0356ec302"
+    },
+    {
+      "path": "target/h2-8a-synthetic-namespace-export-modifiers-original-before-prelaunch.json",
+      "sha256": "4eb86bdc2b03ded67d5b484ade5e00e86eb3b04798b50eabad198a07dd21607a"
+    },
+    {
+      "path": "target/h2-8a-synthetic-namespace-export-modifiers-original-before-tuples/667e207cf3bb5ff0512fd9335e22d3260105b6c7d0883acf2612e7f26149b4c1-0.json",
+      "sha256": "4efa8bb2019f4becd1bf23e00f39b19133ccc6df558f3deabf180b6c5ff379f7"
+    },
+    {
+      "path": "target/h2-8a-synthetic-namespace-export-modifiers-original-before-tuples/667e207cf3bb5ff0512fd9335e22d3260105b6c7d0883acf2612e7f26149b4c1-1.json",
+      "sha256": "fdc9550b48d47eac51a10169edf1a1b21b8c87665bcc41b9a4ce94f887588197"
+    },
+    {
+      "path": "target/h2-8a-synthetic-namespace-export-modifiers-original-before-tuples/9b36fa9fe3a89ba435cd67500310183f7e31f95d830e5b2bc379610874e90f93-0.json",
+      "sha256": "be802ded3d44dec1549bfeb7baf39a204ceaefce5b83ae5f7060fcc3e0045889"
+    },
+    {
+      "path": "target/h2-8a-synthetic-namespace-export-modifiers-original-before-tuples/9b36fa9fe3a89ba435cd67500310183f7e31f95d830e5b2bc379610874e90f93-1.json",
+      "sha256": "adc512b0718aff3ee8365b1a01a1fed76febb8ec4a8d6521416b02f67f96f361"
+    },
+    {
+      "path": "target/h2-8a-synthetic-namespace-export-modifiers-original-before-tuples/a97fbccacd28fcec8dafc839459c3958970611048947c1b1e8ee2f667aea748b-0.json",
+      "sha256": "a3b8261159205711839664e5a13f5c55315724510fa0efe5c08ebc8649f7042d"
+    },
+    {
+      "path": "target/h2-8a-synthetic-namespace-export-modifiers-original-before-tuples/a97fbccacd28fcec8dafc839459c3958970611048947c1b1e8ee2f667aea748b-1.json",
+      "sha256": "834bd8fa8ef318da03fd379381b63657dd1a1150499ad93153a0135d3a31c20f"
+    },
+    {
+      "path": "target/h2-8a-synthetic-namespace-export-modifiers-original-before-tuples/de386f23a4749d7bdb98d20d3f2b7408a2a2921dd34de718cf0fc530e4851083-0.json",
+      "sha256": "82e4e4b6f6b6aa2b5dc96afe4f97018e9a1dde895bc969ccd81a5868bc39b8ae"
+    },
+    {
+      "path": "target/h2-8a-synthetic-namespace-export-modifiers-original-before-tuples/de386f23a4749d7bdb98d20d3f2b7408a2a2921dd34de718cf0fc530e4851083-1.json",
+      "sha256": "ad148c1af63e9a4f7e3192855f309593ca6e577ec684c9bc2a64bd611fd64f97"
+    },
+    {
+      "path": "target/h2-8a-synthetic-namespace-export-modifiers-original-before.log",
+      "sha256": "18f392198124953444d207b1eeba730984671f5c19106c2892afd375ac8bee3b"
+    }
+  ],
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-synthetic-namespace-original-before-3augt056",
+  "capture_directory_note": "The second job used a relative env path resolved under crates/compiler; its eight complete tuple files were moved byte-for-byte into target after actual exit. Use absolute capture paths for after."
+}

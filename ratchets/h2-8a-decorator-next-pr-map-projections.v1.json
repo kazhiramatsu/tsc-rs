@@ -1,0 +1,70 @@
+{
+  "source_head": "2953ecb8a8817c623a361a73c8db24780f7945ca",
+  "kind": "normal acceptance checks for the subsequent existing divergence manifests",
+  "runs": {
+    "h2-6a": {
+      "head": "2953ecb8a8817c623a361a73c8db24780f7945ca",
+      "git_status": " M docs/design/greenfield/slices/h2-8a-decorator-next.md\n M ratchets/h2-5h-known-divergences.v1.json\n?? ratchets/h2-8a-decorator-next-pr-admission-four.v1.json\n?? ratchets/h2-8a-decorator-next-pr-full530-full62.v2.json\n?? ratchets/h2-8a-decorator-next-pr-full530.v2.json\n?? ratchets/h2-8a-decorator-next-pr-h2-5h-shrink.v1.json\n?? ratchets/h2-8a-decorator-next-pr-hosted-h2-5g.v1.json\n?? ratchets/h2-8a-decorator-next-pr-witnesses.v4.json\n",
+      "environment": {
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-dec-next/target/dec-next-pr-artifacts",
+        "CARGO_BUILD_JOBS": "2",
+        "CARGO_INCREMENTAL": "0",
+        "CARGO_PROFILE_TEST_DEBUG": "0",
+        "RUSTC_WRAPPER": "",
+        "TSRS_H2_5G_WORKERS": "1",
+        "TSRS_CONFORMANCE_WORKERS": "2"
+      },
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "19",
+        "/Users/hiramatsu/dev/tsc-rs-dec-next/target/dec-next-runs/pr-h2-5g-remainders-r1/binaries-4/xtask",
+        "h2-6a-acceptance"
+      ],
+      "inputs": {
+        "ratchets/h2-6a-qualification.v1.json": "35515c5c0fe4c205e0542b79a9f211e6f4081982fdf752381e6a5315ff0cd254",
+        "ratchets/h2-6a-known-divergences.v1.json": "4d2e8d9c7b205c97ff81bc32e73285e1a94ad8862b03d1ad2584deb372975697"
+      },
+      "executed_binary_sha256": "0404c2498be073a8feb762a88927fab4c78130e75c9e28bb5f96f273f08167a1",
+      "started_at": "2026-09-11T06:39:36.638190+00:00",
+      "actual_exit": 0,
+      "log_sha256": "160e8dff1443c37c451722c89fc8c1149783275cd252a8601424d1bb439033bb",
+      "inputs_unchanged_after": true,
+      "finished_at": "2026-09-11T06:41:21.384825+00:00"
+    },
+    "h2-6c": {
+      "head": "2953ecb8a8817c623a361a73c8db24780f7945ca",
+      "git_status": " M docs/design/greenfield/slices/h2-8a-decorator-next.md\n M ratchets/h2-5h-known-divergences.v1.json\n?? ratchets/h2-8a-decorator-next-pr-admission-four.v1.json\n?? ratchets/h2-8a-decorator-next-pr-full530-full62.v2.json\n?? ratchets/h2-8a-decorator-next-pr-full530.v2.json\n?? ratchets/h2-8a-decorator-next-pr-h2-5h-shrink.v1.json\n?? ratchets/h2-8a-decorator-next-pr-hosted-h2-5g.v1.json\n?? ratchets/h2-8a-decorator-next-pr-witnesses.v4.json\n",
+      "environment": {
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-dec-next/target/dec-next-pr-artifacts",
+        "CARGO_BUILD_JOBS": "2",
+        "CARGO_INCREMENTAL": "0",
+        "CARGO_PROFILE_TEST_DEBUG": "0",
+        "RUSTC_WRAPPER": "",
+        "TSRS_H2_5G_WORKERS": "1",
+        "TSRS_CONFORMANCE_WORKERS": "2"
+      },
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "19",
+        "/Users/hiramatsu/dev/tsc-rs-dec-next/target/dec-next-runs/pr-h2-5g-remainders-r1/binaries-4/xtask",
+        "h2-6c-acceptance"
+      ],
+      "inputs": {
+        "ratchets/h2-6c-qualification.v1.json": "af689ec23311d9cc733f2606e2acfd1d346edbc51bc512bb185c0c3111f1d8ec",
+        "ratchets/h2-6c-known-divergences.v1.json": "93853b5bb7a9af23f0855b0198f5058f633d60a03e1df429ccc323df6e6eac51"
+      },
+      "executed_binary_sha256": "0404c2498be073a8feb762a88927fab4c78130e75c9e28bb5f96f273f08167a1",
+      "started_at": "2026-09-11T06:41:21.592323+00:00",
+      "actual_exit": 0,
+      "log_sha256": "e496d10f9cf6ee4ce8c67e42c260ef3361e367f33b4873b779c29bfc5ab597b9",
+      "inputs_unchanged_after": true,
+      "finished_at": "2026-09-11T06:45:55.546110+00:00"
+    }
+  }
+}

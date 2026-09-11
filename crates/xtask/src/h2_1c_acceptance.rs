@@ -301,9 +301,11 @@ fn execute_observed(workspace: &Path, case: &Value) -> Result<(usize, usize), Bo
                 .count() as u64
         })
         .unwrap_or(0);
-    if activity.runtime_slice(H2RuntimeSlice::H2_1a) != reached_sources {
+    // AMD/UMD select transformModule directly. They do not construct the
+    // implied-node-format composite counted by H2.1a.
+    if activity.runtime_slice(H2RuntimeSlice::H2_1a) != 0 {
         return Err(failure(format!(
-            "{case_id}: H2.1a dispatch activity does not match {reached_sources} reached sources"
+            "{case_id}: direct AMD/UMD dispatch reached the H2.1a implied-format composite"
         )));
     }
     if activity.runtime_slice(H2RuntimeSlice::H2_1b) != reached_sources {

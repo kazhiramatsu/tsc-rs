@@ -1948,7 +1948,7 @@ impl<'a> CheckerState<'a> {
         let prop_flags = self.binder.symbol(prop).flags;
         let is_setonly_accessor = prop_flags.intersects(SymbolFlags::SET_ACCESSOR)
             && !prop_flags.intersects(SymbolFlags::GET_ACCESSOR);
-        if !is_setonly_accessor && readonly == self.is_readonly_symbol(prop) {
+        if !is_setonly_accessor && readonly == self.is_readonly_symbol(prop)? {
             return Ok(prop);
         }
         let flags = SymbolFlags::PROPERTY | (prop_flags & SymbolFlags::OPTIONAL);

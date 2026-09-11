@@ -104,6 +104,15 @@ mod h2_7c_isolated_private_types;
 #[path = "integration/h2_7c_declaration_dir.rs"]
 mod h2_7c_declaration_dir;
 
+#[path = "integration/h2_8a_output_directories.rs"]
+mod h2_8a_output_directories;
+
+#[path = "integration/h2_8a_output_roots.rs"]
+mod h2_8a_output_roots;
+
+#[path = "integration/h2_8a_output_filesystem.rs"]
+mod h2_8a_output_filesystem;
+
 #[path = "integration/h2_7c_declaration_getters.rs"]
 mod h2_7c_declaration_getters;
 
@@ -112,3 +121,141 @@ mod h2_7c_forced_declarations;
 
 #[path = "integration/h2_7c_corpus.rs"]
 mod h2_7c_corpus;
+
+#[path = "integration/h2_8a_package_output_inputs.rs"]
+mod h2_8a_package_output_inputs;
+
+#[path = "integration/h2_8a_javascript_imports.rs"]
+mod h2_8a_javascript_imports;
+
+#[path = "integration/h2_8a_local_aliases.rs"]
+mod h2_8a_local_aliases;
+
+#[path = "integration/h2_8a_class_dependency_order.rs"]
+mod h2_8a_class_dependency_order;
+
+#[path = "integration/h2_8a_repeated_target_aliases.rs"]
+mod h2_8a_repeated_target_aliases;
+
+#[path = "integration/h2_8a_class_transform_flags.rs"]
+mod h2_8a_class_transform_flags;
+
+#[path = "integration/h2_8a_class_statement_layout.rs"]
+mod h2_8a_class_statement_layout;
+
+#[path = "integration/h2_8a_export_specifier_names.rs"]
+mod h2_8a_export_specifier_names;
+
+#[path = "integration/h2_8a_cjs_default_reexport_names.rs"]
+mod h2_8a_cjs_default_reexport_names;
+
+#[path = "integration/h2_8a_export_name_syntax.rs"]
+mod h2_8a_export_name_syntax;
+
+#[path = "integration/h2_8a_export_name_syntax_maps.rs"]
+mod h2_8a_export_name_syntax_maps;
+
+#[path = "integration/h2_8a_system_variable_publication.rs"]
+mod h2_8a_system_variable_publication;
+
+#[path = "integration/h2_8a_declaration_token_comments.rs"]
+mod h2_8a_declaration_token_comments;
+
+#[path = "integration/h2_8a_alias_conflict_display.rs"]
+mod h2_8a_alias_conflict_display;
+
+#[path = "integration/h2_8a_array_comment_publication.rs"]
+mod h2_8a_array_comment_publication;
+
+#[path = "integration/h2_8a_import_publication_reference.rs"]
+mod h2_8a_import_publication_reference;
+
+#[path = "integration/h2_8a_synthetic_default_alias.rs"]
+mod h2_8a_synthetic_default_alias;
+
+#[path = "integration/h2_8a_jsdoc_parentheses_guard.rs"]
+mod h2_8a_jsdoc_parentheses_guard;
+
+#[path = "integration/h2_8a_commonjs_class_instance.rs"]
+mod h2_8a_commonjs_class_instance;
+#[path = "integration/h2_8a_static_initializer_map_ranges.rs"]
+mod h2_8a_static_initializer_map_ranges;
+
+#[path = "integration/h2_8a_hoisted_declaration_export_ranges.rs"]
+mod h2_8a_hoisted_declaration_export_ranges;
+
+#[path = "integration/h2_8a_synthetic_namespace_export_modifiers.rs"]
+mod h2_8a_synthetic_namespace_export_modifiers;
+
+#[path = "integration/h2_8a_jsdoc_implements_serialization.rs"]
+mod h2_8a_jsdoc_implements_serialization;
+
+#[path = "integration/h2_8a_transformed_class_assigned_names.rs"]
+mod h2_8a_transformed_class_assigned_names;
+
+#[path = "integration/h2_8a_commonjs_esmodule_marker.rs"]
+mod h2_8a_commonjs_esmodule_marker;
+
+#[path = "integration/h2_8a_module_transformer_selection.rs"]
+mod h2_8a_module_transformer_selection;
+
+#[path = "integration/h2_8a_binding_name_map_ranges.rs"]
+mod h2_8a_binding_name_map_ranges;
+#[path = "integration/h2_8a_defineproperty_readonly.rs"]
+mod h2_8a_defineproperty_readonly;
+#[path = "integration/h2_8a_defineproperty_readonly_exports.rs"]
+mod h2_8a_defineproperty_readonly_exports;
+#[path = "integration/h2_8a_defineproperty_setter_annotations.rs"]
+mod h2_8a_defineproperty_setter_annotations;
+#[path = "integration/h2_8a_defineproperty_setter_names.rs"]
+mod h2_8a_defineproperty_setter_names;
+
+#[path = "integration/h2_8a_meta_property_token_maps.rs"]
+mod h2_8a_meta_property_token_maps;
+
+#[path = "integration/h2_8a_class_field_alias_map_positions.rs"]
+mod h2_8a_class_field_alias_map_positions;
+
+#[path = "integration/h2_8a_class_field_initializer_comments.rs"]
+mod h2_8a_class_field_initializer_comments;
+
+#[path = "integration/h2_8a_promoted_class_export_maps.rs"]
+mod h2_8a_promoted_class_export_maps;
+
+#[path = "integration/h2_8a_one_sided_class_comments.rs"]
+mod h2_8a_one_sided_class_comments;
+
+#[path = "integration/h2_8a_class_helper_accessor_producers.rs"]
+mod h2_8a_class_helper_accessor_producers;
+
+#[path = "integration/h2_8a_jsdoc_block_scope_container.rs"]
+mod h2_8a_jsdoc_block_scope_container;
+
+#[path = "integration/h2_8a_export_star_declaration_producer.rs"]
+mod h2_8a_export_star_declaration_producer;
+
+#[path = "integration/h2_8a_class_optional_name.rs"]
+mod h2_8a_class_optional_name;
+
+#[path = "integration/h2_8a_class_header_token.rs"]
+mod h2_8a_class_header_token;
+
+#[path = "integration/h2_8a_const_modifier_erasure.rs"]
+mod h2_8a_const_modifier_erasure;
+
+#[path = "integration/h2_8a_import_helpers.rs"]
+mod h2_8a_import_helpers;
+
+#[path = "integration/h2_8a_token_comment_phases.rs"]
+mod h2_8a_token_comment_phases;
+
+#[path = "integration/h2_8a_ellipsis_comment_owners.rs"]
+mod h2_8a_ellipsis_comment_owners;
+
+#[path = "integration/h2_8a_decorator_next_witnesses.rs"]
+mod h2_8a_decorator_next_witnesses;
+#[path = "integration/h2_8a_retained_accessor_owners.rs"]
+mod h2_8a_retained_accessor_owners;
+
+#[path = "integration/h2_8a_object_property_owners.rs"]
+mod h2_8a_object_property_owners;

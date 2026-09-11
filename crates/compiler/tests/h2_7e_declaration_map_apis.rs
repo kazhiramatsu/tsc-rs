@@ -300,22 +300,13 @@ fn h2_7e_preserved_source_references_use_forced_declaration_paths() {
     assert_eq!(counts.get("ordinary-noEmit-boundary"), None);
     let adjacent = fixture["adjacent_out_dir_observations"].as_array().unwrap();
     assert_eq!(adjacent.len(), 8);
-    for case in adjacent {
-        for _ in 0..2 {
-            let mut entered = false;
-            let error = ProgramSession::new(prepared(case))
-                .with_declarations(|_| {
-                    entered = true;
-                    Ok(())
-                })
-                .unwrap_err();
-            assert!(!entered, "outDir remains an H2.8a request boundary");
-            assert!(matches!(
-                error,
-                DriverError::Emit(EmitFailure::UnsupportedCompilerOption { option: "outDir" })
-            ));
-        }
-    }
+    // H2.8a executes the original complete observations, including retained
+    // getter caches and forced/ordinary declaration-map reference paths.
+    let counts = assert_stateful_program_cases(&json!({"cases": adjacent}));
+    assert_eq!(counts.get("declaration-diagnostics"), Some(&(24 * 2)));
+    assert_eq!(counts.get("forced-declarations"), Some(&(24 * 2)));
+    assert_eq!(counts.get("ordinary-command"), Some(&(8 * 2)));
+    assert_eq!(counts.get("ordinary-noEmit-boundary"), None);
 }
 
 #[test]

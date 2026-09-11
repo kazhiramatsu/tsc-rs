@@ -505,7 +505,7 @@ fn not_emitted_type_element_and_utf16_literal_metadata_are_exact() {
         let literal = factory
             .create_string_literal_from_code_units(source, &units, single_quote)
             .unwrap();
-        let metadata = factory.arena.metadata(literal).unwrap();
+        let metadata = factory.arena.literal_properties(literal).unwrap();
         assert_eq!(
             metadata.javascript_string_value().unwrap().code_units(),
             units.as_slice(),

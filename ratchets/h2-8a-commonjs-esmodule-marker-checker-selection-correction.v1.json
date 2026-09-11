@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "status": "planned-checker-count-correction-from-actual-owner-suite",
+  "old_expected_count": 32,
+  "correct_owner_suite": "emit::tests::",
+  "actual_tests_passed": 17,
+  "new_tests": 1,
+  "existing_tests": 16,
+  "tests_executed": [
+    "emit::tests::classic_jsx_fragment_retains_only_the_fragment_factory_import",
+    "emit::tests::common_js_esmodule_marker_resolver_reads_the_exact_binder_fact",
+    "emit::tests::dm_check_phase_paints_both_export_alias_arms_only_for_declaration_outputs",
+    "emit::tests::dm_container_properties_literal_const_and_late_bound_predicates_preserve_shape",
+    "emit::tests::dm_global_optional_and_overload_predicates_cover_adjacent_negative_shapes",
+    "emit::tests::dm_implicit_undefined_and_expando_predicates_cover_type_and_modifier_gates",
+    "emit::tests::dm_import_required_by_augmentation_uses_the_merged_source_key",
+    "emit::tests::dm_meaning_classification_table_and_emit_declaration_gate_are_exact",
+    "emit::tests::dm_symbol_and_entity_visibility_preserve_result_codes_aliases_and_error_nodes",
+    "emit::tests::dm_visibility_walk_collects_and_monotonically_paints_linked_aliases",
+    "emit::tests::emit_import_resolution_filters_only_value_bearing_type_only_origins",
+    "emit::tests::emit_resolver_reanchors_decorator_metadata_imports_to_the_class_scope",
+    "emit::tests::emit_resolver_validates_symbol_session_before_symbol_bounds",
+    "emit::tests::import_publication_declaration_references_match_typescript_resolver",
+    "emit::tests::null_jsx_fragment_factory_does_not_retain_the_ordinary_factory_import_or_its_pragmas",
+    "emit::tests::resolver_queries_replay_the_foundation_direct_controls",
+    "emit::tests::scoped_emit_resolver_reads_live_alias_and_constant_links_and_fails_closed_elsewhere"
+  ],
+  "cause": "A21 passed31 node_builder tests; adding1 new emit test to that unrelated count was incorrect. The selected emit suite actually contains17 tests.",
+  "production_changed_for_correction": false,
+  "additional_tests_needed_for_emit_suite": false,
+  "log": {
+    "path": "target/h2-8a-commonjs-esmodule-marker-checker-after.log",
+    "sha256": "f571910f21afad01e4c1b463c29cbdbd6700abe356ada7ef83fffb8d47b5011a"
+  },
+  "prior_different_suite_log": {
+    "path": "target/h2-8a-jsdoc-implements-serialization-checker-after.log",
+    "sha256": "ba9f44f59359b646063edac72b4a4dae50f79c9346f1e2ceb60110edf28a9200"
+  },
+  "communication_correction": "The premature32-pass statement was immediately corrected to17 actual passes and the incorrect planned count explained.",
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-commonjs-marker-after-u46_bw3w",
+  "prelaunch_snapshot_subdirectory": "prelaunch",
+  "launch_readiness": {
+    "path": "ratchets/h2-8a-commonjs-esmodule-marker-readiness.v1.json",
+    "sha256": "1288cd6c67aa624eabfc6a57dcbf88457055c0863e328369d94519c3ee5ce97b"
+  }
+}

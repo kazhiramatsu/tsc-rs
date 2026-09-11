@@ -16,7 +16,7 @@ fn declaration_dir_match_complete_typescript_observations() {
             .filter(|case| case["rust_expected_unsupported_option"] == "outDir")
             .count(),
         3,
-        "the three outDir combinations retain H2.8a ownership",
+        "three historical H2.8a references now execute their unchanged exact observations",
     );
     super::h2_7c_declaration_blocking::assert_cases(&artifact);
 }

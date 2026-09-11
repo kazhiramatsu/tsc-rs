@@ -943,8 +943,8 @@ pub(crate) fn emit_command_status(
         .unwrap_or_default()
         .iter()
         .map(|path| {
-            let absolute = absolutize(current_directory, path);
-            format!("TSFILE: {}", normalize_slashes(&absolute.to_string_lossy()))
+            let absolute = tsc_program::canonical_emit_path(path, current_directory, true);
+            format!("TSFILE: {}", absolute.display())
         })
         .collect::<Vec<_>>();
 

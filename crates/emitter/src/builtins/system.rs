@@ -385,8 +385,9 @@ enum SystemEmptyEmbeddedStatement {
 enum SystemBindingStep {
     Evaluate(TransformNode),
     Bind {
-        local: Box<str>,
+        name: TransformNode,
         expression: TransformNode,
+        original: Option<TransformNode>,
     },
 }
 
@@ -400,19 +401,47 @@ impl SystemBindingPlan {
         self.steps.push(SystemBindingStep::Evaluate(expression));
     }
 
-    fn push_binding(&mut self, local: impl Into<Box<str>>, expression: TransformNode) {
+    fn push_binding(
+        &mut self,
+        name: TransformNode,
+        expression: TransformNode,
+        original: Option<TransformNode>,
+    ) {
         self.steps.push(SystemBindingStep::Bind {
-            local: local.into(),
+            name,
             expression,
+            original,
         });
     }
 
-    fn into_expressions(self) -> Vec<TransformNode> {
+    /// tsc-port: flattenDestructuringAssignment @6.0.3
+    /// tsc-span: _tsc.js:93251-93328
+    /// tsc-hash: 8303d862131f74b895085ac8968b52d5d0267330e000e0e91546757aaf278ee0
+    fn into_expressions(
+        self,
+        context: &mut TransformationContext,
+    ) -> Result<Vec<TransformNode>, TransformError> {
         self.steps
             .into_iter()
             .map(|step| match step {
                 SystemBindingStep::Evaluate(expression)
-                | SystemBindingStep::Bind { expression, .. } => expression,
+                | SystemBindingStep::Bind {
+                    expression,
+                    original: None,
+                    ..
+                } => Ok(expression),
+                SystemBindingStep::Bind {
+                    expression,
+                    original: Some(original),
+                    ..
+                } => {
+                    // The callback return gets a raw original link after any
+                    // export wrapping, without merging the element's metadata.
+                    context
+                        .arena_mut()?
+                        .set_semantic_original_node(expression, original)?;
+                    Ok(expression)
+                }
             })
             .collect()
     }
@@ -900,11 +929,15 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                     self.info.common.hoisted_declaration_exports(
                         self.context.arena(),
                         self.source,
+                        self.context.arena().get_original_node(original),
                         data.modifiers,
+                        data.name,
                         local,
                     )
                 })
                 .transpose()?
+                .flatten()
+                .map(|exports| exports.publications)
                 .unwrap_or_default()
         } else {
             Vec::new()
@@ -915,7 +948,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         if let Some(local) = local {
             for export in exports {
                 let value = self.create_identifier(&local)?;
-                let call = self.create_export_call(&export, value)?;
+                let call = self.create_export_call_with_name(&export.name, value)?;
                 output.push(self.create_expression_statement(call)?);
             }
         }
@@ -943,17 +976,11 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                         field: "expression",
                     })?;
                 let expression = self.visit(expression)?;
-                // tsc's createExportExpression prevents the source value's
-                // comments from becoming argument-list comments inside the
-                // synthesized exports call. The export statement owns its
-                // own comment range independently.
-                self.context
-                    .arena_mut()?
-                    .metadata_mut(expression)
-                    .add_flags(crate::EmitFlags::NO_COMMENTS);
-                let call = self.create_export_call("default", expression)?;
-                let emitted = self.create_expression_statement(call)?;
-                self.set_original_and_range(emitted, statement)?;
+                // tsc-port: transformSystemModule.visitExportAssignment @6.0.3
+                // tsc-span: _tsc.js:112564-112575
+                // tsc-hash: dd8adf7eef2e11ce15016a5bf672abb4193d6dcc9d4de4e837ac0e5afbeeaaed
+                let name = super::ModuleExportName::identifier("default");
+                let emitted = self.create_export_statement(&name, expression, true)?;
                 Ok(vec![emitted])
             }
             NodeData::VariableStatement(data) => {
@@ -1349,7 +1376,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             let target = self.create_identifier(&binding.generated_name)?;
             let value =
                 super::create_import_binding_access(self.context, self.source, target, &binding)?;
-            let call = self.create_export_call(&export, value)?;
+            let call = self.create_export_call_with_name(&export, value)?;
             let statement = self.create_expression_statement(call)?;
             statements.push(statement);
         }
@@ -1566,7 +1593,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                 let initializer = self.visit(initializer)?;
                 let flattened =
                     self.flatten_binding_initialization(declaration, variable.name, initializer)?;
-                expressions.extend(flattened.into_expressions());
+                expressions.extend(flattened.into_expressions(self.context)?);
             } else if let Some(name) = variable.name {
                 expressions.push(self.visit(name)?);
             }
@@ -1578,6 +1605,9 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         Ok(Some(expression))
     }
 
+    /// tsc-port: transformSystemModule.visitVariableStatement @6.0.3
+    /// tsc-span: _tsc.js:112634-112683
+    /// tsc-hash: 6571fc0551b24284b57ab11c666dce1514bf542ed6e8b30fd0ee09e6c8471a0c
     fn transform_hoisted_variable_statement(
         &mut self,
         original: TransformNode,
@@ -1607,43 +1637,20 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                 self.flatten_binding_initialization(declaration, variable.name, initializer)?;
             if direct_export {
                 for step in &mut plan.steps {
-                    let SystemBindingStep::Bind { local, expression } = step else {
+                    let SystemBindingStep::Bind {
+                        name, expression, ..
+                    } = step
+                    else {
                         continue;
                     };
-                    if let Some(exports) = self
-                        .info
-                        .common
-                        .exports_by_local
-                        .get(local.as_ref())
-                        .cloned()
-                    {
-                        let mut wrapped = *expression;
-                        for export in exports {
-                            wrapped = self.create_export_call(&export, wrapped)?;
-                        }
-                        *expression = wrapped;
-                    }
-                }
-            } else {
-                for local in plan.steps.iter().filter_map(|step| match step {
-                    SystemBindingStep::Bind { local, .. } => Some(local.to_string()),
-                    SystemBindingStep::Evaluate(_) => None,
-                }) {
-                    for export in self
-                        .info
-                        .common
-                        .exports_by_local
-                        .get(local.as_str())
-                        .cloned()
-                        .unwrap_or_default()
-                    {
-                        let value = self.create_identifier(&local)?;
-                        let call = self.create_export_call(&export, value)?;
-                        trailing_exports.push(self.create_expression_statement(call)?);
-                    }
+                    let export = super::ModuleExportName::from_node(self.context.arena(), *name)?;
+                    let wrapped = self.create_export_call_with_name(&export, *expression)?;
+                    *expression = wrapped;
                 }
             }
-            initialization_expressions.extend(plan.into_expressions());
+            trailing_exports
+                .extend(self.append_variable_declaration_exports(declaration, variable.name)?);
+            initialization_expressions.extend(plan.into_expressions(self.context)?);
         }
         let mut output = Vec::new();
         if let Some(expression) = self.inline_expressions(initialization_expressions)? {
@@ -1653,6 +1660,57 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         }
         output.extend(trailing_exports);
         Ok(output)
+    }
+
+    /// tsc-port: transformSystemModule.appendExportsOfDeclaration @6.0.3
+    /// tsc-span: _tsc.js:112810-112824
+    /// tsc-hash: 13b49063d17b505f1ac55a6cd3bff563cc556dca34c999d38c7acfc344e7cc38
+    /// tsc-port: transformSystemModule.appendExportsOfBindingElement @6.0.3
+    /// tsc-span: _tsc.js:112775-112794
+    /// tsc-hash: 9737ef0e58c8d69a5fa6c295ef84add4fc7fc15dc423f68500ab0f604911926c
+    fn append_variable_declaration_exports(
+        &mut self,
+        declaration: TransformNode,
+        name: Option<NodeId>,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        if !self.info.common.appends_declaration_exports() {
+            return Ok(Vec::new());
+        }
+        let leaves =
+            super::binding_name_leaves(self.context.arena(), self.source, name, declaration)?;
+        let mut statements = Vec::new();
+        for leaf in leaves {
+            if self
+                .context
+                .arena()
+                .metadata(leaf.name)
+                .and_then(crate::EmitMetadata::generated_binding_id)
+                .is_some()
+            {
+                continue;
+            }
+            let local = identifier_or_literal_text(self.context.arena(), leaf.name)?;
+            let exports = self
+                .info
+                .common
+                .export_specifiers_by_local
+                .get(local.as_str())
+                .cloned()
+                .unwrap_or_default();
+            if exports.is_empty() {
+                continue;
+            }
+            let value = self.context.factory()?.clone_node(leaf.name)?;
+            self.context.factory()?.set_text_range(value, leaf.name)?;
+            self.context
+                .arena_mut()?
+                .metadata_mut(value)
+                .add_flags(crate::EmitFlags::NO_SOURCE_MAP | crate::EmitFlags::NO_COMMENTS);
+            for export in exports {
+                statements.push(self.create_export_statement(&export, value, false)?);
+            }
+        }
+        Ok(statements)
     }
 
     fn flatten_binding_initialization(
@@ -1673,7 +1731,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         } else {
             initializer
         };
-        self.flatten_system_binding_target(&mut plan, name, value)?;
+        self.flatten_system_binding_target(&mut plan, name, value, None)?;
         Ok(plan)
     }
 
@@ -1682,12 +1740,23 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         plan: &mut SystemBindingPlan,
         target: TransformNode,
         value: TransformNode,
+        original: Option<TransformNode>,
     ) -> Result<(), TransformError> {
         match self.context.arena().node(target)?.data.clone() {
-            NodeData::Identifier(data) => {
-                let local = data.text;
+            NodeData::Identifier(_) => {
                 let assignment = self.create_assignment(target, value)?;
-                plan.push_binding(local, assignment);
+                // tsc-port: transformSystemModule.createVariableAssignment @6.0.3
+                // tsc-span: _tsc.js:112728-112731
+                // tsc-hash: ec0fd2758f3f60f309ba8f14012e3b91ace791b776b284e570b6245788de7d72
+                // tsc-port: flattenDestructuringAssignment @6.0.3
+                // tsc-span: _tsc.js:93251-93328
+                // tsc-hash: 8303d862131f74b895085ac8968b52d5d0267330e000e0e91546757aaf278ee0
+                if let Some(original) = original {
+                    self.context
+                        .factory()?
+                        .set_text_range(assignment, original)?;
+                }
+                plan.push_binding(target, assignment, original);
                 Ok(())
             }
             NodeData::ObjectBindingPattern(data) => {
@@ -1790,7 +1859,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             let fallback = self.context.factory()?.clone_node(value)?;
             value = self.create_conditional(condition, initializer, fallback)?;
         }
-        self.flatten_system_binding_target(plan, element.target, value)
+        self.flatten_system_binding_target(plan, element.target, value, Some(element.original))
     }
 
     fn ensure_system_binding_identifier(
@@ -1853,7 +1922,10 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                 parent: SyntaxKind::BindingElement,
                 field: "property name",
             })?;
-        let base = self.context.factory()?.clone_node(value)?;
+        // tsc-port: createDestructuringPropertyAccess @6.0.3
+        // tsc-span: _tsc.js:93630-93649
+        // tsc-hash: d9a831e921e64f0142bcf4826daf4d38068a264ebfba7b35be510fedfa1ed7eb
+        let base = value;
         if let NodeData::ComputedPropertyName(data) =
             self.context.arena().node(property_name)?.data.clone()
         {
@@ -1987,11 +2059,15 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                     self.info.common.hoisted_declaration_exports(
                         self.context.arena(),
                         self.source,
+                        self.context.arena().get_original_node(original),
                         data.modifiers,
+                        data.name,
                         local,
                     )
                 })
                 .transpose()?
+                .flatten()
+                .map(|exports| exports.publications)
                 .unwrap_or_default()
         } else {
             Vec::new()
@@ -2021,7 +2097,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             output.push(statement);
             for export in exports {
                 let value = self.create_identifier(&local)?;
-                let call = self.create_export_call(&export, value)?;
+                let call = self.create_export_call_with_name(&export.name, value)?;
                 output.push(self.create_expression_statement(call)?);
             }
         } else {
@@ -2077,16 +2153,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                     .is_ok_and(|node| node.kind == SyntaxKind::ImportKeyword)
             });
         if is_dynamic_import {
-            let arguments = node_array_nodes(self.context.arena(), self.source, data.arguments)?;
-            let arguments = arguments
-                .into_iter()
-                .map(|argument| self.visit(argument.node()))
-                .collect::<Result<Vec<_>, _>>()?;
-            let context = self.create_identifier(&self.context_name.clone())?;
-            let import = self.create_property_access(context, "import")?;
-            let transformed = self.create_call(import, arguments)?;
-            self.set_original_and_range(transformed, original)?;
-            return Ok(transformed);
+            return self.visit_import_call_expression(original, data);
         }
 
         let mut node_data = NodeData::CallExpression(data);
@@ -2098,6 +2165,56 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         // namespace property as the direct callee. Unlike CommonJS, tsc's
         // System transform does not synthesize `(0, imported)(...)` here.
         self.update_generic_without_visit(original, NodeData::CallExpression(data))
+    }
+
+    /// tsc-port: visitImportCallExpression @6.0.3
+    /// tsc-hash: 7f302ac9bb6fc987c269f7f7089633ff472f5301aa4e07b2f3609afbc0865cba
+    /// tsc-span: _tsc.js:113092-113106
+    fn visit_import_call_expression(
+        &mut self,
+        original: TransformNode,
+        data: tsc_syntax::nodes::CallExpressionData,
+    ) -> Result<TransformNode, TransformError> {
+        let first = node_array_nodes(self.context.arena(), self.source, data.arguments)?
+            .into_iter()
+            .next();
+        let external_module_name = match first {
+            Some(argument)
+                if self.context.arena().node(argument)?.kind == SyntaxKind::StringLiteral =>
+            {
+                crate::external_module_names::resolved_external_module_name_literal(
+                    self.host,
+                    self.resolver,
+                    self.context.arena(),
+                    original,
+                )?
+            }
+            _ => None,
+        };
+        let first = first
+            .map(|argument| self.visit(argument.node()))
+            .transpose()?;
+        let argument = if let Some(name) = external_module_name {
+            let same_name = match first {
+                Some(argument) => {
+                    self.context.arena().node(argument)?.kind == SyntaxKind::StringLiteral
+                        && string_literal_text(self.context.arena(), argument)? == name
+                }
+                None => false,
+            };
+            if same_name {
+                first
+            } else {
+                Some(self.create_string_literal(&name)?)
+            }
+        } else {
+            first
+        };
+        let context = self.create_identifier(&self.context_name.clone())?;
+        let import = self.create_property_access(context, "import")?;
+        let transformed = self.create_call(import, argument.into_iter().collect())?;
+        self.set_original_and_range(transformed, original)?;
+        Ok(transformed)
     }
 
     fn visit_meta_property(
@@ -2113,12 +2230,17 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                 .as_deref()
                 == Some("meta");
         if !is_import_meta {
-            return self.update_generic(original, NodeData::MetaProperty(data));
+            // tsc-port: substituteMetaProperty @6.0.3
+            // tsc-hash: e84500cf33cc66757fb10aaaf3d10bc88a7a222cce65c52c3d1c24c79ed6419d
+            // tsc-span: _tsc.js:113312-113317
+            // The retained name is emitted with Unspecified, so an import
+            // named target must not substitute the name in new.target.
+            return Ok(original);
         }
         let context = self.create_identifier(&self.context_name.clone())?;
-        let transformed = self.create_property_access(context, "meta")?;
-        self.set_original_and_range(transformed, original)?;
-        Ok(transformed)
+        // substituteMetaProperty leaves the replacement wholly synthetic;
+        // the parsed import.meta range must not reach its source maps.
+        self.create_property_access(context, "meta")
     }
 
     fn visit_binary_expression(
@@ -2153,7 +2275,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         let mut expression =
             self.update_generic_without_visit(original, NodeData::BinaryExpression(data))?;
         for export in exports {
-            expression = self.create_export_call(&export, expression)?;
+            expression = self.create_export_call_with_name(&export, expression)?;
         }
         Ok(expression)
     }
@@ -2182,7 +2304,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         let mut expression =
             self.update_generic_without_visit(original, NodeData::PrefixUnaryExpression(data))?;
         for export in exports {
-            expression = self.create_export_call(&export, expression)?;
+            expression = self.create_export_call_with_name(&export, expression)?;
         }
         Ok(expression)
     }
@@ -2220,11 +2342,21 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             .and_then(|operand| identifier_or_literal_text(self.context.arena(), operand).ok())
             .unwrap_or_default();
         if value_is_discarded {
-            let current = self.create_identifier(&operand_text)?;
+            // tsc-port: transformSystemModule.visitPrefixOrPostfixUnaryExpression @6.0.3
+            // tsc-span: _tsc.js:113142-113171
+            // tsc-hash: 7cb86637e144d123b18ed01fd4d3df03058a522141ed8789259204c532b18694
+            let current = self.context.factory()?.clone_node(
+                original_operand.expect("an exported postfix update has an identifier operand"),
+            )?;
             let comma = self.create_binary(update, SyntaxKind::CommaToken, current)?;
+            self.context.factory()?.set_text_range(comma, original)?;
             let mut expression = self.create_parenthesized(comma)?;
+            // tsc-port: parenthesizeExpressionForDisallowedComma @6.0.3
+            // tsc-span: _tsc.js:20483-20488
+            // tsc-hash: 0a7087ac86e0e05adcb2a09a875ee73ad9e77636dc29e663dd7d03ea3e38e786
+            self.context.factory()?.set_text_range(expression, comma)?;
             for export in exports {
-                expression = self.create_export_call(&export, expression)?;
+                expression = self.create_export_call_with_name(&export, expression)?;
             }
             return Ok(expression);
         }
@@ -2235,7 +2367,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         let current = self.create_identifier(&operand_text)?;
         let mut publish = current;
         for export in exports {
-            publish = self.create_export_call(&export, publish)?;
+            publish = self.create_export_call_with_name(&export, publish)?;
         }
         let first = self.create_binary(save, SyntaxKind::CommaToken, publish)?;
         let temp_value = self.create_identifier(&temp)?;
@@ -2331,7 +2463,10 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         }))
     }
 
-    fn exports_for_identifier(&self, node: TransformNode) -> Result<Vec<Box<str>>, TransformError> {
+    fn exports_for_identifier(
+        &self,
+        node: TransformNode,
+    ) -> Result<Vec<super::ModuleExportName>, TransformError> {
         if self.context.arena().node(node)?.kind != SyntaxKind::Identifier {
             return Ok(Vec::new());
         }
@@ -2409,8 +2544,10 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
     fn create_export_star_prelude(&mut self) -> Result<Vec<TransformNode>, TransformError> {
         let mut output = Vec::new();
         let mut exported_names = self.info.non_function_exported_names.clone();
-        for (export, _, _) in self.info.common.hoisted_function_exports.clone() {
-            push_unique(&mut exported_names, &export);
+        for exports in &self.info.common.hoisted_function_exports {
+            for publication in &exports.publications {
+                push_unique(&mut exported_names, &publication.name);
+            }
         }
         let local_names = if exported_names.is_empty() {
             None
@@ -2759,6 +2896,67 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         let value = self.create_binary(context, SyntaxKind::AmpersandAmpersandToken, id)?;
         let declaration = self.create_variable_declaration("__moduleName", Some(value))?;
         self.create_variable_statement(vec![declaration], NodeFlags::NONE)
+    }
+
+    /// tsc-port: transformSystemModule.createExportStatement @6.0.3
+    /// tsc-span: _tsc.js:112829-112836
+    /// tsc-hash: 6d8d7a439b41649c648f5f37b9d3041fa8e2ca5bcf538311f55c1f470c1372a2
+    fn create_export_statement(
+        &mut self,
+        name: &super::ModuleExportName,
+        value: TransformNode,
+        allow_comments: bool,
+    ) -> Result<TransformNode, TransformError> {
+        let call = self.create_export_call_with_name(name, value)?;
+        let statement = self.create_expression_statement(call)?;
+        let metadata = self.context.arena_mut()?.metadata_mut(statement);
+        metadata.set_starts_on_new_line(true);
+        if !allow_comments {
+            metadata.add_flags(crate::EmitFlags::NO_COMMENTS);
+        }
+        Ok(statement)
+    }
+
+    /// tsc-port: transformSystemModule.createExportExpression @6.0.3
+    /// tsc-span: _tsc.js:112837-112846
+    /// tsc-hash: 1047eae1c9c391b34504e0e5ec4bacdb1c36d2b2d3ba04b5f672d966769b8394
+    fn create_export_call_with_name(
+        &mut self,
+        name: &super::ModuleExportName,
+        value: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let exports = self.create_identifier(&self.exports_name.clone())?;
+        let name = match name.syntax {
+            super::ModuleExportNameSyntax::ExistingNode(node)
+                if self.context.arena().node(node)?.kind == SyntaxKind::StringLiteral =>
+            {
+                node
+            }
+            _ => super::create_module_export_name_literal(self.context, self.source, name)?,
+        };
+        self.context
+            .arena_mut()?
+            .metadata_mut(value)
+            .add_flags(crate::EmitFlags::NO_COMMENTS);
+        let call = self.create_call(exports, vec![name, value])?;
+        let record = self.context.arena().node(value)?;
+        if record.pos != u32::MAX && record.end != u32::MAX {
+            let range = crate::SourceRange::from_raw(
+                record.pos,
+                record.end,
+                self.context
+                    .arena()
+                    .source(value.source())?
+                    .syntax()
+                    .positions(),
+            )
+            .map_err(|error| TransformError::InvalidSourceRange { node: value, error })?;
+            self.context
+                .arena_mut()?
+                .metadata_mut(call)
+                .set_comment_range(crate::CommentRange::new(value.source(), range));
+        }
+        Ok(call)
     }
 
     fn create_export_call(

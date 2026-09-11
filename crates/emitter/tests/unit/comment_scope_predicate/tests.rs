@@ -55,7 +55,6 @@ impl PredicateFixture {
             ),
             flags,
             kind,
-            relocated_trailing: false,
         }
     }
 
@@ -64,7 +63,6 @@ impl PredicateFixture {
             range: CommentRange::new(self.source, SourceRange::Synthesized),
             flags,
             kind,
-            relocated_trailing: false,
         }
     }
 }
@@ -150,4 +148,93 @@ fn synthesized_and_zero_width_ranges_claim_nothing_so_the_scope_inherits() {
         outer,
         "the enclosing scope stays active"
     );
+}
+
+#[test]
+fn one_sided_comment_ranges_claim_present_endpoint_and_inherit_other() {
+    let fixture = fixture();
+    let outer = CommentEmissionScope::empty()
+        .claim_declaration_list_sides(Some(fixture.cursor(0)), Some(fixture.cursor(21)));
+    for flags in [
+        EmitFlags::NONE,
+        EmitFlags::NO_LEADING_COMMENTS,
+        EmitFlags::NO_TRAILING_COMMENTS,
+        EmitFlags::NO_COMMENTS,
+    ] {
+        for (start, end, expected, inherited) in [
+            (
+                8,
+                u32::MAX,
+                (Some(fixture.cursor(8)), None),
+                (Some(fixture.cursor(8)), Some(fixture.cursor(21))),
+            ),
+            (
+                u32::MAX,
+                14,
+                (None, Some(fixture.cursor(14))),
+                (Some(fixture.cursor(0)), Some(fixture.cursor(14))),
+            ),
+        ] {
+            let mut owner = fixture.synthesized_owner(flags, SyntaxKind::Identifier);
+            owner.range =
+                CommentRange::from_raw(fixture.source, start, end, fixture.parsed.positions())
+                    .unwrap();
+            let claims = Printer::established_container_sides(owner);
+            assert_eq!(claims, expected);
+            let inner = outer.claim_sides(claims.0, claims.1);
+            assert_eq!((inner.container_pos(), inner.container_end()), inherited);
+            assert!(
+                inner.retains_end(fixture.cursor(21)),
+                "the independent declaration-list end survives"
+            );
+        }
+    }
+}
+
+#[test]
+fn one_sided_zero_position_has_no_comment_extent() {
+    let fixture = fixture();
+    let outer = CommentEmissionScope::empty()
+        .claim_sides(Some(fixture.cursor(8)), Some(fixture.cursor(21)));
+    for (start, end) in [(0, u32::MAX), (u32::MAX, 0)] {
+        for flags in [EmitFlags::NONE, EmitFlags::NO_COMMENTS] {
+            for kind in [SyntaxKind::Identifier, SyntaxKind::JsxText] {
+                let mut owner = fixture.synthesized_owner(flags, kind);
+                owner.range =
+                    CommentRange::from_raw(fixture.source, start, end, fixture.parsed.positions())
+                        .unwrap();
+                let claims = Printer::established_container_sides(owner);
+                assert_eq!(claims, (None, None));
+                assert_eq!(outer.claim_sides(claims.0, claims.1), outer);
+            }
+        }
+    }
+}
+
+#[test]
+fn jsx_one_sided_ranges_require_present_suppressed_side() {
+    let fixture = fixture();
+    for (start, end, flags, expected) in [
+        (8, u32::MAX, EmitFlags::NONE, (None, None)),
+        (8, u32::MAX, EmitFlags::NO_TRAILING_COMMENTS, (None, None)),
+        (
+            8,
+            u32::MAX,
+            EmitFlags::NO_LEADING_COMMENTS,
+            (Some(fixture.cursor(8)), None),
+        ),
+        (u32::MAX, 14, EmitFlags::NONE, (None, None)),
+        (u32::MAX, 14, EmitFlags::NO_LEADING_COMMENTS, (None, None)),
+        (
+            u32::MAX,
+            14,
+            EmitFlags::NO_TRAILING_COMMENTS,
+            (None, Some(fixture.cursor(14))),
+        ),
+    ] {
+        let mut owner = fixture.synthesized_owner(flags, SyntaxKind::JsxText);
+        owner.range =
+            CommentRange::from_raw(fixture.source, start, end, fixture.parsed.positions()).unwrap();
+        assert_eq!(Printer::established_container_sides(owner), expected);
+    }
 }

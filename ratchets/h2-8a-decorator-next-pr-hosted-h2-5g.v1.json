@@ -1,0 +1,22 @@
+{
+  "head": "2953ecb8a8817c623a361a73c8db24780f7945ca",
+  "run_url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/34565157958",
+  "run_id": 34565157958,
+  "conclusion": "failure",
+  "actual_test_exit": 1,
+  "log_sha256": "6a530b5640d37f80d7dff054b5b9eeaf9c0442977bd3776fdb9ca5f6575135c2",
+  "run_metadata_sha256": "ffc707621e593e41f7cf61eb120d9aae61115c897065390657e130a4917d7ee7",
+  "h2_5g": {
+    "candidates": 9027,
+    "exact_twice": 8511,
+    "h2_8a_deferred": 6,
+    "h2_9_deferred": 510,
+    "exact_diagnostics": 26815,
+    "exact_writes": 9466
+  },
+  "failure": {
+    "slice": "H2.5h",
+    "kind": "stale known-divergence entry; current complete observation is exact",
+    "case_id": "typescript-6.0.3/compiler/blockScopedVariablesUseBeforeDef.ts#target%3Des5"
+  }
+}

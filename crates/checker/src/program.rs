@@ -1354,6 +1354,16 @@ impl<'a> ProgramBinder<'a> {
                 .is_some()
     }
 
+    /// tsrs-native: binder-table projection of the source's existing
+    /// `commonJsModuleIndicator`, produced by `setCommonJsModuleIndicator`
+    /// (_tsc.js:44589-44600). Keep it distinct from forced external status.
+    pub fn is_common_js_module_of_node(&self, node: NodeId) -> bool {
+        self.file_entries[self.file_index_of_node(node)]
+            .data()
+            .common_js_module_indicator
+            .is_some()
+    }
+
     /// tsc-port: isExternalModule @6.0.3
     /// tsc-hash: 5effe04fdce706cc75f238b5c4efbb1f317b3f6bd665389fb71a79a119e7ceaa
     /// tsc-span: _tsc.js:28910-28912

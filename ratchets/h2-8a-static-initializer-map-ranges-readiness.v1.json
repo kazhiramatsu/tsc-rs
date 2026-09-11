@@ -1,0 +1,7638 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-18",
+  "base": "d7863caaad331660aee8d3bf3704273cab10e190",
+  "unresolved": 0,
+  "undispositioned": 0,
+  "runtime_paths": [
+    "crates/emitter/src/builtins/class_fields/downlevel.rs"
+  ],
+  "steps": [
+    "A6-18-1",
+    "A6-18-2",
+    "A6-18-3",
+    "A6-18-4",
+    "A6-18-5",
+    "A6-18-6"
+  ],
+  "owners": [
+    {
+      "owner": "getClassFacts",
+      "start": 96844,
+      "end": 96898,
+      "sha256": "18ea59522a3e87f378c8b5682c5eb2172be55cba02380fc3b240acbf0f4dd388"
+    },
+    {
+      "owner": "visitInNewClassLexicalEnvironment",
+      "start": 96921,
+      "end": 96967,
+      "sha256": "64423c7c89a2026a572faea7911cf786beb6725c7245d013d484fc7bbc4a7de2"
+    },
+    {
+      "owner": "visitClassDeclarationInNewClassLexicalEnvironment",
+      "start": 96971,
+      "end": 97045,
+      "sha256": "07a4943badefc9b5d6d774a2d04dac4f3803e24852f8410d2bb735feef6fd6d7"
+    },
+    {
+      "owner": "visitClassExpressionInNewClassLexicalEnvironment",
+      "start": 97049,
+      "end": 97129,
+      "sha256": "5885e805a286e1451a1c60771127ff84a6c108f88522eb2f90901c2703763319"
+    },
+    {
+      "owner": "transformProperty",
+      "start": 97488,
+      "end": 97500,
+      "sha256": "c4e9fbf0eb6953a64ba8257f83a5a79f3f8d904f06c12336d30b94ad5cdfd847"
+    },
+    {
+      "owner": "transformPropertyOrClassStaticBlock",
+      "start": 97444,
+      "end": 97466,
+      "sha256": "8135b6934f2b7c206c3f7558ad7e3907192380c5dc3236aeb83e1904f5252714"
+    },
+    {
+      "owner": "getSourceMapRange",
+      "start": 25336,
+      "end": 25339,
+      "sha256": "7b45f9797ce3582eccac7e1a3469e63d81994d1aa38d604e7e28f671ece9329e"
+    },
+    {
+      "owner": "setSourceMapRange",
+      "start": 25340,
+      "end": 25343,
+      "sha256": "23552aa8ff2afcb814f9ee33741f7bfb206dc595468594b4c4ef156f282bb5dc"
+    },
+    {
+      "owner": "setOriginalNode",
+      "start": 25208,
+      "end": 25217,
+      "sha256": "8ef5d40b9635be7af9ec133e0cb89a40498944062d5e9570facb5c3468121129"
+    },
+    {
+      "owner": "moveRangePastModifiers",
+      "start": 17311,
+      "end": 17317,
+      "sha256": "9d43119a4e2ea51f3f5a151f00816f7985c1781c9dc80cfd8e44f40807d3db9d",
+      "kind": "function"
+    },
+    {
+      "owner": "transformClassFields option bindings",
+      "start": 95864,
+      "end": 95874,
+      "sha256": "4cfce5e944ab637781314b938ced635a606303732015ff3365593f6889f4700d",
+      "kind": "binding-fragment"
+    },
+    {
+      "owner": "transformPropertyWorker",
+      "start": 97501,
+      "end": 97575,
+      "sha256": "fb5e7b8fdfc4fab54f8fdd4ea6f48902c80207af52647e23cb47491f0ce46edd"
+    },
+    {
+      "owner": "cloneNode",
+      "start": 24436,
+      "end": 24466,
+      "sha256": "d223dcea6ccf14e9212d40d5b8df188197023622ea3e5d624ffb974a25db19d6"
+    },
+    {
+      "owner": "generateInitializedPropertyExpressionsOrClassStaticBlock",
+      "start": 97467,
+      "end": 97487,
+      "sha256": "51a63f66258bcc0bd61a995b8952a78602998b82f909f47f8d12c24fc75761cb"
+    }
+  ],
+  "architecture": [
+    {
+      "id": "E-METADATA-BASE",
+      "disposition": "modified-requalify"
+    },
+    {
+      "id": "E-CAPTURE-CLASS-G",
+      "disposition": "modified-requalify"
+    },
+    {
+      "id": "E-ARENA",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-PROTOCOL",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-RESOLVER-BASE",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-METADATA-G-CLASS",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-NAMES-BASE",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-PRINTER-BASE",
+      "disposition": "premise-unchanged"
+    }
+  ],
+  "authorities": [
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-static-initializer-map-ranges.md",
+      "sha256": "bbc655b42f17aa380790842e9ad93de8a1bb72afcb99059564e3968758854fb7"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    },
+    {
+      "path": "ratchets/h2-8a-static-initializer-map-ranges-before.v1.json",
+      "sha256": "5fff6f961d1f463f625c01105bf627fc7e10e4aa60e729d3495e2d0f60b78ea7"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/static-initializer-map-ranges.json",
+      "sha256": "5c02323b3b5a00ff6e3a285aef4d40f78b637728490cbeba4b62f436855e69de"
+    },
+    {
+      "path": "scripts/observe-static-initializer-map-ranges.mjs",
+      "sha256": "534a4cc55cc9edc3c76a2ff1fa83a4cf6d10ac3897b6f72f8e5edbe7cc6c3faf"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "726a6d93a6f97ec8e9509772260c71bd05326ae3addb56b90ee17d910e92e695"
+    },
+    {
+      "path": "ratchets/h2-8a-commonjs-class-instance-after.v1.json",
+      "sha256": "2f8ab17bf3f070f777807a64a08305d2f0fda4600fd62a8b602b2c7a29a38a8f"
+    },
+    {
+      "path": "ratchets/h2-8a-global-after-a6-14.v1.json",
+      "sha256": "2902e23044cb6d8d0d15d433a2ba51468ee72aeb628c486e511f525803bd7c8d"
+    },
+    {
+      "path": "ratchets/h2-8a-system-publication-execution-correction.v1.json",
+      "sha256": "2845a8eff75e1def44a395b33aa4f6da6676ec049783dcb40fa579c32e318d00"
+    },
+    {
+      "path": "ratchets/h2-8a-static-initializer-map-ranges-first-after.v1.json",
+      "sha256": "6aa095a8ccadfe5655cf717c3b36b322840c132bd9ae54cf14be8e67ebd57b8e"
+    },
+    {
+      "path": "ratchets/h2-8a-property-literal-key-ranges-before.v1.json",
+      "sha256": "0ed124a80fe7aca8f8db892722af8258cae0ac6dde78f0034eeafd1669dc2b54"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/property-literal-key-ranges.json",
+      "sha256": "ab161b74a368187cf78398127e2ecf951748fa4a398c08b0e9e071c8242ccd8a"
+    },
+    {
+      "path": "scripts/observe-property-literal-key-ranges.mjs",
+      "sha256": "2641adb871dfc7b5250a0c6660c6f1b40374370f0a3a3b93655f1ffd8cb4f3d5"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/emitter/src/builtins/class_fields/downlevel.rs",
+      "sha256": "cc011159afaafc4400d0ad3f3d454d7ba5c92edd249ec4f9615958cd2bca5413"
+    },
+    {
+      "path": "crates/emitter/src/builtins/class_fields.rs",
+      "sha256": "c9c05e4e2f91df1a926af8e6170c0ceb97b8e8ff7d8f0b13d2f75935054a8da0"
+    },
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "038975bba6e8d22d54c2bdc8e48290bc72cc483e6a74ba9d28bfc5d4addff739"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/emitter/src/metadata.rs",
+      "sha256": "c9eaf94391d3eb0893a1d1e7d4c65ff9d876f8b3772634505325a72cf7430e23"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "5ffd982b2fb2057fa7c082400f502e755f0acaf663245a9898bb48c0820d57b6"
+    },
+    {
+      "path": "crates/emitter/src/source_map.rs",
+      "sha256": "175b9b1cb1a8de357476d59098ada4c42e2473feb6dfe3e734177d17f652ffb9"
+    }
+  ],
+  "witnesses": [
+    {
+      "case_id": "es5/set/commonjs/static-only",
+      "before": "exact-twice",
+      "owned_components": [],
+      "outside_components": [],
+      "status": "adjacent-exact",
+      "row_sha256": "92932a20122b68ac44331c9ae00a63d8323cfa5428323a69768c8d6a8a4a2fcb",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": []
+    },
+    {
+      "case_id": "es5/set/commonjs/instance-only",
+      "before": "exact-twice",
+      "owned_components": [],
+      "outside_components": [],
+      "status": "adjacent-exact",
+      "row_sha256": "92f6cdad60680621af5064444cc8aed0d452e1ad1773a91fe47a62ae2a83d257",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": []
+    },
+    {
+      "case_id": "es5/set/commonjs/public-initialized",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [],
+      "status": "owned-only",
+      "row_sha256": "7a9ad5420a7ce0fb02acbaa7c2f794baa7a8ebf985b7556f723b40dd45b8536f",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              7,
+              17,
+              0,
+              0,
+              23
+            ]
+          ],
+          "expected_js_lines": {
+            "7": "    Foo.stat = 10;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es5/set/commonjs/public-uninitialized",
+      "before": "exact-twice",
+      "owned_components": [],
+      "outside_components": [],
+      "status": "adjacent-exact",
+      "row_sha256": "2bccfd1124cc218ba61664c67059c5f4808e2d3ec48d617e3bc2270ed8c98084",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": []
+    },
+    {
+      "case_id": "es5/set/commonjs/abstract-property",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [],
+      "outside_components": [
+        "es2015-abstract-class-leading-range"
+      ],
+      "status": "outside-only",
+      "row_sha256": "f86330374d11741fe388cc647e4e0eb8c53c1e4926425b80aecd748c541d1cf8",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              3,
+              0,
+              0,
+              0,
+              9
+            ]
+          ],
+          "typescript": [
+            [
+              3,
+              0,
+              0,
+              0,
+              0
+            ]
+          ],
+          "expected_js_lines": {
+            "3": "var Foo = /** @class */ (function () {"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es5/set/commonjs/parameter-property",
+      "before": "exact-twice",
+      "owned_components": [],
+      "outside_components": [],
+      "status": "adjacent-exact",
+      "row_sha256": "04ca5332ac294e5d67c7cb4c3cd15804e7937676de9c0b38cfa41a667c8144f4",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": []
+    },
+    {
+      "case_id": "es5/set/commonjs/private-field",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [],
+      "status": "owned-only",
+      "row_sha256": "ad359d5f48351bc940e054436c22367accba65f583ad2d5b9abe643ff382058c",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              15,
+              17,
+              0,
+              0,
+              23
+            ]
+          ],
+          "expected_js_lines": {
+            "15": "    Foo.stat = 10;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es5/set/commonjs/private-method",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "private-method-helper-call-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "9ebada49bca97bbed4a221146e8aaaaabe4d5f9e7b5c1e7683e56edd6de556f8",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              12,
+              62,
+              0,
+              0,
+              52
+            ],
+            [
+              12,
+              66,
+              0,
+              0,
+              56
+            ]
+          ],
+          "expected_js_lines": {
+            "12": "    Foo.prototype.read = function () { __classPrivateFieldGet(this, _Foo_instances, \"m\", _Foo_method).call(this); };"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              12,
+              107,
+              0,
+              0,
+              52
+            ],
+            [
+              12,
+              111,
+              0,
+              0,
+              56
+            ]
+          ],
+          "expected_js_lines": {
+            "12": "    Foo.prototype.read = function () { __classPrivateFieldGet(this, _Foo_instances, \"m\", _Foo_method).call(this); };"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              15,
+              17,
+              0,
+              0,
+              23
+            ]
+          ],
+          "expected_js_lines": {
+            "15": "    Foo.stat = 10;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es5/set/commonjs/auto-accessor",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [],
+      "status": "owned-only",
+      "row_sha256": "26236e7a465e094fdb7eda7b9c10e0c39ebb75edacb7a2757526c6a144e2be62",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              26,
+              17,
+              0,
+              0,
+              23
+            ]
+          ],
+          "expected_js_lines": {
+            "26": "    Foo.stat = 10;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es5/set/commonjs/static-this",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "static-this-substitution-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "5767abfa60fcd11c15caa5876bce2f59472cc8d4a6199580160fbb5e208f3cf7",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              8,
+              17,
+              0,
+              0,
+              23
+            ]
+          ],
+          "expected_js_lines": {
+            "8": "    Foo.stat = 10;"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              9,
+              18,
+              0,
+              0,
+              49
+            ]
+          ],
+          "expected_js_lines": {
+            "9": "    Foo.value = _a.stat;"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              9,
+              23,
+              0,
+              0,
+              42
+            ]
+          ],
+          "expected_js_lines": {
+            "9": "    Foo.value = _a.stat;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es5/set/commonjs/static-super",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "class-facts-static-expression-name-range",
+        "class-facts-super-target-condition"
+      ],
+      "outside_components": [],
+      "status": "owned-only",
+      "row_sha256": "6d5bf3ad4b4bcb7ba5d9a103abc3b80bd61f5b315ecb319cbe7da71da4c1ffd8",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              31,
+              4,
+              0,
+              0,
+              65
+            ],
+            [
+              31,
+              13,
+              0,
+              0,
+              70
+            ],
+            [
+              31,
+              16,
+              0,
+              0,
+              73
+            ],
+            [
+              31,
+              43,
+              0,
+              0,
+              83
+            ],
+            [
+              31,
+              44,
+              0,
+              0,
+              84
+            ],
+            [
+              32,
+              4,
+              0,
+              0,
+              85
+            ],
+            [
+              32,
+              14,
+              0,
+              0,
+              86
+            ],
+            [
+              33,
+              1,
+              0,
+              0,
+              86
+            ],
+            [
+              33,
+              1,
+              0,
+              0,
+              33
+            ],
+            [
+              33,
+              8,
+              0,
+              0,
+              51
+            ],
+            [
+              33,
+              12,
+              0,
+              0,
+              55
+            ],
+            [
+              34,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              34,
+              18,
+              0,
+              1,
+              12
+            ],
+            [
+              35,
+              0,
+              0,
+              2,
+              13
+            ],
+            [
+              35,
+              8,
+              0,
+              2,
+              13
+            ],
+            [
+              35,
+              12,
+              0,
+              2,
+              17
+            ],
+            [
+              35,
+              15,
+              0,
+              2,
+              20
+            ],
+            [
+              35,
+              16,
+              0,
+              2,
+              21
+            ],
+            [
+              35,
+              17,
+              0,
+              2,
+              22
+            ]
+          ],
+          "typescript": [
+            [
+              29,
+              4,
+              0,
+              0,
+              65
+            ],
+            [
+              29,
+              13,
+              0,
+              0,
+              70
+            ],
+            [
+              29,
+              16,
+              0,
+              0,
+              73
+            ],
+            [
+              29,
+              22,
+              0,
+              0,
+              78
+            ],
+            [
+              29,
+              23,
+              0,
+              0,
+              79
+            ],
+            [
+              29,
+              27,
+              0,
+              0,
+              83
+            ],
+            [
+              29,
+              28,
+              0,
+              0,
+              84
+            ],
+            [
+              30,
+              4,
+              0,
+              0,
+              85
+            ],
+            [
+              30,
+              14,
+              0,
+              0,
+              86
+            ],
+            [
+              31,
+              1,
+              0,
+              0,
+              86
+            ],
+            [
+              31,
+              1,
+              0,
+              0,
+              33
+            ],
+            [
+              31,
+              2,
+              0,
+              0,
+              51
+            ],
+            [
+              31,
+              6,
+              0,
+              0,
+              55
+            ],
+            [
+              32,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              32,
+              18,
+              0,
+              1,
+              12
+            ],
+            [
+              33,
+              0,
+              0,
+              2,
+              13
+            ],
+            [
+              33,
+              8,
+              0,
+              2,
+              13
+            ],
+            [
+              33,
+              12,
+              0,
+              2,
+              17
+            ],
+            [
+              33,
+              15,
+              0,
+              2,
+              20
+            ],
+            [
+              33,
+              16,
+              0,
+              2,
+              21
+            ],
+            [
+              33,
+              17,
+              0,
+              2,
+              22
+            ]
+          ],
+          "expected_js_lines": {
+            "29": "    Foo.value = _super.stat;",
+            "30": "    return Foo;",
+            "31": "}(Base));",
+            "32": "exports.Foo = Foo;",
+            "33": "exports.tail = 1;",
+            "34": "//# sourceMappingURL=main.js.map",
+            "35": "<out of range>"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es5/set/commonjs/class-expression",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [],
+      "outside_components": [
+        "class-expression-sequence-range"
+      ],
+      "status": "outside-only",
+      "row_sha256": "68b699ddea733faf4a31c7283ae1ee15bd130c690bdc654ab7ebe0d9a42bde65",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "delete",
+          "native": [
+            [
+              4,
+              10,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [],
+          "expected_js_lines": {
+            "4": "var Foo = (_a = /** @class */ (function () {"
+          }
+        }
+      ],
+      "initial_scope_disposition": "owned-and-outside",
+      "owned_decision_negative_control": "inline property placement overrides transformProperty name range; before already has exact property endpoints"
+    },
+    {
+      "case_id": "es5/set/commonjs/anonymous-expression",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [],
+      "outside_components": [
+        "class-expression-sequence-range"
+      ],
+      "status": "outside-only",
+      "row_sha256": "034634b190be89df088d94112fb931599c1f04f2d9be950b5ab1bb67fa75dcea",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "delete",
+          "native": [
+            [
+              8,
+              10,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [],
+          "expected_js_lines": {
+            "8": "var Foo = (_a = /** @class */ (function () {"
+          }
+        }
+      ],
+      "initial_scope_disposition": "owned-and-outside",
+      "owned_decision_negative_control": "inline property placement overrides transformProperty name range; before already has exact property endpoints"
+    },
+    {
+      "case_id": "es5/set/commonjs/nested-reset",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "class-expression-sequence-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "c3eb8fd3e0fb2a6506af39c24a575b0ad3b6e99f81886d4560326c002388addd",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "delete",
+          "native": [
+            [
+              8,
+              16,
+              0,
+              0,
+              40
+            ]
+          ],
+          "typescript": [],
+          "expected_js_lines": {
+            "8": "    Foo.value = (_a = /** @class */ (function () {"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              14,
+              11,
+              0,
+              0,
+              73
+            ]
+          ],
+          "typescript": [
+            [
+              14,
+              11,
+              0,
+              0,
+              37
+            ]
+          ],
+          "expected_js_lines": {
+            "14": "        _a);"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              15,
+              17,
+              0,
+              0,
+              86
+            ]
+          ],
+          "expected_js_lines": {
+            "15": "    Foo.stat = 10;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es5/set/commonjs/nested-resume",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [],
+      "outside_components": [
+        "class-expression-sequence-range"
+      ],
+      "status": "outside-only",
+      "row_sha256": "041d0b3148baff2555b4ad68ce7f9ebc762dd578ed6b0728e012a55005da81e4",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "delete",
+          "native": [
+            [
+              7,
+              16,
+              0,
+              0,
+              27
+            ]
+          ],
+          "typescript": [],
+          "expected_js_lines": {
+            "7": "    Foo.value = (_a = /** @class */ (function () {"
+          }
+        },
+        {
+          "kind": "delete",
+          "native": [
+            [
+              14,
+              11,
+              0,
+              0,
+              73
+            ]
+          ],
+          "typescript": [],
+          "expected_js_lines": {
+            "14": "        _a);"
+          }
+        }
+      ],
+      "initial_scope_disposition": "owned-and-outside",
+      "owned_decision_negative_control": "inline property placement overrides transformProperty name range; before already has exact property endpoints"
+    },
+    {
+      "case_id": "es5/set/commonjs/multiline-comments",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [],
+      "status": "owned-only",
+      "row_sha256": "73c512100da0ba994bcbd1f950c60ef82daf594e0f308dbad11818a6631b2725",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              8,
+              23,
+              0,
+              3,
+              13
+            ]
+          ],
+          "expected_js_lines": {
+            "8": "    Foo.stat = (10 + 2); // trailing"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es5/set/commonjs/computed-name",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [],
+      "status": "owned-only",
+      "row_sha256": "265aed177c681f3f1c447224603fc6a40cc9cb271635a19ae3412743c5799633",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              7,
+              20,
+              0,
+              0,
+              27
+            ]
+          ],
+          "expected_js_lines": {
+            "7": "    Foo[\"stat\"] = 10;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es5/set/commonjs/quoted-name",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [],
+      "status": "owned-only",
+      "row_sha256": "0be32625f1632d9087493d1b6e1e74fc1d1ad76a870e2a7608d41681f9b5ec35",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              7,
+              20,
+              0,
+              0,
+              25
+            ]
+          ],
+          "expected_js_lines": {
+            "7": "    Foo[\"stat\"] = 10;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es5/set/commonjs/static-uninitialized",
+      "before": "exact-twice",
+      "owned_components": [],
+      "outside_components": [],
+      "status": "adjacent-exact",
+      "row_sha256": "13ee116a26c761889fd1409d8a3dffac823c1a3cec947a14b723d3926dc15bc2",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": []
+    },
+    {
+      "case_id": "es5/set/commonjs/private-static",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [],
+      "status": "owned-only",
+      "row_sha256": "53fd9626032449feff92e5592c0f7ca6acdff29cfbe68f223d090b42b85a1449",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              15,
+              18,
+              0,
+              0,
+              43
+            ]
+          ],
+          "expected_js_lines": {
+            "15": "    Foo.value = 20;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es5/define/commonjs/static-only",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers"
+      ],
+      "outside_components": [],
+      "status": "owned-only",
+      "row_sha256": "779c863b77b64d51d24b6dc1796e3aa6056fe4d815e0eb192bbfaa969dff76b1",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              6,
+              4,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [
+            [
+              6,
+              4,
+              0,
+              0,
+              19
+            ]
+          ],
+          "expected_js_lines": {
+            "6": "    Object.defineProperty(Foo, \"stat\", {"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es5/define/commonjs/instance-only",
+      "before": "exact-twice",
+      "owned_components": [],
+      "outside_components": [],
+      "status": "adjacent-exact",
+      "row_sha256": "6de8e950c748208c0d37b978d60003c7ef6d38eb7d9bbd9232a3e68a28c50242",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": []
+    },
+    {
+      "case_id": "es5/define/commonjs/public-initialized",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers",
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [],
+      "status": "owned-only",
+      "row_sha256": "60a627ca0a1587efd421019bc7bd58c09146de4aed4fe39d8ad0df64616c7e82",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              12,
+              4,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [
+            [
+              12,
+              4,
+              0,
+              0,
+              19
+            ]
+          ],
+          "expected_js_lines": {
+            "12": "    Object.defineProperty(Foo, \"stat\", {"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              17,
+              6,
+              0,
+              0,
+              23
+            ]
+          ],
+          "expected_js_lines": {
+            "17": "    });"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es5/define/commonjs/public-uninitialized",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers",
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [],
+      "status": "owned-only",
+      "row_sha256": "1e52478c3fa41bc09cb23a9438fc6ae89d0c33f78209dd6e626f7691c1dfcc4a",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              12,
+              4,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [
+            [
+              12,
+              4,
+              0,
+              0,
+              19
+            ]
+          ],
+          "expected_js_lines": {
+            "12": "    Object.defineProperty(Foo, \"stat\", {"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              17,
+              6,
+              0,
+              0,
+              23
+            ]
+          ],
+          "expected_js_lines": {
+            "17": "    });"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es5/define/commonjs/abstract-property",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers"
+      ],
+      "outside_components": [
+        "es2015-abstract-class-leading-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "e4f3fcebff130e3bff54b30ff9f39358131f06b1b14baad112b7802917022961",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              3,
+              0,
+              0,
+              0,
+              9
+            ]
+          ],
+          "typescript": [
+            [
+              3,
+              0,
+              0,
+              0,
+              0
+            ]
+          ],
+          "expected_js_lines": {
+            "3": "var Foo = /** @class */ (function () {"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              6,
+              4,
+              0,
+              0,
+              21
+            ]
+          ],
+          "typescript": [
+            [
+              6,
+              4,
+              0,
+              0,
+              28
+            ]
+          ],
+          "expected_js_lines": {
+            "6": "    Object.defineProperty(Foo, \"stat\", {"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es5/define/commonjs/parameter-property",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers",
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [],
+      "status": "owned-only",
+      "row_sha256": "46551b5f5026ff1677929b0b447bf30cff1383b50903402d67e677e3fdc59ebf",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              13,
+              4,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [
+            [
+              13,
+              4,
+              0,
+              0,
+              19
+            ]
+          ],
+          "expected_js_lines": {
+            "13": "    Object.defineProperty(Foo, \"stat\", {"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              18,
+              6,
+              0,
+              0,
+              23
+            ]
+          ],
+          "expected_js_lines": {
+            "18": "    });"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es5/define/commonjs/private-field",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers",
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [],
+      "status": "owned-only",
+      "row_sha256": "6118de16bb3b21eb2e1c4e80754e8b2233d474fb748041a01d6f0480c84a2b6d",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              20,
+              4,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [
+            [
+              20,
+              4,
+              0,
+              0,
+              19
+            ]
+          ],
+          "expected_js_lines": {
+            "20": "    Object.defineProperty(Foo, \"stat\", {"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              25,
+              6,
+              0,
+              0,
+              23
+            ]
+          ],
+          "expected_js_lines": {
+            "25": "    });"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es5/define/commonjs/private-method",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers",
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "private-method-helper-call-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "0528588f93eacda09c7a7969cfffbfe30fdfa7fc8d4cc000d882f231b4264545",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              16,
+              52,
+              0,
+              0,
+              52
+            ],
+            [
+              16,
+              56,
+              0,
+              0,
+              56
+            ]
+          ],
+          "expected_js_lines": {
+            "16": "        value: function () { __classPrivateFieldGet(this, _Foo_instances, \"m\", _Foo_method).call(this); }"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              16,
+              97,
+              0,
+              0,
+              52
+            ],
+            [
+              16,
+              101,
+              0,
+              0,
+              56
+            ]
+          ],
+          "expected_js_lines": {
+            "16": "        value: function () { __classPrivateFieldGet(this, _Foo_instances, \"m\", _Foo_method).call(this); }"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              20,
+              4,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [
+            [
+              20,
+              4,
+              0,
+              0,
+              19
+            ]
+          ],
+          "expected_js_lines": {
+            "20": "    Object.defineProperty(Foo, \"stat\", {"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              25,
+              6,
+              0,
+              0,
+              23
+            ]
+          ],
+          "expected_js_lines": {
+            "25": "    });"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es5/define/commonjs/auto-accessor",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers",
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [],
+      "status": "owned-only",
+      "row_sha256": "bae4250be2fe28f12d0f614bc0de187afd46ba282c66273b80e18ba8fb606600",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              26,
+              4,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [
+            [
+              26,
+              4,
+              0,
+              0,
+              19
+            ]
+          ],
+          "expected_js_lines": {
+            "26": "    Object.defineProperty(Foo, \"stat\", {"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              31,
+              6,
+              0,
+              0,
+              23
+            ]
+          ],
+          "expected_js_lines": {
+            "31": "    });"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es5/define/commonjs/static-this",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers",
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "static-this-substitution-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "0dd2b40c7632db123e82d9e891da6f382ab8ec103266c521c293212d75fded8b",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              8,
+              4,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [
+            [
+              8,
+              4,
+              0,
+              0,
+              19
+            ]
+          ],
+          "expected_js_lines": {
+            "8": "    Object.defineProperty(Foo, \"stat\", {"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              13,
+              6,
+              0,
+              0,
+              23
+            ]
+          ],
+          "expected_js_lines": {
+            "13": "    });"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              14,
+              4,
+              0,
+              0,
+              30
+            ]
+          ],
+          "typescript": [
+            [
+              14,
+              4,
+              0,
+              0,
+              37
+            ]
+          ],
+          "expected_js_lines": {
+            "14": "    Object.defineProperty(Foo, \"value\", {"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              18,
+              17,
+              0,
+              0,
+              49
+            ]
+          ],
+          "expected_js_lines": {
+            "18": "        value: _a.stat"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              19,
+              6,
+              0,
+              0,
+              42
+            ]
+          ],
+          "expected_js_lines": {
+            "19": "    });"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es5/define/commonjs/static-super",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers",
+        "class-facts-static-expression-name-range",
+        "class-facts-super-target-condition"
+      ],
+      "outside_components": [],
+      "status": "owned-only",
+      "row_sha256": "5a8de41caacca5955d00460a9f6d62330f77a772c0637f5603798af1a95dfc52",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              21,
+              4,
+              0,
+              0,
+              13
+            ]
+          ],
+          "typescript": [
+            [
+              21,
+              4,
+              0,
+              0,
+              20
+            ]
+          ],
+          "expected_js_lines": {
+            "21": "    Object.defineProperty(Base, \"stat\", {"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              36,
+              4,
+              0,
+              0,
+              58
+            ],
+            [
+              40,
+              15,
+              0,
+              0,
+              73
+            ],
+            [
+              40,
+              42,
+              0,
+              0,
+              83
+            ],
+            [
+              41,
+              7,
+              0,
+              0,
+              84
+            ],
+            [
+              42,
+              4,
+              0,
+              0,
+              85
+            ],
+            [
+              42,
+              14,
+              0,
+              0,
+              86
+            ],
+            [
+              43,
+              1,
+              0,
+              0,
+              86
+            ],
+            [
+              43,
+              1,
+              0,
+              0,
+              33
+            ],
+            [
+              43,
+              8,
+              0,
+              0,
+              51
+            ],
+            [
+              43,
+              12,
+              0,
+              0,
+              55
+            ],
+            [
+              44,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              44,
+              18,
+              0,
+              1,
+              12
+            ],
+            [
+              45,
+              0,
+              0,
+              2,
+              13
+            ],
+            [
+              45,
+              8,
+              0,
+              2,
+              13
+            ],
+            [
+              45,
+              12,
+              0,
+              2,
+              17
+            ],
+            [
+              45,
+              15,
+              0,
+              2,
+              20
+            ],
+            [
+              45,
+              16,
+              0,
+              2,
+              21
+            ],
+            [
+              45,
+              17,
+              0,
+              2,
+              22
+            ]
+          ],
+          "typescript": [
+            [
+              34,
+              4,
+              0,
+              0,
+              65
+            ],
+            [
+              38,
+              15,
+              0,
+              0,
+              73
+            ],
+            [
+              38,
+              21,
+              0,
+              0,
+              78
+            ],
+            [
+              38,
+              22,
+              0,
+              0,
+              79
+            ],
+            [
+              38,
+              26,
+              0,
+              0,
+              83
+            ],
+            [
+              39,
+              7,
+              0,
+              0,
+              84
+            ],
+            [
+              40,
+              4,
+              0,
+              0,
+              85
+            ],
+            [
+              40,
+              14,
+              0,
+              0,
+              86
+            ],
+            [
+              41,
+              1,
+              0,
+              0,
+              86
+            ],
+            [
+              41,
+              1,
+              0,
+              0,
+              33
+            ],
+            [
+              41,
+              2,
+              0,
+              0,
+              51
+            ],
+            [
+              41,
+              6,
+              0,
+              0,
+              55
+            ],
+            [
+              42,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              42,
+              18,
+              0,
+              1,
+              12
+            ],
+            [
+              43,
+              0,
+              0,
+              2,
+              13
+            ],
+            [
+              43,
+              8,
+              0,
+              2,
+              13
+            ],
+            [
+              43,
+              12,
+              0,
+              2,
+              17
+            ],
+            [
+              43,
+              15,
+              0,
+              2,
+              20
+            ],
+            [
+              43,
+              16,
+              0,
+              2,
+              21
+            ],
+            [
+              43,
+              17,
+              0,
+              2,
+              22
+            ]
+          ],
+          "expected_js_lines": {
+            "34": "    Object.defineProperty(Foo, \"value\", {",
+            "36": "        configurable: true,",
+            "38": "        value: _super.stat",
+            "39": "    });",
+            "40": "    return Foo;",
+            "41": "}(Base));",
+            "42": "exports.Foo = Foo;",
+            "43": "exports.tail = 1;",
+            "44": "//# sourceMappingURL=main.js.map",
+            "45": "<out of range>"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es5/define/commonjs/class-expression",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers",
+        "property-inline-range-past-modifiers"
+      ],
+      "outside_components": [
+        "class-expression-sequence-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "e8c5df9901dbe1c2c0f7e7462f35c896e6b113da01232788a390fed30d247dc8",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "delete",
+          "native": [
+            [
+              4,
+              10,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [],
+          "expected_js_lines": {
+            "4": "var Foo = (_a = /** @class */ (function () {"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              15,
+              4,
+              0,
+              0,
+              26
+            ]
+          ],
+          "typescript": [
+            [
+              15,
+              4,
+              0,
+              0,
+              33
+            ]
+          ],
+          "expected_js_lines": {
+            "15": "    Object.defineProperty(_a, \"stat\", {"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es5/define/commonjs/anonymous-expression",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers",
+        "property-inline-range-past-modifiers"
+      ],
+      "outside_components": [
+        "class-expression-sequence-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "5b4ff22c8711b409a9bb23b3e061ca66d15a4be6211050c16b0931f27a455400",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "delete",
+          "native": [
+            [
+              8,
+              10,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [],
+          "expected_js_lines": {
+            "8": "var Foo = (_a = /** @class */ (function () {"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              20,
+              4,
+              0,
+              0,
+              20
+            ]
+          ],
+          "typescript": [
+            [
+              20,
+              4,
+              0,
+              0,
+              27
+            ]
+          ],
+          "expected_js_lines": {
+            "20": "    Object.defineProperty(_a, \"stat\", {"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es5/define/commonjs/nested-reset",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers",
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "class-expression-sequence-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "9a49cd9e66a33223216c2e3a668abad5c4cf2a760ac450c20a083b49c51332de",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              13,
+              4,
+              0,
+              0,
+              25
+            ],
+            [
+              17,
+              15,
+              0,
+              0,
+              40
+            ]
+          ],
+          "typescript": [
+            [
+              13,
+              4,
+              0,
+              0,
+              32
+            ]
+          ],
+          "expected_js_lines": {
+            "13": "    Object.defineProperty(Foo, \"value\", {",
+            "17": "        value: (_a = /** @class */ (function () {"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              22,
+              12,
+              0,
+              0,
+              54
+            ]
+          ],
+          "typescript": [
+            [
+              22,
+              12,
+              0,
+              0,
+              61
+            ]
+          ],
+          "expected_js_lines": {
+            "22": "            Object.defineProperty(_a, \"stat\", {"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              28,
+              15,
+              0,
+              0,
+              73
+            ]
+          ],
+          "typescript": [
+            [
+              29,
+              6,
+              0,
+              0,
+              37
+            ]
+          ],
+          "expected_js_lines": {
+            "28": "            _a)",
+            "29": "    });"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              30,
+              4,
+              0,
+              0,
+              75
+            ]
+          ],
+          "typescript": [
+            [
+              30,
+              4,
+              0,
+              0,
+              82
+            ]
+          ],
+          "expected_js_lines": {
+            "30": "    Object.defineProperty(Foo, \"stat\", {"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              35,
+              6,
+              0,
+              0,
+              86
+            ]
+          ],
+          "expected_js_lines": {
+            "35": "    });"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es5/define/commonjs/nested-resume",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers",
+        "property-inline-range-past-modifiers"
+      ],
+      "outside_components": [
+        "class-expression-sequence-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "ae4fbde5e2e383654562b76f29df811ed355930daa511c634414b7c0c879e630",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              7,
+              4,
+              0,
+              0,
+              12
+            ],
+            [
+              11,
+              15,
+              0,
+              0,
+              27
+            ]
+          ],
+          "typescript": [
+            [
+              7,
+              4,
+              0,
+              0,
+              19
+            ]
+          ],
+          "expected_js_lines": {
+            "7": "    Object.defineProperty(Foo, \"value\", {",
+            "11": "        value: (_a = /** @class */ (function () {"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              22,
+              12,
+              0,
+              0,
+              54
+            ]
+          ],
+          "typescript": [
+            [
+              22,
+              12,
+              0,
+              0,
+              61
+            ]
+          ],
+          "expected_js_lines": {
+            "22": "            Object.defineProperty(_a, \"stat\", {"
+          }
+        },
+        {
+          "kind": "delete",
+          "native": [
+            [
+              28,
+              15,
+              0,
+              0,
+              73
+            ]
+          ],
+          "typescript": [],
+          "expected_js_lines": {
+            "28": "            _a)"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              30,
+              4,
+              0,
+              0,
+              75
+            ]
+          ],
+          "typescript": [
+            [
+              30,
+              4,
+              0,
+              0,
+              82
+            ]
+          ],
+          "expected_js_lines": {
+            "30": "    Object.defineProperty(Foo, \"stat\", {"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es5/define/commonjs/multiline-comments",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers",
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [],
+      "status": "owned-only",
+      "row_sha256": "c70dd355c41d22aa0198c3467fa75b8482c8268d33be61861c3f0d2335c234ad",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              13,
+              4,
+              0,
+              3,
+              2
+            ]
+          ],
+          "typescript": [
+            [
+              13,
+              4,
+              0,
+              3,
+              9
+            ]
+          ],
+          "expected_js_lines": {
+            "13": "    Object.defineProperty(Foo, \"stat\", {"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              18,
+              6,
+              0,
+              3,
+              13
+            ]
+          ],
+          "expected_js_lines": {
+            "18": "    }); // trailing"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es5/define/commonjs/computed-name",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers",
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [],
+      "status": "owned-only",
+      "row_sha256": "4876a217432624064a52e40d33f66204e2a2eaba3f87374d59adf0fb7c1f1cda",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              12,
+              4,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [
+            [
+              12,
+              4,
+              0,
+              0,
+              19
+            ]
+          ],
+          "expected_js_lines": {
+            "12": "    Object.defineProperty(Foo, \"stat\", {"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              17,
+              6,
+              0,
+              0,
+              27
+            ]
+          ],
+          "expected_js_lines": {
+            "17": "    });"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es5/define/commonjs/quoted-name",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers",
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [],
+      "status": "owned-only",
+      "row_sha256": "67ec0c259877f49e90dc26cef8f6649398d8b9ca34e47139ba6f30d0676874e7",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              12,
+              4,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [
+            [
+              12,
+              4,
+              0,
+              0,
+              19
+            ],
+            [
+              12,
+              31,
+              0,
+              0,
+              19
+            ],
+            [
+              12,
+              37,
+              0,
+              0,
+              25
+            ]
+          ],
+          "expected_js_lines": {
+            "12": "    Object.defineProperty(Foo, \"stat\", {"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              17,
+              6,
+              0,
+              0,
+              25
+            ]
+          ],
+          "expected_js_lines": {
+            "17": "    });"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es5/define/commonjs/static-uninitialized",
+      "before": "exact-twice",
+      "owned_components": [],
+      "outside_components": [],
+      "status": "adjacent-exact",
+      "row_sha256": "e6c399586c5e0991ab51c604cd78fda0091ceb1303d0f216679e8eacb48e1cd7",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": []
+    },
+    {
+      "case_id": "es5/define/commonjs/private-static",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers",
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [],
+      "status": "owned-only",
+      "row_sha256": "9e647ee0c0fc5fe933e20f690bb51baf56cf37dde9fd3a67ee6f59a0ab1dd8b1",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              20,
+              4,
+              0,
+              0,
+              31
+            ]
+          ],
+          "typescript": [
+            [
+              20,
+              4,
+              0,
+              0,
+              38
+            ]
+          ],
+          "expected_js_lines": {
+            "20": "    Object.defineProperty(Foo, \"value\", {"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              25,
+              6,
+              0,
+              0,
+              43
+            ]
+          ],
+          "expected_js_lines": {
+            "25": "    });"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es5/set/esnext/static-only",
+      "before": "exact-twice",
+      "owned_components": [],
+      "outside_components": [],
+      "status": "adjacent-exact",
+      "row_sha256": "34deb4861836879cc43dd091a90630eae1d82cfc2cd81204dc857694a22ed55e",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": []
+    },
+    {
+      "case_id": "es5/set/esnext/public-initialized",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [],
+      "status": "owned-only",
+      "row_sha256": "769715180fda81fff556b1227b05962ed2764073addf56ca50da3f099db06315",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              4,
+              17,
+              0,
+              0,
+              23
+            ]
+          ],
+          "expected_js_lines": {
+            "4": "    Foo.stat = 10;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es5/set/esnext/static-this",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "static-this-substitution-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "9a8bbedc03c73ef06843892abf7754a4de0ec9ad810f642d83ea13598452d4a2",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              5,
+              17,
+              0,
+              0,
+              23
+            ]
+          ],
+          "expected_js_lines": {
+            "5": "    Foo.stat = 10;"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              6,
+              18,
+              0,
+              0,
+              49
+            ]
+          ],
+          "expected_js_lines": {
+            "6": "    Foo.value = _a.stat;"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              6,
+              23,
+              0,
+              0,
+              42
+            ]
+          ],
+          "expected_js_lines": {
+            "6": "    Foo.value = _a.stat;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es5/set/esnext/nested-reset",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "class-expression-sequence-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "76c0801f4f2269669dfe75b0c99ecf9ab42a47ef8a0054f0ef17755fd00ff0d2",
+      "diagnostic_mode": "deprecation-output-control",
+      "before_map_diffs": [
+        {
+          "kind": "delete",
+          "native": [
+            [
+              5,
+              16,
+              0,
+              0,
+              40
+            ]
+          ],
+          "typescript": [],
+          "expected_js_lines": {
+            "5": "    Foo.value = (_a = /** @class */ (function () {"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              11,
+              11,
+              0,
+              0,
+              73
+            ]
+          ],
+          "typescript": [
+            [
+              11,
+              11,
+              0,
+              0,
+              37
+            ]
+          ],
+          "expected_js_lines": {
+            "11": "        _a);"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              12,
+              17,
+              0,
+              0,
+              86
+            ]
+          ],
+          "expected_js_lines": {
+            "12": "    Foo.stat = 10;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/set/commonjs/static-only",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "outside-only",
+      "row_sha256": "d01d0af10389eaf43fd9eb7847ca49e5eb9cf46835cecd53bfd3270fd6cbcb64",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              5,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              5,
+              18,
+              0,
+              0,
+              31
+            ]
+          ],
+          "typescript": [
+            [
+              5,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              5,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "5": "exports.Foo = Foo;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/set/commonjs/instance-only",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "outside-only",
+      "row_sha256": "3be97f817ae9fa50674b5190c5762e33f649c3b9c9293b60002e2e02d268f27c",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              8,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              8,
+              18,
+              0,
+              0,
+              26
+            ]
+          ],
+          "typescript": [
+            [
+              8,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              8,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "8": "exports.Foo = Foo;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/set/commonjs/public-initialized",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "75f80630fd349871c95fd1b398744546da5f503f787cdce7885923329bfa48f8",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              8,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              8,
+              18,
+              0,
+              0,
+              44
+            ]
+          ],
+          "typescript": [
+            [
+              8,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              8,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "8": "exports.Foo = Foo;"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              9,
+              13,
+              0,
+              0,
+              23
+            ]
+          ],
+          "expected_js_lines": {
+            "9": "Foo.stat = 10;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/set/commonjs/public-uninitialized",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "outside-only",
+      "row_sha256": "68c8dcb4e9466f73082dca8b8903372f222bd953e8c818cbd615a7d26afd0acb",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              5,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              5,
+              18,
+              0,
+              0,
+              48
+            ]
+          ],
+          "typescript": [
+            [
+              5,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              5,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "5": "exports.Foo = Foo;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/set/commonjs/abstract-property",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "outside-only",
+      "row_sha256": "a465fc0f8156b3a0fc3fe749e78a2a42fcd3936d6076ace158e91ad4682f9c2c",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              5,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              5,
+              18,
+              0,
+              0,
+              65
+            ]
+          ],
+          "typescript": [
+            [
+              5,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              5,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "5": "exports.Foo = Foo;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/set/commonjs/parameter-property",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "outside-only",
+      "row_sha256": "f2824e9d678cfe53d963bcd1be0d20f5f69acd654f4e92b6471e1e0379b65ee9",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              8,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              8,
+              18,
+              0,
+              0,
+              66
+            ]
+          ],
+          "typescript": [
+            [
+              8,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              8,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "8": "exports.Foo = Foo;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/set/commonjs/private-field",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "1f8368a71cf1547de39b493fe6c8edb96d2fe7e729907cd49bf179fbe59bd8ad",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              15,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              15,
+              18,
+              0,
+              0,
+              77
+            ]
+          ],
+          "typescript": [
+            [
+              15,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              15,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "15": "exports.Foo = Foo;"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              17,
+              13,
+              0,
+              0,
+              23
+            ]
+          ],
+          "expected_js_lines": {
+            "17": "Foo.stat = 10;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/set/commonjs/private-method",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "local-class-export-publication-range",
+        "private-method-helper-call-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "98d6b671e182d9da5609a9c62c83265c3c3ae3e0cd43f1936e57abad6c9fce15",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              13,
+              36,
+              0,
+              0,
+              52
+            ],
+            [
+              13,
+              40,
+              0,
+              0,
+              56
+            ]
+          ],
+          "expected_js_lines": {
+            "13": "    read() { __classPrivateFieldGet(this, _Foo_instances, \"m\", _Foo_method).call(this); }"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              13,
+              81,
+              0,
+              0,
+              52
+            ],
+            [
+              13,
+              85,
+              0,
+              0,
+              56
+            ]
+          ],
+          "expected_js_lines": {
+            "13": "    read() { __classPrivateFieldGet(this, _Foo_instances, \"m\", _Foo_method).call(this); }"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              15,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              15,
+              18,
+              0,
+              0,
+              71
+            ]
+          ],
+          "typescript": [
+            [
+              15,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              15,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "15": "exports.Foo = Foo;"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              17,
+              13,
+              0,
+              0,
+              23
+            ]
+          ],
+          "expected_js_lines": {
+            "17": "Foo.stat = 10;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/set/commonjs/auto-accessor",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "37ebdef420ee78a3ada06acefc96722344e5f43772b6c903d9634de9ed0c9676",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              22,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              22,
+              18,
+              0,
+              0,
+              53
+            ]
+          ],
+          "typescript": [
+            [
+              22,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              22,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "22": "exports.Foo = Foo;"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              24,
+              13,
+              0,
+              0,
+              23
+            ]
+          ],
+          "expected_js_lines": {
+            "24": "Foo.stat = 10;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/set/commonjs/static-this",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "local-class-export-publication-range",
+        "static-this-substitution-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "786b095105374f6552b743c94bace7d2fc782f793d583cd2a00accff52a4dad5",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              6,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              6,
+              18,
+              0,
+              0,
+              57
+            ]
+          ],
+          "typescript": [
+            [
+              6,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              6,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "6": "exports.Foo = Foo;"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              8,
+              13,
+              0,
+              0,
+              23
+            ]
+          ],
+          "expected_js_lines": {
+            "8": "Foo.stat = 10;"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              9,
+              14,
+              0,
+              0,
+              49
+            ]
+          ],
+          "expected_js_lines": {
+            "9": "Foo.value = _a.stat;"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              9,
+              19,
+              0,
+              0,
+              42
+            ]
+          ],
+          "expected_js_lines": {
+            "9": "Foo.value = _a.stat;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/set/commonjs/static-super",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "ee6021f974a80825ea35cfd3d74c1bd19212bab55509f354aba3432e25ff58cf",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              9,
+              0,
+              0,
+              0,
+              33
+            ],
+            [
+              9,
+              18,
+              0,
+              0,
+              86
+            ]
+          ],
+          "typescript": [
+            [
+              9,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              9,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "9": "exports.Foo = Foo;"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              11,
+              39,
+              0,
+              0,
+              83
+            ]
+          ],
+          "typescript": [
+            [
+              11,
+              39,
+              0,
+              0,
+              78
+            ],
+            [
+              11,
+              39,
+              0,
+              0,
+              70
+            ]
+          ],
+          "expected_js_lines": {
+            "11": "Foo.value = Reflect.get(_b, \"stat\", _a);"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/set/commonjs/class-expression",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [],
+      "outside_components": [
+        "class-expression-sequence-range"
+      ],
+      "status": "outside-only",
+      "row_sha256": "182bf9def8e66930057c03ffc66bc46852dacd2d567f892c9981696cd985c494",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "delete",
+          "native": [
+            [
+              4,
+              12,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [],
+          "expected_js_lines": {
+            "4": "const Foo = (_a = class Named {"
+          }
+        }
+      ],
+      "initial_scope_disposition": "owned-and-outside",
+      "owned_decision_negative_control": "inline property placement overrides transformProperty name range; before already has exact property endpoints"
+    },
+    {
+      "case_id": "es2015/set/commonjs/anonymous-expression",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [],
+      "outside_components": [
+        "class-expression-sequence-range"
+      ],
+      "status": "outside-only",
+      "row_sha256": "ff18723ee31aa14722dc091653d061161461ab7b5001f1ee6106b1662f7941ae",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "delete",
+          "native": [
+            [
+              8,
+              12,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [],
+          "expected_js_lines": {
+            "8": "const Foo = (_a = class {"
+          }
+        }
+      ],
+      "initial_scope_disposition": "owned-and-outside",
+      "owned_decision_negative_control": "inline property placement overrides transformProperty name range; before already has exact property endpoints"
+    },
+    {
+      "case_id": "es2015/set/commonjs/nested-reset",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "local-class-export-publication-range",
+        "class-expression-sequence-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "ec6c059984ec14b222ab0d4eeae266ad1b844d1c098bfa51ba706fb53e1a7cc2",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              9,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              9,
+              18,
+              0,
+              0,
+              94
+            ]
+          ],
+          "typescript": [
+            [
+              9,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              9,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "9": "exports.Foo = Foo;"
+          }
+        },
+        {
+          "kind": "delete",
+          "native": [
+            [
+              10,
+              12,
+              0,
+              0,
+              40
+            ]
+          ],
+          "typescript": [],
+          "expected_js_lines": {
+            "10": "Foo.value = (_a = class Inner {"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              13,
+              7,
+              0,
+              0,
+              73
+            ]
+          ],
+          "typescript": [
+            [
+              13,
+              7,
+              0,
+              0,
+              37
+            ]
+          ],
+          "expected_js_lines": {
+            "13": "    _a);"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              14,
+              13,
+              0,
+              0,
+              86
+            ]
+          ],
+          "expected_js_lines": {
+            "14": "Foo.stat = 10;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/set/commonjs/nested-resume",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [],
+      "outside_components": [
+        "local-class-export-publication-range",
+        "class-expression-sequence-range"
+      ],
+      "status": "outside-only",
+      "row_sha256": "a2fc7cd31597b6337e0638cb42a0b07395dcd777e767f65b3c828bfcf25fe601",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              6,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              6,
+              18,
+              0,
+              0,
+              94
+            ]
+          ],
+          "typescript": [
+            [
+              6,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              6,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "6": "exports.Foo = Foo;"
+          }
+        },
+        {
+          "kind": "delete",
+          "native": [
+            [
+              7,
+              12,
+              0,
+              0,
+              27
+            ]
+          ],
+          "typescript": [],
+          "expected_js_lines": {
+            "7": "Foo.value = (_a = class Inner {"
+          }
+        },
+        {
+          "kind": "delete",
+          "native": [
+            [
+              13,
+              7,
+              0,
+              0,
+              73
+            ]
+          ],
+          "typescript": [],
+          "expected_js_lines": {
+            "13": "    _a);"
+          }
+        }
+      ],
+      "initial_scope_disposition": "owned-and-outside",
+      "owned_decision_negative_control": "inline property placement overrides transformProperty name range; before already has exact property endpoints"
+    },
+    {
+      "case_id": "es2015/set/commonjs/multiline-comments",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "56ba5235672eeeb2ea781e2270f68d292710e9f1631100e953b3c1249f9f09c9",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              8,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              8,
+              18,
+              0,
+              6,
+              1
+            ]
+          ],
+          "typescript": [
+            [
+              8,
+              0,
+              0,
+              7,
+              9
+            ],
+            [
+              8,
+              18,
+              0,
+              7,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "8": "exports.Foo = Foo;"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              10,
+              19,
+              0,
+              3,
+              13
+            ]
+          ],
+          "expected_js_lines": {
+            "10": "Foo.stat = (10 + 2); // trailing"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/set/commonjs/computed-name",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "675b68ed686e2b63d77c0b9c2da0a090112d22c4384b5c599b844ebd5ce3384e",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              8,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              8,
+              18,
+              0,
+              0,
+              48
+            ]
+          ],
+          "typescript": [
+            [
+              8,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              8,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "8": "exports.Foo = Foo;"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              9,
+              16,
+              0,
+              0,
+              27
+            ]
+          ],
+          "expected_js_lines": {
+            "9": "Foo[\"stat\"] = 10;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/set/commonjs/quoted-name",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "36b88c25ec5416c38f7b53938653423738560bfae7202c703923c34f62714813",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              8,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              8,
+              18,
+              0,
+              0,
+              46
+            ]
+          ],
+          "typescript": [
+            [
+              8,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              8,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "8": "exports.Foo = Foo;"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              9,
+              16,
+              0,
+              0,
+              25
+            ]
+          ],
+          "expected_js_lines": {
+            "9": "Foo[\"stat\"] = 10;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/set/commonjs/static-uninitialized",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "outside-only",
+      "row_sha256": "6970430573301f0e1a947b239ecb1c582621ad41a09c52b04570be3e72eca3d6",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              8,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              8,
+              18,
+              0,
+              0,
+              47
+            ]
+          ],
+          "typescript": [
+            [
+              8,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              8,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "8": "exports.Foo = Foo;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/set/commonjs/private-static",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "81928d42c0df69805c0a7824bcde1b2080efe70efab8c0c1813e9cf37b53f6cd",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              12,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              12,
+              18,
+              0,
+              0,
+              80
+            ]
+          ],
+          "typescript": [
+            [
+              12,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              12,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "12": "exports.Foo = Foo;"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              15,
+              14,
+              0,
+              0,
+              43
+            ]
+          ],
+          "expected_js_lines": {
+            "15": "Foo.value = 20;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/define/commonjs/static-only",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers"
+      ],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "60f9761377701d4c813bed8bdcb75e04aa8e899e25e601cb6140a9832345ef22",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              5,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              5,
+              18,
+              0,
+              0,
+              31
+            ],
+            [
+              6,
+              0,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [
+            [
+              5,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              5,
+              18,
+              0,
+              1,
+              12
+            ],
+            [
+              6,
+              0,
+              0,
+              0,
+              19
+            ]
+          ],
+          "expected_js_lines": {
+            "5": "exports.Foo = Foo;",
+            "6": "Object.defineProperty(Foo, \"stat\", {"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/define/commonjs/instance-only",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "outside-only",
+      "row_sha256": "238d5a5249dcce456b5927ba33c3d0c22754157850177a4b9d3007d58acfa5bd",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              13,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              13,
+              18,
+              0,
+              0,
+              26
+            ]
+          ],
+          "typescript": [
+            [
+              13,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              13,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "13": "exports.Foo = Foo;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/define/commonjs/public-initialized",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers",
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "39f43da8d7fedbea326c00b8a222a5703ba82e0ef7e9e28dec7832fcae1039a3",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              13,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              13,
+              18,
+              0,
+              0,
+              44
+            ],
+            [
+              14,
+              0,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [
+            [
+              13,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              13,
+              18,
+              0,
+              1,
+              12
+            ],
+            [
+              14,
+              0,
+              0,
+              0,
+              19
+            ]
+          ],
+          "expected_js_lines": {
+            "13": "exports.Foo = Foo;",
+            "14": "Object.defineProperty(Foo, \"stat\", {"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              19,
+              2,
+              0,
+              0,
+              23
+            ]
+          ],
+          "expected_js_lines": {
+            "19": "});"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/define/commonjs/public-uninitialized",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers",
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "9db4d0b85db3041937f9ac40a95ea59a350d2cfb0f6576919ac914e8ca3d3ecd",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              13,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              13,
+              18,
+              0,
+              0,
+              48
+            ],
+            [
+              14,
+              0,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [
+            [
+              13,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              13,
+              18,
+              0,
+              1,
+              12
+            ],
+            [
+              14,
+              0,
+              0,
+              0,
+              19
+            ]
+          ],
+          "expected_js_lines": {
+            "13": "exports.Foo = Foo;",
+            "14": "Object.defineProperty(Foo, \"stat\", {"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              19,
+              2,
+              0,
+              0,
+              23
+            ]
+          ],
+          "expected_js_lines": {
+            "19": "});"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/define/commonjs/abstract-property",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers"
+      ],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "7c85e20fc1b4abd8e17f2d4c7441d79b83166be6aab48d940e2d016b8eb8c265",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              5,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              5,
+              18,
+              0,
+              0,
+              65
+            ],
+            [
+              6,
+              0,
+              0,
+              0,
+              21
+            ]
+          ],
+          "typescript": [
+            [
+              5,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              5,
+              18,
+              0,
+              1,
+              12
+            ],
+            [
+              6,
+              0,
+              0,
+              0,
+              28
+            ]
+          ],
+          "expected_js_lines": {
+            "5": "exports.Foo = Foo;",
+            "6": "Object.defineProperty(Foo, \"stat\", {"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/define/commonjs/parameter-property",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers",
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "3a8b1a74fe8da0a7bb52803b96e5bc5e836fc45b906df2e6311dbd8331a445b1",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              13,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              13,
+              18,
+              0,
+              0,
+              66
+            ],
+            [
+              14,
+              0,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [
+            [
+              13,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              13,
+              18,
+              0,
+              1,
+              12
+            ],
+            [
+              14,
+              0,
+              0,
+              0,
+              19
+            ]
+          ],
+          "expected_js_lines": {
+            "13": "exports.Foo = Foo;",
+            "14": "Object.defineProperty(Foo, \"stat\", {"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              19,
+              2,
+              0,
+              0,
+              23
+            ]
+          ],
+          "expected_js_lines": {
+            "19": "});"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/define/commonjs/private-field",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers",
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "43f4e344e59a0459358676cfe97b747d4ce6048164c147e5cb40c99105a39618",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              15,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              15,
+              18,
+              0,
+              0,
+              77
+            ],
+            [
+              17,
+              0,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [
+            [
+              15,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              15,
+              18,
+              0,
+              1,
+              12
+            ],
+            [
+              17,
+              0,
+              0,
+              0,
+              19
+            ]
+          ],
+          "expected_js_lines": {
+            "15": "exports.Foo = Foo;",
+            "17": "Object.defineProperty(Foo, \"stat\", {"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              22,
+              2,
+              0,
+              0,
+              23
+            ]
+          ],
+          "expected_js_lines": {
+            "22": "});"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/define/commonjs/private-method",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers",
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "local-class-export-publication-range",
+        "private-method-helper-call-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "0c99b70772395e3bf5d9780c17693ad6d042e4e45cfa482d52cd0303ced5716b",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              13,
+              36,
+              0,
+              0,
+              52
+            ],
+            [
+              13,
+              40,
+              0,
+              0,
+              56
+            ]
+          ],
+          "expected_js_lines": {
+            "13": "    read() { __classPrivateFieldGet(this, _Foo_instances, \"m\", _Foo_method).call(this); }"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              13,
+              81,
+              0,
+              0,
+              52
+            ],
+            [
+              13,
+              85,
+              0,
+              0,
+              56
+            ]
+          ],
+          "expected_js_lines": {
+            "13": "    read() { __classPrivateFieldGet(this, _Foo_instances, \"m\", _Foo_method).call(this); }"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              15,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              15,
+              18,
+              0,
+              0,
+              71
+            ]
+          ],
+          "typescript": [
+            [
+              15,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              15,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "15": "exports.Foo = Foo;"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              17,
+              0,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [
+            [
+              17,
+              0,
+              0,
+              0,
+              19
+            ]
+          ],
+          "expected_js_lines": {
+            "17": "Object.defineProperty(Foo, \"stat\", {"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              22,
+              2,
+              0,
+              0,
+              23
+            ]
+          ],
+          "expected_js_lines": {
+            "22": "});"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/define/commonjs/auto-accessor",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers",
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "da4220e544173282140fd2c9f0c02f8301544592e1d28fd8370db3c085794ae8",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              22,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              22,
+              18,
+              0,
+              0,
+              53
+            ],
+            [
+              24,
+              0,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [
+            [
+              22,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              22,
+              18,
+              0,
+              1,
+              12
+            ],
+            [
+              24,
+              0,
+              0,
+              0,
+              19
+            ]
+          ],
+          "expected_js_lines": {
+            "22": "exports.Foo = Foo;",
+            "24": "Object.defineProperty(Foo, \"stat\", {"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              29,
+              2,
+              0,
+              0,
+              23
+            ]
+          ],
+          "expected_js_lines": {
+            "29": "});"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/define/commonjs/static-this",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers",
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "local-class-export-publication-range",
+        "static-this-substitution-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "e0444396dfdf76234cb4c23633cd66a52826b481aea7ba0edfb9900feae9f1fb",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              6,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              6,
+              18,
+              0,
+              0,
+              57
+            ],
+            [
+              8,
+              0,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [
+            [
+              6,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              6,
+              18,
+              0,
+              1,
+              12
+            ],
+            [
+              8,
+              0,
+              0,
+              0,
+              19
+            ]
+          ],
+          "expected_js_lines": {
+            "6": "exports.Foo = Foo;",
+            "8": "Object.defineProperty(Foo, \"stat\", {"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              13,
+              2,
+              0,
+              0,
+              23
+            ]
+          ],
+          "expected_js_lines": {
+            "13": "});"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              14,
+              0,
+              0,
+              0,
+              30
+            ]
+          ],
+          "typescript": [
+            [
+              14,
+              0,
+              0,
+              0,
+              37
+            ]
+          ],
+          "expected_js_lines": {
+            "14": "Object.defineProperty(Foo, \"value\", {"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              18,
+              13,
+              0,
+              0,
+              49
+            ]
+          ],
+          "expected_js_lines": {
+            "18": "    value: _a.stat"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              19,
+              2,
+              0,
+              0,
+              42
+            ]
+          ],
+          "expected_js_lines": {
+            "19": "});"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/define/commonjs/static-super",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers",
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "bcaefb8adb187ae3c2f0fe941cec6c345007d278b8a2db58748b073052a8bdb7",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              6,
+              0,
+              0,
+              0,
+              13
+            ]
+          ],
+          "typescript": [
+            [
+              6,
+              0,
+              0,
+              0,
+              20
+            ]
+          ],
+          "expected_js_lines": {
+            "6": "Object.defineProperty(Base, \"stat\", {"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              14,
+              0,
+              0,
+              0,
+              33
+            ],
+            [
+              14,
+              18,
+              0,
+              0,
+              86
+            ],
+            [
+              16,
+              0,
+              0,
+              0,
+              58
+            ]
+          ],
+          "typescript": [
+            [
+              14,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              14,
+              18,
+              0,
+              1,
+              12
+            ],
+            [
+              16,
+              0,
+              0,
+              0,
+              65
+            ]
+          ],
+          "expected_js_lines": {
+            "14": "exports.Foo = Foo;",
+            "16": "Object.defineProperty(Foo, \"value\", {"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              20,
+              38,
+              0,
+              0,
+              83
+            ]
+          ],
+          "typescript": [
+            [
+              20,
+              38,
+              0,
+              0,
+              78
+            ],
+            [
+              21,
+              2,
+              0,
+              0,
+              70
+            ]
+          ],
+          "expected_js_lines": {
+            "20": "    value: Reflect.get(_b, \"stat\", _a)",
+            "21": "});"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/define/commonjs/class-expression",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers",
+        "property-inline-range-past-modifiers"
+      ],
+      "outside_components": [
+        "class-expression-sequence-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "9e1abdfc45af23d16c32c7959314d97c67633f82ed9686dadc7d3ffab659b155",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "delete",
+          "native": [
+            [
+              4,
+              12,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [],
+          "expected_js_lines": {
+            "4": "const Foo = (_a = class Named {"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              14,
+              4,
+              0,
+              0,
+              26
+            ]
+          ],
+          "typescript": [
+            [
+              14,
+              4,
+              0,
+              0,
+              33
+            ]
+          ],
+          "expected_js_lines": {
+            "14": "    Object.defineProperty(_a, \"stat\", {"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/define/commonjs/anonymous-expression",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers",
+        "property-inline-range-past-modifiers"
+      ],
+      "outside_components": [
+        "class-expression-sequence-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "125dfd462e5a67deb5b2cbe50f90ef2941fa0a7abe4a3d921817c14b37db647a",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "delete",
+          "native": [
+            [
+              8,
+              12,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [],
+          "expected_js_lines": {
+            "8": "const Foo = (_a = class {"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              19,
+              4,
+              0,
+              0,
+              20
+            ]
+          ],
+          "typescript": [
+            [
+              19,
+              4,
+              0,
+              0,
+              27
+            ]
+          ],
+          "expected_js_lines": {
+            "19": "    Object.defineProperty(_a, \"stat\", {"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/define/commonjs/nested-reset",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers",
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "local-class-export-publication-range",
+        "class-expression-sequence-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "534fa76eec41f4745cc34303b8902e5d48a6a934b5054a8f63055f418e172530",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              14,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              14,
+              18,
+              0,
+              0,
+              94
+            ],
+            [
+              15,
+              0,
+              0,
+              0,
+              25
+            ],
+            [
+              19,
+              11,
+              0,
+              0,
+              40
+            ]
+          ],
+          "typescript": [
+            [
+              14,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              14,
+              18,
+              0,
+              1,
+              12
+            ],
+            [
+              15,
+              0,
+              0,
+              0,
+              32
+            ]
+          ],
+          "expected_js_lines": {
+            "14": "exports.Foo = Foo;",
+            "15": "Object.defineProperty(Foo, \"value\", {",
+            "19": "    value: (_a = class Inner {"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              21,
+              8,
+              0,
+              0,
+              54
+            ]
+          ],
+          "typescript": [
+            [
+              21,
+              8,
+              0,
+              0,
+              61
+            ]
+          ],
+          "expected_js_lines": {
+            "21": "        Object.defineProperty(_a, \"stat\", {"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              27,
+              11,
+              0,
+              0,
+              73
+            ]
+          ],
+          "typescript": [
+            [
+              28,
+              2,
+              0,
+              0,
+              37
+            ]
+          ],
+          "expected_js_lines": {
+            "27": "        _a)",
+            "28": "});"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              29,
+              0,
+              0,
+              0,
+              75
+            ]
+          ],
+          "typescript": [
+            [
+              29,
+              0,
+              0,
+              0,
+              82
+            ]
+          ],
+          "expected_js_lines": {
+            "29": "Object.defineProperty(Foo, \"stat\", {"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              34,
+              2,
+              0,
+              0,
+              86
+            ]
+          ],
+          "expected_js_lines": {
+            "34": "});"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/define/commonjs/nested-resume",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers",
+        "property-inline-range-past-modifiers"
+      ],
+      "outside_components": [
+        "local-class-export-publication-range",
+        "class-expression-sequence-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "c63d1093b492afd816849e522eda6bea49a379204c96b39b39fe9a5c47b8ea77",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              6,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              6,
+              18,
+              0,
+              0,
+              94
+            ],
+            [
+              7,
+              0,
+              0,
+              0,
+              12
+            ],
+            [
+              11,
+              11,
+              0,
+              0,
+              27
+            ]
+          ],
+          "typescript": [
+            [
+              6,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              6,
+              18,
+              0,
+              1,
+              12
+            ],
+            [
+              7,
+              0,
+              0,
+              0,
+              19
+            ]
+          ],
+          "expected_js_lines": {
+            "6": "exports.Foo = Foo;",
+            "7": "Object.defineProperty(Foo, \"value\", {",
+            "11": "    value: (_a = class Inner {"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              21,
+              8,
+              0,
+              0,
+              54
+            ]
+          ],
+          "typescript": [
+            [
+              21,
+              8,
+              0,
+              0,
+              61
+            ]
+          ],
+          "expected_js_lines": {
+            "21": "        Object.defineProperty(_a, \"stat\", {"
+          }
+        },
+        {
+          "kind": "delete",
+          "native": [
+            [
+              27,
+              11,
+              0,
+              0,
+              73
+            ]
+          ],
+          "typescript": [],
+          "expected_js_lines": {
+            "27": "        _a)"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              29,
+              0,
+              0,
+              0,
+              75
+            ]
+          ],
+          "typescript": [
+            [
+              29,
+              0,
+              0,
+              0,
+              82
+            ]
+          ],
+          "expected_js_lines": {
+            "29": "Object.defineProperty(Foo, \"stat\", {"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/define/commonjs/multiline-comments",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers",
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "8f44f80496d694bf3843715867975dcabfff84eb88a5e79f3115427645759f97",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              13,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              13,
+              18,
+              0,
+              6,
+              1
+            ]
+          ],
+          "typescript": [
+            [
+              13,
+              0,
+              0,
+              7,
+              9
+            ],
+            [
+              13,
+              18,
+              0,
+              7,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "13": "exports.Foo = Foo;"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              15,
+              0,
+              0,
+              3,
+              2
+            ]
+          ],
+          "typescript": [
+            [
+              15,
+              0,
+              0,
+              3,
+              9
+            ]
+          ],
+          "expected_js_lines": {
+            "15": "Object.defineProperty(Foo, \"stat\", {"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              20,
+              2,
+              0,
+              3,
+              13
+            ]
+          ],
+          "expected_js_lines": {
+            "20": "}); // trailing"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/define/commonjs/computed-name",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers",
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "d9815c8e470e794403e98fb0c2979622dea8055644749a56828253eb25a19b52",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              13,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              13,
+              18,
+              0,
+              0,
+              48
+            ],
+            [
+              14,
+              0,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [
+            [
+              13,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              13,
+              18,
+              0,
+              1,
+              12
+            ],
+            [
+              14,
+              0,
+              0,
+              0,
+              19
+            ]
+          ],
+          "expected_js_lines": {
+            "13": "exports.Foo = Foo;",
+            "14": "Object.defineProperty(Foo, \"stat\", {"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              19,
+              2,
+              0,
+              0,
+              27
+            ]
+          ],
+          "expected_js_lines": {
+            "19": "});"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/define/commonjs/quoted-name",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers",
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "dac284740589d94f5c8c863f7796c6c979b4fec6d8a1774edb546f0dc1221e22",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              13,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              13,
+              18,
+              0,
+              0,
+              46
+            ],
+            [
+              14,
+              0,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [
+            [
+              13,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              13,
+              18,
+              0,
+              1,
+              12
+            ],
+            [
+              14,
+              0,
+              0,
+              0,
+              19
+            ],
+            [
+              14,
+              27,
+              0,
+              0,
+              19
+            ],
+            [
+              14,
+              33,
+              0,
+              0,
+              25
+            ]
+          ],
+          "expected_js_lines": {
+            "13": "exports.Foo = Foo;",
+            "14": "Object.defineProperty(Foo, \"stat\", {"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              19,
+              2,
+              0,
+              0,
+              25
+            ]
+          ],
+          "expected_js_lines": {
+            "19": "});"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/define/commonjs/static-uninitialized",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "outside-only",
+      "row_sha256": "01310626fd799a3c11b1f02cacdba1fc66f946de0317aa24b1c76e4d30aa1489",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              13,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              13,
+              18,
+              0,
+              0,
+              47
+            ]
+          ],
+          "typescript": [
+            [
+              13,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              13,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "13": "exports.Foo = Foo;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/define/commonjs/private-static",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "property-statement-range-past-modifiers",
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "8eb1b378f13b3c6e2be1c8d7f7938208fa68933fe1dcd7a67e81332a9cee1c38",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              12,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              12,
+              18,
+              0,
+              0,
+              80
+            ]
+          ],
+          "typescript": [
+            [
+              12,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              12,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "12": "exports.Foo = Foo;"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              15,
+              0,
+              0,
+              0,
+              31
+            ]
+          ],
+          "typescript": [
+            [
+              15,
+              0,
+              0,
+              0,
+              38
+            ]
+          ],
+          "expected_js_lines": {
+            "15": "Object.defineProperty(Foo, \"value\", {"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              20,
+              2,
+              0,
+              0,
+              43
+            ]
+          ],
+          "expected_js_lines": {
+            "20": "});"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/set/esnext/static-only",
+      "before": "exact-twice",
+      "owned_components": [],
+      "outside_components": [],
+      "status": "adjacent-exact",
+      "row_sha256": "6a31bac7e5618e1f296b8a5c33ec893c0c5e47a209f9a1e6da758e7c3f122757",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": []
+    },
+    {
+      "case_id": "es2015/set/esnext/public-initialized",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [],
+      "status": "owned-only",
+      "row_sha256": "7e147d47f80856172796f9f224fab1dd9f7b31d6cdbe0f3528a62bbd9b234eca",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              5,
+              13,
+              0,
+              0,
+              23
+            ]
+          ],
+          "expected_js_lines": {
+            "5": "Foo.stat = 10;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/set/esnext/static-this",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "static-this-substitution-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "9330d5fa457f7b934b761e5c08a572226d717d8811467b6734e60e6ee05c42a7",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              4,
+              13,
+              0,
+              0,
+              23
+            ]
+          ],
+          "expected_js_lines": {
+            "4": "Foo.stat = 10;"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              5,
+              14,
+              0,
+              0,
+              49
+            ]
+          ],
+          "expected_js_lines": {
+            "5": "Foo.value = _a.stat;"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              5,
+              19,
+              0,
+              0,
+              42
+            ]
+          ],
+          "expected_js_lines": {
+            "5": "Foo.value = _a.stat;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/set/esnext/nested-reset",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [
+        "class-facts-static-expression-name-range"
+      ],
+      "outside_components": [
+        "class-expression-sequence-range"
+      ],
+      "status": "owned-and-outside",
+      "row_sha256": "fb2f7ae9f93e9f821440ecb27fb3d11ccddea168e320ac68cdebaa0450df6f37",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "delete",
+          "native": [
+            [
+              6,
+              12,
+              0,
+              0,
+              40
+            ]
+          ],
+          "typescript": [],
+          "expected_js_lines": {
+            "6": "Foo.value = (_a = class Inner {"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              9,
+              7,
+              0,
+              0,
+              73
+            ]
+          ],
+          "typescript": [
+            [
+              9,
+              7,
+              0,
+              0,
+              37
+            ]
+          ],
+          "expected_js_lines": {
+            "9": "    _a);"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              10,
+              13,
+              0,
+              0,
+              86
+            ]
+          ],
+          "expected_js_lines": {
+            "10": "Foo.stat = 10;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2022/set/commonjs/static-only",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [],
+      "outside_components": [
+        "local-class-export-publication-range",
+        "native-class-static-block-and-constructor-range"
+      ],
+      "status": "outside-only",
+      "row_sha256": "6beba9d07fa92fec8975036a980bd1485cf195cacb5b5aa0e828e370dd4c3eb0",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "delete",
+          "native": [
+            [
+              4,
+              4,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [],
+          "expected_js_lines": {
+            "4": "    static { this.stat = 10; }"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              4,
+              30,
+              0,
+              0,
+              29
+            ],
+            [
+              6,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              6,
+              18,
+              0,
+              0,
+              31
+            ]
+          ],
+          "typescript": [
+            [
+              6,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              6,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "4": "    static { this.stat = 10; }",
+            "6": "exports.Foo = Foo;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2022/set/commonjs/public-initialized",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [],
+      "outside_components": [
+        "local-class-export-publication-range",
+        "native-class-static-block-and-constructor-range"
+      ],
+      "status": "outside-only",
+      "row_sha256": "b8d14855cee1a8abb67c2d46b8c6b71e3c04d387eb09f504faaea6e8d11cb93c",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              4,
+              4,
+              0,
+              0,
+              0
+            ]
+          ],
+          "expected_js_lines": {
+            "4": "    constructor() {"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              7,
+              4,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [
+            [
+              6,
+              4,
+              0,
+              0,
+              43
+            ],
+            [
+              6,
+              5,
+              0,
+              0,
+              44
+            ]
+          ],
+          "expected_js_lines": {
+            "6": "    }",
+            "7": "    static { this.stat = 10; }"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              7,
+              27,
+              0,
+              0,
+              23
+            ]
+          ],
+          "expected_js_lines": {
+            "7": "    static { this.stat = 10; }"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              7,
+              30,
+              0,
+              0,
+              29
+            ],
+            [
+              9,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              9,
+              18,
+              0,
+              0,
+              44
+            ]
+          ],
+          "typescript": [
+            [
+              9,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              9,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "7": "    static { this.stat = 10; }",
+            "9": "exports.Foo = Foo;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2022/set/commonjs/public-uninitialized",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [],
+      "outside_components": [
+        "local-class-export-publication-range",
+        "native-class-static-block-and-constructor-range"
+      ],
+      "status": "outside-only",
+      "row_sha256": "98432b0f889b323a03296434521eeeddae87eda80eca0de4b6cf068beaf624c6",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "delete",
+          "native": [
+            [
+              4,
+              4,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [],
+          "expected_js_lines": {
+            "4": "    static { this.stat = 10; }"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              4,
+              30,
+              0,
+              0,
+              29
+            ],
+            [
+              6,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              6,
+              18,
+              0,
+              0,
+              48
+            ]
+          ],
+          "typescript": [
+            [
+              6,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              6,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "4": "    static { this.stat = 10; }",
+            "6": "exports.Foo = Foo;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2022/set/commonjs/auto-accessor",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [],
+      "outside_components": [
+        "local-class-export-publication-range",
+        "native-class-static-block-and-constructor-range",
+        "native-auto-accessor-setter-range"
+      ],
+      "status": "outside-only",
+      "row_sha256": "9129f60b284704974d6fa124953f04664e05155b1565a61cf2832b798a6bcb49",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "delete",
+          "native": [
+            [
+              4,
+              4,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [],
+          "expected_js_lines": {
+            "4": "    static { this.stat = 10; }"
+          }
+        },
+        {
+          "kind": "delete",
+          "native": [
+            [
+              4,
+              30,
+              0,
+              0,
+              29
+            ]
+          ],
+          "typescript": [],
+          "expected_js_lines": {
+            "4": "    static { this.stat = 10; }"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              7,
+              4,
+              0,
+              0,
+              30
+            ]
+          ],
+          "expected_js_lines": {
+            "7": "    set member(value) { this.#member_accessor_storage = value; }"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              9,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              9,
+              18,
+              0,
+              0,
+              53
+            ]
+          ],
+          "typescript": [
+            [
+              7,
+              64,
+              0,
+              0,
+              51
+            ],
+            [
+              9,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              9,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "7": "    set member(value) { this.#member_accessor_storage = value; }",
+            "9": "exports.Foo = Foo;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2022/define/commonjs/static-only",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "outside-only",
+      "row_sha256": "b9849e6ceae76e57ab6ad6725b844c8c3485d6cf2ec08a2e58c445e345c07956",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              6,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              6,
+              18,
+              0,
+              0,
+              31
+            ]
+          ],
+          "typescript": [
+            [
+              6,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              6,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "6": "exports.Foo = Foo;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2022/define/commonjs/public-initialized",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "outside-only",
+      "row_sha256": "dd71d1e758bdd5b8a597526e3c193154a6ca8e9d14a73a80c8b0603520a68809",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              7,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              7,
+              18,
+              0,
+              0,
+              44
+            ]
+          ],
+          "typescript": [
+            [
+              7,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              7,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "7": "exports.Foo = Foo;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2022/define/commonjs/public-uninitialized",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "outside-only",
+      "row_sha256": "373768faa376ee69a76a0d09e9070ba969da760d36099d7d5be5c360d768d454",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              7,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              7,
+              18,
+              0,
+              0,
+              48
+            ]
+          ],
+          "typescript": [
+            [
+              7,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              7,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "7": "exports.Foo = Foo;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "es2022/define/commonjs/auto-accessor",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [],
+      "outside_components": [
+        "local-class-export-publication-range",
+        "native-auto-accessor-setter-range"
+      ],
+      "status": "outside-only",
+      "row_sha256": "00f6caac1263619b946aa73089f1372153587fd502d7738f3a2521086e087e1c",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              7,
+              4,
+              0,
+              0,
+              30
+            ]
+          ],
+          "expected_js_lines": {
+            "7": "    set member(value) { this.#member_accessor_storage = value; }"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              9,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              9,
+              18,
+              0,
+              0,
+              53
+            ]
+          ],
+          "typescript": [
+            [
+              7,
+              64,
+              0,
+              0,
+              51
+            ],
+            [
+              9,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              9,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "7": "    set member(value) { this.#member_accessor_storage = value; }",
+            "9": "exports.Foo = Foo;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "esnext/set/commonjs/static-only",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [],
+      "outside_components": [
+        "local-class-export-publication-range",
+        "native-class-static-block-and-constructor-range"
+      ],
+      "status": "outside-only",
+      "row_sha256": "814c8e81c8a79bf8e194e4219fa7be37bfd41f03d847a2fe06c04f8927dbd60e",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "delete",
+          "native": [
+            [
+              4,
+              4,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [],
+          "expected_js_lines": {
+            "4": "    static { this.stat = 10; }"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              4,
+              30,
+              0,
+              0,
+              29
+            ],
+            [
+              6,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              6,
+              18,
+              0,
+              0,
+              31
+            ]
+          ],
+          "typescript": [
+            [
+              6,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              6,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "4": "    static { this.stat = 10; }",
+            "6": "exports.Foo = Foo;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "esnext/set/commonjs/public-initialized",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [],
+      "outside_components": [
+        "local-class-export-publication-range",
+        "native-class-static-block-and-constructor-range"
+      ],
+      "status": "outside-only",
+      "row_sha256": "36107b9ed2795e06f4abce9609441787420fa55ef73696e7ec9373db1f34b98e",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              4,
+              4,
+              0,
+              0,
+              0
+            ]
+          ],
+          "expected_js_lines": {
+            "4": "    constructor() {"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              7,
+              4,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [
+            [
+              6,
+              4,
+              0,
+              0,
+              43
+            ],
+            [
+              6,
+              5,
+              0,
+              0,
+              44
+            ]
+          ],
+          "expected_js_lines": {
+            "6": "    }",
+            "7": "    static { this.stat = 10; }"
+          }
+        },
+        {
+          "kind": "insert",
+          "native": [],
+          "typescript": [
+            [
+              7,
+              27,
+              0,
+              0,
+              23
+            ]
+          ],
+          "expected_js_lines": {
+            "7": "    static { this.stat = 10; }"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              7,
+              30,
+              0,
+              0,
+              29
+            ],
+            [
+              9,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              9,
+              18,
+              0,
+              0,
+              44
+            ]
+          ],
+          "typescript": [
+            [
+              9,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              9,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "7": "    static { this.stat = 10; }",
+            "9": "exports.Foo = Foo;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "esnext/set/commonjs/public-uninitialized",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [],
+      "outside_components": [
+        "local-class-export-publication-range",
+        "native-class-static-block-and-constructor-range"
+      ],
+      "status": "outside-only",
+      "row_sha256": "ecddf7384cd4343c9230bdae2f544f4ccb1b8cb174bf864658caef330018dc03",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "delete",
+          "native": [
+            [
+              4,
+              4,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [],
+          "expected_js_lines": {
+            "4": "    static { this.stat = 10; }"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              4,
+              30,
+              0,
+              0,
+              29
+            ],
+            [
+              6,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              6,
+              18,
+              0,
+              0,
+              48
+            ]
+          ],
+          "typescript": [
+            [
+              6,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              6,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "4": "    static { this.stat = 10; }",
+            "6": "exports.Foo = Foo;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "esnext/set/commonjs/auto-accessor",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [],
+      "outside_components": [
+        "local-class-export-publication-range",
+        "native-class-static-block-and-constructor-range"
+      ],
+      "status": "outside-only",
+      "row_sha256": "c295dc84af57c08cdf38f9e3ed34ff2bc398dbe0c395f3d8a233607168d78ba9",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "delete",
+          "native": [
+            [
+              4,
+              4,
+              0,
+              0,
+              12
+            ]
+          ],
+          "typescript": [],
+          "expected_js_lines": {
+            "4": "    static { this.stat = 10; }"
+          }
+        },
+        {
+          "kind": "delete",
+          "native": [
+            [
+              4,
+              30,
+              0,
+              0,
+              29
+            ]
+          ],
+          "typescript": [],
+          "expected_js_lines": {
+            "4": "    static { this.stat = 10; }"
+          }
+        },
+        {
+          "kind": "replace",
+          "native": [
+            [
+              7,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              7,
+              18,
+              0,
+              0,
+              53
+            ]
+          ],
+          "typescript": [
+            [
+              7,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              7,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "7": "exports.Foo = Foo;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "esnext/define/commonjs/static-only",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "outside-only",
+      "row_sha256": "fd37e48b17223dd0e689815909e34ebb5df1875db2074bbf6d61fa93a33551ee",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              6,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              6,
+              18,
+              0,
+              0,
+              31
+            ]
+          ],
+          "typescript": [
+            [
+              6,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              6,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "6": "exports.Foo = Foo;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "esnext/define/commonjs/public-initialized",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "outside-only",
+      "row_sha256": "7fa88a9424dce281e7a1089b5d07250f75e733837d8d03a8c03c4e46547c9b64",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              7,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              7,
+              18,
+              0,
+              0,
+              44
+            ]
+          ],
+          "typescript": [
+            [
+              7,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              7,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "7": "exports.Foo = Foo;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "esnext/define/commonjs/public-uninitialized",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "outside-only",
+      "row_sha256": "c6f5232707f4c79ee9dad29ee720f50b66c25108c07c0890344ff38e2b7475d9",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              7,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              7,
+              18,
+              0,
+              0,
+              48
+            ]
+          ],
+          "typescript": [
+            [
+              7,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              7,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "7": "exports.Foo = Foo;"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "esnext/define/commonjs/auto-accessor",
+      "before": "failed-two-independent-jobs",
+      "owned_components": [],
+      "outside_components": [
+        "local-class-export-publication-range"
+      ],
+      "status": "outside-only",
+      "row_sha256": "0ef3db31aa0092e0553fd7833887da87a4e89d54ba6c7a3eb4b012244665039d",
+      "diagnostic_mode": "active-semantic-control",
+      "before_map_diffs": [
+        {
+          "kind": "replace",
+          "native": [
+            [
+              7,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              7,
+              18,
+              0,
+              0,
+              53
+            ]
+          ],
+          "typescript": [
+            [
+              7,
+              0,
+              0,
+              1,
+              9
+            ],
+            [
+              7,
+              18,
+              0,
+              1,
+              12
+            ]
+          ],
+          "expected_js_lines": {
+            "7": "exports.Foo = Foo;"
+          }
+        }
+      ]
+    }
+  ],
+  "scout_disposition": {
+    "status": "first-native-job-is-scout-only",
+    "reason": "cargo fmt session20242 had not returned its real exit before native session58888 was launched; freeze two new independent jobs only after both sessions have actually exited",
+    "fmt_exit_code": 0,
+    "scout_session": 58888,
+    "base": "d7863caaad331660aee8d3bf3704273cab10e190",
+    "current_files": [
+      {
+        "path": "crates/emitter/src/builtins/class_fields/downlevel.rs",
+        "sha256": "cc011159afaafc4400d0ad3f3d454d7ba5c92edd249ec4f9615958cd2bca5413"
+      },
+      {
+        "path": "crates/compiler/tests/contracts.rs",
+        "sha256": "06fb3fbd4bdf47f28841e5295f3533f33a926924944990c37d98b174c669d790"
+      },
+      {
+        "path": "crates/compiler/tests/integration/h2_8a_static_initializer_map_ranges.rs",
+        "sha256": "a1f91776aae4f0e0ee251f32060f49aa710a3b1913602c7183e5fed1599ed05b"
+      },
+      {
+        "path": "scripts/observe-static-initializer-map-ranges.mjs",
+        "sha256": "534a4cc55cc9edc3c76a2ff1fa83a4cf6d10ac3897b6f72f8e5edbe7cc6c3faf"
+      },
+      {
+        "path": "crates/compiler/tests/fixtures/static-initializer-map-ranges.json",
+        "sha256": "5c02323b3b5a00ff6e3a285aef4d40f78b637728490cbeba4b62f436855e69de"
+      }
+    ],
+    "scout_exit_code": 101,
+    "scout_seconds": 0.66,
+    "complete_native_commands_executed": 0,
+    "actual_failure": "test adapter lacks useDefineForClassFields option mapping;104 preparation panics,not output differences",
+    "required_harness_repair": "map useDefineForClassFields to existing CompilerOptions.use_define_for_class_fields without changing observations or comparisons",
+    "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-static-map-scout-vc2eko14",
+    "working_files": [
+      {
+        "path": "crates/emitter/src/builtins/class_fields/downlevel.rs",
+        "sha256": "cc011159afaafc4400d0ad3f3d454d7ba5c92edd249ec4f9615958cd2bca5413"
+      },
+      {
+        "path": "crates/compiler/tests/contracts.rs",
+        "sha256": "06fb3fbd4bdf47f28841e5295f3533f33a926924944990c37d98b174c669d790"
+      },
+      {
+        "path": "crates/compiler/tests/integration/h2_8a_static_initializer_map_ranges.rs",
+        "sha256": "a1f91776aae4f0e0ee251f32060f49aa710a3b1913602c7183e5fed1599ed05b"
+      },
+      {
+        "path": "scripts/observe-static-initializer-map-ranges.mjs",
+        "sha256": "534a4cc55cc9edc3c76a2ff1fa83a4cf6d10ac3897b6f72f8e5edbe7cc6c3faf"
+      },
+      {
+        "path": "crates/compiler/tests/fixtures/static-initializer-map-ranges.json",
+        "sha256": "5c02323b3b5a00ff6e3a285aef4d40f78b637728490cbeba4b62f436855e69de"
+      },
+      {
+        "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+        "sha256": "eaa50780d3f78654cc2c1b4cbeb73c50395685a0597ad120f4876b8ca9dd6dba"
+      },
+      {
+        "path": "target/h2-8a-static-initializer-map-ranges-scout.log",
+        "sha256": "60f6f82c7387369ec44da5aeb851d8ce1c00433862991da2dbb55f8286cc53e6"
+      },
+      {
+        "path": "target/h2-8a-static-initializer-map-ranges-before-fmt.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "target/h2-8a-static-initializer-map-ranges-scout-rustc-sample.txt",
+        "sha256": "aefa96aa45ec422d7ba6747e3a34376e725114511251391159116b466e909be1"
+      },
+      {
+        "path": "target/h2-8a-static-initializer-map-ranges-scout-rustc-sample.log",
+        "sha256": "9f9e49c698e685a95d2fcaa4198b5844a10146ca27a901bb3b9461210a12c911"
+      }
+    ]
+  },
+  "before_target_counts": {
+    "exact": 9,
+    "owned_only": 21,
+    "owned_and_outside": 43,
+    "outside_only": 31
+  },
+  "after_required_complete_commands": 367,
+  "after_target_exact_twice": 293,
+  "literal_key_amendment": {
+    "before": "ratchets/h2-8a-property-literal-key-ranges-before.v1.json",
+    "runtime_reference": "ratchets/h2-8a-static-initializer-map-ranges-first-after.v1.json",
+    "runtime_production_sha256": "8af93f39acf3b9ef7531826c45a66adee7d6dc81e74c43e50c369e6d1cb26947",
+    "witnesses": [
+      {
+        "case_id": "literal-key/es5/set/identifier",
+        "row_sha256": "077abf899b3c3651c54c575fb3b913c688cc1d5c30173ea7dc6a97c6812f76c5",
+        "before": "exact-twice",
+        "disposition": "adjacent-exact"
+      },
+      {
+        "case_id": "literal-key/es5/set/quoted-double",
+        "row_sha256": "e0db5327b7196e47b6ae11a7c1b1ca8456b1f879698772ad541a5d980953db21",
+        "before": "exact-twice",
+        "disposition": "adjacent-exact"
+      },
+      {
+        "case_id": "literal-key/es5/set/quoted-single",
+        "row_sha256": "684f40efd54e5d4d586bdac1d9cdc4a0ba030bd8ef6614d448905c39a061c7da",
+        "before": "exact-twice",
+        "disposition": "adjacent-exact"
+      },
+      {
+        "case_id": "literal-key/es5/set/numeric",
+        "row_sha256": "7b393bdb588fcfd83e30a1255b9e5b846b4a04b8a91ad6d5b84efad42ac14333",
+        "before": "exact-twice",
+        "disposition": "adjacent-exact"
+      },
+      {
+        "case_id": "literal-key/es5/set/computed-string",
+        "row_sha256": "317d79cab48e663730e45f6327cda8d4ddfd2091fac18d02e87d729c885fc9a2",
+        "before": "exact-twice",
+        "disposition": "adjacent-exact"
+      },
+      {
+        "case_id": "literal-key/es5/define/identifier",
+        "row_sha256": "1cf9814e6ad80708c045036d5e27a242087484ceb837b1239ca96dc992c28461",
+        "before": "exact-twice",
+        "disposition": "adjacent-exact"
+      },
+      {
+        "case_id": "literal-key/es5/define/quoted-double",
+        "row_sha256": "7d4bd4ff63a5d6eb3356be805d66a071a1db949f40acd395c8a2288508298017",
+        "before": "failed-two-independent-jobs",
+        "disposition": "owned-literal-key-reuse"
+      },
+      {
+        "case_id": "literal-key/es5/define/quoted-single",
+        "row_sha256": "d9d18b35533c786d13c40d1134a8f517ce9dbf7daf090732de7a3f13f36da840",
+        "before": "failed-two-independent-jobs",
+        "disposition": "owned-literal-key-reuse"
+      },
+      {
+        "case_id": "literal-key/es5/define/numeric",
+        "row_sha256": "6179a66cfea27cea87938976e2309c876bf011479473af9bb8d48d8c95c697a6",
+        "before": "failed-two-independent-jobs",
+        "disposition": "owned-literal-key-reuse"
+      },
+      {
+        "case_id": "literal-key/es5/define/computed-string",
+        "row_sha256": "d06e7e8dd1220db5e5d41985e74a5e9fe41588676403e66efeeb70c5651aafb7",
+        "before": "exact-twice",
+        "disposition": "adjacent-exact"
+      },
+      {
+        "case_id": "literal-key/es2015/set/identifier",
+        "row_sha256": "dde91678d0abea4460745de015ec3d71323c0f0302401206ba8421f5ef117c3c",
+        "before": "exact-twice",
+        "disposition": "adjacent-exact"
+      },
+      {
+        "case_id": "literal-key/es2015/set/quoted-double",
+        "row_sha256": "848aa87e1452ca7123ce71c98dedbf5e83d6e9b58870d1c17ad33c8683bb0ce8",
+        "before": "exact-twice",
+        "disposition": "adjacent-exact"
+      },
+      {
+        "case_id": "literal-key/es2015/set/quoted-single",
+        "row_sha256": "ac50f8d93aba4b6a40623f5a1899f923ba4eadb3c3fd1ce68e73fc83a2d555d6",
+        "before": "exact-twice",
+        "disposition": "adjacent-exact"
+      },
+      {
+        "case_id": "literal-key/es2015/set/numeric",
+        "row_sha256": "bbc783efd774728ce7eadbfa5e17a01d6d1aa9764ae240b6c755b9e79cf9af82",
+        "before": "exact-twice",
+        "disposition": "adjacent-exact"
+      },
+      {
+        "case_id": "literal-key/es2015/set/computed-string",
+        "row_sha256": "c4c546bc6c0e84441444f3a27a52abc938c7acfa7da2ceb7e0d48f8f0390fff4",
+        "before": "exact-twice",
+        "disposition": "adjacent-exact"
+      },
+      {
+        "case_id": "literal-key/es2015/define/identifier",
+        "row_sha256": "4765907e2b21ed5e900cb2ac187e21dfa38487520fad2034e62d1c7cb4b2a40c",
+        "before": "exact-twice",
+        "disposition": "adjacent-exact"
+      },
+      {
+        "case_id": "literal-key/es2015/define/quoted-double",
+        "row_sha256": "69c9fd918806cd57ff67350356a65b62112848dc06004146838bf64c1f498252",
+        "before": "failed-two-independent-jobs",
+        "disposition": "owned-literal-key-reuse"
+      },
+      {
+        "case_id": "literal-key/es2015/define/quoted-single",
+        "row_sha256": "c4ae71c00dcaec606b2c6606d012fd7e349bee79d8576f4cf2df10a28c8f7d3f",
+        "before": "failed-two-independent-jobs",
+        "disposition": "owned-literal-key-reuse"
+      },
+      {
+        "case_id": "literal-key/es2015/define/numeric",
+        "row_sha256": "5ca7eb2e4952d0dceb3055a39cbf1941b203373ee8754a7739b1028fe84a5ade",
+        "before": "failed-two-independent-jobs",
+        "disposition": "owned-literal-key-reuse"
+      },
+      {
+        "case_id": "literal-key/es2015/define/computed-string",
+        "row_sha256": "9c344657eb0dd7f1bb6dd2ac8c5c5d2b63d28e008353c7f550b185fb1cdbaedc",
+        "before": "exact-twice",
+        "disposition": "adjacent-exact"
+      }
+    ]
+  },
+  "expression_range_amendment": {
+    "checkpoint": "ratchets/h2-8a-static-initializer-map-ranges-second-after.v1.json",
+    "checkpoint_sha256": "8d5ece621b2de431bf078f683429d08b780943d4761fea4aa97df022b9149707",
+    "new_map_components": 12,
+    "target": "all retained map differences are subsets of original frozen before"
+  },
+  "before_disposition_correction": {
+    "basis": "decoded immutable before maps; set-mode inline property endpoints already exact and match final first vectors",
+    "initial_counts": {
+      "exact": 9,
+      "owned_only": 21,
+      "owned_and_outside": 49,
+      "outside_only": 25
+    },
+    "set_mode_negative_controls": [
+      "es5/set/commonjs/class-expression",
+      "es5/set/commonjs/anonymous-expression",
+      "es5/set/commonjs/nested-resume",
+      "es2015/set/commonjs/class-expression",
+      "es2015/set/commonjs/anonymous-expression",
+      "es2015/set/commonjs/nested-resume"
+    ],
+    "frozen_before_membership_and_vectors": "unchanged"
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "status": "source-owned printed output; not complete program command observations",
+  "typescript": "6.0.3",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "a5be8aa50feadf5f9c29f94d81bbad28300b76babe5068384fae4bd66169c384",
+  "file_name": "decorator-static-accessor.ts",
+  "source": "const dec = (_value, _context) => {};\nclass C { @dec static accessor value = 1; }\n",
+  "module": 200,
+  "repetitions": 2,
+  "cases": [
+    {
+      "case_id": "es2022/set",
+      "target": 9,
+      "use_define_for_class_fields": false,
+      "expected": "var __esDecorate = (this && this.__esDecorate) || function (ctor, descriptorIn, decorators, contextIn, initializers, extraInitializers) {\n    function accept(f) { if (f !== void 0 && typeof f !== \"function\") throw new TypeError(\"Function expected\"); return f; }\n    var kind = contextIn.kind, key = kind === \"getter\" ? \"get\" : kind === \"setter\" ? \"set\" : \"value\";\n    var target = !descriptorIn && ctor ? contextIn[\"static\"] ? ctor : ctor.prototype : null;\n    var descriptor = descriptorIn || (target ? Object.getOwnPropertyDescriptor(target, contextIn.name) : {});\n    var _, done = false;\n    for (var i = decorators.length - 1; i >= 0; i--) {\n        var context = {};\n        for (var p in contextIn) context[p] = p === \"access\" ? {} : contextIn[p];\n        for (var p in contextIn.access) context.access[p] = contextIn.access[p];\n        context.addInitializer = function (f) { if (done) throw new TypeError(\"Cannot add initializers after decoration has completed\"); extraInitializers.push(accept(f || null)); };\n        var result = (0, decorators[i])(kind === \"accessor\" ? { get: descriptor.get, set: descriptor.set } : descriptor[key], context);\n        if (kind === \"accessor\") {\n            if (result === void 0) continue;\n            if (result === null || typeof result !== \"object\") throw new TypeError(\"Object expected\");\n            if (_ = accept(result.get)) descriptor.get = _;\n            if (_ = accept(result.set)) descriptor.set = _;\n            if (_ = accept(result.init)) initializers.unshift(_);\n        }\n        else if (_ = accept(result)) {\n            if (kind === \"field\") initializers.unshift(_);\n            else descriptor[key] = _;\n        }\n    }\n    if (target) Object.defineProperty(target, contextIn.name, descriptor);\n    done = true;\n};\nvar __runInitializers = (this && this.__runInitializers) || function (thisArg, initializers, value) {\n    var useValue = arguments.length > 2;\n    for (var i = 0; i < initializers.length; i++) {\n        value = useValue ? initializers[i].call(thisArg, value) : initializers[i].call(thisArg);\n    }\n    return useValue ? value : void 0;\n};\nconst dec = (_value, _context) => { };\nlet C = (() => {\n    let _static_value_decorators;\n    let _static_value_initializers = [];\n    let _static_value_extraInitializers = [];\n    return class C {\n        static {\n            const _metadata = typeof Symbol === \"function\" && Symbol.metadata ? Object.create(null) : void 0;\n            _static_value_decorators = [dec];\n            __esDecorate(this, null, _static_value_decorators, { kind: \"accessor\", name: \"value\", static: true, private: false, access: { has: obj => \"value\" in obj, get: obj => obj.value, set: (obj, value) => { obj.value = value; } }, metadata: _metadata }, _static_value_initializers, _static_value_extraInitializers);\n            if (_metadata) Object.defineProperty(this, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });\n        }\n        static #value_accessor_storage = __runInitializers(this, _static_value_initializers, 1);\n        static get value() { return C.#value_accessor_storage; }\n        static set value(value) { C.#value_accessor_storage = value; }\n        static {\n            __runInitializers(this, _static_value_extraInitializers);\n        }\n    };\n})();\n",
+      "source_diagnostics": [
+        {
+          "code": 5107,
+          "category": "Error",
+          "message": "Option 'alwaysStrict=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+        }
+      ]
+    },
+    {
+      "case_id": "es2022/define",
+      "target": 9,
+      "use_define_for_class_fields": true,
+      "expected": "var __esDecorate = (this && this.__esDecorate) || function (ctor, descriptorIn, decorators, contextIn, initializers, extraInitializers) {\n    function accept(f) { if (f !== void 0 && typeof f !== \"function\") throw new TypeError(\"Function expected\"); return f; }\n    var kind = contextIn.kind, key = kind === \"getter\" ? \"get\" : kind === \"setter\" ? \"set\" : \"value\";\n    var target = !descriptorIn && ctor ? contextIn[\"static\"] ? ctor : ctor.prototype : null;\n    var descriptor = descriptorIn || (target ? Object.getOwnPropertyDescriptor(target, contextIn.name) : {});\n    var _, done = false;\n    for (var i = decorators.length - 1; i >= 0; i--) {\n        var context = {};\n        for (var p in contextIn) context[p] = p === \"access\" ? {} : contextIn[p];\n        for (var p in contextIn.access) context.access[p] = contextIn.access[p];\n        context.addInitializer = function (f) { if (done) throw new TypeError(\"Cannot add initializers after decoration has completed\"); extraInitializers.push(accept(f || null)); };\n        var result = (0, decorators[i])(kind === \"accessor\" ? { get: descriptor.get, set: descriptor.set } : descriptor[key], context);\n        if (kind === \"accessor\") {\n            if (result === void 0) continue;\n            if (result === null || typeof result !== \"object\") throw new TypeError(\"Object expected\");\n            if (_ = accept(result.get)) descriptor.get = _;\n            if (_ = accept(result.set)) descriptor.set = _;\n            if (_ = accept(result.init)) initializers.unshift(_);\n        }\n        else if (_ = accept(result)) {\n            if (kind === \"field\") initializers.unshift(_);\n            else descriptor[key] = _;\n        }\n    }\n    if (target) Object.defineProperty(target, contextIn.name, descriptor);\n    done = true;\n};\nvar __runInitializers = (this && this.__runInitializers) || function (thisArg, initializers, value) {\n    var useValue = arguments.length > 2;\n    for (var i = 0; i < initializers.length; i++) {\n        value = useValue ? initializers[i].call(thisArg, value) : initializers[i].call(thisArg);\n    }\n    return useValue ? value : void 0;\n};\nconst dec = (_value, _context) => { };\nlet C = (() => {\n    let _static_value_decorators;\n    let _static_value_initializers = [];\n    let _static_value_extraInitializers = [];\n    return class C {\n        static {\n            const _metadata = typeof Symbol === \"function\" && Symbol.metadata ? Object.create(null) : void 0;\n            _static_value_decorators = [dec];\n            __esDecorate(this, null, _static_value_decorators, { kind: \"accessor\", name: \"value\", static: true, private: false, access: { has: obj => \"value\" in obj, get: obj => obj.value, set: (obj, value) => { obj.value = value; } }, metadata: _metadata }, _static_value_initializers, _static_value_extraInitializers);\n            if (_metadata) Object.defineProperty(this, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });\n        }\n        static #value_accessor_storage = __runInitializers(this, _static_value_initializers, 1);\n        static get value() { return C.#value_accessor_storage; }\n        static set value(value) { C.#value_accessor_storage = value; }\n        static {\n            __runInitializers(this, _static_value_extraInitializers);\n        }\n    };\n})();\n",
+      "source_diagnostics": [
+        {
+          "code": 5107,
+          "category": "Error",
+          "message": "Option 'alwaysStrict=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+        }
+      ]
+    },
+    {
+      "case_id": "esnext/set",
+      "target": 99,
+      "use_define_for_class_fields": false,
+      "expected": "var __esDecorate = (this && this.__esDecorate) || function (ctor, descriptorIn, decorators, contextIn, initializers, extraInitializers) {\n    function accept(f) { if (f !== void 0 && typeof f !== \"function\") throw new TypeError(\"Function expected\"); return f; }\n    var kind = contextIn.kind, key = kind === \"getter\" ? \"get\" : kind === \"setter\" ? \"set\" : \"value\";\n    var target = !descriptorIn && ctor ? contextIn[\"static\"] ? ctor : ctor.prototype : null;\n    var descriptor = descriptorIn || (target ? Object.getOwnPropertyDescriptor(target, contextIn.name) : {});\n    var _, done = false;\n    for (var i = decorators.length - 1; i >= 0; i--) {\n        var context = {};\n        for (var p in contextIn) context[p] = p === \"access\" ? {} : contextIn[p];\n        for (var p in contextIn.access) context.access[p] = contextIn.access[p];\n        context.addInitializer = function (f) { if (done) throw new TypeError(\"Cannot add initializers after decoration has completed\"); extraInitializers.push(accept(f || null)); };\n        var result = (0, decorators[i])(kind === \"accessor\" ? { get: descriptor.get, set: descriptor.set } : descriptor[key], context);\n        if (kind === \"accessor\") {\n            if (result === void 0) continue;\n            if (result === null || typeof result !== \"object\") throw new TypeError(\"Object expected\");\n            if (_ = accept(result.get)) descriptor.get = _;\n            if (_ = accept(result.set)) descriptor.set = _;\n            if (_ = accept(result.init)) initializers.unshift(_);\n        }\n        else if (_ = accept(result)) {\n            if (kind === \"field\") initializers.unshift(_);\n            else descriptor[key] = _;\n        }\n    }\n    if (target) Object.defineProperty(target, contextIn.name, descriptor);\n    done = true;\n};\nvar __runInitializers = (this && this.__runInitializers) || function (thisArg, initializers, value) {\n    var useValue = arguments.length > 2;\n    for (var i = 0; i < initializers.length; i++) {\n        value = useValue ? initializers[i].call(thisArg, value) : initializers[i].call(thisArg);\n    }\n    return useValue ? value : void 0;\n};\nconst dec = (_value, _context) => { };\nlet C = (() => {\n    let _static_value_decorators;\n    let _static_value_initializers = [];\n    let _static_value_extraInitializers = [];\n    return class C {\n        static {\n            const _metadata = typeof Symbol === \"function\" && Symbol.metadata ? Object.create(null) : void 0;\n            _static_value_decorators = [dec];\n            __esDecorate(this, null, _static_value_decorators, { kind: \"accessor\", name: \"value\", static: true, private: false, access: { has: obj => \"value\" in obj, get: obj => obj.value, set: (obj, value) => { obj.value = value; } }, metadata: _metadata }, _static_value_initializers, _static_value_extraInitializers);\n            if (_metadata) Object.defineProperty(this, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });\n        }\n        static accessor value = __runInitializers(this, _static_value_initializers, 1);\n        static {\n            __runInitializers(this, _static_value_extraInitializers);\n        }\n    };\n})();\n",
+      "source_diagnostics": [
+        {
+          "code": 5107,
+          "category": "Error",
+          "message": "Option 'alwaysStrict=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+        }
+      ]
+    },
+    {
+      "case_id": "esnext/define",
+      "target": 99,
+      "use_define_for_class_fields": true,
+      "expected": "const dec = (_value, _context) => { };\nclass C {\n    @dec\n    static accessor value = 1;\n}\n",
+      "source_diagnostics": [
+        {
+          "code": 5107,
+          "category": "Error",
+          "message": "Option 'alwaysStrict=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+        }
+      ]
+    }
+  ]
+}

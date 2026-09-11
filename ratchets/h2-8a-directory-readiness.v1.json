@@ -1,0 +1,411 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A1",
+  "base": "10748f6ee19ec083ce5748224930c5dcfbbd86df",
+  "unresolved": 0,
+  "undispositioned": 0,
+  "authorities": [
+    {
+      "path": "docs/design/greenfield/slices/h2-8.md",
+      "sha256": "2f1950ba3d604e85175ab3ffd67137552f990d7f71c77f4adbb808684d573f72"
+    },
+    {
+      "path": "scripts/observe-output-directories.mjs",
+      "sha256": "f16dc07e37cf8dbd59a21fcf1119657d4c9067b636a0589ec6f6a451eb0761ac"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/output-directories.json",
+      "sha256": "21e8bcf2f7929688902c7e15270a64e18c220212ad35b638e90257253639d8ad"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "87866477f1e3ee90371f0600264540a9688a98b51517e0689926d37ca0f6bfb2"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    {
+      "path": "scripts/observe-module-export-identifiers.mjs",
+      "sha256": "2c89835a19721da17ae9aeba43efe4074aa8e696136c573d5b0d31d85fb07a3e"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/module-export-identifiers.json",
+      "sha256": "cd4f5df4dd1f011561349ca007d7885f7dbd08f5e01ff5803ecfdb9e2ef6d2b5"
+    },
+    {
+      "path": "crates/syntax/src/parser.rs",
+      "sha256": "c30ad50f80148d8a7aaa49c2df2ec2f8be05d1ea635c69c0a7ac6d0731ce0732"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/emitter/src/execute.rs",
+      "sha256": "9d238221bbc5afb3a27b99d25b52e13c4f1f3032201b8dfc48b0bf3bfee2864b"
+    },
+    {
+      "path": "crates/emitter/src/plan.rs",
+      "sha256": "70c1dda6e35dff812b19cfa8bedc3f23f76d94faf9113aba26cc23e476c9e12e"
+    },
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "9c4bc3465ddf21aeeb6913bf47af3a9bb8f76019cdca57c40430b544ad7045e4"
+    }
+  ],
+  "owners": [
+    {
+      "owner": "getOwnEmitOutputFilePath",
+      "start": 16567,
+      "end": 16576,
+      "sha256": "4ddd1ea3136e64d8da7394a321fb709fffd279d36c8b456616956cdd82905b14",
+      "step": "A1-1",
+      "test": "crates/compiler/tests/integration/h2_8a_output_directories.rs"
+    },
+    {
+      "owner": "getSourceFilePathInNewDirWorker",
+      "start": 16638,
+      "end": 16643,
+      "sha256": "1c92b6269af48b15f457c7c5e64b620cc19f367cb7e0a38b07b74b05b4940203",
+      "step": "A1-2",
+      "test": "crates/compiler/tests/integration/h2_8a_output_directories.rs"
+    },
+    {
+      "owner": "getOutputPathsFor",
+      "start": 116373,
+      "end": 116387,
+      "sha256": "f3ef9e378ec2b224d2f434b49f6ffd2a9597e7cc102f504653c9027a49c5ebd2",
+      "step": "A1-3",
+      "test": "crates/compiler/tests/integration/h2_8a_output_directories.rs"
+    },
+    {
+      "owner": "verifyEmitFilePath",
+      "start": 125018,
+      "end": 125045,
+      "sha256": "89b85e5f8bf04e3625f8bddd1b2a226caa8cd308eb76180bc55db8ac597fdb50",
+      "step": "A1-4",
+      "test": "crates/compiler/tests/integration/h2_8a_output_directories.rs"
+    },
+    {
+      "owner": "emitFiles",
+      "start": 116530,
+      "end": 116858,
+      "sha256": "62e93c3a8e9e2840b759bbaa0fa6de5e548ebd565748dbbddb47a933a1cf442c",
+      "step": "A1-5",
+      "test": "crates/compiler/tests/integration/h2_8a_output_directories.rs"
+    },
+    {
+      "owner": "isIdentifierText",
+      "start": 8676,
+      "end": 8687,
+      "sha256": "ce44c13a3f2ea2f826209e812605d2e30c3ff5a4e9a6925a0683821d18048b5d",
+      "step": "A1-6",
+      "test": "crates/compiler/tests/integration/h2_8a_output_directories.rs"
+    },
+    {
+      "owner": "createExportExpression",
+      "start": 111805,
+      "end": 111851,
+      "sha256": "75fd880a658644ec017e38813933a1710d9f1ec7929387c8755990e3d6c9fbf8",
+      "step": "A1-6",
+      "test": "crates/compiler/tests/integration/h2_8a_output_directories.rs"
+    }
+  ],
+  "architecture": [
+    {
+      "id": "E-PLAN-SCRIPT",
+      "disposition": "modified-requalify"
+    },
+    {
+      "id": "E-DECL-PATH",
+      "disposition": "modified-requalify"
+    },
+    {
+      "id": "E-OUTPUT-SCRIPT",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-PLAN-FUTURE",
+      "disposition": "future-owned-fail-closed"
+    },
+    {
+      "id": "E-OUTPUT-FUTURE",
+      "disposition": "future-owned-fail-closed"
+    },
+    {
+      "id": "E-NAMES-BASE",
+      "disposition": "modified-requalify"
+    }
+  ],
+  "authority_amendments": [
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "old_sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19",
+      "sha256": "ec6352d538b8eada6f65acede494336c80114c4e3cea0cd3b56825fb907c618c",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-initializer-comment-pre-edit-px_7xkf7/docs/design/greenfield/emitter-architecture.md",
+      "reason": "A6-28-5 current inventory retirement; historical qualification/source retained; no initial A28 target or A1 semantics change"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "old_sha256": "ec6352d538b8eada6f65acede494336c80114c4e3cea0cd3b56825fb907c618c",
+      "sha256": "77f2b544794c8550b4695ae8321fb25fc27e1ad4c2fef78b2df0f79187f02d78",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-initializer-comment-shared-regressions-_vi25qb_/docs/design/greenfield/emitter-architecture.md",
+      "reason": "A6-28-5 frozen qualification recorded in current docs; no runtime or original A28 target change"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "old_sha256": "77f2b544794c8550b4695ae8321fb25fc27e1ad4c2fef78b2df0f79187f02d78",
+      "sha256": "a60515bef34b9f94e270b45b3200317f040e25736a431f975972e359dbfa5af6",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-promoted-export-shared-regressions-rhx2fcue/docs/design/greenfield/emitter-architecture.md",
+      "reason": "A6-28-6 frozen amended qualification; original A28 still has four owned comments, no global count"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "old_sha256": "a60515bef34b9f94e270b45b3200317f040e25736a431f975972e359dbfa5af6",
+      "sha256": "565f22a4ca44194fbf1998b5317ec6148cd97d148b68e61a0190197f20969159",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-one-sided-comment-architecture-fo3m_il9/docs/design/greenfield/emitter-architecture.md",
+      "reason": "A6-28-7 candidate type inventory; three comment rows explicitly unqualified until exact output/regression evidence"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "old_sha256": "565f22a4ca44194fbf1998b5317ec6148cd97d148b68e61a0190197f20969159",
+      "sha256": "bcc5f6dbcb3ef62b30736f1da77192b9e70ea6d3bcfe4ca56c87ae7849de8869",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-one-sided-comment-regressions-ke3x_t4q/docs/design/greenfield/emitter-architecture.md",
+      "reason": "A6-28-7 frozen 996-command and 494/451 qualification; all original A28 owned targets repaired, H2.8 global and A/B-E remain open"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "old_sha256": "bcc5f6dbcb3ef62b30736f1da77192b9e70ea6d3bcfe4ca56c87ae7849de8869",
+      "sha256": "1cfa65f4381eb5738bf765cde368f00f02971c0ea5e739200b99dfd5382b3d9c",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-helper-accessor-pre-edit-9j1e5pd5/docs/design/greenfield/emitter-architecture.md",
+      "reason": "A6-29 exact three-producer candidate; pre-edit bytes retained, complete1140 and494/451 qualification pending"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "old_sha256": "1cfa65f4381eb5738bf765cde368f00f02971c0ea5e739200b99dfd5382b3d9c",
+      "sha256": "fc6f3db60723355f9586bdc7fd73466bd6a6c51a38eb30c4c8e835bb3bcaba5f",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-helper-accessor-regressions-sm9tjpgu/docs/design/greenfield/emitter-architecture.md",
+      "reason": "A6-29 frozen1140 comparison and494/451 regressions;92 selected repairs,928 preserved positives;H2.8 remains open"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8.md",
+      "old_sha256": "51a16b817ef4433c293ced2cb027ed949fedec58daf43aa348198385852ef9cd",
+      "sha256": "029319c3818410dc54a7f0d379857d8338b0398a42d101acebc058968dd4da2d",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-jsdoc-container-doc-before-xi1tnn9j/docs/design/greenfield/slices/h2-8.md",
+      "reason": "A6-30 complete 64/64 observations and unchanged 71 binder/108 checker units; A6-29 measured733/769 global checkpoint; H2.8 remains open"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8.md",
+      "old_sha256": "029319c3818410dc54a7f0d379857d8338b0398a42d101acebc058968dd4da2d",
+      "sha256": "8741934badb55a6ce3ed0f5fa6eb11c3436ec97cef73c1bca268b60e329c7e74",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-export-star-doc-before-9c8258vw/docs/design/greenfield/slices/h2-8.md",
+      "reason": "A6-31 measured 60/60 commands and28 unchanged checker units; only focused producer qualification, H2.8 remains open"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8.md",
+      "old_sha256": "8741934badb55a6ce3ed0f5fa6eb11c3436ec97cef73c1bca268b60e329c7e74",
+      "sha256": "db43ee7267bc00c5c34c96b3f0f1f94f4c90c7106164d6c615c78228c08ecffc",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-optional-name-doc-before-wyn9qsch/docs/design/greenfield/slices/h2-8.md",
+      "reason": "A6-32 measured 58/64 fresh commands and 38 unchanged printer contracts; optional-name branch only, remaining comments/recovery explicit, H2.8 remains open"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8.md",
+      "old_sha256": "db43ee7267bc00c5c34c96b3f0f1f94f4c90c7106164d6c615c78228c08ecffc",
+      "sha256": "54687cc1f676d117af0482a44497e0322d75837a8f252226a6a0b8354c34418e",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-header-token-doc-before-_kxx_o83/docs/design/greenfield/slices/h2-8.md",
+      "reason": "A6-33 measured144/152 ordinary commands,32/32 direct metadata prints and451 unchanged emitter contracts; remaining composition/recovery explicit; H2.8 open"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8.md",
+      "old_sha256": "54687cc1f676d117af0482a44497e0322d75837a8f252226a6a0b8354c34418e",
+      "sha256": "f3a75fe97a6e108d03539a84ba8975a7adf4eba5646a0527a1b0283e786b2ad7",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-const-modifier-erasure-doc-before-esk9hsnh/docs/design/greenfield/slices/h2-8.md",
+      "reason": "A6-34 measured144/144 ordinary,3/4original,494units451contracts; H2.8 remains open"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8.md",
+      "old_sha256": "f3a75fe97a6e108d03539a84ba8975a7adf4eba5646a0527a1b0283e786b2ad7",
+      "sha256": "4b0ab8795cfd22e3297678de8f1e1bca56a61f30b5417d67e7bbc0eca8b3ce3c",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-convergence-doc-before-szpzwoc2/docs/design/greenfield/slices/h2-8.md",
+      "reason": "A34 same-head convergence checkpoint and reviewed next-owner order; runtime and expected inputs unchanged"
+    },
+    {
+      "manifest": "ratchets/h2-8a-directory-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "fc6f3db60723355f9586bdc7fd73466bd6a6c51a38eb30c4c8e835bb3bcaba5f",
+          "sha256": "e628700a3b961d9db653611dd3d781068ecc707b1f38fe8e95dc390ed3dd2d51",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-import-helpers-readiness-before-fa2sju0s/docs/design/greenfield/emitter-architecture.md",
+          "reason": "A6-35 appends complete importHelpers controls and source-owned packet; prior runtime, architecture premises, fixtures and observations retained"
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-directory-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/slices/h2-8.md",
+          "old_sha256": "4b0ab8795cfd22e3297678de8f1e1bca56a61f30b5417d67e7bbc0eca8b3ce3c",
+          "sha256": "11be69c8d87879b20cdce37494f409dae62d9a2c0ddf5bc291e5ccb330a505b2",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-import-helpers-qualification-before-wg08jd62/docs/design/greenfield/slices/h2-8.md",
+          "reason": "A6-35 focused qualification and dependency-pin propagation; prior observations and architecture invariants retained"
+        },
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "e628700a3b961d9db653611dd3d781068ecc707b1f38fe8e95dc390ed3dd2d51",
+          "sha256": "cd91d32db2da8f5d7bc979276530b5e3389f54bf778e141eb88cea83941551cc",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-import-helpers-qualification-before-wg08jd62/docs/design/greenfield/emitter-architecture.md",
+          "reason": "A6-35 focused qualification and dependency-pin propagation; prior observations and architecture invariants retained"
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-directory-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "cd91d32db2da8f5d7bc979276530b5e3389f54bf778e141eb88cea83941551cc",
+          "sha256": "3263dd4e8f728d7f64e37e07548c25b11bf8f74758581c4543e244874b5892db",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-token-comment-readiness-before-itu3c39w/docs/design/greenfield/emitter-architecture.md",
+          "reason": "A6-36 complete modifier/spread controls and separate candidate architecture row; prior runtime, expectations and qualification claims retained"
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-directory-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "3263dd4e8f728d7f64e37e07548c25b11bf8f74758581c4543e244874b5892db",
+          "sha256": "e0fc6ac9e2011ba948ff79b20a78bc1b581170b8f71be12d413376bab94bc81b",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-token-comment-source-file-amendment-0a17tb95/docs/design/greenfield/emitter-architecture.md",
+          "reason": "A36 source-file statement scope regression amendment; all initial evidence and predecessor qualification retained, no expected outputs changed"
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-directory-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/slices/h2-8.md",
+          "old_sha256": "11be69c8d87879b20cdce37494f409dae62d9a2c0ddf5bc291e5ccb330a505b2",
+          "sha256": "8f23884ecc00e143b093d61459458a669801736d20fe18cdd76b8c5e2a08fac8",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-token-comment-qualification-before-5o1blteg/docs/design/greenfield/slices/h2-8.md",
+          "reason": "A6-36 focused qualification and dependency-pin propagation; prior observations and architecture invariants retained"
+        },
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "e0fc6ac9e2011ba948ff79b20a78bc1b581170b8f71be12d413376bab94bc81b",
+          "sha256": "4dc4998a377ed919851f7e272b173f5439f8a718334616d103ce26eb0c96e256",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-token-comment-qualification-before-5o1blteg/docs/design/greenfield/emitter-architecture.md",
+          "reason": "A6-36 focused qualification and dependency-pin propagation; prior observations and architecture invariants retained"
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-directory-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "4dc4998a377ed919851f7e272b173f5439f8a718334616d103ce26eb0c96e256",
+          "sha256": "de25c9a7fcc41d0668835cd15cddaa0c6e5210b2efbe5da6231444a428068435",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-readiness-before-s13azpeg/docs/design/greenfield/emitter-architecture.md",
+          "reason": "A6-37 tests and candidate architecture row; jsx fixture option adapter pass-through; predecessor runtime, fixture expectations and qualification scope retained."
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-directory-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "de25c9a7fcc41d0668835cd15cddaa0c6e5210b2efbe5da6231444a428068435",
+          "sha256": "49bb246418e4ff408ed673eb93de903f56558e02471a1fd00386bfeeaec3052c",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-preflight-symbol-before-1fp2k71b/docs/design/greenfield/emitter-architecture.md",
+          "reason": "Correct native admission symbol to actual builtins::preflight_source; source/runtime and qualification unchanged."
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-directory-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/slices/h2-8.md",
+          "old_sha256": "8f23884ecc00e143b093d61459458a669801736d20fe18cdd76b8c5e2a08fac8",
+          "sha256": "97ba6c28d6378fffd04a6ed422a5390de38f0848e7e692c08174df79c8108686",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-qualification-before-m2oiytjw/docs/design/greenfield/slices/h2-8.md",
+          "reason": "A6-37 focused qualification and dependency-pin propagation; prior observations and qualification scope retained."
+        },
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "49bb246418e4ff408ed673eb93de903f56558e02471a1fd00386bfeeaec3052c",
+          "sha256": "65bf76c8fd088062b02ac29606bd1345f2d14a284be85f5bcf09b71fa447a63a",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-qualification-before-m2oiytjw/docs/design/greenfield/emitter-architecture.md",
+          "reason": "A6-37 focused qualification and dependency-pin propagation; prior observations and qualification scope retained."
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-directory-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/slices/h2-8.md",
+          "old_sha256": "97ba6c28d6378fffd04a6ed422a5390de38f0848e7e692c08174df79c8108686",
+          "sha256": "6540ed7c46287104cea4f3873afaa50a8400eeba7ab9ecd21f803615fc3a691d",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-final-doc-before-v38tfd6c/docs/design/greenfield/slices/h2-8.md",
+          "reason": "A37 final documentation status and archive-location correction only; production, fixtures and qualified observations unchanged."
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-directory-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/slices/h2-8.md",
+          "old_sha256": "6540ed7c46287104cea4f3873afaa50a8400eeba7ab9ecd21f803615fc3a691d",
+          "sha256": "741e55a2a6bf0eef619660502de7d1a371b714060ba100b0ab1fbf6e9556979e",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-global-a37-doc-before-g1hei6f8/docs/design/greenfield/slices/h2-8.md",
+          "reason": "Completed original769 A37 replay and transitive progress-document pins; runtime and expected tuples unchanged."
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-directory-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/slices/h2-8.md",
+          "old_sha256": "741e55a2a6bf0eef619660502de7d1a371b714060ba100b0ab1fbf6e9556979e",
+          "sha256": "860ba6b8502cee2b5ea45967720319bb873907dfd568c640b4fd4b8a7c027f54",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-object-property-publication-before-7_dyqkfl/docs/design/greenfield/slices/h2-8.md",
+          "reason": "Qualified A6-38 documentation and transitive authority pins; test registration adds A38 and retained-accessor before controls. Existing expected tuples and harness comparisons remain unchanged."
+        },
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "65bf76c8fd088062b02ac29606bd1345f2d14a284be85f5bcf09b71fa447a63a",
+          "sha256": "f40c27da29da4752cf448395434e1a57fad9bfd86352cf89c0e17af604570bb8",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-retained-accessor-before-registration-mtc_kvww/docs/design/greenfield/emitter-architecture.md",
+          "reason": "Qualified A6-38 documentation and transitive authority pins; test registration adds A38 and retained-accessor before controls. Existing expected tuples and harness comparisons remain unchanged."
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-directory-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/slices/h2-8.md",
+          "old_sha256": "860ba6b8502cee2b5ea45967720319bb873907dfd568c640b4fd4b8a7c027f54",
+          "sha256": "2f1950ba3d604e85175ab3ffd67137552f990d7f71c77f4adbb808684d573f72",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-retained-producers-publication-before-ebaz1f4o/docs/design/greenfield/slices/h2-8.md",
+          "reason": "Measured A39 producer profile documentation and transitive authority references only; all prior architecture subrows, expected tuples, comparators and accepted profiles retain their exact scopes."
+        },
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "f40c27da29da4752cf448395434e1a57fad9bfd86352cf89c0e17af604570bb8",
+          "sha256": "87866477f1e3ee90371f0600264540a9688a98b51517e0689926d37ca0f6bfb2",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-retained-producers-readiness-ibhacd_w/emitter-architecture-before.md",
+          "reason": "Measured A39 producer profile documentation and transitive authority references only; all prior architecture subrows, expected tuples, comparators and accepted profiles retain their exact scopes."
+        }
+      ]
+    }
+  ]
+}

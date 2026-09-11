@@ -1,0 +1,982 @@
+{
+  "version": 1,
+  "status": "complete-before-with-two-independent-native-jobs",
+  "base": "2f7f297c13046fb569bbb199b39393b4a235a3e5",
+  "eligible": 168,
+  "exact_twice": [
+    "hoisted-export/es5/commonjs/class/direct",
+    "hoisted-export/es5/commonjs/class/local",
+    "hoisted-export/es5/commonjs/class/renamed",
+    "hoisted-export/es5/commonjs/class/quoted",
+    "hoisted-export/es5/commonjs/class/default-named",
+    "hoisted-export/es5/commonjs/class/default-anonymous",
+    "hoisted-export/es5/commonjs/class/multiple",
+    "hoisted-export/es5/commonjs/class/direct-and-explicit",
+    "hoisted-export/es5/commonjs/class/export-before",
+    "hoisted-export/es5/commonjs/class/comments",
+    "hoisted-export/es5/commonjs/class/duplicate-quoted",
+    "hoisted-export/es5/commonjs/class/export-equals",
+    "hoisted-export/es5/commonjs/function/direct",
+    "hoisted-export/es5/commonjs/function/default-named",
+    "hoisted-export/es5/commonjs/function/default-anonymous",
+    "hoisted-export/es5/commonjs/function/export-equals",
+    "hoisted-export/es5/amd/class/direct",
+    "hoisted-export/es5/amd/class/local",
+    "hoisted-export/es5/amd/class/renamed",
+    "hoisted-export/es5/amd/class/quoted",
+    "hoisted-export/es5/amd/class/default-named",
+    "hoisted-export/es5/amd/class/default-anonymous",
+    "hoisted-export/es5/amd/class/multiple",
+    "hoisted-export/es5/amd/class/direct-and-explicit",
+    "hoisted-export/es5/amd/class/export-before",
+    "hoisted-export/es5/amd/class/comments",
+    "hoisted-export/es5/amd/class/duplicate-quoted",
+    "hoisted-export/es5/amd/class/export-equals",
+    "hoisted-export/es5/amd/function/direct",
+    "hoisted-export/es5/amd/function/default-named",
+    "hoisted-export/es5/amd/function/default-anonymous",
+    "hoisted-export/es5/amd/function/export-equals",
+    "hoisted-export/es2015/commonjs/class/direct",
+    "hoisted-export/es2015/commonjs/class/default-named",
+    "hoisted-export/es2015/commonjs/class/default-anonymous",
+    "hoisted-export/es2015/commonjs/class/export-equals",
+    "hoisted-export/es2015/commonjs/function/direct",
+    "hoisted-export/es2015/commonjs/function/default-named",
+    "hoisted-export/es2015/commonjs/function/default-anonymous",
+    "hoisted-export/es2015/commonjs/function/export-equals",
+    "hoisted-export/es2015/amd/class/direct",
+    "hoisted-export/es2015/amd/class/default-named",
+    "hoisted-export/es2015/amd/class/default-anonymous",
+    "hoisted-export/es2015/amd/class/export-equals",
+    "hoisted-export/es2015/amd/function/direct",
+    "hoisted-export/es2015/amd/function/default-named",
+    "hoisted-export/es2015/amd/function/default-anonymous",
+    "hoisted-export/es2015/amd/function/export-equals",
+    "hoisted-export/es2022/commonjs/class/direct",
+    "hoisted-export/es2022/commonjs/class/default-named",
+    "hoisted-export/es2022/commonjs/class/default-anonymous",
+    "hoisted-export/es2022/commonjs/class/export-equals",
+    "hoisted-export/es2022/commonjs/function/direct",
+    "hoisted-export/es2022/commonjs/function/default-named",
+    "hoisted-export/es2022/commonjs/function/default-anonymous",
+    "hoisted-export/es2022/commonjs/function/export-equals",
+    "hoisted-export/es2022/amd/class/direct",
+    "hoisted-export/es2022/amd/class/default-named",
+    "hoisted-export/es2022/amd/class/default-anonymous",
+    "hoisted-export/es2022/amd/class/export-equals",
+    "hoisted-export/es2022/amd/function/direct",
+    "hoisted-export/es2022/amd/function/default-named",
+    "hoisted-export/es2022/amd/function/default-anonymous",
+    "hoisted-export/es2022/amd/function/export-equals"
+  ],
+  "failed_twice": [
+    "hoisted-export/es5/commonjs/class/escaped",
+    "hoisted-export/es5/commonjs/class/direct-escaped",
+    "hoisted-export/es5/commonjs/function/local",
+    "hoisted-export/es5/commonjs/function/renamed",
+    "hoisted-export/es5/commonjs/function/quoted",
+    "hoisted-export/es5/commonjs/function/multiple",
+    "hoisted-export/es5/commonjs/function/direct-and-explicit",
+    "hoisted-export/es5/commonjs/function/escaped",
+    "hoisted-export/es5/commonjs/function/direct-escaped",
+    "hoisted-export/es5/commonjs/function/export-before",
+    "hoisted-export/es5/commonjs/function/comments",
+    "hoisted-export/es5/commonjs/function/duplicate-quoted",
+    "hoisted-export/es5/amd/class/escaped",
+    "hoisted-export/es5/amd/class/direct-escaped",
+    "hoisted-export/es5/amd/function/local",
+    "hoisted-export/es5/amd/function/renamed",
+    "hoisted-export/es5/amd/function/quoted",
+    "hoisted-export/es5/amd/function/multiple",
+    "hoisted-export/es5/amd/function/direct-and-explicit",
+    "hoisted-export/es5/amd/function/escaped",
+    "hoisted-export/es5/amd/function/direct-escaped",
+    "hoisted-export/es5/amd/function/export-before",
+    "hoisted-export/es5/amd/function/comments",
+    "hoisted-export/es5/amd/function/duplicate-quoted",
+    "hoisted-export/es2015/commonjs/class/local",
+    "hoisted-export/es2015/commonjs/class/renamed",
+    "hoisted-export/es2015/commonjs/class/quoted",
+    "hoisted-export/es2015/commonjs/class/multiple",
+    "hoisted-export/es2015/commonjs/class/direct-and-explicit",
+    "hoisted-export/es2015/commonjs/class/escaped",
+    "hoisted-export/es2015/commonjs/class/direct-escaped",
+    "hoisted-export/es2015/commonjs/class/export-before",
+    "hoisted-export/es2015/commonjs/class/comments",
+    "hoisted-export/es2015/commonjs/class/duplicate-quoted",
+    "hoisted-export/es2015/commonjs/function/local",
+    "hoisted-export/es2015/commonjs/function/renamed",
+    "hoisted-export/es2015/commonjs/function/quoted",
+    "hoisted-export/es2015/commonjs/function/multiple",
+    "hoisted-export/es2015/commonjs/function/direct-and-explicit",
+    "hoisted-export/es2015/commonjs/function/escaped",
+    "hoisted-export/es2015/commonjs/function/direct-escaped",
+    "hoisted-export/es2015/commonjs/function/export-before",
+    "hoisted-export/es2015/commonjs/function/comments",
+    "hoisted-export/es2015/commonjs/function/duplicate-quoted",
+    "hoisted-export/es2015/amd/class/local",
+    "hoisted-export/es2015/amd/class/renamed",
+    "hoisted-export/es2015/amd/class/quoted",
+    "hoisted-export/es2015/amd/class/multiple",
+    "hoisted-export/es2015/amd/class/direct-and-explicit",
+    "hoisted-export/es2015/amd/class/escaped",
+    "hoisted-export/es2015/amd/class/direct-escaped",
+    "hoisted-export/es2015/amd/class/export-before",
+    "hoisted-export/es2015/amd/class/comments",
+    "hoisted-export/es2015/amd/class/duplicate-quoted",
+    "hoisted-export/es2015/amd/function/local",
+    "hoisted-export/es2015/amd/function/renamed",
+    "hoisted-export/es2015/amd/function/quoted",
+    "hoisted-export/es2015/amd/function/multiple",
+    "hoisted-export/es2015/amd/function/direct-and-explicit",
+    "hoisted-export/es2015/amd/function/escaped",
+    "hoisted-export/es2015/amd/function/direct-escaped",
+    "hoisted-export/es2015/amd/function/export-before",
+    "hoisted-export/es2015/amd/function/comments",
+    "hoisted-export/es2015/amd/function/duplicate-quoted",
+    "hoisted-export/es2022/commonjs/class/local",
+    "hoisted-export/es2022/commonjs/class/renamed",
+    "hoisted-export/es2022/commonjs/class/quoted",
+    "hoisted-export/es2022/commonjs/class/multiple",
+    "hoisted-export/es2022/commonjs/class/direct-and-explicit",
+    "hoisted-export/es2022/commonjs/class/escaped",
+    "hoisted-export/es2022/commonjs/class/direct-escaped",
+    "hoisted-export/es2022/commonjs/class/export-before",
+    "hoisted-export/es2022/commonjs/class/comments",
+    "hoisted-export/es2022/commonjs/class/duplicate-quoted",
+    "hoisted-export/es2022/commonjs/function/local",
+    "hoisted-export/es2022/commonjs/function/renamed",
+    "hoisted-export/es2022/commonjs/function/quoted",
+    "hoisted-export/es2022/commonjs/function/multiple",
+    "hoisted-export/es2022/commonjs/function/direct-and-explicit",
+    "hoisted-export/es2022/commonjs/function/escaped",
+    "hoisted-export/es2022/commonjs/function/direct-escaped",
+    "hoisted-export/es2022/commonjs/function/export-before",
+    "hoisted-export/es2022/commonjs/function/comments",
+    "hoisted-export/es2022/commonjs/function/duplicate-quoted",
+    "hoisted-export/es2022/amd/class/local",
+    "hoisted-export/es2022/amd/class/renamed",
+    "hoisted-export/es2022/amd/class/quoted",
+    "hoisted-export/es2022/amd/class/multiple",
+    "hoisted-export/es2022/amd/class/direct-and-explicit",
+    "hoisted-export/es2022/amd/class/escaped",
+    "hoisted-export/es2022/amd/class/direct-escaped",
+    "hoisted-export/es2022/amd/class/export-before",
+    "hoisted-export/es2022/amd/class/comments",
+    "hoisted-export/es2022/amd/class/duplicate-quoted",
+    "hoisted-export/es2022/amd/function/local",
+    "hoisted-export/es2022/amd/function/renamed",
+    "hoisted-export/es2022/amd/function/quoted",
+    "hoisted-export/es2022/amd/function/multiple",
+    "hoisted-export/es2022/amd/function/direct-and-explicit",
+    "hoisted-export/es2022/amd/function/escaped",
+    "hoisted-export/es2022/amd/function/direct-escaped",
+    "hoisted-export/es2022/amd/function/export-before",
+    "hoisted-export/es2022/amd/function/comments",
+    "hoisted-export/es2022/amd/function/duplicate-quoted"
+  ],
+  "native_jobs": 2,
+  "positive_executions_per_case": 4,
+  "failed_executions_per_case": 2,
+  "seconds": [
+    178.25,
+    163.14
+  ],
+  "exit_codes": [
+    101,
+    101
+  ],
+  "first_failure_comparisons": [
+    {
+      "case_id": "hoisted-export/es5/commonjs/class/escaped",
+      "boundary": "exact source-map result",
+      "actual_sha256": "3d0ad597333161f5e11f4bcbd1b7733e4ef69ca16d43c9d3bcce50ee69c06668",
+      "expected_sha256": "664eeb6784b78166ff491e13c651dadc2878815a1789bcac62e092233bfb95db",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/class/direct-escaped",
+      "boundary": "exact source-map result",
+      "actual_sha256": "912af92d9a4127d61652411fcfe65be4ef0c0b3cee5153c521d0e0b95f7ce154",
+      "expected_sha256": "2fda6b706e5e5d82077d23a6949777ee82f8c8a11c52addf212ac2c3ba875388",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/function/local",
+      "boundary": "exact source-map result",
+      "actual_sha256": "537a6a0469b60361fec6fea1949cbc08373742f6edaa8512ae2f6640c0567247",
+      "expected_sha256": "29af58abf7911add58c0c155a259e8bb781a46be82debced9056920e752408f5",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/function/renamed",
+      "boundary": "exact source-map result",
+      "actual_sha256": "537a6a0469b60361fec6fea1949cbc08373742f6edaa8512ae2f6640c0567247",
+      "expected_sha256": "1dadf3dcd87931dd7bf8d9413c357720ca1ce6703d0ccbcf1ec1f80c880056b4",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/function/quoted",
+      "boundary": "exact source-map result",
+      "actual_sha256": "e0fb2f0d1eed49c8bf21a5268770a095f5532c7b6f1e89f07e5363bd51d898d6",
+      "expected_sha256": "df413edf1149791e6cd93dab7535e56339689dc35eaf0b39aad603ad56535e46",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/function/multiple",
+      "boundary": "exact source-map result",
+      "actual_sha256": "ff04e741441d0a3a082ea10293b04bdf3f5355253e22686fde3d3fa855464796",
+      "expected_sha256": "8fa6e8583ea741b2661c30c0500b0e602cafca2d3b74d073151d31f106117fab",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/function/direct-and-explicit",
+      "boundary": "exact source-map result",
+      "actual_sha256": "468dc179356e3677e517f34155ada23c143390c00d77c5c33aa839eacbba22f6",
+      "expected_sha256": "f0240c79ca3c254b6efaca0ba613ba161ba753853f9aca404b37ebcfd93f4d5b",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/function/escaped",
+      "boundary": "exact source-map result",
+      "actual_sha256": "b3a6a06ee8e8f0fe5a56645f1aac3c18137c0f3cfe27e97291b1ff4b17c2de21",
+      "expected_sha256": "28ad18d604e93e4af7e1e2c84a1b5d7fa824c4ab7dcee78ec5465b6a7a3d0543",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/function/direct-escaped",
+      "boundary": "exact source-map result",
+      "actual_sha256": "25ac28c2d186f2c5f1928e8a7f2539d6c391001a054ee6ede26cfdc73f80c0ff",
+      "expected_sha256": "c19149eee8a09a2e7f24886df5566f616b2fa67e91b80e6c68b09ed5d0c657b1",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/function/export-before",
+      "boundary": "exact source-map result",
+      "actual_sha256": "bc4d04b648cec018d34525c6f1d486645a2242b91389ad73bf56f250cdd05028",
+      "expected_sha256": "ebc77182623f8fef016e8566751ad132887df0843272ece7f1b9cc45317b47bb",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/function/comments",
+      "boundary": "exact source-map result",
+      "actual_sha256": "75a1bad50d9b0fc0820a0e6d0420c6e6651a6170d518e9047a6fd6324f108526",
+      "expected_sha256": "d406a02d199efd3bcd3435d27b818068b8dc85b39e1f6fe55c1fec9c258b8073",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/function/duplicate-quoted",
+      "boundary": "exact source-map result",
+      "actual_sha256": "c19f5d35c6472312a68d6c5d4d9e5b445d72d542fcf93f90f6eb92630f4ca2fa",
+      "expected_sha256": "8ece3e11aee1ae0fdc6ca71cb539d832d486480f60f2ef2007d0991f10e40d6a",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/class/escaped",
+      "boundary": "exact source-map result",
+      "actual_sha256": "434beee944874e8e0acec318376aa4f428c51a0c506091fc08f65ae69b51ecf8",
+      "expected_sha256": "b2b974880240e04a6728343c9b5a986a8880e3ef259d3d7e7f3abb368efb2855",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/class/direct-escaped",
+      "boundary": "exact source-map result",
+      "actual_sha256": "568cf9e7d52a4a30ae0aba662e53d9b49335de4e9e7889033419f353be4ef046",
+      "expected_sha256": "00b1db9d620842c9d48b1262d12996c5c0e293219c30e62e28b2e816fa639779",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/function/local",
+      "boundary": "exact source-map result",
+      "actual_sha256": "55828e01f7f923900b252b666b712ef75f69901aaa2792815277249cc1b864e5",
+      "expected_sha256": "b69ae43766a3af572570d157a7f8ae38767ffbc64419332d492611b0bb36c078",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/function/renamed",
+      "boundary": "exact source-map result",
+      "actual_sha256": "55828e01f7f923900b252b666b712ef75f69901aaa2792815277249cc1b864e5",
+      "expected_sha256": "3d6693b5b00c1f629fd10e411c14cc883ab8c7b489e1a5996572f9d860ef5ae6",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/function/quoted",
+      "boundary": "exact source-map result",
+      "actual_sha256": "3d67db66f776783f1c7d1b9c93ed05f84f1e2e708f11d3ce5f95abb19b197905",
+      "expected_sha256": "7e1721a565c4204ce1ff7dd445847fb0e4193cbabd819004613069ec9b4f48f8",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/function/multiple",
+      "boundary": "exact source-map result",
+      "actual_sha256": "6e42ab1f4f54ed90bffb502b3b019f1c336d50f4558fcfcb75223500fa09178a",
+      "expected_sha256": "8bd343401404a86645834f274f591244793c30b2dae201c25894cfbd30e54cec",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/function/direct-and-explicit",
+      "boundary": "exact source-map result",
+      "actual_sha256": "5f2e460edbbbcb0f7c344124477964b7ee536ed172294a6dfef1f60e5d68aaa7",
+      "expected_sha256": "30203e20405c1cded7936632a8f023745213cb6ff2406b168adf6d10dd228586",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/function/escaped",
+      "boundary": "exact source-map result",
+      "actual_sha256": "384c53f9285f539d20bdd792461ca1d7fb855d2eb4a090f58f41a290271f4ccb",
+      "expected_sha256": "006ca5297f32e914c5bc0443026af1eee52cd59295b7fb1b90a065d20384c903",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/function/direct-escaped",
+      "boundary": "exact source-map result",
+      "actual_sha256": "f76b9d488519f9ad8703c949619ce45cc0e997430170cc0a282b75178b6ea784",
+      "expected_sha256": "767e26f25655c5c3968190482908e542aa7feb419738605c405ddcfae402218d",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/function/export-before",
+      "boundary": "exact source-map result",
+      "actual_sha256": "4c1ad467d1647fa0664cfc37618452ae22a57ec8f31b0a564e51c95121dd2a31",
+      "expected_sha256": "6952ffe6a83e16a24e6fd878c9258c436ad751e82d98ccce436b6c0b265dc0ea",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/function/comments",
+      "boundary": "exact source-map result",
+      "actual_sha256": "0c0cb32607c61d6aa363b08a6d7e8d4f337174554fa538526146483a69e4055d",
+      "expected_sha256": "eadff7fb24b276d612642d0810b086ccf9fd78aad52faa61c272cb7da504eece",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/function/duplicate-quoted",
+      "boundary": "exact source-map result",
+      "actual_sha256": "e2a5f3330fdcf4c159f5b05e240a5aa7df06c1509c00845e545b94d4202dee5b",
+      "expected_sha256": "b47fc2d0688d6695ca77aa02d3c4ce9a3f8c0cdec3f47af535f7ac89a6a87905",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/class/local",
+      "boundary": "exact source-map result",
+      "actual_sha256": "8134650eabba24cc486f3a39e9306d80e88fb006c607810849b1ad107a18954d",
+      "expected_sha256": "4fa54a58cca112451f98bbe954308e71a12928e1be14715d2eccfbbac85e34a5",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/class/renamed",
+      "boundary": "exact source-map result",
+      "actual_sha256": "8134650eabba24cc486f3a39e9306d80e88fb006c607810849b1ad107a18954d",
+      "expected_sha256": "a0c6e0c56642e0e154a55b2d2967e1b3a14f43d454f54aeed5efdae98b0548a6",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/class/quoted",
+      "boundary": "exact source-map result",
+      "actual_sha256": "a0918f9681885a023ed1feae61068eabe1c91b67ea38dcf2437d09a18f266316",
+      "expected_sha256": "0fc2a69c691d0a5ef52c53643c027c00b9a07368f6160a16a82950c5a6c1ebfd",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/class/multiple",
+      "boundary": "exact source-map result",
+      "actual_sha256": "d3ba45d2e93cd81f4341c872b285c9f1332bd231078860ec9023edb728c32626",
+      "expected_sha256": "55c96de0ffbde2af51454389cde64543a70a7c72ccd8bb4453474fa28379cd14",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/class/direct-and-explicit",
+      "boundary": "exact source-map result",
+      "actual_sha256": "2bbad1a1d60ca55b288dbad3156c4a99200694c242067388465607a5b4abe765",
+      "expected_sha256": "5a87e6e1010fe41f5247a029794c3a616e5379adeeddd6e3bbdcb781f0a336c4",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/class/escaped",
+      "boundary": "exact source-map result",
+      "actual_sha256": "69501461082371484a3807180c8cf10d9fd3b1f06f2ab29609e9434ace3b9f1c",
+      "expected_sha256": "15327c079fd2810c5624d818816a32a5af054e8b5e11f941bb174db73be4b3fb",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/class/direct-escaped",
+      "boundary": "exact source-map result",
+      "actual_sha256": "ca730fa6dd5ba9fe62302e0df74a1e7a6cdb4aee30aa306fcafbb83f9f29e8f9",
+      "expected_sha256": "b2b223af9c1b0eecd6f5d12ebc0fb1c4299a9614ef06636e476ba7e5cb6a7ef5",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/class/export-before",
+      "boundary": "exact source-map result",
+      "actual_sha256": "6abba6b524adda47e2ece05fc2874c316dc2a45a597f78eb43e8d3e9e7539c17",
+      "expected_sha256": "c093987b05be0c0874936e51ff8f4f70eae62da6064cf798dfec72d6ca4f494e",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/class/comments",
+      "boundary": "exact source-map result",
+      "actual_sha256": "fb793ea6cc100adc5f8a1633fcc0516c0c86843e36411f6b4862d45f7e5f4903",
+      "expected_sha256": "a81b6c5202a5c5022e9faeca98669f06ed5e95ac6e46900f644fb6589bfa8f0f",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/class/duplicate-quoted",
+      "boundary": "exact source-map result",
+      "actual_sha256": "97cc77061b336592636d54968bb46b55de8e58cce122f1997d62176886afd3ac",
+      "expected_sha256": "ddae0ed4836ce80f78a3bc7f0fb38ca6598fdf3e11754a3f90e478d55d370bd3",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/function/local",
+      "boundary": "exact source-map result",
+      "actual_sha256": "537a6a0469b60361fec6fea1949cbc08373742f6edaa8512ae2f6640c0567247",
+      "expected_sha256": "29af58abf7911add58c0c155a259e8bb781a46be82debced9056920e752408f5",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/function/renamed",
+      "boundary": "exact source-map result",
+      "actual_sha256": "537a6a0469b60361fec6fea1949cbc08373742f6edaa8512ae2f6640c0567247",
+      "expected_sha256": "1dadf3dcd87931dd7bf8d9413c357720ca1ce6703d0ccbcf1ec1f80c880056b4",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/function/quoted",
+      "boundary": "exact source-map result",
+      "actual_sha256": "e0fb2f0d1eed49c8bf21a5268770a095f5532c7b6f1e89f07e5363bd51d898d6",
+      "expected_sha256": "df413edf1149791e6cd93dab7535e56339689dc35eaf0b39aad603ad56535e46",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/function/multiple",
+      "boundary": "exact source-map result",
+      "actual_sha256": "ff04e741441d0a3a082ea10293b04bdf3f5355253e22686fde3d3fa855464796",
+      "expected_sha256": "8fa6e8583ea741b2661c30c0500b0e602cafca2d3b74d073151d31f106117fab",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/function/direct-and-explicit",
+      "boundary": "exact source-map result",
+      "actual_sha256": "468dc179356e3677e517f34155ada23c143390c00d77c5c33aa839eacbba22f6",
+      "expected_sha256": "f0240c79ca3c254b6efaca0ba613ba161ba753853f9aca404b37ebcfd93f4d5b",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/function/escaped",
+      "boundary": "exact source-map result",
+      "actual_sha256": "b3a6a06ee8e8f0fe5a56645f1aac3c18137c0f3cfe27e97291b1ff4b17c2de21",
+      "expected_sha256": "28ad18d604e93e4af7e1e2c84a1b5d7fa824c4ab7dcee78ec5465b6a7a3d0543",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/function/direct-escaped",
+      "boundary": "exact source-map result",
+      "actual_sha256": "25ac28c2d186f2c5f1928e8a7f2539d6c391001a054ee6ede26cfdc73f80c0ff",
+      "expected_sha256": "c19149eee8a09a2e7f24886df5566f616b2fa67e91b80e6c68b09ed5d0c657b1",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/function/export-before",
+      "boundary": "exact source-map result",
+      "actual_sha256": "bc4d04b648cec018d34525c6f1d486645a2242b91389ad73bf56f250cdd05028",
+      "expected_sha256": "ebc77182623f8fef016e8566751ad132887df0843272ece7f1b9cc45317b47bb",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/function/comments",
+      "boundary": "exact source-map result",
+      "actual_sha256": "75a1bad50d9b0fc0820a0e6d0420c6e6651a6170d518e9047a6fd6324f108526",
+      "expected_sha256": "d406a02d199efd3bcd3435d27b818068b8dc85b39e1f6fe55c1fec9c258b8073",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/function/duplicate-quoted",
+      "boundary": "exact source-map result",
+      "actual_sha256": "c19f5d35c6472312a68d6c5d4d9e5b445d72d542fcf93f90f6eb92630f4ca2fa",
+      "expected_sha256": "8ece3e11aee1ae0fdc6ca71cb539d832d486480f60f2ef2007d0991f10e40d6a",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/class/local",
+      "boundary": "exact source-map result",
+      "actual_sha256": "620546e3968737e752695b6d1a196e076bff554be364c9d02b53684dc964e5b7",
+      "expected_sha256": "68b25d833e958cb72702523a0344318ebbe46fa9bad24a2a6d261224cc7d6dea",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/class/renamed",
+      "boundary": "exact source-map result",
+      "actual_sha256": "620546e3968737e752695b6d1a196e076bff554be364c9d02b53684dc964e5b7",
+      "expected_sha256": "c25009383f89787b949dc4cd6959aaacf61236fac69b429a4b3b03389f9af621",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/class/quoted",
+      "boundary": "exact source-map result",
+      "actual_sha256": "77fd161cf74903d658a12aef91f517e655055e4fd4109c4a633b4a861f3b344f",
+      "expected_sha256": "70cbd3946efd70112fc68b3463562f2dddc0817eb2a0f1fc37f6cac729a2b282",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/class/multiple",
+      "boundary": "exact source-map result",
+      "actual_sha256": "5e3d96af37e5c37a17f67eaf14f317e929ddbd1e1b2f320713c085c832936c93",
+      "expected_sha256": "c24217c9ba770f6d7810001f6b96c666bf5f4768ff7ca5a92dbf9dd5b3873e9c",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/class/direct-and-explicit",
+      "boundary": "exact source-map result",
+      "actual_sha256": "ceb427a6eb61affe6c5150728192e71054d11afae51bb1a5705991c6bee0b017",
+      "expected_sha256": "9cf92a39828d51bdfbf7d59d2db4527c02e4bc47dc26da6132c9840fb540b94a",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/class/escaped",
+      "boundary": "exact source-map result",
+      "actual_sha256": "f13f3acb1794e7765ffc8fd558d50a77cfcd841e07cc1bed38ab4dece7267037",
+      "expected_sha256": "d2684a5360528043cafa2cab755eb8c404b04db997d2a12971376557ba1c5027",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/class/direct-escaped",
+      "boundary": "exact source-map result",
+      "actual_sha256": "19949265634c7229efc8695e6a63c85c0080f904dbdd6b00d30246cc3761cfdf",
+      "expected_sha256": "a19d9c35aa7ea1512dee867118f2fc3b210645fd0267c5293e986f65ce755c79",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/class/export-before",
+      "boundary": "exact source-map result",
+      "actual_sha256": "6d51ab3ab0e5172c78b196107ee8749d6df43f4b1bca0e073a2ba0f3efdf4ebc",
+      "expected_sha256": "5e16675648b6cafbf8ddd7ac7e28d69bc81360d101386de86552a626242462cd",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/class/comments",
+      "boundary": "exact source-map result",
+      "actual_sha256": "dd676f07689c53e63e3e6e4069cef0838c61433640f57ae26def7850b91906e4",
+      "expected_sha256": "b6885ccef916a14eeaefc1283534604467bd81d437807b25668d0b01828fe0b8",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/class/duplicate-quoted",
+      "boundary": "exact source-map result",
+      "actual_sha256": "5d380e2e5b4676079121b5c8f5bacef266b89cc50bd5811502b69b80a88ff795",
+      "expected_sha256": "4ebaabe36d8c78b64eae64b5d830ae62bf1af949eeb2f70ab04451ea80616129",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/function/local",
+      "boundary": "exact source-map result",
+      "actual_sha256": "55828e01f7f923900b252b666b712ef75f69901aaa2792815277249cc1b864e5",
+      "expected_sha256": "b69ae43766a3af572570d157a7f8ae38767ffbc64419332d492611b0bb36c078",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/function/renamed",
+      "boundary": "exact source-map result",
+      "actual_sha256": "55828e01f7f923900b252b666b712ef75f69901aaa2792815277249cc1b864e5",
+      "expected_sha256": "3d6693b5b00c1f629fd10e411c14cc883ab8c7b489e1a5996572f9d860ef5ae6",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/function/quoted",
+      "boundary": "exact source-map result",
+      "actual_sha256": "3d67db66f776783f1c7d1b9c93ed05f84f1e2e708f11d3ce5f95abb19b197905",
+      "expected_sha256": "7e1721a565c4204ce1ff7dd445847fb0e4193cbabd819004613069ec9b4f48f8",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/function/multiple",
+      "boundary": "exact source-map result",
+      "actual_sha256": "6e42ab1f4f54ed90bffb502b3b019f1c336d50f4558fcfcb75223500fa09178a",
+      "expected_sha256": "8bd343401404a86645834f274f591244793c30b2dae201c25894cfbd30e54cec",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/function/direct-and-explicit",
+      "boundary": "exact source-map result",
+      "actual_sha256": "5f2e460edbbbcb0f7c344124477964b7ee536ed172294a6dfef1f60e5d68aaa7",
+      "expected_sha256": "30203e20405c1cded7936632a8f023745213cb6ff2406b168adf6d10dd228586",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/function/escaped",
+      "boundary": "exact source-map result",
+      "actual_sha256": "384c53f9285f539d20bdd792461ca1d7fb855d2eb4a090f58f41a290271f4ccb",
+      "expected_sha256": "006ca5297f32e914c5bc0443026af1eee52cd59295b7fb1b90a065d20384c903",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/function/direct-escaped",
+      "boundary": "exact source-map result",
+      "actual_sha256": "f76b9d488519f9ad8703c949619ce45cc0e997430170cc0a282b75178b6ea784",
+      "expected_sha256": "767e26f25655c5c3968190482908e542aa7feb419738605c405ddcfae402218d",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/function/export-before",
+      "boundary": "exact source-map result",
+      "actual_sha256": "4c1ad467d1647fa0664cfc37618452ae22a57ec8f31b0a564e51c95121dd2a31",
+      "expected_sha256": "6952ffe6a83e16a24e6fd878c9258c436ad751e82d98ccce436b6c0b265dc0ea",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/function/comments",
+      "boundary": "exact source-map result",
+      "actual_sha256": "0c0cb32607c61d6aa363b08a6d7e8d4f337174554fa538526146483a69e4055d",
+      "expected_sha256": "eadff7fb24b276d612642d0810b086ccf9fd78aad52faa61c272cb7da504eece",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/function/duplicate-quoted",
+      "boundary": "exact source-map result",
+      "actual_sha256": "e2a5f3330fdcf4c159f5b05e240a5aa7df06c1509c00845e545b94d4202dee5b",
+      "expected_sha256": "b47fc2d0688d6695ca77aa02d3c4ce9a3f8c0cdec3f47af535f7ac89a6a87905",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/class/local",
+      "boundary": "exact source-map result",
+      "actual_sha256": "8134650eabba24cc486f3a39e9306d80e88fb006c607810849b1ad107a18954d",
+      "expected_sha256": "4fa54a58cca112451f98bbe954308e71a12928e1be14715d2eccfbbac85e34a5",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/class/renamed",
+      "boundary": "exact source-map result",
+      "actual_sha256": "8134650eabba24cc486f3a39e9306d80e88fb006c607810849b1ad107a18954d",
+      "expected_sha256": "a0c6e0c56642e0e154a55b2d2967e1b3a14f43d454f54aeed5efdae98b0548a6",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/class/quoted",
+      "boundary": "exact source-map result",
+      "actual_sha256": "a0918f9681885a023ed1feae61068eabe1c91b67ea38dcf2437d09a18f266316",
+      "expected_sha256": "0fc2a69c691d0a5ef52c53643c027c00b9a07368f6160a16a82950c5a6c1ebfd",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/class/multiple",
+      "boundary": "exact source-map result",
+      "actual_sha256": "d3ba45d2e93cd81f4341c872b285c9f1332bd231078860ec9023edb728c32626",
+      "expected_sha256": "55c96de0ffbde2af51454389cde64543a70a7c72ccd8bb4453474fa28379cd14",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/class/direct-and-explicit",
+      "boundary": "exact source-map result",
+      "actual_sha256": "2bbad1a1d60ca55b288dbad3156c4a99200694c242067388465607a5b4abe765",
+      "expected_sha256": "5a87e6e1010fe41f5247a029794c3a616e5379adeeddd6e3bbdcb781f0a336c4",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/class/escaped",
+      "boundary": "exact source-map result",
+      "actual_sha256": "69501461082371484a3807180c8cf10d9fd3b1f06f2ab29609e9434ace3b9f1c",
+      "expected_sha256": "15327c079fd2810c5624d818816a32a5af054e8b5e11f941bb174db73be4b3fb",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/class/direct-escaped",
+      "boundary": "exact source-map result",
+      "actual_sha256": "ca730fa6dd5ba9fe62302e0df74a1e7a6cdb4aee30aa306fcafbb83f9f29e8f9",
+      "expected_sha256": "b2b223af9c1b0eecd6f5d12ebc0fb1c4299a9614ef06636e476ba7e5cb6a7ef5",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/class/export-before",
+      "boundary": "exact source-map result",
+      "actual_sha256": "6abba6b524adda47e2ece05fc2874c316dc2a45a597f78eb43e8d3e9e7539c17",
+      "expected_sha256": "c093987b05be0c0874936e51ff8f4f70eae62da6064cf798dfec72d6ca4f494e",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/class/comments",
+      "boundary": "exact source-map result",
+      "actual_sha256": "fb793ea6cc100adc5f8a1633fcc0516c0c86843e36411f6b4862d45f7e5f4903",
+      "expected_sha256": "a81b6c5202a5c5022e9faeca98669f06ed5e95ac6e46900f644fb6589bfa8f0f",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/class/duplicate-quoted",
+      "boundary": "exact source-map result",
+      "actual_sha256": "97cc77061b336592636d54968bb46b55de8e58cce122f1997d62176886afd3ac",
+      "expected_sha256": "ddae0ed4836ce80f78a3bc7f0fb38ca6598fdf3e11754a3f90e478d55d370bd3",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/function/local",
+      "boundary": "exact source-map result",
+      "actual_sha256": "537a6a0469b60361fec6fea1949cbc08373742f6edaa8512ae2f6640c0567247",
+      "expected_sha256": "29af58abf7911add58c0c155a259e8bb781a46be82debced9056920e752408f5",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/function/renamed",
+      "boundary": "exact source-map result",
+      "actual_sha256": "537a6a0469b60361fec6fea1949cbc08373742f6edaa8512ae2f6640c0567247",
+      "expected_sha256": "1dadf3dcd87931dd7bf8d9413c357720ca1ce6703d0ccbcf1ec1f80c880056b4",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/function/quoted",
+      "boundary": "exact source-map result",
+      "actual_sha256": "e0fb2f0d1eed49c8bf21a5268770a095f5532c7b6f1e89f07e5363bd51d898d6",
+      "expected_sha256": "df413edf1149791e6cd93dab7535e56339689dc35eaf0b39aad603ad56535e46",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/function/multiple",
+      "boundary": "exact source-map result",
+      "actual_sha256": "ff04e741441d0a3a082ea10293b04bdf3f5355253e22686fde3d3fa855464796",
+      "expected_sha256": "8fa6e8583ea741b2661c30c0500b0e602cafca2d3b74d073151d31f106117fab",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/function/direct-and-explicit",
+      "boundary": "exact source-map result",
+      "actual_sha256": "468dc179356e3677e517f34155ada23c143390c00d77c5c33aa839eacbba22f6",
+      "expected_sha256": "f0240c79ca3c254b6efaca0ba613ba161ba753853f9aca404b37ebcfd93f4d5b",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/function/escaped",
+      "boundary": "exact source-map result",
+      "actual_sha256": "b3a6a06ee8e8f0fe5a56645f1aac3c18137c0f3cfe27e97291b1ff4b17c2de21",
+      "expected_sha256": "28ad18d604e93e4af7e1e2c84a1b5d7fa824c4ab7dcee78ec5465b6a7a3d0543",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/function/direct-escaped",
+      "boundary": "exact source-map result",
+      "actual_sha256": "25ac28c2d186f2c5f1928e8a7f2539d6c391001a054ee6ede26cfdc73f80c0ff",
+      "expected_sha256": "c19149eee8a09a2e7f24886df5566f616b2fa67e91b80e6c68b09ed5d0c657b1",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/function/export-before",
+      "boundary": "exact source-map result",
+      "actual_sha256": "bc4d04b648cec018d34525c6f1d486645a2242b91389ad73bf56f250cdd05028",
+      "expected_sha256": "ebc77182623f8fef016e8566751ad132887df0843272ece7f1b9cc45317b47bb",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/function/comments",
+      "boundary": "exact source-map result",
+      "actual_sha256": "75a1bad50d9b0fc0820a0e6d0420c6e6651a6170d518e9047a6fd6324f108526",
+      "expected_sha256": "d406a02d199efd3bcd3435d27b818068b8dc85b39e1f6fe55c1fec9c258b8073",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/function/duplicate-quoted",
+      "boundary": "exact source-map result",
+      "actual_sha256": "c19f5d35c6472312a68d6c5d4d9e5b445d72d542fcf93f90f6eb92630f4ca2fa",
+      "expected_sha256": "8ece3e11aee1ae0fdc6ca71cb539d832d486480f60f2ef2007d0991f10e40d6a",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/class/local",
+      "boundary": "exact source-map result",
+      "actual_sha256": "620546e3968737e752695b6d1a196e076bff554be364c9d02b53684dc964e5b7",
+      "expected_sha256": "68b25d833e958cb72702523a0344318ebbe46fa9bad24a2a6d261224cc7d6dea",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/class/renamed",
+      "boundary": "exact source-map result",
+      "actual_sha256": "620546e3968737e752695b6d1a196e076bff554be364c9d02b53684dc964e5b7",
+      "expected_sha256": "c25009383f89787b949dc4cd6959aaacf61236fac69b429a4b3b03389f9af621",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/class/quoted",
+      "boundary": "exact source-map result",
+      "actual_sha256": "77fd161cf74903d658a12aef91f517e655055e4fd4109c4a633b4a861f3b344f",
+      "expected_sha256": "70cbd3946efd70112fc68b3463562f2dddc0817eb2a0f1fc37f6cac729a2b282",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/class/multiple",
+      "boundary": "exact source-map result",
+      "actual_sha256": "5e3d96af37e5c37a17f67eaf14f317e929ddbd1e1b2f320713c085c832936c93",
+      "expected_sha256": "c24217c9ba770f6d7810001f6b96c666bf5f4768ff7ca5a92dbf9dd5b3873e9c",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/class/direct-and-explicit",
+      "boundary": "exact source-map result",
+      "actual_sha256": "ceb427a6eb61affe6c5150728192e71054d11afae51bb1a5705991c6bee0b017",
+      "expected_sha256": "9cf92a39828d51bdfbf7d59d2db4527c02e4bc47dc26da6132c9840fb540b94a",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/class/escaped",
+      "boundary": "exact source-map result",
+      "actual_sha256": "f13f3acb1794e7765ffc8fd558d50a77cfcd841e07cc1bed38ab4dece7267037",
+      "expected_sha256": "d2684a5360528043cafa2cab755eb8c404b04db997d2a12971376557ba1c5027",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/class/direct-escaped",
+      "boundary": "exact source-map result",
+      "actual_sha256": "19949265634c7229efc8695e6a63c85c0080f904dbdd6b00d30246cc3761cfdf",
+      "expected_sha256": "a19d9c35aa7ea1512dee867118f2fc3b210645fd0267c5293e986f65ce755c79",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/class/export-before",
+      "boundary": "exact source-map result",
+      "actual_sha256": "6d51ab3ab0e5172c78b196107ee8749d6df43f4b1bca0e073a2ba0f3efdf4ebc",
+      "expected_sha256": "5e16675648b6cafbf8ddd7ac7e28d69bc81360d101386de86552a626242462cd",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/class/comments",
+      "boundary": "exact source-map result",
+      "actual_sha256": "dd676f07689c53e63e3e6e4069cef0838c61433640f57ae26def7850b91906e4",
+      "expected_sha256": "b6885ccef916a14eeaefc1283534604467bd81d437807b25668d0b01828fe0b8",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/class/duplicate-quoted",
+      "boundary": "exact source-map result",
+      "actual_sha256": "5d380e2e5b4676079121b5c8f5bacef266b89cc50bd5811502b69b80a88ff795",
+      "expected_sha256": "4ebaabe36d8c78b64eae64b5d830ae62bf1af949eeb2f70ab04451ea80616129",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/function/local",
+      "boundary": "exact source-map result",
+      "actual_sha256": "55828e01f7f923900b252b666b712ef75f69901aaa2792815277249cc1b864e5",
+      "expected_sha256": "b69ae43766a3af572570d157a7f8ae38767ffbc64419332d492611b0bb36c078",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/function/renamed",
+      "boundary": "exact source-map result",
+      "actual_sha256": "55828e01f7f923900b252b666b712ef75f69901aaa2792815277249cc1b864e5",
+      "expected_sha256": "3d6693b5b00c1f629fd10e411c14cc883ab8c7b489e1a5996572f9d860ef5ae6",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/function/quoted",
+      "boundary": "exact source-map result",
+      "actual_sha256": "3d67db66f776783f1c7d1b9c93ed05f84f1e2e708f11d3ce5f95abb19b197905",
+      "expected_sha256": "7e1721a565c4204ce1ff7dd445847fb0e4193cbabd819004613069ec9b4f48f8",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/function/multiple",
+      "boundary": "exact source-map result",
+      "actual_sha256": "6e42ab1f4f54ed90bffb502b3b019f1c336d50f4558fcfcb75223500fa09178a",
+      "expected_sha256": "8bd343401404a86645834f274f591244793c30b2dae201c25894cfbd30e54cec",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/function/direct-and-explicit",
+      "boundary": "exact source-map result",
+      "actual_sha256": "5f2e460edbbbcb0f7c344124477964b7ee536ed172294a6dfef1f60e5d68aaa7",
+      "expected_sha256": "30203e20405c1cded7936632a8f023745213cb6ff2406b168adf6d10dd228586",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/function/escaped",
+      "boundary": "exact source-map result",
+      "actual_sha256": "384c53f9285f539d20bdd792461ca1d7fb855d2eb4a090f58f41a290271f4ccb",
+      "expected_sha256": "006ca5297f32e914c5bc0443026af1eee52cd59295b7fb1b90a065d20384c903",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/function/direct-escaped",
+      "boundary": "exact source-map result",
+      "actual_sha256": "f76b9d488519f9ad8703c949619ce45cc0e997430170cc0a282b75178b6ea784",
+      "expected_sha256": "767e26f25655c5c3968190482908e542aa7feb419738605c405ddcfae402218d",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/function/export-before",
+      "boundary": "exact source-map result",
+      "actual_sha256": "4c1ad467d1647fa0664cfc37618452ae22a57ec8f31b0a564e51c95121dd2a31",
+      "expected_sha256": "6952ffe6a83e16a24e6fd878c9258c436ad751e82d98ccce436b6c0b265dc0ea",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/function/comments",
+      "boundary": "exact source-map result",
+      "actual_sha256": "0c0cb32607c61d6aa363b08a6d7e8d4f337174554fa538526146483a69e4055d",
+      "expected_sha256": "eadff7fb24b276d612642d0810b086ccf9fd78aad52faa61c272cb7da504eece",
+      "native_executions": 2
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/function/duplicate-quoted",
+      "boundary": "exact source-map result",
+      "actual_sha256": "e2a5f3330fdcf4c159f5b05e240a5aa7df06c1509c00845e545b94d4202dee5b",
+      "expected_sha256": "b47fc2d0688d6695ca77aa02d3c4ce9a3f8c0cdec3f47af535f7ac89a6a87905",
+      "native_executions": 2
+    }
+  ],
+  "working_files": [
+    {
+      "path": "crates/checker/src/emit.rs",
+      "sha256": "d43e9507e0f925b4e06ed4956a2bf2e436daf48c605b0876e4b5fc5b432e4dd6"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "48260749efda20f5b006ae1e58eea0f232b462b26f40bc00a39f2879b5c81201"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/hoisted-declaration-export-ranges.json",
+      "sha256": "0f13d2838627a8201d3aba4aa320194f12ee752fc078d5367bf6629a2a0c5fca"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "726a6d93a6f97ec8e9509772260c71bd05326ae3addb56b90ee17d910e92e695"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_hoisted_declaration_export_ranges.rs",
+      "sha256": "dcd50df5dc6dc4f0e0d92848dfb01e0519a55e5c99ac131f2b456dfa5626a1f9"
+    },
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "038975bba6e8d22d54c2bdc8e48290bc72cc483e6a74ba9d28bfc5d4addff739"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/emitter/src/metadata.rs",
+      "sha256": "c9eaf94391d3eb0893a1d1e7d4c65ff9d876f8b3772634505325a72cf7430e23"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "5ffd982b2fb2057fa7c082400f502e755f0acaf663245a9898bb48c0820d57b6"
+    },
+    {
+      "path": "scripts/observe-hoisted-declaration-export-ranges.mjs",
+      "sha256": "63fc03d202e8743e0cb516e71e90ddaa8216e0d7d5c68f0be8a2f9472bdf7baf"
+    },
+    {
+      "path": "target/h2-8a-hoisted-declaration-export-ranges-before-prelaunch.json",
+      "sha256": "fd7d45c1eef70d7bf9aee70af8188dd32c41cec418c433842f1d56624924f1a9"
+    },
+    {
+      "path": "target/h2-8a-hoisted-declaration-export-ranges-before-repeat.log",
+      "sha256": "7aef5ac246f5a2c86a48b1b815a1102f133457f6aee7c496fca9b75340a3022e"
+    },
+    {
+      "path": "target/h2-8a-hoisted-declaration-export-ranges-before.log",
+      "sha256": "cd4c6924791887e8c9c51c2e06fd5ed06b9734617502250bebcfb16d28012c21"
+    },
+    {
+      "path": "target/h2-8a-hoisted-declaration-export-ranges-ts-before.log",
+      "sha256": "ff534c41e18b9ec64d28aa03ec21f2e3c21267d55edac3d5b9facb1a66f28096"
+    },
+    {
+      "path": "target/h2-8a-hoisted-declaration-export-ranges-ts-check.log",
+      "sha256": "ff534c41e18b9ec64d28aa03ec21f2e3c21267d55edac3d5b9facb1a66f28096"
+    }
+  ],
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-hoisted-export-before-d_mdkkvi"
+}

@@ -1,0 +1,214 @@
+--- a/crates/emitter/src/printer.rs
++++ b/crates/emitter/src/printer.rs
+@@ -6772,6 +6772,13 @@
+                 )?;
+                 Ok(())
+             }
++            NodeData::CommaListExpression(data) => self.emit_comma_expression_list(
++                transformation,
++                node,
++                data.elements,
++                expression_context,
++                writer,
++            ),
+             NodeData::BinaryExpression(data) => {
+                 let left_node = data
+                     .left
+@@ -10718,6 +10725,197 @@
+         Ok(())
+     }
+ 
++    /// tsc-port: emitCommaList/emitExpressionList/emitNodeListItems @6.0.3
++    /// tsc-span: _tsc.js:119780-119788,120026-120155
++    ///
++    /// CommaListElements is 528: comma delimiters and sibling spaces, with
++    /// Expression emission and no element parenthesizer. Its list phases
++    /// remain separate from the ordinary child leading/trailing phases.
++    fn emit_comma_expression_list(
++        &self,
++        transformation: &mut TransformationResult<'_>,
++        parent: TransformNode,
++        elements: Option<tsc_syntax::NodeArrayId>,
++        expression_context: EmitContext,
++        writer: &mut TextWriter,
++    ) -> Result<(), PrinterError> {
++        let Some(elements) = elements else {
++            return Ok(());
++        };
++        let ids = transformation
++            .arena()
++            .node_array(TransformNodeArray::new(parent.source(), elements))?
++            .nodes
++            .clone();
++        let mut previous = None;
++        for id in ids {
++            let child = transformation
++                .arena()
++                .node_ref(parent.source(), id)
++                .ok_or(PrinterError::UnknownStatement(id.0))?;
++            let separate_line = previous.is_some()
++                && transformation
++                    .arena()
++                    .metadata(child)
++                    .and_then(crate::EmitMetadata::starts_on_new_line)
++                    == Some(true);
++            if let Some(previous) = previous {
++                self.emit_comma_element_end_comments(
++                    transformation,
++                    parent,
++                    previous,
++                    expression_context,
++                    writer,
++                )?;
++                writer.write_punctuation(",");
++                if separate_line {
++                    writer.increase_indent();
++                } else {
++                    writer.write_space(" ");
++                }
++            }
++            // Restore the temporary list indent even when a comment range,
++            // hook, substitution, or child printer returns a typed error.
++            let outcome = (|| {
++                if separate_line {
++                    if transformation.arena().node(child)?.pos != u32::MAX {
++                        self.emit_comma_element_start_comments(
++                            transformation,
++                            child,
++                            expression_context,
++                            true,
++                            writer,
++                        )?;
++                    }
++                    writer.write_line(false);
++                } else {
++                    self.emit_comma_element_start_comments(
++                        transformation,
++                        child,
++                        expression_context,
++                        false,
++                        writer,
++                    )?;
++                }
++                self.emit_optional_ordinary_child(
++                    transformation,
++                    parent,
++                    Some(id),
++                    EmitHint::Expression,
++                    None,
++                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
++                    writer,
++                )
++            })();
++            if separate_line {
++                writer.decrease_indent();
++            }
++            outcome?;
++            previous = Some(child);
++        }
++        if let Some(previous) = previous {
++            self.emit_comma_element_end_comments(
++                transformation,
++                parent,
++                previous,
++                expression_context,
++                writer,
++            )?;
++        }
++        Ok(())
++    }
++
++    fn emit_comma_element_end_comments(
++        &self,
++        transformation: &TransformationResult<'_>,
++        parent: TransformNode,
++        previous: TransformNode,
++        expression_context: EmitContext,
++        writer: &mut TextWriter,
++    ) -> Result<(), PrinterError> {
++        if self.options.remove_comments || expression_context.nested_comments_suppressed() {
++            return Ok(());
++        }
++        let arena = transformation.arena();
++        let end = arena.node(previous)?.end;
++        if end == u32::MAX
++            || end == arena.node(parent)?.end
++            || arena
++                .metadata(previous)
++                .is_some_and(|metadata| metadata.flags().contains(EmitFlags::NO_TRAILING_COMMENTS))
++        {
++            return Ok(());
++        }
++        let source = arena.source(previous.source())?.syntax();
++        let position = SourceBytePosition::new(end, source.positions())?;
++        if expression_context.comments().container_pos()
++            != Some(CommentCursor::new(previous.source(), position))
++        {
++            self.emit_comments_at_cursor_with_phase(
++                transformation,
++                TokenCursor::source(previous.source(), position),
++                None,
++                PositionCommentPhase::SourceLeading,
++                false,
++                writer,
++            )?;
++        }
++        Ok(())
++    }
++
++    fn emit_comma_element_start_comments(
++        &self,
++        transformation: &TransformationResult<'_>,
++        child: TransformNode,
++        expression_context: EmitContext,
++        prefix_space: bool,
++        writer: &mut TextWriter,
++    ) -> Result<(), PrinterError> {
++        if self.options.remove_comments || expression_context.nested_comments_suppressed() {
++            return Ok(());
++        }
++        let range = self.comment_range_for_node(transformation, child)?;
++        let Some(start) = range.range().start() else {
++            return Ok(());
++        };
++        if expression_context
++            .comments()
++            .retains_end(CommentCursor::new(range.source(), start))
++        {
++            return Ok(());
++        }
++        let source = transformation.arena().source(range.source())?.syntax();
++        if prefix_space {
++            // For format 528, prefixSpace selects emitTrailingComment even
++            // when emitNodeListItems also passes forceNoNewline. This phase
++            // filters comments and inserts a prefix space unconditionally
++            // when the writer is not at the start of a line.
++            for comment in
++                collect_source_comment_ranges(source.text(), start.value() as usize, true)
++            {
++                if self.options.only_print_js_doc_style
++                    && !should_write_js_doc_style_comment(source.text(), comment.start)
++                {
++                    continue;
++                }
++                if !writer.is_at_start_of_line() {
++                    writer.write_space(" ");
++                }
++                write_source_comment(source.text(), comment.start, comment.end, writer);
++                if comment.has_trailing_new_line {
++                    writer.write_line(false);
++                }
++            }
++        } else {
++            emit_source_intervening_comments_of_position(
++                source.text(),
++                start.value() as usize,
++                writer,
++            );
++        }
++        Ok(())
++    }
++
+     fn emit_comma_list(
+         &self,
+         transformation: &mut TransformationResult<'_>,

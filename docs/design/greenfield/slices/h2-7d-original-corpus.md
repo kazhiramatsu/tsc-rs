@@ -1,5 +1,27 @@
 # H2.7d original corpus comparison draft
 
+## Current result and close addendum
+
+The third integrated runtime comparison passed all 283 original D/D+E cases,
+twice: 280 D-only plus the same three shared map cases. Complete source/library
+order, callback bytes and metadata, diagnostics, maps, command reporting and
+absent-versus-empty values remain the frozen expectations. The accepted runtime
+candidate is `7db1e4d595d5f5ca25c569a80190ecdfddd8a8c9`; the final printed-parent
+correction rerun also passes all 283 cases twice (304.80s). Its local regression
+evidence is recorded in the [shared close](h2-7de-ca.md). Hosted run 34123778139 passes on the same candidate, delivered through PR #511
+as `ad84a7e6e46bd7c5ccd9ac1eb78580dab18151a2` on 2026-09-07. D coverage 283 and E coverage 11 overlap by three; ordered
+admission deltas are D 280 / E 11, joint 291. The 32 D intersections with later
+owners retain their original inputs and owner boundaries.
+
+The first-run 178/102, second-run 274/6 and third-result-pending statements below
+are retained as packet history. They are superseded by the measured third result
+above; no old failure was reclassified through an allowlist or changed expected
+tuple. Separate old-route validation now measures 160 exact + 17 typed refusals,
+twice, and full H2.6c acceptance is 481 exact / 158 known / 4 deferred. These
+historical-route outcomes do not add a second 160 to the joint admission count.
+
+## Initial comparison record (historical)
+
 This standalone compiler test joins the unchanged candidate census, original
 inputs and complete TS 6.0.3 observations. The first complete production run
 compared all 280 D-only inputs twice: 178 exact and 102 failing cases (242.70s).

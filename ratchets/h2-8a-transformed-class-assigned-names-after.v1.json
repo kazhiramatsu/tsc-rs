@@ -1,0 +1,495 @@
+{
+  "version": 1,
+  "status": "complete-focused-after-eight-unchanged-map-residues",
+  "base": "ea345da10f18cbb660cb51ea5d7b889f06831dd0",
+  "production_paths": [
+    "crates/emitter/src/builtins/class_fields/downlevel.rs",
+    "crates/emitter/src/builtins/es2015.rs"
+  ],
+  "complete_commands_eligible": 434,
+  "complete_commands_exact_twice": 426,
+  "analysis": {
+    "complete_commands": 434,
+    "exact_twice": 426,
+    "fresh": {
+      "eligible": 108,
+      "exact_twice": 100,
+      "failed_once": 8,
+      "newly_exact_twice": [
+        "class-assigned-name/es5/commonjs/assignment/annotated-member",
+        "class-assigned-name/es5/commonjs/assignment/generic",
+        "class-assigned-name/es5/commonjs/assignment/implements",
+        "class-assigned-name/es5/commonjs/binding/annotated-member",
+        "class-assigned-name/es5/commonjs/binding/generic",
+        "class-assigned-name/es5/commonjs/binding/implements",
+        "class-assigned-name/es5/commonjs/property/annotated-member",
+        "class-assigned-name/es5/commonjs/property/generic",
+        "class-assigned-name/es5/commonjs/property/implements",
+        "class-assigned-name/es5/commonjs/typed-function-new-target",
+        "class-assigned-name/es5/commonjs/variable/annotated-member",
+        "class-assigned-name/es5/commonjs/variable/generic",
+        "class-assigned-name/es5/commonjs/variable/implements",
+        "class-assigned-name/es5/esnext/assignment/annotated-member",
+        "class-assigned-name/es5/esnext/assignment/generic",
+        "class-assigned-name/es5/esnext/assignment/implements",
+        "class-assigned-name/es5/esnext/binding/annotated-member",
+        "class-assigned-name/es5/esnext/binding/generic",
+        "class-assigned-name/es5/esnext/binding/implements",
+        "class-assigned-name/es5/esnext/property/annotated-member",
+        "class-assigned-name/es5/esnext/property/generic",
+        "class-assigned-name/es5/esnext/property/implements",
+        "class-assigned-name/es5/esnext/typed-function-new-target",
+        "class-assigned-name/es5/esnext/variable/annotated-member",
+        "class-assigned-name/es5/esnext/variable/generic",
+        "class-assigned-name/es5/esnext/variable/implements"
+      ]
+    },
+    "adjacent_exact_twice": 326,
+    "retained": [
+      {
+        "case_id": "class-assigned-name/es5/commonjs/class-fields-alias",
+        "boundary": "exact source-map result",
+        "actual_sha256": "5702103111b0cd9249b849525d5739242d628fd6c5a7a2754d3a1a4bddedab43",
+        "expected_sha256": "97772df0c87284442107bba850264cea6a586588ad359f15820613f4ca397cb6",
+        "native_executions": 1,
+        "disposition": "unchanged-before-source-map-result"
+      },
+      {
+        "case_id": "class-assigned-name/es5/esnext/class-fields-alias",
+        "boundary": "exact source-map result",
+        "actual_sha256": "810be1fbfa749264828c5d2e89d6be14764fa4f44073f4461b24920b304d51f4",
+        "expected_sha256": "1b9833918366eeeb5f52ab51e3ba788c3eafacfcc00023f99fb6a5f6a19fc75b",
+        "native_executions": 1,
+        "disposition": "unchanged-before-source-map-result"
+      },
+      {
+        "case_id": "class-assigned-name/es2015/commonjs/plain-function-new-target",
+        "boundary": "exact source-map result",
+        "actual_sha256": "c8e23a2b877f25852dd3bef2d7ffc466d83000edeaca6e137c1a63ca08a126c8",
+        "expected_sha256": "820a81607e724fff6e8fe5e0f458f802f860a8f711c08785ee3e03b7653c9f2b",
+        "native_executions": 1,
+        "disposition": "unchanged-before-source-map-result"
+      },
+      {
+        "case_id": "class-assigned-name/es2015/commonjs/typed-function-new-target",
+        "boundary": "exact source-map result",
+        "actual_sha256": "f0951b56403995948fa7d058ae2d5ae61c2a834af89debff5ef06a1d7e128393",
+        "expected_sha256": "e925ee998c8fb76a6c07bb713d80e79d95b5f3260ea26246ccc96d67b3eaa4a7",
+        "native_executions": 1,
+        "disposition": "unchanged-before-source-map-result"
+      },
+      {
+        "case_id": "class-assigned-name/es2015/commonjs/class-fields-alias",
+        "boundary": "exact source-map result",
+        "actual_sha256": "595c26cad2669a994630bea3bae73d28bd5c2ae05035b25781674bd3b3af9b5f",
+        "expected_sha256": "aab19fa409ebed89b6596bbcc79d52d25bb8dc9b5eafc2795e439f91c34c4939",
+        "native_executions": 1,
+        "disposition": "unchanged-before-source-map-result"
+      },
+      {
+        "case_id": "class-assigned-name/es2015/esnext/plain-function-new-target",
+        "boundary": "exact source-map result",
+        "actual_sha256": "108581fb6a9f811134fb24ba95fb4e00fe4d1fd4416d8bfac0646d88aa0206bc",
+        "expected_sha256": "9b32612cec9896b4acbcfe150d4ba532b2f76830d7eca13f806dc6d99da56e76",
+        "native_executions": 1,
+        "disposition": "unchanged-before-source-map-result"
+      },
+      {
+        "case_id": "class-assigned-name/es2015/esnext/typed-function-new-target",
+        "boundary": "exact source-map result",
+        "actual_sha256": "f9399cdd3e82a62817d6278c4ad7753f08baaedce7f9feb0395177128411a997",
+        "expected_sha256": "82d978b2b23801301ed83ec23ff522244218e9888f31c4cd6ce90d5868ba0e54",
+        "native_executions": 1,
+        "disposition": "unchanged-before-source-map-result"
+      },
+      {
+        "case_id": "class-assigned-name/es2015/esnext/class-fields-alias",
+        "boundary": "exact source-map result",
+        "actual_sha256": "43abc4e25f1bad146c652fa6ccb7600bd227728b0ee81999e8916f2ceae5d998",
+        "expected_sha256": "de0fd8def999808f5ee93d7c4df1763c653aeb5e696b1c7f187ef457acc8fead",
+        "native_executions": 1,
+        "disposition": "unchanged-before-source-map-result"
+      }
+    ],
+    "supplemental_executions": 0,
+    "test_seconds": [
+      624.24
+    ]
+  },
+  "native_jobs": 1,
+  "native_command_executions": 860,
+  "positive_executions_per_case": 2,
+  "retained_fresh_executions": 1,
+  "supplemental_executions": 0,
+  "emitter_unit_tests": {
+    "lib": 483,
+    "contracts": 451
+  },
+  "seconds": [
+    624.24,
+    0.79,
+    2.41
+  ],
+  "validation_log_exit_codes": {
+    "target/h2-8a-transformed-class-assigned-names-final-after.log": 101,
+    "target/h2-8a-transformed-class-assigned-names-emitter-after.log": 101,
+    "target/h2-8a-transformed-class-assigned-names-emitter-contracts-final.log": 0
+  },
+  "emitter_first_after_record": "ratchets/h2-8a-transformed-class-assigned-names-emitter-first-after.v1.json",
+  "library_not_repeated_after_test_only_correction": true,
+  "compiler_not_repeated_after_test_only_correction": true,
+  "working_files": [
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "88703daa270295a3e62c2befd67057b2b52cf09c81e3fcc4586224e2b2f2bb92"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/transformed-class-assigned-names.json",
+      "sha256": "f04166260e4005fa6bd5df31ef98ef6d7d8cd79b0054e137f5c52e806d906ffb"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_transformed_class_assigned_names.rs",
+      "sha256": "103cba6f7064c3fca0891ab7598930fbabb17f319bab8303349ad6a9028f7a81"
+    },
+    {
+      "path": "crates/emitter/src/builtins/class_fields/downlevel.rs",
+      "sha256": "3d002576e6f023bd0e543533ba79973451b0d392dea6158682ea8beaeb2c9a55"
+    },
+    {
+      "path": "crates/emitter/src/builtins/es2015.rs",
+      "sha256": "0427b99e1c10d41c9670ec173625b5f1407e5c1d7223a09abf6374ad09ab4c54"
+    },
+    {
+      "path": "crates/emitter/tests/integration/active_transform_contract.rs",
+      "sha256": "e46ac2304dfd889c473a4f71f5c6b9ca586c93f842d22350f48e9e5dc3892365"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8.md",
+      "sha256": "08506cc571b1aeacaf650b656b9f622df61d4c03d1d4fff3d5cc888725a54a08"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-transformed-class-assigned-names.md",
+      "sha256": "417dbb9e149fbe59d5759ead6003839317ed6f0e7f29775af04a59417aa14c41"
+    },
+    {
+      "path": "ratchets/h2-8a-directory-readiness.v1.json",
+      "sha256": "5182f356a8508d9836078f27c92bc81d33867b70b5258ff7d71d310b8ad1b7f9"
+    },
+    {
+      "path": "ratchets/h2-8a-transformed-class-assigned-names-before.v1.json",
+      "sha256": "cbdb5b19bf28950dfb8fc09e4135513fb21df7dbd7356dae26d2699dfdaff27a"
+    },
+    {
+      "path": "ratchets/h2-8a-transformed-class-assigned-names-emitter-first-after.v1.json",
+      "sha256": "b50fe05e416780f7d42aa8cc5d15d72ef1ece5dcc81ce213ae82afd5c4dac636"
+    },
+    {
+      "path": "ratchets/h2-8a-transformed-class-assigned-names-first-after.v1.json",
+      "sha256": "7ed452b96191ff20625ad2149ecb7b4bca66697022cc99de89383a09a8cf9973"
+    },
+    {
+      "path": "ratchets/h2-8a-transformed-class-assigned-names-readiness.v1.json",
+      "sha256": "cc02a47b950276b238debf9660217fcc8262d62bfa85a5f9c9321ba4bafc905f"
+    },
+    {
+      "path": "scripts/check-transformed-class-assigned-names-readiness.py",
+      "sha256": "1916364885e393a97df574db550128d181be12bb1ab380699529f08b37117e70"
+    },
+    {
+      "path": "scripts/observe-transformed-class-assigned-names.mjs",
+      "sha256": "db166db51ecaf39f427363eb4833f63f2e5bfe6cb2fd0b7a7f2a4d2cc064df99"
+    },
+    {
+      "path": "target/analyze-transformed-class-assigned-names-after.py",
+      "sha256": "05ce7e38ca19b9494c33fb06ed6eae66da75495deb854b9defe9bc952c9ef2f0"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-after-analysis.json",
+      "sha256": "5654490ec5e0088b03dd50e96ea7b195269bf29d5f62f5777de724fe6d994f24"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-emitter-after.log",
+      "sha256": "31cb56cb9245ce47ea7632dec70684edf6e84710fc4401c1f9ced96bea71a699"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-emitter-contracts-final.log",
+      "sha256": "a01e91bdf14440537df5384303097206a21c8f85ecc073dd0923e0d4a7f6aaae"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-emitter-contracts-prelaunch.json",
+      "sha256": "4b37cf4698d7ade5efb38904b9ba8c3c9fc4c53a84cf8104dbcad360f7db44a9"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-final-after-prelaunch.json",
+      "sha256": "073b08b7a00e8b0c7d23166c14dd6213a75891e014ca045165c6e4687cc54e57"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-final-after.log",
+      "sha256": "19c32a016424eddc270e4a77672d018ff9d2782ac3b3fcad47d39e8949c7cd47"
+    }
+  ],
+  "prelaunch_snapshot_files": [
+    {
+      "path": "crates/emitter/src/builtins/es2015.rs",
+      "sha256": "0427b99e1c10d41c9670ec173625b5f1407e5c1d7223a09abf6374ad09ab4c54"
+    },
+    {
+      "path": "ratchets/h2-8a-transformed-class-assigned-names-before.v1.json",
+      "sha256": "cbdb5b19bf28950dfb8fc09e4135513fb21df7dbd7356dae26d2699dfdaff27a"
+    },
+    {
+      "path": "ratchets/h2-8a-transformed-class-assigned-names-readiness.v1.json",
+      "sha256": "c1a7d38fae55bdebe16981a194af860d53d13ce23ce6a733c1f3946ec127c41b"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-transformed-class-assigned-names.md",
+      "sha256": "2ddfafa0985835cb9c258b345cdfa12ab0efb4be2f3b8e2fd70c88936f53318c"
+    },
+    {
+      "path": "scripts/check-transformed-class-assigned-names-readiness.py",
+      "sha256": "1916364885e393a97df574db550128d181be12bb1ab380699529f08b37117e70"
+    },
+    {
+      "path": "scripts/observe-transformed-class-assigned-names.mjs",
+      "sha256": "db166db51ecaf39f427363eb4833f63f2e5bfe6cb2fd0b7a7f2a4d2cc064df99"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/transformed-class-assigned-names.json",
+      "sha256": "f04166260e4005fa6bd5df31ef98ef6d7d8cd79b0054e137f5c52e806d906ffb"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_transformed_class_assigned_names.rs",
+      "sha256": "103cba6f7064c3fca0891ab7598930fbabb17f319bab8303349ad6a9028f7a81"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "88703daa270295a3e62c2befd67057b2b52cf09c81e3fcc4586224e2b2f2bb92"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "726a6d93a6f97ec8e9509772260c71bd05326ae3addb56b90ee17d910e92e695"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+      "sha256": "90aff72e27fac502da3ff3f06980c55c4923e35554c3e64800a60213cb1b04ba"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/jsdoc-implements-serialization.json",
+      "sha256": "46f1ad3ebb5480c9d697fca9c6adf3c95dd3fed2f60e8f37210dd1e1733cc057"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_jsdoc_implements_serialization.rs",
+      "sha256": "2c035245d37a82d01b4e3ff15f0f5a05740b11d7b256be02a95c7d1fdd0a24eb"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/class-transform-flags.json",
+      "sha256": "875e14e7252bf2913804875e96b6215c432a68e5337ede4af21ea6445114f5ef"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_class_transform_flags.rs",
+      "sha256": "0bc241e457c5694a641eaf20577ddf6a9b36dd00010bd86e22df2edcf6d279b4"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/class-statement-layout.json",
+      "sha256": "9d166822e3d6129618d1c0334c04295bbe168a60d065073ad871cb288da309b7"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_class_statement_layout.rs",
+      "sha256": "0d6a494307357c44104e052bea8eba499647fe1cc15d967a50daa258cb40a30a"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/synthetic-default-alias.json",
+      "sha256": "99d5a5fde1393a939da9e27f43bfc3c8c2973c93501bb8ffb7116e904a2a6d69"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_synthetic_default_alias.rs",
+      "sha256": "506f9424a4ebdefe59e8b52c303254b932818c4234c9439a1218a405f665e0fc"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/commonjs-class-instance.json",
+      "sha256": "3983c19969e3fb05164b290323eb2d5b16f134e340a6cb9ee48e0a98aed54886"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_commonjs_class_instance.rs",
+      "sha256": "0cc8a8048cdeb9e4904721fb15c63940482da23310a0102be4f7f8db6ba62a77"
+    },
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "d2272c19c29172474bd67e67bbf8c1161d8016aec101ec396ff97f10d4777fb2"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/emitter/src/metadata.rs",
+      "sha256": "c9eaf94391d3eb0893a1d1e7d4c65ff9d876f8b3772634505325a72cf7430e23"
+    },
+    {
+      "path": "crates/emitter/src/builtins/target_bindings.rs",
+      "sha256": "0034f463ff6f1323753377f7c2fa2760b894ba37b59eeb81ec0980e4a6c45338"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "5ffd982b2fb2057fa7c082400f502e755f0acaf663245a9898bb48c0820d57b6"
+    },
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "71853704eadfbdfe31f25171c2241b3a76db192671a0cec0d8c2cdd884081b55"
+    },
+    {
+      "path": "crates/emitter/src/builtins/class_fields/downlevel.rs",
+      "sha256": "3d002576e6f023bd0e543533ba79973451b0d392dea6158682ea8beaeb2c9a55"
+    },
+    {
+      "path": "crates/emitter/src/builtins/generated_bindings.rs",
+      "sha256": "6389d2ca6a2751a6ccdf8b87c99e0fdc03fbbbba49468ec534c6bab8fad62f4a"
+    },
+    {
+      "path": "ratchets/h2-8a-transformed-class-assigned-names-first-after.v1.json",
+      "sha256": "7ed452b96191ff20625ad2149ecb7b4bca66697022cc99de89383a09a8cf9973"
+    },
+    {
+      "path": "crates/emitter/src/execute.rs",
+      "sha256": "61a00d3569ab9099cfc3b79cce6fcf5aeea24d9f3f38137d05163fbbe6076d13"
+    },
+    {
+      "path": "crates/emitter/tests/integration/active_transform_contract.rs",
+      "sha256": "e46ac2304dfd889c473a4f71f5c6b9ca586c93f842d22350f48e9e5dc3892365"
+    },
+    {
+      "path": "ratchets/h2-8a-transformed-class-assigned-names-emitter-first-after.v1.json",
+      "sha256": "b50fe05e416780f7d42aa8cc5d15d72ef1ece5dcc81ce213ae82afd5c4dac636"
+    }
+  ],
+  "prelaunch_snapshot_subdirectory": "prelaunch",
+  "compiler_prelaunch_snapshot_files": [
+    {
+      "path": "crates/emitter/src/builtins/es2015.rs",
+      "sha256": "0427b99e1c10d41c9670ec173625b5f1407e5c1d7223a09abf6374ad09ab4c54"
+    },
+    {
+      "path": "ratchets/h2-8a-transformed-class-assigned-names-before.v1.json",
+      "sha256": "cbdb5b19bf28950dfb8fc09e4135513fb21df7dbd7356dae26d2699dfdaff27a"
+    },
+    {
+      "path": "ratchets/h2-8a-transformed-class-assigned-names-readiness.v1.json",
+      "sha256": "ac5bab0c80950994b4e4b81abdb55e63e47cfc6c924389edd9a4d472ab054901"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-transformed-class-assigned-names.md",
+      "sha256": "b50adc56227190644347abd9342051119ceeb4b7c1ea361cc5d379e16b07a88d"
+    },
+    {
+      "path": "scripts/check-transformed-class-assigned-names-readiness.py",
+      "sha256": "7c3feacaaf932f056be94b092ee5a619b7f7458579c8a82ab6eaf9117f9d1c2c"
+    },
+    {
+      "path": "scripts/observe-transformed-class-assigned-names.mjs",
+      "sha256": "db166db51ecaf39f427363eb4833f63f2e5bfe6cb2fd0b7a7f2a4d2cc064df99"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/transformed-class-assigned-names.json",
+      "sha256": "f04166260e4005fa6bd5df31ef98ef6d7d8cd79b0054e137f5c52e806d906ffb"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_transformed_class_assigned_names.rs",
+      "sha256": "103cba6f7064c3fca0891ab7598930fbabb17f319bab8303349ad6a9028f7a81"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "88703daa270295a3e62c2befd67057b2b52cf09c81e3fcc4586224e2b2f2bb92"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "726a6d93a6f97ec8e9509772260c71bd05326ae3addb56b90ee17d910e92e695"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+      "sha256": "90aff72e27fac502da3ff3f06980c55c4923e35554c3e64800a60213cb1b04ba"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/jsdoc-implements-serialization.json",
+      "sha256": "46f1ad3ebb5480c9d697fca9c6adf3c95dd3fed2f60e8f37210dd1e1733cc057"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_jsdoc_implements_serialization.rs",
+      "sha256": "2c035245d37a82d01b4e3ff15f0f5a05740b11d7b256be02a95c7d1fdd0a24eb"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/class-transform-flags.json",
+      "sha256": "875e14e7252bf2913804875e96b6215c432a68e5337ede4af21ea6445114f5ef"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_class_transform_flags.rs",
+      "sha256": "0bc241e457c5694a641eaf20577ddf6a9b36dd00010bd86e22df2edcf6d279b4"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/class-statement-layout.json",
+      "sha256": "9d166822e3d6129618d1c0334c04295bbe168a60d065073ad871cb288da309b7"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_class_statement_layout.rs",
+      "sha256": "0d6a494307357c44104e052bea8eba499647fe1cc15d967a50daa258cb40a30a"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/synthetic-default-alias.json",
+      "sha256": "99d5a5fde1393a939da9e27f43bfc3c8c2973c93501bb8ffb7116e904a2a6d69"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_synthetic_default_alias.rs",
+      "sha256": "506f9424a4ebdefe59e8b52c303254b932818c4234c9439a1218a405f665e0fc"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/commonjs-class-instance.json",
+      "sha256": "3983c19969e3fb05164b290323eb2d5b16f134e340a6cb9ee48e0a98aed54886"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_commonjs_class_instance.rs",
+      "sha256": "0cc8a8048cdeb9e4904721fb15c63940482da23310a0102be4f7f8db6ba62a77"
+    },
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "d2272c19c29172474bd67e67bbf8c1161d8016aec101ec396ff97f10d4777fb2"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/emitter/src/metadata.rs",
+      "sha256": "c9eaf94391d3eb0893a1d1e7d4c65ff9d876f8b3772634505325a72cf7430e23"
+    },
+    {
+      "path": "crates/emitter/src/builtins/target_bindings.rs",
+      "sha256": "0034f463ff6f1323753377f7c2fa2760b894ba37b59eeb81ec0980e4a6c45338"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "5ffd982b2fb2057fa7c082400f502e755f0acaf663245a9898bb48c0820d57b6"
+    },
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "71853704eadfbdfe31f25171c2241b3a76db192671a0cec0d8c2cdd884081b55"
+    },
+    {
+      "path": "crates/emitter/src/builtins/class_fields/downlevel.rs",
+      "sha256": "3d002576e6f023bd0e543533ba79973451b0d392dea6158682ea8beaeb2c9a55"
+    },
+    {
+      "path": "crates/emitter/src/builtins/generated_bindings.rs",
+      "sha256": "6389d2ca6a2751a6ccdf8b87c99e0fdc03fbbbba49468ec534c6bab8fad62f4a"
+    },
+    {
+      "path": "ratchets/h2-8a-transformed-class-assigned-names-first-after.v1.json",
+      "sha256": "7ed452b96191ff20625ad2149ecb7b4bca66697022cc99de89383a09a8cf9973"
+    },
+    {
+      "path": "crates/emitter/src/execute.rs",
+      "sha256": "61a00d3569ab9099cfc3b79cce6fcf5aeea24d9f3f38137d05163fbbe6076d13"
+    }
+  ],
+  "compiler_prelaunch_snapshot_subdirectory": "compiler-prelaunch",
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-assigned-name-after-6af9t3k9",
+  "global_checkpoint_unchanged": "ratchets/h2-8a-global-after-a6-14.v1.json"
+}

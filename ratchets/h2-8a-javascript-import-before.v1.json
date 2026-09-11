@@ -1,0 +1,97 @@
+{
+  "version": 1,
+  "status": "complete-before",
+  "checkpoint": "2793145a6fa7f19e335bfbb463b68ad6eaf100c4",
+  "working_source_files": [
+    {
+      "path": "crates/compiler/tests/fixtures/javascript-import-retention.json",
+      "copy": "0-javascript-import-retention.json",
+      "sha256": "7f2219f3fe096ac19035a0988750d3650f04d529aa03b40c6e2defd985166941"
+    },
+    {
+      "path": "scripts/observe-javascript-import-retention.mjs",
+      "copy": "1-observe-javascript-import-retention.mjs",
+      "sha256": "5deaff2b0643f205e39280060b16b4c45229d7ba60333a2c5e020a5d788a24a3"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_javascript_imports.rs",
+      "copy": "2-h2_8a_javascript_imports.rs",
+      "sha256": "4af45e5260817ccc5b2c2650627071478a7491efd064018a4b93188c77812ae1"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "copy": "3-h2_7c_declaration_blocking.rs",
+      "sha256": "fc32b5ae4e08458c7796ac8591252c47bb78e6cbf8ce41ea153820d8d3e80564"
+    },
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "copy": "4-builtins.rs",
+      "sha256": "0f2bc703d085dd00452595b800d94ebfac5fb314a6c5bc1c57b4f79ae88569eb"
+    },
+    {
+      "path": "crates/program/src/loader.rs",
+      "copy": "5-loader.rs",
+      "sha256": "bdae1ac0a665f9dd7889c430940f5eca78c06d324450076509b6dad35441d149"
+    },
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "copy": "6-statements.rs",
+      "sha256": "a800c28cd4efa3253410ce135569b200126bb2936da9a4812b6df5295136ad80"
+    },
+    {
+      "path": "crates/checker/src/modules.rs",
+      "copy": "7-modules.rs",
+      "sha256": "4f0b43ab460df378e0909dd9ce04db1ed21db901d0ce9e2e001bfcbd2c5700e4"
+    }
+  ],
+  "log_sha256": "854e2b34f74a76dd986333171721b144335745f6726a9f17c7319beb1e4f9f3d",
+  "eligible": 42,
+  "exact": [
+    "ts/commonjs/default",
+    "ts/commonjs/namespace",
+    "ts/commonjs/named",
+    "ts/commonjs/type-only",
+    "ts/commonjs/import-equals",
+    "ts/esnext/default",
+    "ts/esnext/namespace",
+    "ts/esnext/named",
+    "ts/esnext/type-only",
+    "ts/esnext/import-equals",
+    "ts/node-esm/default",
+    "ts/node-esm/namespace",
+    "ts/node-esm/named",
+    "ts/node-esm/type-only",
+    "ts/node-esm/import-equals",
+    "ts/node-cjs/default",
+    "ts/node-cjs/namespace",
+    "ts/node-cjs/named",
+    "ts/node-cjs/type-only",
+    "ts/node-cjs/import-equals",
+    "js/commonjs/type-only",
+    "js/esnext/type-only",
+    "js/esnext/import-equals",
+    "js/node-esm/type-only",
+    "js/node-cjs/type-only"
+  ],
+  "failed": [
+    "js/commonjs/default",
+    "js/commonjs/namespace",
+    "js/commonjs/named",
+    "js/commonjs/import-equals",
+    "js/esnext/default",
+    "js/esnext/namespace",
+    "js/esnext/named",
+    "js/node-esm/default",
+    "js/node-esm/namespace",
+    "js/node-esm/named",
+    "js/node-esm/import-equals",
+    "js/node-cjs/default",
+    "js/node-cjs/namespace",
+    "js/node-cjs/named",
+    "js/node-cjs/import-equals",
+    "js/checkJs-false/default",
+    "js/checkJs-false/namespace"
+  ],
+  "run_seconds": 33.84,
+  "note": "A6-2/3 staged loader/statements changes are included in recorded working-source hashes; builtins remains unchanged from 43e1107e8. Initial missing checkJs harness projection is separate, not this runtime before."
+}

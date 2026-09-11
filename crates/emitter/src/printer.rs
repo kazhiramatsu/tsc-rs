@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt;
@@ -25,6 +26,8 @@ use crate::{
     UnsupportedEmitFeature,
 };
 
+use crate::writer::GeneratedText;
+
 mod bundle;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -40,6 +43,14 @@ struct SourceFilePrintBody<'helpers> {
     statements: Vec<NodeId>,
     helpers: &'helpers [EmitHelper],
     mode: SourceFileEmitMode,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum PositionCommentPhase {
+    /// An explicit child/name boundary that still owns both source phases.
+    BoundaryUnion,
+    /// `emitLeadingCommentsOfPosition`: the preceding node owns trailing comments.
+    SourceLeading,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -135,7 +146,6 @@ struct ExpressionCommentPhaseOwner {
     range: CommentRange,
     flags: EmitFlags,
     kind: SyntaxKind,
-    relocated_trailing: bool,
 }
 
 /// Records whether this expression invocation actually ran an ordinary
@@ -455,8 +465,24 @@ enum LeadingCommentContext {
     DelimitedListStart,
 }
 
+/// The sibling list phase reads the actual next item's comment start.
+/// A final trailing comma has a separate token-owned source boundary.
+#[derive(Clone, Copy, Debug)]
+enum DelimitedCommentBoundary {
+    BeforeItem(TransformNode),
+    AfterTrailingComma(TransformNode),
+}
+
+/// A list's trailing-position phase is independent of its child's ordinary
+/// leading comments. Only the ordinary-node context obeys NoLeadingComments.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum InterveningCommentContext {
+    Node,
+    DelimitedListStart,
+}
+
 /// Typed projection of ListFormat::Indented for the expression/binding lists
-/// emitted by `emit_delimited_expression_list`.
+/// emitted by `emit_formatted_node_list`.
 ///
 /// Array and object literals own an indentation scope even when printed on a
 /// single logical line; their children may contain multiline syntax. Binding
@@ -475,6 +501,14 @@ impl DelimitedListIndentation {
     }
 }
 
+/// Leading lines compare original parent identities; closing lines compare
+/// the actual parent identity. Neither predicate follows original positions.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum DelimitedListBoundary {
+    Leading,
+    Closing,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum DelimitedListLinePolicy {
     Compact,
@@ -487,25 +521,76 @@ impl DelimitedListLinePolicy {
     }
 }
 
-/// The two independent list-format responsibilities used by delimited
-/// expressions. Keeping them together prevents binding-pattern comments from
-/// inheriting literal indentation while still retaining parsed line breaks in
-/// array/object literal sibling lists.
+/// Optional punctuation belongs to the list format. An unbracketed list
+/// makes no opening/closing writer calls, including for an empty list.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ListBrackets {
+    Square,
+    Curly,
+}
+
+impl ListBrackets {
+    const fn opening(self) -> &'static str {
+        match self {
+            Self::Square => "[",
+            Self::Curly => "{",
+        }
+    }
+
+    const fn closing(self) -> &'static str {
+        match self {
+            Self::Square => "]",
+            Self::Curly => "}",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ListDelimiter {
+    None,
+    Comma,
+}
+
+/// Independent format policies shared by expression, binding, attribute and
+/// mapped-member lists. Delimiter callbacks are distinct from each ordinary
+/// child's comment pipeline, which also runs for undelimited lists.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct DelimitedListFormat {
     indentation: DelimitedListIndentation,
     lines: DelimitedListLinePolicy,
+    allow_trailing_comma: bool,
+    delimiter: ListDelimiter,
+    space_between_siblings: bool,
 }
 
 impl DelimitedListFormat {
     const LITERAL: Self = Self {
         indentation: DelimitedListIndentation::Indented,
         lines: DelimitedListLinePolicy::PreserveSource,
+        allow_trailing_comma: true,
+        delimiter: ListDelimiter::Comma,
+        space_between_siblings: true,
     };
 
     const BINDING_PATTERN: Self = Self {
         indentation: DelimitedListIndentation::Current,
         lines: DelimitedListLinePolicy::Compact,
+        allow_trailing_comma: true,
+        delimiter: ListDelimiter::Comma,
+        space_between_siblings: true,
+    };
+
+    const MAPPED_TYPE_MEMBERS: Self = Self {
+        indentation: DelimitedListIndentation::Current,
+        lines: DelimitedListLinePolicy::PreserveSource,
+        allow_trailing_comma: false,
+        delimiter: ListDelimiter::None,
+        space_between_siblings: false,
+    };
+
+    const IMPORT_ATTRIBUTES: Self = Self {
+        allow_trailing_comma: false,
+        ..Self::LITERAL
     };
 }
 
@@ -892,14 +977,20 @@ enum MapBoundary {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PrintedText {
-    text: String,
+    text: GeneratedText,
     end: GeneratedUtf16Location,
     source_map: Option<crate::source_map::SourceMapGenerator>,
 }
 
 impl PrintedText {
+    /// UTF8 sink projection; unpaired JavaScript units project as U+FFFD.
     pub fn text(&self) -> &str {
-        &self.text
+        self.text.as_str()
+    }
+
+    /// The generated JavaScript value before UTF8 sink conversion.
+    pub fn text_utf16(&self) -> Cow<'_, [u16]> {
+        self.text.units()
     }
 
     pub const fn end(&self) -> GeneratedUtf16Location {
@@ -922,6 +1013,15 @@ impl PrintedText {
 pub struct Printer {
     options: PrinterOptions,
     emission_plan: EmissionPlan,
+    next_list_element: Option<ListElementPosition>,
+}
+
+/// The printer cursor compares UTF16 position values, including across source
+/// files. Synthesized is a semantic state distinct from an uninitialized cursor.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ListElementPosition {
+    Synthesized,
+    Source(crate::SourceUtf16Position),
 }
 
 /// Immutable structural decisions derived once from the final transformed
@@ -943,6 +1043,7 @@ pub fn create_printer(options: PrinterOptions) -> Printer {
     Printer {
         options,
         emission_plan: EmissionPlan::default(),
+        next_list_element: None,
     }
 }
 
@@ -960,6 +1061,34 @@ impl GlobalNameOracle for UnavailableDeclarationGlobalNameOracle {
 impl Printer {
     pub const fn options(&self) -> PrinterOptions {
         self.options
+    }
+
+    fn list_element_position(
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+    ) -> Result<ListElementPosition, PrinterError> {
+        let position = transformation.arena().node(node)?.pos;
+        if position == u32::MAX {
+            return Ok(ListElementPosition::Synthesized);
+        }
+        let syntax = transformation.arena().source(node.source())?.syntax();
+        let position = SourceBytePosition::new(position, syntax.positions())?;
+        Ok(ListElementPosition::Source(
+            crate::SourceUtf16Position::from_byte(position, syntax.positions())?,
+        ))
+    }
+
+    /// The assignment precedes item emission and is not restored by nested
+    /// lists, source changes, successful prints, or a later item failure.
+    /// tsc-port: emitNodeListItems @6.0.3
+    /// tsc-span: _tsc.js:120125-120126
+    fn record_list_element_position(
+        &mut self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+    ) -> Result<(), PrinterError> {
+        self.next_list_element = Some(Self::list_element_position(transformation, node)?);
+        Ok(())
     }
 
     fn prepare_emission_plan(
@@ -1197,7 +1326,7 @@ impl Printer {
         )?;
         self.emit_trailing_comments_for_node(transformation, node, &mut writer)?;
         Ok(PrintedText {
-            text: writer.text().to_owned(),
+            text: writer.generated_text().clone(),
             end: writer.location(),
             source_map: None,
         })
@@ -1289,8 +1418,8 @@ impl Printer {
             ));
         }
 
-        transformation.before_emit_node(EmitHint::SourceFile, root)?;
         let substituted_root = transformation.substitute_node(EmitHint::SourceFile, root)?;
+        transformation.before_emit_node(EmitHint::SourceFile, root)?;
         if substituted_root != root {
             transformation.after_emit_node(EmitHint::SourceFile, root)?;
             return Err(PrinterError::TransformedNodeWorkerUnavailable(
@@ -1306,8 +1435,8 @@ impl Printer {
                 .arena()
                 .node_ref(source_id, raw_statement)
                 .ok_or(PrinterError::UnknownStatement(raw_statement.0))?;
-            transformation.before_emit_node(EmitHint::Unspecified, statement)?;
             let emitted = transformation.substitute_node(EmitHint::Unspecified, statement)?;
+            transformation.before_emit_node(EmitHint::Unspecified, statement)?;
             if emitted != statement {
                 transformation.after_emit_node(EmitHint::Unspecified, statement)?;
                 transformation.after_emit_node(EmitHint::SourceFile, root)?;
@@ -1341,7 +1470,7 @@ impl Printer {
         )?;
         transformation.after_emit_node(EmitHint::SourceFile, root)?;
         Ok(PrintedText {
-            text: writer.text().to_owned(),
+            text: writer.generated_text().clone(),
             end: writer.location(),
             source_map: None,
         })
@@ -1356,13 +1485,13 @@ impl Printer {
     /// statement semicolon, normalizes whitespace/newlines, and lets the
     /// write callback own BOM materialization.
     fn print_json_source_file(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         source_id: TransformSourceId,
         root: TransformNode,
     ) -> Result<PrintedText, PrinterError> {
-        transformation.before_emit_node(EmitHint::SourceFile, root)?;
         let emitted_root = transformation.substitute_node(EmitHint::SourceFile, root)?;
+        transformation.before_emit_node(EmitHint::SourceFile, root)?;
         if emitted_root != root {
             transformation.after_emit_node(EmitHint::SourceFile, root)?;
             return Err(PrinterError::TransformedNodeWorkerUnavailable(emitted_root));
@@ -1408,9 +1537,9 @@ impl Printer {
                     });
                 }
             };
-            transformation.before_emit_node(EmitHint::Unspecified, statement)?;
             let emitted_statement =
                 transformation.substitute_node(EmitHint::Unspecified, statement)?;
+            transformation.before_emit_node(EmitHint::Unspecified, statement)?;
             if emitted_statement != statement {
                 transformation.after_emit_node(EmitHint::Unspecified, statement)?;
                 transformation.after_emit_node(EmitHint::SourceFile, root)?;
@@ -1432,14 +1561,14 @@ impl Printer {
         }
         transformation.after_emit_node(EmitHint::SourceFile, root)?;
         Ok(PrintedText {
-            text: writer.text().to_owned(),
+            text: writer.generated_text().clone(),
             end: writer.location(),
             source_map: None,
         })
     }
 
     fn print_transformed_source_file(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         source_id: TransformSourceId,
         root: TransformNode,
@@ -1490,13 +1619,13 @@ impl Printer {
             ));
         }
         let text = if !system_helpers.is_empty() {
-            self.insert_system_scoped_helpers(writer.text(), &system_helpers)?
+            self.insert_system_scoped_helpers(writer.generated_text(), &system_helpers)?
         } else {
-            writer.text().to_owned()
+            writer.generated_text().clone()
         };
         let end = if !system_helpers.is_empty() {
             let mut measured = create_text_writer(self.options.new_line);
-            measured.raw_write(&text);
+            measured.raw_write_utf16(&text.units());
             measured.location()
         } else {
             writer.location()
@@ -1532,18 +1661,10 @@ impl Printer {
         source_id: TransformSourceId,
     ) -> Result<Vec<EmitHelper>, PrinterError> {
         // `shouldSkip = printerOptions.noEmitHelpers || hasRecordedExternalHelpers(sourceFile)`
-        // (`_tsc.js:117729-117736`): under `importHelpers` an external
-        // module's unscoped helpers were rewritten into the tslib import by
-        // the module transformer, so their bodies never inline. The
-        // external-module test is equivalent to the recorded flag: the
-        // import is created exactly when unscoped helpers exist there.
-        let suppress_unscoped = self.options.import_helpers
-            && transformation
-                .arena()
-                .source(source_id)?
-                .syntax()
-                .external_module_indicator
-                .is_some();
+        // (_tsc.js:117729-117736): the module producer records an actual
+        // helper import on the original SourceFile.
+        let suppress_unscoped =
+            crate::builtins::has_recorded_external_helpers(transformation.arena(), source_id)?;
         let helpers = if self.options.no_emit_helpers {
             Vec::new()
         } else {
@@ -1567,8 +1688,14 @@ impl Printer {
         Ok(helpers)
     }
 
+    /// tsc-port: emitSourceFile @6.0.3
+    /// tsc-hash: cea241c6f593d9352d30faf866f13f9ef158c779c560bdea880391d7acd8bd42
+    /// tsc-span: _tsc.js:119710-119719
+    /// tsc-port: emitSourceFileWorker @6.0.3
+    /// tsc-hash: 8dfb3b4d8372581bce1739cccac27e886d9260d86756c67ae36c9f462578ef65
+    /// tsc-span: _tsc.js:119753-119769
     fn write_transformed_source_file(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         body: SourceFilePrintBody<'_>,
         writer: &mut TextWriter,
@@ -1581,8 +1708,8 @@ impl Printer {
             helpers,
             mode,
         } = body;
-        transformation.before_emit_node(EmitHint::SourceFile, root)?;
         let emitted_root = transformation.substitute_node(EmitHint::SourceFile, root)?;
+        transformation.before_emit_node(EmitHint::SourceFile, root)?;
         if emitted_root != root {
             transformation.after_emit_node(EmitHint::SourceFile, root)?;
             return Err(PrinterError::TransformedNodeWorkerUnavailable(emitted_root));
@@ -1715,8 +1842,11 @@ impl Printer {
                 .arena()
                 .node_ref(source_id, raw_statement)
                 .ok_or(PrinterError::UnknownStatement(raw_statement.0))?;
-            transformation.before_emit_node(EmitHint::Unspecified, statement)?;
+            if statement_index >= helper_offset {
+                self.record_list_element_position(transformation, statement)?;
+            }
             let emitted = transformation.substitute_node(EmitHint::Unspecified, statement)?;
+            transformation.before_emit_node(EmitHint::Unspecified, statement)?;
             let original = transformation.arena().get_original_node(emitted);
             let original_source = transformation.arena().source(original.source())?.syntax();
             let original_record = transformation.arena().node(original)?;
@@ -1786,7 +1916,7 @@ impl Printer {
             let detached_resume = self.take_detached_comment_resume_for_node(
                 transformation,
                 &mut pending_detached_comments,
-                original,
+                emitted,
             )?;
             if let Some(detached_resume) = detached_resume {
                 self.emit_leading_comments_for_node_worker(
@@ -1813,7 +1943,21 @@ impl Printer {
             // node bracket inside emit_transformed_node records the
             // boundary BEFORE the trailing statement comments (the
             // upstream order the old pair violated).
-            self.emit_transformed_node(transformation, emitted, EmitContext::file_root(), writer)?;
+            // The explicit statement leading phase above also establishes
+            // its container range for every nested node comments phase.
+            // In particular, a first modifier sharing the statement's start
+            // must see that claim before emitting its own leading comments.
+            let owner = self.expression_comment_phase_owner_for_node(transformation, emitted)?;
+            let context = EmitContext::file_root();
+            let scope =
+                self.active_expression_comment_scope(transformation, None, context, owner)?;
+            self.emit_transformed_node(
+                transformation,
+                emitted,
+                EmitHint::Unspecified,
+                context.with_comments(scope),
+                writer,
+            )?;
             self.emit_statement_trailing_comments(transformation, emitted, writer)?;
             transformation.after_emit_node(EmitHint::Unspecified, statement)?;
             writer.write_line(false);
@@ -2014,16 +2158,17 @@ impl Printer {
 
     fn insert_system_scoped_helpers(
         &self,
-        text: &str,
+        text: &GeneratedText,
         helpers: &[EmitHelper],
-    ) -> Result<String, PrinterError> {
+    ) -> Result<GeneratedText, PrinterError> {
         let new_line = self.options.new_line.text();
-        let first_line_end = text
+        let projection = text.as_str();
+        let first_line_end = projection
             .find(new_line)
             .map(|offset| offset + new_line.len())
             .unwrap_or(0);
         let strict = format!("    \"use strict\";{new_line}");
-        let insertion_offset = if text[first_line_end..].starts_with(&strict) {
+        let insertion_offset = if projection[first_line_end..].starts_with(&strict) {
             first_line_end + strict.len()
         } else {
             first_line_end
@@ -2031,17 +2176,16 @@ impl Printer {
         let mut helper_writer = create_text_writer(self.options.new_line);
         helper_writer.increase_indent();
         self.emit_helpers(helpers, &mut helper_writer)?;
-        let mut output = String::with_capacity(text.len() + helper_writer.text().len());
-        output.push_str(&text[..insertion_offset]);
-        output.push_str(helper_writer.text());
-        output.push_str(&text[insertion_offset..]);
+        let mut output = text.clone();
+        output.insert_at_utf8_boundary(insertion_offset, helper_writer.generated_text());
         Ok(output)
     }
 
     fn emit_transformed_node(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
+        hint: EmitHint,
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
@@ -2078,13 +2222,25 @@ impl Printer {
         }
         let saved_preserve_source_newlines = self.before_emit_node_notification(node);
         let mut deferred_source_comments = DeferredExpressionSourceCommentsState::default();
-        let worker_result = self.emit_transformed_node_worker(
-            transformation,
-            node,
-            expression_context,
-            &mut deferred_source_comments,
-            writer,
-        );
+        let worker_result = match hint {
+            EmitHint::ImportTypeNodeAttributes => self.emit_import_type_node_attributes(
+                transformation,
+                node,
+                expression_context,
+                writer,
+            ),
+            EmitHint::SourceFile
+            | EmitHint::Expression
+            | EmitHint::IdentifierName
+            | EmitHint::MappedTypeParameter
+            | EmitHint::Unspecified => self.emit_transformed_node_worker(
+                transformation,
+                node,
+                expression_context,
+                &mut deferred_source_comments,
+                writer,
+            ),
+        };
         self.after_emit_node_notification(saved_preserve_source_newlines);
         if suppress_nested_maps {
             if let Some(recording) = writer.recording_mut() {
@@ -2152,7 +2308,7 @@ impl Printer {
     /// tsc-hash: 9a3b4a37b6a91928c82b35ed375078a7d4b893092d3ab9dc27caa22f8f5f4b04
     /// tsc-span: _tsc.js:118991-118993
     fn emit_transformed_node_worker(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         expression_context: EmitContext,
@@ -2577,7 +2733,19 @@ impl Printer {
             }
             NodeData::OmittedExpression(_) => Ok(()),
             NodeData::StringLiteral(data) => {
-                if !changed {
+                // getLiteralText / canUseOriginalText (_tsc.js:13647-13702)
+                // test the current raw range and parent, independently of the
+                // Synthesized flag, original metadata and emission-plan state.
+                // textSourceNode is selected before that eligibility test.
+                let has_text_source = transformation
+                    .arena()
+                    .literal_properties(node)
+                    .is_some_and(|properties| properties.string_literal_text_source().is_some());
+                if !has_text_source
+                    && record.pos != u32::MAX
+                    && record.end != u32::MAX
+                    && record.parent.is_some()
+                {
                     // tsc's `getLiteralText` returns the original token bytes
                     // and `writeStringLiteral` writes them verbatim. In
                     // particular, a line continuation keeps the source's LF
@@ -2590,9 +2758,58 @@ impl Printer {
                     )
                 } else {
                     let metadata = transformation.arena().metadata(node);
-                    if let Some(text_source) =
-                        metadata.and_then(crate::EmitMetadata::string_literal_text_source)
+                    let properties = transformation.arena().literal_properties(node);
+                    let no_ascii_escaping = self.options.never_ascii_escape
+                        || metadata.is_some_and(|metadata| {
+                            metadata.flags().contains(EmitFlags::NO_ASCII_ESCAPING)
+                        });
+                    if let Some(text_source) = properties
+                        .and_then(crate::LiteralNodeProperties::string_literal_text_source)
                     {
+                        let source_record = transformation.arena().node(text_source)?;
+                        if let NodeData::Identifier(identifier) = &source_record.data {
+                            // tsc-port: getLiteralTextOfNode @6.0.3
+                            // tsc-hash: 43989b908107b6f48eae6547835a82a24937f43ba2ddd8673c48b83018d8201e
+                            // tsc-span: _tsc.js:120467-120479
+                            // getLiteralTextOfNode delegates Identifier text sources
+                            // to getTextOfNode: only a positioned, parented name in
+                            // the current source file can retain its token spelling.
+                            // Clones and foreign names use their identifier text.
+                            let generated = transformation
+                                .arena()
+                                .metadata(text_source)
+                                .is_some_and(|metadata| metadata.generated_binding_id().is_some());
+                            let mut text = identifier.text.as_str();
+                            if !generated
+                                && text_source.source() == node.source()
+                                && source_record.parent.is_some()
+                            {
+                                let source = transformation
+                                    .arena()
+                                    .source(text_source.source())?
+                                    .syntax();
+                                if let SourceRange::Original(range) = SourceRange::from_raw(
+                                    source_record.pos,
+                                    source_record.end,
+                                    source.positions(),
+                                )? {
+                                    let range = range.without_leading_trivia(
+                                        source.text(),
+                                        source.positions(),
+                                    )?;
+                                    let start = range.start().value();
+                                    let end = range.end().value();
+                                    text = source
+                                        .text()
+                                        .get(start as usize..end as usize)
+                                        .ok_or(PrinterError::InvalidTextSlice { start, end })?;
+                                }
+                            }
+                            writer.write_string_literal_utf16(
+                                quote_string_literal(text, false, no_ascii_escaping).code_units(),
+                            );
+                            return Ok(());
+                        }
                         if transformation.arena().node(text_source)?.kind
                             == SyntaxKind::StringLiteral
                             && self.node_has_source_text_range(transformation, text_source)?
@@ -2604,14 +2821,11 @@ impl Printer {
                             );
                         }
                     }
-                    let single_quote = metadata
-                        .and_then(crate::EmitMetadata::string_literal_single_quote)
+                    let single_quote = properties
+                        .and_then(crate::LiteralNodeProperties::string_literal_single_quote)
                         .unwrap_or(false);
-                    let no_ascii_escaping = metadata.is_some_and(|metadata| {
-                        metadata.flags().contains(EmitFlags::NO_ASCII_ESCAPING)
-                    });
-                    let quoted = metadata
-                        .and_then(crate::EmitMetadata::javascript_string_value)
+                    let quoted = properties
+                        .and_then(crate::LiteralNodeProperties::javascript_string_value)
                         .map(|value| {
                             quote_javascript_string(
                                 value.code_units(),
@@ -2622,7 +2836,7 @@ impl Printer {
                         .unwrap_or_else(|| {
                             quote_string_literal(&data.text, single_quote, no_ascii_escaping)
                         });
-                    writer.write_string_literal(&quoted);
+                    writer.write_string_literal_utf16(quoted.code_units());
                     Ok(())
                 }
             }
@@ -2814,15 +3028,19 @@ impl Printer {
             }
             NodeData::JsxSpreadAttribute(data) => {
                 writer.write_punctuation("{...");
-                self.emit_required_node_with_context_and_source_extent(
+                let expression = data
+                    .expression
+                    .ok_or(PrinterError::MissingTransformedChild {
+                        parent: SyntaxKind::JsxSpreadAttribute,
+                        field: "expression",
+                    })?;
+                self.emit_optional_ordinary_child(
                     transformation,
-                    node.source(),
-                    data.expression,
                     node,
-                    SyntaxKind::JsxSpreadAttribute,
-                    "expression",
+                    Some(expression),
+                    EmitHint::Expression,
+                    None,
                     expression_context.for_child(ExpressionSyntaxContext::NORMAL),
-                    DeferredSourceCommentExtent::LeadingAndTrailing,
                     writer,
                 )?;
                 writer.write_punctuation("}");
@@ -2834,6 +3052,7 @@ impl Printer {
                 });
                 if expression.is_none()
                     && (self.options.remove_comments
+                        || expression_context.nested_comments_suppressed()
                         || !self.original_jsx_has_comments_at_open(transformation, node)?)
                 {
                     return Ok(());
@@ -2842,69 +3061,51 @@ impl Printer {
                 if multiline {
                     writer.increase_indent();
                 }
-                let first_child = data
-                    .dot_dot_dot_token
-                    .and_then(|token| transformation.arena().node_ref(node.source(), token))
-                    .or(expression);
-                let open = self.emit_token_with_comments(
+                let open = self.emit_source_leading_token_with_context(
                     transformation,
                     node,
                     FixedToken::punctuation(SyntaxKind::OpenBraceToken),
-                    self.original_node_start_cursor(transformation, node)?,
-                    false,
+                    self.node_start_cursor(transformation, node)?,
+                    TokenLeadingSpace::None,
+                    expression_context,
                     writer,
                 )?;
-                let open_prefix =
-                    self.token_owned_child_prefix(transformation, open, first_child)?;
                 if let Some(dot_dot_dot) = data.dot_dot_dot_token {
-                    if let Some(first_child) = first_child {
-                        self.emit_leading_comments_for_node_worker(
-                            transformation,
-                            first_child,
-                            LeadingCommentContext::Normal,
-                            open_prefix,
-                            writer,
-                        )?;
-                    }
-                    self.emit_node_id_with_context(
+                    self.emit_optional_ordinary_child(
                         transformation,
-                        node.source(),
-                        dot_dot_dot,
+                        node,
+                        Some(dot_dot_dot),
+                        EmitHint::Unspecified,
+                        Some(open),
                         expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                         writer,
                     )?;
                 }
                 if let Some(expression) = expression {
-                    if data.dot_dot_dot_token.is_none() {
-                        self.emit_leading_comments_for_node_worker(
-                            transformation,
-                            expression,
-                            LeadingCommentContext::Normal,
-                            open_prefix,
-                            writer,
-                        )?;
-                    }
-                    self.emit_node_id_with_context(
+                    self.emit_optional_ordinary_child(
                         transformation,
-                        node.source(),
-                        expression.node(),
+                        node,
+                        Some(expression.node()),
+                        EmitHint::Expression,
+                        data.dot_dot_dot_token.is_none().then_some(open),
                         expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                         writer,
                     )?;
                 }
                 let close_anchor = expression
                     .map(|expression| {
-                        self.original_node_end_cursor(transformation, expression)
+                        self.node_end_cursor(transformation, expression)
                             .map(TokenAnchor::from)
                     })
                     .transpose()?
                     .unwrap_or_else(|| TokenAnchor::from(open));
-                self.emit_token_with_comments(
+                self.emit_source_leading_token_with_context(
                     transformation,
                     node,
                     FixedToken::punctuation(SyntaxKind::CloseBraceToken),
                     close_anchor,
-                    false,
+                    TokenLeadingSpace::None,
+                    expression_context,
                     writer,
                 )?;
                 if multiline {
@@ -3485,14 +3686,18 @@ impl Printer {
                     writer,
                 )?;
                 writer.write_space(" ");
-                self.emit_delimited_expression_list(
+                let prefer_new_line = transformation
+                    .arena()
+                    .metadata(node)
+                    .is_some_and(|metadata| metadata.flags().contains(EmitFlags::MULTI_LINE));
+                self.emit_formatted_node_list(
                     transformation,
                     node,
                     data.elements,
-                    "{",
-                    "}",
-                    data.multi_line == Some(true) || multi_line,
-                    DelimitedListFormat::LITERAL,
+                    Some(ListBrackets::Curly),
+                    prefer_new_line,
+                    DelimitedListFormat::IMPORT_ATTRIBUTES,
+                    EmitHint::Unspecified,
                     ExpressionSyntaxContext::NORMAL,
                     expression_context,
                     writer,
@@ -3772,6 +3977,7 @@ impl Printer {
                         declaration_context.comments(),
                         writer,
                     )?;
+                    self.record_list_element_position(transformation, declaration)?;
                     self.emit_node_id_with_context(
                         transformation,
                         node.source(),
@@ -3905,38 +4111,38 @@ impl Printer {
                     expression_context,
                     writer,
                 ),
-            NodeData::ArrayLiteralExpression(data) => self.emit_delimited_expression_list(
+            NodeData::ArrayLiteralExpression(data) => self.emit_formatted_node_list(
                 transformation,
                 node,
                 data.elements,
-                "[",
-                "]",
+                Some(ListBrackets::Square),
                 multi_line,
                 DelimitedListFormat::LITERAL,
+                EmitHint::Expression,
                 ExpressionSyntaxContext::DISALLOWED_COMMA,
                 expression_context,
                 writer,
             ),
-            NodeData::ArrayBindingPattern(data) => self.emit_delimited_expression_list(
+            NodeData::ArrayBindingPattern(data) => self.emit_formatted_node_list(
                 transformation,
                 node,
                 data.elements,
-                "[",
-                "]",
-                multi_line,
+                Some(ListBrackets::Square),
+                false,
                 DelimitedListFormat::BINDING_PATTERN,
+                EmitHint::Unspecified,
                 ExpressionSyntaxContext::NORMAL,
                 expression_context,
                 writer,
             ),
-            NodeData::ObjectBindingPattern(data) => self.emit_delimited_expression_list(
+            NodeData::ObjectBindingPattern(data) => self.emit_formatted_node_list(
                 transformation,
                 node,
                 data.elements,
-                "{",
-                "}",
-                multi_line,
+                Some(ListBrackets::Curly),
+                false,
                 DelimitedListFormat::BINDING_PATTERN,
+                EmitHint::Unspecified,
                 ExpressionSyntaxContext::NORMAL,
                 expression_context,
                 writer,
@@ -3949,54 +4155,54 @@ impl Printer {
                         parent: SyntaxKind::BindingElement,
                         field: "name",
                     })?;
-                if let Some(dot_dot_dot) = data.dot_dot_dot_token {
-                    self.emit_node_id_with_context(
-                        transformation,
-                        node.source(),
-                        dot_dot_dot,
-                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
-                        writer,
-                    )?;
-                }
+                self.emit_optional_ordinary_child(
+                    transformation,
+                    node,
+                    data.dot_dot_dot_token,
+                    EmitHint::Unspecified,
+                    None,
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                    writer,
+                )?;
                 if let Some(property_name) = data.property_name {
-                    self.emit_identifier_name_with_context(
+                    self.emit_optional_ordinary_child(
                         transformation,
-                        node.source(),
-                        property_name,
+                        node,
+                        Some(property_name),
+                        EmitHint::Unspecified,
+                        None,
                         expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                         writer,
                     )?;
                     writer.write_punctuation(":");
                     writer.write_space(" ");
                 }
-                self.emit_required_identifier_name_with_context(
+                self.emit_optional_ordinary_child(
                     transformation,
-                    node.source(),
-                    data.name,
-                    SyntaxKind::BindingElement,
-                    "name",
+                    node,
+                    Some(name.node()),
+                    EmitHint::Unspecified,
+                    None,
                     expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
                 if let Some(initializer) = data.initializer {
-                    let equals = self.emit_space_prefixed_token_with_comments(
+                    let equals = self.emit_source_leading_token_with_context(
                         transformation,
                         node,
                         FixedToken::operator(SyntaxKind::EqualsToken),
                         self.original_node_end_cursor(transformation, name)?,
-                        false,
+                        TokenLeadingSpace::Required,
+                        expression_context,
                         writer,
                     )?;
                     writer.write_space(" ");
-                    let initializer = transformation
-                        .arena()
-                        .node_ref(node.source(), initializer)
-                        .ok_or(PrinterError::UnknownStatement(initializer.0))?;
-                    self.emit_child_after_token_with_complete_source_comments(
+                    self.emit_optional_ordinary_child(
                         transformation,
                         node,
-                        equals,
-                        initializer,
+                        Some(initializer),
+                        EmitHint::Expression,
+                        Some(equals),
                         expression_context.for_child(ExpressionSyntaxContext::DISALLOWED_COMMA),
                         writer,
                     )?;
@@ -4326,14 +4532,19 @@ impl Printer {
                 if indented {
                     writer.increase_indent();
                 }
-                let outcome = self.emit_delimited_expression_list(
+                let prefer_new_line = multi_line
+                    || transformation
+                        .arena()
+                        .metadata(node)
+                        .is_some_and(|metadata| metadata.flags().contains(EmitFlags::MULTI_LINE));
+                let outcome = self.emit_formatted_node_list(
                     transformation,
                     node,
                     data.properties,
-                    "{",
-                    "}",
-                    multi_line,
+                    Some(ListBrackets::Curly),
+                    prefer_new_line,
                     DelimitedListFormat::LITERAL,
+                    EmitHint::Unspecified,
                     ExpressionSyntaxContext::NORMAL,
                     expression_context,
                     writer,
@@ -4344,15 +4555,9 @@ impl Printer {
                 outcome
             }
             NodeData::PropertyAssignment(data) => {
-                if self.emit_modifiers(
-                    transformation,
-                    node.source(),
-                    data.modifiers,
-                    expression_context,
-                    writer,
-                )? {
-                    writer.write_space(" ");
-                }
+                // tsc-port: emitPropertyAssignment @6.0.3
+                // tsc-hash: 4b204f060207e8c2c09624fd24bee6c424610f5a3140824a700c981796dfc399
+                // tsc-span: _tsc.js:119516-119526
                 self.emit_required_identifier_name_with_context(
                     transformation,
                     node.source(),
@@ -4404,15 +4609,9 @@ impl Printer {
                 Ok(())
             }
             NodeData::ShorthandPropertyAssignment(data) => {
-                if self.emit_modifiers(
-                    transformation,
-                    node.source(),
-                    data.modifiers,
-                    expression_context,
-                    writer,
-                )? {
-                    writer.write_space(" ");
-                }
+                // tsc-port: emitShorthandPropertyAssignment @6.0.3
+                // tsc-hash: 510c6242520c5f81b69c705335e5bd3384e170459911c222b0c710fb1c3b7b9c
+                // tsc-span: _tsc.js:119527-119535
                 self.emit_required_identifier_name_with_context(
                     transformation,
                     node.source(),
@@ -4543,44 +4742,41 @@ impl Printer {
             }
             NodeData::JSDocVariadicType(data) => {
                 writer.write_punctuation("...");
-                self.emit_required_node_with_context(
+                let r#type = data.r#type.ok_or(PrinterError::MissingTransformedChild {
+                    parent: SyntaxKind::JSDocVariadicType,
+                    field: "type",
+                })?;
+                self.emit_optional_ordinary_child(
                     transformation,
-                    node.source(),
-                    data.r#type,
-                    SyntaxKind::JSDocVariadicType,
-                    "type",
+                    node,
+                    Some(r#type),
+                    EmitHint::Unspecified,
+                    None,
                     expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )
             }
             NodeData::SpreadAssignment(data) => {
-                writer.write_punctuation("...");
-                self.emit_required_node_with_context_and_source_extent(
+                if data.expression.is_none() {
+                    return Ok(());
+                }
+                self.emit_spread_expression(
                     transformation,
-                    node.source(),
-                    data.expression,
                     node,
+                    data.expression,
                     SyntaxKind::SpreadAssignment,
-                    "expression",
-                    expression_context.for_child(ExpressionSyntaxContext::DISALLOWED_COMMA),
-                    DeferredSourceCommentExtent::LeadingAndTrailing,
+                    expression_context,
                     writer,
                 )
             }
-            NodeData::SpreadElement(data) => {
-                writer.write_punctuation("...");
-                self.emit_required_node_with_context_and_source_extent(
-                    transformation,
-                    node.source(),
-                    data.expression,
-                    node,
-                    SyntaxKind::SpreadElement,
-                    "expression",
-                    expression_context.for_child(ExpressionSyntaxContext::DISALLOWED_COMMA),
-                    DeferredSourceCommentExtent::LeadingAndTrailing,
-                    writer,
-                )
-            }
+            NodeData::SpreadElement(data) => self.emit_spread_expression(
+                transformation,
+                node,
+                data.expression,
+                SyntaxKind::SpreadElement,
+                expression_context,
+                writer,
+            ),
             NodeData::FunctionDeclaration(data) => {
                 if self.emit_modifiers(
                     transformation,
@@ -4831,39 +5027,47 @@ impl Printer {
                 )? {
                     writer.write_space(" ");
                 }
-                if let Some(rest) = data.dot_dot_dot_token {
-                    self.emit_node_id_with_context(
-                        transformation,
-                        node.source(),
-                        rest,
-                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
-                        writer,
-                    )?;
-                }
-                self.emit_required_identifier_name_with_context(
+                self.emit_optional_ordinary_child(
                     transformation,
-                    node.source(),
-                    data.name,
-                    SyntaxKind::Parameter,
-                    "name",
+                    node,
+                    data.dot_dot_dot_token,
+                    EmitHint::Unspecified,
+                    None,
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                    writer,
+                )?;
+                self.emit_optional_ordinary_child(
+                    transformation,
+                    node,
+                    Some(name.node()),
+                    EmitHint::Unspecified,
+                    None,
                     expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
                 if self.options.declaration_syntax {
-                    self.emit_optional_declaration_token(
-                        transformation,
-                        node.source(),
-                        data.question_token,
-                        expression_context,
-                        writer,
-                    )?;
-                    self.emit_type_annotation(
+                    self.emit_optional_ordinary_child(
                         transformation,
                         node,
-                        data.r#type,
-                        expression_context,
+                        data.question_token,
+                        EmitHint::Unspecified,
+                        None,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                         writer,
                     )?;
+                    if let Some(r#type) = data.r#type {
+                        writer.write_punctuation(":");
+                        writer.write_space(" ");
+                        self.emit_optional_ordinary_child(
+                            transformation,
+                            node,
+                            Some(r#type),
+                            EmitHint::Unspecified,
+                            None,
+                            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                            writer,
+                        )?;
+                    }
                 }
                 let erased_type = (!self.options.declaration_syntax)
                     .then(|| {
@@ -4873,9 +5077,6 @@ impl Printer {
                             .and_then(crate::EmitMetadata::type_node)
                     })
                     .flatten();
-                if erased_type.is_some() {
-                    self.emit_trailing_comments_at_node_position(transformation, name, writer)?;
-                }
                 if let Some(initializer) = data.initializer {
                     let declared_type = self
                         .options
@@ -4888,24 +5089,22 @@ impl Printer {
                         .map(|r#type| self.original_node_end_cursor(transformation, r#type))
                         .transpose()?
                         .unwrap_or(self.original_node_end_cursor(transformation, name)?);
-                    let equals = self.emit_space_prefixed_token_with_comments(
+                    let equals = self.emit_source_leading_token_with_context(
                         transformation,
                         node,
                         FixedToken::operator(SyntaxKind::EqualsToken),
                         equal_cursor,
-                        false,
+                        TokenLeadingSpace::Required,
+                        expression_context,
                         writer,
                     )?;
                     writer.write_space(" ");
-                    let initializer = transformation
-                        .arena()
-                        .node_ref(node.source(), initializer)
-                        .ok_or(PrinterError::UnknownStatement(initializer.0))?;
-                    self.emit_child_after_token_with_complete_source_comments(
+                    self.emit_optional_ordinary_child(
                         transformation,
                         node,
-                        equals,
-                        initializer,
+                        Some(initializer),
+                        EmitHint::Expression,
+                        Some(equals),
                         expression_context.for_child(ExpressionSyntaxContext::DISALLOWED_COMMA),
                         writer,
                     )?;
@@ -4921,7 +5120,6 @@ impl Printer {
                 data.type_parameters,
                 data.heritage_clauses,
                 data.members,
-                false,
                 expression_context,
                 writer,
             ),
@@ -4934,7 +5132,6 @@ impl Printer {
                 data.type_parameters,
                 data.heritage_clauses,
                 data.members,
-                true,
                 expression_context,
                 writer,
             ),
@@ -6726,6 +6923,13 @@ impl Printer {
                 )?;
                 Ok(())
             }
+            NodeData::CommaListExpression(data) => self.emit_comma_expression_list(
+                transformation,
+                node,
+                data.elements,
+                expression_context,
+                writer,
+            ),
             NodeData::BinaryExpression(data) => {
                 let left_node = data
                     .left
@@ -6944,9 +7148,35 @@ impl Printer {
                     .is_none()
                     .then_some(detached_body_prefix)
                     .flatten();
+                // PreserveLines checks the leading, separating and closing
+                // boundaries before selecting a compact function body. A
+                // synthesized statement with startsOnNewLine makes at least
+                // one boundary nonzero, including a first or sole statement
+                // (_tsc.js:118999-119020,120268-120407).
+                let mut synthesized_statement_break = false;
+                if function_body && !force_single_line {
+                    for statement in &statements {
+                        let statement = transformation
+                            .arena()
+                            .node_ref(node.source(), *statement)
+                            .ok_or(PrinterError::UnknownStatement(statement.0))?;
+                        let record = transformation.arena().node(statement)?;
+                        if (record.pos == u32::MAX || record.end == u32::MAX)
+                            && transformation
+                                .arena()
+                                .metadata(statement)
+                                .and_then(crate::EmitMetadata::starts_on_new_line)
+                                == Some(true)
+                        {
+                            synthesized_statement_break = true;
+                            break;
+                        }
+                    }
+                }
                 let multi_line = !force_single_line
                     && (multi_line
                         || function_body_has_prologue
+                        || synthesized_statement_break
                         || function_body
                             && !self.source_node_range_is_on_single_line(transformation, node)?);
                 // tsc-port: emitBlock/emitBlockStatements @6.0.3
@@ -6983,6 +7213,7 @@ impl Printer {
                     }
                     writer.write_space(" ");
                     let mut forced_line_indent = false;
+                    let mut in_function_prologue = function_body;
                     for (index, statement) in statements.into_iter().enumerate() {
                         let statement_node = transformation
                             .arena()
@@ -7021,6 +7252,11 @@ impl Printer {
                                 writer,
                             )?;
                         }
+                        in_function_prologue = in_function_prologue
+                            && self.is_prologue_statement(transformation, statement_node);
+                        if !in_function_prologue {
+                            self.record_list_element_position(transformation, statement_node)?;
+                        }
                         self.emit_node_id_with_context(
                             transformation,
                             node.source(),
@@ -7052,11 +7288,17 @@ impl Printer {
                     let mut pending_detached_comments =
                         PendingDetachedComments::from_prefix(detached_body_prefix);
                     let mut has_previous_original_statement = false;
+                    let mut in_function_prologue = function_body;
                     for statement in statements {
                         let statement = transformation
                             .arena()
                             .node_ref(node.source(), statement)
                             .ok_or(PrinterError::UnknownStatement(statement.0))?;
+                        in_function_prologue = in_function_prologue
+                            && self.is_prologue_statement(transformation, statement);
+                        if !in_function_prologue {
+                            self.record_list_element_position(transformation, statement)?;
+                        }
                         let original = transformation.arena().get_original_node(statement);
                         let original_source =
                             transformation.arena().source(original.source())?.syntax();
@@ -7173,6 +7415,9 @@ impl Printer {
                 )?;
                 Ok(())
             }
+            NodeData::MetaProperty(data) => {
+                self.emit_meta_property(transformation, node, data, expression_context, writer)
+            }
             _ if !changed => {
                 self.write_original_without_leading_trivia(transformation, node, writer)
             }
@@ -7181,6 +7426,61 @@ impl Printer {
                 kind: record.kind,
             }),
         }
+    }
+
+    /// tsc-port: emitMetaProperty @6.0.3
+    /// tsc-hash: ccda2152b0b958533ee97a36457267d71d70e27d4358766024d5c56a80f69096
+    /// tsc-span: _tsc.js:118570-118574
+    fn emit_meta_property(
+        &mut self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: tsc_syntax::nodes::MetaPropertyData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let spelling = match data.keyword_token {
+            SyntaxKind::NewKeyword => "new",
+            SyntaxKind::ImportKeyword => "import",
+            _ => {
+                return Err(PrinterError::UnsupportedTransformedSyntax {
+                    node,
+                    kind: SyntaxKind::MetaProperty,
+                });
+            }
+        };
+        let raw_pos = transformation.arena().node(node)?.pos;
+        let range = self.token_map_range_spanning(
+            transformation,
+            node.source(),
+            raw_pos,
+            spelling.len(),
+            writer,
+        )?;
+        // writeToken has no contextNode here: neither the MetaProperty's
+        // token-map flags nor its per-token range override owns this token.
+        if let Some(range) = range {
+            self.record_map_range_side(transformation, MapBoundary::Before, range, writer)?;
+        }
+        writer.write_punctuation(spelling);
+        if let Some(range) = range {
+            self.record_map_range_side(transformation, MapBoundary::After, range, writer)?;
+        }
+        writer.write_punctuation(".");
+        if let Some(name) = data.name {
+            let name = transformation
+                .arena()
+                .node_ref(node.source(), name)
+                .ok_or(PrinterError::UnknownStatement(name.0))?;
+            self.emit_node_with_hint(
+                transformation,
+                name,
+                EmitHint::Unspecified,
+                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                writer,
+            )?;
+        }
+        Ok(())
     }
 
     fn is_prologue_statement(
@@ -7222,7 +7522,7 @@ impl Printer {
     }
 
     fn emit_case_block(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         case_block: TransformNode,
         clauses: Option<tsc_syntax::NodeArrayId>,
@@ -7290,6 +7590,7 @@ impl Printer {
                         writer,
                     )?;
                 }
+                self.record_list_element_position(transformation, clause)?;
                 self.emit_node_id_with_context(
                     transformation,
                     source,
@@ -7353,7 +7654,7 @@ impl Printer {
 
     #[allow(clippy::too_many_arguments)]
     fn emit_case_clause_statements(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         statements: Option<tsc_syntax::NodeArrayId>,
@@ -7386,6 +7687,7 @@ impl Printer {
                 token_owned_prefix,
                 writer,
             )?;
+            self.record_list_element_position(transformation, first)?;
             self.emit_node_id_with_context(
                 transformation,
                 source,
@@ -7419,6 +7721,7 @@ impl Printer {
                     writer,
                 )?;
             }
+            self.record_list_element_position(transformation, statement)?;
             self.emit_node_id_with_context(
                 transformation,
                 source,
@@ -7509,9 +7812,8 @@ impl Printer {
     ) -> Result<bool, PrinterError> {
         if active_scope.container_end().is_some() {
             let child_range = self.comment_range_for_node(transformation, child)?;
-            if let SourceRange::Original(range) = child_range.range() {
-                return Ok(!active_scope
-                    .retains_end(CommentCursor::new(child_range.source(), range.end())));
+            if let Some(end) = child_range.range().end() {
+                return Ok(!active_scope.retains_end(CommentCursor::new(child_range.source(), end)));
             }
         }
         self.child_trailing_comments_escape_parent_container(transformation, parent, child)
@@ -7545,10 +7847,7 @@ impl Printer {
         if transformation
             .arena()
             .metadata(child)
-            .is_some_and(|metadata| {
-                metadata.flags().intersects(EmitFlags::NO_TRAILING_COMMENTS)
-                    || metadata.relocated_trailing_comment_owner.is_some()
-            })
+            .is_some_and(|metadata| metadata.flags().intersects(EmitFlags::NO_TRAILING_COMMENTS))
         {
             return Ok(());
         }
@@ -7659,64 +7958,154 @@ impl Printer {
         ))
     }
 
-    fn source_node_starts_are_on_same_line(
+    /// tsc-port: getSeparatingLineTerminatorCount @6.0.3
+    /// tsc-span: _tsc.js:120299-120327
+    /// PreserveLines with preserveSourceNewlines=false compares the two
+    /// current endpoints independently, even when siblings were reordered.
+    /// Original nodes supply parent identity only, not the printed positions.
+    fn preserved_list_siblings_need_line_break(
         &self,
         transformation: &TransformationResult<'_>,
-        left: TransformNode,
-        right: TransformNode,
+        source: TransformSourceId,
+        previous: NodeId,
+        next: NodeId,
+        prefer_new_line: bool,
     ) -> Result<bool, PrinterError> {
-        let left = transformation.arena().get_original_node(left);
-        let right = transformation.arena().get_original_node(right);
-        if left.source() != right.source() {
-            return Ok(true);
+        let arena = transformation.arena();
+        let previous = arena
+            .node_ref(source, previous)
+            .ok_or(PrinterError::UnknownStatement(previous.0))?;
+        let next = arena
+            .node_ref(source, next)
+            .ok_or(PrinterError::UnknownStatement(next.0))?;
+        let previous_record = arena.node(previous)?;
+        let next_record = arena.node(next)?;
+        if next_record.kind == SyntaxKind::JsxText {
+            return Ok(false);
         }
-        let source = transformation.arena().source(left.source())?.syntax();
-        let left_record = transformation.arena().node(left)?;
-        let right_record = transformation.arena().node(right)?;
-        let (SourceRange::Original(left_range), SourceRange::Original(right_range)) = (
-            SourceRange::from_raw(left_record.pos, left_record.end, source.positions())?,
-            SourceRange::from_raw(right_record.pos, right_record.end, source.positions())?,
-        ) else {
-            return Ok(true);
+        let previous_synthetic = previous_record.pos == u32::MAX || previous_record.end == u32::MAX;
+        let next_synthetic = next_record.pos == u32::MAX || next_record.end == u32::MAX;
+        if !previous_synthetic && !next_synthetic {
+            let original_previous = arena.get_original_node(previous);
+            let original_next = arena.get_original_node(next);
+            let original_parent = arena.node(original_previous)?.parent;
+            if original_previous.source() == original_next.source()
+                && original_parent.is_some()
+                && original_parent == arena.node(original_next)?.parent
+            {
+                let syntax = arena.source(source)?.syntax();
+                let positions = syntax.positions();
+                let end = SourceBytePosition::new(previous_record.end, positions)?;
+                let start = SourceBytePosition::new(next_record.pos, positions)?;
+                let token_start = skip_trivia(syntax.text(), start.value() as usize);
+                let token_start = SourceBytePosition::new(
+                    u32::try_from(token_start).expect("source position fits u32"),
+                    positions,
+                )?;
+                let end_line = positions
+                    .line_and_character_byte(end.value())
+                    .expect("validated source endpoint")
+                    .line;
+                let start_line = positions
+                    .line_and_character_byte(token_start.value())
+                    .expect("validated source start")
+                    .line;
+                return Ok(end_line != start_line);
+            }
+            return Ok(prefer_new_line);
+        }
+        let starts_on_line = |node, synthetic| {
+            if synthetic {
+                arena
+                    .metadata(node)
+                    .and_then(crate::EmitMetadata::starts_on_new_line)
+                    .unwrap_or(prefer_new_line)
+            } else {
+                prefer_new_line
+            }
         };
-        let left_start = skip_trivia(source.text(), left_range.start().value() as usize);
-        let right_start = skip_trivia(source.text(), right_range.start().value() as usize);
-        if left_start > right_start || right_start > source.text().len() {
-            return Ok(true);
-        }
-        Ok(!source.text()[left_start..right_start]
-            .bytes()
-            .any(|byte| matches!(byte, b'\r' | b'\n')))
+        Ok(starts_on_line(previous, previous_synthetic) || starts_on_line(next, next_synthetic))
     }
 
-    fn source_node_ends_are_on_same_line(
+    /// Source-owned raw boundary predicates for PreserveLines when the
+    /// preserveSourceNewlines option is inactive. The leading suppression
+    /// observes the last list item entered by this printer instance.
+    /// tsc-port: getLeadingLineTerminatorCount/getClosingLineTerminatorCount @6.0.3
+    /// tsc-span: _tsc.js:120268-120298,120328-120358
+    fn preserved_list_boundary_needs_line_break(
         &self,
         transformation: &TransformationResult<'_>,
-        left: TransformNode,
-        right: TransformNode,
+        parent: TransformNode,
+        child: TransformNode,
+        boundary: DelimitedListBoundary,
+        prefer_new_line: bool,
     ) -> Result<bool, PrinterError> {
-        let left = transformation.arena().get_original_node(left);
-        let right = transformation.arena().get_original_node(right);
-        if left.source() != right.source() {
+        if prefer_new_line {
             return Ok(true);
         }
-        let source = transformation.arena().source(left.source())?.syntax();
-        let left_record = transformation.arena().node(left)?;
-        let right_record = transformation.arena().node(right)?;
-        let (SourceRange::Original(left_range), SourceRange::Original(right_range)) = (
-            SourceRange::from_raw(left_record.pos, left_record.end, source.positions())?,
-            SourceRange::from_raw(right_record.pos, right_record.end, source.positions())?,
-        ) else {
-            return Ok(true);
-        };
-        let left_end = left_range.end().value() as usize;
-        let right_end = right_range.end().value() as usize;
-        if left_end > right_end || right_end > source.text().len() {
-            return Ok(true);
+        let arena = transformation.arena();
+        let parent_record = arena.node(parent)?;
+        let child_record = arena.node(child)?;
+        if boundary == DelimitedListBoundary::Leading
+            && self.next_list_element == Some(Self::list_element_position(transformation, child)?)
+        {
+            return Ok(false);
         }
-        Ok(!source.text()[left_end..right_end]
-            .bytes()
-            .any(|byte| matches!(byte, b'\r' | b'\n')))
+        if boundary == DelimitedListBoundary::Leading && child_record.kind == SyntaxKind::JsxText {
+            return Ok(false);
+        }
+        let child_synthetic = child_record.pos == u32::MAX || child_record.end == u32::MAX;
+        if parent_record.pos != u32::MAX && !child_synthetic {
+            let parent_matches = if let Some(child_parent) = child_record.parent {
+                let child_parent = arena
+                    .node_ref(child.source(), child_parent)
+                    .ok_or(PrinterError::UnknownStatement(child_parent.0))?;
+                match boundary {
+                    DelimitedListBoundary::Leading => {
+                        arena.get_original_node(child_parent) == arena.get_original_node(parent)
+                    }
+                    DelimitedListBoundary::Closing => child_parent == parent,
+                }
+            } else {
+                true
+            };
+            if parent_matches {
+                let syntax = arena.source(parent.source())?.syntax();
+                let positions = syntax.positions();
+                let (parent_position, child_position) = match boundary {
+                    DelimitedListBoundary::Leading => {
+                        let parent_start = SourceBytePosition::new(parent_record.pos, positions)?;
+                        let child_start = SourceBytePosition::new(child_record.pos, positions)?;
+                        (
+                            skip_trivia(syntax.text(), parent_start.value() as usize) as u32,
+                            skip_trivia(syntax.text(), child_start.value() as usize) as u32,
+                        )
+                    }
+                    DelimitedListBoundary::Closing => (parent_record.end, child_record.end),
+                };
+                // Validate each endpoint independently; reordered ranges are
+                // still comparable by line, and equal endpoints need no scan.
+                if parent_position == child_position {
+                    return Ok(false);
+                }
+                let parent_position = SourceBytePosition::new(parent_position, positions)?;
+                let child_position = SourceBytePosition::new(child_position, positions)?;
+                let parent_line = positions
+                    .line_and_character_byte(parent_position.value())
+                    .expect("validated parent position")
+                    .line;
+                let child_line = positions
+                    .line_and_character_byte(child_position.value())
+                    .expect("validated child position")
+                    .line;
+                return Ok(parent_line != child_line);
+            }
+        }
+        Ok(child_synthetic
+            && arena
+                .metadata(child)
+                .and_then(crate::EmitMetadata::starts_on_new_line)
+                .unwrap_or(false))
     }
 
     /// tsc-port: getLinesBetweenNodes @6.0.3 (the normal compiler-emit face)
@@ -7790,286 +8179,276 @@ impl Printer {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn emit_delimited_expression_list(
-        &self,
+    fn emit_formatted_node_list(
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         parent: TransformNode,
         elements: Option<tsc_syntax::NodeArrayId>,
-        open: &str,
-        close: &str,
-        multi_line: bool,
+        brackets: Option<ListBrackets>,
+        prefer_new_line: bool,
         format: DelimitedListFormat,
+        item_hint: EmitHint,
         item_syntax: ExpressionSyntaxContext,
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         let source = parent.source();
-        writer.write_punctuation(open);
+        if let Some(brackets) = brackets {
+            writer.write_punctuation(brackets.opening());
+        }
         let array = elements.and_then(|id| transformation.arena().node_array_ref(source, id));
-        let (ids, trailing_comma, synthesized_array) = if let Some(array) = array {
+        let (ids, trailing_comma, array_end) = if let Some(array) = array {
             let record = transformation.arena().node_array(array)?;
             (
                 record.nodes.clone(),
-                record.has_trailing_comma,
-                record.pos == u32::MAX && record.end == u32::MAX,
+                record.has_trailing_comma
+                    && format.allow_trailing_comma
+                    && format.delimiter == ListDelimiter::Comma,
+                record.end,
             )
         } else {
-            (Vec::new(), false, false)
+            (Vec::new(), false, u32::MAX)
         };
         if ids.is_empty() {
-            self.emit_empty_node_array_comments(transformation, source, elements, writer)?;
-            writer.write_punctuation(close);
+            if let Some(brackets) = brackets {
+                if !expression_context.nested_comments_suppressed() {
+                    self.emit_empty_node_array_comments(transformation, source, elements, writer)?;
+                }
+                writer.write_punctuation(brackets.closing());
+            }
             return Ok(());
         }
-
-        if multi_line {
+        let space_between_braces = brackets == Some(ListBrackets::Curly);
+        let first = TransformNode::new(source, ids[0]);
+        let leading_line = if format.lines.preserves_source() {
+            self.preserved_list_boundary_needs_line_break(
+                transformation,
+                parent,
+                first,
+                DelimitedListBoundary::Leading,
+                prefer_new_line,
+            )?
+        } else {
+            false
+        };
+        if leading_line {
             writer.write_line(false);
-            if format.indentation.is_indented() {
-                writer.increase_indent();
-            }
-            let count = ids.len();
-            let mut pending_delimited_comment = None;
-            for (index, id) in ids.iter().copied().enumerate() {
+        } else if space_between_braces {
+            writer.write_space(" ");
+        }
+        if format.indentation.is_indented() {
+            writer.increase_indent();
+        }
+        // A list owns positional callbacks; each item owns its complete
+        // ordinary comment pipeline, including CommentRange overrides.
+        // tsc-port: emitNodeListItems @6.0.3
+        // tsc-span: _tsc.js:120068-120155
+        let outcome = (|| {
+            let mut previous = None;
+            for id in ids.iter().copied() {
                 let child = transformation
                     .arena()
                     .node_ref(source, id)
                     .ok_or(PrinterError::UnknownStatement(id.0))?;
-                let child_is_synthesized = transformation.arena().node(child)?.pos == u32::MAX;
-                if child_is_synthesized {
-                    // A multiline break disables the intervening-comment
-                    // phase. Raw synthetic children have no list boundary;
-                    // their explicit comment ranges belong to their own node
-                    // phase, including trailing comments before the comma.
-                    let _completed_comment_phase = self
-                        .emit_node_id_with_context_and_source_comments(
+                let separate_line = if let Some(previous) = previous {
+                    if format.delimiter == ListDelimiter::Comma {
+                        self.emit_comma_element_end_comments(
+                            transformation,
+                            parent,
+                            previous,
+                            expression_context,
+                            writer,
+                        )?;
+                        writer.write_punctuation(",");
+                    }
+                    if format.lines.preserves_source() {
+                        self.preserved_list_siblings_need_line_break(
                             transformation,
                             source,
+                            previous.node(),
                             id,
-                            expression_context.for_child(item_syntax),
-                            DeferredExpressionSourceComments {
-                                container: Some(ExpressionCommentContainer::Scope(
-                                    expression_context.comments(),
-                                )),
-                                preceding_token: None,
-                                extent: DeferredSourceCommentExtent::LeadingAndTrailing,
-                            },
-                            writer,
-                        )?;
-                } else {
-                    if index == 0 && !synthesized_array {
-                        self.emit_leading_comments_for_multiline_delimited_list_start(
-                            transformation,
-                            child,
-                            writer,
-                        )?;
-                    } else if index == 0 {
-                        self.emit_leading_comments_for_delimited_list_start(
-                            transformation,
-                            child,
-                            writer,
-                        )?;
-                    } else if synthesized_array {
-                        // A transformed expression list has no source delimiter
-                        // between its retained children. The next child's trivia
-                        // may therefore belong to an operator that the transform
-                        // replaced (for example `left ** /* comment */ right`).
-                        // When a retained source comma *does* exist, the
-                        // preceding item returns an explicit comment cursor
-                        // through the trivia it already emitted. Otherwise the
-                        // child retains its full comment range.
-                        let resume = self.delimited_comment_resume_for_node(
-                            transformation,
-                            child,
-                            pending_delimited_comment.take(),
-                        )?;
-                        self.emit_leading_comments_for_node_worker(
-                            transformation,
-                            child,
-                            LeadingCommentContext::DelimitedListStart,
-                            resume,
-                            writer,
-                        )?;
+                            prefer_new_line,
+                        )?
                     } else {
-                        self.emit_leading_comments_for_node_after_sibling(
+                        transformation
+                            .arena()
+                            .metadata(child)
+                            .and_then(crate::EmitMetadata::starts_on_new_line)
+                            == Some(true)
+                    }
+                } else {
+                    false
+                };
+                let temporary_indent = separate_line
+                    && !format.lines.preserves_source()
+                    && !format.indentation.is_indented();
+                if temporary_indent {
+                    writer.increase_indent();
+                }
+                let item_outcome = (|| {
+                    if previous.is_some() {
+                        if separate_line {
+                            if format.delimiter == ListDelimiter::Comma
+                                && transformation.arena().node(child)?.pos != u32::MAX
+                            {
+                                self.emit_list_item_position_comments(
+                                    transformation,
+                                    child,
+                                    expression_context,
+                                    true,
+                                    writer,
+                                )?;
+                            }
+                            writer.write_line(false);
+                        } else {
+                            if format.space_between_siblings {
+                                writer.write_space(" ");
+                            }
+                            self.emit_list_item_position_comments(
+                                transformation,
+                                child,
+                                expression_context,
+                                false,
+                                writer,
+                            )?;
+                        }
+                    } else if !leading_line {
+                        self.emit_list_item_position_comments(
                             transformation,
                             child,
+                            expression_context,
+                            false,
                             writer,
                         )?;
                     }
-                    self.emit_node_id_with_context(
+                    self.record_list_element_position(transformation, child)?;
+                    self.emit_optional_ordinary_child(
                         transformation,
-                        source,
-                        id,
+                        parent,
+                        Some(id),
+                        item_hint,
+                        None,
                         expression_context.for_child(item_syntax),
                         writer,
-                    )?;
-                    self.emit_list_element_end_comments_in_container(
-                        transformation,
-                        child,
-                        expression_context.comments(),
-                        writer,
-                    )?;
-                }
-                let emit_delimiter = index + 1 < count || trailing_comma;
-                if emit_delimiter {
-                    writer.write_punctuation(",");
-                    pending_delimited_comment = self.emit_delimited_trailing_comments_for_node(
-                        transformation,
-                        child,
-                        writer,
-                    )?;
-                }
-                let same_source_line = if format.lines.preserves_source() && !synthesized_array {
-                    ids.get(index + 1).copied()
-                } else {
-                    None
-                }
-                .map(|next| {
-                    let next = transformation
-                        .arena()
-                        .node_ref(source, next)
-                        .ok_or(PrinterError::UnknownStatement(next.0))?;
-                    // Non-comparable sibling positions in a multi-line list
-                    // take tsc's `format & MultiLine` fallback: one line
-                    // (H2.5h CA-2a — synthesized class-wrapper elements in
-                    // a parsed multi-line array).
-                    self.source_node_end_and_node_start_same_line_comparable(
-                        transformation,
-                        child,
-                        next,
                     )
-                    .map(|comparable| comparable.unwrap_or(false))
-                })
-                .transpose()?
-                .unwrap_or(false);
-                if same_source_line {
-                    writer.write_space(" ");
-                } else {
-                    writer.write_line(false);
+                })();
+                if temporary_indent {
+                    writer.decrease_indent();
                 }
+                item_outcome?;
+                previous = Some(child);
             }
-            self.emit_trailing_node_array_end_comments(transformation, source, elements, writer)?;
-            if format.indentation.is_indented() {
-                writer.decrease_indent();
+            if format.delimiter == ListDelimiter::Comma {
+                self.emit_comma_delimited_list_tail(
+                    transformation,
+                    parent,
+                    previous.expect("nonempty node list"),
+                    trailing_comma,
+                    array_end,
+                    expression_context,
+                    writer,
+                )?;
             }
+            Ok::<(), PrinterError>(())
+        })();
+        if format.indentation.is_indented() {
+            writer.decrease_indent();
+        }
+        outcome?;
+        let last = TransformNode::new(source, *ids.last().expect("nonempty expression list"));
+        let closing_line = if format.lines.preserves_source() {
+            self.preserved_list_boundary_needs_line_break(
+                transformation,
+                parent,
+                last,
+                DelimitedListBoundary::Closing,
+                prefer_new_line,
+            )?
         } else {
-            let space_between_braces = open == "{";
-            let first = TransformNode::new(source, ids[0]);
-            let leading_source_line = format.lines.preserves_source()
-                && !synthesized_array
-                && !self.source_node_starts_are_on_same_line(transformation, parent, first)?;
-            if leading_source_line {
-                writer.write_line(false);
-            } else if space_between_braces {
-                writer.write_space(" ");
-            }
-            // Array- and object-literal ListFormats carry `Indented` even
-            // when their opening delimiter and first child share a line.
-            // The scope becomes observable when that child emits its own
-            // multiline body (for example `[{\n  key: value\n}]`).
-            if format.indentation.is_indented() {
-                writer.increase_indent();
-            }
-            let count = ids.len();
-            let mut pending_delimited_comment = None;
-            for (index, id) in ids.iter().copied().enumerate() {
-                let child = transformation
-                    .arena()
-                    .node_ref(source, id)
-                    .ok_or(PrinterError::UnknownStatement(id.0))?;
-                if index == 0 {
-                    self.emit_leading_comments_for_delimited_list_start(
-                        transformation,
-                        child,
-                        writer,
-                    )?;
-                } else if synthesized_array {
-                    let resume = self.delimited_comment_resume_for_node(
-                        transformation,
-                        child,
-                        pending_delimited_comment.take(),
-                    )?;
-                    self.emit_leading_comments_for_node_worker(
-                        transformation,
-                        child,
-                        LeadingCommentContext::DelimitedListStart,
-                        resume,
-                        writer,
-                    )?;
+            false
+        };
+        if closing_line {
+            writer.write_line(false);
+        } else if space_between_braces {
+            writer.write_space(" ");
+        }
+        if let Some(brackets) = brackets {
+            writer.write_punctuation(brackets.closing());
+        }
+        Ok(())
+    }
+
+    /// Ordinary item trailing comments have completed. The remaining token
+    /// and list-leading phases use raw endpoints, not CommentRange or original.
+    /// tsc-port: emitNodeListItems @6.0.3
+    /// tsc-span: _tsc.js:120129-120150
+    #[allow(clippy::too_many_arguments)]
+    fn emit_comma_delimited_list_tail(
+        &self,
+        transformation: &TransformationResult<'_>,
+        parent: TransformNode,
+        last: TransformNode,
+        trailing_comma: bool,
+        array_end: u32,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let arena = transformation.arena();
+        let end = arena.node(last)?.end;
+        let skip_comments = self.options.remove_comments
+            || expression_context.nested_comments_suppressed()
+            || arena
+                .metadata(last)
+                .is_some_and(|metadata| metadata.flags().contains(EmitFlags::NO_TRAILING_COMMENTS));
+        if trailing_comma {
+            if skip_comments {
+                writer.write_punctuation(",");
+            } else {
+                let cursor = if end == u32::MAX {
+                    TokenCursor::Synthetic
                 } else {
-                    self.emit_leading_comments_for_node_after_sibling(
-                        transformation,
-                        child,
-                        writer,
-                    )?;
-                }
-                self.emit_node_id_with_context(
+                    TokenCursor::source(
+                        last.source(),
+                        SourceBytePosition::new(
+                            end,
+                            arena.source(last.source())?.syntax().positions(),
+                        )?,
+                    )
+                };
+                self.emit_source_leading_token_with_context(
                     transformation,
-                    source,
-                    id,
-                    expression_context.for_child(item_syntax),
+                    last,
+                    FixedToken::punctuation(SyntaxKind::CommaToken),
+                    cursor,
+                    TokenLeadingSpace::None,
+                    expression_context,
                     writer,
                 )?;
-                self.emit_list_element_end_comments_in_container(
-                    transformation,
-                    child,
-                    expression_context.comments(),
-                    writer,
-                )?;
-                let emit_delimiter = index + 1 < count || trailing_comma;
-                if emit_delimiter {
-                    // emitNodeListItems emits the item's end comments before
-                    // its delimiter, so a non-final element's same-line
-                    // trailing comment sits between the element and its comma.
-                    self.emit_list_element_end_comments_in_container(
-                        transformation,
-                        child,
-                        expression_context.comments(),
-                        writer,
-                    )?;
-                    writer.write_punctuation(",");
-                    pending_delimited_comment = self.emit_delimited_trailing_comments_for_node(
-                        transformation,
-                        child,
-                        writer,
-                    )?;
-                }
-                if index + 1 < count {
-                    let next = TransformNode::new(source, ids[index + 1]);
-                    if format.lines.preserves_source()
-                        && !synthesized_array
-                        && !self.source_node_end_and_node_start_are_on_same_line(
-                            transformation,
-                            child,
-                            next,
-                        )?
-                    {
-                        writer.write_line(false);
-                    } else if !writer.is_at_start_of_line() {
-                        // A line comment after the source comma has already
-                        // completed the line. Like parameter and call-argument
-                        // lists, a compact binding-pattern list must not turn
-                        // its ordinary separator space into indentation on the
-                        // following line.
-                        writer.write_space(" ");
-                    }
-                }
-            }
-            self.emit_trailing_node_array_end_comments(transformation, source, elements, writer)?;
-            if format.indentation.is_indented() {
-                writer.decrease_indent();
-            }
-            let last = TransformNode::new(source, *ids.last().expect("nonempty delimited list"));
-            let closing_source_line = format.lines.preserves_source()
-                && !synthesized_array
-                && !self.source_node_ends_are_on_same_line(transformation, last, parent)?;
-            if closing_source_line {
-                writer.write_line(false);
-            } else if space_between_braces {
-                writer.write_space(" ");
             }
         }
-        writer.write_punctuation(close);
+        if !skip_comments && arena.node(parent)?.end != end {
+            let position = if trailing_comma && array_end != 0 {
+                array_end
+            } else {
+                end
+            };
+            if position != u32::MAX {
+                let source = arena.source(parent.source())?.syntax();
+                let position = SourceBytePosition::new(position, source.positions())?;
+                if expression_context.comments().container_pos()
+                    != Some(CommentCursor::new(parent.source(), position))
+                {
+                    self.emit_comments_at_cursor_with_phase(
+                        transformation,
+                        TokenCursor::source(parent.source(), position),
+                        None,
+                        PositionCommentPhase::SourceLeading,
+                        false,
+                        writer,
+                    )?;
+                }
+            }
+        }
         Ok(())
     }
 
@@ -8083,7 +8462,7 @@ impl Printer {
     /// upstream parser/printer behavior.
     #[allow(clippy::too_many_arguments)]
     fn emit_json_delimited_expression_list(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         parent: TransformNode,
         elements: Option<tsc_syntax::NodeArrayId>,
@@ -8134,6 +8513,7 @@ impl Printer {
             } else {
                 self.emit_leading_comments_for_node_after_sibling(transformation, child, writer)?;
             }
+            self.record_list_element_position(transformation, child)?;
             self.emit_node_id_with_context(
                 transformation,
                 parent.source(),
@@ -8143,18 +8523,37 @@ impl Printer {
             )?;
 
             let has_next = index + 1 < ids.len();
+            let separate_line = if let Some(next) = ids.get(index + 1) {
+                self.json_node_end_line(transformation, child)?
+                    != self.json_node_start_line(
+                        transformation,
+                        TransformNode::new(parent.source(), *next),
+                    )?
+            } else {
+                false
+            };
             if has_next || trailing_comma && allow_trailing_comma {
                 writer.write_punctuation(",");
             }
-            self.emit_delimited_trailing_comments_for_node(transformation, child, writer)?;
+            if has_next || trailing_comma && allow_trailing_comma {
+                self.emit_delimited_boundary_comments(
+                    transformation,
+                    ids.get(index + 1).map_or(
+                        DelimitedCommentBoundary::AfterTrailingComma(child),
+                        |next| {
+                            DelimitedCommentBoundary::BeforeItem(TransformNode::new(
+                                parent.source(),
+                                *next,
+                            ))
+                        },
+                    ),
+                    expression_context,
+                    separate_line,
+                    writer,
+                )?;
+            }
             if has_next {
-                let next = transformation
-                    .arena()
-                    .node_ref(parent.source(), ids[index + 1])
-                    .ok_or(PrinterError::UnknownStatement(ids[index + 1].0))?;
-                if self.json_node_end_line(transformation, child)?
-                    != self.json_node_start_line(transformation, next)?
-                {
+                if separate_line {
                     writer.write_line(false);
                 } else {
                     writer.write_space(" ");
@@ -8217,7 +8616,7 @@ impl Printer {
     /// supplies the source anchor because tsc starts the former at `node.pos`
     /// and the latter at `node.statement.end`.
     fn emit_while_clause(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         start_anchor: TokenAnchor,
@@ -8268,7 +8667,7 @@ impl Printer {
     }
 
     fn emit_embedded_statement(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         parent: TransformNode,
         statement: Option<tsc_syntax::NodeId>,
@@ -8286,7 +8685,7 @@ impl Printer {
     }
 
     fn emit_embedded_statement_after_token(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         parent: TransformNode,
         statement: Option<tsc_syntax::NodeId>,
@@ -8305,7 +8704,7 @@ impl Printer {
     }
 
     fn emit_embedded_statement_with_anchor(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         parent: TransformNode,
         statement: Option<tsc_syntax::NodeId>,
@@ -8405,7 +8804,7 @@ impl Printer {
     /// tsc-span: _tsc.js:119062-119090
     #[allow(clippy::too_many_arguments)]
     fn emit_class(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         class_node: TransformNode,
         source: TransformSourceId,
@@ -8414,24 +8813,9 @@ impl Printer {
         type_parameters: Option<tsc_syntax::NodeArrayId>,
         heritage_clauses: Option<tsc_syntax::NodeArrayId>,
         members: Option<tsc_syntax::NodeArrayId>,
-        expression: bool,
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        let anonymous_default_declaration = !expression
-            && modifiers
-                .and_then(|array| transformation.arena().node_array_ref(source, array))
-                .map(|array| transformation.arena().node_array(array))
-                .transpose()?
-                .is_some_and(|array| {
-                    array.nodes.iter().any(|id| {
-                        transformation
-                            .arena()
-                            .node_ref(source, *id)
-                            .and_then(|modifier| transformation.arena().node(modifier).ok())
-                            .is_some_and(|modifier| modifier.kind == SyntaxKind::DefaultKeyword)
-                    })
-                });
         if self.emit_modifiers(
             transformation,
             source,
@@ -8441,7 +8825,19 @@ impl Printer {
         )? {
             writer.write_space(" ");
         }
-        writer.write_keyword("class");
+        let keyword_cursor = self.class_keyword_cursor(transformation, class_node, modifiers)?;
+        if expression_context.nested_comments_suppressed() {
+            writer.write_keyword("class");
+        } else {
+            self.emit_token_with_source_leading_comments(
+                transformation,
+                class_node,
+                FixedToken::keyword(SyntaxKind::ClassKeyword),
+                keyword_cursor,
+                false,
+                writer,
+            )?;
+        }
         if let Some(name) = name {
             writer.write_space(" ");
             self.emit_identifier_name_with_context(
@@ -8461,18 +8857,15 @@ impl Printer {
             // `class C /* extends Error */ {}`) remain between the name and
             // the opening brace instead of disappearing with the type-only
             // syntax.
-            self.emit_comments_at_cursor(
-                transformation,
-                self.original_node_end_cursor(transformation, name)?,
-                None,
-                false,
-                writer,
-            )?;
-        } else if !expression && !anonymous_default_declaration {
-            return Err(PrinterError::MissingTransformedChild {
-                parent: SyntaxKind::ClassDeclaration,
-                field: "name",
-            });
+            if !expression_context.nested_comments_suppressed() {
+                self.emit_comments_at_cursor(
+                    transformation,
+                    self.original_node_end_cursor(transformation, name)?,
+                    None,
+                    false,
+                    writer,
+                )?;
+            }
         }
         if self.options.declaration_syntax {
             self.emit_type_parameters(
@@ -8537,6 +8930,7 @@ impl Printer {
                             writer,
                         )?;
                     }
+                    self.record_list_element_position(transformation, member_node)?;
                     self.emit_node_id_with_context(
                         transformation,
                         source,
@@ -8559,6 +8953,60 @@ impl Printer {
             writer.decrease_indent();
         }
         Ok(())
+    }
+
+    /// Class keywords start after the last current modifier, falling back to
+    /// the last decorator and then the current class start. Each endpoint is
+    /// independent: neither the modifier array's end nor an original node's
+    /// paired range determines this point.
+    ///
+    /// tsc-port: moveRangePastModifiers @6.0.3
+    /// tsc-hash: 9d43119a4e2ea51f3f5a151f00816f7985c1781c9dc80cfd8e44f40807d3db9d
+    /// tsc-span: _tsc.js:17311-17317
+    /// tsc-port: moveRangePastDecorators @6.0.3
+    /// tsc-hash: 27d3b9fba1576ed2d7269a9fe1b694ac1e16e977da92c9935f13359611222a93
+    /// tsc-span: _tsc.js:17307-17310
+    fn class_keyword_cursor(
+        &self,
+        transformation: &TransformationResult<'_>,
+        class_node: TransformNode,
+        modifiers: Option<tsc_syntax::NodeArrayId>,
+    ) -> Result<TokenCursor, PrinterError> {
+        let arena = transformation.arena();
+        let source = class_node.source();
+        let mut position = arena.node(class_node)?.pos;
+        if let Some(modifiers) = modifiers.and_then(|id| arena.node_array_ref(source, id)) {
+            let modifiers = arena.node_array(modifiers)?;
+            if let Some(last) = modifiers.nodes.last() {
+                let last = arena
+                    .node_ref(source, *last)
+                    .ok_or(PrinterError::UnknownStatement(last.0))?;
+                let last = arena.node(last)?;
+                if last.end != u32::MAX {
+                    position = last.end;
+                } else {
+                    for modifier in modifiers.nodes.iter().rev() {
+                        let modifier = arena
+                            .node_ref(source, *modifier)
+                            .ok_or(PrinterError::UnknownStatement(modifier.0))?;
+                        let modifier = arena.node(modifier)?;
+                        if modifier.kind == SyntaxKind::Decorator {
+                            if modifier.end != u32::MAX {
+                                position = modifier.end;
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        if position == u32::MAX {
+            return Ok(TokenCursor::Synthetic);
+        }
+        Ok(TokenCursor::source(
+            source,
+            SourceBytePosition::new(position, arena.source(source)?.syntax().positions())?,
+        ))
     }
 
     /// Whether a transformed list starts after the parsed list's first item.
@@ -8619,45 +9067,44 @@ impl Printer {
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         let metadata = transformation.arena().metadata(node);
+        let properties = transformation.arena().literal_properties(node);
         let no_ascii_escaping = self.options.never_ascii_escape
             || metadata
                 .is_some_and(|metadata| metadata.flags().contains(EmitFlags::NO_ASCII_ESCAPING));
-        let escaped;
-        let body = if let Some(raw_text) = raw_text {
-            raw_text
-        } else {
-            let code_units = metadata
-                .and_then(crate::EmitMetadata::javascript_string_value)
-                .map_or_else(
-                    || text.encode_utf16().collect::<Vec<_>>(),
-                    |value| value.code_units().to_vec(),
-                );
-            escaped = escape_template_literal_text(&code_units, no_ascii_escaping);
-            &escaped
-        };
-        match kind {
-            SyntaxKind::NoSubstitutionTemplateLiteral => {
-                writer.write_punctuation("`");
-                writer.write_literal(body);
-                writer.write_punctuation("`");
-            }
-            SyntaxKind::TemplateHead => {
-                writer.write_punctuation("`");
-                writer.write_literal(body);
-                writer.write_punctuation("${");
-            }
-            SyntaxKind::TemplateMiddle => {
-                writer.write_punctuation("}");
-                writer.write_literal(body);
-                writer.write_punctuation("${");
-            }
-            SyntaxKind::TemplateTail => {
-                writer.write_punctuation("}");
-                writer.write_literal(body);
-                writer.write_punctuation("`");
-            }
-            _ => return Err(PrinterError::UnsupportedTransformedSyntax { node, kind }),
+        enum TokenText<'a> {
+            Raw(&'a str),
+            RawUtf16(&'a [u16]),
+            Cooked(crate::JavaScriptString),
         }
+        let body = if let Some(raw) =
+            properties.and_then(crate::LiteralNodeProperties::raw_template_text)
+        {
+            TokenText::RawUtf16(raw.code_units())
+        } else if let Some(raw_text) = raw_text {
+            TokenText::Raw(raw_text)
+        } else {
+            let code_units = properties
+                .and_then(crate::LiteralNodeProperties::javascript_string_value)
+                .map_or_else(
+                    || Cow::Owned(text.encode_utf16().collect::<Vec<_>>()),
+                    |value| Cow::Borrowed(value.code_units()),
+                );
+            TokenText::Cooked(escape_template_literal_text(&code_units, no_ascii_escaping))
+        };
+        let (prefix, suffix) = match kind {
+            SyntaxKind::NoSubstitutionTemplateLiteral => ("`", "`"),
+            SyntaxKind::TemplateHead => ("`", "${"),
+            SyntaxKind::TemplateMiddle => ("}", "${"),
+            SyntaxKind::TemplateTail => ("}", "`"),
+            _ => return Err(PrinterError::UnsupportedTransformedSyntax { node, kind }),
+        };
+        writer.write_punctuation(prefix);
+        match body {
+            TokenText::Raw(text) => writer.write_literal(text),
+            TokenText::RawUtf16(units) => writer.write_literal_utf16(units),
+            TokenText::Cooked(text) => writer.write_literal_utf16(text.code_units()),
+        }
+        writer.write_punctuation(suffix);
         Ok(())
     }
 
@@ -8693,7 +9140,7 @@ impl Printer {
     /// tsc-hash: ebedd7893440dc33457775800e5533cc6c97530ca1bbb8fd866e479df24fb07d
     /// tsc-span: _tsc.js:117822-117826
     fn emit_qualified_name(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::QualifiedNameData,
@@ -8727,7 +9174,7 @@ impl Printer {
     /// tsc-span: _tsc.js:117827-117833
     #[allow(clippy::too_many_arguments)]
     fn emit_entity_name(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         entity_name: Option<NodeId>,
@@ -8751,7 +9198,7 @@ impl Printer {
     /// tsc-hash: b4b47c664d9316e4783ee0627731ef922859682ef4501ffa1877f9b327281b16
     /// tsc-span: _tsc.js:117839-117854
     fn emit_type_parameter(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::TypeParameterData,
@@ -8808,7 +9255,7 @@ impl Printer {
     /// tsc-hash: d00ad651bf20c3f2d211a7170fb80a3a3c1797061618e054a6e27777af77321b
     /// tsc-span: _tsc.js:117876-117882
     fn emit_property_signature(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::PropertySignatureData,
@@ -8825,12 +9272,16 @@ impl Printer {
         )? {
             writer.write_space(" ");
         }
-        self.emit_required_identifier_name_with_context(
+        let name = data.name.ok_or(PrinterError::MissingTransformedChild {
+            parent: SyntaxKind::PropertySignature,
+            field: "name",
+        })?;
+        self.emit_optional_ordinary_child(
             transformation,
-            node.source(),
-            data.name,
-            SyntaxKind::PropertySignature,
-            "name",
+            node,
+            Some(name),
+            EmitHint::Unspecified,
+            None,
             expression_context.for_child(ExpressionSyntaxContext::NORMAL),
             writer,
         )?;
@@ -8875,7 +9326,7 @@ impl Printer {
     /// tsc-hash: c453a10e9122fd15e599e716d22d84334b123491fb8115c53aaf5681466f3bd2
     /// tsc-span: _tsc.js:117897-117902
     fn emit_method_signature(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::MethodSignatureData,
@@ -8892,12 +9343,16 @@ impl Printer {
         )? {
             writer.write_space(" ");
         }
-        self.emit_required_identifier_name_with_context(
+        let name = data.name.ok_or(PrinterError::MissingTransformedChild {
+            parent: SyntaxKind::MethodSignature,
+            field: "name",
+        })?;
+        self.emit_optional_ordinary_child(
             transformation,
-            node.source(),
-            data.name,
-            SyntaxKind::MethodSignature,
-            "name",
+            node,
+            Some(name),
+            EmitHint::Unspecified,
+            None,
             expression_context.for_child(ExpressionSyntaxContext::NORMAL),
             writer,
         )?;
@@ -8925,7 +9380,7 @@ impl Printer {
     /// tsc-hash: ad8f666751fee27890100b6ff7dd45406df263bd93b068ccb8329c37f619e087
     /// tsc-span: _tsc.js:117944-117946
     fn emit_call_signature(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::CallSignatureData,
@@ -8950,7 +9405,7 @@ impl Printer {
     /// tsc-hash: 9a6d030c141f03f6a5704263ebc9908418993c72321d28e7bd16c9ff987bb7f2
     /// tsc-span: _tsc.js:117947-117951
     fn emit_construct_signature(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::ConstructSignatureData,
@@ -8977,7 +9432,7 @@ impl Printer {
     /// tsc-hash: 44c42588c8ee7a43adc413cf88ce3429e9385bced611a037399d3a21f503e698
     /// tsc-span: _tsc.js:117952-117962
     fn emit_index_signature(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::IndexSignatureData,
@@ -9018,7 +9473,7 @@ impl Printer {
     /// tsc-hash: 082f59f934578b5e48d4595ca6707b47cdef2a2240e149011b78c81513244d3f
     /// tsc-span: _tsc.js:117970-117982
     fn emit_type_predicate(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::TypePredicateData,
@@ -9064,7 +9519,7 @@ impl Printer {
     /// tsc-hash: e3725371faf2095a7765b812f7a70b6f0a9476e60d3218bada22a91fd6caff46
     /// tsc-span: _tsc.js:117983-117986
     fn emit_type_reference(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::TypeReferenceData,
@@ -9094,7 +9549,7 @@ impl Printer {
     /// tsc-hash: e821a7f2097f595a2652d37be70554d7d62de730f1029c7df673d280a27ce28f
     /// tsc-span: _tsc.js:117987-117989
     fn emit_function_type(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::FunctionTypeData,
@@ -9123,7 +9578,7 @@ impl Printer {
     /// tsc-hash: ddb7d8dad42cc356afba13a1c1d86c3872d219bf1017c9e339222fc7ae0d413e
     /// tsc-span: _tsc.js:117990-117995
     fn emit_function_type_head(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         type_parameters: Option<tsc_syntax::NodeArrayId>,
@@ -9154,7 +9609,7 @@ impl Printer {
     /// tsc-hash: 1c493fdc5b06bb3b4bd47832322f3b57b2cfd441c58956e233f5bdb7c6e83711
     /// tsc-span: _tsc.js:117996-117999
     fn emit_function_type_body(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         r#type: Option<NodeId>,
@@ -9177,7 +9632,7 @@ impl Printer {
     /// tsc-hash: 7a5813af2db9941bcb60820287b97acc64edf63bac38d87f7d90b815b15aeac9
     /// tsc-span: _tsc.js:118000-118005
     fn emit_js_doc_function_type(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::JSDocFunctionTypeData,
@@ -9210,7 +9665,7 @@ impl Printer {
     /// tsc-hash: be259ca6036db88662a7435626fd40fe64b6e96bb36f5fb381cfd3e9f5ed294e
     /// tsc-span: _tsc.js:118018-118023
     fn emit_constructor_type(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::ConstructorTypeData,
@@ -9250,7 +9705,7 @@ impl Printer {
     /// tsc-hash: 552c03413848b77bb2c2580f844a69ea8521c0ce23e2a0817ddb88ac8dd5d440
     /// tsc-span: _tsc.js:118024-118029
     fn emit_type_query(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::TypeQueryData,
@@ -9282,7 +9737,7 @@ impl Printer {
     /// tsc-hash: 4405f0cec90a476574e9fab3fcaea7b064a6ee2b1ff15139dcc6dffc4931d655
     /// tsc-span: _tsc.js:118030-118038
     fn emit_type_literal(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::TypeLiteralData,
@@ -9307,7 +9762,7 @@ impl Printer {
     /// tsc-hash: 784e73693c25c0121b1e99c2b8f42b4e5d16efbbd2baa2946d4142b863f86038
     /// tsc-span: _tsc.js:118039-118043
     fn emit_array_type(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::ArrayTypeData,
@@ -9332,7 +9787,7 @@ impl Printer {
     /// tsc-hash: 0c537e5af9b680d3e92913404528d5f4430baeb1d421fee15b0d115158402910
     /// tsc-span: _tsc.js:118044-118047
     fn emit_rest_type(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::RestTypeData,
@@ -9341,12 +9796,16 @@ impl Printer {
     ) -> Result<(), PrinterError> {
         self.require_declaration_syntax(node, SyntaxKind::RestType)?;
         writer.write_punctuation("...");
-        self.emit_required_node_with_context(
+        let r#type = data.r#type.ok_or(PrinterError::MissingTransformedChild {
+            parent: SyntaxKind::RestType,
+            field: "type",
+        })?;
+        self.emit_optional_ordinary_child(
             transformation,
-            node.source(),
-            data.r#type,
-            SyntaxKind::RestType,
-            "type",
+            node,
+            Some(r#type),
+            EmitHint::Unspecified,
+            None,
             expression_context.for_child(ExpressionSyntaxContext::NORMAL),
             writer,
         )
@@ -9356,7 +9815,7 @@ impl Printer {
     /// tsc-hash: 42c0fe0a359963ad1f9fe324025c4700aeb30a048855eebc88aa2b71d178a210
     /// tsc-span: _tsc.js:118048-118053
     fn emit_tuple_type(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::TupleTypeData,
@@ -9394,7 +9853,7 @@ impl Printer {
     /// tsc-hash: 85b9ebf0be566066920a0c5a0392fd6e765591f21884b507c67036cfd1d821b6
     /// tsc-span: _tsc.js:118054-118061
     fn emit_named_tuple_member(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::NamedTupleMemberData,
@@ -9402,37 +9861,60 @@ impl Printer {
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         self.require_declaration_syntax(node, SyntaxKind::NamedTupleMember)?;
-        self.emit_optional_declaration_token(
+        self.emit_optional_ordinary_child(
             transformation,
-            node.source(),
+            node,
             data.dot_dot_dot_token,
-            expression_context,
-            writer,
-        )?;
-        self.emit_required_identifier_name_with_context(
-            transformation,
-            node.source(),
-            data.name,
-            SyntaxKind::NamedTupleMember,
-            "name",
+            EmitHint::Unspecified,
+            None,
             expression_context.for_child(ExpressionSyntaxContext::NORMAL),
             writer,
         )?;
-        self.emit_optional_declaration_token(
+        let name = data
+            .name
+            .and_then(|id| transformation.arena().node_ref(node.source(), id))
+            .ok_or(PrinterError::MissingTransformedChild {
+                parent: SyntaxKind::NamedTupleMember,
+                field: "name",
+            })?;
+        self.emit_optional_ordinary_child(
             transformation,
-            node.source(),
+            node,
+            Some(name.node()),
+            EmitHint::Unspecified,
+            None,
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        self.emit_optional_ordinary_child(
+            transformation,
+            node,
             data.question_token,
+            EmitHint::Unspecified,
+            None,
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        self.emit_source_leading_token_with_context(
+            transformation,
+            node,
+            FixedToken::punctuation(SyntaxKind::ColonToken),
+            self.node_end_cursor(transformation, name)?,
+            TokenLeadingSpace::None,
             expression_context,
             writer,
         )?;
-        writer.write_punctuation(":");
         writer.write_space(" ");
-        self.emit_required_node_with_context(
+        let r#type = data.r#type.ok_or(PrinterError::MissingTransformedChild {
+            parent: SyntaxKind::NamedTupleMember,
+            field: "type",
+        })?;
+        self.emit_optional_ordinary_child(
             transformation,
-            node.source(),
-            data.r#type,
-            SyntaxKind::NamedTupleMember,
-            "type",
+            node,
+            Some(r#type),
+            EmitHint::Unspecified,
+            None,
             expression_context.for_child(ExpressionSyntaxContext::NORMAL),
             writer,
         )
@@ -9442,7 +9924,7 @@ impl Printer {
     /// tsc-hash: 1a7781f324de8e31a81330fed735b758db78d51496d1c3240ed6a093b0cb7944
     /// tsc-span: _tsc.js:118062-118065
     fn emit_optional_type(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::OptionalTypeData,
@@ -9467,7 +9949,7 @@ impl Printer {
     /// tsc-hash: fb8f0297dd6a009f4606f7e17ca66cbefdd62358fec9f00e6568f85e55a50950
     /// tsc-span: _tsc.js:118066-118068
     fn emit_union_type(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         types: Option<tsc_syntax::NodeArrayId>,
@@ -9489,7 +9971,7 @@ impl Printer {
     /// tsc-hash: 64e3c75674756dbb325a9432527f72236d6afaf97b6203e7790ce845615ec8c6
     /// tsc-span: _tsc.js:118069-118071
     fn emit_intersection_type(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         types: Option<tsc_syntax::NodeArrayId>,
@@ -9511,7 +9993,7 @@ impl Printer {
     /// tsc-hash: 33227d715f305d8ab0457b6f1eba849dd5569a2f48a7a79b6300178a28453f29
     /// tsc-span: _tsc.js:118072-118086
     fn emit_conditional_type(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::ConditionalTypeData,
@@ -9571,7 +10053,7 @@ impl Printer {
     /// tsc-hash: 281f93eb3164220a04716ef4839ac42c621c0f005a7c1eac5395a7d5b7b9dea0
     /// tsc-span: _tsc.js:118087-118091
     fn emit_infer_type(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::InferTypeData,
@@ -9596,7 +10078,7 @@ impl Printer {
     /// tsc-hash: 5a06d974b21ffba8f31b1ea70107284c127a68ec5d299aa0e7bcf8fd7a27c974
     /// tsc-span: _tsc.js:118092-118096
     fn emit_parenthesized_type(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::ParenthesizedTypeData,
@@ -9622,7 +10104,7 @@ impl Printer {
     /// tsc-hash: 46d8711cebd95cf3b7cbb96104179d371d144cb0ce6ac807a94f8273163a7984
     /// tsc-span: _tsc.js:118100-118105
     fn emit_type_operator(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::TypeOperatorData,
@@ -9653,7 +10135,7 @@ impl Printer {
     /// tsc-hash: a3b21279dae193d893d8d2b91f950989375284c60d6ca04862459772937b29e7
     /// tsc-span: _tsc.js:118106-118111
     fn emit_indexed_access_type(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::IndexedAccessTypeData,
@@ -9688,7 +10170,7 @@ impl Printer {
     /// tsc-hash: 0ccb115f108d7e8b67a71ab71418c720c2dd1ee4183c50a7db173917335b2c62
     /// tsc-span: _tsc.js:118112-118155
     fn emit_mapped_type(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::MappedTypeData,
@@ -9784,6 +10266,24 @@ impl Printer {
             writer.write_line(false);
             writer.decrease_indent();
         }
+        // emitList adds PreferNewLine from the parent's MultiLine flag;
+        // the mapped signature's SingleLine choice does not set that flag.
+        let prefer_new_line = transformation
+            .arena()
+            .metadata(node)
+            .is_some_and(|metadata| metadata.flags().contains(EmitFlags::MULTI_LINE));
+        self.emit_formatted_node_list(
+            transformation,
+            node,
+            data.members,
+            None,
+            prefer_new_line,
+            DelimitedListFormat::MAPPED_TYPE_MEMBERS,
+            EmitHint::Unspecified,
+            ExpressionSyntaxContext::NORMAL,
+            expression_context,
+            writer,
+        )?;
         writer.write_punctuation("}");
         Ok(())
     }
@@ -9792,7 +10292,7 @@ impl Printer {
     /// tsc-hash: 141ca701935794107bb8a37f6f2294a9ccb7175244008a8ef5c82e83cf28b812
     /// tsc-span: _tsc.js:117705-117711
     fn emit_mapped_type_parameter(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         parent: TransformNode,
         type_parameter: Option<NodeId>,
@@ -9841,7 +10341,7 @@ impl Printer {
     /// tsc-hash: cd6cdcccc2cd7030d87d064b893d92d879a3427659c0af7d26afd7703e1c912c
     /// tsc-span: _tsc.js:118156-118158
     fn emit_literal_type(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::LiteralTypeData,
@@ -9864,7 +10364,7 @@ impl Printer {
     /// tsc-hash: a103ecde7074e564c344001e6fb5dc66f292a6461d054e9881d850aaee10913a
     /// tsc-span: _tsc.js:118159-118162
     fn emit_template_type(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::TemplateLiteralTypeData,
@@ -9895,7 +10395,7 @@ impl Printer {
     /// tsc-hash: 5ae710e2c4e04e2b9c9002d8cc05a395b8e3998f1343b535b5c26a7a2322c3e2
     /// tsc-span: _tsc.js:117963-117966
     fn emit_template_type_span(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::TemplateLiteralTypeSpanData,
@@ -9927,7 +10427,7 @@ impl Printer {
     /// tsc-hash: 3275fb7835d9be5a86ad2ac9f2227eb27a18d7869e2bf6f4be007b9c17c62a0a
     /// tsc-span: _tsc.js:118163-118182
     fn emit_import_type_node(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::ImportTypeData,
@@ -9953,11 +10453,13 @@ impl Printer {
         if let Some(attributes) = data.attributes {
             writer.write_punctuation(",");
             writer.write_space(" ");
-            self.emit_import_type_node_attributes(
+            self.emit_optional_ordinary_child(
                 transformation,
-                node.source(),
-                attributes,
-                expression_context,
+                node,
+                Some(attributes),
+                EmitHint::ImportTypeNodeAttributes,
+                None,
+                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                 writer,
             )?;
         }
@@ -9985,18 +10487,14 @@ impl Printer {
     /// tsc-hash: c2028e6703acc1bf61520b1e7d35939630903c14182894f429a798dc396a8486
     /// tsc-span: _tsc.js:119305-119315
     fn emit_import_type_node_attributes(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
-        source: TransformSourceId,
-        attributes: NodeId,
+        attributes_node: TransformNode,
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        let attributes_node = transformation
-            .arena()
-            .node_ref(source, attributes)
-            .ok_or(PrinterError::UnknownStatement(attributes.0))?;
-        let NodeData::ImportAttributes(data) = &transformation.arena().node(attributes_node)?.data
+        let NodeData::ImportAttributes(data) =
+            transformation.arena().node(attributes_node)?.data.clone()
         else {
             return Err(PrinterError::UnsupportedTransformedSyntax {
                 node: attributes_node,
@@ -10012,10 +10510,19 @@ impl Printer {
         });
         writer.write_punctuation(":");
         writer.write_space(" ");
-        self.emit_import_attribute_elements(
+        let prefer_new_line = transformation
+            .arena()
+            .metadata(attributes_node)
+            .is_some_and(|metadata| metadata.flags().contains(EmitFlags::MULTI_LINE));
+        self.emit_formatted_node_list(
             transformation,
             attributes_node,
             data.elements,
+            Some(ListBrackets::Curly),
+            prefer_new_line,
+            DelimitedListFormat::IMPORT_ATTRIBUTES,
+            EmitHint::Unspecified,
+            ExpressionSyntaxContext::NORMAL,
             expression_context,
             writer,
         )?;
@@ -10028,7 +10535,7 @@ impl Printer {
     /// tsc-hash: a887761fc0ac81b4b98c2b77710cc09bf25d3ac5fa7463c1617716c2d5cef1fe
     /// tsc-span: _tsc.js:119091-119110
     fn emit_interface_declaration(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::InterfaceDeclarationData,
@@ -10089,7 +10596,7 @@ impl Printer {
     /// tsc-hash: 5d8d7d0554fee809348cf6483cee70c6b8907ff9f96a0d910364c40c9a9c6797
     /// tsc-span: _tsc.js:119111-119127
     fn emit_type_alias_declaration(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::TypeAliasDeclarationData,
@@ -10142,7 +10649,7 @@ impl Printer {
     /// tsc-hash: 69ecc6800787365590d79116bd96bf15095f6af95adc7b04aba062f2e0c37513
     /// tsc-span: _tsc.js:119128-119142
     fn emit_enum_declaration(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::EnumDeclarationData,
@@ -10187,7 +10694,7 @@ impl Printer {
     /// tsc-hash: c28a8e02b7550102a2e93faf51bbc441e33af66e89a3bdf2429ea07327572505
     /// tsc-span: _tsc.js:119542-119545
     fn emit_enum_member(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::EnumMemberData,
@@ -10221,7 +10728,7 @@ impl Printer {
     /// tsc-hash: c1481129cf6fab009c9bc1dd9fbd483e583386e4e100dc9521bc8df8dd2355cf
     /// tsc-span: _tsc.js:119143-119164
     fn emit_module_declaration(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::ModuleDeclarationData,
@@ -10299,7 +10806,7 @@ impl Printer {
     /// tsc-hash: 54ae984d8d907e6bd1eec35f3566d5cbcfe73158edbfc6a81e5af58406aaaf2d
     /// tsc-span: _tsc.js:119165-119174
     fn emit_module_block(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::ModuleBlockData,
@@ -10345,7 +10852,7 @@ impl Printer {
     /// tsc-hash: fb936c397637c44e73d70e1dc33e89bb31a7f8b640c9b913d981c7354cdaf1fb
     /// tsc-span: _tsc.js:119207-119213
     fn emit_import_equals_declaration(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::ImportEqualsDeclarationData,
@@ -10395,7 +10902,7 @@ impl Printer {
     /// tsc-hash: 4692dde51cd3dca56831d11006d62fa42bb38b43ded95918b1f5a96e9e1f6c52
     /// tsc-span: _tsc.js:119333-119342
     fn emit_namespace_export_declaration(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         data: &tsc_syntax::nodes::NamespaceExportDeclarationData,
@@ -10426,32 +10933,8 @@ impl Printer {
         Ok(())
     }
 
-    fn emit_import_attribute_elements(
-        &self,
-        transformation: &mut TransformationResult<'_>,
-        parent: TransformNode,
-        elements: Option<tsc_syntax::NodeArrayId>,
-        expression_context: EmitContext,
-        writer: &mut TextWriter,
-    ) -> Result<(), PrinterError> {
-        writer.write_punctuation("{");
-        if self.node_array_has_elements(transformation, parent.source(), elements)? {
-            writer.write_space(" ");
-            self.emit_comma_list(
-                transformation,
-                parent.source(),
-                elements,
-                expression_context,
-                writer,
-            )?;
-            writer.write_space(" ");
-        }
-        writer.write_punctuation("}");
-        Ok(())
-    }
-
     fn emit_optional_declaration_token(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         token: Option<NodeId>,
@@ -10471,7 +10954,7 @@ impl Printer {
     }
 
     fn emit_type_annotation(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         parent: TransformNode,
         r#type: Option<NodeId>,
@@ -10501,7 +10984,7 @@ impl Printer {
     /// tsc-hash: 67edb593d7741ab6b3273370e553eda19470127765c51d0346e8c30c93e71bf6
     /// tsc-span: _tsc.js:119970-119975
     fn emit_type_parameters(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         type_parameters: Option<tsc_syntax::NodeArrayId>,
@@ -10522,8 +11005,200 @@ impl Printer {
         Ok(())
     }
 
-    fn emit_comma_list(
+    /// tsc-port: emitCommaList/emitExpressionList/emitNodeListItems @6.0.3
+    /// tsc-span: _tsc.js:119780-119788,120026-120155
+    ///
+    /// CommaListElements is 528: comma delimiters and sibling spaces, with
+    /// Expression emission and no element parenthesizer. Its list phases
+    /// remain separate from the ordinary child leading/trailing phases.
+    fn emit_comma_expression_list(
+        &mut self,
+        transformation: &mut TransformationResult<'_>,
+        parent: TransformNode,
+        elements: Option<tsc_syntax::NodeArrayId>,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let Some(elements) = elements else {
+            return Ok(());
+        };
+        let ids = transformation
+            .arena()
+            .node_array(TransformNodeArray::new(parent.source(), elements))?
+            .nodes
+            .clone();
+        let mut previous = None;
+        for id in ids {
+            let child = transformation
+                .arena()
+                .node_ref(parent.source(), id)
+                .ok_or(PrinterError::UnknownStatement(id.0))?;
+            let separate_line = previous.is_some()
+                && transformation
+                    .arena()
+                    .metadata(child)
+                    .and_then(crate::EmitMetadata::starts_on_new_line)
+                    == Some(true);
+            if let Some(previous) = previous {
+                self.emit_comma_element_end_comments(
+                    transformation,
+                    parent,
+                    previous,
+                    expression_context,
+                    writer,
+                )?;
+                writer.write_punctuation(",");
+                if separate_line {
+                    writer.increase_indent();
+                } else {
+                    writer.write_space(" ");
+                }
+            }
+            // Restore the temporary list indent even when a comment range,
+            // hook, substitution, or child printer returns a typed error.
+            let outcome = (|| {
+                if separate_line {
+                    if transformation.arena().node(child)?.pos != u32::MAX {
+                        self.emit_list_item_position_comments(
+                            transformation,
+                            child,
+                            expression_context,
+                            true,
+                            writer,
+                        )?;
+                    }
+                    writer.write_line(false);
+                } else {
+                    self.emit_list_item_position_comments(
+                        transformation,
+                        child,
+                        expression_context,
+                        false,
+                        writer,
+                    )?;
+                }
+                self.record_list_element_position(transformation, child)?;
+                self.emit_optional_ordinary_child(
+                    transformation,
+                    parent,
+                    Some(id),
+                    EmitHint::Expression,
+                    None,
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                    writer,
+                )
+            })();
+            if separate_line {
+                writer.decrease_indent();
+            }
+            outcome?;
+            previous = Some(child);
+        }
+        if let Some(previous) = previous {
+            self.emit_comma_element_end_comments(
+                transformation,
+                parent,
+                previous,
+                expression_context,
+                writer,
+            )?;
+        }
+        Ok(())
+    }
+
+    fn emit_comma_element_end_comments(
         &self,
+        transformation: &TransformationResult<'_>,
+        parent: TransformNode,
+        previous: TransformNode,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        if self.options.remove_comments || expression_context.nested_comments_suppressed() {
+            return Ok(());
+        }
+        let arena = transformation.arena();
+        let end = arena.node(previous)?.end;
+        if end == u32::MAX
+            || end == arena.node(parent)?.end
+            || arena
+                .metadata(previous)
+                .is_some_and(|metadata| metadata.flags().contains(EmitFlags::NO_TRAILING_COMMENTS))
+        {
+            return Ok(());
+        }
+        let source = arena.source(previous.source())?.syntax();
+        let position = SourceBytePosition::new(end, source.positions())?;
+        if expression_context.comments().container_pos()
+            != Some(CommentCursor::new(previous.source(), position))
+        {
+            self.emit_comments_at_cursor_with_phase(
+                transformation,
+                TokenCursor::source(previous.source(), position),
+                None,
+                PositionCommentPhase::SourceLeading,
+                false,
+                writer,
+            )?;
+        }
+        Ok(())
+    }
+
+    fn emit_list_item_position_comments(
+        &self,
+        transformation: &TransformationResult<'_>,
+        child: TransformNode,
+        expression_context: EmitContext,
+        prefix_space: bool,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        if self.options.remove_comments || expression_context.nested_comments_suppressed() {
+            return Ok(());
+        }
+        let range = self.comment_range_for_node(transformation, child)?;
+        let Some(start) = range.range().start() else {
+            return Ok(());
+        };
+        if expression_context
+            .comments()
+            .retains_end(CommentCursor::new(range.source(), start))
+        {
+            return Ok(());
+        }
+        let source = transformation.arena().source(range.source())?.syntax();
+        if prefix_space {
+            // For format 528, prefixSpace selects emitTrailingComment even
+            // when emitNodeListItems also passes forceNoNewline. This phase
+            // filters comments and inserts a prefix space unconditionally
+            // when the writer is not at the start of a line.
+            for comment in
+                collect_source_comment_ranges(source.text(), start.value() as usize, true)
+            {
+                if self.options.only_print_js_doc_style
+                    && !should_write_js_doc_style_comment(source.text(), comment.start)
+                {
+                    continue;
+                }
+                if !writer.is_at_start_of_line() {
+                    writer.write_space(" ");
+                }
+                write_source_comment(source.text(), comment.start, comment.end, writer);
+                if comment.has_trailing_new_line {
+                    writer.write_line(false);
+                }
+            }
+        } else {
+            emit_source_intervening_comments_of_position(
+                source.text(),
+                start.value() as usize,
+                writer,
+            );
+        }
+        Ok(())
+    }
+
+    fn emit_comma_list(
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         array: Option<tsc_syntax::NodeArrayId>,
@@ -10547,7 +11222,7 @@ impl Printer {
     /// tsc-hash: 8a0512c2af9ba16a7481b372c31ae88611a0f3f8b4daaf5919a7278927262b5c
     /// tsc-span: _tsc.js:120015-120025
     fn emit_separated_declaration_list(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         array: Option<tsc_syntax::NodeArrayId>,
@@ -10572,6 +11247,7 @@ impl Printer {
                 writer.write(separator);
                 self.emit_separated_declaration_list_item_comments(transformation, child, writer)?;
             }
+            self.record_list_element_position(transformation, child)?;
             self.emit_node_id_with_context(
                 transformation,
                 source,
@@ -10595,11 +11271,12 @@ impl Printer {
             .arena()
             .source(owner.range.source())?
             .syntax();
-        if let SourceRange::Original(range) = owner.range.range() {
-            let start = range.start().value() as usize;
+        let range = owner.range.range();
+        if let Some(start) = range.start() {
+            let start = start.value() as usize;
             let code_start = range
-                .without_leading_trivia(source.text(), source.positions())?
-                .start()
+                .leading_trivia_end(source.text(), source.positions())?
+                .expect("comment range has a source start")
                 .value() as usize;
             if start < code_start {
                 let before = writer.text().len();
@@ -10626,13 +11303,14 @@ impl Printer {
             .arena()
             .source(owner.range.source())?
             .syntax();
-        let SourceRange::Original(range) = owner.range.range() else {
+        let range = owner.range.range();
+        let Some(start) = range.start() else {
             return Ok(false);
         };
-        let start = range.start().value() as usize;
+        let start = start.value() as usize;
         let code_start = range
-            .without_leading_trivia(source.text(), source.positions())?
-            .start()
+            .leading_trivia_end(source.text(), source.positions())?
+            .expect("comment range has a source start")
             .value() as usize;
         let mut previous_end = start;
         if start < code_start {
@@ -10670,7 +11348,7 @@ impl Printer {
     }
 
     fn emit_multiline_comma_list(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         parent: TransformNode,
         array: Option<tsc_syntax::NodeArrayId>,
@@ -10713,6 +11391,7 @@ impl Printer {
                 .arena()
                 .node_ref(parent.source(), id)
                 .ok_or(PrinterError::UnknownStatement(id.0))?;
+            self.record_list_element_position(transformation, child)?;
             self.emit_node_id_with_context(
                 transformation,
                 parent.source(),
@@ -10767,7 +11446,7 @@ impl Printer {
     /// tsc-hash: 2388b561e153c74144d22225ad2d6d27bf741aa488e60585c473744b3c03539b
     /// tsc-span: _tsc.js:120361-120374
     fn emit_declaration_members(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         parent: TransformNode,
         members: Option<tsc_syntax::NodeArrayId>,
@@ -10803,6 +11482,7 @@ impl Printer {
             } else {
                 self.emit_leading_comments_for_node_after_sibling(transformation, member, writer)?;
             }
+            self.record_list_element_position(transformation, member)?;
             self.emit_node_id_with_context(
                 transformation,
                 parent.source(),
@@ -10827,7 +11507,7 @@ impl Printer {
     /// tsc-hash: 095bb2e591a182100c1586f39db20b74f024c9ca9e743692af8894fde3317d60
     /// tsc-span: _tsc.js:119967-119969
     fn emit_type_arguments(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         type_arguments: Option<tsc_syntax::NodeArrayId>,
@@ -10862,6 +11542,7 @@ impl Printer {
             // Upstream parenthesizes a leading generic function/constructor type argument
             // in the FACTORY (`parenthesizeTypeArguments`, at node creation), never in the
             // printer: a parsed `Array<<T>() => T>` reprints unchanged.
+            self.record_list_element_position(transformation, child)?;
             self.emit_node_id_with_context(
                 transformation,
                 source,
@@ -10886,7 +11567,7 @@ impl Printer {
     /// tsc-span: _tsc.js:118994-118998
     #[allow(clippy::too_many_arguments)]
     fn emit_signature_head(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         type_parameters: Option<tsc_syntax::NodeArrayId>,
@@ -10927,7 +11608,7 @@ impl Printer {
     /// tsc-hash: f8d6242cc9ba28683f5b66fafe283cc94112bd81dce6ad0f776a6a56fbb56b82
     /// tsc-span: _tsc.js:119990-119992
     fn emit_parameter_list(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         parameters: Option<tsc_syntax::NodeArrayId>,
@@ -10952,7 +11633,7 @@ impl Printer {
     /// tsc-hash: 49144b810a6f5fe0c7dabac67f6282674df43251436e201114e531340db594a2
     /// tsc-span: _tsc.js:119970-119982
     fn emit_arrow_parameter_list(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         arrow: TransformNode,
         data: &tsc_syntax::nodes::ArrowFunctionData,
@@ -10975,7 +11656,7 @@ impl Printer {
     }
 
     fn emit_parameter_list_with_parentheses(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         parameters: Option<tsc_syntax::NodeArrayId>,
@@ -11001,7 +11682,7 @@ impl Printer {
         } else {
             let count = ids.len();
             let mut pending_delimited_comment = None;
-            for (index, id) in ids.into_iter().enumerate() {
+            for (index, id) in ids.iter().copied().enumerate() {
                 let parameter = transformation
                     .arena()
                     .node_ref(source, id)
@@ -11037,6 +11718,7 @@ impl Printer {
                         writer,
                     )?;
                 }
+                self.record_list_element_position(transformation, parameter)?;
                 self.emit_node_id_with_context(
                     transformation,
                     source,
@@ -11047,9 +11729,14 @@ impl Printer {
                 self.emit_list_element_end_comments(transformation, parameter, writer)?;
                 if index + 1 < count {
                     writer.write_punctuation(",");
-                    pending_delimited_comment = self.emit_delimited_trailing_comments_for_node(
+                    pending_delimited_comment = self.emit_delimited_boundary_comments(
                         transformation,
-                        parameter,
+                        DelimitedCommentBoundary::BeforeItem(TransformNode::new(
+                            source,
+                            ids[index + 1],
+                        )),
+                        expression_context,
+                        false,
                         writer,
                     )?;
                     if !writer.is_at_start_of_line() {
@@ -11578,7 +12265,7 @@ impl Printer {
     }
 
     fn emit_named_import_or_export_list(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         parent: TransformNode,
         elements: Option<tsc_syntax::NodeArrayId>,
@@ -11605,16 +12292,31 @@ impl Printer {
         }
 
         writer.write_space(" ");
+        let mut pending_delimited_comment = None;
         for (index, id) in ids.iter().copied().enumerate() {
             let child = transformation
                 .arena()
                 .node_ref(source, id)
                 .ok_or(PrinterError::UnknownStatement(id.0))?;
-            if index == 0 || synthesized {
+            if index == 0 {
                 self.emit_leading_comments_for_delimited_list_start(transformation, child, writer)?;
+            } else if synthesized {
+                let resume = self.delimited_comment_resume_for_node(
+                    transformation,
+                    child,
+                    pending_delimited_comment.take(),
+                )?;
+                self.emit_leading_comments_for_node_worker(
+                    transformation,
+                    child,
+                    LeadingCommentContext::DelimitedListStart,
+                    resume,
+                    writer,
+                )?;
             } else {
                 self.emit_leading_comments_for_node_after_sibling(transformation, child, writer)?;
             }
+            self.record_list_element_position(transformation, child)?;
             self.emit_node_id_with_context(
                 transformation,
                 source,
@@ -11625,7 +12327,18 @@ impl Printer {
             self.emit_list_element_end_comments(transformation, child, writer)?;
             if index + 1 < ids.len() || trailing_comma {
                 writer.write_punctuation(",");
-                self.emit_delimited_trailing_comments_for_node(transformation, child, writer)?;
+                pending_delimited_comment = self.emit_delimited_boundary_comments(
+                    transformation,
+                    ids.get(index + 1).map_or(
+                        DelimitedCommentBoundary::AfterTrailingComma(child),
+                        |next| {
+                            DelimitedCommentBoundary::BeforeItem(TransformNode::new(source, *next))
+                        },
+                    ),
+                    expression_context,
+                    false,
+                    writer,
+                )?;
             }
             if index + 1 < ids.len() {
                 writer.write_space(" ");
@@ -11639,7 +12352,7 @@ impl Printer {
 
     #[allow(clippy::too_many_arguments)]
     fn emit_renamed_specifier(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         specifier: TransformNode,
         property_name: Option<tsc_syntax::NodeId>,
@@ -11698,7 +12411,7 @@ impl Printer {
     /// tsc-hash: 8fb50c70cd68d557886307bc8242e2f79f0533fea4c44e498feb8ce7c0eba899
     /// tsc-span: _tsc.js:119846-119902
     fn emit_modifiers(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         modifiers: Option<tsc_syntax::NodeArrayId>,
@@ -11729,6 +12442,10 @@ impl Printer {
             .collect::<Result<Vec<_>, TransformError>>()?;
 
         for (index, item) in items.iter().enumerate() {
+            self.record_list_element_position(
+                transformation,
+                TransformNode::new(source, item.node),
+            )?;
             match item.kind {
                 ModifierListItemKind::Decorator => {
                     writer.write_line(false);
@@ -11745,13 +12462,36 @@ impl Printer {
                     if index != 0 && items[index - 1].kind == ModifierListItemKind::Modifier {
                         writer.write_space(" ");
                     }
-                    self.emit_node_id_with_context(
-                        transformation,
-                        source,
-                        item.node,
-                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
-                        writer,
-                    )?;
+                    let child_context =
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL);
+                    if expression_context.nested_comments_suppressed() {
+                        self.emit_node_id_with_context(
+                            transformation,
+                            source,
+                            item.node,
+                            child_context,
+                            writer,
+                        )?;
+                    } else {
+                        // `emitNodeListItems(emit, ...)` gives every modifier
+                        // the ordinary node comments phase. Its trailing
+                        // comments precede the list's next separating space.
+                        let outcome = self.emit_node_id_with_context_and_source_comments(
+                            transformation,
+                            source,
+                            item.node,
+                            child_context,
+                            DeferredExpressionSourceComments::nested(
+                                expression_context.comments(),
+                                DeferredSourceCommentExtent::LeadingAndTrailing,
+                            ),
+                            writer,
+                        )?;
+                        assert!(matches!(
+                            outcome,
+                            ExpressionSourceCommentsOutcome::Complete { .. }
+                        ));
+                    }
                     if items
                         .get(index + 1)
                         .is_some_and(|next| next.kind == ModifierListItemKind::Decorator)
@@ -11921,7 +12661,7 @@ impl Printer {
     /// performs that phase; this printer makes the ownership explicit at the
     /// JSX container boundary.
     fn emit_jsx_children(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         array: Option<tsc_syntax::NodeArrayId>,
@@ -11945,6 +12685,7 @@ impl Printer {
             if !jsx_text {
                 self.emit_leading_comments_for_node(transformation, child, writer)?;
             }
+            self.record_list_element_position(transformation, child)?;
             self.emit_node_id_with_context(
                 transformation,
                 source,
@@ -11960,7 +12701,7 @@ impl Printer {
     }
 
     fn emit_jsx_attributes(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         properties: Option<tsc_syntax::NodeArrayId>,
@@ -11982,6 +12723,7 @@ impl Printer {
                 writer.write_space(" ");
             }
             self.emit_leading_comments_for_node(transformation, attribute, writer)?;
+            self.record_list_element_position(transformation, attribute)?;
             self.emit_node_id_with_context(
                 transformation,
                 source,
@@ -11995,7 +12737,7 @@ impl Printer {
     }
 
     fn emit_node_array(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         array: Option<tsc_syntax::NodeArrayId>,
@@ -12012,6 +12754,7 @@ impl Printer {
             if index != 0 {
                 writer.write(separator);
             }
+            self.record_list_element_position(transformation, TransformNode::new(source, id))?;
             self.emit_node_id_with_context(
                 transformation,
                 source,
@@ -12102,7 +12845,7 @@ impl Printer {
 
     #[allow(clippy::too_many_arguments)]
     fn emit_call_arguments(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         parent: TransformNode,
         source: TransformSourceId,
@@ -12158,9 +12901,11 @@ impl Printer {
                     )?;
                 }
                 writer.write_punctuation(",");
-                self.emit_delimited_trailing_comments_for_node(
+                let list_owned = self.emit_delimited_boundary_comments(
                     transformation,
-                    TransformNode::new(source, ids[index - 1]),
+                    DelimitedCommentBoundary::BeforeItem(node),
+                    expression_context,
+                    multi_line && index >= 2,
                     writer,
                 )?;
                 if multi_line && index >= 2 {
@@ -12178,10 +12923,21 @@ impl Printer {
                     writer.write_space(" ");
                 }
                 if synthesized_array {
-                    self.emit_leading_comments_for_delimited_list_start_in_parent(
+                    let parent_owner =
+                        self.expression_comment_phase_owner_for_node(transformation, parent)?;
+                    let owner =
+                        self.expression_comment_phase_owner_for_node(transformation, node)?;
+                    let (parent_pos, _) = Self::established_container_sides(parent_owner);
+                    let container_owned = self.parent_comment_container_owned_prefix_for_owner(
                         transformation,
-                        parent,
+                        parent_pos,
+                        owner,
+                    )?;
+                    self.emit_leading_comments_for_node_worker(
+                        transformation,
                         node,
+                        LeadingCommentContext::DelimitedListStart,
+                        Self::furthest_comment_resume(list_owned, container_owned)?,
                         writer,
                     )?;
                 } else {
@@ -12192,6 +12948,7 @@ impl Printer {
                     )?;
                 }
             }
+            self.record_list_element_position(transformation, node)?;
             self.emit_node_id_with_context(
                 transformation,
                 source,
@@ -12229,13 +12986,66 @@ impl Printer {
         Ok(())
     }
 
+    /// tsc-port: emitSpreadElement @6.0.3
+    /// tsc-hash: 555db665aa4db3c4793a1da4804ec52af741a2a647f150bb76ab55a053a39d9d
+    /// tsc-span: _tsc.js:118528-118531
+    /// tsc-port: emitSpreadAssignment @6.0.3
+    /// tsc-hash: 7059018a63098d18b24ef30a55641f81bde3b327d84c9e118f04d35fd9f3dc06
+    /// tsc-span: _tsc.js:119536-119541
+    #[allow(clippy::too_many_arguments)]
+    fn emit_spread_expression(
+        &mut self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        expression: Option<NodeId>,
+        parent: SyntaxKind,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let expression = expression.ok_or(PrinterError::MissingTransformedChild {
+            parent,
+            field: "expression",
+        })?;
+        let child_context = expression_context.for_child(ExpressionSyntaxContext::DISALLOWED_COMMA);
+        if expression_context.nested_comments_suppressed() {
+            writer.write_punctuation("...");
+            return self.emit_node_id_with_context(
+                transformation,
+                node.source(),
+                expression,
+                child_context,
+                writer,
+            );
+        }
+        let token = self.emit_token_with_source_leading_comments(
+            transformation,
+            node,
+            FixedToken::punctuation(SyntaxKind::DotDotDotToken),
+            self.node_start_cursor(transformation, node)?,
+            false,
+            writer,
+        )?;
+        let child = transformation
+            .arena()
+            .node_ref(node.source(), expression)
+            .ok_or(PrinterError::UnknownStatement(expression.0))?;
+        self.emit_child_after_token_with_complete_source_comments(
+            transformation,
+            node,
+            token,
+            child,
+            child_context,
+            writer,
+        )
+    }
+
     /// Emit a parsed child whose leading boundary was already visited by a
     /// fixed token. The token owns same-line trailing trivia at that boundary;
     /// the child resumes after it and remains responsible for ordinary
     /// leading comments. Keeping the handoff typed prevents the same resume
     /// from being applied to an adjacent child that merely shares a source.
     fn emit_child_after_token_with_context(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         parent: TransformNode,
         token: TokenEmission,
@@ -12258,7 +13068,7 @@ impl Printer {
 
     #[allow(clippy::too_many_arguments)]
     fn emit_child_after_token_with_complete_source_comments(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         parent: TransformNode,
         token: TokenEmission,
@@ -12284,7 +13094,7 @@ impl Printer {
 
     #[allow(clippy::too_many_arguments)]
     fn emit_child_after_token_with_context_and_source_extent(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         parent: TransformNode,
         token: TokenEmission,
@@ -12319,9 +13129,73 @@ impl Printer {
         )
     }
 
+    /// Ordinary `emit` and `emitExpression` calls share the source-comment
+    /// pipeline, but their hints must remain distinct. In particular, a
+    /// parameter/binding name is not an expression substitution request.
+    /// The parent's NoNested extent suppresses child source phases; a child's
+    /// own NoNested flag is applied later, inside its own leading/trailing pair.
+    ///
+    /// tsc-port: emit/emitExpression @6.0.3
+    /// tsc-span: _tsc.js:117145-117161
+    /// tsc-port: emitNodeWithWriter @6.0.3
+    /// tsc-span: _tsc.js:119839-119845
+    #[allow(clippy::too_many_arguments)]
+    fn emit_optional_ordinary_child(
+        &mut self,
+        transformation: &mut TransformationResult<'_>,
+        parent: TransformNode,
+        id: Option<NodeId>,
+        hint: EmitHint,
+        preceding_token: Option<TokenEmission>,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let Some(id) = id else {
+            return Ok(());
+        };
+        let child = transformation
+            .arena()
+            .node_ref(parent.source(), id)
+            .ok_or(PrinterError::UnknownStatement(id.0))?;
+        if expression_context.nested_comments_suppressed() {
+            return self.emit_node_with_hint(
+                transformation,
+                child,
+                hint,
+                expression_context,
+                writer,
+            );
+        }
+        let deferred = match preceding_token {
+            Some(token) => DeferredExpressionSourceComments::leading_and_trailing(
+                parent,
+                token,
+                expression_context.comments(),
+            ),
+            None => DeferredExpressionSourceComments::without_preceding_token(
+                parent,
+                DeferredSourceCommentExtent::LeadingAndTrailing,
+                expression_context.comments(),
+            ),
+        };
+        let outcome = self.emit_node_with_hint_and_source_comments(
+            transformation,
+            child,
+            hint,
+            expression_context,
+            Some(deferred),
+            writer,
+        )?;
+        assert!(matches!(
+            outcome,
+            ExpressionSourceCommentsOutcome::Complete { .. }
+        ));
+        Ok(())
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn emit_required_identifier_name_with_context(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         id: Option<NodeId>,
@@ -12349,7 +13223,7 @@ impl Printer {
     /// their ordinary unspecified emission path.
     #[allow(clippy::too_many_arguments)]
     fn emit_required_jsx_tag_name(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         id: Option<NodeId>,
@@ -12371,7 +13245,7 @@ impl Printer {
 
     #[allow(clippy::too_many_arguments)]
     fn emit_required_node_with_context(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         id: Option<NodeId>,
@@ -12386,7 +13260,7 @@ impl Printer {
 
     #[allow(clippy::too_many_arguments)]
     fn emit_required_node_with_context_and_source_extent(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         id: Option<NodeId>,
@@ -12427,7 +13301,7 @@ impl Printer {
 
     #[allow(clippy::too_many_arguments)]
     fn emit_required_node_with_forwarded_source_comments(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         id: Option<NodeId>,
@@ -12449,7 +13323,7 @@ impl Printer {
     }
 
     fn emit_node_id_with_forwarded_source_comments(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         id: NodeId,
@@ -12479,7 +13353,7 @@ impl Printer {
     }
 
     fn emit_node_id_with_context(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         id: NodeId,
@@ -12499,7 +13373,7 @@ impl Printer {
     }
 
     fn emit_node_id_with_context_and_source_comments(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         id: NodeId,
@@ -12527,7 +13401,7 @@ impl Printer {
     }
 
     fn emit_identifier_name_with_context(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         id: NodeId,
@@ -12547,7 +13421,7 @@ impl Printer {
     }
 
     fn emit_node_with_hint(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         hint: EmitHint,
@@ -12568,7 +13442,7 @@ impl Printer {
 
     #[allow(clippy::too_many_arguments)]
     fn emit_node_with_hint_and_source_comments(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         hint: EmitHint,
@@ -12576,36 +13450,35 @@ impl Printer {
         mut deferred_source_comments: Option<DeferredExpressionSourceComments>,
         writer: &mut TextWriter,
     ) -> Result<ExpressionSourceCommentsOutcome, PrinterError> {
+        let substituted = transformation.substitute_node(hint, node)?;
+        let was_substituted = substituted != node;
+        let grammar = expression_context.grammar();
+        // pipelineEmit 117173-117211 applies the parenthesizer to
+        // a substitution before entering the comments phase. The
+        // substituted node's synthetic comments therefore belong
+        // inside the generated parentheses (not after them).
+        let grammar_parentheses = if grammar == ExpressionGrammarContext::ExpressionStatement {
+            self.expression_statement_requires_parentheses(transformation, substituted)?
+                .then_some(GrammarParentheses::SourceRanged)
+        } else if matches!(
+            grammar,
+            ExpressionGrammarContext::LeftSideOfAccess { .. }
+                | ExpressionGrammarContext::NewCallee
+                | ExpressionGrammarContext::PrefixUnaryOperand
+                | ExpressionGrammarContext::PostfixUnaryOperand
+                | ExpressionGrammarContext::ArrowConciseBody
+                | ExpressionGrammarContext::AssignmentRightSide
+                | ExpressionGrammarContext::ExportDefault
+                | ExpressionGrammarContext::DisallowedComma
+        ) || was_substituted && grammar == ExpressionGrammarContext::ComputedPropertyName
+        {
+            self.context_parentheses(transformation, substituted, grammar)?
+        } else {
+            None
+        };
+
         transformation.before_emit_node(hint, node)?;
         let emitted = (|| {
-            let substituted = transformation.substitute_node(hint, node)?;
-            let was_substituted = substituted != node;
-            let grammar = expression_context.grammar();
-            // pipelineEmit 117173-117211 applies the parenthesizer to
-            // a substitution before entering the comments phase. The
-            // substituted node's synthetic comments therefore belong
-            // inside the generated parentheses (not after them).
-            let grammar_parentheses = if grammar == ExpressionGrammarContext::ExpressionStatement {
-                self.expression_statement_requires_parentheses(transformation, substituted)?
-                    .then_some(GrammarParentheses::SourceRanged)
-            } else if matches!(
-                grammar,
-                ExpressionGrammarContext::LeftSideOfAccess { .. }
-                    | ExpressionGrammarContext::NewCallee
-                    | ExpressionGrammarContext::PrefixUnaryOperand
-                    | ExpressionGrammarContext::PostfixUnaryOperand
-                    | ExpressionGrammarContext::ArrowConciseBody
-                    | ExpressionGrammarContext::AssignmentRightSide
-                    | ExpressionGrammarContext::ExportDefault
-                    | ExpressionGrammarContext::DisallowedComma
-            ) || was_substituted
-                && grammar == ExpressionGrammarContext::ComputedPropertyName
-            {
-                self.context_parentheses(transformation, substituted, grammar)?
-            } else {
-                None
-            };
-
             let trailing = if let Some(parentheses) = grammar_parentheses {
                 match parentheses {
                     GrammarParentheses::SourceRanged => {
@@ -12649,6 +13522,7 @@ impl Printer {
                         self.emit_substituted_node_with_comments(
                             transformation,
                             substituted,
+                            hint,
                             expression_context.for_wrapper(inner_active_scope),
                             inner_source_leading_phase,
                             writer,
@@ -12686,6 +13560,7 @@ impl Printer {
                         self.emit_substituted_node_with_comments(
                             transformation,
                             substituted,
+                            hint,
                             expression_context.for_wrapper(active_scope),
                             source_leading_phase,
                             writer,
@@ -12707,6 +13582,7 @@ impl Printer {
                     self.emit_parenthesized_no_asi_expression(
                         transformation,
                         parenthesized,
+                        hint,
                         expression_context,
                         deferred_source_comments.as_ref(),
                         writer,
@@ -12741,6 +13617,7 @@ impl Printer {
                     self.emit_substituted_node_with_comments(
                         transformation,
                         substituted,
+                        hint,
                         expression_context.with_comments(active_scope),
                         source_leading_phase,
                         writer,
@@ -12783,6 +13660,7 @@ impl Printer {
                 self.emit_substituted_node_with_comments(
                     transformation,
                     substituted,
+                    hint,
                     expression_context.with_comments(active_scope),
                     source_leading_phase,
                     writer,
@@ -12832,9 +13710,10 @@ impl Printer {
     /// token/comment phase, matching tsc's `setOriginalNode` + `setTextRange`
     /// virtual container without allocating a transient arena node.
     fn emit_parenthesized_no_asi_expression(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         parenthesized: ParenthesizedNoAsiExpression,
+        hint: EmitHint,
         expression_context: EmitContext,
         deferred_source_comments: Option<&DeferredExpressionSourceComments>,
         writer: &mut TextWriter,
@@ -12859,6 +13738,7 @@ impl Printer {
                 self.emit_substituted_node_with_comments(
                     transformation,
                     wrapper,
+                    hint,
                     expression_context.for_wrapper(active_scope),
                     source_leading_phase,
                     writer,
@@ -12961,9 +13841,10 @@ impl Printer {
     /// for a grammar parenthesis selected above to strand the substituted
     /// node's synthetic comments outside its container.
     fn emit_substituted_node_with_comments(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         substituted: TransformNode,
+        hint: EmitHint,
         expression_context: EmitContext,
         source_leading_phase: SourceLeadingCommentPhaseVisit,
         writer: &mut TextWriter,
@@ -12974,7 +13855,13 @@ impl Printer {
             source_leading_phase,
             writer,
         )?;
-        self.emit_transformed_node(transformation, substituted, expression_context, writer)?;
+        self.emit_transformed_node(
+            transformation,
+            substituted,
+            hint,
+            expression_context,
+            writer,
+        )?;
         self.emit_synthetic_trailing_comments_for_node(transformation, substituted, writer)
     }
 
@@ -12985,7 +13872,7 @@ impl Printer {
     /// chain without allocating transient arena nodes or using printer-global
     /// comment state.
     fn emit_substituted_node_with_forwarded_source_comments(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         substituted: TransformNode,
         expression_context: EmitContext,
@@ -13318,7 +14205,7 @@ impl Printer {
         let list_owned = self.emit_intervening_comments_before_node_with_policy(
             transformation,
             node,
-            false,
+            InterveningCommentContext::DelimitedListStart,
             leading_space,
             writer,
         )?;
@@ -13365,28 +14252,6 @@ impl Printer {
         )
     }
 
-    fn emit_leading_comments_for_multiline_delimited_list_start(
-        &self,
-        transformation: &TransformationResult<'_>,
-        node: TransformNode,
-        writer: &mut TextWriter,
-    ) -> Result<(), PrinterError> {
-        let resume = self.emit_intervening_comments_before_node_with_policy(
-            transformation,
-            node,
-            true,
-            TokenLeadingSpace::None,
-            writer,
-        )?;
-        self.emit_leading_comments_for_node_worker(
-            transformation,
-            node,
-            LeadingCommentContext::DelimitedListStart,
-            resume,
-            writer,
-        )
-    }
-
     fn emit_intervening_comments_before_node(
         &self,
         transformation: &TransformationResult<'_>,
@@ -13396,25 +14261,34 @@ impl Printer {
         self.emit_intervening_comments_before_node_with_policy(
             transformation,
             node,
-            false,
+            InterveningCommentContext::Node,
             TokenLeadingSpace::None,
             writer,
         )
     }
 
+    /// tsc-port: emitNodeListItems @6.0.3
+    /// tsc-span: _tsc.js:120068-120155
+    /// tsc-hash: ebeb65a71c929bbfdf5d1ebd4b2e7216f15bd37117166ef8fbee5b3a9b0a6b40
+    /// tsc-port: emitTrailingCommentsOfPosition @6.0.3
+    /// tsc-span: _tsc.js:121191-121198
+    /// tsc-hash: 953cde198b7f8098bd7bc8d865e535cdac106e983efe35a4a067498ff239cbc0
     fn emit_intervening_comments_before_node_with_policy(
         &self,
         transformation: &TransformationResult<'_>,
         node: TransformNode,
-        suppress_opening_line_comments: bool,
+        comment_context: InterveningCommentContext,
         leading_space: TokenLeadingSpace,
         writer: &mut TextWriter,
     ) -> Result<Option<CommentResume>, PrinterError> {
         if self.options.remove_comments
-            || transformation
-                .arena()
-                .metadata(node)
-                .is_some_and(|metadata| metadata.flags().intersects(EmitFlags::NO_LEADING_COMMENTS))
+            || comment_context == InterveningCommentContext::Node
+                && transformation
+                    .arena()
+                    .metadata(node)
+                    .is_some_and(|metadata| {
+                        metadata.flags().intersects(EmitFlags::NO_LEADING_COMMENTS)
+                    })
         {
             return Ok(None);
         }
@@ -13423,42 +14297,26 @@ impl Printer {
             .arena()
             .source(comment_range.source())?
             .syntax();
-        let SourceRange::Original(range) = comment_range.range() else {
+        let range = comment_range.range();
+        let Some(range_start) = range.start() else {
             return Ok(None);
         };
-        let start = range.start().value() as usize;
+        let start = range_start.value() as usize;
         let comments = collect_source_comment_ranges(source.text(), start, true);
         let Some(last_comment) = comments.last().copied() else {
             return Ok(None);
         };
-        if suppress_opening_line_comments {
-            for comment in comments {
-                if !source.text()[start..comment.start]
-                    .chars()
-                    .any(is_line_break)
-                {
-                    continue;
-                }
-                write_source_comment(source.text(), comment.start, comment.end, writer);
-                if comment.has_trailing_new_line {
-                    writer.write_line(false);
-                } else {
-                    writer.write_space(" ");
-                }
-            }
-        } else {
-            Self::ensure_token_leading_space(writer, leading_space);
-            emit_source_intervening_comments_of_position(source.text(), start, writer);
-        }
+        Self::ensure_token_leading_space(writer, leading_space);
+        emit_source_intervening_comments_of_position(source.text(), start, writer);
         let code_start = range
-            .without_leading_trivia(source.text(), source.positions())?
-            .start()
+            .leading_trivia_end(source.text(), source.positions())?
+            .expect("comment range has a source start")
             .value() as usize;
         let position = SourceBytePosition::new(
             u32::try_from(last_comment.end.min(code_start)).unwrap_or(u32::MAX),
             source.positions(),
         )?;
-        let owner_start = CommentCursor::new(comment_range.source(), range.start());
+        let owner_start = CommentCursor::new(comment_range.source(), range_start);
         let next = CommentCursor::new(comment_range.source(), position);
         Ok(Some(
             CommentResume::new(owner_start, next).map_err(Self::comment_resume_error)?,
@@ -13495,7 +14353,8 @@ impl Printer {
         let Some((cursor_source, _)) = emission.cursor().source_position() else {
             return Ok(None);
         };
-        let SourceRange::Original(owner_range) = owner.range.range() else {
+        let owner_range = owner.range.range();
+        let Some(owner_start) = owner_range.start() else {
             return Ok(None);
         };
         let owner_source = owner.range.source();
@@ -13505,14 +14364,14 @@ impl Printer {
         // That is a fresh comments phase, not a malformed continuation.
         if cursor_source != owner_source
             || token_owner.source() != owner_source
-            || token_owner.position() != owner_range.start()
+            || token_owner.position() != owner_start
         {
             return Ok(None);
         }
         let source = transformation.arena().source(owner_source)?.syntax();
         let code_start = owner_range
-            .without_leading_trivia(source.text(), source.positions())?
-            .start();
+            .leading_trivia_end(source.text(), source.positions())?
+            .expect("comment range has a source start");
         let next = SourceBytePosition::new(
             token_resume
                 .next()
@@ -13523,7 +14382,7 @@ impl Printer {
         )?;
         Ok(Some(
             CommentResume::new(
-                CommentCursor::new(owner_source, owner_range.start()),
+                CommentCursor::new(owner_source, owner_start),
                 CommentCursor::new(owner_source, next),
             )
             .map_err(Self::comment_resume_error)?,
@@ -13537,7 +14396,8 @@ impl Printer {
         owner: ExpressionCommentPhaseOwner,
     ) -> Result<Option<CommentResume>, PrinterError> {
         let source_id = owner.range.source();
-        let SourceRange::Original(owner_range) = owner.range.range() else {
+        let owner_range = owner.range.range();
+        let Some(owner_start) = owner_range.start() else {
             return Ok(None);
         };
         // tsc's leading guard: source trivia at `pos` belongs to the
@@ -13546,16 +14406,16 @@ impl Printer {
         //
         // tsc-port: forEachLeadingCommentToEmit @6.0.3
         // tsc-span: _tsc.js:121219-121233
-        if container_pos != Some(CommentCursor::new(source_id, owner_range.start())) {
+        if container_pos != Some(CommentCursor::new(source_id, owner_start)) {
             return Ok(None);
         }
         let source = transformation.arena().source(source_id)?.syntax();
         let next = owner_range
-            .without_leading_trivia(source.text(), source.positions())?
-            .start();
+            .leading_trivia_end(source.text(), source.positions())?
+            .expect("comment range has a source start");
         Ok(Some(
             CommentResume::new(
-                CommentCursor::new(source_id, owner_range.start()),
+                CommentCursor::new(source_id, owner_start),
                 CommentCursor::new(source_id, next),
             )
             .map_err(Self::comment_resume_error)?,
@@ -13611,15 +14471,15 @@ impl Printer {
         };
         if self.options.remove_comments
             || owner.flags.intersects(EmitFlags::NO_TRAILING_COMMENTS)
-            || owner.relocated_trailing
             || owner.kind == SyntaxKind::NotEmittedStatement
         {
             return Ok(Some(TrailingSourceCommentOwnership::Suppressed));
         }
-        let SourceRange::Original(owner_range) = owner.range.range() else {
+        let owner_range = owner.range.range();
+        let Some(owner_end) = owner_range.end() else {
             return Ok(Some(TrailingSourceCommentOwnership::NoSourceRange));
         };
-        if owner_range.start() == owner_range.end() {
+        if !owner_range.has_nonempty_extent() {
             return Ok(Some(TrailingSourceCommentOwnership::EmptySourceRange));
         }
         if deferred
@@ -13627,7 +14487,7 @@ impl Printer {
             .map(|container| self.deferred_container_scope(transformation, container))
             .transpose()?
             .is_some_and(|scope| {
-                scope.retains_end(CommentCursor::new(owner.range.source(), owner_range.end()))
+                scope.retains_end(CommentCursor::new(owner.range.source(), owner_end))
             })
         {
             return Ok(Some(TrailingSourceCommentOwnership::RetainedByParent));
@@ -13636,7 +14496,7 @@ impl Printer {
             .arena()
             .source(owner.range.source())?
             .syntax();
-        let boundary = owner_range.end().value() as usize;
+        let boundary = owner_end.value() as usize;
         let emitted_through = emit_same_line_trailing_comments(
             SourceTrivia::from_start(source.text(), boundary),
             self.options.only_print_js_doc_style,
@@ -13644,11 +14504,11 @@ impl Printer {
         )
         .map(|end| SourceBytePosition::new(end as u32, source.positions()))
         .transpose()?;
-        let cursor = TokenCursor::source(owner.range.source(), owner_range.end());
+        let cursor = TokenCursor::source(owner.range.source(), owner_end);
         let resume = emitted_through
             .map(|next| {
                 CommentResume::new(
-                    CommentCursor::new(owner.range.source(), owner_range.end()),
+                    CommentCursor::new(owner.range.source(), owner_end),
                     CommentCursor::new(owner.range.source(), next),
                 )
                 .map_err(Self::comment_resume_error)
@@ -13752,16 +14612,17 @@ impl Printer {
             .arena()
             .source(owner.range.source())?
             .syntax();
-        let SourceRange::Original(range) = owner.range.range() else {
+        let range = owner.range.range();
+        let Some(range_start) = range.start() else {
             return Ok(SourceLeadingCommentPhaseVisit::Suppressed);
         };
-        if range.start() == range.end() {
+        if !range.has_nonempty_extent() {
             return Ok(SourceLeadingCommentPhaseVisit::Suppressed);
         }
-        let start = range.start().value() as usize;
+        let start = range_start.value() as usize;
         let code_start = range
-            .without_leading_trivia(source.text(), source.positions())?
-            .start()
+            .leading_trivia_end(source.text(), source.positions())?
+            .expect("comment range has a source start")
             .value() as usize;
         // A NotEmittedStatement is a range/ownership anchor, not an emitted
         // statement. tsc suppresses its ordinary comments, but its special
@@ -13786,10 +14647,10 @@ impl Printer {
                         owner: owner.range.source(),
                     });
                 }
-                if owner_start.position() != range.start() {
+                if owner_start.position() != range_start {
                     return Err(PrinterError::CommentResumeOwnerMismatch {
                         source: owner.range.source(),
-                        left_start: range.start().value(),
+                        left_start: range_start.value(),
                         right_start: owner_start.position().value(),
                     });
                 }
@@ -13842,10 +14703,10 @@ impl Printer {
     ) -> Result<Option<DetachedCommentPrefix>, PrinterError> {
         let comment_range = self.comment_range_for_node(transformation, node)?;
         let comment_source = comment_range.source();
-        let SourceRange::Original(range) = comment_range.range() else {
+        let Some(start) = comment_range.range().start() else {
             return Ok(None);
         };
-        self.detached_comment_prefix_at(transformation, comment_source, range.start())
+        self.detached_comment_prefix_at(transformation, comment_source, start)
     }
 
     /// The detached-comment boundary belongs to the container range, rather
@@ -14032,12 +14893,21 @@ impl Printer {
         pending: &mut PendingDetachedComments,
         node: TransformNode,
     ) -> Result<Option<CommentResume>, PrinterError> {
-        let comment_range = self.comment_range_for_node(transformation, node)?;
-        let comment_source = comment_range.source();
-        let SourceRange::Original(range) = comment_range.range() else {
+        let owner = self.expression_comment_phase_owner_for_node(transformation, node)?;
+        // tsc consumes detachedCommentsInfo only from the leading-comment
+        // phase. A hoisted export can share the declaration's range while
+        // NoComments leaves that phase for the later declaration to visit.
+        if self.options.remove_comments
+            || owner.flags.intersects(EmitFlags::NO_LEADING_COMMENTS)
+            || owner.kind == SyntaxKind::JsxText
+            || !owner.range.range().has_nonempty_extent()
+        {
+            return Ok(None);
+        }
+        let Some(start) = owner.range.range().start() else {
             return Ok(None);
         };
-        Ok(pending.take_for(CommentCursor::new(comment_source, range.start())))
+        Ok(pending.take_for(CommentCursor::new(owner.range.source(), start)))
     }
 
     fn emit_trailing_comments_for_node(
@@ -14052,7 +14922,6 @@ impl Printer {
                 .metadata(node)
                 .is_some_and(|metadata| {
                     metadata.flags().intersects(EmitFlags::NO_TRAILING_COMMENTS)
-                        || metadata.relocated_trailing_comment_owner.is_some()
                 })
         {
             return Ok(());
@@ -14065,14 +14934,15 @@ impl Printer {
             .arena()
             .source(comment_range.source())?
             .syntax();
-        let SourceRange::Original(range) = comment_range.range() else {
+        let range = comment_range.range();
+        let Some(end) = range.end() else {
             return Ok(());
         };
-        if range.start() == range.end() {
+        if !range.has_nonempty_extent() {
             return Ok(());
         }
         emit_same_line_trailing_comments(
-            SourceTrivia::from_start(source.text(), range.end().value() as usize),
+            SourceTrivia::from_start(source.text(), end.value() as usize),
             self.options.only_print_js_doc_style,
             writer,
         );
@@ -14094,8 +14964,8 @@ impl Printer {
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         let comment_range = self.comment_range_for_node(transformation, node)?;
-        if let SourceRange::Original(range) = comment_range.range() {
-            if active_scope.retains_end(CommentCursor::new(comment_range.source(), range.end())) {
+        if let Some(end) = comment_range.range().end() {
+            if active_scope.retains_end(CommentCursor::new(comment_range.source(), end)) {
                 return Ok(());
             }
         }
@@ -14142,7 +15012,7 @@ impl Printer {
     /// tsc-hash: 86ab696d12e92fc0736baab71aa4028842693c982a92e2456d414c055e1124fd
     /// tsc-span: _tsc.js:120969-121000
     fn emit_retained_arrow_token_with_comments(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         token: TransformNode,
         expression_context: EmitContext,
@@ -14197,7 +15067,6 @@ impl Printer {
                 .metadata(node)
                 .is_some_and(|metadata| {
                     metadata.flags().intersects(EmitFlags::NO_TRAILING_COMMENTS)
-                        || metadata.relocated_trailing_comment_owner.is_some()
                 })
             || transformation.arena().node(node)?.kind == SyntaxKind::NotEmittedStatement
         {
@@ -14208,13 +15077,14 @@ impl Printer {
             .arena()
             .source(comment_range.source())?
             .syntax();
-        let SourceRange::Original(range) = comment_range.range() else {
+        let range = comment_range.range();
+        let Some(end) = range.end() else {
             return Ok(cursor.into());
         };
-        if range.start() == range.end() {
+        if !range.has_nonempty_extent() {
             return Ok(cursor.into());
         }
-        let boundary = range.end().value() as usize;
+        let boundary = end.value() as usize;
         let emitted_through = emit_same_line_trailing_comments(
             SourceTrivia::from_start(source.text(), boundary),
             self.options.only_print_js_doc_style,
@@ -14348,14 +15218,10 @@ impl Printer {
             .arena()
             .source(comment_range.source())?
             .syntax();
-        let SourceRange::Original(range) = comment_range.range() else {
+        let Some(end) = comment_range.range().end() else {
             return Ok(());
         };
-        emit_source_trailing_comments_of_position(
-            source.text(),
-            range.end().value() as usize,
-            writer,
-        );
+        emit_source_trailing_comments_of_position(source.text(), end.value() as usize, writer);
         Ok(())
     }
 
@@ -14489,8 +15355,6 @@ impl Printer {
             range: self.comment_range_for_node(transformation, node)?,
             flags: metadata.map_or(EmitFlags::NONE, crate::EmitMetadata::flags),
             kind: transformation.arena().node(node)?.kind,
-            relocated_trailing: metadata
-                .is_some_and(|metadata| metadata.relocated_trailing_comment_owner.is_some()),
         })
     }
 
@@ -14511,14 +15375,13 @@ impl Printer {
             ),
             flags: EmitFlags::NONE,
             kind: SyntaxKind::ParenthesizedExpression,
-            relocated_trailing: false,
         })
     }
 
     /// Comment owner of the virtual no-ASI parenthesis created with both
     /// `setOriginalNode` and `setTextRange`. Explicit wrapper comment ranges
     /// win; otherwise the parsed parenthesis donates its token/text range.
-    /// Emit flags and relocated ownership still come from the wrapper's
+    /// Emit flags still come from the wrapper's
     /// metadata, matching the split ownership of the tsc factory node.
     fn parsed_no_asi_comment_phase_owner(
         &self,
@@ -14544,26 +15407,16 @@ impl Printer {
             range,
             flags: metadata.map_or(EmitFlags::NONE, crate::EmitMetadata::flags),
             kind: SyntaxKind::ParenthesizedExpression,
-            relocated_trailing: metadata
-                .is_some_and(|metadata| metadata.relocated_trailing_comment_owner.is_some()),
         })
     }
 
-    /// The statement-family claim: the full range pair when the owner has
-    /// a nonempty original range, flags not consulted. This is the H2.5g
-    /// paired projection those routes stay on until their own migration
-    /// packet lands the per-side producer there.
     /// tsc's per-side claim conditions over one comment-phase owner.
     ///
-    /// For a range this representation can express, a side goes unclaimed
-    /// only for `JsxText` without that side's suppression flag — a
-    /// suppression flag claims while suppressing the emission itself —
-    /// and a synthesized or zero-width range claims nothing at all, so
-    /// the enclosing scope stays active. The `pos < 0` arms of the
-    /// upstream predicate are unreachable here: `SourceRange` is either
-    /// `Original` with both positions or `Synthesized`, and the outer
-    /// `(pos > 0 || end > 0)` gate is always satisfied by a nonempty
-    /// original range through its end.
+    /// Each source endpoint is independent. Missing sides remain inherited,
+    /// even when their suppression flag is set. A present side goes unclaimed
+    /// for `JsxText` without that side's flag; a suppression flag otherwise
+    /// claims while suppressing emission. Synthesized, paired-empty and sole
+    /// zero endpoints fail the upstream extent gate and claim neither side.
     ///
     /// tsc-port: emitLeadingCommentsOfNode @6.0.3
     /// tsc-hash: ce6bf342a94094cccc4bf56debcb99390c8e232705263609dfcf068589284ebb
@@ -14631,12 +15484,12 @@ impl Printer {
         node: TransformNode,
     ) -> Result<TokenCursor, PrinterError> {
         let comment_range = self.comment_range_for_node(transformation, node)?;
-        Ok(match comment_range.range() {
-            SourceRange::Original(range) => {
-                TokenCursor::source(comment_range.source(), range.end())
-            }
-            SourceRange::Synthesized => TokenCursor::Synthetic,
-        })
+        Ok(comment_range
+            .range()
+            .end()
+            .map_or(TokenCursor::Synthetic, |end| {
+                TokenCursor::source(comment_range.source(), end)
+            }))
     }
 
     /// A label's trailing trivia belongs before an explicit source
@@ -14801,7 +15654,59 @@ impl Printer {
             anchor,
             TokenCommentBoundary::OwnerEnd,
             TokenLeadingSpace::None,
+            Some(PositionCommentPhase::BoundaryUnion),
             indent_leading,
+            writer,
+        )
+    }
+
+    /// The positional leading phase used after an ordinary node's complete
+    /// comments phase. Source trailing comments remain owned by that node.
+    fn emit_token_with_source_leading_comments(
+        &self,
+        transformation: &TransformationResult<'_>,
+        owner: TransformNode,
+        token: FixedToken,
+        anchor: impl Into<TokenAnchor>,
+        indent_leading: bool,
+        writer: &mut TextWriter,
+    ) -> Result<TokenEmission, PrinterError> {
+        self.emit_token_with_comments_at_boundary(
+            transformation,
+            owner,
+            token,
+            anchor,
+            TokenCommentBoundary::OwnerEnd,
+            TokenLeadingSpace::None,
+            Some(PositionCommentPhase::SourceLeading),
+            indent_leading,
+            writer,
+        )
+    }
+
+    /// Preserve the token's source continuation and brace maps when the
+    /// inherited comments extent disables positional comment emission.
+    #[allow(clippy::too_many_arguments)]
+    fn emit_source_leading_token_with_context(
+        &self,
+        transformation: &TransformationResult<'_>,
+        owner: TransformNode,
+        token: FixedToken,
+        anchor: impl Into<TokenAnchor>,
+        leading_space: TokenLeadingSpace,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<TokenEmission, PrinterError> {
+        self.emit_token_with_comments_at_boundary(
+            transformation,
+            owner,
+            token,
+            anchor,
+            TokenCommentBoundary::OwnerEnd,
+            leading_space,
+            (!expression_context.nested_comments_suppressed())
+                .then_some(PositionCommentPhase::SourceLeading),
+            false,
             writer,
         )
     }
@@ -14822,6 +15727,7 @@ impl Printer {
             anchor,
             TokenCommentBoundary::AdjacentListItem,
             TokenLeadingSpace::None,
+            Some(PositionCommentPhase::BoundaryUnion),
             indent_leading,
             writer,
         )
@@ -14843,6 +15749,7 @@ impl Printer {
             anchor,
             TokenCommentBoundary::OwnerEnd,
             TokenLeadingSpace::Required,
+            Some(PositionCommentPhase::BoundaryUnion),
             indent_leading,
             writer,
         )
@@ -14875,11 +15782,15 @@ impl Printer {
             anchor,
             TokenCommentBoundary::OwnerEnd,
             TokenLeadingSpace::Required,
+            Some(PositionCommentPhase::BoundaryUnion),
             indent_leading,
             writer,
         )
     }
 
+    /// tsc-port: emitTokenWithComment @6.0.3
+    /// tsc-span: _tsc.js:118731-118764
+    /// tsc-hash: d7df39bba502705facedce379a636ae55b168b77701df5e72abf10ec444c2e50
     #[allow(clippy::too_many_arguments)]
     fn emit_token_with_comments_at_boundary(
         &self,
@@ -14889,6 +15800,7 @@ impl Printer {
         anchor: impl Into<TokenAnchor>,
         comment_boundary: TokenCommentBoundary,
         leading_space: TokenLeadingSpace,
+        leading_phase: Option<PositionCommentPhase>,
         indent_leading: bool,
         writer: &mut TextWriter,
     ) -> Result<TokenEmission, PrinterError> {
@@ -14978,13 +15890,16 @@ impl Printer {
         crate::token_cursor::record_cursor_work(token_start.saturating_sub(start) + spelling.len());
 
         if similar && owner_record.pos != start_position.value() {
-            self.emit_comments_at_cursor(
-                transformation,
-                cursor,
-                anchor.comment_resume(),
-                indent_leading,
-                writer,
-            )?;
+            if let Some(leading_phase) = leading_phase {
+                self.emit_comments_at_cursor_with_phase(
+                    transformation,
+                    cursor,
+                    anchor.comment_resume(),
+                    leading_phase,
+                    indent_leading,
+                    writer,
+                )?;
+            }
         }
 
         Self::ensure_token_leading_space(writer, leading_space);
@@ -15055,6 +15970,7 @@ impl Printer {
             && (comment_boundary == TokenCommentBoundary::AdjacentListItem
                 || owner_record.end != token_end_raw)
             && !self.options.remove_comments
+            && leading_phase.is_some()
         {
             let comments = collect_source_comment_ranges(source.text(), token_end, true);
             let last_trailing_comment_end = comments
@@ -15073,7 +15989,12 @@ impl Printer {
             if owner_record.kind == SyntaxKind::JsxExpression {
                 emit_source_jsx_trailing_comments_of_position(source.text(), token_end, writer);
             } else {
-                emit_source_trailing_comments_of_position(source.text(), token_end, writer);
+                emit_source_trailing_comments_of_position_with_filter(
+                    source.text(),
+                    token_end,
+                    self.options.only_print_js_doc_style,
+                    writer,
+                );
             }
         }
 
@@ -15143,11 +16064,37 @@ impl Printer {
         Ok(())
     }
 
+    /// tsc-port: emitLeadingCommentsOfPosition @6.0.3
+    /// tsc-span: _tsc.js:121166-121175
+    /// tsc-hash: fa23b688b1540c772ccf513c874d47bba4a08a44e019bc430feb79cbea73d2cd
+    ///
+    /// Fixed tokens and ordinary child/name boundaries use the declaration
+    /// printer's JSDoc filter. List-owned intervening comments are separate.
     fn emit_comments_at_cursor_with_anchor(
         &self,
         transformation: &TransformationResult<'_>,
         cursor: TokenCursor,
         comment_resume: Option<CommentResume>,
+        indent_leading: bool,
+        writer: &mut TextWriter,
+    ) -> Result<TokenAnchor, PrinterError> {
+        self.emit_comments_at_cursor_with_phase(
+            transformation,
+            cursor,
+            comment_resume,
+            PositionCommentPhase::BoundaryUnion,
+            indent_leading,
+            writer,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn emit_comments_at_cursor_with_phase(
+        &self,
+        transformation: &TransformationResult<'_>,
+        cursor: TokenCursor,
+        comment_resume: Option<CommentResume>,
+        phase: PositionCommentPhase,
         indent_leading: bool,
         writer: &mut TextWriter,
     ) -> Result<TokenAnchor, PrinterError> {
@@ -15184,7 +16131,12 @@ impl Printer {
         if needs_indent {
             writer.increase_indent();
         }
-        let trailing = collect_source_comment_ranges(source.text(), start, true);
+        let trailing = match phase {
+            PositionCommentPhase::BoundaryUnion => {
+                collect_source_comment_ranges(source.text(), start, true)
+            }
+            PositionCommentPhase::SourceLeading => Vec::new(),
+        };
         let mut excluded = trailing
             .iter()
             .map(|comment| (comment.start, comment.end))
@@ -15199,8 +16151,13 @@ impl Printer {
                     .map(|comment| (comment.start, comment.end)),
             );
         }
-        if comment_resume.is_none() {
-            emit_source_trailing_comments_of_position(source.text(), start, writer);
+        if phase == PositionCommentPhase::BoundaryUnion && comment_resume.is_none() {
+            emit_source_trailing_comments_of_position_with_filter(
+                source.text(),
+                start,
+                self.options.only_print_js_doc_style,
+                writer,
+            );
             emitted_through = trailing
                 .iter()
                 .map(|comment| u32::try_from(comment.end).unwrap_or(u32::MAX))
@@ -15213,7 +16170,13 @@ impl Printer {
             .map(|comment| u32::try_from(comment.end).unwrap_or(u32::MAX))
             .chain(emitted_through)
             .max();
-        emit_source_leading_comments_of_position(source.text(), start, &excluded, false, writer);
+        emit_source_leading_comments_of_position(
+            source.text(),
+            start,
+            &excluded,
+            self.options.only_print_js_doc_style,
+            writer,
+        );
         if needs_indent {
             writer.decrease_indent();
         }
@@ -15668,43 +16631,79 @@ impl Printer {
         Ok(())
     }
 
-    fn emit_delimited_trailing_comments_for_node(
+    /// tsc-port: emitNodeListItems @6.0.3
+    /// tsc-span: _tsc.js:120068-120155
+    fn emit_delimited_boundary_comments(
         &self,
         transformation: &TransformationResult<'_>,
-        node: TransformNode,
+        boundary: DelimitedCommentBoundary,
+        expression_context: EmitContext,
+        separating_line: bool,
         writer: &mut TextWriter,
     ) -> Result<Option<CommentResume>, PrinterError> {
-        if self.options.remove_comments {
+        if self.options.remove_comments || expression_context.nested_comments_suppressed() {
             return Ok(None);
         }
+        let (node, before_item) = match boundary {
+            DelimitedCommentBoundary::BeforeItem(node) => (node, true),
+            DelimitedCommentBoundary::AfterTrailingComma(node) => (node, false),
+        };
         let comment_range = self.comment_range_for_node(transformation, node)?;
         let comment_source = comment_range.source();
         let source = transformation.arena().source(comment_source)?.syntax();
-        let SourceRange::Original(range) = comment_range.range() else {
-            return Ok(None);
+        let owner = if before_item {
+            let Some(start) = comment_range.range().start() else {
+                return Ok(None);
+            };
+            start.value() as usize
+        } else {
+            let Some(end) = comment_range.range().end() else {
+                return Ok(None);
+            };
+            let delimiter = skip_trivia(source.text(), end.value() as usize);
+            if source.text().as_bytes().get(delimiter) != Some(&b',') {
+                return Ok(None);
+            }
+            delimiter + 1
         };
-        let element_end = range.end().value() as usize;
-        let delimiter = skip_trivia(source.text(), element_end);
-        if source.text().as_bytes().get(delimiter) != Some(&b',') {
+        let owner = SourceBytePosition::new(
+            u32::try_from(owner).expect("source position fits u32"),
+            source.positions(),
+        )?;
+        let owner_cursor = CommentCursor::new(comment_source, owner);
+        if expression_context.comments().retains_end(owner_cursor) {
             return Ok(None);
         }
-        let owner = delimiter + 1;
-        let emitted_through = collect_source_comment_ranges(source.text(), owner, true)
-            .last()
-            .map(|comment| comment.end);
-        emit_source_trailing_comments_of_position(source.text(), owner, writer);
-        let Some(emitted_through) = emitted_through else {
+        let comments = collect_source_comment_ranges(source.text(), owner.value() as usize, true);
+        let Some(last) = comments.last() else {
             return Ok(None);
         };
-        let owner =
-            SourceBytePosition::new(u32::try_from(owner).unwrap_or(u32::MAX), source.positions())?;
+        // These workers spell the sibling separator after this callback,
+        // so the equivalent space precedes each comment here. The source's
+        // ordinary positional callback is unfiltered; only a separating-line
+        // or final-token prefix callback applies onlyPrintJsDocStyle.
+        for comment in &comments {
+            if (!before_item || separating_line)
+                && self.options.only_print_js_doc_style
+                && !should_write_js_doc_style_comment(source.text(), comment.start)
+            {
+                continue;
+            }
+            if !writer.is_at_start_of_line() {
+                writer.write_space(" ");
+            }
+            write_source_comment(source.text(), comment.start, comment.end, writer);
+            if comment.has_trailing_new_line {
+                writer.write_line(false);
+            }
+        }
         let emitted_through = SourceBytePosition::new(
-            u32::try_from(emitted_through).unwrap_or(u32::MAX),
+            u32::try_from(last.end).expect("comment position fits u32"),
             source.positions(),
         )?;
         Ok(Some(
             CommentResume::new(
-                CommentCursor::new(comment_source, owner),
+                owner_cursor,
                 CommentCursor::new(comment_source, emitted_through),
             )
             .map_err(Self::comment_resume_error)?,
@@ -15726,11 +16725,10 @@ impl Printer {
         };
         let comment_range = self.comment_range_for_node(transformation, node)?;
         let range_source = comment_range.source();
-        let SourceRange::Original(range) = comment_range.range() else {
+        let Some(start) = comment_range.range().start() else {
             return Ok(None);
         };
-        if resume.owner_start().source() == range_source
-            && resume.owner_start().position() == range.start()
+        if resume.owner_start().source() == range_source && resume.owner_start().position() == start
         {
             Ok(Some(resume))
         } else {
@@ -16243,7 +17241,22 @@ fn emit_source_trailing_comments_of_position(
     position: usize,
     writer: &mut TextWriter,
 ) {
+    emit_source_trailing_comments_of_position_with_filter(source, position, false, writer);
+}
+
+/// tsc-port: emitTrailingComment @6.0.3
+/// tsc-span: _tsc.js:121179-121190
+/// tsc-hash: 14654b8999872d42159a4d2c11a27fb01fbe47c50e8131b82de8453536d60394
+fn emit_source_trailing_comments_of_position_with_filter(
+    source: &str,
+    position: usize,
+    only_print_js_doc_style: bool,
+    writer: &mut TextWriter,
+) {
     for comment in collect_source_comment_ranges(source, position, true) {
+        if only_print_js_doc_style && !should_write_js_doc_style_comment(source, comment.start) {
+            continue;
+        }
         if !writer.is_at_start_of_line() && !writer.has_trailing_whitespace() {
             writer.write_space(" ");
         }
@@ -16257,6 +17270,10 @@ fn emit_source_trailing_comments_of_position(
 /// `emitNodeListItems` uses the non-prefixing trailing-comment callback for
 /// comments between an opening delimiter and its first child. Unlike token
 /// trailing comments, a same-line block comment receives a following space.
+///
+/// tsc-port: emitTrailingCommentOfPosition @6.0.3
+/// tsc-span: _tsc.js:121208-121218
+/// tsc-hash: 78fd8227de7e58556e3f2906ffe5aafb334a35d70f8dc0f916bed71b16cb78ea
 fn emit_source_intervening_comments_of_position(
     source: &str,
     position: usize,
@@ -17030,7 +18047,11 @@ fn normalize_new_lines(text: &str, new_line: &str) -> String {
     }
 }
 
-fn quote_string_literal(text: &str, single_quote: bool, no_ascii_escaping: bool) -> String {
+fn quote_string_literal(
+    text: &str,
+    single_quote: bool,
+    no_ascii_escaping: bool,
+) -> crate::JavaScriptString {
     quote_javascript_string(
         &text.encode_utf16().collect::<Vec<_>>(),
         single_quote,
@@ -17038,125 +18059,100 @@ fn quote_string_literal(text: &str, single_quote: bool, no_ascii_escaping: bool)
     )
 }
 
-fn escape_template_literal_text(units: &[u16], no_ascii_escaping: bool) -> String {
-    let mut escaped = String::with_capacity(units.len());
-    let mut index = 0usize;
-    while index < units.len() {
-        let unit = units[index];
-        if no_ascii_escaping
-            && (0xd800..=0xdbff).contains(&unit)
-            && units
-                .get(index + 1)
-                .is_some_and(|next| (0xdc00..=0xdfff).contains(next))
-        {
-            let next = units[index + 1];
-            let scalar = 0x10000 + (((unit - 0xd800) as u32) << 10) + (next - 0xdc00) as u32;
-            if let Some(character) = char::from_u32(scalar) {
-                push_quoted_character(&mut escaped, character, '`', false);
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum LiteralQuote {
+    Double,
+    Single,
+    Backtick,
+}
+
+impl LiteralQuote {
+    fn unit(self) -> u16 {
+        match self {
+            Self::Double => b'"' as u16,
+            Self::Single => b'\'' as u16,
+            Self::Backtick => b'`' as u16,
+        }
+    }
+}
+
+fn escape_template_literal_text(units: &[u16], no_ascii_escaping: bool) -> crate::JavaScriptString {
+    crate::JavaScriptString::from_code_units(escape_literal_text(
+        units,
+        LiteralQuote::Backtick,
+        no_ascii_escaping,
+    ))
+}
+
+fn quote_javascript_string(
+    units: &[u16],
+    single_quote: bool,
+    no_ascii_escaping: bool,
+) -> crate::JavaScriptString {
+    let quote = if single_quote {
+        LiteralQuote::Single
+    } else {
+        LiteralQuote::Double
+    };
+    let mut quoted = Vec::with_capacity(units.len() + 2);
+    quoted.push(quote.unit());
+    quoted.extend(escape_literal_text(units, quote, no_ascii_escaping));
+    quoted.push(quote.unit());
+    crate::JavaScriptString::from_code_units(quoted)
+}
+
+/// escapeString / escapeNonAsciiString / escapeTemplateSubstitution @6.0.3.
+/// Escape JavaScript units directly: NoAsciiEscaping preserves unpaired
+/// surrogates as well as valid scalar values. UTF8 conversion belongs to the
+/// writer's sink view, after quoting and generated-position measurement.
+fn escape_literal_text(units: &[u16], quote: LiteralQuote, no_ascii_escaping: bool) -> Vec<u16> {
+    let mut escaped = Vec::with_capacity(units.len());
+    let mut index = 0;
+    while let Some(&unit) = units.get(index) {
+        let next = units.get(index + 1).copied();
+        let replacement = match unit {
+            0 => Some(if next.is_some_and(|u| (0x30..=0x39).contains(&u)) {
+                "\\x00"
+            } else {
+                "\\0"
+            }),
+            8 => Some("\\b"),
+            9 => Some("\\t"),
+            10 if quote != LiteralQuote::Backtick => Some("\\n"),
+            11 => Some("\\v"),
+            12 => Some("\\f"),
+            13 if quote == LiteralQuote::Backtick && next == Some(10) => {
+                index += 1;
+                Some("\\r\\n")
             }
-            index += 2;
-            continue;
-        }
-        if (!no_ascii_escaping && unit > 0x7f) || (0xd800..=0xdfff).contains(&unit) {
-            use std::fmt::Write;
-            let _ = write!(escaped, "\\u{unit:04X}");
-            index += 1;
-            continue;
-        }
-        if unit == 0 {
-            let digit_follows = units
-                .get(index + 1)
-                .is_some_and(|next| (0x30..=0x39).contains(next));
-            escaped.push_str(if digit_follows { "\\x00" } else { "\\0" });
-            index += 1;
-            continue;
-        }
-        if let Some(character) = char::from_u32(unit as u32) {
-            push_quoted_character(&mut escaped, character, '`', !no_ascii_escaping);
+            13 => Some("\\r"),
+            0x85 => Some("\\u0085"),
+            0x2028 => Some("\\u2028"),
+            0x2029 => Some("\\u2029"),
+            _ => None,
+        };
+        if let Some(replacement) = replacement {
+            escaped.extend(replacement.encode_utf16());
+        } else if unit == quote.unit()
+            || unit == b'\\' as u16
+            || (quote == LiteralQuote::Backtick && unit == b'$' as u16 && next == Some(b'{' as u16))
+        {
+            escaped.push(b'\\' as u16);
+            escaped.push(unit);
+        } else if (unit < 0x20 && !(quote == LiteralQuote::Backtick && unit == 10))
+            || (!no_ascii_escaping && unit > 0x7f)
+        {
+            const HEX: &[u8; 16] = b"0123456789ABCDEF";
+            escaped.extend([b'\\' as u16, b'u' as u16]);
+            for shift in [12, 8, 4, 0] {
+                escaped.push(HEX[((unit >> shift) & 0xf) as usize] as u16);
+            }
+        } else {
+            escaped.push(unit);
         }
         index += 1;
     }
-    escaped.replace("${", "\\${")
-}
-
-fn quote_javascript_string(units: &[u16], single_quote: bool, no_ascii_escaping: bool) -> String {
-    let quote = if single_quote { '\'' } else { '"' };
-    let mut quoted = String::with_capacity(units.len() + 2);
-    quoted.push(quote);
-    let mut index = 0usize;
-    while index < units.len() {
-        let unit = units[index];
-        if no_ascii_escaping
-            && (0xd800..=0xdbff).contains(&unit)
-            && units
-                .get(index + 1)
-                .is_some_and(|next| (0xdc00..=0xdfff).contains(next))
-        {
-            let next = units[index + 1];
-            let scalar = 0x10000 + (((unit - 0xd800) as u32) << 10) + (next - 0xdc00) as u32;
-            if let Some(character) = char::from_u32(scalar) {
-                push_quoted_character(&mut quoted, character, quote, false);
-            }
-            index += 2;
-            continue;
-        }
-        if !no_ascii_escaping && unit > 0x7f || (0xd800..=0xdfff).contains(&unit) {
-            use std::fmt::Write;
-            let _ = write!(quoted, "\\u{unit:04X}");
-            index += 1;
-            continue;
-        }
-        if unit == 0 {
-            // `getReplacement` (`_tsc.js:16301-16310`): NUL prints as `\0`
-            // unless a decimal digit follows (which would form a legacy
-            // octal escape) — then `\x00`.
-            let digit_follows = units
-                .get(index + 1)
-                .is_some_and(|next| (0x30..=0x39).contains(next));
-            quoted.push_str(if digit_follows { "\\x00" } else { "\\0" });
-            index += 1;
-            continue;
-        }
-        if let Some(character) = char::from_u32(unit as u32) {
-            push_quoted_character(&mut quoted, character, quote, !no_ascii_escaping);
-        }
-        index += 1;
-    }
-    quoted.push(quote);
-    quoted
-}
-
-fn push_quoted_character(
-    quoted: &mut String,
-    character: char,
-    quote: char,
-    escape_non_ascii: bool,
-) {
-    match character {
-        character if character == quote => {
-            quoted.push('\\');
-            quoted.push(character);
-        }
-        '\\' => quoted.push_str("\\\\"),
-        '\n' => quoted.push_str("\\n"),
-        '\r' => quoted.push_str("\\r"),
-        '\t' => quoted.push_str("\\t"),
-        '\u{0008}' => quoted.push_str("\\b"),
-        '\u{000c}' => quoted.push_str("\\f"),
-        '\u{2028}' => quoted.push_str("\\u2028"),
-        '\u{2029}' => quoted.push_str("\\u2029"),
-        character if character < '\u{0020}' => {
-            use std::fmt::Write;
-            let _ = write!(quoted, "\\u{:04X}", character as u32);
-        }
-        character if escape_non_ascii && !character.is_ascii() => {
-            for unit in character.encode_utf16(&mut [0; 2]) {
-                use std::fmt::Write;
-                let _ = write!(quoted, "\\u{unit:04X}");
-            }
-        }
-        character => quoted.push(character),
-    }
+    escaped
 }
 
 fn write_synthetic_comment(comment: &SyntheticComment, writer: &mut TextWriter) {

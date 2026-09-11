@@ -1,0 +1,436 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "2c89835a19721da17ae9aeba43efe4074aa8e696136c573d5b0d31d85fb07a3e",
+  "repetitions": 2,
+  "cases": [
+    {
+      "case_id": "export/名",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "export const 名: number = 1;\nconsole.log(名);\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMu5ZCNID0gdm9pZCAwOw0KZXhwb3J0cy7lkI0gPSAxOw0KY29uc29sZS5sb2coZXhwb3J0cy7lkI0pOw0K",
+            "callback_utf8_bytes": 147,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMu5ZCNID0gdm9pZCAwOw0KZXhwb3J0cy7lkI0gPSAxOw0KY29uc29sZS5sb2coZXhwb3J0cy7lkI0pOw0K",
+            "materialized_utf8_bytes": 147,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "export/π",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "export const π: number = 1;\nconsole.log(π);\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuz4AgPSB2b2lkIDA7DQpleHBvcnRzLs+AID0gMTsNCmNvbnNvbGUubG9nKGV4cG9ydHMuz4ApOw0K",
+            "callback_utf8_bytes": 144,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuz4AgPSB2b2lkIDA7DQpleHBvcnRzLs+AID0gMTsNCmNvbnNvbGUubG9nKGV4cG9ydHMuz4ApOw0K",
+            "materialized_utf8_bytes": 144,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "export/á",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "export const á: number = 1;\nconsole.log(á);\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYcyBID0gdm9pZCAwOw0KZXhwb3J0cy5hzIEgPSAxOw0KY29uc29sZS5sb2coZXhwb3J0cy5hzIEpOw0K",
+            "callback_utf8_bytes": 147,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYcyBID0gdm9pZCAwOw0KZXhwb3J0cy5hzIEgPSAxOw0KY29uc29sZS5sb2coZXhwb3J0cy5hzIEpOw0K",
+            "materialized_utf8_bytes": 147,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "export/𐐀",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "export const 𐐀: number = 1;\nconsole.log(𐐀);\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMu8JCQgCA9IHZvaWQgMDsNCmV4cG9ydHMu8JCQgCA9IDE7DQpjb25zb2xlLmxvZyhleHBvcnRzLvCQkIApOw0K",
+            "callback_utf8_bytes": 150,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMu8JCQgCA9IHZvaWQgMDsNCmV4cG9ydHMu8JCQgCA9IDE7DQpjb25zb2xlLmxvZyhleHBvcnRzLvCQkIApOw0K",
+            "materialized_utf8_bytes": 150,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "export/$x",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "export const $x: number = 1;\nconsole.log($x);\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuJHggPSB2b2lkIDA7DQpleHBvcnRzLiR4ID0gMTsNCmNvbnNvbGUubG9nKGV4cG9ydHMuJHgpOw0K",
+            "callback_utf8_bytes": 144,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuJHggPSB2b2lkIDA7DQpleHBvcnRzLiR4ID0gMTsNCmNvbnNvbGUubG9nKGV4cG9ydHMuJHgpOw0K",
+            "materialized_utf8_bytes": 144,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "export/_x",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "export const _x: number = 1;\nconsole.log(_x);\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuX3ggPSB2b2lkIDA7DQpleHBvcnRzLl94ID0gMTsNCmNvbnNvbGUubG9nKGV4cG9ydHMuX3gpOw0K",
+            "callback_utf8_bytes": 144,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuX3ggPSB2b2lkIDA7DQpleHBvcnRzLl94ID0gMTsNCmNvbnNvbGUubG9nKGV4cG9ydHMuX3gpOw0K",
+            "materialized_utf8_bytes": 144,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "reexport/名",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "export const 名: number = 1;\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "export { 名 as renamed } from './a';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMu5ZCNID0gdm9pZCAwOw0KZXhwb3J0cy7lkI0gPSAxOw0K",
+            "callback_utf8_bytes": 120,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMu5ZCNID0gdm9pZCAwOw0KZXhwb3J0cy7lkI0gPSAxOw0K",
+            "materialized_utf8_bytes": 120,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMucmVuYW1lZCA9IHZvaWQgMDsNCnZhciBhXzEgPSByZXF1aXJlKCIuL2EiKTsNCk9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAicmVuYW1lZCIsIHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbiAoKSB7IHJldHVybiBhXzEu5ZCNOyB9IH0pOw0K",
+            "callback_utf8_bytes": 237,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMucmVuYW1lZCA9IHZvaWQgMDsNCnZhciBhXzEgPSByZXF1aXJlKCIuL2EiKTsNCk9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAicmVuYW1lZCIsIHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbiAoKSB7IHJldHVybiBhXzEu5ZCNOyB9IH0pOw0K",
+            "materialized_utf8_bytes": 237,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "reexport/π",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "export const π: number = 1;\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "export { π as renamed } from './a';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuz4AgPSB2b2lkIDA7DQpleHBvcnRzLs+AID0gMTsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuz4AgPSB2b2lkIDA7DQpleHBvcnRzLs+AID0gMTsNCg==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMucmVuYW1lZCA9IHZvaWQgMDsNCnZhciBhXzEgPSByZXF1aXJlKCIuL2EiKTsNCk9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAicmVuYW1lZCIsIHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbiAoKSB7IHJldHVybiBhXzEuz4A7IH0gfSk7DQo=",
+            "callback_utf8_bytes": 236,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMucmVuYW1lZCA9IHZvaWQgMDsNCnZhciBhXzEgPSByZXF1aXJlKCIuL2EiKTsNCk9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAicmVuYW1lZCIsIHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbiAoKSB7IHJldHVybiBhXzEuz4A7IH0gfSk7DQo=",
+            "materialized_utf8_bytes": 236,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    }
+  ]
+}

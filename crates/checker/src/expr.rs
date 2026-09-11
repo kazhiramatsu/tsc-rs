@@ -682,7 +682,7 @@ impl<'a> CheckerState<'a> {
         let Some(expression) = data.expression else {
             return Ok(self.tables.intrinsics.error);
         };
-        if self.is_in_js_file(node) {
+        if self.is_in_js_file(node) && self.has_jsdoc_nodes(node) {
             if let Some(target) = self.jsdoc_satisfies_type_node(node) {
                 return self.check_jsdoc_satisfies_expression_worker(expression, target);
             }
@@ -1026,7 +1026,7 @@ impl<'a> CheckerState<'a> {
                 self.error_at(Some(node), message, &[&display]);
                 return Ok(self.tables.intrinsics.error);
             }
-            if self.is_readonly_symbol(local_or_export_symbol) {
+            if self.is_readonly_symbol(local_or_export_symbol)? {
                 let display = self.symbol_display_name(symbol);
                 if local_flags.intersects(SymbolFlags::VARIABLE) {
                     self.error_at(
@@ -3318,7 +3318,7 @@ impl<'a> CheckerState<'a> {
         let resolved = self.links.node(expr).resolved_symbol.resolved();
         if let Some(resolved) = resolved {
             let symbol = self.get_export_symbol_of_value_symbol_if_exported(resolved);
-            if self.is_readonly_symbol(symbol) {
+            if self.is_readonly_symbol(symbol)? {
                 self.error_at(
                     Some(expr),
                     &diagnostics::The_operand_of_a_delete_operator_cannot_be_a_read_only_property,

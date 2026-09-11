@@ -1,0 +1,450 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-5",
+  "base": "622850a851beff2494aed275fb3b90257d874727",
+  "unresolved": 0,
+  "undispositioned": 0,
+  "authorities": [
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-local-aliases.md",
+      "sha256": "abe576a4982c40ac0478c620b36ee806895a439756c87fed4e57dd5a1f1d2d91"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/local-alias-declarations.json",
+      "sha256": "04ec81185ee0c6927d7c284de8bdaf81298a77d77f39a4e8d3dadb6842e1404e"
+    },
+    {
+      "path": "scripts/observe-local-alias-declarations.mjs",
+      "sha256": "68bdf04c7cc4af01e43c573b5ce57c68760a8403fb5b9b51096d0f7339f873e4"
+    },
+    {
+      "path": "ratchets/h2-8a-local-alias-before.v1.json",
+      "sha256": "b05d7d87829fc60e9e4d839215b90503a44a70cc6ec43c0a753470da8bf14bc5"
+    },
+    {
+      "path": "ratchets/h2-8a-candidates.v1.json",
+      "sha256": "e33fbf9b6c7eb96dae5186013e054e57eae371a48fca461a809ae4e6e2a1095c"
+    },
+    {
+      "path": "ratchets/h2-8a-candidate-inputs.v1.json",
+      "sha256": "6ff7ea8d1d986e8a9d833d45ec694ab0b8616604fdf065ba52e24a34ac86759b"
+    },
+    {
+      "path": "ratchets/h2-8a-observations.v1.json",
+      "sha256": "91fc28206d663eab46fef98f72ba296d29e02def72518e012616c4d0d01acc87"
+    },
+    {
+      "path": "ratchets/h2-8a-global-before.v1.json",
+      "sha256": "d8beabca4abf261656a3d7897a6c042b1b448fdf17b84cf54a384376a0b9a11e"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/ambient-alias-target-names.json",
+      "sha256": "36c5f242fbe53f070a9ceb4b17394a8dfa021dbe075f8396ede798a5d22f9fdb"
+    },
+    {
+      "path": "scripts/observe-ambient-alias-target-names.mjs",
+      "sha256": "f355ad98221130cc21fc8c8a270a99694783a3efc9455140e3690901dcf2825e"
+    },
+    {
+      "path": "ratchets/h2-8a-ambient-alias-before.v1.json",
+      "sha256": "a5c66772beebedd3fcc1c3a03b05b208a5745d670268264b7483c8130ffe0152"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "a800c28cd4efa3253410ce135569b200126bb2936da9a4812b6df5295136ad80"
+    },
+    {
+      "path": "crates/checker/src/modules.rs",
+      "sha256": "4f0b43ab460df378e0909dd9ce04db1ed21db901d0ce9e2e001bfcbd2c5700e4"
+    },
+    {
+      "path": "crates/checker/src/node_builder/chains.rs",
+      "sha256": "ceddd104b930ed504ce77375a919db57e0968438e12f3b99799895a0461d8709"
+    },
+    {
+      "path": "crates/checker/src/node_builder/tracker.rs",
+      "sha256": "a3d3ebd7be63a67fef268170f676072ff3ea5a93ff9d2e38944c6d8b0c596f98"
+    },
+    {
+      "path": "crates/checker/src/resolve.rs",
+      "sha256": "351e00140de6d00d4950e54d35082ee79a33a0027ad08ecdf3d0b91a058cd066"
+    },
+    {
+      "path": "crates/checker/src/expr.rs",
+      "sha256": "aa527076b30eb7b1d13bf3ec1e989ce270e627ebb54927545d0aea64280b421b"
+    },
+    {
+      "path": "crates/checker/src/annotate.rs",
+      "sha256": "4cc2e4c886cb42cef6a698788e77fc9410789580d53b84fd78410b35a7f8f812"
+    },
+    {
+      "path": "crates/binder/src/assignment.rs",
+      "sha256": "3589abfd9c9de29468e06d3582419e34c01f1ec58c0b88b62ebd350918a3afcc"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    }
+  ],
+  "owners": [
+    {
+      "owner": "getExportAssignmentExpression",
+      "start": 15736,
+      "end": 15738,
+      "sha256": "a34a30e9843eea25cb7376c14726ad20870f697d287870c83345f4a073a0babf"
+    },
+    {
+      "owner": "getPropertyAssignmentAliasLikeExpression",
+      "start": 15739,
+      "end": 15741,
+      "sha256": "df19f89242c4f83ad477952e5a8fb4895b127e4394fbd4e9a7bbd731c8f4709a"
+    },
+    {
+      "owner": "getFirstNonModuleExportsIdentifier",
+      "start": 85964,
+      "end": 85982,
+      "sha256": "fd0ad02c73705d11e5747df7e983ccdf1830a844a7e01de093b64c3b98eca502"
+    },
+    {
+      "owner": "getDeclarationOfAliasSymbol",
+      "start": 48495,
+      "end": 48497,
+      "sha256": "2030901db3779ce4f0290f76dbd86aa7e34226a6e9d37f488d2b5449fb3f6687"
+    },
+    {
+      "owner": "getTargetOfAliasDeclaration",
+      "start": 49071,
+      "end": 49108,
+      "sha256": "162af5ad124b130bc6f80f131212585721d1d34d502fc735b9eaea94780b01d0"
+    },
+    {
+      "owner": "getTargetOfAliasLikeExpression",
+      "start": 49045,
+      "end": 49064,
+      "sha256": "6935da2d1759d7c4ae48909f28a7de4a2985b58a1a5dd9ba53fbdf98c9b57ebc"
+    },
+    {
+      "owner": "resolveEntityName",
+      "start": 49292,
+      "end": 49393,
+      "sha256": "0c5ce0e5980d5548db101cd9240b04944dea6e35cde2b0b3416210816fdb85b9"
+    },
+    {
+      "owner": "isEntityNameExpression",
+      "start": 17128,
+      "end": 17130,
+      "sha256": "2e7694f05260a41567e84db34bfbfd9ec77c27e3c37116b2a9cf88f0ddccfeee"
+    },
+    {
+      "owner": "isModuleExportsAccessExpression",
+      "start": 15052,
+      "end": 15054,
+      "sha256": "a868c0d25d139d6dd4e6ea935a17e4fe03908764961fbb0ecfe786317f6b2f71"
+    },
+    {
+      "owner": "serializeMaybeAliasAssignment",
+      "start": 54966,
+      "end": 55082,
+      "sha256": "76bea3c93c2aab13e158de586792f0b9e24d6840feaaf5ff7151b7d97ef249c0"
+    },
+    {
+      "owner": "serializeExportSpecifier",
+      "start": 54947,
+      "end": 54965,
+      "sha256": "b3fb36e9d0e5bf03d237cacfbdc3a632a48530faab565d52fa493c0d7c88e32c"
+    },
+    {
+      "owner": "symbolToName",
+      "start": 53315,
+      "end": 53336,
+      "sha256": "8000600326491063f035e6aea718ffc812fadb6de27ef8661ac40f43f7f91d26"
+    },
+    {
+      "owner": "includePrivateSymbol",
+      "start": 54180,
+      "end": 54186,
+      "sha256": "47e3cfac44d1da24d0576ff68a44b9145c0b4d6d090ec814e2fb751ef8a09906"
+    },
+    {
+      "owner": "getUnusedName",
+      "start": 55390,
+      "end": 55412,
+      "sha256": "2546367acf7e260487b409700963b0f5415710fa780cf2dab270d0926af91ab0"
+    },
+    {
+      "owner": "getInternalSymbolName",
+      "start": 55429,
+      "end": 55437,
+      "sha256": "dabcf231a2d04cdc2cacbf91315a119bb0d9036f89eba69a2df05969003ddce2"
+    },
+    {
+      "owner": "serializeAsAlias",
+      "start": 54707,
+      "end": 54946,
+      "sha256": "60776812c24ded3bcf5a0336651b8c0726ab37d473a3a104a5495b4937227277"
+    },
+    {
+      "owner": "getSomeTargetNameFromDeclarations",
+      "start": 54687,
+      "end": 54706,
+      "sha256": "99649f147e539a79f374ae318992457f809ff16febf6e0e51244acade67ec29e"
+    },
+    {
+      "owner": "isShorthandAmbientModuleSymbol",
+      "start": 13725,
+      "end": 13730,
+      "sha256": "145568251fbab021f53f6cec68de6c9548409ec13d04160d2562739c46c89317"
+    }
+  ],
+  "steps": [
+    "A6-5-1",
+    "A6-5-2",
+    "A6-5-3",
+    "A6-5-4"
+  ],
+  "architecture": [
+    {
+      "id": "E-PROTOCOL",
+      "disposition": "premise-unchanged but rechecked"
+    },
+    {
+      "id": "E-RESOLVER-BASE",
+      "disposition": "premise-unchanged but rechecked"
+    },
+    {
+      "id": "E-METADATA-BASE",
+      "disposition": "premise-unchanged but rechecked"
+    }
+  ],
+  "tests": [
+    "crates/compiler/tests/integration/h2_8a_local_aliases.rs",
+    "crates/compiler/tests/h2_8a_original_corpus.rs"
+  ],
+  "witnesses": [
+    {
+      "case_id": "js/es5/require-renamed",
+      "row_sha256": "faaa1e468697be296db9d70721f1722e1c53032e046e8fef08c975dfa4d74c98",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es5/require-same",
+      "row_sha256": "fdb375450665485cb4bc946622117a000b162ec77b5eeff294783ded91d9be6f",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es5/local-renamed",
+      "row_sha256": "cc2cd3d0e07de1ce9a1b88aacbe4d38632b4aef6d12fc00781fdbddfbdbc479f",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es5/class-named",
+      "row_sha256": "b43fbe943d7e651ceca2aaafe2061e927a82612e82c1a5994dffd86568edaea4",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es5/class-anonymous",
+      "row_sha256": "87b6d40d67acbd56bdfed93c6c5d9cf6f7e16d40685c4bb1d0b4e7ec8b290700",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es5/compound-local",
+      "row_sha256": "84d8ae47b89c39120944ad24b76976ab43de67d3878cae79c7858601054a1b6d",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es5/compound-require",
+      "row_sha256": "2a00bf5041482ecffb079300dd268c13dca878a640203a2d4d8907706b6653de",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es5/module-exports-member",
+      "row_sha256": "418144e7d38050601abb46e548208f35be09fbb87f9053e9ef606a315990fa50",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es5/object-shorthand",
+      "row_sha256": "af4966aa31ba7f5e8c46ae9b3f6d00e23edfe6568f3fdacc50d644fb901c240b",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es5/object-renamed",
+      "row_sha256": "5df490d7181d6e6a6fcbb8e0f1f68fb283591e3fb69aa93c0cb1597f8da09fbb",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es5/default",
+      "row_sha256": "9eb8a63eaebd794fb834723e7c5ddd2e517d6d64f78cb8a114ae6be0037510c2",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es5/export-equals",
+      "row_sha256": "cfb19bc0a2e7d289cf0bd6a940482d32690a21d7b39bc9bce0d9deb7774d5f2b",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es5/namespace-import",
+      "row_sha256": "89fcc0815e10d6fc551ffdfa3365507e4f04705ae2e203047ee250a5eb284ff1",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es5/local-renamed",
+      "row_sha256": "8bfcc4dd4cddb32c53eee394f8e5beda7e05aa6a34df9a95768a353e2939db2e",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es5/default",
+      "row_sha256": "0a31adb87cabcf0eba29da7f2513a38e1631bb6311112e6473c83e87421d32e5",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es5/export-equals",
+      "row_sha256": "8d09ecffa3399abb2b558513b42544f3cdb361fe7378675635b758e45f804053",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es2015/require-renamed",
+      "row_sha256": "54a5f06847c5dcd877d6cb0cb4940a7932979857779e76f8783323a4fcfbae5c",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es2015/require-same",
+      "row_sha256": "f853273bf528be286b7b32c7ba15901190e387763bf2c204d24ad661c04d65e4",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es2015/local-renamed",
+      "row_sha256": "8b9340a7b6f34d81f006416f1ddb3943c7b1aeb5a9aa123eccefbefba4e81be5",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es2015/class-named",
+      "row_sha256": "e5edb1c5be8636dcfd0b7b2109425c6fb71f7e84e15e0eb1e9f5fab34f0d6bc3",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es2015/class-anonymous",
+      "row_sha256": "fcd4653c948b7370a05ad3c0e16a8dd93579ee5112e6d982f5c7ed911af212be",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es2015/compound-local",
+      "row_sha256": "aa89dba0efe800bfdf87a61e888b4d723edb996d9322809b3d085d881b33c015",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es2015/compound-require",
+      "row_sha256": "91cce7ca1ca1d26eb366235f7b72651f559e49874f4be4c9b3b64618a76bd77f",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es2015/module-exports-member",
+      "row_sha256": "8f23b1d67d45f92627ef504ffc08362dbb3a5acefbaba51ef6a77c9580a4f927",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es2015/object-shorthand",
+      "row_sha256": "d061f277664b96af8d9fea7ac7a4f61036591720f4c22c85fb3dedd4a95d744b",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es2015/object-renamed",
+      "row_sha256": "6d90d4b69a066735ab957cbea5afda94e063ef60fda71b11a2cf2c34e3cb4371",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es2015/default",
+      "row_sha256": "c2ea62775b285c8402cda197a9ee76f9825d05e13fa2e52ceb5656d0f46f97e6",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es2015/export-equals",
+      "row_sha256": "024c0c80d3bf69f7d6b0349fe203fb8fc117f3165c6d09526185c2246a0a4db0",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es2015/namespace-import",
+      "row_sha256": "ba4cd5be615cbf5ee574e6ff3ff22cc8068e734e435baa548ba2849806b6f761",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es2015/local-renamed",
+      "row_sha256": "908b08511b4f25023a5a2d06764b06cd24157f888cb09f7067e308bf5dc0273b",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es2015/default",
+      "row_sha256": "30881f698a71bc6351796985b0dcec667179993064096e84559ee43c4e738aa6",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es2015/export-equals",
+      "row_sha256": "5acfba0216d1b0b7d27f5b1864b33cf177d33fcbc9e0f45b66456facfcb712be",
+      "before": "exact"
+    }
+  ],
+  "originals": [
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportForms.ts#target%3Des2015",
+      "input_sha256": "34e04686fac92fbdc55d9d7f031a714ef50b07443198b5ef605db396b9b0d055",
+      "observation_sha256": "7df6580ebc9f4cf3b522a04614130cbb27d5816ed8d0802258a1d78152d6fcad"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportForms.ts#target%3Des5",
+      "input_sha256": "265078df8bb69ed58223f94a983b0e36cee520072f5d13b5a3b7d59fe0cc0578",
+      "observation_sha256": "a78c5b465884133ae190bc9d1e0ac1f237cb377625d601f5165ef469146b3594"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsConstsAsNamespacesWithReferences.ts#default",
+      "input_sha256": "adb3d5c14f6073c39cdc61414498307e754de42e28a87da52303fca23be0b438",
+      "observation_sha256": "255a97c67ead18a8c08eb76e44f8fca64fa42005c2c3fc76c9113c7936f18a03"
+    }
+  ],
+  "additional_witnesses": [
+    {
+      "case_id": "ambient/es5/default",
+      "row_sha256": "fb8e21805acf0a5c997f631b3b4605e7fe453125bcf82b405deb3aacd7c7b79d",
+      "before": "exact"
+    },
+    {
+      "case_id": "ambient/es5/named",
+      "row_sha256": "bd32ac9a5d8233342457e147adb7d0ac0bd491eac8139b479ad3c35b87ba6cdf",
+      "before": "exact"
+    },
+    {
+      "case_id": "ambient/es5/namespace",
+      "row_sha256": "f125a30000dc6ac8828605b5204c48fa02ea86bead754096386518601b947fdb",
+      "before": "exact"
+    },
+    {
+      "case_id": "ambient/es5/equals",
+      "row_sha256": "ccae19691b657db9135df430ee73bd2b0f5fd4cce3b3935c64e3b77dcc59b558",
+      "before": "exact"
+    },
+    {
+      "case_id": "ambient/es2015/default",
+      "row_sha256": "435133ee745a725e459e5ee0d60cbdbbdc49222e18fcbe6d523b904eaefa4400",
+      "before": "exact"
+    },
+    {
+      "case_id": "ambient/es2015/named",
+      "row_sha256": "7c633a5d22f9e225ccd3e0570a987982acb819928c310e63ac465c3db2371766",
+      "before": "exact"
+    },
+    {
+      "case_id": "ambient/es2015/namespace",
+      "row_sha256": "425af115aa83d31afb89733173257441902142285ea93ee5325d41a302515de5",
+      "before": "exact"
+    },
+    {
+      "case_id": "ambient/es2015/equals",
+      "row_sha256": "fdac148c5ef2f76f5ba0fc0330fe692beddcca439cc88f740b330c87ffb03830",
+      "before": "exact"
+    }
+  ]
+}

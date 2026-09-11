@@ -1,0 +1,2228 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-27-system-range",
+  "base": "1f66c93e5c46b66278a8372899e5d498a1005942",
+  "runtime_paths": [
+    "crates/emitter/src/builtins.rs",
+    "crates/emitter/src/builtins/system.rs",
+    "crates/emitter/src/printer.rs"
+  ],
+  "steps": [
+    "A6-27-5"
+  ],
+  "owners": [
+    {
+      "owner": "getEmitFlags",
+      "start": 13054,
+      "end": 13057,
+      "sha256": "6d8c5eece414332d11f366f7ae016d6d3253477e31519ee07e143b4263b35933",
+      "declaration_name": "getEmitFlags",
+      "step": "A6-27-2",
+      "test": "meta_property_token_maps_internal_invariants_match_typescript + complete command matrix"
+    },
+    {
+      "owner": "baseFactory.createBaseNode",
+      "start": 20259,
+      "end": 20267,
+      "sha256": "018b457de5b9342d35cede9ba2e16012e1f6b27f61e6fc0ca96bcecb118f2a59",
+      "declaration_name": "createBaseNode",
+      "step": "A6-27-5",
+      "test": "16 complete System import.meta map commands + 2 no-map controls"
+    },
+    {
+      "owner": "nodeFactory.createBaseNode",
+      "start": 21493,
+      "end": 21495,
+      "sha256": "7433854e57fffe23505d1c769cdfb1ae57c85c3abb04a137d74d2e7324ab328c",
+      "declaration_name": "createBaseNode",
+      "step": "A6-27-5",
+      "test": "16 complete System import.meta map commands + 2 no-map controls"
+    },
+    {
+      "owner": "createBaseDeclaration",
+      "start": 21496,
+      "end": 21501,
+      "sha256": "706ecefbb63870e1c4e8536c58722454434c64a8c24e7e5535d0e5e12d65f831",
+      "declaration_name": "createBaseDeclaration",
+      "step": "A6-27-5",
+      "test": "16 complete System import.meta map commands + 2 no-map controls"
+    },
+    {
+      "owner": "createBasePropertyAccessExpression",
+      "start": 22464,
+      "end": 22473,
+      "sha256": "1211b3863a0120a3e208676d1773a306746e5fa257c21854d520269a611355dc",
+      "declaration_name": "createBasePropertyAccessExpression",
+      "step": "A6-27-5",
+      "test": "16 complete System import.meta map commands + 2 no-map controls"
+    },
+    {
+      "owner": "createPropertyAccessExpression",
+      "start": 22474,
+      "end": 22489,
+      "sha256": "3a8dc9211cb8df73437d1f7063798bbb942069a342c1e637992d943ff7e7c935",
+      "declaration_name": "createPropertyAccessExpression",
+      "step": "A6-27-5",
+      "test": "16 complete System import.meta map commands + 2 no-map controls"
+    },
+    {
+      "owner": "createMetaProperty",
+      "start": 23009,
+      "end": 23026,
+      "sha256": "735c03ef2ff0a1021b7c0885b5d6b70b9b6d4d25a350b270564876a1f0e52fb4",
+      "declaration_name": "createMetaProperty",
+      "step": "A6-27-3",
+      "test": "meta_property_token_maps_internal_invariants_match_typescript + complete command matrix"
+    },
+    {
+      "owner": "updateMetaProperty",
+      "start": 23027,
+      "end": 23029,
+      "sha256": "2c60b9a508aedabc6543ac5be2ed0b7876360d35275d76f03d7038d47d55792e",
+      "declaration_name": "updateMetaProperty",
+      "step": "A6-27-3",
+      "test": "meta_property_token_maps_internal_invariants_match_typescript + complete command matrix"
+    },
+    {
+      "owner": "getSourceMapRange",
+      "start": 25336,
+      "end": 25339,
+      "sha256": "7b45f9797ce3582eccac7e1a3469e63d81994d1aa38d604e7e28f671ece9329e",
+      "declaration_name": "getSourceMapRange",
+      "step": "A6-27-2",
+      "test": "meta_property_token_maps_internal_invariants_match_typescript + complete command matrix"
+    },
+    {
+      "owner": "setTokenSourceMapRange",
+      "start": 25344,
+      "end": 25349,
+      "sha256": "d6e7ca6d4906720533d07640c7ccf2445ff5b79109f0470afba3c66a3f1a5614",
+      "declaration_name": "setTokenSourceMapRange",
+      "step": "A6-27-2",
+      "test": "meta_property_token_maps_internal_invariants_match_typescript + complete command matrix"
+    },
+    {
+      "owner": "parseLeftHandSideExpressionOrHigher",
+      "start": 32280,
+      "end": 32305,
+      "sha256": "2baee27c291a2d5a7d9aebc12a8dd4dbd82e95af89a0a8ff80db0e533119171a",
+      "declaration_name": "parseLeftHandSideExpressionOrHigher",
+      "step": "A6-27-3",
+      "test": "meta_property_token_maps_internal_invariants_match_typescript + complete command matrix"
+    },
+    {
+      "owner": "parseNewExpressionOrNewDotTarget",
+      "start": 33041,
+      "end": 33065,
+      "sha256": "2fe19bfae9912f9c6fd1623642eed88eae90f284e3b440ec407ead4cdbbb6e75",
+      "declaration_name": "parseNewExpressionOrNewDotTarget",
+      "step": "A6-27-3",
+      "test": "meta_property_token_maps_internal_invariants_match_typescript + complete command matrix"
+    },
+    {
+      "owner": "visitMetaProperty",
+      "start": 107963,
+      "end": 107969,
+      "sha256": "d21802d0b4b5f3394247c5b071c3a3a78e4c847d6b72d70e1b950ed1de9f090b",
+      "declaration_name": "visitMetaProperty",
+      "step": "A6-27-3",
+      "test": "meta_property_token_maps_internal_invariants_match_typescript + complete command matrix"
+    },
+    {
+      "owner": "module.onSubstituteNode",
+      "start": 111871,
+      "end": 111882,
+      "sha256": "4275c47c81e1ec247934ac9d79029304a6b07f259ccde7a9036f1bdc3d160a3c",
+      "declaration_name": "onSubstituteNode",
+      "step": "A6-27-1",
+      "test": "meta_property_token_maps_module_name_context_is_not_a_value_reference + complete binding commands"
+    },
+    {
+      "owner": "module.substituteExpression",
+      "start": 111895,
+      "end": 111907,
+      "sha256": "110766e2e010527fe3aa8d766d8c02db2a437cc1f4b92977fb53e3e8cf77d338",
+      "declaration_name": "substituteExpression",
+      "step": "A6-27-1",
+      "test": "meta_property_token_maps_module_name_context_is_not_a_value_reference + complete binding commands"
+    },
+    {
+      "owner": "system.onSubstituteNode",
+      "start": 113201,
+      "end": 113212,
+      "sha256": "a37a68a86b368f324f349d94c8ee2518cf4d5861136f0802c564fa8556d5571c",
+      "declaration_name": "onSubstituteNode",
+      "step": "A6-27-1",
+      "test": "meta_property_token_maps_module_name_context_is_not_a_value_reference + complete binding commands"
+    },
+    {
+      "owner": "substituteUnspecified",
+      "start": 113213,
+      "end": 113219,
+      "sha256": "2adbcebb92815482391a35f9778d7f54d4c95ff95bb8fa5fd793fc5e7b7e609a",
+      "declaration_name": "substituteUnspecified",
+      "step": "A6-27-1",
+      "test": "meta_property_token_maps_module_name_context_is_not_a_value_reference + complete binding commands"
+    },
+    {
+      "owner": "system.substituteExpression",
+      "start": 113254,
+      "end": 113264,
+      "sha256": "bebbe3fcae48ade2085d411eba191bd36d1f6e6c47e928fc5b603ee69e0c253f",
+      "declaration_name": "substituteExpression",
+      "step": "A6-27-1",
+      "test": "meta_property_token_maps_module_name_context_is_not_a_value_reference + complete binding commands"
+    },
+    {
+      "owner": "substituteMetaProperty",
+      "start": 113312,
+      "end": 113317,
+      "sha256": "e84500cf33cc66757fb10aaaf3d10bc88a7a222cce65c52c3d1c24c79ed6419d",
+      "declaration_name": "substituteMetaProperty",
+      "step": "A6-27-5",
+      "test": "16 complete System import.meta map commands + 2 no-map controls + retained new.target query controls"
+    },
+    {
+      "owner": "emit",
+      "start": 117145,
+      "end": 117148,
+      "sha256": "f998a75ec5c7ebceb127e49ec7315b9e3b9aa90c15e4a5bd7d3b57cd324f5682",
+      "declaration_name": "emit",
+      "step": "A6-27-3",
+      "test": "meta_property_token_maps_internal_invariants_match_typescript + complete command matrix"
+    },
+    {
+      "owner": "pipelineEmit",
+      "start": 117173,
+      "end": 117178,
+      "sha256": "6a43b2cfcfd4e20228aa474d96673af90c71efe2c44ad31612af62fe44208d7b",
+      "declaration_name": "pipelineEmit",
+      "step": "A6-27-3",
+      "test": "meta_property_token_maps_internal_invariants_match_typescript + complete command matrix"
+    },
+    {
+      "owner": "getPipelinePhase",
+      "start": 117185,
+      "end": 117215,
+      "sha256": "0e29bfcca5db712b3747d892f8c4743919a8330c96c1bda5c4931dbadd009220",
+      "declaration_name": "getPipelinePhase",
+      "step": "A6-27-3",
+      "test": "meta_property_token_maps_internal_invariants_match_typescript + complete command matrix"
+    },
+    {
+      "owner": "getNextPipelinePhase",
+      "start": 117216,
+      "end": 117218,
+      "sha256": "141386a932a53fd36fe32d5d519b027b61a2b995a5ff65cab3cdd8326db9f7f1",
+      "declaration_name": "getNextPipelinePhase",
+      "step": "A6-27-3",
+      "test": "meta_property_token_maps_internal_invariants_match_typescript + complete command matrix"
+    },
+    {
+      "owner": "pipelineEmitWithNotification",
+      "start": 117219,
+      "end": 117222,
+      "sha256": "3e319f7fb4078d10414fdd4842780ba31e5903d0e812e66351b6f2163ab2b98f",
+      "declaration_name": "pipelineEmitWithNotification",
+      "step": "A6-27-3",
+      "test": "meta_property_token_maps_internal_invariants_match_typescript + complete command matrix"
+    },
+    {
+      "owner": "pipelineEmitWithHint",
+      "start": 117223,
+      "end": 117235,
+      "sha256": "78e89abc1577a8d034033e940d91fbc6c699501552a003b28e8c73f3009b1b1f",
+      "declaration_name": "pipelineEmitWithHint",
+      "step": "A6-27-3",
+      "test": "meta_property_token_maps_internal_invariants_match_typescript + complete command matrix"
+    },
+    {
+      "owner": "pipelineEmitWithHintWorker",
+      "start": 117236,
+      "end": 117704,
+      "sha256": "485ac452835fedcb20a856f43e6eca9b8cd6b08f424fe054dccb3a176e673371",
+      "declaration_name": "pipelineEmitWithHintWorker",
+      "step": "A6-27-3",
+      "test": "meta_property_token_maps_internal_invariants_match_typescript + complete command matrix"
+    },
+    {
+      "owner": "pipelineEmitWithSubstitution",
+      "start": 117712,
+      "end": 117718,
+      "sha256": "143322c35d63fd5ef4c65079067c52a939e82aa22301bb507b486e3b3031ba20",
+      "declaration_name": "pipelineEmitWithSubstitution",
+      "step": "A6-27-3",
+      "test": "meta_property_token_maps_internal_invariants_match_typescript + complete command matrix"
+    },
+    {
+      "owner": "emitIdentifier",
+      "start": 117806,
+      "end": 117814,
+      "sha256": "8f07175bbf11451c8df83e4d29e195bd70c71c3963d4ef806fddae7c720ccfec",
+      "declaration_name": "emitIdentifier",
+      "step": "A6-27-3",
+      "test": "meta_property_token_maps_internal_invariants_match_typescript + complete command matrix"
+    },
+    {
+      "owner": "emitMetaProperty",
+      "start": 118570,
+      "end": 118574,
+      "sha256": "ccda2152b0b958533ee97a36457267d71d70e27d4358766024d5c56a80f69096",
+      "declaration_name": "emitMetaProperty",
+      "step": "A6-27-3",
+      "test": "meta_property_token_maps_internal_invariants_match_typescript + complete command matrix"
+    },
+    {
+      "owner": "writeToken",
+      "start": 120210,
+      "end": 120212,
+      "sha256": "d1b2567202b4cf08f596b25fd907df3782572df2839cad23bd174b9e46f4aa84",
+      "declaration_name": "writeToken",
+      "step": "A6-27-2",
+      "test": "meta_property_token_maps_internal_invariants_match_typescript + complete command matrix"
+    },
+    {
+      "owner": "writeTokenText",
+      "start": 120222,
+      "end": 120226,
+      "sha256": "ba09e58ada82fd0e2426c23037e1f0c4d854e36c0f7cc2e04700c32a71d273ae",
+      "declaration_name": "writeTokenText",
+      "step": "A6-27-2",
+      "test": "meta_property_token_maps_internal_invariants_match_typescript + complete command matrix"
+    },
+    {
+      "owner": "getTextOfNode2",
+      "start": 120442,
+      "end": 120466,
+      "sha256": "1343476fc5383ef4ae654e82e7bb1904fc6e932d54f337ace271507f4537d05b",
+      "declaration_name": "getTextOfNode2",
+      "step": "A6-27-3",
+      "test": "meta_property_token_maps_internal_invariants_match_typescript + complete command matrix"
+    },
+    {
+      "owner": "pipelineEmitWithComments",
+      "start": 120978,
+      "end": 120986,
+      "sha256": "263af5299b06aaeca9c4e6397b6013e6b2c465afcab2709d8cbdd5ace688bd34",
+      "declaration_name": "pipelineEmitWithComments",
+      "step": "A6-27-3",
+      "test": "meta_property_token_maps_internal_invariants_match_typescript + complete command matrix"
+    },
+    {
+      "owner": "emitCommentsBeforeNode",
+      "start": 120987,
+      "end": 120994,
+      "sha256": "dc59a0901c0b5aaa640586703fb5f5a2420cf3f5ad344fd433501a20612154cf",
+      "declaration_name": "emitCommentsBeforeNode",
+      "step": "A6-27-3",
+      "test": "meta_property_token_maps_internal_invariants_match_typescript + complete command matrix"
+    },
+    {
+      "owner": "emitCommentsAfterNode",
+      "start": 120995,
+      "end": 121006,
+      "sha256": "f0baac32a6d9fcf8f005ee8f1b923e1706f679e8a1fb88e2a7753064bb644a89",
+      "declaration_name": "emitCommentsAfterNode",
+      "step": "A6-27-3",
+      "test": "meta_property_token_maps_internal_invariants_match_typescript + complete command matrix"
+    },
+    {
+      "owner": "emitLeadingCommentsOfNode",
+      "start": 121007,
+      "end": 121032,
+      "sha256": "ce6bf342a94094cccc4bf56debcb99390c8e232705263609dfcf068589284ebb",
+      "declaration_name": "emitLeadingCommentsOfNode",
+      "step": "A6-27-3",
+      "test": "meta_property_token_maps_internal_invariants_match_typescript + complete command matrix"
+    },
+    {
+      "owner": "emitTrailingCommentsOfNode",
+      "start": 121033,
+      "end": 121046,
+      "sha256": "e5c99d84eeab2c12d594ba56695a7a869c49720eb110f3715c0ea3f9271d1112",
+      "declaration_name": "emitTrailingCommentsOfNode",
+      "step": "A6-27-3",
+      "test": "meta_property_token_maps_internal_invariants_match_typescript + complete command matrix"
+    },
+    {
+      "owner": "pipelineEmitWithSourceMaps",
+      "start": 121277,
+      "end": 121282,
+      "sha256": "0c57cdceae760b1c5e0c2fca17706537034621460cc030cb1800d55c8c1e3efe",
+      "declaration_name": "pipelineEmitWithSourceMaps",
+      "step": "A6-27-2",
+      "test": "meta_property_token_maps_internal_invariants_match_typescript + complete command matrix"
+    },
+    {
+      "owner": "emitSourceMapsBeforeNode",
+      "start": 121283,
+      "end": 121293,
+      "sha256": "ac346b41706c68dd97ca01be4df11b5db57df063dfb4a1b84ee9b5ac1efa2517",
+      "declaration_name": "emitSourceMapsBeforeNode",
+      "step": "A6-27-2",
+      "test": "meta_property_token_maps_internal_invariants_match_typescript + complete command matrix"
+    },
+    {
+      "owner": "emitSourceMapsAfterNode",
+      "start": 121294,
+      "end": 121303,
+      "sha256": "6ca767d42995b2ea08ceccbb1261345452b6f976a0665d60a80c68fa14e0aeb6",
+      "declaration_name": "emitSourceMapsAfterNode",
+      "step": "A6-27-2",
+      "test": "meta_property_token_maps_internal_invariants_match_typescript + complete command matrix"
+    },
+    {
+      "owner": "skipSourceTrivia",
+      "start": 121304,
+      "end": 121306,
+      "sha256": "01dd0d645db1fbde40cc6f9a4845be7a0c967cec7e6f258a62a7923e20cbb8aa",
+      "declaration_name": "skipSourceTrivia",
+      "step": "A6-27-2",
+      "test": "meta_property_token_maps_internal_invariants_match_typescript + complete command matrix"
+    },
+    {
+      "owner": "emitPos",
+      "start": 121307,
+      "end": 121321,
+      "sha256": "0f8f04ad2314d22ba03071e0cdd6fd5df55a159098f978cbddb6aafc8925b33a",
+      "declaration_name": "emitPos",
+      "step": "A6-27-2",
+      "test": "meta_property_token_maps_internal_invariants_match_typescript + complete command matrix"
+    },
+    {
+      "owner": "emitSourcePos",
+      "start": 121322,
+      "end": 121332,
+      "sha256": "c3f079664348b23bc5f254936a266eb104d7fad5cc793ff5f49159625e1f8b70",
+      "declaration_name": "emitSourcePos",
+      "step": "A6-27-2",
+      "test": "meta_property_token_maps_internal_invariants_match_typescript + complete command matrix"
+    },
+    {
+      "owner": "emitTokenWithSourceMap",
+      "start": 121333,
+      "end": 121351,
+      "sha256": "1f4c5a048470151a92b7a92ff32a976744e5222fb62cfa7c9b3e3964bde39732",
+      "declaration_name": "emitTokenWithSourceMap",
+      "step": "A6-27-2",
+      "test": "meta_property_token_maps_internal_invariants_match_typescript + complete command matrix"
+    }
+  ],
+  "architecture": [
+    {
+      "id": "E-PRINTER-BASE",
+      "row_sha256": "6ced222697e4556ad486723cdf09804d4743e59495c09fadb4a11d562f1b48ab",
+      "disposition": "modified-requalify",
+      "rust_symbol": "Printer::emit_transformed_node_worker/emit_node_with_hint",
+      "visibility": "private",
+      "validation_ref": "6acd5d43",
+      "inherited_qualified_premise": false,
+      "lifecycle": "bounded candidate active-unqualified -> qualified only at immutable after evidence",
+      "evidence": "ratchets/h2-8a-meta-property-token-maps-before.v1.json + final228/490/451 required",
+      "step": "A6-27-3"
+    },
+    {
+      "id": "E-POSITIONS",
+      "row_sha256": "cb11a74840d3fe403450e0f9b9e2c4226b34fd6e8bc14d0779a82bd4bd75f9f9",
+      "disposition": "modified-requalify",
+      "rust_symbol": "Printer::token_map_range_spanning/record_map_range_side; typed source positions",
+      "visibility": "private/public domains",
+      "validation_ref": "0653e10d",
+      "inherited_qualified_premise": false,
+      "lifecycle": "bounded candidate active-unqualified -> qualified only at immutable after evidence",
+      "evidence": "ratchets/h2-8a-meta-property-token-maps-before.v1.json + final228/490/451 required +16 System synthetic-range commands at A6-27-5",
+      "step": "A6-27-2"
+    },
+    {
+      "id": "E-COMMENTS-G",
+      "row_sha256": "5cbfd9e3ca667ae5d5e9f6e329654394558a942a9d7d3f1c910eca191f63e0d6",
+      "disposition": "modified-requalify",
+      "rust_symbol": "Printer node comment workers; CommentEmissionScope",
+      "visibility": "private",
+      "validation_ref": "6acd5d43",
+      "inherited_qualified_premise": false,
+      "lifecycle": "bounded candidate active-unqualified -> qualified only at immutable after evidence",
+      "evidence": "ratchets/h2-8a-meta-property-token-maps-before.v1.json + final228/490/451 required",
+      "step": "A6-27-3"
+    },
+    {
+      "id": "E-COMMENT-SCOPE-H",
+      "row_sha256": "1d5cd0a48e6be6dd1cbfb73ccae354abfbd0a35065c60893be889bcec33e0598",
+      "disposition": "modified-requalify",
+      "rust_symbol": "EmitContext::for_child and source comment scopes",
+      "visibility": "private",
+      "validation_ref": "6acd5d43",
+      "inherited_qualified_premise": false,
+      "lifecycle": "bounded candidate active-unqualified -> qualified only at immutable after evidence",
+      "evidence": "ratchets/h2-8a-meta-property-token-maps-before.v1.json + final228/490/451 required",
+      "step": "A6-27-3"
+    },
+    {
+      "id": "E-RESOLVER-BASE",
+      "row_sha256": "c49fe6f747d32438abe077dd0524ec92f754a3ce45784606bfda214bc118d9ba",
+      "disposition": "modified-requalify",
+      "rust_symbol": "CommonJsVisitor::visit; SystemVisitor::visit_meta_property; EmitResolver",
+      "visibility": "private visitors/public trait",
+      "validation_ref": "0653e10d",
+      "inherited_qualified_premise": false,
+      "lifecycle": "bounded candidate active-unqualified -> qualified only at immutable after evidence",
+      "evidence": "ratchets/h2-8a-meta-property-token-maps-before.v1.json + final228/490/451 required",
+      "step": "A6-27-1"
+    },
+    {
+      "id": "E-ARENA",
+      "row_sha256": "408e806262efc3b66804b3654aa73826eadfa1ec53d8605386184fe14904c352",
+      "disposition": "premise-unchanged",
+      "rust_symbol": "TransformArena/NodeFactory",
+      "visibility": "public",
+      "validation_ref": "0653e10d",
+      "inherited_qualified_premise": true,
+      "lifecycle": "unchanged; current source audit",
+      "evidence": "ratchets/h2-8a-meta-property-token-maps-before.v1.json + final228/490/451 required",
+      "step": "A6-27-4"
+    },
+    {
+      "id": "E-METADATA-BASE",
+      "row_sha256": "2d2fcbfa251f61cb703a5c510045b5c3622b8b1acb46d3f83485fa04bb10235d",
+      "disposition": "modified-requalify",
+      "rust_symbol": "SystemVisitor::visit_meta_property; synthetic TransformArena source range and metadata",
+      "visibility": "public",
+      "validation_ref": "0653e10d",
+      "inherited_qualified_premise": false,
+      "lifecycle": "System consumer active-unqualified -> qualified only at shared after evidence",
+      "evidence": "initial first-after16 System failures + shared228/490/451 required",
+      "step": "A6-27-5"
+    },
+    {
+      "id": "E-CONTEXT",
+      "row_sha256": "159d0e3a6cc7d379030f658a516e21498ab6c901c96bc5a96fc48bb68be31f70",
+      "disposition": "premise-unchanged",
+      "rust_symbol": "TransformationResult/TransformationContext",
+      "visibility": "public",
+      "validation_ref": "0653e10d",
+      "inherited_qualified_premise": true,
+      "lifecycle": "unchanged; current source audit",
+      "evidence": "ratchets/h2-8a-meta-property-token-maps-before.v1.json + final228/490/451 required",
+      "step": "A6-27-4"
+    },
+    {
+      "id": "E-ENTRY",
+      "row_sha256": "688dc79124384ac35c41ed8e80d86cd41e552aed6ceb9f369d735987179c7237",
+      "disposition": "premise-unchanged",
+      "rust_symbol": "ProgramSession emit/run",
+      "visibility": "public",
+      "validation_ref": "0653e10d",
+      "inherited_qualified_premise": true,
+      "lifecycle": "unchanged; current source audit",
+      "evidence": "ratchets/h2-8a-meta-property-token-maps-before.v1.json + final228/490/451 required",
+      "step": "A6-27-4"
+    },
+    {
+      "id": "E-PROTOCOL",
+      "row_sha256": "7107f22958050e97c0f9a68e9ef12f0642360d497f47f5a15b16639e60f415be",
+      "disposition": "premise-unchanged",
+      "rust_symbol": "EmitHost/EmitResolver/OutputSink",
+      "visibility": "public",
+      "validation_ref": "0653e10d",
+      "inherited_qualified_premise": true,
+      "lifecycle": "unchanged; current source audit",
+      "evidence": "ratchets/h2-8a-meta-property-token-maps-before.v1.json + final228/490/451 required",
+      "step": "A6-27-4"
+    },
+    {
+      "id": "E-ORDER-G",
+      "row_sha256": "8e6b859976374c389353df2740324c646845dcc9c331730ce031ed1709c49832",
+      "disposition": "premise-unchanged",
+      "rust_symbol": "get_script_transformers_with_optional_host",
+      "visibility": "private",
+      "validation_ref": "0653e10d +A24 d12abe61",
+      "inherited_qualified_premise": true,
+      "lifecycle": "unchanged; current source audit",
+      "evidence": "ratchets/h2-8a-meta-property-token-maps-before.v1.json + final228/490/451 required",
+      "step": "A6-27-4"
+    },
+    {
+      "id": "E-ORDER-H",
+      "row_sha256": "a7215ecbc9226498c759de8e20c7c0c4418418fd8c537a70a8f797f490557006",
+      "disposition": "premise-unchanged",
+      "rust_symbol": "es2015::visit_meta_property and transformer/hook ordering",
+      "visibility": "private",
+      "validation_ref": "ad62e4a5 +B5 actual source audit; no inherited qualified premise",
+      "inherited_qualified_premise": false,
+      "lifecycle": "unchanged; current source audit",
+      "evidence": "ratchets/h2-8a-meta-property-token-maps-before.v1.json + final228/490/451 required",
+      "step": "A6-27-4"
+    },
+    {
+      "id": "E-MAPS",
+      "row_sha256": "eb4f271d6b9948d29ae80c0255c9801f646d01c670693c5e6cead46ee55e352e",
+      "disposition": "modified-requalify",
+      "rust_symbol": "SourceMapGenerator/TextWriter/Printer map workers",
+      "visibility": "public generator/private workers",
+      "validation_ref": "dated dormant row research-only; fresh A22/488 native before controls; no inherited qualification",
+      "inherited_qualified_premise": false,
+      "lifecycle": "bounded candidate active-unqualified -> qualified only at immutable after evidence",
+      "evidence": "ratchets/h2-8a-meta-property-token-maps-before.v1.json + final228/490/451 required +16 System synthetic-range commands at A6-27-5",
+      "step": "A6-27-2"
+    }
+  ],
+  "rust_map": [
+    {
+      "state": "MetaPropertyData",
+      "producer": "syntax parser/factory",
+      "consumer": "Printer::emit_meta_property",
+      "lifetime": "arena/source lifetime",
+      "invalidation": "existing arena/session disposal; no new cache or mutable state",
+      "step": "A6-27-2"
+    },
+    {
+      "state": "name context",
+      "producer": "CommonJsVisitor/SystemVisitor",
+      "consumer": "module visitor and retained printer hooks",
+      "lifetime": "transform lifetime",
+      "invalidation": "existing arena/session disposal; no new cache or mutable state",
+      "step": "A6-27-1"
+    },
+    {
+      "state": "unowned token range",
+      "producer": "Printer::token_map_range_spanning",
+      "consumer": "record_map_range_side",
+      "lifetime": "one token write",
+      "invalidation": "existing arena/session disposal; no new cache or mutable state",
+      "step": "A6-27-2"
+    },
+    {
+      "state": "trivia cursor",
+      "producer": "raw source pos/skip_trivia",
+      "consumer": "token map range",
+      "lifetime": "one token write",
+      "invalidation": "existing arena/session disposal; no new cache or mutable state",
+      "step": "A6-27-2"
+    },
+    {
+      "state": "typed map coordinates",
+      "producer": "SourceRange/SourceBytePosition/SourceUtf16Location",
+      "consumer": "TextWriter/SourceMapGenerator",
+      "lifetime": "one print",
+      "invalidation": "existing arena/session disposal; no new cache or mutable state",
+      "step": "A6-27-2"
+    },
+    {
+      "state": "optional name",
+      "producer": "TransformArena node lookup",
+      "consumer": "emit_node_with_hint(Unspecified)",
+      "lifetime": "arena plus one child print",
+      "invalidation": "existing arena/session disposal; no new cache or mutable state",
+      "step": "A6-27-3"
+    },
+    {
+      "state": "comments",
+      "producer": "immutable EmitContext",
+      "consumer": "ordinary node comments pipeline",
+      "lifetime": "subtree",
+      "invalidation": "existing arena/session disposal; no new cache or mutable state",
+      "step": "A6-27-3"
+    },
+    {
+      "state": "lowering/substitution",
+      "producer": "ES2015/System transforms",
+      "consumer": "composed printer tree",
+      "lifetime": "transform session",
+      "invalidation": "existing arena/session disposal; no new cache or mutable state",
+      "step": "A6-27-1"
+    },
+    {
+      "state": "callback/results",
+      "producer": "ProgramSession/emit executor",
+      "consumer": "unconditional complete comparator",
+      "lifetime": "command lifetime",
+      "invalidation": "existing arena/session disposal; no new cache or mutable state",
+      "step": "A6-27-4"
+    },
+    {
+      "semantic": "System wholly synthetic import.meta replacement",
+      "producer": "SystemVisitor::visit_meta_property -> create_property_access",
+      "consumer": "TransformArena synthetic range -> Printer maps",
+      "visibility": "private",
+      "lifetime": "per transformation",
+      "disposition": "modified-requalify",
+      "step": "A6-27-5",
+      "test": "16 System map commands +2 no-map adjacent"
+    }
+  ],
+  "witnesses": [
+    {
+      "case_id": "meta-property-token-maps/es5/commonjs/new-target-function",
+      "row_sha256": "c954b1a54a6a28c5b62bcc6b16f9935ae1bfd712834c34f46e47bf82b699b4e2",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/commonjs/new-target-typed-function",
+      "row_sha256": "071b2cf8f5efdb2dccfb50218e3b4a883ed8adba30d6d47b63e50d3a01e4a22d",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/commonjs/new-target-constructor",
+      "row_sha256": "55b7927379d93a5d00e9606276848e20e625023446c0bc5af073086f45d1118a",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/commonjs/new-target-arrow",
+      "row_sha256": "86a2d397625b8cc6f1340169a807b700c48601cd9ff032987edacdee400f1103",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/commonjs/new-target-binding-collision",
+      "row_sha256": "f80833c3dcf887a550eb5b6da59640e06708d8d7fc03a4328a1cc9332cf96592",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/commonjs/new-target-escaped-name",
+      "row_sha256": "4098b32e4fd2e23ead892fb381e944cae553e4e09a6978e675b30ad61fc3cf73",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/commonjs/new-target-keyword-gap-comment",
+      "row_sha256": "6e092e427d04f61b2ef8ec404e3e1e0c435b288ea229288747de506886f0e6c9",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/commonjs/new-target-name-gap-comment",
+      "row_sha256": "f63859572678e990651f161f5ec8335b4ae0a81362a227662567d2747a5cf310",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/commonjs/new-target-multiline",
+      "row_sha256": "c78c9b1abe55862f4209d06bbb28ff21fe72357f821afebd48190b954a94dfd4",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/commonjs/import-meta-value",
+      "row_sha256": "26e8869765c6ed25dc094bd6ea154726b9e18b4f88429c8cee4f41d827e46cfc",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/commonjs/import-meta-property",
+      "row_sha256": "1e268f7e055f65c789310edb988db518eb24d5aa83a531c7f82ecde9b5c4be73",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/commonjs/import-meta-element",
+      "row_sha256": "1448f836a948ae1a2e9698b1f7a20cea19d4b14c6d74551f8d75686f965a40e0",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/commonjs/import-meta-typeof",
+      "row_sha256": "21da9331222560300a4a83dbcca928a932eb7bc4972d20066e3f7448dbf30cd2",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/commonjs/import-meta-binding-collision",
+      "row_sha256": "8da51bd79a3ca1313c0c8a8db4d201643c740ba5c23b47d022ec352304cb3076",
+      "status": "module-name-context-and-printer-required",
+      "step": "A6-27-1"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/commonjs/import-meta-keyword-gap-comment",
+      "row_sha256": "021b7b78523ef1157252d48f62ae01c1e3dc5c78f8822ada21d6c3993851a4b1",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/commonjs/import-meta-name-gap-comment",
+      "row_sha256": "6e024f4e27004bb698b4aea25119b804b80c415071a8ee9a9d0463afb2813f11",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/commonjs/new-target-imported-binding",
+      "row_sha256": "541913510bbf0a470e0ac1c1bdb2c5ae27d5a0423c25afe5902a8f2d018026ea",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/commonjs/import-meta-imported-binding",
+      "row_sha256": "63884ac9ad5aad133845d544bdc096c621122359c883a851f2812075ca44afd8",
+      "status": "module-name-context-and-printer-required",
+      "step": "A6-27-1"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/commonjs/new-target-no-map",
+      "row_sha256": "b90e8490d25fe2b3c9d2be55548102902e2bbe42e21ae3f81c65c85a08f9c722",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/commonjs/import-meta-no-map",
+      "row_sha256": "cf54668acc9e1f636ee947db404ce2f0fbc17d6807b83878672285a12739a02e",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/esnext/new-target-function",
+      "row_sha256": "a3abc8c09b616613352f629de884335b818d2188859d2546d552099afabb8bee",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/esnext/new-target-typed-function",
+      "row_sha256": "aad252da7b3edd882cca97f18b5a50812feda61ce736c1ff049984dd808a46bc",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/esnext/new-target-constructor",
+      "row_sha256": "f08ee39bc51507a99492a4bfdbcd76c515dd20f1cb92d881e6b93b75f03f9bd4",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/esnext/new-target-arrow",
+      "row_sha256": "b1dcd4011ad60d0836a24f186090cc0a3a7f73e873dffe4b906c5dbe7640c70e",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/esnext/new-target-binding-collision",
+      "row_sha256": "baa7599176d2061d33db7aead97518fe5b6e3e34d835ce05b6eb884c143846a4",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/esnext/new-target-escaped-name",
+      "row_sha256": "30c59c666606bfcb7c888b40efd4abe03616abe3b0028476315fa02702722d6a",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/esnext/new-target-keyword-gap-comment",
+      "row_sha256": "d21485d0941775023d2d50062ac3f50da42956c2571013d33023133e3ad9c429",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/esnext/new-target-name-gap-comment",
+      "row_sha256": "311d24e41845c844ede6356cfdd44bac3d26c6d1378fb4abdaef71741d111dda",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/esnext/new-target-multiline",
+      "row_sha256": "4b67a1e74493a26635fe9c87b8acd97c95b8065e26426348942bae0cd38ccdb5",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/esnext/import-meta-value",
+      "row_sha256": "894348c223416b746738361c6e9b4ae89274e1b53bb99bb503a9fb29a07bbe83",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/esnext/import-meta-property",
+      "row_sha256": "f1f39acf2d1f378130796c15bae3b0f2080784827ec3f3c19e870d94628a87d7",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/esnext/import-meta-element",
+      "row_sha256": "fd734579208ffeb63a739dbd3f3d9379dff29edc780ff0691f20cae5f364c2fc",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/esnext/import-meta-typeof",
+      "row_sha256": "3e1da350fc2e6844e424f05a7a3a1ca3deaacef75202365265218cfe65789d39",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/esnext/import-meta-binding-collision",
+      "row_sha256": "e6e7b94c9032b9ab0986294e15425460a96d50b12d2da1d839160bb1d7e2bda3",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/esnext/import-meta-keyword-gap-comment",
+      "row_sha256": "c03db1e22c2f555627438639442531827c04fadfb4717fc3d9bbc746b50eea5b",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/esnext/import-meta-name-gap-comment",
+      "row_sha256": "c05932be33db4306ca024f6174047504d27020a47268d37ce2a3faca579d0dc0",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/esnext/new-target-imported-binding",
+      "row_sha256": "bd6525355750dc5d96031b2fe2bdaa5bd79157674b91843cd1adccec058b0dbc",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/esnext/import-meta-imported-binding",
+      "row_sha256": "8950b56faa1ed2894668c0c5532905ef4516b49582975ea4201ecf7397346c17",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/esnext/new-target-no-map",
+      "row_sha256": "635f7a0e025910678f3eb1d2f0b19d54e80326290fbca9ab9f0e02dcaf86a754",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/esnext/import-meta-no-map",
+      "row_sha256": "3f19f732c1c8ef3ac7c419b0b9b107f9efbb6a9a0771563b9ab03eae7f05c818",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/system/new-target-function",
+      "row_sha256": "1a83f76914630ffb9149545674bd6ba2a6ce9d42d5ad65eb38a52a293b91e858",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/system/new-target-typed-function",
+      "row_sha256": "cbf2cf94c249d096a3d49298dddd515b9c7d66a8c6be82377a9a64ad3fc36c62",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/system/new-target-constructor",
+      "row_sha256": "4455ef50dafc760db99d6daf46da35382c0962047948aad221f0a52eb25aa2c4",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/system/new-target-arrow",
+      "row_sha256": "9324753c067961d9e4110beb4eee31e28db6e3d734fa27ad09539cf2f8f53013",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/system/new-target-binding-collision",
+      "row_sha256": "a1253e6a1952b1780d8a44c9ca7d6244d099faec7f0801e511b545417cd70e3d",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/system/new-target-escaped-name",
+      "row_sha256": "458f1140f0079a71ae4ce4e080959aef2e9b6c48dfcb1980f639144d5c6442c3",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/system/new-target-keyword-gap-comment",
+      "row_sha256": "edab6abdd5ce2d93676e361f397f94306aea00630491e8035c470132a26d12a7",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/system/new-target-name-gap-comment",
+      "row_sha256": "da133812446a35e12ecf873c3ef8b6c212356301c32653a2b8aed9d1c564c46f",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/system/new-target-multiline",
+      "row_sha256": "0ae7044cacc9f3b86eeb00186ec0c31c45fa96a3c2a92c32ac508ffe20b5347f",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/system/import-meta-value",
+      "row_sha256": "dcb7bd32527a8c529f8bb8633019d9d558b55f267626c7ca63ee35ba61bbeeb3",
+      "status": "owned-system-import-meta-synthetic-range",
+      "step": "A6-27-5"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/system/import-meta-property",
+      "row_sha256": "70656e40080e5072a6e8ccec0d38c4e6e4f706ff03b9763e23904a87dd49d287",
+      "status": "owned-system-import-meta-synthetic-range",
+      "step": "A6-27-5"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/system/import-meta-element",
+      "row_sha256": "2170710f33864396941ddc5907b544de16b3054353737944a839a0e662445f49",
+      "status": "owned-system-import-meta-synthetic-range",
+      "step": "A6-27-5"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/system/import-meta-typeof",
+      "row_sha256": "ef1da3431a42e6957ae753a265c10cede2d8270298a0236f57cb6264d14edcf7",
+      "status": "owned-system-import-meta-synthetic-range",
+      "step": "A6-27-5"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/system/import-meta-binding-collision",
+      "row_sha256": "0d68a270aefd5d71ff3e9be21f6ca9df7385282f3dd74e267bfe892a4186e9b3",
+      "status": "owned-system-import-meta-synthetic-range",
+      "step": "A6-27-5"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/system/import-meta-keyword-gap-comment",
+      "row_sha256": "ed4c75dbd9a53f3279338e956c4b1a0f41c80e99869f359b4057122355ec8283",
+      "status": "owned-system-import-meta-synthetic-range",
+      "step": "A6-27-5"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/system/import-meta-name-gap-comment",
+      "row_sha256": "a5d82dc9403c33e64a90a3f2b1bde635784f28e262e5151d9bb88c5db4d9c336",
+      "status": "owned-system-import-meta-synthetic-range",
+      "step": "A6-27-5"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/system/new-target-imported-binding",
+      "row_sha256": "e26391dd071a0d1958f31dcb212e2d8c2fa476cc2d933ba1cf92a481d88bcbcb",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/system/import-meta-imported-binding",
+      "row_sha256": "356ffa92d1ee08ba6e180321554528837f0ace47c73e645990767bf75478efa8",
+      "status": "owned-system-import-meta-synthetic-range",
+      "step": "A6-27-5"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/system/new-target-no-map",
+      "row_sha256": "f79704036a16c89fd55221515500bdf08fccb327d8f4cf40440076ad4d822325",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/system/import-meta-no-map",
+      "row_sha256": "5f82d440b7da63bb78dc308f9acfeeae24a35f83da5897a1e0b82ae84e3ca650",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/commonjs/new-target-function",
+      "row_sha256": "e015cde229583fc6041d3bffeb99c510686b3188b6c85de6a8818f4789fd6e3e",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/commonjs/new-target-typed-function",
+      "row_sha256": "2db143b9d3d245592f54928b1a3119517f33fb079b3ad30d555d2515da180063",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/commonjs/new-target-constructor",
+      "row_sha256": "767d631b7ad9bb2ae2480da5050b5c8aab4dd8713df65f57f4ad51cc5d10666a",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/commonjs/new-target-arrow",
+      "row_sha256": "a08f9fdb55bc2ea561c5c945b9828003b6fa837295a178ccbf6dfa0708586ccc",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/commonjs/new-target-binding-collision",
+      "row_sha256": "e15f087ef545827c9fac605928a227be81aefba450ddc485c9efeb022cf63325",
+      "status": "module-name-context-and-printer-required",
+      "step": "A6-27-1"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/commonjs/new-target-escaped-name",
+      "row_sha256": "f7f3aa2d2d6beb6636b78f1a7cdc4d6014fcacf1660a0266033351aeca25450b",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/commonjs/new-target-keyword-gap-comment",
+      "row_sha256": "0eae49e21f6954ff4a727a75a89958d0fba932b4cf4d9217e875c64df7068955",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/commonjs/new-target-name-gap-comment",
+      "row_sha256": "9bd87f4f2d680b8062c1dfa4e1ed2d66bfaf19a235df2d6d05ba0dcc80a5b252",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/commonjs/new-target-multiline",
+      "row_sha256": "753982cef6e5e495efb327eea2b24f0300bc607f99eaf1bd2e266a02386fa566",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/commonjs/import-meta-value",
+      "row_sha256": "61b596d0018fcf9fd58ff89a32ee81e8c7d3161ce796e7c8bc8dfd2c6b444bbf",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/commonjs/import-meta-property",
+      "row_sha256": "e4f8aaf974a2f522346765ac8c7795bef23a07199f99085367f9cbf1964311ef",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/commonjs/import-meta-element",
+      "row_sha256": "cb3f4d18193332cbf64afe5104f73eb87c4196ffede95f232ff785f6be4aade0",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/commonjs/import-meta-typeof",
+      "row_sha256": "f06ca31ac18fa03062148b7ea0e0c9ce8d1cf8a22b86e65423f3547110a90084",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/commonjs/import-meta-binding-collision",
+      "row_sha256": "178d32a478cc8763057c87e3aa54d2c33d96ce599d02745d5366add1e2c03dcb",
+      "status": "module-name-context-and-printer-required",
+      "step": "A6-27-1"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/commonjs/import-meta-keyword-gap-comment",
+      "row_sha256": "8963c7728ecc148fcae8f0b4e76ace4b495c1c21a6f661b49232a777c6d84b11",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/commonjs/import-meta-name-gap-comment",
+      "row_sha256": "de220ac0cb1aefe4c905b349d3e3299d269cd5c7c22471434d854de114ac7a86",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/commonjs/new-target-imported-binding",
+      "row_sha256": "8446fe6b5a89fc3b6233f32279e6ec43378cad73c1e48fd3b4b6f11c5f2c4b7f",
+      "status": "module-name-context-and-printer-required",
+      "step": "A6-27-1"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/commonjs/import-meta-imported-binding",
+      "row_sha256": "831aab12988f7677e15e14592361156e2a07b0ef1cd6524c4a80dfbd12ed01e2",
+      "status": "module-name-context-and-printer-required",
+      "step": "A6-27-1"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/commonjs/new-target-no-map",
+      "row_sha256": "317f727ab826fbd6555d3d862f060144bfb63a3b132abe690c2fac145e8c2121",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/commonjs/import-meta-no-map",
+      "row_sha256": "38a6c0456490509425f35ff9e4a6bc79ea7e3f49fb654a360691fc022f9c0ddf",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/esnext/new-target-function",
+      "row_sha256": "4516f2855d74f196af938a98aef980bef378464d94e04db8514c190ac33e3c7b",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/esnext/new-target-typed-function",
+      "row_sha256": "dfd460018678826a65d592df32fbc30ff10ab0809f9154849b47331cd7da54c1",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/esnext/new-target-constructor",
+      "row_sha256": "9641056559b0cafa023bc6decc01ebb1b52411b37f4dc5d0b1298cb6a635ac0b",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/esnext/new-target-arrow",
+      "row_sha256": "9ba287be5eee86becba118d840897d15b89b0c4920a1f074f17ffd7c6bfe598e",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/esnext/new-target-binding-collision",
+      "row_sha256": "31ef82e1c1697057301e32d3f106dda71a27e312328718a93f032395857253ee",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/esnext/new-target-escaped-name",
+      "row_sha256": "e3422cbe8b8437e91bf6dd81e8cae5d4108651dfa90be8320bfb96fd11006068",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/esnext/new-target-keyword-gap-comment",
+      "row_sha256": "a6e00c3a9a669d3e4b355868e2215e96ce156c8517e430518fe56708397f1362",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/esnext/new-target-name-gap-comment",
+      "row_sha256": "28516092c92269f47e1c466930a0bae2415d34928f1d473935cd606e046d0782",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/esnext/new-target-multiline",
+      "row_sha256": "e4468275a3cd89e57ed4a469f6229fc24143909791241d415c43c0709e571652",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/esnext/import-meta-value",
+      "row_sha256": "31845d06c34d0a07cbffce78994413a99112694e01d87504c2fd272590bd2ef4",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/esnext/import-meta-property",
+      "row_sha256": "4dd6d5ef5813ca3b821df37163f89e34996120dff6f4ae213fa50ffcd21b14bb",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/esnext/import-meta-element",
+      "row_sha256": "26d92f0bff5f67cfb383f209104c8ebc7ba0457201d530ca47ef0ac81ccf7308",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/esnext/import-meta-typeof",
+      "row_sha256": "8965c8367c59e749d0aa5826168eaf1113ea7b1eef4dba1fd5fc18d83818175b",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/esnext/import-meta-binding-collision",
+      "row_sha256": "24ee2817470221a85ba370e4482d4f6c21b9f4aa3d96267896dea9b5721d9963",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/esnext/import-meta-keyword-gap-comment",
+      "row_sha256": "ab80b2739774540c3444a4c0a24e27d86a5b14f050650855f0a1045923e1ca14",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/esnext/import-meta-name-gap-comment",
+      "row_sha256": "26da67371d7f90f745156f8a7f2879b407f66ec92cd1414908328801b7d567a9",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/esnext/new-target-imported-binding",
+      "row_sha256": "79162c40f33da8d3e8bc7e5ae67acab4d1909c4301b1ce9803f54d9463b980d2",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/esnext/import-meta-imported-binding",
+      "row_sha256": "18fc7e9fc4497d54f71bf5398a8276e5354165716627693fd9cf21c8a54f6227",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/esnext/new-target-no-map",
+      "row_sha256": "49bc76fd1eed7374c8cab07cc76c258377d9f94f87abceaeee6cce2e4d48a82e",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/esnext/import-meta-no-map",
+      "row_sha256": "8910135035171f450db013e44632bc0275f840d0299d45d0e77e6ebd94987bbe",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/system/new-target-function",
+      "row_sha256": "c48ad1810426e3192b58734e759c2b02acb655b0c3f1ce4b8631c2a5f599d43c",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/system/new-target-typed-function",
+      "row_sha256": "fccfae94ca667cf190107e721d9d0587818813f3a7378cdaab7bb5d8e4f5653d",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/system/new-target-constructor",
+      "row_sha256": "cae2a89ae95b60cfec495ae960ac5ce033d354392ff7c2076c0006c1f4c87613",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/system/new-target-arrow",
+      "row_sha256": "5b89f5b32c3c9416d080fb6d97c634514e1d6429b56f0fff04b434831d905e82",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/system/new-target-binding-collision",
+      "row_sha256": "d3c1260916f0fd8c7da6b8464940e071cf2101d5553fb1d760ce32b2fb3ad4c6",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/system/new-target-escaped-name",
+      "row_sha256": "677e7ba72fde43de55dee9d1ac3a9d8e7dd7b76565762ce4bf7fa543f4a97935",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/system/new-target-keyword-gap-comment",
+      "row_sha256": "f8db829f4879a81f55a795837dac7e8b300fca076821a0f3e11c1929eb20a602",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/system/new-target-name-gap-comment",
+      "row_sha256": "9d1622c4e3780f729eb5fd490b8a6808e83cfa63d6c016324c5f7b57c20544ce",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/system/new-target-multiline",
+      "row_sha256": "2cfde7282f6ba955dc8110e3792fa42b3ded61e6d21981b67555deb44fc0d5e7",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/system/import-meta-value",
+      "row_sha256": "990896f6479c32fd79f1e4df910494026abae97d8929c65593bb0a65f6ffa856",
+      "status": "owned-system-import-meta-synthetic-range",
+      "step": "A6-27-5"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/system/import-meta-property",
+      "row_sha256": "df46605b64bb9048f0b83518e87bada966f96af242aea98fb1d9f814b35b8bd4",
+      "status": "owned-system-import-meta-synthetic-range",
+      "step": "A6-27-5"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/system/import-meta-element",
+      "row_sha256": "f5e223099c5c5edf088490e230d25cd2022fc6556e1e35407d0cee6c1b49572b",
+      "status": "owned-system-import-meta-synthetic-range",
+      "step": "A6-27-5"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/system/import-meta-typeof",
+      "row_sha256": "c8499febd5f961c501b74c33d44665cbd5a6402a3ffb3240fef33834062a0655",
+      "status": "owned-system-import-meta-synthetic-range",
+      "step": "A6-27-5"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/system/import-meta-binding-collision",
+      "row_sha256": "01c091d49fb34e27beafe8298dbb3cefcb2c61761768fb37058b08f43d5ab5b2",
+      "status": "owned-system-import-meta-synthetic-range",
+      "step": "A6-27-5"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/system/import-meta-keyword-gap-comment",
+      "row_sha256": "b779c6c9c374d80edcd56f76a702f4c5a4cfb9041607615fed6b889f301cf997",
+      "status": "owned-system-import-meta-synthetic-range",
+      "step": "A6-27-5"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/system/import-meta-name-gap-comment",
+      "row_sha256": "00e933bac5afd4c1fb9eecaac598fd081a36b959eb4923860e2fb8684c6aee47",
+      "status": "owned-system-import-meta-synthetic-range",
+      "step": "A6-27-5"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/system/new-target-imported-binding",
+      "row_sha256": "6ed6c04e65f9e6c3c1e4746dc21ec0d2e7ad369481c0da2cd32ce0fbf82b3dff",
+      "status": "module-name-context-and-printer-required",
+      "step": "A6-27-1"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/system/import-meta-imported-binding",
+      "row_sha256": "d4335dbec860fda4bb32b4eece17a1b5d8fd009ac21bc1c2fe02f5e480a589e5",
+      "status": "owned-system-import-meta-synthetic-range",
+      "step": "A6-27-5"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/system/new-target-no-map",
+      "row_sha256": "f0eb1cea914503bcaa383329cc152917ce075d2ac58c302f0b3adc438d46ffea",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/system/import-meta-no-map",
+      "row_sha256": "451c77b67e3d7a616e4da286e9da355f8c47593c314fd7abec60519f17387162",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/variable/plain",
+      "row_sha256": "312e9b51468c003e025107d8f131fea514447e58d2021fbd14cfb8b9fb496077",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/property/plain",
+      "row_sha256": "8bb1bc5f9dab86879f36e194d5cd463066cb35b761f624554c8e2fc632ac0bb9",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/assignment/plain",
+      "row_sha256": "3e8d7ed0ddce9f6fb28e630446d41b7bffe5454f5c470f215b0ac790feb31c21",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/binding/plain",
+      "row_sha256": "edd792093d58c60ab42caabb37116676e4e29a0647b7bfb5fe958710a3f2fb15",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/parenthesized/plain",
+      "row_sha256": "60fc0e6eac7df84d3a7f9abb4f7311561d1eb68bea85e847c52df95986e7d3da",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/variable/implements",
+      "row_sha256": "b40dac82e83801f1f8df0bc1a96e268ff5652154780f88b40e6f2e5cd7695e37",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/property/implements",
+      "row_sha256": "26e042dd6a39faa8fe201566cfd3f33e9bf0f798998a1b2a0b4bd2a4e56c3b7f",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/assignment/implements",
+      "row_sha256": "093c8e908b055ae8427d7c10ab8d36ca72727093889e2a5bde2533277a1fd1b7",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/binding/implements",
+      "row_sha256": "11beb83c8dae9056cc149711408c37759aaa38f7270ad606e82e49bc6fb6219c",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/parenthesized/implements",
+      "row_sha256": "cbd8d06ade1615c7f045117efe3541ec4c79e60f51da6b4ef99c9795b1c1b05b",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/variable/generic",
+      "row_sha256": "126f8f3426bcc0e15a3326b4f0c8283b0ef2d1a5957a798eabcf1317bdc8fd2d",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/property/generic",
+      "row_sha256": "621e42ab407508f960ab46898188711e32dfe05c98a0d98ccefc204627966d1f",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/assignment/generic",
+      "row_sha256": "aebd81ccf47df71755696285a4b485764ff2b58f6701dd7101ac638b7f1479ff",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/binding/generic",
+      "row_sha256": "d981842d776759b2b6afe31a6d5baf701ff37cc07074b48b48f112a5ce7c3119",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/parenthesized/generic",
+      "row_sha256": "ae1e59ff85df45fdea71c170536afa09a2414f9a42b664d8d77396e92d938793",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/variable/annotated-member",
+      "row_sha256": "72b0cac4601b70551d25f11b3c203282c050b81381d64095c0567540962bdcd6",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/property/annotated-member",
+      "row_sha256": "edc2567ecc308d8915b306a9cbd65aced18ebbd63163e40c9ca775ea8f836826",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/assignment/annotated-member",
+      "row_sha256": "c3ea294ed7ef74ab13fb249c6b990cd5a63ebd4053de2ef555103a154bb5a65d",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/binding/annotated-member",
+      "row_sha256": "9fe4525ffdaad28839db063b85d9b39b35b72535ee8c840577f4fd3c5e9f154f",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/parenthesized/annotated-member",
+      "row_sha256": "85a7627552e7495a42e3dc48f2c52a08fd18d3302aa597af816fc40bba9c4917",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/plain-function",
+      "row_sha256": "d4f776fff85a76b3d6f9376a50ba864033ef83948fed0b18ee3004acec082a2a",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/typed-function",
+      "row_sha256": "6b9392582d08854a0da7f8bb321c79aec606ddd84f0480f28afa7c4f97cc0191",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/plain-function-new-target",
+      "row_sha256": "9351475d55908aabebeacfc429bad149c74df7c955aabde8f9bc3afe02be979e",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/typed-function-new-target",
+      "row_sha256": "84827232db8e8186c99c29c73586169742b3ac0fa92671f2104751744c242c7f",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/typed-arrow",
+      "row_sha256": "a7caad16db677e7e3ea25dc4975d22cfa974ed0f5914d5cc1c13a040d21350f4",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/named-class",
+      "row_sha256": "4d5922e887c9b322c8b419797daa079d9ef370e894fcec527675b62ff5c86fd0",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/class-fields-alias",
+      "row_sha256": "3941748e4459f7bd326e7330a468e9f66f22cb698cc7141748697a37fceced39",
+      "status": "outside-class-field-alias-maps",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/variable/plain",
+      "row_sha256": "79f6707d7a994dba915bf484c27dc7a2df09b8560213b74ef833512ce39cd6c2",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/property/plain",
+      "row_sha256": "23a07c246fa6060596225fdb113bb9f21a729037dafa1cb1460107395dc0a7b3",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/assignment/plain",
+      "row_sha256": "8d49919a3d131b990a92c84c36413e432b439f0384afaf6ed8ca58d387339d2d",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/binding/plain",
+      "row_sha256": "45fc5a031942eba7af71c551ecf2bf748159cc2985941db42e52711f8b541e08",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/parenthesized/plain",
+      "row_sha256": "5b2b63e9cdfbcce602f3047207337a4f7db5a7df3382b43444e7bbcec1c09770",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/variable/implements",
+      "row_sha256": "3285b58b7bb05e0a35d395d68d7f97b90bce538de49682c52d4df1ee3e4963a2",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/property/implements",
+      "row_sha256": "e013e9414b06817fe63de614c8082a6388e6a514bcddc17841fa1385c8759509",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/assignment/implements",
+      "row_sha256": "f6da632ad3a9f5f67fa3c5f38c9ec1205a4fea23722523e1332735c0c013bb01",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/binding/implements",
+      "row_sha256": "b3a01b44e55e1f70072123b8409db95153767e8494321e38c87a268f09835df2",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/parenthesized/implements",
+      "row_sha256": "9637926b6bc1f22e6b917952afda4ff3443a7460198885aee5f2eb58a3073aec",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/variable/generic",
+      "row_sha256": "e344acd74076023332856917dc1dc77666c3626f0e250631bb6ccf1a0888fb61",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/property/generic",
+      "row_sha256": "20e7c76e7df7edd953b4d0c02a3c6417c9ba9693a912d06751336ffaedb22d8d",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/assignment/generic",
+      "row_sha256": "8c83f2b0cfcf8c67fc1d9bcf4984c9257ddc4575f09aef0a60f810796f8142c3",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/binding/generic",
+      "row_sha256": "6965c444414bd119c0414d949fbcfa1b373c2de49bf76941e3fdfd0b435549fc",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/parenthesized/generic",
+      "row_sha256": "4ac1b7139fce0f936fa3d0e14c1e174060b046f95463b6c70c25a968258a9363",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/variable/annotated-member",
+      "row_sha256": "6b3b8967bcfe491a1984812d6dc0094aef344c8a532297eb92687ede60bb1906",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/property/annotated-member",
+      "row_sha256": "1e35ba685f816e413cf461dbfa679e2e52efd64cb2161e7bd4fe35196161f0ec",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/assignment/annotated-member",
+      "row_sha256": "514d40b08ba2476f346ce7cd5b63a795e41415c94eabd29193e9ae4d0603b00d",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/binding/annotated-member",
+      "row_sha256": "5af846f5e862c6138f04f6bc232321dbdc51e89e045aef82d8bbb02eb750e810",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/parenthesized/annotated-member",
+      "row_sha256": "1b82e96c97326d0f8334faf891899bd3c443624ab35ceb69f7d6bfb6c693df2d",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/plain-function",
+      "row_sha256": "6eb1fd6a8149891778535cdf2917ac07ab9773f2c83d3731c206f4644a224283",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/typed-function",
+      "row_sha256": "1a284010673671224a620665a8fbed2e64129d8baea4bd370c0515364cce15e6",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/plain-function-new-target",
+      "row_sha256": "84b90e3ec054e7f7dcd70ab9e4d958e81219a80420c7c7eeb030d8076c243d3f",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/typed-function-new-target",
+      "row_sha256": "2f131b012aadf1fcf1277757a8bd5d71687798c4b1b956f659630aacae37a6df",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/typed-arrow",
+      "row_sha256": "3026c5091cfe8a4735f8f2b7bf4679825e838fb6c9f3fa49386c47c9caaf065d",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/named-class",
+      "row_sha256": "e6e3fbe1954c19044c2ebffc90dc356c04f9ae2b19f3c9e231ecbad4b24a1f24",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/class-fields-alias",
+      "row_sha256": "551433145a51a6a5e716d3440ec92accb8d8e853696121a83d15b5b724012461",
+      "status": "outside-class-field-alias-maps",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/variable/plain",
+      "row_sha256": "875e31af80e97b906ab46ceabdef7a60e2eedfd3bd01aeec964f57385cad0a3d",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/property/plain",
+      "row_sha256": "d76c06f2c9a1e9fd69baa9b9b97b192b712e659156e69554fa71f8a5dbaa3357",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/assignment/plain",
+      "row_sha256": "4cb2121fe46bdc4240955ba34957876448c9757918473f47ac16ab920af2e3a6",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/binding/plain",
+      "row_sha256": "f08730ba27c9b601e5d3dab2cc0c2d32b36ed9442c7c5048e3df9a10c47a8e7b",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/parenthesized/plain",
+      "row_sha256": "cf1909828e4e17e2d74930ebaa582368941e8e465c9ecf4b3291f5f20a81d301",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/variable/implements",
+      "row_sha256": "3bb89791d23df418d5fce1a60676dec0a1e72e64ba4d4b99bf871e132cc9f750",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/property/implements",
+      "row_sha256": "acac0a66ba172874d0ccb2d2026fe5eb3904b5119c0e22d6366d70e61df6532f",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/assignment/implements",
+      "row_sha256": "8a666a977449f779ee826303dad675b83f11b99caeea28cd432ff8089ff460a7",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/binding/implements",
+      "row_sha256": "e7be9d2a9c3f66013a65194961b0541ff6c44bbc9ab469843fd0b7be8ae2c2db",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/parenthesized/implements",
+      "row_sha256": "8030c6ace096ed5e92d0d6bea8dae9d9422aa9d3baa472f43f84221cff834595",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/variable/generic",
+      "row_sha256": "0d851adede5798dd626b622c29ee4d51c19b2ec652a5634dadad169f877471e6",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/property/generic",
+      "row_sha256": "ea70b12d5d139ff5590fa34fe5e4f61f74e39ef72afd92116efb0879a67a84f3",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/assignment/generic",
+      "row_sha256": "b49392460aad5b2caa35c1909be804738766f633ad89df981eeaf6e088c58dbb",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/binding/generic",
+      "row_sha256": "c29a146b9f367cb0b3dfe39b52180e8fb2ce9973612348aaa4526f14dee79b82",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/parenthesized/generic",
+      "row_sha256": "6271971bdad8f4128ea16a19a43c9fac193a775a18ba37adcc2bf722241e0406",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/variable/annotated-member",
+      "row_sha256": "cd0d1cc4c8370b3b374c52322d1d0afdabd538bfd9bd0d15e0768200acfda2e5",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/property/annotated-member",
+      "row_sha256": "25aaca0d843247ef020e39677007c9bdcab3ea17b94d97ecc51b07031c66a590",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/assignment/annotated-member",
+      "row_sha256": "f3c5521b0c66756d30ad3cc646a4feb4412242aff63e457952cb85ea3243cce0",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/binding/annotated-member",
+      "row_sha256": "f97b782aed9f728c5000f29db0e2ef7150e49deb78a446884770dd1bfc7360f0",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/parenthesized/annotated-member",
+      "row_sha256": "3966f8d0426b55243683306d2046db85df56aed23f1a67592753ef0c367db8ba",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/plain-function",
+      "row_sha256": "e5a64ced7e3518b57759ca0c2d91136b729cd438013580e6eccc3dbe10f9225a",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/typed-function",
+      "row_sha256": "634162f1f0af0034e9e46a51eed2ef228390de07afb8120257dbae01f92cf225",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/plain-function-new-target",
+      "row_sha256": "a7d6e2d2b4795bf13aed1c3de9de63eb4a3be86f9d623e2a662fd035e42c670b",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/typed-function-new-target",
+      "row_sha256": "0e4f8dc56d0e3a23467a974c3006ea33332954d9bd22fcea5ecd6f3b62438b39",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/typed-arrow",
+      "row_sha256": "ac9480b8965cf97cf6302cdac17e164e080e4ba9062aea382a1289ea41e06d4d",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/named-class",
+      "row_sha256": "9239cdd002360913df067affa9b535c07cee958e3bb770bca1a1a92b3bc10ec9",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/class-fields-alias",
+      "row_sha256": "a9eec47fad4530f0b37838e567151abf4c668bd51743edf810a2f7e2dfb949f3",
+      "status": "outside-class-field-alias-maps",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/variable/plain",
+      "row_sha256": "a23dcb110c45e19ab96cbc4c125c988a8ff5060897356e97b15d84a6952ef8cc",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/property/plain",
+      "row_sha256": "9365e9ddd841c53e4bc829941f7a215445df453cd358fc9c43b55fbbb754fbf3",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/assignment/plain",
+      "row_sha256": "49e35db479e62ea761822488996894e53389e1f3ac34418a0d9aec11615057f4",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/binding/plain",
+      "row_sha256": "3703100c104368b8fe7da1dcc2cf689f0bdbfc79e4d599a61fb6bd6d8c36df8b",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/parenthesized/plain",
+      "row_sha256": "971449b84b501fd295b2513a5abd00a442bff40d4eed45557138e8d4423de822",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/variable/implements",
+      "row_sha256": "cfad8c98c32249b0123b9cf5eb000a7219793822c853f9460b477c034ba50926",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/property/implements",
+      "row_sha256": "535feb170ba2d8a5251dea0c988a4c7547e722b41d82a374697a11ba7b97491f",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/assignment/implements",
+      "row_sha256": "a8d931a115bcb7620503dd931182db1f374f3e4306d4f8e619417a4c711bb733",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/binding/implements",
+      "row_sha256": "d63019fb7af08f498b46a7c5c2660e8f6bb3da2e4c94184a787c4968ccb9d43f",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/parenthesized/implements",
+      "row_sha256": "aec1aed75775d3ff4932766a09b07cc79e789e8b70fea7c83fbf74432aac0a46",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/variable/generic",
+      "row_sha256": "d35ccd0f7c3ddb7aef7718d4a40803c1907fedac27e9f4b6dea135a34d79560f",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/property/generic",
+      "row_sha256": "9efbe5158e3e2f8458eb99d37e2c6e4850d5ccd66529ce5bda705693c4eb8bc8",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/assignment/generic",
+      "row_sha256": "f45b968e310acdd1f67aed3cfb86d719bba649bef77515840539fb89885104cd",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/binding/generic",
+      "row_sha256": "f63c17c0384b735af3b65285d27105859da050880d735fa15253065f5ea187dc",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/parenthesized/generic",
+      "row_sha256": "ac6906bd8a0c6c8e812d04813c13d8fb6f68012453c109798b35eb7db5daad90",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/variable/annotated-member",
+      "row_sha256": "36f56fc0dab10989f84e848db9717101c8f65809e6d856480477f072fb60df15",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/property/annotated-member",
+      "row_sha256": "1ca163d5f64f6eebdb7b127b48b24175b3981002fd8c713824fbf53e86619c38",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/assignment/annotated-member",
+      "row_sha256": "1753004bfcdd407dde837116c598a8e01b323fca12c31861b8559596129a54be",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/binding/annotated-member",
+      "row_sha256": "83ba1d00a58e4dcbb4e7d5cbafe83db409c48fc60c0e2819de7d90bdf5e065a5",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/parenthesized/annotated-member",
+      "row_sha256": "847015b207ef257361cdb59fcf74d640a75e65597b01b1ce0b19bc5006da31b8",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/plain-function",
+      "row_sha256": "5482c4c55089d8f0e5b3d53ff0a3820c0e4abc59a3122588ede48e8171f64f97",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/typed-function",
+      "row_sha256": "fa82f92798041be261209165b1a426a2e3a347d90fbbf9d4b2c01146c42f60fb",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/plain-function-new-target",
+      "row_sha256": "64911a04310827f3994d9bcacd1aacaf1c76b500fce7361d6d8255b6dc5065ed",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/typed-function-new-target",
+      "row_sha256": "e5a39d3f19d7f3b938efad07ecf84c582d2ff02e935fa4491295e25e3f88e24c",
+      "status": "owned-printer-meta-property",
+      "step": "A6-27-2"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/typed-arrow",
+      "row_sha256": "a679b146f507f4a00110746ee0b3f3efd7fb096622bdb4d27a9b62d092ac9f42",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/named-class",
+      "row_sha256": "8226e714bcd68334ecfe69658ea0f401cf71e7228407825708d9d72087a5dea5",
+      "status": "adjacent-exact",
+      "step": "A6-27-4"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/class-fields-alias",
+      "row_sha256": "569b201a19546fb69e6c09e3946384b990f67ff703ef713efd6cdcb374588ca5",
+      "status": "outside-class-field-alias-maps",
+      "step": "A6-27-4"
+    }
+  ],
+  "after_required_complete_commands": 228,
+  "after_target_exact_twice": 224,
+  "after_outside_case_ids": [
+    "class-assigned-name/es5/commonjs/class-fields-alias",
+    "class-assigned-name/es5/esnext/class-fields-alias",
+    "class-assigned-name/es2015/commonjs/class-fields-alias",
+    "class-assigned-name/es2015/esnext/class-fields-alias"
+  ],
+  "emitter_tests_required": {
+    "lib": 490,
+    "contracts": 451
+  },
+  "authorities": [
+    {
+      "path": "crates/compiler/tests/fixtures/meta-property-token-maps.json",
+      "sha256": "479fbf2a808be871af49be7ecf382116422f0dfc1c708e8fea7ebe9caadd1bdb"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/transformed-class-assigned-names.json",
+      "sha256": "f04166260e4005fa6bd5df31ef98ef6d7d8cd79b0054e137f5c52e806d906ffb"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+      "sha256": "7b14d30e473948b7a7878c20ed9feb528a629f8d26db042306ba6574a6edde81"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "54d5849d2db6baf84152e6505add6e01906e6740cb21285f8b62631e538599ad"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_meta_property_token_maps.rs",
+      "sha256": "3a641ca42f38e3a843607677f51aa30aba1fa274eb9f828796ddffe4e58e5408"
+    },
+    {
+      "path": "crates/emitter/tests/fixtures/meta-property-token-map-invariants.json",
+      "sha256": "118cf5d784867704712f8c5246805e609224ab4854de7b06413f926954f665e1"
+    },
+    {
+      "path": "crates/emitter/tests/unit/builtins/tests.rs",
+      "sha256": "0c7c9dabcf832e318d41df314b62a14b35fb52f4e80a1374640a7046bfdfb8bd"
+    },
+    {
+      "path": "docs/design/README.md",
+      "sha256": "c2843bea19df08c887bd6461f10b7daf4ea2c86c32ca9ecc908008316a3497e0"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    },
+    {
+      "path": "docs/design/greenfield/post-h1-completion-slices.md",
+      "sha256": "df4e630f4fe348119e43714261d1193a880453fa6847b42c7bf52d086bd840fb"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-meta-property-system-range.md",
+      "sha256": "8784d2f989a9d03d8be4c297ad980faab2a181b9b9b3bffb711e02256c73b786"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-meta-property-token-maps.md",
+      "sha256": "abc5e073047c7ba2074430b03f4cb0394a70c7e95e0fe76185e0bf875e31307b"
+    },
+    {
+      "path": "ratchets/h2-8a-meta-property-token-maps-before.v1.json",
+      "sha256": "6eadff8e9154e1cde5e30e8473a9a752affbda636b38ef9701ee63e12d1c7d3d"
+    },
+    {
+      "path": "ratchets/h2-8a-meta-property-token-maps-first-after.v1.json",
+      "sha256": "da2ef22abc706c76aa6f1184b031d05d0b66ef6cd7fd52c0069af1683edfd198"
+    },
+    {
+      "path": "ratchets/h2-8a-meta-property-token-maps-first-before.v1.json",
+      "sha256": "d9a1253d41cdc8ed5269846281375e172daaa56eaf4b676719279a2f70069886"
+    },
+    {
+      "path": "ratchets/h2-8a-meta-property-token-maps-readiness.v1.json",
+      "sha256": "cc8c249b5338ee289bfe7bb7282ce148eb5e25114139b2923eb3f78bf9e21277"
+    },
+    {
+      "path": "scripts/check-meta-property-system-range-readiness.py",
+      "sha256": "5f36680bc2e3670d53b90bc9811d6b04f744b81f88ea5f5d3b898a56cde291d5"
+    },
+    {
+      "path": "scripts/check-meta-property-token-maps-readiness.py",
+      "sha256": "1950f24b2c86592d9edb43b2d787fbd464670ac18d5d15bdd9875c8d21b43730"
+    },
+    {
+      "path": "scripts/observe-meta-property-token-map-invariants.mjs",
+      "sha256": "de6c9f6cdb66b631f32cabcacb426790e38a07b626b98b7a42349a8990300d2f"
+    },
+    {
+      "path": "scripts/observe-meta-property-token-maps.mjs",
+      "sha256": "f03a663be5db6bf8c9b3e99408f0c40ccec22021d9635d207fb93de5216fb52b"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-source-audit-v3.json",
+      "sha256": "d433e4ae9dee176b2bfd6d82cf9288bc9a3ba9669cdd760698873bd7e7f69380"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "03191340f09238ee4802e90d56b9f6aac246189e6d44da6230cd6caeca2bbf7d"
+    },
+    {
+      "path": "crates/emitter/src/builtins/system.rs",
+      "sha256": "b01023d7854e56fb8134abd9e354aa678703ed164bc956e6647cac56332413ed"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "5ffd982b2fb2057fa7c082400f502e755f0acaf663245a9898bb48c0820d57b6"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/emitter/src/metadata.rs",
+      "sha256": "c9eaf94391d3eb0893a1d1e7d4c65ff9d876f8b3772634505325a72cf7430e23"
+    },
+    {
+      "path": "crates/emitter/src/source_map.rs",
+      "sha256": "175b9b1cb1a8de357476d59098ada4c42e2473feb6dfe3e734177d17f652ffb9"
+    },
+    {
+      "path": "crates/emitter/src/writer.rs",
+      "sha256": "0e3c1168e6251a7c42a5d9a811c0e4debfaa85398cafb9c512116a85f6bcecb6"
+    },
+    {
+      "path": "crates/emitter/src/transform.rs",
+      "sha256": "374ed96dc09f518a8f137cf7400e4cc6e634d3427b0b20346698e4b31a11011c"
+    },
+    {
+      "path": "crates/emitter/src/builtins/es2015.rs",
+      "sha256": "0427b99e1c10d41c9670ec173625b5f1407e5c1d7223a09abf6374ad09ab4c54"
+    }
+  ],
+  "unresolved": 0,
+  "undispositioned": 0,
+  "system_range_case_ids": [
+    "meta-property-token-maps/es5/system/import-meta-value",
+    "meta-property-token-maps/es5/system/import-meta-property",
+    "meta-property-token-maps/es5/system/import-meta-element",
+    "meta-property-token-maps/es5/system/import-meta-typeof",
+    "meta-property-token-maps/es5/system/import-meta-binding-collision",
+    "meta-property-token-maps/es5/system/import-meta-keyword-gap-comment",
+    "meta-property-token-maps/es5/system/import-meta-name-gap-comment",
+    "meta-property-token-maps/es5/system/import-meta-imported-binding",
+    "meta-property-token-maps/es2015/system/import-meta-value",
+    "meta-property-token-maps/es2015/system/import-meta-property",
+    "meta-property-token-maps/es2015/system/import-meta-element",
+    "meta-property-token-maps/es2015/system/import-meta-typeof",
+    "meta-property-token-maps/es2015/system/import-meta-binding-collision",
+    "meta-property-token-maps/es2015/system/import-meta-keyword-gap-comment",
+    "meta-property-token-maps/es2015/system/import-meta-name-gap-comment",
+    "meta-property-token-maps/es2015/system/import-meta-imported-binding"
+  ],
+  "no_map_adjacent_case_ids": [
+    "meta-property-token-maps/es5/system/import-meta-no-map",
+    "meta-property-token-maps/es2015/system/import-meta-no-map"
+  ],
+  "initial_runtime_snapshot": [
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "93fcaa0204594938de92296c9a47517e657e13cce09ba6ab2e710d674146a428"
+    },
+    {
+      "path": "crates/emitter/src/builtins/system.rs",
+      "sha256": "41099aa5007e89c186dc8ac08ce7a3b5649b4b014b9bc80c77da4fd37eb52e12"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "764965519a4b8f2114c8c11e5089890c75cd4b19e3183c24a2b301e045bd4848"
+    }
+  ],
+  "classification_correction": {
+    "case_ids": [
+      "meta-property-token-maps/es5/system/import-meta-value",
+      "meta-property-token-maps/es5/system/import-meta-property",
+      "meta-property-token-maps/es5/system/import-meta-element",
+      "meta-property-token-maps/es5/system/import-meta-typeof",
+      "meta-property-token-maps/es5/system/import-meta-binding-collision",
+      "meta-property-token-maps/es5/system/import-meta-keyword-gap-comment",
+      "meta-property-token-maps/es5/system/import-meta-name-gap-comment",
+      "meta-property-token-maps/es5/system/import-meta-imported-binding",
+      "meta-property-token-maps/es2015/system/import-meta-value",
+      "meta-property-token-maps/es2015/system/import-meta-property",
+      "meta-property-token-maps/es2015/system/import-meta-element",
+      "meta-property-token-maps/es2015/system/import-meta-typeof",
+      "meta-property-token-maps/es2015/system/import-meta-binding-collision",
+      "meta-property-token-maps/es2015/system/import-meta-keyword-gap-comment",
+      "meta-property-token-maps/es2015/system/import-meta-name-gap-comment",
+      "meta-property-token-maps/es2015/system/import-meta-imported-binding"
+    ],
+    "previous_status": "owned-printer-meta-property",
+    "corrected_status": "owned-system-import-meta-synthetic-range",
+    "reason": "System substitutes MetaProperty before the printer; native set_original_and_range introduced mappings absent from the wholly synthetic TypeScript substitute. These 16 failures predate the repair and are unchanged, not regressions.",
+    "original_before_classifications_preserved": true,
+    "corrected_owner_counts": {
+      "owned-printer-meta-property": 59,
+      "module-name-context-and-printer-required": 7,
+      "owned-system-import-meta-synthetic-range": 16,
+      "outside-class-field-alias-maps": 4,
+      "adjacent-exact": 142
+    }
+  }
+}

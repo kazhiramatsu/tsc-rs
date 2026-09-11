@@ -139,6 +139,40 @@ pub(crate) fn get_script_transformers_with_activity<'transformers>(
     get_script_transformers_with_optional_host(options, resolver, Some((host, source)), activity)
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ModuleTransformerKind {
+    EcmaScript,
+    ImpliedNodeFormat,
+    System,
+    Module,
+}
+
+/// tsc-port: getModuleTransformer @6.0.3
+/// tsc-hash: bbb6a0f805e34703e2cf88a3a7e6fe951a390a2b6da3899aab9c02584fff9174
+/// tsc-span: _tsc.js:115876-115895
+fn get_module_transformer_kind(module_kind: i32) -> ModuleTransformerKind {
+    match module_kind {
+        MODULE_PRESERVE => ModuleTransformerKind::EcmaScript,
+        MODULE_ES_NEXT | MODULE_ES2022 | MODULE_ES2020 | MODULE_ES2015 | MODULE_NODE16
+        | MODULE_NODE18 | MODULE_NODE20 | MODULE_NODE_NEXT | MODULE_COMMON_JS => {
+            ModuleTransformerKind::ImpliedNodeFormat
+        }
+        MODULE_SYSTEM => ModuleTransformerKind::System,
+        _ => ModuleTransformerKind::Module,
+    }
+}
+
+// Native activity follows the selected module delegate. Direct transformModule
+// uses the compiler module kind; only the implied composite asks the host.
+fn observe_module_delegate_activity(format: Option<i32>, activity: &mut H2ActivityCanary) {
+    if format.is_some_and(|format| format < 5) {
+        activity.observe_runtime_slice(H2RuntimeSlice::H2_1b);
+    }
+    if format.is_some_and(|format| matches!(format, MODULE_AMD | MODULE_UMD)) {
+        activity.observe_runtime_slice(H2RuntimeSlice::H2_1c);
+    }
+}
+
 // The transformer list is shared by a Bundle, while these predicates inspect
 // a particular source. Option-wide owners retain one event per list.
 fn observe_script_source_routing(
@@ -218,14 +252,14 @@ pub(crate) fn observe_additional_bundle_source_activity(
     activity: &mut H2ActivityCanary,
 ) {
     observe_script_source_routing(options, host, source, false, activity);
-    if !matches!(options.emit_module_kind(), MODULE_PRESERVE | MODULE_SYSTEM) {
-        let emit_format = host.get_emit_module_format_of_file(source);
-        if emit_format.is_some_and(|format| format < 5) {
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_1b);
+    match get_module_transformer_kind(options.emit_module_kind()) {
+        ModuleTransformerKind::Module => {
+            observe_module_delegate_activity(Some(options.emit_module_kind()), activity);
         }
-        if emit_format.is_some_and(|format| matches!(format, MODULE_AMD | MODULE_UMD)) {
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_1c);
+        ModuleTransformerKind::ImpliedNodeFormat => {
+            observe_module_delegate_activity(host.get_emit_module_format_of_file(source), activity);
         }
+        ModuleTransformerKind::EcmaScript | ModuleTransformerKind::System => {}
     }
 }
 
@@ -334,23 +368,26 @@ fn get_script_transformers_with_optional_host<'transformers>(
         (target < ScriptTarget::ES2015).then(|| es2015::transform_es2015(options, resolver));
     let transform_generators =
         (target < ScriptTarget::ES2015).then(|| generators::transform_generators(target, resolver));
-    let module_transformer = if options.emit_module_kind() == MODULE_PRESERVE {
-        activity.construct_transform_ecmascript_module();
-        transform_ecmascript_module(options)
-    } else if options.emit_module_kind() == MODULE_SYSTEM {
-        activity.observe_runtime_slice(H2RuntimeSlice::H2_1d);
-        system::transform_system_module(options, resolver, host.map(|(host, _)| host))
-    } else {
-        let (host, source) = host.ok_or(TransformError::EmitHostRequiredForImpliedModuleFormat)?;
-        activity.observe_runtime_slice(H2RuntimeSlice::H2_1a);
-        let emit_format = host.get_emit_module_format_of_file(source);
-        if emit_format.is_some_and(|format| format < 5) {
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_1b);
+    let module_transformer = match get_module_transformer_kind(options.emit_module_kind()) {
+        ModuleTransformerKind::EcmaScript => {
+            activity.construct_transform_ecmascript_module();
+            transform_ecmascript_module(options)
         }
-        if emit_format.is_some_and(|format| matches!(format, MODULE_AMD | MODULE_UMD)) {
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_1c);
+        ModuleTransformerKind::System => {
+            activity.observe_runtime_slice(H2RuntimeSlice::H2_1d);
+            system::transform_system_module(options, resolver, host.map(|(host, _)| host))
         }
-        transform_implied_node_format_dependent_module(options, resolver, host, activity)
+        ModuleTransformerKind::ImpliedNodeFormat => {
+            let (host, source) =
+                host.ok_or(TransformError::EmitHostRequiredForImpliedModuleFormat)?;
+            activity.observe_runtime_slice(H2RuntimeSlice::H2_1a);
+            observe_module_delegate_activity(host.get_emit_module_format_of_file(source), activity);
+            transform_implied_node_format_dependent_module(options, resolver, host, activity)
+        }
+        ModuleTransformerKind::Module => {
+            observe_module_delegate_activity(Some(options.emit_module_kind()), activity);
+            transform_module_with_optional_host(options, resolver, host.map(|(host, _)| host))
+        }
     };
     let mut transformers = vec![transform_typescript];
     if let Some(transform_legacy_decorators) = transform_legacy_decorators {
@@ -408,12 +445,12 @@ pub fn transform_type_script<'resolver>(
         resolver,
         legacy_decorators: options.experimental_decorators,
         always_strict: options.always_strict_effective(),
-        downlevels_es2018: options.emit_script_target() < ScriptTarget::ES2018,
         downlevel_iteration: options.downlevel_iteration == Some(true),
         module_kind: options.emit_module_kind(),
         preserve_const_enums: options.should_preserve_const_enums(),
         isolated_modules: options.isolated_modules == Some(true)
             || options.verbatim_module_syntax == Some(true),
+        verbatim_module_syntax: options.verbatim_module_syntax == Some(true),
         remove_comments: options.remove_comments == Some(true),
         allow_jsx: matches!(options.jsx, None | Some(1..=5)),
         allow_legacy_decorators: true,
@@ -483,11 +520,11 @@ struct TypeScriptTransformer<'resolver> {
     /// records that decorator syntax is supported by the complete pipeline.
     legacy_decorators: bool,
     always_strict: bool,
-    downlevels_es2018: bool,
     downlevel_iteration: bool,
     module_kind: i32,
     preserve_const_enums: bool,
     isolated_modules: bool,
+    verbatim_module_syntax: bool,
     remove_comments: bool,
     allow_jsx: bool,
     allow_legacy_decorators: bool,
@@ -548,7 +585,6 @@ impl Transformer for TypeScriptTransformer<'_> {
             self.module_kind == MODULE_SYSTEM,
             self.allow_jsx,
             self.allow_legacy_decorators,
-            self.downlevels_es2018,
         )?;
         initialize_transform_flags(context.arena_mut()?, source)?;
         let root_node = context.arena().root(source)?;
@@ -561,6 +597,7 @@ impl Transformer for TypeScriptTransformer<'_> {
             self.project_parameter_properties_for_class_fields,
             self.downlevel_iteration,
             self.promote_class_iife,
+            self.verbatim_module_syntax,
         );
         let transformed = visitor.visit_typescript(root_node.node())?.ok_or(
             TransformError::RequiredChildRemoved {
@@ -822,7 +859,7 @@ impl TypeScriptTransformer<'_> {
         if let Some(value) = javascript_string {
             context
                 .arena_mut()?
-                .metadata_mut(substitute)
+                .literal_properties_mut(substitute)?
                 .set_javascript_string_value(value);
         }
         if let Some(text) = trailing_comment {
@@ -1528,6 +1565,9 @@ impl<'context> EcmaScriptModuleEqualsVisitor<'context> {
             parent: SyntaxKind::ExternalModuleReference,
             field: "expression",
         })?;
+        // getExternalModuleNameLiteral's ordinary fallback preserves the
+        // literal's original-node link through a synthesized clone.
+        let module_specifier = self.context.factory()?.clone_node(module_specifier)?;
         let require = if self.module_kind == MODULE_PRESERVE {
             self.create_identifier("require")?
         } else {
@@ -2062,12 +2102,11 @@ impl NodeDataChildVisitor for RelativeModuleSpecifierVisitor<'_> {
 /// module that requested unscoped helpers imports them from `tslib`
 /// (`import { __x } from "tslib";` after the prologue) instead of
 /// inlining their texts (the printer suppresses unscoped helper bodies
-/// for that configuration). Import names come from the transcribed
+/// for the recorded source import). Import names come from the transcribed
 /// helper table (`EmitHelper::import_name`), sorted case-sensitively and
 /// deduplicated. The upstream aliasing arm for a helper name that is not
-/// file-level unique, and the import-equals arm for CommonJS-format
-/// files, are typed fail-closed seams owned by the H2.5h
-/// corpus-adoption slice.
+/// file-level unique remains a typed fail-closed seam. CommonJS-format
+/// imports are owned by CommonJsModuleTransformer.
 fn insert_external_helpers_import_declaration(
     context: &mut TransformationContext,
     source: TransformSourceId,
@@ -2209,7 +2248,47 @@ fn insert_external_helpers_import_declaration(
             .factory()?
             .update_node(root_node, NodeData::SourceFile(source_data), flags)?;
     context.arena_mut()?.replace_root(source, updated)?;
+    let original = original_source_file_node(context.arena(), source)?;
+    context.arena_mut()?.metadata_mut(original).external_helpers = true;
     Ok(())
+}
+
+fn original_source_file_node(
+    arena: &TransformArena,
+    source: TransformSourceId,
+) -> Result<TransformNode, TransformError> {
+    let original = arena.get_original_node(arena.root(source)?);
+    let actual = arena.node(original)?.kind;
+    if actual != SyntaxKind::SourceFile {
+        return Err(TransformError::RootKindExpected { actual });
+    }
+    Ok(original)
+}
+
+/// tsc-port: getExternalHelpersModuleName @6.0.3
+/// tsc-hash: 0ca5e12b63beaf46f3b5090835cdabe97e837d78e5990b7965f86934519e446f
+/// tsc-span: _tsc.js:27603-27607
+fn get_external_helpers_module_name(
+    arena: &TransformArena,
+    source: TransformSourceId,
+) -> Result<Option<TransformNode>, TransformError> {
+    let original = original_source_file_node(arena, source)?;
+    Ok(arena
+        .metadata(original)
+        .and_then(|metadata| metadata.external_helpers_module_name))
+}
+
+/// tsc-port: hasRecordedExternalHelpers @6.0.3
+/// tsc-hash: ed1779440c89c10d2a9c3801a8d608a05bb703f53772b2354102ebf477443d76
+/// tsc-span: _tsc.js:27608-27612
+pub(crate) fn has_recorded_external_helpers(
+    arena: &TransformArena,
+    source: TransformSourceId,
+) -> Result<bool, TransformError> {
+    let original = original_source_file_node(arena, source)?;
+    Ok(arena.metadata(original).is_some_and(|metadata| {
+        metadata.external_helpers || metadata.external_helpers_module_name.is_some()
+    }))
 }
 
 fn transformed_source_has_external_module_indicator(
@@ -2408,6 +2487,8 @@ fn transform_module_with_optional_host<'resolver>(
             .rewrite_relative_import_extensions
             .unwrap_or(false),
         target: options.emit_script_target(),
+        import_helpers: options.import_helpers.unwrap_or(false),
+        current_source: None,
     })
 }
 
@@ -2423,6 +2504,8 @@ struct CommonJsModuleTransformer<'resolver> {
     // keyword by language version (tsc: `languageVersion >= ES2015 ?
     // Const : None`, _tsc.js:111241/111277/111338).
     target: ScriptTarget,
+    import_helpers: bool,
+    current_source: Option<TransformSourceId>,
 }
 
 impl Transformer for CommonJsModuleTransformer<'_> {
@@ -2464,6 +2547,17 @@ impl Transformer for CommonJsModuleTransformer<'_> {
             .external_module_indicator
             .is_some();
         let current_root = context.arena().root(source)?;
+        // isEffectiveExternalModule: binder CommonJS indicators are produced
+        // only in JavaScript files, and are consumed only by CJS/Node formats.
+        let is_effective_external = is_external
+            || (self.module_kind == MODULE_COMMON_JS || (100..200).contains(&self.module_kind))
+                && context.arena().node(current_root)?.flags & NodeFlags::JAVA_SCRIPT_FILE.bits()
+                    != 0
+                && self.resolver.is_common_js_module(
+                    context
+                        .arena()
+                        .require_parse_tree_resolver_node(current_root)?,
+                )?;
         let has_dynamic_import = source_contains_dynamic_import(context.arena(), current_root)?;
         let has_import_reference_substitution =
             source_contains_import_reference_substitution(context.arena(), current_root)?;
@@ -2486,7 +2580,8 @@ impl Transformer for CommonJsModuleTransformer<'_> {
                     .as_deref()
                     .is_some_and(|path| !path.is_empty())
             });
-        let requires_module_rewrite = is_external || has_dynamic_import || json_amd_bundle;
+        let requires_module_rewrite =
+            is_effective_external || has_dynamic_import || json_amd_bundle;
         if !requires_module_rewrite && !has_import_reference_substitution {
             return Ok(TransformRoot::SourceFile(source));
         }
@@ -2502,13 +2597,16 @@ impl Transformer for CommonJsModuleTransformer<'_> {
         }
 
         let current_root = context.arena().root(source)?;
-        let info = CommonJsModuleInfo::collect(
+        let mut info = CommonJsModuleInfo::collect(
             context.arena(),
             source,
             current_root,
             self.resolver,
             self.module_kind,
         )?;
+        if self.import_helpers && is_effective_external {
+            self.collect_external_helpers_import(context, source, &mut info)?;
+        }
         let mut visitor = CommonJsVisitor::new(
             context,
             source,
@@ -2539,14 +2637,160 @@ impl Transformer for CommonJsModuleTransformer<'_> {
 
     fn substitute_node(
         &mut self,
-        _context: &mut TransformationContext,
-        _hint: EmitHint,
+        context: &mut TransformationContext,
+        hint: EmitHint,
         node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        // This Rust ownership adaptation performs substitutions while the AST
-        // is mutable. The hook remains installed because the implied-format
-        // composite must preserve transformModule's upstream hook surface.
-        Ok(node)
+        // Ordinary module substitutions remain eager. Helper qualification
+        // belongs to the source notification extent at print time.
+        if hint != EmitHint::Expression
+            || context.arena().node(node)?.kind != SyntaxKind::Identifier
+            || !context
+                .arena()
+                .metadata(node)
+                .is_some_and(|metadata| metadata.flags().contains(EmitFlags::HELPER_NAME))
+        {
+            return Ok(node);
+        }
+        let Some(source) = self.current_source else {
+            return Ok(node);
+        };
+        let Some(namespace) = get_external_helpers_module_name(context.arena(), source)? else {
+            return Ok(node);
+        };
+        // CJS clones the declaration name, so the original namespace may not
+        // occur in the final tree. Its identity still owns the finalized name.
+        let final_name = context
+            .arena()
+            .metadata(namespace)
+            .and_then(crate::EmitMetadata::generated_binding_id)
+            .and_then(|binding| context.generated_binding_name(binding))
+            .map(str::to_owned);
+        if let Some(final_name) = final_name {
+            context
+                .arena_mut()?
+                .set_generated_identifier_text(namespace, &final_name)?;
+        }
+        context
+            .substitution_factory()?
+            .create_property_access_expression(source, namespace, node)
+    }
+
+    fn before_emit_node(
+        &mut self,
+        context: &TransformationContext,
+        _hint: EmitHint,
+        node: TransformNode,
+    ) -> Result<(), TransformError> {
+        if context.arena().node(node)?.kind == SyntaxKind::SourceFile {
+            self.current_source = Some(node.source());
+        }
+        Ok(())
+    }
+
+    fn after_emit_node(
+        &mut self,
+        context: &TransformationContext,
+        _hint: EmitHint,
+        node: TransformNode,
+    ) -> Result<(), TransformError> {
+        if context.arena().node(node)?.kind == SyntaxKind::SourceFile {
+            self.current_source = None;
+        }
+        Ok(())
+    }
+
+    fn dispose(&mut self) {
+        self.current_source = None;
+    }
+}
+
+impl CommonJsModuleTransformer<'_> {
+    /// CJS-format arm and its namespace-demand owner.
+    /// tsc-port: createExternalHelpersImportDeclarationIfNeeded @6.0.3
+    /// tsc-hash: d44b2c0d8237d7cad74d638bdaa5cd14dd4347e3a57e408de8b5fb85a6a18f77
+    /// tsc-span: _tsc.js:27613-27680
+    /// tsc-port: getOrCreateExternalHelpersModuleNameIfNeeded @6.0.3
+    /// tsc-hash: 6c3961c1f7fb4a4078962c1e353d7d8d26edcdfdbd1ca04d299c27e3d8ab4e61
+    /// tsc-span: _tsc.js:27684-27695
+    fn collect_external_helpers_import(
+        &self,
+        context: &mut TransformationContext,
+        source: TransformSourceId,
+        info: &mut CommonJsModuleInfo,
+    ) -> Result<(), TransformError> {
+        let namespace = match get_external_helpers_module_name(context.arena(), source)? {
+            Some(namespace) => namespace,
+            None => {
+                let has_helpers = context
+                    .requested_emit_helpers()
+                    .iter()
+                    .any(|helper| !helper.scoped());
+                let has_module_helpers = info.has_export_stars_to_export_values
+                    || self.es_module_interop && (info.has_import_star || info.has_import_default);
+                let create = if has_helpers {
+                    true
+                } else if has_module_helpers {
+                    let format = if (100..200).contains(&self.module_kind) {
+                        let program_source =
+                            context.arena().source(source)?.program_source().ok_or(
+                                TransformError::MissingProgramSourceForModuleFormat(source),
+                            )?;
+                        self.host
+                            .and_then(|host| host.get_emit_module_format_of_file(program_source))
+                            .ok_or(TransformError::MissingProgramSourceForModuleFormat(source))?
+                    } else {
+                        self.module_kind
+                    };
+                    format < MODULE_SYSTEM
+                } else {
+                    false
+                };
+                if !create {
+                    return Ok(());
+                }
+                let namespace = context.factory()?.create_unique_name(
+                    source,
+                    "tslib",
+                    crate::GeneratedIdentifierFlags::NONE,
+                )?;
+                let original = original_source_file_node(context.arena(), source)?;
+                context
+                    .arena_mut()?
+                    .metadata_mut(original)
+                    .external_helpers_module_name = Some(namespace);
+                namespace
+            }
+        };
+        let specifier = context
+            .factory()?
+            .create_string_literal(source, "tslib", false)?;
+        let reference = context
+            .factory()?
+            .create_external_module_reference(source, specifier)?;
+        let declaration = context
+            .factory()?
+            .create_import_equals_declaration(source, None, false, namespace, reference)?;
+        context
+            .arena_mut()?
+            .metadata_mut(declaration)
+            .set_internal_flags(InternalEmitFlags::NEVER_APPLY_IMPORT_HELPER);
+        info.external_helpers_import_declaration = Some(declaration);
+        info.external_imports.insert(0, declaration.node());
+        info.imports.insert(
+            declaration.node(),
+            ImportPlan {
+                declaration,
+                module_specifier_node: specifier,
+                runtime_name: Some(
+                    identifier_or_literal_text(context.arena(), namespace)?.into_boxed_str(),
+                ),
+                namespace_alias: None,
+                helper: ImportHelperKind::None,
+                import_equals_publication: Some(ImportEqualsPublication::LocalBinding),
+            },
+        );
+        Ok(())
     }
 }
 
@@ -2700,10 +2944,139 @@ fn namespace_export_identifier_name(
     Ok((text != "default").then(|| text.into_boxed_str()))
 }
 
+/// Text keys and syntax provenance have distinct roles in module publication.
+/// Existing names may be parsed or synthesized by an earlier transformer.
+///
+/// tsc-port: collectExternalModuleInfo @6.0.3
+/// tsc-span: _tsc.js:92779-92919
+/// tsc-hash: 2694413ce6ea08091a03db3a313b50ee3ff526b065f199270311ac583350220e
+#[derive(Clone, Debug)]
+struct ModuleExportName {
+    text: Box<str>,
+    syntax: ModuleExportNameSyntax,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum ModuleExportNameSyntax {
+    ExistingNode(TransformNode),
+    SynthesizedIdentifier,
+}
+
+impl ModuleExportName {
+    fn from_node(arena: &TransformArena, node: TransformNode) -> Result<Self, TransformError> {
+        Ok(Self {
+            text: identifier_or_literal_text(arena, node)?.into_boxed_str(),
+            syntax: ModuleExportNameSyntax::ExistingNode(node),
+        })
+    }
+
+    fn identifier(text: &str) -> Self {
+        Self {
+            text: text.into(),
+            syntax: ModuleExportNameSyntax::SynthesizedIdentifier,
+        }
+    }
+
+    fn declaration_name(
+        arena: &TransformArena,
+        source: TransformSourceId,
+        name: Option<NodeId>,
+        fallback: &str,
+    ) -> Result<Self, TransformError> {
+        name.and_then(|name| arena.node_ref(source, name))
+            .map(|name| Self::from_node(arena, name))
+            .transpose()
+            .map(|name| name.unwrap_or_else(|| Self::identifier(fallback)))
+    }
+
+    fn as_str(&self) -> &str {
+        &self.text
+    }
+}
+
+impl AsRef<str> for ModuleExportName {
+    fn as_ref(&self) -> &str {
+        &self.text
+    }
+}
+
+impl std::ops::Deref for ModuleExportName {
+    type Target = str;
+    fn deref(&self) -> &str {
+        &self.text
+    }
+}
+
+impl From<&str> for ModuleExportName {
+    fn from(text: &str) -> Self {
+        Self::identifier(text)
+    }
+}
+
+/// tsc-port: createStringLiteralFromNode @6.0.3
+/// tsc-span: _tsc.js:21535-21543
+/// tsc-hash: a2fa6c4e9dd96af89655a0a7d44368bcdd05ad599a3ef7e898a2a64e3e5fe9ee
+fn create_module_export_name_literal(
+    context: &mut TransformationContext,
+    source: TransformSourceId,
+    name: &ModuleExportName,
+) -> Result<TransformNode, TransformError> {
+    let literal = context.factory()?.create_node(
+        source,
+        NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
+            text: name.text.to_string(),
+            has_extended_unicode_escape: None,
+        }),
+        TransformFlags::NONE,
+    )?;
+    if let ModuleExportNameSyntax::ExistingNode(node) = name.syntax {
+        let value = context
+            .arena()
+            .literal_properties(node)
+            .and_then(crate::LiteralNodeProperties::javascript_string_value)
+            .cloned();
+        let properties = context.arena_mut()?.literal_properties_mut(literal)?;
+        properties.set_string_literal_text_source(node);
+        if let Some(value) = value {
+            properties.set_javascript_string_value(value);
+        }
+    }
+    Ok(literal)
+}
+
+/// The source of a hoisted publication also selects getLocalName versus
+/// getDeclarationName for its value. Keep direct-first dedup provenance.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum HoistedExportOrigin {
+    DirectDeclaration,
+    ExplicitSpecifier,
+}
+
+#[derive(Clone, Debug)]
+struct HoistedDeclarationExport {
+    name: ModuleExportName,
+    origin: HoistedExportOrigin,
+}
+
+/// A module-allocated anonymous name has no parsed resolver identity.
+#[derive(Clone, Debug)]
+enum HoistedDeclarationName {
+    Source(TransformNode),
+    Allocated(Box<str>),
+}
+
+#[derive(Clone, Debug)]
+struct HoistedDeclarationExports {
+    declaration: TransformNode,
+    local: HoistedDeclarationName,
+    publications: Vec<HoistedDeclarationExport>,
+}
+
 #[derive(Clone, Debug)]
 struct ImportReExportPlan {
-    exported_name: Box<str>,
-    binding: ImportBinding,
+    exported_name: ModuleExportName,
+    declaration: TransformNode,
+    local_name: TransformNode,
     live_binding: bool,
     location: TransformNode,
 }
@@ -2728,17 +3101,17 @@ enum CommonJsDirectVariableStorage {
 struct CommonJsDirectVariablePlan {
     local_name: Box<str>,
     storage: CommonJsDirectVariableStorage,
-    publication_targets: Vec<Box<str>>,
+    publication_targets: Vec<ModuleExportName>,
 }
 
 impl CommonJsDirectVariablePlan {
     fn new(
         local_name: &str,
         storage: CommonJsDirectVariableStorage,
-        collector_targets: impl IntoIterator<Item = Box<str>>,
+        collector_targets: impl IntoIterator<Item = ModuleExportName>,
     ) -> Self {
         let local_name: Box<str> = local_name.into();
-        let mut publication_targets = vec![local_name.clone()];
+        let mut publication_targets = vec![ModuleExportName::identifier(&local_name)];
         for target in collector_targets {
             if !publication_targets
                 .iter()
@@ -2754,11 +3127,8 @@ impl CommonJsDirectVariablePlan {
         }
     }
 
-    fn alias_targets(&self) -> impl Iterator<Item = &str> {
-        self.publication_targets
-            .iter()
-            .skip(1)
-            .map(|target| target.as_ref())
+    fn alias_targets(&self) -> impl Iterator<Item = &ModuleExportName> {
+        self.publication_targets.iter().skip(1)
     }
 }
 
@@ -2792,7 +3162,7 @@ impl CommonJsFileLevelGeneratedBindingId {
 /// `GeneratedBindingId` is rejected in release builds as well as debug builds.
 #[derive(Debug, Default)]
 struct CommonJsFileLevelGeneratedBindingExports {
-    by_binding: BTreeMap<CommonJsFileLevelGeneratedBindingId, Vec<Box<str>>>,
+    by_binding: BTreeMap<CommonJsFileLevelGeneratedBindingId, Vec<ModuleExportName>>,
 }
 
 impl CommonJsFileLevelGeneratedBindingExports {
@@ -2800,15 +3170,19 @@ impl CommonJsFileLevelGeneratedBindingExports {
         &mut self,
         arena: &TransformArena,
         identifier: TransformNode,
-        export: &str,
+        export: impl Into<ModuleExportName>,
     ) -> bool {
         let Some(binding) = CommonJsFileLevelGeneratedBindingId::from_identifier(arena, identifier)
         else {
             return false;
         };
+        let export = export.into();
         let exports = self.by_binding.entry(binding).or_default();
-        if !exports.iter().any(|existing| existing.as_ref() == export) {
-            exports.push(export.into());
+        if !exports
+            .iter()
+            .any(|existing| existing.as_ref() == export.as_ref())
+        {
+            exports.push(export);
         }
         true
     }
@@ -2817,7 +3191,7 @@ impl CommonJsFileLevelGeneratedBindingExports {
         &self,
         arena: &TransformArena,
         identifier: TransformNode,
-    ) -> Option<&[Box<str>]> {
+    ) -> Option<&[ModuleExportName]> {
         let binding = CommonJsFileLevelGeneratedBindingId::from_identifier(arena, identifier)?;
         self.by_binding.get(&binding).map(Vec::as_slice)
     }
@@ -2827,6 +3201,10 @@ impl CommonJsFileLevelGeneratedBindingExports {
 struct CommonJsModuleInfo {
     is_external: bool,
     export_equals: Option<NodeId>,
+    external_helpers_import_declaration: Option<TransformNode>,
+    has_export_stars_to_export_values: bool,
+    has_import_star: bool,
+    has_import_default: bool,
     /// `getGeneratedNameForNode` owns one source-wide module-name namespace.
     /// Keep the allocator after collection as well: JSX can retain an
     /// original import identity for substitution even when transformTypeScript
@@ -2849,13 +3227,13 @@ struct CommonJsModuleInfo {
     /// from exports_by_local, which also includes a declaration's own
     /// `export` modifier; import declarations must publish only the
     /// former after their runtime binding is initialized.
-    export_specifiers_by_local: BTreeMap<Box<str>, Vec<Box<str>>>,
-    exports_by_local: BTreeMap<Box<str>, Vec<Box<str>>>,
+    export_specifiers_by_local: BTreeMap<Box<str>, Vec<ModuleExportName>>,
+    exports_by_local: BTreeMap<Box<str>, Vec<ModuleExportName>>,
     file_level_generated_binding_exports: CommonJsFileLevelGeneratedBindingExports,
-    exported_bindings: BTreeMap<NodeId, Vec<Box<str>>>,
+    exported_bindings: BTreeMap<NodeId, Vec<ModuleExportName>>,
     export_specifier_locations: BTreeMap<(Box<str>, Box<str>), NodeId>,
-    exported_names: Vec<Box<str>>,
-    hoisted_function_exports: Vec<(Box<str>, Box<str>, TransformNode)>,
+    exported_names: Vec<ModuleExportName>,
+    hoisted_function_exports: Vec<HoistedDeclarationExports>,
     direct_exported_variable_names: BTreeSet<Box<str>>,
 }
 
@@ -2869,29 +3247,37 @@ impl CommonJsModuleInfo {
         self.export_equals.is_none()
     }
 
-    /// Typed publication plan for tsc's `appendExportsOfHoistedDeclaration`.
-    /// Direct `export` modifiers are declaration behavior and therefore do
-    /// not inherit collector-level export-name uniqueness. Explicit export
-    /// specifiers remain collection data and follow the direct publication.
+    /// Preserve publication origin before direct-first deduplication, and
+    /// retain the declaration name separately from the exported spelling.
+    /// tsc-port: appendExportsOfHoistedDeclaration @6.0.3
+    /// tsc-span: _tsc.js:111722-111742
+    /// tsc-hash: bfbaa381d44c81a747e6de4dd148b3d0dc129a1d6e350138cee1ced097b4a3f7
+    /// tsc-port: appendExportsOfDeclaration @6.0.3
+    /// tsc-span: _tsc.js:111743-111762
+    /// tsc-hash: b1e3c0856abab75bf412486742c157c5a6b6a7a41fd293c039ba0936fa70cad2
     fn hoisted_declaration_exports(
         &self,
         arena: &TransformArena,
         source: TransformSourceId,
+        declaration: TransformNode,
         modifiers: Option<NodeArrayId>,
+        name: Option<NodeId>,
         local: &str,
-    ) -> Result<Vec<Box<str>>, TransformError> {
+    ) -> Result<Option<HoistedDeclarationExports>, TransformError> {
         if !self.appends_declaration_exports() {
-            return Ok(Vec::new());
+            return Ok(None);
         }
-        let mut exports = Vec::<Box<str>>::new();
+        let mut publications = Vec::<HoistedDeclarationExport>::new();
         if has_modifier(arena, source, modifiers, SyntaxKind::ExportKeyword)? {
-            exports.push(
-                if has_modifier(arena, source, modifiers, SyntaxKind::DefaultKeyword)? {
-                    "default".into()
-                } else {
-                    local.into()
-                },
-            );
+            let name = if has_modifier(arena, source, modifiers, SyntaxKind::DefaultKeyword)? {
+                "default".into()
+            } else {
+                ModuleExportName::declaration_name(arena, source, name, local)?
+            };
+            publications.push(HoistedDeclarationExport {
+                name,
+                origin: HoistedExportOrigin::DirectDeclaration,
+            });
         }
         for export in self
             .export_specifiers_by_local
@@ -2899,14 +3285,41 @@ impl CommonJsModuleInfo {
             .cloned()
             .unwrap_or_default()
         {
-            if !exports
+            if !publications
                 .iter()
-                .any(|existing| existing.as_ref() == export.as_ref())
+                .any(|existing| existing.name.as_ref() == export.as_ref())
             {
-                exports.push(export);
+                publications.push(HoistedDeclarationExport {
+                    name: export,
+                    origin: HoistedExportOrigin::ExplicitSpecifier,
+                });
             }
         }
-        Ok(exports)
+        if publications.is_empty() {
+            return Ok(None);
+        }
+        let source_name = name
+            .and_then(|name| arena.node_ref(source, name))
+            .filter(|name| {
+                arena
+                    .node(*name)
+                    .is_ok_and(|node| node.kind == SyntaxKind::Identifier)
+                    && arena
+                        .metadata(*name)
+                        .and_then(crate::EmitMetadata::generated_binding_id)
+                        .is_none()
+            });
+        let local = match source_name {
+            Some(name) if arena.is_parsed_node(arena.get_original_node(name))? => {
+                HoistedDeclarationName::Source(name)
+            }
+            _ => HoistedDeclarationName::Allocated(local.into()),
+        };
+        Ok(Some(HoistedDeclarationExports {
+            declaration,
+            local,
+            publications,
+        }))
     }
 
     fn collect(
@@ -2947,6 +3360,10 @@ impl CommonJsModuleInfo {
         let mut info = Self {
             is_external,
             export_equals: None,
+            external_helpers_import_declaration: None,
+            has_export_stars_to_export_values: false,
+            has_import_star: false,
+            has_import_default: false,
             generated_module_names: generated_names,
             elided_import_runtime_names: BTreeMap::new(),
             generated_declaration_names,
@@ -3074,6 +3491,8 @@ impl CommonJsModuleInfo {
                             } else {
                                 ImportHelperKind::None
                             };
+                            info.has_import_star |= needs_star;
+                            info.has_import_default |= needs_default;
                             if let Some(_name) = clause_data.name {
                                 info.import_bindings.insert(
                                     arena.get_original_node(clause).node(),
@@ -3231,9 +3650,11 @@ impl CommonJsModuleInfo {
                                 SyntaxKind::DefaultKeyword,
                             )?;
                             let export = if is_default {
-                                "default"
+                                ModuleExportName::identifier("default")
                             } else {
-                                local.as_ref()
+                                ModuleExportName::declaration_name(
+                                    arena, source, data.name, &local,
+                                )?
                             };
                             let admitted = if is_default {
                                 if has_export_default {
@@ -3243,10 +3664,10 @@ impl CommonJsModuleInfo {
                                     true
                                 }
                             } else {
-                                unique_exports.insert(export.into())
+                                unique_exports.insert(export.text.clone())
                             };
                             if admitted {
-                                info.add_export_mapping(&local, export);
+                                info.add_export_mapping(&local, &export);
                                 // collectModuleInfo's default arm records the
                                 // declaration name in exportedBindings
                                 // (_tsc.js:92906-92908); "default" stays only
@@ -3254,7 +3675,9 @@ impl CommonJsModuleInfo {
                                 // initializer substitutes `exports.<name>`.
                                 info.add_exported_binding(
                                     key,
-                                    if is_default { local.as_ref() } else { export },
+                                    &ModuleExportName::declaration_name(
+                                        arena, source, data.name, &local,
+                                    )?,
                                 );
                             }
                         }
@@ -3287,9 +3710,9 @@ impl CommonJsModuleInfo {
                         .or_else(|| info.generated_declaration_names.get(&key).cloned());
                     if let Some(local) = local {
                         let export = if is_default {
-                            "default"
+                            ModuleExportName::identifier("default")
                         } else {
-                            local.as_ref()
+                            ModuleExportName::declaration_name(arena, source, data.name, &local)?
                         };
                         // collectExternalModuleInfo deliberately omits a
                         // directly exported default class from exportedNames:
@@ -3306,7 +3729,7 @@ impl CommonJsModuleInfo {
                                 true
                             }
                         } else if has_syntactic_name {
-                            unique_exports.insert(export.into())
+                            unique_exports.insert(export.text.clone())
                         } else {
                             // Invalid-but-emittable anonymous named export is
                             // absent from collectExternalModuleInfo but still
@@ -3314,9 +3737,9 @@ impl CommonJsModuleInfo {
                             true
                         };
                         if admitted {
-                            info.add_export_mapping(&local, export);
+                            info.add_export_mapping(&local, &export);
                             if !is_default && has_syntactic_name {
-                                info.add_exported_name(export);
+                                info.add_exported_name(&export);
                             }
                             if is_default || has_syntactic_name {
                                 // The default arm mirrors the function case:
@@ -3324,7 +3747,9 @@ impl CommonJsModuleInfo {
                                 // name (_tsc.js:92859-92861).
                                 info.add_exported_binding(
                                     key,
-                                    if is_default { local.as_ref() } else { export },
+                                    &ModuleExportName::declaration_name(
+                                        arena, source, data.name, &local,
+                                    )?,
                                 );
                             }
                         }
@@ -3345,11 +3770,12 @@ impl CommonJsModuleInfo {
                                 if !unique_exports.insert(local.clone().into_boxed_str()) {
                                     continue;
                                 }
-                                info.add_export_mapping(&local, &local);
-                                info.add_exported_name(&local);
+                                let export = ModuleExportName::from_node(arena, leaf.name)?;
+                                info.add_export_mapping(&local, &export);
+                                info.add_exported_name(&export);
                                 info.add_exported_binding(
                                     arena.get_original_node(leaf.declaration).node(),
-                                    &local,
+                                    &export,
                                 );
                                 if !arena.metadata(leaf.name).is_some_and(|metadata| {
                                     metadata.flags().contains(EmitFlags::LOCAL_NAME)
@@ -3362,6 +3788,7 @@ impl CommonJsModuleInfo {
                     }
                 }
                 NodeData::ExportDeclaration(data) if data.module_specifier.is_some() => {
+                    info.has_export_stars_to_export_values |= data.export_clause.is_none();
                     let module_specifier = data
                         .module_specifier
                         .and_then(|id| arena.node_ref(source, id))
@@ -3417,16 +3844,22 @@ impl CommonJsModuleInfo {
                                     if let NodeData::ExportSpecifier(specifier) =
                                         &arena.node(specifier)?.data
                                     {
+                                        info.has_import_default |= specifier
+                                            .property_name
+                                            .or(specifier.name)
+                                            .and_then(|name| arena.node_ref(source, name))
+                                            .and_then(|name| {
+                                                identifier_or_literal_text(arena, name).ok()
+                                            })
+                                            .is_some_and(|name| name == "default");
                                         if let Some(export) = specifier
                                             .name
                                             .and_then(|id| arena.node_ref(source, id))
                                             .and_then(|name| {
-                                                identifier_or_literal_text(arena, name).ok()
+                                                ModuleExportName::from_node(arena, name).ok()
                                             })
                                         {
-                                            if !unique_exports
-                                                .insert(export.clone().into_boxed_str())
-                                            {
+                                            if !unique_exports.insert(export.text.clone()) {
                                                 continue;
                                             }
                                             info.add_exported_name(&export);
@@ -3435,12 +3868,13 @@ impl CommonJsModuleInfo {
                                 }
                             }
                             NodeData::NamespaceExport(namespace) => {
+                                info.has_import_star = true;
                                 if let Some(export) = namespace
                                     .name
                                     .and_then(|id| arena.node_ref(source, id))
-                                    .and_then(|name| identifier_or_literal_text(arena, name).ok())
+                                    .and_then(|name| ModuleExportName::from_node(arena, name).ok())
                                 {
-                                    if !unique_exports.insert(export.clone().into_boxed_str()) {
+                                    if !unique_exports.insert(export.text.clone()) {
                                         continue;
                                     }
                                     info.add_exported_name(&export);
@@ -3475,7 +3909,7 @@ impl CommonJsModuleInfo {
                         let Some(export) = specifier
                             .name
                             .and_then(|id| arena.node_ref(source, id))
-                            .and_then(|name| identifier_or_literal_text(arena, name).ok())
+                            .and_then(|name| ModuleExportName::from_node(arena, name).ok())
                         else {
                             continue;
                         };
@@ -3511,22 +3945,22 @@ impl CommonJsModuleInfo {
                                 if exported_function_set.insert(key) {
                                     exported_functions.push(key);
                                 }
-                                if export == "default" {
+                                if export.as_ref() == "default" {
                                     if !has_export_default {
                                         has_export_default = true;
                                         info.add_exported_binding(key, &export);
                                     }
                                 } else {
-                                    unique_exports.insert(export.clone().into_boxed_str());
+                                    unique_exports.insert(export.text.clone());
                                     info.add_exported_binding(key, &export);
                                 }
                             }
                         } else {
-                            unique_exports.insert(export.clone().into_boxed_str());
+                            unique_exports.insert(export.text.clone());
                             info.add_export_specifier(&local, &export, location);
                             let _ = info
                                 .file_level_generated_binding_exports
-                                .add_for_identifier(arena, local_name, &export);
+                                .add_for_identifier(arena, local_name, export.clone());
                             if let Some(declaration) = declaration {
                                 info.add_exported_binding(declaration.node(), &export);
                             }
@@ -3575,56 +4009,87 @@ impl CommonJsModuleInfo {
                 continue;
             };
             let original_declaration = arena.get_original_node(statement);
-            for export in info.hoisted_declaration_exports(arena, source, data.modifiers, &local)? {
-                info.hoisted_function_exports
-                    .push((export, local.clone(), original_declaration));
+            if let Some(exports) = info.hoisted_declaration_exports(
+                arena,
+                source,
+                original_declaration,
+                data.modifiers,
+                data.name,
+                &local,
+            )? {
+                info.hoisted_function_exports.push(exports);
             }
         }
         Ok(info)
     }
 
-    fn add_export_mapping(&mut self, local: &str, export: &str) {
+    fn add_export_mapping(&mut self, local: &str, export: &ModuleExportName) {
         let exports = self.exports_by_local.entry(local.into()).or_default();
-        if !exports.iter().any(|existing| existing.as_ref() == export) {
-            exports.push(export.into());
+        if !exports
+            .iter()
+            .any(|existing| existing.as_ref() == export.as_ref())
+        {
+            exports.push(export.clone());
         }
     }
 
-    fn add_export_specifier(&mut self, local: &str, export: &str, location: NodeId) {
+    fn add_export_specifier(&mut self, local: &str, export: &ModuleExportName, location: NodeId) {
         self.add_export_specifier_mapping(local, export, location);
         self.add_exported_name(export);
     }
 
-    fn add_export_specifier_mapping(&mut self, local: &str, export: &str, location: NodeId) {
+    fn add_export_specifier_mapping(
+        &mut self,
+        local: &str,
+        export: &ModuleExportName,
+        location: NodeId,
+    ) {
         let exports = self
             .export_specifiers_by_local
             .entry(local.into())
             .or_default();
-        if !exports.iter().any(|existing| existing.as_ref() == export) {
-            exports.push(export.into());
+        if !exports
+            .iter()
+            .any(|existing| existing.as_ref() == export.as_ref())
+        {
+            exports.push(export.clone());
         }
         self.export_specifier_locations
-            .entry((local.into(), export.into()))
+            .entry((local.into(), export.text.clone()))
             .or_insert(location);
         self.add_export_mapping(local, export);
     }
 
-    fn add_exported_name(&mut self, export: &str) {
+    fn add_exported_name(&mut self, export: &ModuleExportName) {
         if !self
             .exported_names
             .iter()
-            .any(|existing| existing.as_ref() == export)
+            .any(|existing| existing.as_ref() == export.as_ref())
         {
-            self.exported_names.push(export.into());
+            self.exported_names.push(export.clone());
         }
     }
 
-    fn add_exported_binding(&mut self, declaration: NodeId, export: &str) {
+    fn add_exported_binding(&mut self, declaration: NodeId, export: &ModuleExportName) {
         let exports = self.exported_bindings.entry(declaration).or_default();
-        if !exports.iter().any(|existing| existing.as_ref() == export) {
-            exports.push(export.into());
+        if !exports
+            .iter()
+            .any(|existing| existing.as_ref() == export.as_ref())
+        {
+            exports.push(export.clone());
         }
     }
+}
+
+/// tsc-port: hasJSFileExtension @6.0.3
+/// tsc-hash: 26f2de10186fd7377e0fc90d254165421f27320a1b95dca68e43ee8f2f71128d
+/// tsc-span: _tsc.js:18654-18656
+fn has_js_file_extension(name: &str) -> bool {
+    // Fold fileExtensionIs (_tsc.js:5323-5325), including its strict
+    // length guard; a filename consisting solely of ".js" does not match.
+    [".js", ".jsx", ".mjs", ".cjs"]
+        .iter()
+        .any(|extension| name.len() > extension.len() && name.ends_with(extension))
 }
 
 fn source_file_statement_nodes(
@@ -4272,7 +4737,7 @@ fn variable_list_has_initialized_export_binding(
     arena: &TransformArena,
     source: TransformSourceId,
     list: TransformNode,
-    exported_bindings: &BTreeMap<NodeId, Vec<Box<str>>>,
+    exported_bindings: &BTreeMap<NodeId, Vec<ModuleExportName>>,
 ) -> Result<bool, TransformError> {
     let NodeData::VariableDeclarationList(data) = &arena.node(list)?.data else {
         return Ok(false);
@@ -4296,15 +4761,11 @@ fn variable_list_has_initialized_export_binding(
     Ok(false)
 }
 
+/// tsc-port: isIdentifierText @6.0.3
+/// tsc-hash: ce44c13a3f2ea2f826209e812605d2e30c3ff5a4e9a6925a0683821d18048b5d
+/// tsc-span: _tsc.js:8676-8687
 fn is_identifier_export_name(name: &str) -> bool {
-    let mut characters = name.chars();
-    let Some(first) = characters.next() else {
-        return false;
-    };
-    (first == '_' || first == '$' || first.is_ascii_alphabetic())
-        && characters.all(|character| {
-            character == '_' || character == '$' || character.is_ascii_alphanumeric()
-        })
+    tsc_syntax::is_identifier_text(name)
 }
 
 #[derive(Clone, Copy)]
@@ -4418,7 +4879,7 @@ impl NamespaceDestructuringPlan {
 #[derive(Clone, Debug)]
 struct ExportAssignmentPlan {
     local_name: String,
-    exports: Vec<Box<str>>,
+    exports: Vec<ModuleExportName>,
     direct_export_storage: bool,
 }
 
@@ -4429,14 +4890,14 @@ struct ExportAssignmentPlan {
 #[derive(Clone, Debug)]
 struct DeclarationExportPlan {
     local: TransformNode,
-    exported_name: Box<str>,
+    exported_name: ModuleExportName,
     location: TransformNode,
     source_map_location: TransformNode,
 }
 
 struct AliasedAsynchronousDependency {
     path: String,
-    parameter: String,
+    parameter: TransformNode,
 }
 
 struct AsynchronousDependencies {
@@ -4565,7 +5026,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 output.push(self.create_sync_require_declaration()?);
             }
             let temp_insertion = output.len();
-            if self.info.is_external && self.info.export_equals.is_none() {
+            if self.should_emit_es_module_marker(root)? {
                 output.push(self.create_es_module_marker()?);
             }
             let hoisted_function_exports = self.info.hoisted_function_exports.clone();
@@ -4573,22 +5034,20 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             for chunk in preinitialized.chunks(50) {
                 let mut expression = self.create_void_zero()?;
                 for name in chunk {
-                    let target = self.create_export_access(name)?;
+                    let target = self.create_preinitialized_export_access(name)?;
                     expression = self.create_assignment(target, expression)?;
                 }
                 output.push(self.create_expression_statement(expression)?);
             }
             if self.info.appends_declaration_exports() {
-                for (export, local, declaration) in hoisted_function_exports {
-                    let target = self.create_export_access(&export)?;
-                    let value = self.create_identifier(&local)?;
-                    let assignment = self.create_assignment(target, value)?;
-                    let statement = self.create_expression_statement(assignment)?;
-                    self.set_source_map_range_from(statement, declaration)?;
-                    output.push(statement);
+                for exports in hoisted_function_exports {
+                    output.extend(self.materialize_hoisted_declaration_exports(exports)?);
                 }
             }
 
+            if let Some(import) = self.info.external_helpers_import_declaration {
+                output.extend(self.visit_top_level_statement(import)?);
+            }
             if self.module_kind == MODULE_AMD {
                 output.extend(self.create_amd_import_initializers()?);
             }
@@ -4619,6 +5078,32 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         self.context
             .factory()?
             .update_node(root, NodeData::SourceFile(source_data), flags)
+    }
+
+    /// tsc-port: shouldEmitUnderscoreUnderscoreESModule @6.0.3
+    /// tsc-hash: 947ac8347f6e2848ce70717b634bf7d184204c966f3b9fe16fc0a59cc96beb98
+    /// tsc-span: _tsc.js:110158-110166
+    fn should_emit_es_module_marker(&self, root: TransformNode) -> Result<bool, TransformError> {
+        // These branches decide the marker without a fallible binder query.
+        if !self.info.is_external || self.info.export_equals.is_some() {
+            return Ok(false);
+        }
+        let source = self.context.arena().source(self.source)?.syntax();
+        if has_js_file_extension(&source.file_name) {
+            if let Some(indicator) = source.external_module_indicator {
+                // The parser represents boolean `true` with its SourceFile
+                // node. Strict-prologue insertion and earlier transforms can
+                // already have replaced syntax.root, but retain this node.
+                if self.context.arena().node(self.node(indicator))?.kind == SyntaxKind::SourceFile
+                    && self
+                        .resolver
+                        .is_common_js_module(self.resolver_node(root)?)?
+                {
+                    return Ok(false);
+                }
+            }
+        }
+        Ok(true)
     }
 
     /// The UMD sync-require helper is represented as an ordinary statement in
@@ -4771,7 +5256,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             if let Some(name) = dependency.name {
                 aliased.push(AliasedAsynchronousDependency {
                     path,
-                    parameter: name,
+                    parameter: self.create_identifier(&name)?,
                 });
             } else {
                 unaliased.push(path);
@@ -4784,13 +5269,30 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             let module_specifier =
                 string_literal_text(self.context.arena(), module_specifier)?.to_owned();
             if self.module_kind == MODULE_AMD && plan.runtime_name.is_some() {
+                let generated_name = match &self.context.arena().node(plan.declaration)?.data {
+                    NodeData::ImportEqualsDeclaration(data) => data
+                        .name
+                        .and_then(|name| self.context.arena().node_ref(self.source, name))
+                        .filter(|name| {
+                            self.context
+                                .arena()
+                                .metadata(*name)
+                                .and_then(crate::EmitMetadata::generated_binding_id)
+                                .is_some()
+                        }),
+                    _ => None,
+                };
+                let parameter = match generated_name {
+                    Some(name) => name,
+                    None => self.create_identifier(
+                        plan.runtime_name
+                            .as_deref()
+                            .expect("an aliased AMD dependency owns a runtime binding"),
+                    )?,
+                };
                 aliased.push(AliasedAsynchronousDependency {
                     path: module_specifier,
-                    parameter: plan
-                        .runtime_name
-                        .as_deref()
-                        .expect("an aliased AMD dependency owns a runtime binding")
-                        .to_owned(),
+                    parameter,
                 });
             } else {
                 unaliased.push(module_specifier);
@@ -4914,7 +5416,15 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             self.create_parameter("exports")?,
         ];
         for dependency in &asynchronous_dependencies.aliased {
-            body_parameters.push(self.create_parameter(&dependency.parameter)?);
+            body_parameters.push(self.context.factory()?.create_parameter_declaration(
+                self.source,
+                None,
+                None,
+                dependency.parameter,
+                None,
+                None,
+                None,
+            )?);
         }
         let body_function = self.create_function_expression(body_parameters, body)?;
         let mut dependency_elements = vec![
@@ -5111,6 +5621,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             }
             NodeData::ClassDeclaration(mut data) => {
                 let original_declaration = self.context.arena().get_original_node(statement);
+                let source_name = data.name;
                 if data.name.is_none() {
                     let key = self.context.arena().get_original_node(statement).node();
                     if let Some(name) = self
@@ -5132,24 +5643,19 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                         self.info.hoisted_declaration_exports(
                             self.context.arena(),
                             self.source,
+                            original_declaration,
                             data.modifiers,
+                            source_name,
                             name,
                         )
                     })
                     .transpose()?
-                    .unwrap_or_default();
+                    .flatten();
                 data.modifiers = self.remove_export_modifiers(data.modifiers)?;
                 let class = self.update_generic(statement, NodeData::ClassDeclaration(data))?;
                 let mut statements = vec![class];
-                if let Some(name) = name {
-                    for export in exported {
-                        let target = self.create_export_access(&export)?;
-                        let value = self.create_identifier(&name)?;
-                        let assignment = self.create_assignment(target, value)?;
-                        let publication = self.create_expression_statement(assignment)?;
-                        self.set_source_map_range_from(publication, original_declaration)?;
-                        statements.push(publication);
-                    }
+                if let Some(exports) = exported {
+                    statements.extend(self.materialize_hoisted_declaration_exports(exports)?);
                 }
                 Ok(statements)
             }
@@ -5337,9 +5843,9 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
     ) -> Result<Vec<ImportReExportPlan>, TransformError> {
         let local = identifier_or_literal_text(self.context.arena(), local_name)?;
         let key = self.context.arena().get_original_node(declaration).node();
-        let Some(binding) = self.info.import_bindings.get(&key).cloned() else {
+        if !self.info.import_bindings.contains_key(&key) {
             return Ok(Vec::new());
-        };
+        }
         let exports = self
             .info
             .export_specifiers_by_local
@@ -5352,12 +5858,13 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 let location = self
                     .info
                     .export_specifier_locations
-                    .get(&(local.clone().into_boxed_str(), exported_name.clone()))
+                    .get(&(local.clone().into_boxed_str(), exported_name.text.clone()))
                     .and_then(|location| self.context.arena().node_ref(self.source, *location))
                     .unwrap_or(local_name);
                 Ok(ImportReExportPlan {
                     exported_name,
-                    binding: binding.clone(),
+                    declaration,
+                    local_name,
                     live_binding,
                     location,
                 })
@@ -5369,16 +5876,17 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         &mut self,
         plan: ImportReExportPlan,
     ) -> Result<TransformNode, TransformError> {
-        let target = self.create_identifier(&plan.binding.generated_name)?;
-        let value = create_import_binding_access(self.context, self.source, target, &plan.binding)?;
+        let value =
+            self.create_declaration_publication_reference(plan.declaration, plan.local_name)?;
         let statement = if plan.live_binding {
             self.create_live_export_statement(&plan.exported_name, value)?
         } else {
-            let target = self.create_export_access(&plan.exported_name)?;
+            let target = self.create_export_access_from_module_name(&plan.exported_name)?;
             let assignment = self.create_assignment(target, value)?;
             self.create_expression_statement(assignment)?
         };
         self.set_original_and_range(statement, plan.location)?;
+        self.set_explicit_export_statement_location(statement, &plan.exported_name)?;
         self.context
             .arena_mut()?
             .metadata_mut(statement)
@@ -5386,9 +5894,142 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         Ok(statement)
     }
 
+    /// tsc-port: createExportStatement @6.0.3
+    /// tsc-span: _tsc.js:111791-111804
+    /// tsc-hash: d533ed2215809bab955e6b206a545e71c1a8490754d2bb396fec41aca15000cc
+    /// tsc-port: appendExportsOfHoistedDeclaration @6.0.3
+    /// tsc-span: _tsc.js:111722-111742
+    /// tsc-hash: bfbaa381d44c81a747e6de4dd148b3d0dc129a1d6e350138cee1ced097b4a3f7
+    fn materialize_hoisted_declaration_exports(
+        &mut self,
+        exports: HoistedDeclarationExports,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        let mut statements = Vec::with_capacity(exports.publications.len());
+        for publication in exports.publications {
+            let target = self.create_export_access_from_module_name(&publication.name)?;
+            let value = match &exports.local {
+                HoistedDeclarationName::Source(name) => match publication.origin {
+                    HoistedExportOrigin::DirectDeclaration => {
+                        self.clone_declaration_publication_name(*name, EmitFlags::LOCAL_NAME)?
+                    }
+                    HoistedExportOrigin::ExplicitSpecifier => {
+                        self.create_declaration_publication_reference(exports.declaration, *name)?
+                    }
+                },
+                HoistedDeclarationName::Allocated(name) => self.create_identifier(name)?,
+            };
+            let assignment = self.create_assignment(target, value)?;
+            let statement = self.create_expression_statement(assignment)?;
+            match publication.origin {
+                HoistedExportOrigin::DirectDeclaration => {
+                    self.context
+                        .factory()?
+                        .set_text_range(statement, exports.declaration)?;
+                    let metadata = self.context.arena_mut()?.metadata_mut(statement);
+                    metadata.add_flags(EmitFlags::NO_COMMENTS);
+                    metadata.set_starts_on_new_line(true);
+                }
+                HoistedExportOrigin::ExplicitSpecifier => {
+                    self.set_explicit_export_statement_location(statement, &publication.name)?;
+                }
+            }
+            statements.push(statement);
+        }
+        Ok(statements)
+    }
+
+    /// tsc-port: getName @6.0.3
+    /// tsc-span: _tsc.js:24788-24799
+    /// tsc-hash: 9734f5576b1aa153598ff7ae70a2a2f994bb50d0370fbfc547c47952f72dea33
+    /// tsc-port: getLocalName @6.0.3
+    /// tsc-span: _tsc.js:24803-24805
+    /// tsc-hash: db85ef71236480d7de1d2e131b01d6f8fed272ef41d0f5297ce7fb3485ee7979
+    fn clone_declaration_publication_name(
+        &mut self,
+        original: TransformNode,
+        additional_flags: EmitFlags,
+    ) -> Result<TransformNode, TransformError> {
+        let name = self.context.factory()?.clone_node(original)?;
+        self.context.factory()?.set_text_range(name, original)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(name)
+            .add_flags(EmitFlags::NO_SOURCE_MAP | EmitFlags::NO_COMMENTS | additional_flags);
+        Ok(name)
+    }
+
+    /// tsc-port: getName @6.0.3
+    /// tsc-span: _tsc.js:24788-24799
+    /// tsc-hash: 9734f5576b1aa153598ff7ae70a2a2f994bb50d0370fbfc547c47952f72dea33
+    /// tsc-port: appendExportsOfDeclaration @6.0.3
+    /// tsc-span: _tsc.js:111743-111762
+    /// tsc-hash: b1e3c0856abab75bf412486742c157c5a6b6a7a41fd293c039ba0936fa70cad2
+    /// tsc-port: substituteExpressionIdentifier @6.0.3
+    /// tsc-span: _tsc.js:111946-111989
+    /// tsc-hash: 972830b79228dc51aaec4b3b13ebd2a12795701304627fef3bdc5ba8b7ab3a96
+    fn create_declaration_publication_reference(
+        &mut self,
+        declaration: TransformNode,
+        local_name: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let ordinary_identifier = self.context.arena().node(local_name)?.kind
+            == SyntaxKind::Identifier
+            && self
+                .context
+                .arena()
+                .metadata(local_name)
+                .and_then(crate::EmitMetadata::generated_binding_id)
+                .is_none();
+        let name = if ordinary_identifier {
+            self.clone_declaration_publication_name(local_name, EmitFlags::NONE)?
+        } else {
+            self.context.factory()?.get_generated_name_for_node(
+                declaration,
+                crate::GeneratedIdentifierFlags::NONE,
+                None,
+                None,
+            )?
+        };
+        if self.context.arena().metadata(name).is_some_and(|metadata| {
+            metadata.generated_binding_id().is_some()
+                || metadata
+                    .flags()
+                    .intersects(EmitFlags::LOCAL_NAME | EmitFlags::NO_SUBSTITUTION)
+        }) {
+            return Ok(name);
+        }
+        let resolver_node = self.resolver_node(name)?;
+        let exported_from_source = self
+            .resolver
+            .get_referenced_export_container(resolver_node, EmitExportContainerMode::Reference)?
+            .and_then(|container| self.context.arena().node_ref(self.source, container.node()))
+            .and_then(|container| self.context.arena().node(container).ok())
+            .is_some_and(|container| container.kind == SyntaxKind::SourceFile);
+        let value = if exported_from_source {
+            let export = ModuleExportName::from_node(self.context.arena(), name)?;
+            self.create_export_access_from_module_name(&export)?
+        } else {
+            let Some(binding) = self.import_binding_for_reference(name)? else {
+                return Ok(name);
+            };
+            // Namespace and ordinary import-equals names remain local names;
+            // module.ts substitutes only import clauses and named specifiers.
+            if binding.property.is_none() {
+                return Ok(name);
+            }
+            let target = self.create_identifier(&binding.generated_name)?;
+            create_import_binding_access(self.context, self.source, target, &binding)?
+        };
+        // The replacement owns the declaration's range, while NoSourceMap and
+        // NoComments belong to the declaration-name clone. setOriginalNode
+        // would merge those flags onto the replacement access.
+        self.context.factory()?.set_text_range(value, name)?;
+        Ok(value)
+    }
+
     fn create_live_export_statement(
         &mut self,
-        exported_name: &str,
+        exported_name: &ModuleExportName,
         value: TransformNode,
     ) -> Result<TransformNode, TransformError> {
         let return_statement = self.context.factory()?.create_node(
@@ -5443,7 +6084,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let object = self.create_identifier("Object")?;
         let define_property = self.create_property_access(object, "defineProperty")?;
         let exports = self.create_identifier("exports")?;
-        let name = self.create_string_literal(exported_name)?;
+        let name = create_module_export_name_literal(self.context, self.source, exported_name)?;
         let call = self.create_call(define_property, vec![exports, name, descriptor])?;
         self.create_expression_statement(call)
     }
@@ -5508,7 +6149,16 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             }
             (ImportEqualsPublication::LocalBinding, false) => {
                 let require = self.create_require_call(original, module_specifier)?;
-                let declaration = self.create_variable_declaration(runtime_name, require)?;
+                let name = data
+                    .name
+                    .and_then(|name| self.context.arena().node_ref(self.source, name))
+                    .ok_or(TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::ImportEqualsDeclaration,
+                        field: "name",
+                    })?;
+                let name = self.context.factory()?.clone_node(name)?;
+                let declaration =
+                    self.create_variable_declaration_from_name(name, Some(require))?;
                 let statement = self.create_variable_statement(
                     vec![declaration],
                     if self.target >= ScriptTarget::ES2015 {
@@ -5535,16 +6185,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 parent: SyntaxKind::ImportEqualsDeclaration,
                 field: "name",
             })?;
-        let mut re_exports = self.import_binding_re_exports(original, name, false)?;
-        if let ImportEqualsPublication::ExportObject { exported_name } = publication {
-            for re_export in &mut re_exports {
-                re_export.binding = ImportBinding {
-                    generated_name: "exports".into(),
-                    property: Some(exported_name.clone()),
-                    property_node: None,
-                };
-            }
-        }
+        let re_exports = self.import_binding_re_exports(original, name, false)?;
         for re_export in re_exports {
             statements.push(self.create_import_re_export_statement(re_export)?);
         }
@@ -5636,27 +6277,38 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     else {
                         continue;
                     };
-                    let property = specifier_data
+                    let property_node = specifier_data
                         .property_name
                         .or(specifier_data.name)
                         .and_then(|id| self.context.arena().node_ref(self.source, id))
-                        .and_then(|name| {
-                            identifier_or_literal_text(self.context.arena(), name).ok()
-                        })
                         .ok_or(TransformError::RequiredChildRemoved {
                             parent: SyntaxKind::ExportSpecifier,
                             field: "property_name or name",
                         })?;
-                    let exported = specifier_data
+                    let property = identifier_or_literal_text(self.context.arena(), property_node)?;
+                    let exported_node = specifier_data
                         .name
                         .and_then(|id| self.context.arena().node_ref(self.source, id))
-                        .and_then(|name| {
-                            identifier_or_literal_text(self.context.arena(), name).ok()
-                        })
                         .ok_or(TransformError::RequiredChildRemoved {
                             parent: SyntaxKind::ExportSpecifier,
                             field: "name",
                         })?;
+                    let exported_name = self.context.factory()?.clone_node(exported_node)?;
+                    if self.context.arena().node(exported_node)?.kind != SyntaxKind::StringLiteral {
+                        self.context
+                            .factory()?
+                            .set_text_range(exported_name, exported_node)?;
+                        self.context
+                            .arena_mut()?
+                            .metadata_mut(exported_name)
+                            .add_flags(
+                                EmitFlags::NO_SOURCE_MAP
+                                    | EmitFlags::NO_COMMENTS
+                                    | EmitFlags::EXPORT_NAME,
+                            );
+                    }
+                    let exported =
+                        ModuleExportName::from_node(self.context.arena(), exported_name)?;
                     let mut target = self.create_identifier(&generated_name)?;
                     if apply_import_helpers && property == "default" {
                         self.request_import_default_helper()?;
@@ -5666,11 +6318,20 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                         )?;
                         target = self.create_call(helper, vec![target])?;
                     }
-                    let value = if is_identifier_export_name(&property) {
-                        self.create_property_access(target, &property)?
+                    let value = if self.context.arena().node(property_node)?.kind
+                        == SyntaxKind::StringLiteral
+                    {
+                        self.context.factory()?.create_element_access_expression(
+                            self.source,
+                            target,
+                            property_node,
+                        )?
                     } else {
-                        let property = self.create_string_literal(&property)?;
-                        self.create_element_access(target, property)?
+                        self.context.factory()?.create_property_access_expression(
+                            self.source,
+                            target,
+                            property_node,
+                        )?
                     };
                     let statement = self.create_live_export_statement(&exported, value)?;
                     self.set_original_and_range(statement, specifier)?;
@@ -5682,7 +6343,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 let exported = namespace
                     .name
                     .and_then(|id| self.context.arena().node_ref(self.source, id))
-                    .and_then(|name| identifier_or_literal_text(self.context.arena(), name).ok())
+                    .and_then(|name| ModuleExportName::from_node(self.context.arena(), name).ok())
                     .ok_or(TransformError::RequiredChildRemoved {
                         parent: SyntaxKind::NamespaceExport,
                         field: "name",
@@ -5704,7 +6365,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     )?;
                     value = self.create_call(helper, vec![value])?;
                 }
-                let target = self.create_export_access(&exported)?;
+                let target = self.create_export_access_from_module_name(&exported)?;
                 let assignment = self.create_assignment(target, value)?;
                 let statement = self.create_expression_statement(assignment)?;
                 self.set_original_and_range(statement, original)?;
@@ -5851,10 +6512,12 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     .add_flags(EmitFlags::NO_COMMENTS);
                 trailing.push(statement);
                 for export in plan.alias_targets() {
-                    let target = self.create_export_access(export)?;
+                    let target = self.create_export_access_from_module_name(export)?;
                     let value = self.create_identifier(&plan.local_name)?;
                     let assignment = self.create_assignment(target, value)?;
-                    trailing.push(self.create_expression_statement(assignment)?);
+                    let statement = self.create_expression_statement(assignment)?;
+                    self.set_explicit_export_statement_location(statement, export)?;
+                    trailing.push(statement);
                 }
                 continue;
             }
@@ -5872,10 +6535,12 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     self.set_direct_export_statement_range(statement, name, original)?;
                     trailing.push(statement);
                     for export in plan.alias_targets() {
-                        let target = self.create_export_access(export)?;
-                        let value = self.create_export_access(&plan.local_name)?;
+                        let target = self.create_export_access_from_module_name(export)?;
+                        let value = self.create_substituted_declaration_export_value(name)?;
                         let assignment = self.create_assignment(target, value)?;
-                        trailing.push(self.create_expression_statement(assignment)?);
+                        let statement = self.create_expression_statement(assignment)?;
+                        self.set_explicit_export_statement_location(statement, export)?;
+                        trailing.push(statement);
                     }
                 }
                 continue;
@@ -5887,7 +6552,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     .filter(|plan| plan.storage == CommonJsDirectVariableStorage::LocalBinding)
                 {
                     for export in &plan.publication_targets {
-                        let target = self.create_export_access(export)?;
+                        let target = self.create_export_access_from_module_name(export)?;
                         initializer = self.create_assignment(target, initializer)?;
                     }
                 }
@@ -6404,7 +7069,10 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 let Some(location) = self
                     .info
                     .export_specifier_locations
-                    .get(&(local_name.clone().into_boxed_str(), exported_name.clone()))
+                    .get(&(
+                        local_name.clone().into_boxed_str(),
+                        exported_name.text.clone(),
+                    ))
                     .and_then(|location| self.context.arena().node_ref(self.source, *location))
                 else {
                     // A syntactic `export` modifier is published by the
@@ -6428,27 +7096,54 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         &self,
         location: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let record = self.context.arena().node(location)?;
-        if record.kind != SyntaxKind::ExportSpecifier
-            || record.pos != u32::MAX
-            || record.end != u32::MAX
-        {
-            return Ok(location);
-        }
-        let NodeData::ExportSpecifier(data) = &record.data else {
+        let NodeData::ExportSpecifier(data) = &self.context.arena().node(location)?.data else {
             return Ok(location);
         };
-        let Some(name) = data
+        Ok(data
             .name
             .and_then(|name| self.context.arena().node_ref(self.source, name))
-        else {
-            return Ok(location);
-        };
-        let name_record = self.context.arena().node(name)?;
-        if name_record.pos == u32::MAX || name_record.end == u32::MAX {
-            return Ok(location);
+            .unwrap_or(location))
+    }
+
+    fn set_explicit_export_statement_location(
+        &mut self,
+        statement: TransformNode,
+        name: &ModuleExportName,
+    ) -> Result<(), TransformError> {
+        if let ModuleExportNameSyntax::ExistingNode(node) = name.syntax {
+            self.context.factory()?.set_text_range(statement, node)?;
         }
-        Ok(name)
+        let metadata = self.context.arena_mut()?.metadata_mut(statement);
+        metadata.add_flags(EmitFlags::NO_COMMENTS);
+        metadata.set_starts_on_new_line(true);
+        Ok(())
+    }
+
+    /// The direct-storage lowering performs the declaration-name substitution
+    /// here, before ordinary reference visitation. The access retains the
+    /// declaration name's range, while its cloned property has no own mapping.
+    ///
+    /// tsc-port: substituteExpressionIdentifier @6.0.3
+    /// tsc-span: _tsc.js:111946-111989
+    /// tsc-hash: 972830b79228dc51aaec4b3b13ebd2a12795701304627fef3bdc5ba8b7ab3a96
+    fn create_substituted_declaration_export_value(
+        &mut self,
+        name: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let declaration_name = self.context.factory()?.clone_node(name)?;
+        self.context
+            .factory()?
+            .set_text_range(declaration_name, name)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(declaration_name)
+            .add_flags(EmitFlags::NO_SOURCE_MAP | EmitFlags::NO_COMMENTS);
+        let export = ModuleExportName::from_node(self.context.arena(), declaration_name)?;
+        let value = self.create_export_access_from_module_name(&export)?;
+        self.context
+            .factory()?
+            .set_text_range(value, declaration_name)?;
+        Ok(value)
     }
 
     fn create_declaration_export_statements(
@@ -6460,7 +7155,11 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         for plan in plans {
             let value = self.context.factory()?.clone_node(plan.local)?;
             self.context.factory()?.set_text_range(value, plan.local)?;
-            let target = self.create_export_access(&plan.exported_name)?;
+            self.context
+                .arena_mut()?
+                .metadata_mut(value)
+                .add_flags(EmitFlags::NO_SOURCE_MAP | EmitFlags::NO_COMMENTS);
+            let target = self.create_export_access_from_module_name(&plan.exported_name)?;
             let assignment = self.create_assignment(target, value)?;
             let statement = self.create_expression_statement(assignment)?;
             self.set_original_and_range(statement, plan.location)?;
@@ -6636,6 +7335,12 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let record = self.context.arena().node(original)?.clone();
         let transformed = match record.data {
             NodeData::Token => original,
+            // tsc-port: onSubstituteNode @6.0.3
+            // tsc-hash: 4275c47c81e1ec247934ac9d79029304a6b07f259ccde7a9036f1bdc3d160a3c
+            // tsc-span: _tsc.js:111871-111882
+            // emitMetaProperty emits its name with Unspecified. Preserve
+            // that leaf instead of eagerly querying it as a value reference.
+            NodeData::MetaProperty(_) => original,
             NodeData::Identifier(_)
                 if !is_non_reference_identifier_node(self.context.arena(), original)? =>
             {
@@ -7295,9 +8000,13 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let exports = self.exports_for_assignment(&data)?;
         let mut expression = self.update_generic(original, NodeData::BinaryExpression(data))?;
         for export in exports {
-            let target = self.create_export_access(&export)?;
+            let target = self.create_export_access_from_module_name(&export)?;
             expression = self.create_assignment(target, expression)?;
-            self.set_original_and_range(expression, original)?;
+            // createExportExpression ranges the new wrapper without copying
+            // the visited inner assignment's emit metadata onto it.
+            self.context
+                .factory()?
+                .set_text_range(expression, original)?;
         }
         Ok(expression)
     }
@@ -7341,7 +8050,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 if plan.direct_export_storage && export.as_ref() == plan.local_name.as_str() {
                     continue;
                 }
-                let target = self.create_export_access(&export)?;
+                let target = self.create_export_access_from_module_name(&export)?;
                 expression = self.create_assignment(target, expression)?;
                 self.set_original_and_range(expression, original)?;
             }
@@ -7419,7 +8128,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         expression = self.create_binary(expression, SyntaxKind::CommaToken, current_value)?;
         self.set_original_and_range(expression, original)?;
         for export in exports {
-            let target = self.create_export_access(&export)?;
+            let target = self.create_export_access_from_module_name(&export)?;
             expression = self.create_assignment(target, expression)?;
             self.set_original_and_range(expression, original)?;
         }
@@ -7436,7 +8145,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
     fn exports_for_assignment(
         &self,
         data: &tsc_syntax::nodes::BinaryExpressionData,
-    ) -> Result<Vec<Box<str>>, TransformError> {
+    ) -> Result<Vec<ModuleExportName>, TransformError> {
         let Some(operator) = data
             .operator_token
             .and_then(|id| self.context.arena().node_ref(self.source, id))
@@ -7507,7 +8216,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         for declaration in declarations {
             if let Some(bindings) = self.info.exported_bindings.get(&declaration.node()) {
                 for binding in bindings {
-                    if seen.insert(binding.clone()) {
+                    if seen.insert(binding.text.clone()) {
                         exports.push(binding.clone());
                     }
                 }
@@ -7876,7 +8585,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             self.create_assignment(target, value)?
         };
         for export in plan.exports {
-            let target = self.create_export_access(&export)?;
+            let target = self.create_export_access_from_module_name(&export)?;
             expression = self.create_assignment(target, expression)?;
         }
         Ok(expression)
@@ -8676,7 +9385,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         if let Some(quote) = quote {
             self.context
                 .arena_mut()?
-                .metadata_mut(clone)
+                .literal_properties_mut(clone)?
                 .set_string_literal_single_quote(quote.is_single());
         }
         Ok(clone)
@@ -8692,8 +9401,8 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         if let Some(single_quote) = self
             .context
             .arena()
-            .metadata(literal)
-            .and_then(crate::EmitMetadata::string_literal_single_quote)
+            .literal_properties(literal)
+            .and_then(crate::LiteralNodeProperties::string_literal_single_quote)
         {
             return Ok(Some(if single_quote {
                 StringLiteralQuote::Single
@@ -9163,24 +9872,22 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             }),
             TransformFlags::NONE,
         )?;
-        // AMD import/re-export aliases are generated identities, not their
+        // Import/re-export aliases are generated identities, not their
         // provisional text. Factory parameters and body references must share
         // one binding so bundle finalization can rename both. Standalone AMD
         // uses the same identity and the existing per-file name reset.
-        if self.module_kind == MODULE_AMD {
-            if let Some(base) = self.info.generated_module_names.generated_bases.get(text) {
-                let binding = match self.generated_module_bindings.entry(text.to_owned()) {
-                    std::collections::btree_map::Entry::Vacant(entry) => {
-                        entry.insert(target_bindings::TargetBinding::allocate_numbered(
-                            self.context,
-                            base.clone(),
-                            text.to_owned(),
-                        )?)
-                    }
-                    std::collections::btree_map::Entry::Occupied(entry) => entry.into_mut(),
-                };
-                binding.write_generated_metadata(self.context.arena_mut()?, identifier);
-            }
+        if let Some(base) = self.info.generated_module_names.generated_bases.get(text) {
+            let binding = match self.generated_module_bindings.entry(text.to_owned()) {
+                std::collections::btree_map::Entry::Vacant(entry) => {
+                    entry.insert(target_bindings::TargetBinding::allocate_numbered(
+                        self.context,
+                        base.clone(),
+                        text.to_owned(),
+                    )?)
+                }
+                std::collections::btree_map::Entry::Occupied(entry) => entry.into_mut(),
+            };
+            binding.write_generated_metadata(self.context.arena_mut()?, identifier);
         }
         Ok(identifier)
     }
@@ -9577,6 +10284,69 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         )
     }
 
+    /// tsc-port: transformCommonJSModule @6.0.3
+    /// tsc-span: _tsc.js:110167-110204
+    /// tsc-hash: a48c215e8304107fec1f4e113f74a13f720cb5901cff5287bda673a98e082749
+    fn create_preinitialized_export_access(
+        &mut self,
+        name: &ModuleExportName,
+    ) -> Result<TransformNode, TransformError> {
+        let exports = self.create_identifier("exports")?;
+        if let ModuleExportNameSyntax::ExistingNode(node) = name.syntax {
+            if self.context.arena().node(node)?.kind == SyntaxKind::StringLiteral {
+                let value = self
+                    .context
+                    .arena()
+                    .literal_properties(node)
+                    .and_then(crate::LiteralNodeProperties::javascript_string_value)
+                    .cloned();
+                let literal = self.create_string_literal(&name.text)?;
+                if let Some(value) = value {
+                    self.context
+                        .arena_mut()?
+                        .literal_properties_mut(literal)?
+                        .set_javascript_string_value(value);
+                }
+                return self.context.factory()?.create_element_access_expression(
+                    self.source,
+                    exports,
+                    literal,
+                );
+            }
+        }
+        let property = self.create_identifier(&name.text)?;
+        self.context
+            .factory()?
+            .create_property_access_expression(self.source, exports, property)
+    }
+
+    /// tsc-port: createExportExpression @6.0.3
+    /// tsc-span: _tsc.js:111805-111851
+    /// tsc-hash: 75fd880a658644ec017e38813933a1710d9f1ec7929387c8755990e3d6c9fbf8
+    fn create_export_access_from_module_name(
+        &mut self,
+        name: &ModuleExportName,
+    ) -> Result<TransformNode, TransformError> {
+        let exports = self.create_identifier("exports")?;
+        let property = match name.syntax {
+            ModuleExportNameSyntax::ExistingNode(node) => {
+                self.context.factory()?.clone_node(node)?
+            }
+            ModuleExportNameSyntax::SynthesizedIdentifier => self.create_identifier(&name.text)?,
+        };
+        if self.context.arena().node(property)?.kind == SyntaxKind::StringLiteral {
+            self.context
+                .factory()?
+                .create_element_access_expression(self.source, exports, property)
+        } else {
+            self.context.factory()?.create_property_access_expression(
+                self.source,
+                exports,
+                property,
+            )
+        }
+    }
+
     fn create_export_access(&mut self, name: &str) -> Result<TransformNode, TransformError> {
         let exports = self.create_identifier("exports")?;
         if is_identifier_export_name(name) {
@@ -9623,7 +10393,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         } else {
             name
         };
-        let access = if is_identifier_export_name(&text) {
+        let access = if self.context.arena().node(name)?.kind != SyntaxKind::StringLiteral {
             self.context.factory()?.create_node(
                 self.source,
                 NodeData::PropertyAccessExpression(
@@ -10013,6 +10783,7 @@ struct TypeScriptVisitor<'context, 'resolver> {
     project_parameter_properties_for_class_fields: bool,
     downlevel_iteration: bool,
     promote_class_iife: bool,
+    verbatim_module_syntax: bool,
     nodes: BTreeMap<NodeId, Option<NodeId>>,
     arrays: BTreeMap<NodeArrayId, Option<NodeArrayId>>,
     class_member_arrays: BTreeMap<NodeArrayId, ClassMemberArrayVisit>,
@@ -10127,6 +10898,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         project_parameter_properties_for_class_fields: bool,
         downlevel_iteration: bool,
         promote_class_iife: bool,
+        verbatim_module_syntax: bool,
     ) -> Self {
         let source_identifier_names = system::collect_identifier_texts(context.arena(), source);
         Self {
@@ -10138,6 +10910,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             project_parameter_properties_for_class_fields,
             downlevel_iteration,
             promote_class_iife,
+            verbatim_module_syntax,
             nodes: BTreeMap::new(),
             arrays: BTreeMap::new(),
             class_member_arrays: BTreeMap::new(),
@@ -12902,7 +13675,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 let literal = self.create_string_literal(&text)?;
                 self.context
                     .arena_mut()?
-                    .metadata_mut(literal)
+                    .literal_properties_mut(literal)?
                     .set_javascript_string_value(value.clone());
                 Ok(literal)
             }
@@ -13528,6 +14301,18 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         }
     }
 
+    /// tsc-port: shouldEmitAliasDeclaration @6.0.3
+    /// tsc-hash: 768f0d459b8a033e5fbad0737593ac3b03d7f123c30ea33737cb92ce2d6604d1
+    /// tsc-span: _tsc.js:95846-95848
+    fn should_emit_alias_declaration(&self, node: TransformNode) -> Result<bool, TransformError> {
+        Ok(self.verbatim_module_syntax
+            || NodeFlags::from_bits(self.context.arena().node(node)?.flags)
+                .intersects(NodeFlags::JAVA_SCRIPT_FILE)
+            || self
+                .resolver
+                .is_referenced_alias_declaration(self.resolver_node(node)?)?)
+    }
+
     fn visit_import_declaration(
         &mut self,
         original: TransformNode,
@@ -13563,8 +14348,8 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
     }
 
     /// tsc-port: visitImportEqualsDeclaration @6.0.3
-    /// tsc-hash: 5ef8a385c17d4f71d34bdb72046973d6ddc5012c9e4c705883c5263d5629c703
-    /// tsc-span: _tsc.js:95600-95644
+    /// tsc-hash: b05420512b8b9e2333d1b23ed7ec1b6a327903fcc381ed44f3fa5f46ff66c7ef
+    /// tsc-span: _tsc.js:95605-95653
     fn visit_import_equals_declaration(
         &mut self,
         original: TransformNode,
@@ -13580,9 +14365,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 parent: SyntaxKind::ImportEqualsDeclaration,
                 field: "module_reference",
             })?;
-        let referenced = self
-            .resolver
-            .is_referenced_alias_declaration(self.resolver_node(original)?)?;
+        let referenced = self.should_emit_alias_declaration(original)?;
         if self.context.arena().node(module_reference)?.kind == SyntaxKind::ExternalModuleReference
         {
             if !referenced {
@@ -13735,11 +14518,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         original: TransformNode,
         mut data: tsc_syntax::nodes::ImportClauseData,
     ) -> Result<Option<TransformNode>, TransformError> {
-        if data.name.is_some()
-            && !self
-                .resolver
-                .is_referenced_alias_declaration(self.resolver_node(original)?)?
-        {
+        if data.name.is_some() && !self.should_emit_alias_declaration(original)? {
             data.name = None;
         }
         if let Some(bindings) = data.named_bindings {
@@ -13756,10 +14535,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         let node = self.node(id);
         match self.context.arena().node(node)?.data.clone() {
             NodeData::NamespaceImport(_data) => {
-                if self
-                    .resolver
-                    .is_referenced_alias_declaration(self.resolver_node(node)?)?
-                {
+                if self.should_emit_alias_declaration(node)? {
                     Ok(Some(id))
                 } else {
                     Ok(None)
@@ -13783,11 +14559,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                         NodeData::ImportSpecifier(data) => data.is_type_only,
                         _ => false,
                     };
-                    if !is_type_only
-                        && self
-                            .resolver
-                            .is_referenced_alias_declaration(self.resolver_node(specifier_node)?)?
-                    {
+                    if !is_type_only && self.should_emit_alias_declaration(specifier_node)? {
                         retained.push(specifier_node);
                     }
                 }
@@ -14157,11 +14929,9 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
     /// `languageVersion < ES2015` wraps a class declaration carrying static
     /// initialized properties in the `TypeScriptClassWrapper` arrow IIFE the
     /// ES2015 owner's wrapper surgery consumes
-    /// (`visitTypeScriptClassWrapper`). The exported, namespace-nested, and
-    /// decorated promote lanes stay typed fail-closed seams: the
-    /// plain-script static lane is the only byte-evidenced configuration
-    /// (the B-5 witness gate and focused projections); the H2.5h
-    /// corpus-adoption slice owns the remaining lanes' oracle evidence.
+    /// (`visitTypeScriptClassWrapper`). The wrapper owns the original
+    /// class's comments and its range past decorators; moved exports own
+    /// their separate declaration-name ranges.
     fn promote_class_declaration_to_iife(
         &mut self,
         original: TransformNode,
@@ -14178,6 +14948,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         // modifiers (`modifierElidingVisitor`); the export binding is
         // re-created AFTER the wrapper by the caller's lane split
         // (`_tsc.js:94451-94452`, `94515-94546`).
+        let original_modifiers = data.modifiers;
         let mut data = data;
         data.modifiers = self.elide_moved_class_modifiers(data.modifiers)?;
         // `createTokenRange(skipTrivia(currentSourceFile.text, node.members.end),
@@ -14224,6 +14995,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 TransformFlags::NONE,
             )?;
             self.set_close_brace_token_range(created, close_brace_start)?;
+            self.set_comment_range_raw(created, u32::MAX, close_brace_start.wrapping_add(1))?;
             created
         };
         self.context
@@ -14238,6 +15010,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             TransformFlags::NONE,
         )?;
         self.set_close_brace_token_range(return_statement, close_brace_start)?;
+        self.set_comment_range_raw(return_statement, close_brace_start, u32::MAX)?;
         self.context
             .arena_mut()?
             .metadata_mut(return_statement)
@@ -14313,16 +15086,33 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         self.context
             .arena_mut()?
             .set_original_node(variable_statement, Some(original))?;
-        let statement_range = {
+        let (statement_range, map_range) = {
             let record = self.context.arena().node(original)?;
+            let mut map_start = record.pos;
+            for modifier in node_array_nodes(self.context.arena(), self.source, original_modifiers)?
+                .into_iter()
+                .rev()
+            {
+                let modifier = self.context.arena().node(modifier)?;
+                if modifier.kind == SyntaxKind::Decorator {
+                    if modifier.end != u32::MAX {
+                        map_start = modifier.end;
+                    }
+                    break;
+                }
+            }
             let source = self.context.arena().source(self.source)?.syntax();
-            SourceRange::from_raw(record.pos, record.end, source.positions())
+            (
+                SourceRange::from_raw(record.pos, record.end, source.positions()),
+                SourceRange::from_raw(map_start, record.end, source.positions()),
+            )
         };
         if let Ok(range) = statement_range {
             let metadata = self.context.arena_mut()?.metadata_mut(variable_statement);
             metadata.set_comment_range(CommentRange::new(original.source(), range));
-            // `moveRangePastDecorators(node)` — the refused decorator lanes
-            // make this the plain node range.
+        }
+        if let Ok(range) = map_range {
+            let metadata = self.context.arena_mut()?.metadata_mut(variable_statement);
             metadata.set_source_map_range(SourceMapRange::new(original.source(), range));
         }
         self.context
@@ -14332,9 +15122,8 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         Ok(variable_statement.node())
     }
 
-    /// `modifierElidingVisitor` over a promoted class's modifier list: every
-    /// modifier is dropped (decorator entries never reach the promoted lane;
-    /// that lane still refuses).
+    /// `modifierElidingVisitor` preserves decorators for their later
+    /// transformer and drops the modifiers moved outside the wrapper.
     fn elide_moved_class_modifiers(
         &mut self,
         modifiers: Option<NodeArrayId>,
@@ -14371,14 +15160,15 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         &mut self,
         statement: NodeId,
     ) -> Result<Vec<TransformNode>, TransformError> {
-        let (has_export, has_default) = {
+        let (has_export, has_default, declaration_name) = {
             let record = self.context.arena().node(self.node(statement))?;
             match &record.data {
                 NodeData::ClassDeclaration(data) => (
                     self.has_modifier(data.modifiers, SyntaxKind::ExportKeyword)?,
                     self.has_modifier(data.modifiers, SyntaxKind::DefaultKeyword)?,
+                    data.name,
                 ),
-                _ => (false, false),
+                _ => (false, false, None),
             }
         };
         let Some(visited) = self.visit(statement)? else {
@@ -14412,9 +15202,28 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             })?;
             self.identifier_text(name)?.to_owned()
         };
+        // getDeclarationName/getLocalName(false, true) retain an explicit
+        // input name's spelling, original identity and raw source range.
+        let local = if let Some(name) = declaration_name {
+            let original_name = self.node(name);
+            let local = self.context.factory()?.clone_node(original_name)?;
+            self.context
+                .factory()?
+                .set_text_range(local, original_name)?;
+            let mut flags = EmitFlags::NO_COMMENTS;
+            if has_default {
+                flags |= EmitFlags::LOCAL_NAME;
+            }
+            self.context
+                .arena_mut()?
+                .metadata_mut(local)
+                .add_flags(flags);
+            local
+        } else {
+            self.create_identifier(&name_text)?
+        };
         let export_statement = if has_default {
             // `factory.createExportDefault(localName)`
-            let local = self.create_identifier(&name_text)?;
             self.context.factory()?.create_node(
                 self.source,
                 NodeData::ExportAssignment(tsc_syntax::nodes::ExportAssignmentData {
@@ -14427,7 +15236,6 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         } else {
             // `factory.createExternalModuleExport(declarationName)` —
             // `export { X };`
-            let local = self.create_identifier(&name_text)?;
             let specifier = self.context.factory()?.create_node(
                 self.source,
                 NodeData::ExportSpecifier(tsc_syntax::nodes::ExportSpecifierData {
@@ -14463,6 +15271,30 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             )?
         };
         Ok(vec![visited, export_statement])
+    }
+
+    /// The class return expression owns only the closing-brace end; its return
+    /// statement owns only the start. Source maps retain their paired encoding.
+    ///
+    /// tsc-port: visitClassDeclaration @6.0.3
+    /// tsc-hash: b4f4c7bb3c8f14a7776dd0ab5337e8c11b30104d7eb70b676c5dba79a9e1ae59
+    /// tsc-span: _tsc.js:94434-94548
+    fn set_comment_range_raw(
+        &mut self,
+        node: TransformNode,
+        start: u32,
+        end: u32,
+    ) -> Result<(), TransformError> {
+        let range = {
+            let source = self.context.arena().source(self.source)?.syntax();
+            CommentRange::from_raw(self.source, start, end, source.positions())
+                .map_err(|error| TransformError::InvalidSourceRange { node, error })?
+        };
+        self.context
+            .arena_mut()?
+            .metadata_mut(node)
+            .set_comment_range(range);
+        Ok(())
     }
 
     /// The one-byte close-brace token range shared by the wrapper's
@@ -14866,7 +15698,6 @@ fn preflight_source(
     _allow_ambient_module_erasure: bool,
     allow_jsx: bool,
     allow_legacy_decorators: bool,
-    downlevels_es2018: bool,
 ) -> Result<(), TransformError> {
     let syntax = arena.source(source)?.syntax();
     if !syntax.parse_diagnostics.is_empty() {
@@ -14875,7 +15706,7 @@ fn preflight_source(
             owner_slice: "H2.9",
         });
     }
-    if has_advanced_comment_placement(syntax.text(), downlevels_es2018) {
+    if has_advanced_comment_placement(syntax.text()) {
         return Err(TransformError::AdvancedCommentPlacementDeferred {
             owner_slice: "H2.8a",
         });
@@ -14913,30 +15744,9 @@ fn preflight_source(
     Ok(())
 }
 
-fn has_advanced_comment_placement(text: &str, downlevels_es2018: bool) -> bool {
-    (!downlevels_es2018 && has_comment_after_ellipsis(text))
-        || has_comment_between_private_name_and_in(text)
+fn has_advanced_comment_placement(text: &str) -> bool {
+    has_comment_between_private_name_and_in(text)
         || has_commented_optional_chain_type_assertion(text)
-}
-
-fn has_comment_after_ellipsis(text: &str) -> bool {
-    let bytes = text.as_bytes();
-    let mut cursor = 0usize;
-    while cursor + 2 < bytes.len() {
-        if &bytes[cursor..cursor + 3] != b"..." {
-            cursor += 1;
-            continue;
-        }
-        let mut next = cursor + 3;
-        while next < bytes.len() && bytes[next].is_ascii_whitespace() {
-            next += 1;
-        }
-        if bytes.get(next..next + 2) == Some(b"/*") || bytes.get(next..next + 2) == Some(b"//") {
-            return true;
-        }
-        cursor += 3;
-    }
-    false
 }
 
 fn has_comment_between_private_name_and_in(text: &str) -> bool {
@@ -15043,6 +15853,11 @@ const fn is_type_node(kind: SyntaxKind) -> bool {
         && kind as u16 <= SyntaxKind::LastTypeNode as u16
 }
 
+/// Type-only modifier tokens are erased by the TypeScript visitor.
+///
+/// tsc-port: transformTypeScript/visitTypeScript @6.0.3
+/// tsc-hash: bce515282739cfd7721a4be04b7f91e3b05015cc09fbc1ef5a1cb58d578cc510
+/// tsc-span: _tsc.js:94274-94389
 const fn is_typescript_modifier(kind: SyntaxKind) -> bool {
     matches!(
         kind,
@@ -15051,6 +15866,7 @@ const fn is_typescript_modifier(kind: SyntaxKind) -> bool {
             | SyntaxKind::ProtectedKeyword
             | SyntaxKind::AbstractKeyword
             | SyntaxKind::OverrideKeyword
+            | SyntaxKind::ConstKeyword
             | SyntaxKind::DeclareKeyword
             | SyntaxKind::ReadonlyKeyword
     )
@@ -15072,11 +15888,21 @@ fn flags_after_update(
         | TransformFlags::CONTAINS_ES_2018
         | TransformFlags::CONTAINS_ES_2016
         | TransformFlags::CONTAINS_PRIVATE_IDENTIFIER_IN_EXPRESSION;
+    let recomputed = if matches!(
+        probe.data,
+        NodeData::PropertyDeclaration(_)
+            | NodeData::ClassDeclaration(_)
+            | NodeData::ClassExpression(_)
+    ) {
+        recomputed | TransformFlags::CONTAINS_TYPE_SCRIPT_CLASS_SYNTAX
+    } else {
+        recomputed
+    };
     let mut flags = old & !recomputed;
     flags |= local_transform_flags(&probe)
         | local_contextual_target_flags(arena, original.source(), &probe)?;
     flags |= factory_child_transform_flags(arena, original.source(), &probe)? & recomputed;
-    Ok(flags)
+    complete_class_transform_flags(arena, original.source(), &probe, flags)
 }
 
 fn initialize_transform_flags(
@@ -15146,9 +15972,30 @@ fn compute_transform_flags(
     let mut flags =
         local_transform_flags(&record) | local_contextual_target_flags(arena, source, &record)?;
     flags |= factory_child_transform_flags(arena, source, &record)?;
+    let flags = complete_class_transform_flags(arena, source, &record, flags)?;
     arena.set_transform_flags(node, flags);
     visiting.remove(&id);
     complete.insert(id);
+    Ok(flags)
+}
+
+/// Complete createClassDeclaration's post-child flag decisions. Class
+/// expressions propagate the class-syntax bit without promoting it to the
+/// TypeScript visitor gate (_tsc.js:22927-22937,23339-23356).
+fn complete_class_transform_flags(
+    arena: &TransformArena,
+    source: TransformSourceId,
+    node: &Node,
+    mut flags: TransformFlags,
+) -> Result<TransformFlags, TransformError> {
+    if let NodeData::ClassDeclaration(data) = &node.data {
+        if has_modifier(arena, source, data.modifiers, SyntaxKind::DeclareKeyword)? {
+            return Ok(TransformFlags::CONTAINS_TYPE_SCRIPT);
+        }
+        if flags.contains(TransformFlags::CONTAINS_TYPE_SCRIPT_CLASS_SYNTAX) {
+            flags |= TransformFlags::CONTAINS_TYPE_SCRIPT;
+        }
+    }
     Ok(flags)
 }
 
@@ -15520,9 +16367,7 @@ fn local_transform_flags(node: &Node) -> TransformFlags {
         }
         NodeData::ClassDeclaration(data) => {
             flags |= TransformFlags::CONTAINS_ES_2015;
-            if NodeFlags::from_bits(node.flags).contains(NodeFlags::AMBIENT)
-                || data.type_parameters.is_some()
-            {
+            if data.type_parameters.is_some() {
                 flags |= TransformFlags::CONTAINS_TYPE_SCRIPT;
             }
         }
@@ -15736,6 +16581,29 @@ fn local_contextual_target_flags(
                 return Ok(TransformFlags::CONTAINS_ES_2015);
             }
             Ok(TransformFlags::NONE)
+        }
+        NodeData::PropertyDeclaration(data) => {
+            // createPropertyDeclaration (_tsc.js:21890-21902). This bit
+            // belongs to the member before the containing class aggregates
+            // it and decides whether transformTypeScript must visit it.
+            let computed = if let Some(name) = data.name {
+                let name = arena
+                    .node_ref(source, name)
+                    .ok_or_else(|| TransformError::UnknownNode(TransformNode::new(source, name)))?;
+                arena.node(name)?.kind == SyntaxKind::ComputedPropertyName
+            } else {
+                false
+            };
+            Ok(
+                if computed
+                    || data.initializer.is_some()
+                        && has_modifier(arena, source, data.modifiers, SyntaxKind::StaticKeyword)?
+                {
+                    TransformFlags::CONTAINS_TYPE_SCRIPT_CLASS_SYNTAX
+                } else {
+                    TransformFlags::NONE
+                },
+            )
         }
         NodeData::Parameter(data) => Ok(
             if parameter_emit_role(arena, source, data)? == ParameterEmitRole::ExplicitThis {

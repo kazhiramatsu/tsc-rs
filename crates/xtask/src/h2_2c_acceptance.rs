@@ -477,6 +477,22 @@ struct TypedSourceFacts {
     has_import_attributes: bool,
 }
 
+// getModuleTransformer selects this composite before consulting per-file format.
+fn uses_implied_node_format(module_kind: ModuleKind) -> bool {
+    matches!(
+        module_kind,
+        ModuleKind::COMMON_JS
+            | ModuleKind::ES2015
+            | ModuleKind::ES2020
+            | ModuleKind::ES2022
+            | ModuleKind::ES_NEXT
+            | ModuleKind::NODE16
+            | ModuleKind::NODE18
+            | ModuleKind::NODE20
+            | ModuleKind::NODE_NEXT
+    )
+}
+
 /// Project activity from the same durable program facts consumed by the
 /// emitter. This deliberately does not use the qualification feature
 /// inventory: recovery nodes and per-file pragmas are typed syntax facts, and
@@ -560,11 +576,17 @@ fn expected_typed_activity(
         } else if module_kind == ModuleKind::SYSTEM {
             activity.h2_1d_sources += 1;
         } else {
-            activity.h2_1a_sources += 1;
-            let emit_format = match source.implied_node_format_for_emit() {
-                Some(ResolutionMode::CommonJs) => ModuleKind::COMMON_JS,
-                Some(ResolutionMode::EsNext) => ModuleKind::ES_NEXT,
-                Some(ResolutionMode::Unspecified) | None => module_kind,
+            let emit_format = if uses_implied_node_format(module_kind) {
+                activity.h2_1a_sources += 1;
+                match source.implied_node_format_for_emit() {
+                    Some(ResolutionMode::CommonJs) => ModuleKind::COMMON_JS,
+                    Some(ResolutionMode::EsNext) => ModuleKind::ES_NEXT,
+                    Some(ResolutionMode::Unspecified) | None => module_kind,
+                }
+            } else {
+                // Direct transformModule uses the compiler option, without
+                // consulting a per-file implied Node format.
+                module_kind
             };
             if emit_format.bits() < ModuleKind::ES2015.bits() {
                 activity.h2_1b_sources += 1;
@@ -836,6 +858,7 @@ fn execute_slice_observed_with_inputs(
     // bytes. The repetition still consumes two distinct owned programs and
     // compares every observable below.
     let first_program = prepare()?;
+    let module_kind = ModuleKind::from_bits(first_program.compiler_options().emit_module_kind());
     let second_program = first_program.clone();
     let typed_activity = if matches!(accepted_slice, AcceptanceSlice::H2_5g) {
         Some(expected_typed_activity(
@@ -1164,7 +1187,11 @@ fn execute_slice_observed_with_inputs(
     ) = typed_activity.map_or_else(
         || {
             (
-                transformed_sources - system_sources - preserve_sources,
+                if uses_implied_node_format(module_kind) {
+                    transformed_sources
+                } else {
+                    0
+                },
                 transform_module_sources,
                 amd_umd_sources,
                 system_sources,
@@ -2257,8 +2284,17 @@ pub fn run_h2_5g(workspace: &Path) -> Result<(), Box<dyn Error>> {
             .map_err(|error| format!("H2.5g case index {index}: {error}"))
     })?;
     let mut totals = H2_5gCaseTotals::default();
+    let mut failures = Vec::new();
     for result in results {
-        totals.add_assign(result.map_err(failure)?);
+        match result {
+            Ok(result) => totals.add_assign(result),
+            Err(error) => failures.push(error),
+        }
+    }
+    // The ordered pipeline has already executed every case. Preserve all
+    // failures so another full run is not needed just to reveal the next one.
+    if !failures.is_empty() {
+        return Err(failure(failures.join("\n")));
     }
     let H2_5gCaseTotals {
         admitted,
@@ -4245,6 +4281,8 @@ pub fn run_h2_6b(workspace: &Path) -> Result<(), Box<dyn Error>> {
 
 #[path = "h2_6c_de_promotions.rs"]
 mod h2_6c_de_promotions;
+#[path = "h2_6c_output_promotions.rs"]
+mod h2_6c_output_promotions;
 #[path = "h2_6c_refusal_migrations.rs"]
 mod h2_6c_refusal_migrations;
 
@@ -5001,6 +5039,7 @@ fn execute_h2_6c_case(
         .unwrap_or(0);
     let expected_h2_7b_members = h2_6c_de_promotions::find(&case_id)
         .map(|row| row.declaration_members)
+        .or_else(|| h2_6c_output_promotions::find(&case_id).map(|row| row.declaration_members))
         .unwrap_or(expected_h2_7b_members);
     let second_program = first_program.clone();
     let first_session = ProgramSession::new(first_program);
@@ -5468,6 +5507,7 @@ fn h2_6c_refused_option_totals(
         ("rootDir".to_owned(), 4),
     ]);
     let projected = h2_6c_de_promotions::adjusted_refusals(projected)?;
+    let projected = h2_6c_output_promotions::adjusted_refusals(projected)?;
     let projected = h2_6c_refusal_migrations::adjust_refusal_totals(projected)?;
     let legacy_pre_flip = h2_6c_de_promotions::promoted_count() == 0
         && h2_6c_refusal_migrations::count() == 0
@@ -5555,6 +5595,7 @@ pub fn run_h2_6c(workspace: &Path) -> Result<(), Box<dyn Error>> {
     let listed = load_h2_6c_divergence_manifest_state(workspace, write_manifest)?;
     let inputs = H2_6cExecutionInputs::load(workspace)?;
     h2_6c_de_promotions::validate(workspace, cases, &inputs.h2_7b_expected_members)?;
+    h2_6c_output_promotions::validate(cases, &inputs.h2_7b_expected_members)?;
     h2_6c_refusal_migrations::validate(workspace, cases, &listed)?;
     let worker_count = h2_5g_worker_count()?.min(cases.len());
     println!(
@@ -5576,15 +5617,18 @@ pub fn run_h2_6c(workspace: &Path) -> Result<(), Box<dyn Error>> {
                 Ok(total + outcome.h2_7b_activity)
             })?;
     h2_6c_de_promotions::validate_results(&results, &ordinary_manifest)?;
-    let expected_h2_7b_activity = h2_6c_de_promotions::declaration_members_total();
+    h2_6c_output_promotions::validate_results(&results, &ordinary_manifest)?;
+    let expected_h2_7b_activity = h2_6c_de_promotions::declaration_members_total()
+        + h2_6c_output_promotions::declaration_members_total();
     if observed_h2_7b_activity != expected_h2_7b_activity {
         return Err(failure(format!(
             "H2.6c aggregate H2.7b activity differs: expected {expected_h2_7b_activity}, observed {observed_h2_7b_activity}"
         )));
     }
     println!(
-        "H2.6c successful-result H2.7b activity (refusal activity is unavailable): historical_join_rows=133 D/E_promoted_old_IDs={} declaration_members={observed_h2_7b_activity}; old candidate denominator unchanged",
-        h2_6c_de_promotions::promoted_count()
+        "H2.6c successful-result H2.7b activity (refusal activity is unavailable): historical_join_rows=133 D/E_promoted_old_IDs={} output_promoted_old_IDs={} declaration_members={observed_h2_7b_activity}; old candidate denominator unchanged",
+        h2_6c_de_promotions::promoted_count(),
+        h2_6c_output_promotions::promoted_count()
     );
     let refused_option_totals = h2_6c_refused_option_totals(&results, &migrations)?;
     println!("H2.6c refused_option totals: {refused_option_totals:?}");

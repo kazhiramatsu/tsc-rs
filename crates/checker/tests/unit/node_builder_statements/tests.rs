@@ -9,6 +9,79 @@ use crate::state::test_support::with_program_state;
 
 use super::*;
 
+#[test]
+fn implements_reuse_restores_synthetic_scope_after_success_and_factory_error() {
+    let options = CompilerOptions {
+        allow_js: true,
+        declaration: Some(true),
+        ..CompilerOptions::default()
+    };
+    with_program_state(
+        &[(
+            "/main.js",
+            "class A {}\n/** @implements {A} */\nclass Foo {}\n",
+        )],
+        &options,
+        |checker| {
+            let root = checker.binder.source(0).root;
+            let locals = checker.binder.locals_of(root).unwrap();
+            let foo = locals["Foo"];
+            let declaration = checker.binder.symbol(foo).value_declaration.unwrap();
+            let clauses = checker
+                .get_effective_implements_type_nodes(declaration)
+                .unwrap();
+            assert_eq!(clauses.len(), 1);
+            let mut arena = TransformArena::new();
+            let target =
+                arena.add_source(checker.binder.source(0), Some(SourceFileId::from_raw(0)));
+            let mut other_arena = TransformArena::new();
+            other_arena.add_source(checker.binder.source(0), None);
+            let absent_target = other_arena.add_source(checker.binder.source(0), None);
+            assert!(arena.source(absent_target).is_err());
+            with_context(
+                checker,
+                &mut arena,
+                target,
+                Some(root),
+                None,
+                None,
+                None,
+                None,
+                None,
+                |checker, arena, target, context| {
+                    for kind in [SyntaxKind::ModuleDeclaration, SyntaxKind::Block] {
+                        let conflicting_locals = HashMap::from([("A".to_owned(), foo)]);
+                        context.enclosing_declaration = Some(root);
+                        context.enclosing_declaration_is_synthetic = true;
+                        context.synthetic_scope_kind = Some(kind);
+                        context.synthetic_scope_locals = Some(conflicting_locals.clone());
+                        for destination in [target, absent_target] {
+                            let result =
+                                StatementSerializer::new(checker, arena, destination, context)
+                                    .sanitize_jsdoc_implements(&clauses);
+                            if destination == target {
+                                assert_eq!(result.unwrap().unwrap().len(), 1);
+                            } else {
+                                assert!(matches!(result, Err(EmitResolverError::Factory { .. })));
+                            }
+                            assert_eq!(context.enclosing_declaration, Some(root));
+                            assert!(context.enclosing_declaration_is_synthetic);
+                            assert_eq!(context.synthetic_scope_kind, Some(kind));
+                            assert_eq!(
+                                context.synthetic_scope_locals.as_ref(),
+                                Some(&conflicting_locals)
+                            );
+                        }
+                    }
+                    Ok(())
+                },
+                None,
+            )
+            .expect("the caller observes the typed factory error after scope restoration");
+        },
+    );
+}
+
 fn with_declaration_statements(
     files: &[(&str, &str)],
     target_index: usize,
@@ -721,6 +794,141 @@ fn javascript_require_property_alias_emits_generated_import_then_qualified_alias
             };
             assert_eq!(qualified_data.left, Some(generated.node()));
             assert_eq!(name_text(arena, qualified, qualified_data.right), "y");
+        },
+    );
+}
+
+#[test]
+fn setter_name_serialization_queries_the_write_type_only_when_emitting_it() {
+    let options = CompilerOptions {
+        allow_js: true,
+        declaration: Some(true),
+        ..CompilerOptions::default()
+    };
+    for private in [false, true] {
+        let source = format!(
+            "class Foo {{\n/**\n{} * @param {{number}} supplied\n */\nset x(supplied) {{}}\n}}\n",
+            if private { " * @private\n" } else { "" },
+        );
+        with_program_state(&[("/main.js", &source)], &options, |checker| {
+            let root = checker.binder.source(0).root;
+            let foo = checker.binder.locals_of(root).unwrap()["Foo"];
+            let property = checker.binder.symbol(foo).members["x"];
+            let setter = checker.binder.symbol(property).declarations[0];
+            assert_eq!(checker.kind_of(setter), SyntaxKind::SetAccessor);
+            assert!(checker
+                .links
+                .symbol(property)
+                .write_type
+                .resolved()
+                .is_none());
+            // Isolate the write-type cache from the signature's own lazy work.
+            checker.get_signature_from_declaration(setter).unwrap();
+            assert!(checker
+                .links
+                .symbol(property)
+                .write_type
+                .resolved()
+                .is_none());
+            let mut arena = TransformArena::new();
+            let target =
+                arena.add_source(checker.binder.source(0), Some(SourceFileId::from_raw(0)));
+            with_context(
+                checker,
+                &mut arena,
+                target,
+                Some(root),
+                None,
+                None,
+                None,
+                None,
+                None,
+                |checker, arena, target, context| {
+                    let members = StatementSerializer::new(checker, arena, target, context)
+                        .make_serialize_property_symbol(property, false, None, true, true)?;
+                    assert_eq!(members.len(), 1);
+                    let NodeData::SetAccessor(data) = &node(arena, members[0]).data else {
+                        panic!("expected a setter");
+                    };
+                    let parameters = array_nodes(arena, members[0], data.parameters);
+                    assert_eq!(parameters.len(), 1);
+                    let NodeData::Parameter(data) = &node(arena, parameters[0]).data else {
+                        panic!("expected a parameter");
+                    };
+                    assert_eq!(name_text(arena, parameters[0], data.name), "supplied");
+                    assert_eq!(data.r#type.is_none(), private);
+                    assert_eq!(
+                        checker
+                            .links
+                            .symbol(property)
+                            .write_type
+                            .resolved()
+                            .is_none(),
+                        private
+                    );
+                    Ok(())
+                },
+                None,
+            )
+            .unwrap();
+        });
+    }
+}
+
+#[test]
+fn setter_name_serialization_rejects_a_set_accessor_without_a_declaration() {
+    let options = CompilerOptions {
+        allow_js: true,
+        declaration: Some(true),
+        ..CompilerOptions::default()
+    };
+    with_program_state(
+        &[("/main.js", "class Foo { set x(supplied) {} }")],
+        &options,
+        |checker| {
+            let root = checker.binder.source(0).root;
+            let foo = checker.binder.locals_of(root).unwrap()["Foo"];
+            let property = checker.binder.symbol(foo).members["x"];
+            assert!(checker
+                .binder
+                .symbol(property)
+                .flags
+                .intersects(SymbolFlags::SET_ACCESSOR));
+            // Deliberately corrupt the internal flag/declaration invariant.
+            // Source inputs, clones and merged symbols preserve these declarations.
+            let property = checker.clone_symbol(property);
+            checker.binder.symbol_mut(property).declarations.clear();
+            let mut arena = TransformArena::new();
+            let target =
+                arena.add_source(checker.binder.source(0), Some(SourceFileId::from_raw(0)));
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                with_context(
+                    checker,
+                    &mut arena,
+                    target,
+                    Some(root),
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    |checker, arena, target, context| {
+                        StatementSerializer::new(checker, arena, target, context)
+                            .make_serialize_property_symbol(property, false, None, true, true)?;
+                        Ok(())
+                    },
+                    None,
+                )
+            }));
+            let panic = result.expect_err("an absent setter must not become a value parameter");
+            let message = panic
+                .downcast_ref::<String>()
+                .map(String::as_str)
+                .or_else(|| panic.downcast_ref::<&str>().copied());
+            assert_eq!(
+                message,
+                Some("SetAccessor symbol requires a setter declaration")
+            );
         },
     );
 }

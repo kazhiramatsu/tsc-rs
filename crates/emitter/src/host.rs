@@ -105,6 +105,7 @@ impl<'host> EmitSource<'host> {
 pub trait EmitHost {
     fn compiler_options(&self) -> &CompilerOptions;
     fn current_directory(&self) -> &Path;
+    /// Absolute common source directory; the native Path may omit its trailing separator.
     fn common_source_directory(&self) -> &Path;
     fn config_file_path(&self) -> Option<&Path>;
     fn use_case_sensitive_file_names(&self) -> bool;
@@ -163,41 +164,10 @@ pub trait EmitHost {
     /// source identities. Implementations may override this when their path
     /// model is richer than the frozen POSIX H1 profile.
     fn canonical_output_path(&self, path: &Path) -> PathBuf {
-        let absolute = if path.is_absolute() {
-            path.to_path_buf()
-        } else {
-            self.current_directory().join(path)
-        };
-        let normalized = normalize_lexical_path(&absolute);
-        if self.use_case_sensitive_file_names() {
-            normalized
-        } else {
-            PathBuf::from(normalized.to_string_lossy().to_lowercase())
-        }
+        tsc_program::canonical_emit_path(
+            path,
+            self.current_directory(),
+            self.use_case_sensitive_file_names(),
+        )
     }
-}
-
-/// Lexically normalize a path without consulting the filesystem.
-///
-/// Callers resolve display paths against the Program directory before comparing
-/// outputs. This helper preserves a root and performs only the `.`/`..`
-/// simplification needed for output equality.
-pub(crate) fn normalize_lexical_path(path: &Path) -> PathBuf {
-    use std::path::Component;
-
-    let mut normalized = PathBuf::new();
-    for component in path.components() {
-        match component {
-            Component::CurDir => {}
-            Component::ParentDir => {
-                if !normalized.pop() {
-                    normalized.push(component.as_os_str());
-                }
-            }
-            Component::Prefix(_) | Component::RootDir | Component::Normal(_) => {
-                normalized.push(component.as_os_str());
-            }
-        }
-    }
-    normalized
 }

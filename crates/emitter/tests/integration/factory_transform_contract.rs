@@ -89,7 +89,7 @@ impl Transformer for ProbeTransformer {
             .set_flags(EmitFlags::NO_TRAILING_COMMENTS);
         context
             .arena_mut()?
-            .metadata_mut(first)
+            .literal_properties_mut(first)?
             .set_javascript_string_value(JavaScriptString::from_code_units(vec![
                 0xd800, 0x0061, 0xdc00,
             ]));
@@ -102,7 +102,7 @@ impl Transformer for ProbeTransformer {
         assert_eq!(
             context
                 .arena()
-                .metadata(second_clone)
+                .literal_properties(second_clone)
                 .unwrap()
                 .javascript_string_value()
                 .unwrap()
@@ -250,6 +250,83 @@ fn factory_and_transform_lifecycle_are_session_owned_and_disposed() {
 
 struct FailingTransformer {
     disposed: Rc<RefCell<usize>>,
+}
+
+#[test]
+fn literal_properties_survive_cloning_and_emit_disposal() {
+    let parsed = parse_source_file("input.ts", "", Default::default(), None);
+    let target_parsed = parse_source_file("target.ts", "", Default::default(), None);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, None);
+    let target = arena.add_source(&target_parsed, None);
+    let text_source = arena.factory().create_identifier(source, "name").unwrap();
+    let literal = arena
+        .factory()
+        .create_string_literal_from_code_units(source, &[0xd800, 0x0061], true)
+        .unwrap();
+    arena
+        .literal_properties_mut(literal)
+        .unwrap()
+        .set_string_literal_text_source(text_source);
+    let template = arena
+        .factory()
+        .create_template_literal_like_from_code_units(
+            source,
+            SyntaxKind::TemplateHead,
+            &[0x0062, 0xdc00],
+            Some(&[0xd800, 0x000d, 0xdc00]),
+        )
+        .unwrap();
+    let expected_string = arena.literal_properties(literal).unwrap().clone();
+    let expected_template = arena.literal_properties(template).unwrap().clone();
+    let mut clones = Vec::new();
+    for node in [literal, template] {
+        arena.metadata_mut(node).add_flags(EmitFlags::NO_COMMENTS);
+        let local = arena.factory().clone_node(node).unwrap();
+        let foreign = arena.factory().clone_node_to_source(node, target).unwrap();
+        for cloned in [local, foreign] {
+            assert_eq!(
+                arena.literal_properties(cloned),
+                arena.literal_properties(node)
+            );
+            assert_eq!(
+                arena.metadata(cloned).unwrap().flags(),
+                EmitFlags::NO_COMMENTS
+            );
+            clones.push((node, cloned));
+        }
+    }
+    let arena_copy = arena.clone();
+    assert_ne!(arena_copy.id(), arena.id());
+    assert_eq!(arena_copy, arena);
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        Vec::new(),
+        false,
+    )
+    .unwrap();
+    result.dispose();
+    assert_eq!(result.state(), TransformationState::Disposed);
+    for (original, cloned) in clones {
+        let expected = if original == literal {
+            &expected_string
+        } else {
+            &expected_template
+        };
+        for node in [original, cloned] {
+            assert!(result.arena().metadata(node).is_none());
+            assert_eq!(result.arena().literal_properties(node), Some(expected));
+        }
+    }
+    assert_eq!(
+        result
+            .arena()
+            .literal_properties(literal)
+            .unwrap()
+            .string_literal_text_source(),
+        Some(text_source)
+    );
 }
 
 impl Transformer for FailingTransformer {

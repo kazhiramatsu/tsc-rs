@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "status": "complete-before",
+  "checkpoint": "8ed4ee178e9a4837c124b66b4e2d606fa6b4610b",
+  "eligible": 8,
+  "exact": [
+    "js/es5/class",
+    "js/es5/function",
+    "ts/es5/class",
+    "ts/es5/function",
+    "js/es2015/class",
+    "js/es2015/function",
+    "ts/es2015/class",
+    "ts/es2015/function"
+  ],
+  "failed": [],
+  "run_seconds": 10.24,
+  "working_source_files": [
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "48a305d62abb1208657779648c805df89a4090969d815cb796b5dd154a435542"
+    },
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "049188745987131ee9f95cab5d869eb916fc17b12dd9cabf5a870a0c5a502688"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_cjs_default_reexport_names.rs",
+      "sha256": "cc6854fa182dfd5ebdc2302bbc8fb899883748d774fd6e16f02ca5eb1526b6a8"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "c0a3f18ada4e9465e407ad0cd9f74daac31c888c56737a7c0a5f10e705d6cfd8"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/cjs-default-reexport-names.json",
+      "sha256": "eaecc39edf3508ce820e43c1a0a76549798067a4343260763bbb35af394e198d"
+    },
+    {
+      "path": "scripts/observe-cjs-default-reexport-names.mjs",
+      "sha256": "0bd9285c302c4eb63ed7a8190df0659e8b0e911cae299ce6083da429ff908e85"
+    },
+    {
+      "path": "target/h2-8a-cjs-default-reexport-before.log",
+      "sha256": "2496f33107984dd21789fd24e135c05bbe1beedef7fe9db91eff9c9d031f64e6"
+    },
+    {
+      "path": "target/h2-8a-cjs-default-reexport-harness-before.log",
+      "sha256": "0976003c4afe82a244f6128577d198e90965a13045e7641c1a2f39b43c600e71"
+    }
+  ]
+}

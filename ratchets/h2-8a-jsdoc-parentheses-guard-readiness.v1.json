@@ -1,0 +1,413 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-16",
+  "base": "9c0cc016092eaade9be34aaf83faa78db2e1a735",
+  "unresolved": 0,
+  "undispositioned": 0,
+  "runtime_paths": [
+    "crates/checker/src/expr.rs"
+  ],
+  "steps": [
+    "A6-16-1"
+  ],
+  "owners": [
+    {
+      "owner": "checkParenthesizedExpression",
+      "start": 81000,
+      "end": 81010,
+      "sha256": "e09e928d312103d37dda4c13512d952ea898028cf66871324eb8b78f15db7144"
+    },
+    {
+      "owner": "hasJSDocNodes",
+      "start": 12534,
+      "end": 12538,
+      "sha256": "45123251ec15122f9da8fa85555784320976613ea79839fdaec4671cfb8e256d"
+    },
+    {
+      "owner": "isJSDocTypeAssertion",
+      "start": 27553,
+      "end": 27555,
+      "sha256": "62e3b328401615642ade63804d7b852af9ff6cd6f4ed3ff1c159e9409f492193"
+    },
+    {
+      "owner": "isJSDocSatisfiesExpression",
+      "start": 19322,
+      "end": 19324,
+      "sha256": "79cfc3070f41c28cc9d54bf73f6a0877061e1e669ce3812813007a063da8b3be"
+    },
+    {
+      "owner": "getJSDocTypeTag",
+      "start": 11714,
+      "end": 11720,
+      "sha256": "0c07d7f33cca41752e2a1714164de9d4912d78de25145a44694d688c4ceb48a9"
+    },
+    {
+      "owner": "checkExpressionCached",
+      "start": 80580,
+      "end": 80595,
+      "sha256": "d53b8def69286cea6beb2fdadf985dcd3c6d0dec3ef171f10eda495f50485178"
+    },
+    {
+      "owner": "checkDeclarationInitializer",
+      "start": 80604,
+      "end": 80628,
+      "sha256": "140897d2a5fd50d78e8cfdcf90087bec70318e099c79f4d2acef4c49302c902d"
+    }
+  ],
+  "architecture": [
+    {
+      "id": "E-PROTOCOL",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-RESOLVER-BASE",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-METADATA-BASE",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-PRINTER-BASE",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-CHECKER-FACTS-BASE",
+      "disposition": "premise-unchanged"
+    }
+  ],
+  "authorities": [
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-jsdoc-parentheses-guard.md",
+      "sha256": "cc556335a9333292a9a364690b5011255dc90f4089a8b18ef611e6cc46a988c0"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    },
+    {
+      "path": "ratchets/h2-8a-jsdoc-parentheses-guard-before.v1.json",
+      "sha256": "cbf9fc72aa6ea3ef0a704374ec95524d1fce989b099139651b4125e4a97aa867"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/jsdoc-parentheses-guard.json",
+      "sha256": "4ee4710a95359b5e1bb73cb85edd5ef548cce0696e0458222fec1390f1ae285f"
+    },
+    {
+      "path": "scripts/observe-jsdoc-parentheses-guard.mjs",
+      "sha256": "1dfc9816633b6fe0151577e286005c7d6232d8f94eb7d01a37e9ff52c84bbf92"
+    },
+    {
+      "path": "ratchets/h2-8a-global-after-a6-14.v1.json",
+      "sha256": "2902e23044cb6d8d0d15d433a2ba51468ee72aeb628c486e511f525803bd7c8d"
+    },
+    {
+      "path": "ratchets/h2-8a-synthetic-default-alias-after.v1.json",
+      "sha256": "ddb42e863b2d1b9d24e70711d926505d7b439425c35ca6fa1f7ffbef4b7bbf73"
+    },
+    {
+      "path": "ratchets/h2-8a-system-publication-execution-correction.v1.json",
+      "sha256": "2845a8eff75e1def44a395b33aa4f6da6676ec049783dcb40fa579c32e318d00"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/checker/src/expr.rs",
+      "sha256": "aa527076b30eb7b1d13bf3ec1e989ce270e627ebb54927545d0aea64280b421b"
+    },
+    {
+      "path": "crates/checker/src/jsdoc.rs",
+      "sha256": "6c6b28c7e1a7da50d0852bc3bc04c2c69eafa77c5a9f716cb940585ec6630c6c"
+    },
+    {
+      "path": "crates/binder/src/node_util.rs",
+      "sha256": "5d3eea9d3dc9a23a6cb4240aaa01cc85f41c1e5b39e0d074f43e36a101f7d551"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "eaa50780d3f78654cc2c1b4cbeb73c50395685a0597ad120f4876b8ca9dd6dba"
+    }
+  ],
+  "witnesses": [
+    {
+      "case_id": "es5/js/declaration-one",
+      "row_sha256": "d5c83dabea1eab43c4ce2cfaf25c20ae943d7a6f8fa10d5fe1734e058efcafc4",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/declaration-three",
+      "row_sha256": "e4052f2fa06397a68995e66bf905ec056ef283cf99ddcf2dd803fb7971741130",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/declaration-no-parens",
+      "row_sha256": "d36e71eb721892a790135ed413dd4cfbc727cce1d30c8378aa600ea66788abcb",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/no-tag-one",
+      "row_sha256": "256affe0df3ff0bbcc59eba91cd9309307cbb7a450c81dc086656b78ae5883d6",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/inline-type-one",
+      "row_sha256": "959f9c024f01bbff44d123cbb9c16287ba356070ac1b6d27311f55c558d7209d",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/inline-type-three",
+      "row_sha256": "a5b7e62c34050fa5550421e8d684c7433fb7b3f3debaa162b56c260bdb359e0d",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/inline-satisfies",
+      "row_sha256": "0ed1911461b033c2b43e001f32d7be61317557bb858a5dc291a08f1a7885d745",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/declaration-inline-satisfies",
+      "row_sha256": "fb74f144bfbab8d84f847524023a1c71e44e43060cf3019a1ca8aaff611f9e6b",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/declaration-comment-one",
+      "row_sha256": "92f900838365bcecf5b90d7120b7f58499002b302bd5480c83a348d96199e7c1",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/js/declaration-literal",
+      "row_sha256": "d2720fd9b5968720656d10480c999a0ed9b2c595197ed8b04ccd84fb8dd6af73",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-direct-jsdoc-guard",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/ts/declaration-one",
+      "row_sha256": "75fd289d3d8b0b46ef4d75ab6af764e0558fed32850d70e4dbcce12749289cb0",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/ts/declaration-three",
+      "row_sha256": "0608a16eeaef74c69d6aa85a15f7d6bf6e0ccf7d17c90ae374350a50ff44d84a",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/ts/declaration-no-parens",
+      "row_sha256": "80241c61a0b24d804a8a89bc6f9a9e210170fe33e12bd20e50716eea896f3571",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/ts/no-tag-one",
+      "row_sha256": "ccf3f7c38cbd9e3c48db9c286c0c8a5e7928e6b892f9d6a695eb04ff01d3fad6",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/ts/inline-type-one",
+      "row_sha256": "480b765d516b8dd18cbbbfeb4a1127873eff31395b664f80b6c7c30a9298f50e",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/ts/inline-type-three",
+      "row_sha256": "aa81114d7ba384c7fb5e25116f4028e963409815c1e58eefa0bdbbe8d10f6b74",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/ts/inline-satisfies",
+      "row_sha256": "c1f12db9689704697bd895308af5092e6017099ae382b0dc980311977c6922b1",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/ts/declaration-inline-satisfies",
+      "row_sha256": "30f99306563861da1133af27dab1db94dd1746168ee1963fda01cb89a5929d15",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/ts/declaration-comment-one",
+      "row_sha256": "e8eed6cc4d473a7c7c55d53c1ed661201c486e47e2d23d3c590fa00d75b3ed24",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es5/ts/declaration-literal",
+      "row_sha256": "db69a481c4c2a8a07e3b8b509076c92a70531e5e21b0cef6de7a5a64fa71364b",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "es2015/js/declaration-one",
+      "row_sha256": "4d453f04e6070baa332067294f9c9843e413e89bf1aa35c065416053d3594afb",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-direct-jsdoc-guard",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/declaration-three",
+      "row_sha256": "378130d6409fc87d2dfa85ece239f0ff3dfb738abcbf3e1c69efabbf45a5b4d7",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-direct-jsdoc-guard",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/declaration-no-parens",
+      "row_sha256": "e55800038134f42703ba7169e976f96712e8885e9b6499721fe86fc74a90843b",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/no-tag-one",
+      "row_sha256": "0c8c36b3b0e967dcbad99114d46721045922cccf96793c4d702ae5bb246f1c47",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/inline-type-one",
+      "row_sha256": "8c8239db0a6c4ab7080df8813c2a48bd4fbcd7e5fe64b55a990a1bd29ec71872",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/inline-type-three",
+      "row_sha256": "e97cab87f045ccc88839cf22b42682d001ec7a853f14aa466ad3ae20d0d322f2",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/inline-satisfies",
+      "row_sha256": "4240b17953b85e99567673159b58ec58fe512aaec06703f2bc6f23ad877d5259",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/declaration-inline-satisfies",
+      "row_sha256": "87b12fdb20e834b661811dae1a1250f6bab9dc04ba104d9278f95968d16a443f",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/declaration-comment-one",
+      "row_sha256": "5114875e76a204a32a6df02acba58fb96eb76ba85147daf1d36ba23a1b1c538f",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/js/declaration-literal",
+      "row_sha256": "99bff4aa863ff9d6e94bf145d28260655dea6099bce02a9fced2320196f7cd96",
+      "before": "failed-two-independent-jobs",
+      "disposition": "owned-direct-jsdoc-guard",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/ts/declaration-one",
+      "row_sha256": "a69e4cd5c0be2d3c0e9ac585a7d44a1a6723f03beffa7b212a35bdfd7ab8e3dd",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/ts/declaration-three",
+      "row_sha256": "f351a5ccc8c6e4f09e01ab67d50549430737b555ba0d9822b47302187768d7a4",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/ts/declaration-no-parens",
+      "row_sha256": "1c96e5794792f0ee28d68e954b62cd52766ef2b39ec60dac5ae01e7eb3bcf4a1",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/ts/no-tag-one",
+      "row_sha256": "7c2fd7ab54bfbd74f736fe86d3e5be53d77e9eebdc4b7bde5796209977cdab35",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/ts/inline-type-one",
+      "row_sha256": "9a44e4ca460da12ee0a12eb734731f7e80cc3e9a7128ebfb997a7fb0646dde25",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/ts/inline-type-three",
+      "row_sha256": "71c6fe5924a0c3ad3544b73e518d41e2a3ee7e670dc8029b72d20e8e3300bb3f",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/ts/inline-satisfies",
+      "row_sha256": "65ea3ad954ffde14ce40b42c1fa5f3235d7b48799f067dd5e4f8b451ba1cd882",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/ts/declaration-inline-satisfies",
+      "row_sha256": "c486aa510c3509de1a78ddc286968e5183ece3e7d412a8cea284ba3c81a7ea69",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/ts/declaration-comment-one",
+      "row_sha256": "227d97fb38acfe6fa9f2ef384e4101ca80f03d86a0bee277c5dc498234dfc773",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "es2015/ts/declaration-literal",
+      "row_sha256": "670530c1ab8f9c6977857ee584ae12c10447cca5f7fd5754cc41dd9290064c89",
+      "before": "exact-twice",
+      "disposition": "adjacent-exact",
+      "diagnostic_mode": "active-semantic-control"
+    }
+  ]
+}

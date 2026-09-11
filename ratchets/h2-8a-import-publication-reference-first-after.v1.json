@@ -1,0 +1,195 @@
+{
+  "version": 1,
+  "status": "intermediate-after-before-printer-dependency",
+  "base": "d0ba24c65bc4aec438d1ce90121188f577f1f342",
+  "eligible": 367,
+  "exact_twice": 353,
+  "failed_once": 14,
+  "seconds": 339.89,
+  "exit_code": 101,
+  "new_reference_exact_twice": [
+    "cjs/js/named",
+    "cjs/js/quoted",
+    "cjs/js/default",
+    "cjs/js/namespace",
+    "cjs/js/named-conflict",
+    "cjs/js/quoted-conflict",
+    "cjs/js/default-conflict",
+    "cjs/js/namespace-conflict",
+    "cjs/js/default-namespace",
+    "cjs/js/external-reexport",
+    "cjs/js/unicode-alias",
+    "cjs/js/multiple-exports-comments",
+    "cjs/ts/named",
+    "cjs/ts/quoted",
+    "cjs/ts/default",
+    "cjs/ts/namespace",
+    "cjs/ts/named-conflict",
+    "cjs/ts/quoted-conflict",
+    "cjs/ts/default-conflict",
+    "cjs/ts/namespace-conflict",
+    "cjs/ts/import-equals",
+    "cjs/ts/exported-import-equals",
+    "cjs/ts/export-equals-suppression",
+    "cjs/ts/default-namespace",
+    "cjs/ts/external-reexport",
+    "cjs/ts/unicode-alias",
+    "cjs/ts/multiple-exports-comments",
+    "amd/js/named",
+    "amd/js/quoted",
+    "amd/js/default",
+    "amd/js/namespace",
+    "amd/js/named-conflict",
+    "amd/js/quoted-conflict",
+    "amd/js/default-conflict",
+    "amd/js/namespace-conflict",
+    "amd/js/default-namespace",
+    "amd/js/external-reexport",
+    "amd/js/unicode-alias",
+    "amd/js/multiple-exports-comments",
+    "amd/ts/named",
+    "amd/ts/quoted",
+    "amd/ts/default",
+    "amd/ts/namespace",
+    "amd/ts/named-conflict",
+    "amd/ts/quoted-conflict",
+    "amd/ts/default-conflict",
+    "amd/ts/namespace-conflict",
+    "amd/ts/import-equals",
+    "amd/ts/exported-import-equals",
+    "amd/ts/export-equals-suppression",
+    "amd/ts/default-namespace",
+    "amd/ts/external-reexport",
+    "amd/ts/unicode-alias",
+    "amd/ts/multiple-exports-comments",
+    "umd/js/named",
+    "umd/js/quoted",
+    "umd/js/default",
+    "umd/js/namespace",
+    "umd/js/named-conflict",
+    "umd/js/quoted-conflict",
+    "umd/js/default-conflict",
+    "umd/js/namespace-conflict",
+    "umd/js/default-namespace",
+    "umd/js/external-reexport",
+    "umd/js/unicode-alias",
+    "umd/js/multiple-exports-comments",
+    "umd/ts/named",
+    "umd/ts/quoted",
+    "umd/ts/default",
+    "umd/ts/namespace",
+    "umd/ts/named-conflict",
+    "umd/ts/quoted-conflict",
+    "umd/ts/default-conflict",
+    "umd/ts/namespace-conflict",
+    "umd/ts/import-equals",
+    "umd/ts/exported-import-equals",
+    "umd/ts/export-equals-suppression",
+    "umd/ts/default-namespace",
+    "umd/ts/external-reexport",
+    "umd/ts/unicode-alias",
+    "umd/ts/multiple-exports-comments"
+  ],
+  "new_reference_failed_once": [
+    "cjs/js/escaped-alias",
+    "cjs/ts/escaped-alias",
+    "amd/js/escaped-alias",
+    "amd/ts/escaped-alias",
+    "umd/js/escaped-alias",
+    "umd/ts/escaped-alias"
+  ],
+  "adjacent_counts": {
+    "alias_conflict": [
+      24,
+      24
+    ],
+    "export_name": [
+      160,
+      160
+    ],
+    "export_name_maps": [
+      32,
+      40
+    ],
+    "export_specifier": [
+      48,
+      48
+    ],
+    "default_reexport": [
+      8,
+      8
+    ]
+  },
+  "limits": "Six new escaped-alias first-map failures; eight existing H2.9 boundaries. Failed shared-helper cases execute once. Emitter/checker after checks not run.",
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-import-publication-reference-first-after-pp9_oefg",
+  "receipts": [
+    {
+      "path": "crates/checker/tests/fixtures/import-publication-resolver.json",
+      "sha256": "0f3d4c6f110b74cc798da5e5326cee9fff069749896175a14f332a997aff6ce4"
+    },
+    {
+      "path": "crates/checker/tests/unit/emit/tests.rs",
+      "sha256": "7c7affba68e8ff588301919f2a5841e2b7d0cd603c55465788d00b7a851e77a5"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "dcd0d1f443ac92e5337bf6c97dd984d6621475e62efc2a1daec25ec433d97676"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/import-publication-reference.json",
+      "sha256": "5a40114393dfa071c110337a4d283c37c652c61d1d3bd73447880ead1dafa424"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "eaa50780d3f78654cc2c1b4cbeb73c50395685a0597ad120f4876b8ca9dd6dba"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_import_publication_reference.rs",
+      "sha256": "bf1dd5a3c159338e6d1f903fcede3957cf006a2e371c83a33082ca3f77a9689a"
+    },
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "038975bba6e8d22d54c2bdc8e48290bc72cc483e6a74ba9d28bfc5d4addff739"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/emitter/src/metadata.rs",
+      "sha256": "c9eaf94391d3eb0893a1d1e7d4c65ff9d876f8b3772634505325a72cf7430e23"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "52d1835dc36c14f939a38d78580f8002163f1fb65b58981094be70f24a181e3d"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-import-publication-reference.md",
+      "sha256": "377e37764a2c5779c8540b0b559c61341cee6dcc421a8a10e1940f6f2f05a5d7"
+    },
+    {
+      "path": "ratchets/h2-8a-import-publication-reference-before.v1.json",
+      "sha256": "b010895b8de1331e33af0eaf1ce7c94eb662b407d22cf8374a80b084988789f3"
+    },
+    {
+      "path": "ratchets/h2-8a-import-publication-reference-readiness.v1.json",
+      "sha256": "062269a19be1387b8d0020e4a2d29cfb16f10ec01df50577aee1cad0baf0b969"
+    },
+    {
+      "path": "scripts/check-import-publication-reference-readiness.py",
+      "sha256": "1e4138cad2b685f47e09a64123e8d321add10ee091508e8c50e2f537ae5f52ae"
+    },
+    {
+      "path": "scripts/observe-import-publication-reference.mjs",
+      "sha256": "444ef9111ead4d5e55816db4ae19792a544fabe4dfd6356957606b9e11397b2f"
+    },
+    {
+      "path": "scripts/observe-import-publication-resolver.mjs",
+      "sha256": "a6cb0c556c42580eecab157b1dc050001e3703844560a78d1a959f827fe25856"
+    },
+    {
+      "path": "target/h2-8a-import-publication-reference-after.log",
+      "sha256": "f64fc7131fab869ca109e3e408f0ac6e26fb9ec54e800ff6c5fcbba9b7c2fcc5"
+    }
+  ]
+}

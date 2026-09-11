@@ -1,0 +1,79 @@
+--- a/crates/emitter/src/factory.rs
++++ b/crates/emitter/src/factory.rs
+@@ -5522,11 +5522,76 @@
+         source: TransformSourceId,
+         data: &mut NodeData,
+     ) -> Result<(), TransformError> {
++        self.parenthesize_comma_delimited_expression_children(source, data)?;
+         self.parenthesize_binary_operands(source, data)?;
+         self.parenthesize_conditional_operands(source, data)?;
+         self.parenthesize_initializer_for_disallowed_comma(source, data)?;
+         self.parenthesize_computed_property_name_expression(source, data)?;
+         self.parenthesize_export_assignment_expression(source, data)
++    }
++
++    /// tsc-port: parenthesizeExpressionsOfCommaDelimitedList @6.0.3
++    /// tsc-span: _tsc.js:20479-20482
++    /// tsc-port: createArrayLiteralExpression/createCallExpression/createCallChain/createNewExpression @6.0.3
++    /// tsc-span: _tsc.js:22441-22449,22579-22595,22602-22617,22621-22631
++    fn parenthesize_comma_delimited_expression_children(
++        &mut self,
++        source: TransformSourceId,
++        data: &mut NodeData,
++    ) -> Result<(), TransformError> {
++        let (elements, array_literal) = match data {
++            NodeData::CallExpression(call) => (&mut call.arguments, false),
++            NodeData::NewExpression(new) if new.arguments.is_some() => (&mut new.arguments, false),
++            NodeData::ArrayLiteralExpression(array) => (&mut array.elements, true),
++            _ => return Ok(()),
++        };
++        let mut original = match *elements {
++            Some(array) => TransformNodeArray::new(source, array),
++            None => self.create_node_array(source, Vec::new())?,
++        };
++        let record = self.arena.node_array(original)?.clone();
++        let mut nodes = Vec::with_capacity(record.nodes.len());
++        for id in &record.nodes {
++            let node = self
++                .arena
++                .node_ref(source, *id)
++                .ok_or(TransformError::UnknownNode(TransformNode::new(source, *id)))?;
++            nodes.push(node);
++        }
++        let last_is_omitted = if array_literal {
++            nodes
++                .last()
++                .map(|node| self.arena.node(*node))
++                .transpose()?
++                .is_some_and(|node| node.kind == SyntaxKind::OmittedExpression)
++        } else {
++            false
++        };
++        let trailing_comma = record.has_trailing_comma || last_is_omitted;
++        if trailing_comma != record.has_trailing_comma {
++            // createArrayLiteralExpression calls createNodeArray with an
++            // explicit true for a final hole, before parenthesizing children.
++            let flags = self.arena.array_transform_flags(original);
++            original = self.create_node_array_with_trailing_comma(source, nodes.clone(), true)?;
++            self.set_node_array_text_range(original, record.pos, record.end)?;
++            self.arena.set_array_transform_flags(original, flags);
++        }
++        let mut changed = false;
++        for node in &mut nodes {
++            let parenthesized = self.parenthesize_expression_for_disallowed_comma(*node)?;
++            changed |= parenthesized != *node;
++            *node = parenthesized;
++        }
++        let mapped = if changed {
++            let mapped =
++                self.create_node_array_with_trailing_comma(source, nodes, trailing_comma)?;
++            self.set_node_array_text_range(mapped, record.pos, record.end)?;
++            mapped
++        } else {
++            original
++        };
++        *elements = Some(mapped.array());
++        Ok(())
+     }
+ 
+     /// A conditional's condition is a logical-OR expression in the grammar,

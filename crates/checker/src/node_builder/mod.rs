@@ -35,8 +35,9 @@ pub(crate) use serialize::{
     index_info_to_index_signature_declaration, serialize_return_type_for_signature,
     serialize_return_type_for_signature_seam, serialize_type_for_declaration,
     serialize_type_for_declaration_seam, serialize_type_for_expression,
-    syntactic_serialize_name_of_parameter_seam, syntactic_try_reuse_existing_type_node,
-    type_predicate_to_type_predicate_node, type_to_type_node,
+    syntactic_serialize_name_of_parameter_seam, syntactic_track_existing_entity_name,
+    syntactic_try_reuse_existing_type_node, type_predicate_to_type_predicate_node,
+    type_to_type_node,
 };
 pub(crate) use signatures::{
     create_recovery_boundary, enter_new_scope, index_info_to_index_signature_declaration_helper,

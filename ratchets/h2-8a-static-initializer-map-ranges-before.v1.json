@@ -1,0 +1,892 @@
+{
+  "test_adapter_change": "useDefineForClassFields mapped to existing CompilerOptions field before both native jobs; comparisons unchanged",
+  "scout_log_not_qualification": "target/h2-8a-static-initializer-map-ranges-scout.log",
+  "version": 1,
+  "status": "complete-before-with-two-independent-native-jobs",
+  "base": "d7863caaad331660aee8d3bf3704273cab10e190",
+  "eligible": 104,
+  "exact_twice": [
+    "es5/set/commonjs/static-only",
+    "es5/set/commonjs/instance-only",
+    "es5/set/commonjs/public-uninitialized",
+    "es5/set/commonjs/parameter-property",
+    "es5/set/commonjs/static-uninitialized",
+    "es5/define/commonjs/instance-only",
+    "es5/define/commonjs/static-uninitialized",
+    "es5/set/esnext/static-only",
+    "es2015/set/esnext/static-only"
+  ],
+  "failed_twice": [
+    "es5/set/commonjs/public-initialized",
+    "es5/set/commonjs/abstract-property",
+    "es5/set/commonjs/private-field",
+    "es5/set/commonjs/private-method",
+    "es5/set/commonjs/auto-accessor",
+    "es5/set/commonjs/static-this",
+    "es5/set/commonjs/static-super",
+    "es5/set/commonjs/class-expression",
+    "es5/set/commonjs/anonymous-expression",
+    "es5/set/commonjs/nested-reset",
+    "es5/set/commonjs/nested-resume",
+    "es5/set/commonjs/multiline-comments",
+    "es5/set/commonjs/computed-name",
+    "es5/set/commonjs/quoted-name",
+    "es5/set/commonjs/private-static",
+    "es5/define/commonjs/static-only",
+    "es5/define/commonjs/public-initialized",
+    "es5/define/commonjs/public-uninitialized",
+    "es5/define/commonjs/abstract-property",
+    "es5/define/commonjs/parameter-property",
+    "es5/define/commonjs/private-field",
+    "es5/define/commonjs/private-method",
+    "es5/define/commonjs/auto-accessor",
+    "es5/define/commonjs/static-this",
+    "es5/define/commonjs/static-super",
+    "es5/define/commonjs/class-expression",
+    "es5/define/commonjs/anonymous-expression",
+    "es5/define/commonjs/nested-reset",
+    "es5/define/commonjs/nested-resume",
+    "es5/define/commonjs/multiline-comments",
+    "es5/define/commonjs/computed-name",
+    "es5/define/commonjs/quoted-name",
+    "es5/define/commonjs/private-static",
+    "es5/set/esnext/public-initialized",
+    "es5/set/esnext/static-this",
+    "es5/set/esnext/nested-reset",
+    "es2015/set/commonjs/static-only",
+    "es2015/set/commonjs/instance-only",
+    "es2015/set/commonjs/public-initialized",
+    "es2015/set/commonjs/public-uninitialized",
+    "es2015/set/commonjs/abstract-property",
+    "es2015/set/commonjs/parameter-property",
+    "es2015/set/commonjs/private-field",
+    "es2015/set/commonjs/private-method",
+    "es2015/set/commonjs/auto-accessor",
+    "es2015/set/commonjs/static-this",
+    "es2015/set/commonjs/static-super",
+    "es2015/set/commonjs/class-expression",
+    "es2015/set/commonjs/anonymous-expression",
+    "es2015/set/commonjs/nested-reset",
+    "es2015/set/commonjs/nested-resume",
+    "es2015/set/commonjs/multiline-comments",
+    "es2015/set/commonjs/computed-name",
+    "es2015/set/commonjs/quoted-name",
+    "es2015/set/commonjs/static-uninitialized",
+    "es2015/set/commonjs/private-static",
+    "es2015/define/commonjs/static-only",
+    "es2015/define/commonjs/instance-only",
+    "es2015/define/commonjs/public-initialized",
+    "es2015/define/commonjs/public-uninitialized",
+    "es2015/define/commonjs/abstract-property",
+    "es2015/define/commonjs/parameter-property",
+    "es2015/define/commonjs/private-field",
+    "es2015/define/commonjs/private-method",
+    "es2015/define/commonjs/auto-accessor",
+    "es2015/define/commonjs/static-this",
+    "es2015/define/commonjs/static-super",
+    "es2015/define/commonjs/class-expression",
+    "es2015/define/commonjs/anonymous-expression",
+    "es2015/define/commonjs/nested-reset",
+    "es2015/define/commonjs/nested-resume",
+    "es2015/define/commonjs/multiline-comments",
+    "es2015/define/commonjs/computed-name",
+    "es2015/define/commonjs/quoted-name",
+    "es2015/define/commonjs/static-uninitialized",
+    "es2015/define/commonjs/private-static",
+    "es2015/set/esnext/public-initialized",
+    "es2015/set/esnext/static-this",
+    "es2015/set/esnext/nested-reset",
+    "es2022/set/commonjs/static-only",
+    "es2022/set/commonjs/public-initialized",
+    "es2022/set/commonjs/public-uninitialized",
+    "es2022/set/commonjs/auto-accessor",
+    "es2022/define/commonjs/static-only",
+    "es2022/define/commonjs/public-initialized",
+    "es2022/define/commonjs/public-uninitialized",
+    "es2022/define/commonjs/auto-accessor",
+    "esnext/set/commonjs/static-only",
+    "esnext/set/commonjs/public-initialized",
+    "esnext/set/commonjs/public-uninitialized",
+    "esnext/set/commonjs/auto-accessor",
+    "esnext/define/commonjs/static-only",
+    "esnext/define/commonjs/public-initialized",
+    "esnext/define/commonjs/public-uninitialized",
+    "esnext/define/commonjs/auto-accessor"
+  ],
+  "native_jobs": 2,
+  "positive_executions_per_case": 4,
+  "failed_executions_per_case": 2,
+  "seconds": [
+    56.38,
+    50.99
+  ],
+  "exit_codes": [
+    101,
+    101
+  ],
+  "first_failure_comparisons": [
+    {
+      "case_id": "es5/set/commonjs/public-initialized",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "118003bbefcc85986d3099415bc27685c067ac8047c1788d4fde83a3e234031f",
+      "expected_sha256": "d2110ec214d8826e595e7f951533e011fdaa8d235bf26cc89c2639bb4383b83a"
+    },
+    {
+      "case_id": "es5/set/commonjs/abstract-property",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "7ae8935ef40859b2bf79ce81e681195651d3091393d1bacdedede726a426ab61",
+      "expected_sha256": "9073b1d91a57a6ebac8f2d8b96e16ab722943f6696f399da7778b103524d93d4"
+    },
+    {
+      "case_id": "es5/set/commonjs/private-field",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "915f3ba220cf274dc2cf11b4845ceff5eaa5c1135dd0391fd4a877067ddc66eb",
+      "expected_sha256": "6c48a5aeb2cdf22fd8b509c161c2bbdbdf349e23b39dbce6b8c3c72ddd5cd3d2"
+    },
+    {
+      "case_id": "es5/set/commonjs/private-method",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "e4ad5265230c534140e22c6c7accb0d574bb75a646f29323e8134c0533074a75",
+      "expected_sha256": "2fe1998ad27f5d0c463b4a33de362b151826a81c0655272b1f3477efc5501b0c"
+    },
+    {
+      "case_id": "es5/set/commonjs/auto-accessor",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "cbc260104c7d832e8af14e7d619c5cd578b4d31538c61b5484e7df78fc8a4781",
+      "expected_sha256": "332f74d472d0ec5c7ab39b23126b1dd91ed5e648ed9ee9889a5ac65017c5f9c0"
+    },
+    {
+      "case_id": "es5/set/commonjs/static-this",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "37dbfd4265889f585f54cabcfa33d3c805ee5f1bbd4316028e6204cecdfe84e6",
+      "expected_sha256": "90bfa8b770306aecd82de17b9e3fb05da84d2af96cf45f0aef7a89f2d347480c"
+    },
+    {
+      "case_id": "es5/set/commonjs/static-super",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "39d6b6b083134c0c4415f6258616476a8abcac98f3b80b7947b6498e4faca6eb",
+      "expected_sha256": "1aa831b14cd2937160c7123993bd98bd18b413f41faab1c756d26d2c061c18fa"
+    },
+    {
+      "case_id": "es5/set/commonjs/class-expression",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "723e38dc5ebb7fddb01953ddebf4d0883fa45e5cec4649820adfe7da80a3ee67",
+      "expected_sha256": "4e3eb9cfd6979224f32872cd5a23b04c0b604ae39d8dd8572e28cca8ff209097"
+    },
+    {
+      "case_id": "es5/set/commonjs/anonymous-expression",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "056ae713cb8090dd447001bb39103ebc33653542b4ff2f72420412602fd03c19",
+      "expected_sha256": "b9da23d8c244d49acd49037ec98ab55444461e778a76df655771ef76dac28c00"
+    },
+    {
+      "case_id": "es5/set/commonjs/nested-reset",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "249f9baf1df4e7140ea0190fdba0994917981eb5b052424ee43a7be90063caf2",
+      "expected_sha256": "6c79196440252aec363bea746893589c576d3baa6121250c99cef314a2ab23c1"
+    },
+    {
+      "case_id": "es5/set/commonjs/nested-resume",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "428c8c581e12f9c72edd216c9137ec20a1f7bb21954a1e9ebd245148bc210c5f",
+      "expected_sha256": "01df6b5893035b1ffb7e4c0a482f281c9b38624f16aaf76736fab81f45426e90"
+    },
+    {
+      "case_id": "es5/set/commonjs/multiline-comments",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "de274d7201ec0ae200d6ad7c751e9ad2cbfa3c04484a54735356d75e1b93cc26",
+      "expected_sha256": "a28d19cff606cf7be2073428328a389d1caa38ca7b21de6a13b15c8e2a52d73c"
+    },
+    {
+      "case_id": "es5/set/commonjs/computed-name",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "3aa4d6690faf1a6551d3417a078f1f4b3496674d7674fe7fb5eba2e9e0c30c4f",
+      "expected_sha256": "6af3d9896784d07fc828cec63763b73879bb5ebeb77ac5ed9815d6e554142cc8"
+    },
+    {
+      "case_id": "es5/set/commonjs/quoted-name",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "3c8a9f481217b3bfca622d61127cea527f8ac6f7e17bda1b986e588d4e3a689a",
+      "expected_sha256": "14fa45f892c87faa933612b5f2796cbdd3bb85495c3893af05e8b944fff0bdb4"
+    },
+    {
+      "case_id": "es5/set/commonjs/private-static",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "846a15c0acd2860138a2b49e55867ba9f071fc42da120b1096c05dd1c6068134",
+      "expected_sha256": "47f003318535caf80223eaa03f1779a401c9d6baab40b7ee15981612ef3d2a30"
+    },
+    {
+      "case_id": "es5/define/commonjs/static-only",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "d7e97478862c50c26d71ca6feb980146f734fc253a116ebc058c6161322af77e",
+      "expected_sha256": "d40677c6bbd7879968551c24f7f38a90f53d50da18aae30f3a6df5508165a956"
+    },
+    {
+      "case_id": "es5/define/commonjs/public-initialized",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "04dd634ef68d569ea4ef9426450865a33224842d887a0f04fed3eea445d855fa",
+      "expected_sha256": "fbef60909e946bf9b559159514c24b049db54117bade993f7dcb9f124223b60c"
+    },
+    {
+      "case_id": "es5/define/commonjs/public-uninitialized",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "68c2659342f297cc68b4002d331f6aa4ee85387987978dfa2b12ae28300f7738",
+      "expected_sha256": "308ad0d7e7464a6b5a94effaec02fb9285c4921f78c3f235e2fb56cb58ac59f5"
+    },
+    {
+      "case_id": "es5/define/commonjs/abstract-property",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "07055296bc7aaccb2b0ed73a25f8d3c9a2bc6d7b088edcc4cf95259f88aa078b",
+      "expected_sha256": "57ff71d01db90e108c956b8c5e6bfed86693deb885e10529f6dce5e96c2a0308"
+    },
+    {
+      "case_id": "es5/define/commonjs/parameter-property",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "cdafbd166bb0def9deec149dbb87dd7610e9b77d6457d5a25e0222df2bf11ece",
+      "expected_sha256": "307f576e5e527d7de05683e151f8c0362d485c4b30214ab41a67eeea239e3b86"
+    },
+    {
+      "case_id": "es5/define/commonjs/private-field",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "52ba0d8d3333da54d59e5af26d70ea5b5cc7204f94167622e2612bdda00108ce",
+      "expected_sha256": "eca931f5f84d29cb0efaf6e63fcb80c705794438b66b9e2caeb2c2f54abfcd3e"
+    },
+    {
+      "case_id": "es5/define/commonjs/private-method",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "f0940236c456b521ff7848abcbe69e41e5437d85683439bce6d8a03e70ef6872",
+      "expected_sha256": "f685aa5e991f2d33ec8961cc942ff7c57322d383bf6e94037699638da431e511"
+    },
+    {
+      "case_id": "es5/define/commonjs/auto-accessor",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "28c3da0a18e09bbfcbbd24d40ba7c260648517178dfad22cdd08a179169a805c",
+      "expected_sha256": "9264e6f227f51164413abb27b563adf2aff37588e0346d7d1d4e2685befdd254"
+    },
+    {
+      "case_id": "es5/define/commonjs/static-this",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "18c21bf7d643e321fe688dff1782728269c01d96677cb79b4d994658e3d260e3",
+      "expected_sha256": "3f4b9bf334b59ee4f3157db111912178c1a59a6c0ef0cb495051a38ff7c69f07"
+    },
+    {
+      "case_id": "es5/define/commonjs/static-super",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "46c408bbcf1bd3034d2c49e9d86e5e683f2b8c234832bb02b792905de5ed6431",
+      "expected_sha256": "1f2a80d58288edd867accb8f3569c4e3440935ca156e59fc8ce3d5650719ce3d"
+    },
+    {
+      "case_id": "es5/define/commonjs/class-expression",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "52c347d469abf30eb3217ece09ad44fd55506173d624c7c0430b9fa9f51669ea",
+      "expected_sha256": "bea5fba74e1a29d70262e0445f69145f105a4f954be249157fca53c6b8ac2de1"
+    },
+    {
+      "case_id": "es5/define/commonjs/anonymous-expression",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "ae16f809b682585d1b61fc18ecd99728cd6f0e8074b7f70b94d6e409db069dc0",
+      "expected_sha256": "2b05c7e61757a7452fa56867cc94a6e180a93c049bd25ab53432e37b94b2555a"
+    },
+    {
+      "case_id": "es5/define/commonjs/nested-reset",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "f9195db0ccd64940b697ff58a8c8ba8e3fc60ed067ec6150db915ef533c5a18e",
+      "expected_sha256": "b5eb42b752dcd6ba63413f04161b121a7a557a38541b19382cdd428d8a987473"
+    },
+    {
+      "case_id": "es5/define/commonjs/nested-resume",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "6500d8faff293253cbc7bf7ae00bbdac362741e999a1b85752a20aa44478a014",
+      "expected_sha256": "968cf6c8d1c8184b7fd01b45a8b71667170279be22b4795ae5984d43a35ebc72"
+    },
+    {
+      "case_id": "es5/define/commonjs/multiline-comments",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "1a895523535f5f13cbe089aac5a31f8a83dfb8052d87f9b06ca5a8e2f829100f",
+      "expected_sha256": "8b67e4e9125addd184b2dfcf548221793c156136dd3c6440f666adb230e5b534"
+    },
+    {
+      "case_id": "es5/define/commonjs/computed-name",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "e5006d6cdef46ccca7df128a2923f6b3fbba7cf84c620bfe38bd46ea533d3c53",
+      "expected_sha256": "63f8047d5a9686fd645df2e39289e2121942e6ee8fbb207e1935952a3d3de768"
+    },
+    {
+      "case_id": "es5/define/commonjs/quoted-name",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "8f1c319d2b7ac5e129341b1160913145a7c647a18a030fadf0625b093957a015",
+      "expected_sha256": "2521d7069e174c83273b33815bb5931841d0630ee3032fddd7acd35cb94b60ea"
+    },
+    {
+      "case_id": "es5/define/commonjs/private-static",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "00f371fa623b49bb159076acd34a37e7edea3b974e0f5e4fd8e65989b7a607f4",
+      "expected_sha256": "41a4fe2e6479fccd8fdebcadb3210cd813b442b5554518650b889907fb33b172"
+    },
+    {
+      "case_id": "es5/set/esnext/public-initialized",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "b22d35c80f1793d7a4da54b0ef1e43c15279b29fd82a9c541bb3667cc24b58ec",
+      "expected_sha256": "2615a7c48b4c3cd2117b15b8860f94e310aa00384820d19626f7ee7e0468bb51"
+    },
+    {
+      "case_id": "es5/set/esnext/static-this",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "c1c3d5b0e3d387a2c6901e7f2f8432fad7abba3d63849162682d59eafd39b577",
+      "expected_sha256": "0d1288306b715ee15ba37625ad89b9ce4c49be498bb952c41370fc7dbcc2ef27"
+    },
+    {
+      "case_id": "es5/set/esnext/nested-reset",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "2c893cddb4d113e1e0d88ce2b38d9eac27bce3dadf2e496da1cbceae28625484",
+      "expected_sha256": "2911834dff5ed93099a6560f981cc64e80c026b7e304ff58352b8331c5487ec2"
+    },
+    {
+      "case_id": "es2015/set/commonjs/static-only",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "7b56d2ce746c9cceb81164a6b3ee089b89822faee247a2052dbb562dbeec9a85",
+      "expected_sha256": "c587fc62ac91d1dfe339d27b49b2581124b64a34ed2bb78673ffb37ce74c4cff"
+    },
+    {
+      "case_id": "es2015/set/commonjs/instance-only",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "6b928708fd72b45d19a150ba6f847110abda8ff732ee663a4ffeb24f80e77d66",
+      "expected_sha256": "78d3c0cad79786a714fb225f889910f7e05098f51e2b1c7ff927ccb900bf4558"
+    },
+    {
+      "case_id": "es2015/set/commonjs/public-initialized",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "218e8f6d7e98e3d4698e5ee36543f5b24aacc8e1d46144b4f3af402df4a067fa",
+      "expected_sha256": "8c1752a75405d71e68bd278f5d3244de2f68b27e52b439351859844f9ff87bf0"
+    },
+    {
+      "case_id": "es2015/set/commonjs/public-uninitialized",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "5835388d447259c1a74cb587e87b8617d2a93c141912748c67748e25ad486b0f",
+      "expected_sha256": "c587fc62ac91d1dfe339d27b49b2581124b64a34ed2bb78673ffb37ce74c4cff"
+    },
+    {
+      "case_id": "es2015/set/commonjs/abstract-property",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "1f06c46eaa01f3447eb68e5f618aae899f4ebb1672614055c66c81d4a554abe9",
+      "expected_sha256": "cbf6649e6726637ebb6e8e2b62722afd31460bbf5a9a579ad0ab2a96fbd79647"
+    },
+    {
+      "case_id": "es2015/set/commonjs/parameter-property",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "4cad415186dd5382b97c7f64a4b5140eaaf2182f4b4aecda82a3d9826ec8e516",
+      "expected_sha256": "2060880ee68cd5bd17765db606375d4b62259870985b86135520769397148b6a"
+    },
+    {
+      "case_id": "es2015/set/commonjs/private-field",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "4de884d2bea678477d26f9958f51db51dd594332a367cbaf8f90e93a058870dc",
+      "expected_sha256": "5f48e12a355a72e55280a9610a0fdd72911d3df2b0595e32cd58a209b702278f"
+    },
+    {
+      "case_id": "es2015/set/commonjs/private-method",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "7632f1177d36e2da23bce4f1ca15e0e69c81abe6b291942a630f9992590aa576",
+      "expected_sha256": "0efb5a3abe1a1f25ba738ae5ac2dc35050576c3fec1d9cd75a0215076a4c1f5a"
+    },
+    {
+      "case_id": "es2015/set/commonjs/auto-accessor",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "8e025fb7861a4c6e9b247b9d04ed4c33382720f75ae8fde7c5d0700b08f9f4ea",
+      "expected_sha256": "fd6cba99ca234d23f83730fe226d0c22317245b510b5427bcf020e765b14f7c5"
+    },
+    {
+      "case_id": "es2015/set/commonjs/static-this",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "909db6b59f996eabb72e129cef3f3b797ba1ebb80690de0ef7640cb0f4e597ce",
+      "expected_sha256": "69dca37a4af9a6001e154d2147b684c24e22064a21f38731280d733fade7d900"
+    },
+    {
+      "case_id": "es2015/set/commonjs/static-super",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "1c03856c4f254136195c8e05e3331dfca22b12d2b9c19d55ae28b8f6f77c8729",
+      "expected_sha256": "b32af585a24516d17b2c97e3a8bc07070508949dd53ebe733420a2a2a6e450aa"
+    },
+    {
+      "case_id": "es2015/set/commonjs/class-expression",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "7489c0f5da43b2c48623f4867063c35daf0896a3ca49ae6ebd2532ffd7075255",
+      "expected_sha256": "c5b5c744b78d946121b29da612c8a6232dff41c0734e5d1b9abc6efc80fbfdd3"
+    },
+    {
+      "case_id": "es2015/set/commonjs/anonymous-expression",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "802c0df6031ea5942f9bf1d20d11aee1c86f9667b3874a8868bc89a206b8a7d0",
+      "expected_sha256": "183cd55ce153cba907b888785cfc01e11ae89f44cc6cbc28d77e103375b58161"
+    },
+    {
+      "case_id": "es2015/set/commonjs/nested-reset",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "71143921f8acd72a12e86cd670eaf5a2106fcc539a6decb26266013b57f7ac67",
+      "expected_sha256": "3d297555812101d72f51fe1c565d19c8ce700fcd5e0082e3e3cb8dcfe8547975"
+    },
+    {
+      "case_id": "es2015/set/commonjs/nested-resume",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "be74dd91f2c9cc049ac1db850f945f8a2ad8a08d9155933e7caec191a9b02663",
+      "expected_sha256": "d6350923ccf0a7832a73624e6f692d4ba0ec218d84ab3393a09619d1f63e2afa"
+    },
+    {
+      "case_id": "es2015/set/commonjs/multiline-comments",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "fdf5345c3ce320a2b5d6c7e2cb4cc15cbffb5ac52fb6c0e2aa43007d4633572e",
+      "expected_sha256": "d836e3ca41689899232feb5209987e6a48057fb6129126e50e927e68b298dee7"
+    },
+    {
+      "case_id": "es2015/set/commonjs/computed-name",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "154fbcccab120bf76bd1872da6a8d3aa014f8a9a3ec30cdbaaa92f54c6f61a65",
+      "expected_sha256": "135cd315cdaa130f3dad613057f4066d926051727d60983bdb6132e9437d6f74"
+    },
+    {
+      "case_id": "es2015/set/commonjs/quoted-name",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "54fb605f2e839e11d9a1d40adc0298e9704d934249cbf50e087aa852103606d3",
+      "expected_sha256": "f3325e5b0dd7addeeef1597045e4520d87be830d81ba57dcb32997576ca4ef2f"
+    },
+    {
+      "case_id": "es2015/set/commonjs/static-uninitialized",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "040773f6d83800c6967ff2127851b346a73ae74e1df7fd02d8cc2ef46d358cb7",
+      "expected_sha256": "7b4621e3ff0614b1b5861e454efeaf234b5fe84ba18fe15a10fd7585b50eebb8"
+    },
+    {
+      "case_id": "es2015/set/commonjs/private-static",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "cd4f7786fe18757b6b07d7b2783b0ced1187cfd18fb86ec2e40c951f361698e7",
+      "expected_sha256": "68ea39e7d65127628467afccf06026d33c94e05e4e1463818963ed6a5ba8b595"
+    },
+    {
+      "case_id": "es2015/define/commonjs/static-only",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "b2850c072cfbf5b60e81f4022fa86f36049557e62463bf9cdedd792259b9b2f9",
+      "expected_sha256": "19d2c7a8787cf911b9d62f8881f44234fe249a63014a8a2a90b06ad2bbfbeba9"
+    },
+    {
+      "case_id": "es2015/define/commonjs/instance-only",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "3663fe5fae5f6122b14a4dd7380e65e73c54b346d31420db340c48bb7addd8be",
+      "expected_sha256": "08c43f77fdc5d77a114df5c20bc5afc5c9b37661258611a4ed7997bde688d3ce"
+    },
+    {
+      "case_id": "es2015/define/commonjs/public-initialized",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "5794565d0a0c5f4b85080898f15eff3b19e42e12fea18143efa2ec9d87156710",
+      "expected_sha256": "03b587a000614aa37932961814c1879f7226883470901bcb834130eb52a552ca"
+    },
+    {
+      "case_id": "es2015/define/commonjs/public-uninitialized",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "0dc835aac3e20824c741f7e4b0ee05d07b1658a95f85858638ad78e84a78fbbb",
+      "expected_sha256": "689a00ef4c918b8aff32ed1c6534228b30d77b73ca5f79efe95c53d67db57f37"
+    },
+    {
+      "case_id": "es2015/define/commonjs/abstract-property",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "3fab69c083b2588e67feaf48598df1c1789a5af86d1369f08e95a41eab208f11",
+      "expected_sha256": "4fef41b4b8ecd98855fddb878895839bdfe5888bd8589ba93114eff498601163"
+    },
+    {
+      "case_id": "es2015/define/commonjs/parameter-property",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "a3608a786dfa368d7eb585deee05c586b04a150faaee8fc16567b56285bc1557",
+      "expected_sha256": "bb83d774f4580cf346d241d1a972945039643a3f186dc2178c533fa0e16aa682"
+    },
+    {
+      "case_id": "es2015/define/commonjs/private-field",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "d23c795d697a8e87b7a7f96c8f5089e592abefcc135bfc6cdd17a5676aeb12b8",
+      "expected_sha256": "64a9f41a0c8523ddfb08fa6eab2571092f17f17698f9ee8a28f52c1859cf4af3"
+    },
+    {
+      "case_id": "es2015/define/commonjs/private-method",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "6714c3626508304e13d7b0db53406ad5a9116a98f0933ad59f816d690aff1e3c",
+      "expected_sha256": "37edc81921c536d08cafe5eb6b7dbe3b8f8916b98d2c56f44323654e0198623c"
+    },
+    {
+      "case_id": "es2015/define/commonjs/auto-accessor",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "a2679da8ef3eef4e4aa3476939f0270822e3b474ef5f595ba3230ba94586ac54",
+      "expected_sha256": "97e7fdf0e215af34d4b4c49191db467f824fa714f2c66936cb5ad1790c823b0f"
+    },
+    {
+      "case_id": "es2015/define/commonjs/static-this",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "8d7d99864108e7d8ad71a4d074db78d2a03e0f6a41965ec2921e2497ce0a492f",
+      "expected_sha256": "eb142c8d40ca0df6b769de93ae16f38e45727a5997619ab13078380dbb5a63df"
+    },
+    {
+      "case_id": "es2015/define/commonjs/static-super",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "3325e09d1ee9b3ab9ca966f0d745273a077cd7f27ccd184b5ca96ca38e810ea8",
+      "expected_sha256": "099a10b6c9f0b269ba9bb41b3a591ad9a5e2e5713620053677749a1214634d65"
+    },
+    {
+      "case_id": "es2015/define/commonjs/class-expression",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "cf6eb725871d53306653763e892324ec1effa78a62a740c72c1408507bb17604",
+      "expected_sha256": "e2647c078f7488400d696e9783600e7be7d1111fff7934d25865ad36c1ea3a7d"
+    },
+    {
+      "case_id": "es2015/define/commonjs/anonymous-expression",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "3c3385501294cdfc2c7d625409eb336dfa7b24db6795cd2f5ee3af641fd75faf",
+      "expected_sha256": "94524a0044cf9fe48dbbff16c9e110a5b88400724f929e7d3fb32429b7c8fb35"
+    },
+    {
+      "case_id": "es2015/define/commonjs/nested-reset",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "c6bf0dbbc1a4cb32acc265b14927ccd4a6183931c5b4c7607865af99dc52be52",
+      "expected_sha256": "4f10bacd41c6d6ea42705068b03cdaed966211ca69334ac1c5c2b4db1481929e"
+    },
+    {
+      "case_id": "es2015/define/commonjs/nested-resume",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "a526fe06c9436f0df26cd7e1817109b6b09df0128adaef5fc13d93d0632d1b8a",
+      "expected_sha256": "0d365b0516c756531aad912c89501c761e637fd524b2b8f4a9638ef626aeffd6"
+    },
+    {
+      "case_id": "es2015/define/commonjs/multiline-comments",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "9822d0b90d9230c371da0e048c9a3dc2709820bcb4c3de019b504debb8f64394",
+      "expected_sha256": "f6d08d9374fb362e4962562b7187b4e45e4d5b4e4e4941650ffb798a2887c270"
+    },
+    {
+      "case_id": "es2015/define/commonjs/computed-name",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "ee019fbd3c81a3653f8f80bf9d20c646f1863f84a65faf60a8f4321086b41f7c",
+      "expected_sha256": "99a568e7d590253bc977c264b111ec923e94e9e33fdf655bd67129eb0de0ab76"
+    },
+    {
+      "case_id": "es2015/define/commonjs/quoted-name",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "60f63537d6dbe0b0e5e130a24ddd8e716eb413960381ebae274acd95ad66d474",
+      "expected_sha256": "fe2435e7e84ea76b9a6fa7b64e75def909a7b077c8c524fbb61026d06d76110e"
+    },
+    {
+      "case_id": "es2015/define/commonjs/static-uninitialized",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "6c0857f57a70915b82da8d0b215673811253d7a125c248e4435177aa2f65b436",
+      "expected_sha256": "b90a7ab5e484b60d8994f3154758b2ab2867b5a55c1481ed3a4c750134c04820"
+    },
+    {
+      "case_id": "es2015/define/commonjs/private-static",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "77b9a10c0b1072903842d01fc4b97e259fa91ff537d4da68f8103ae64ae7ce2f",
+      "expected_sha256": "2d3ccffaf21f1de1866534a6fa86ebc7f172baefb01d91ecfabe18566a77e344"
+    },
+    {
+      "case_id": "es2015/set/esnext/public-initialized",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "28af9d9f7a0180b7d111bc7c8a3aeadf31fb5d1d64d0491a37ef5b8efffeb56a",
+      "expected_sha256": "79dae0b487b98e55cfbcf6dadd1760aad613e01d9dcbab9286bffeb5871c4538"
+    },
+    {
+      "case_id": "es2015/set/esnext/static-this",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "1dff2164e51157ec42020ecd0936b59ce6b4f4d6da9f728c743876afb99a338b",
+      "expected_sha256": "c59c960cfa2da263614fe8b4bd6333f6c01da0bbe4d147de78b95c056556eb1a"
+    },
+    {
+      "case_id": "es2015/set/esnext/nested-reset",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "028061c1547ee28fc5a4ad4c1b9f03ff87163e9af6aee504c8cffbe1e787c4a4",
+      "expected_sha256": "c599fdef5be2067571c82000105eb689d267bb8931897ec626f5dd4f3364e74a"
+    },
+    {
+      "case_id": "es2022/set/commonjs/static-only",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "656e74233960510250b28fa1b08bd5f3a6df0a535699dbe09a6379be6e582f66",
+      "expected_sha256": "ab50cb9925fbb8129463eaa6fe9d2c742b7f97d17bbdf26aa6e650c6e2e9d06a"
+    },
+    {
+      "case_id": "es2022/set/commonjs/public-initialized",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "d2b945d0770abb77850b0f3260713303e7f402971da54cf651b507a9227a3ec3",
+      "expected_sha256": "6833040b6c34ec04a20e25ca27a2d6ce5a79cc95472046f8747f4d3f15b12f2c"
+    },
+    {
+      "case_id": "es2022/set/commonjs/public-uninitialized",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "6266e49616b86986818bd7581ec0be00c959c4366e63b936420ad223ee4e6ef0",
+      "expected_sha256": "ab50cb9925fbb8129463eaa6fe9d2c742b7f97d17bbdf26aa6e650c6e2e9d06a"
+    },
+    {
+      "case_id": "es2022/set/commonjs/auto-accessor",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "e945f47acbd47f8b8ef1e07a8ea9268f2388492639828e3ed7f18bc2918ce093",
+      "expected_sha256": "a3321af83dad9922bf3c3121697a379fd04ea21132094f5a6d2f3aa976a7e3a3"
+    },
+    {
+      "case_id": "es2022/define/commonjs/static-only",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "39eaf2cd4e77751887f8c55874903cf65bd09202f22b7b77836b625c23db38f4",
+      "expected_sha256": "03bf8ee33fb9aa816f94d55405b7c0b180437f234b0705cc3f2e41e372824841"
+    },
+    {
+      "case_id": "es2022/define/commonjs/public-initialized",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "c893a11c51e7d22f46670c88f1ba9830d8f2f9cd09343d58ae021e3ea0e19654",
+      "expected_sha256": "030e0ca422f850e86e1dcf21a6fac4c2e6c8027f0ddbe982a2f6721a24e73d9f"
+    },
+    {
+      "case_id": "es2022/define/commonjs/public-uninitialized",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "57c747a8d9b91fc663f5c23a692ede43f76978d49b16385036bacb2e1fa2fcb6",
+      "expected_sha256": "4115d2d2f421807d005bfe03eadf66029a7a5b9781d62296a6c95c77d6bd2f3a"
+    },
+    {
+      "case_id": "es2022/define/commonjs/auto-accessor",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "7424208c4ae188b97a078f814580f1b135cdb5115db9996fdfbd44a017c5c0a0",
+      "expected_sha256": "d386f7ad16dc836efcc1ffc138e9c038c0b8b2b6d96a13d933e302e04a7d9d42"
+    },
+    {
+      "case_id": "esnext/set/commonjs/static-only",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "656e74233960510250b28fa1b08bd5f3a6df0a535699dbe09a6379be6e582f66",
+      "expected_sha256": "ab50cb9925fbb8129463eaa6fe9d2c742b7f97d17bbdf26aa6e650c6e2e9d06a"
+    },
+    {
+      "case_id": "esnext/set/commonjs/public-initialized",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "d2b945d0770abb77850b0f3260713303e7f402971da54cf651b507a9227a3ec3",
+      "expected_sha256": "6833040b6c34ec04a20e25ca27a2d6ce5a79cc95472046f8747f4d3f15b12f2c"
+    },
+    {
+      "case_id": "esnext/set/commonjs/public-uninitialized",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "6266e49616b86986818bd7581ec0be00c959c4366e63b936420ad223ee4e6ef0",
+      "expected_sha256": "ab50cb9925fbb8129463eaa6fe9d2c742b7f97d17bbdf26aa6e650c6e2e9d06a"
+    },
+    {
+      "case_id": "esnext/set/commonjs/auto-accessor",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "1025506e3afe6703b88938566c89a37c74415c2c6127b54996de11a0cf37de73",
+      "expected_sha256": "cde05fffdadf04c5ba79b382f39c579e5b3815ec68c6fe05af066ddd1e2067cb"
+    },
+    {
+      "case_id": "esnext/define/commonjs/static-only",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "39eaf2cd4e77751887f8c55874903cf65bd09202f22b7b77836b625c23db38f4",
+      "expected_sha256": "03bf8ee33fb9aa816f94d55405b7c0b180437f234b0705cc3f2e41e372824841"
+    },
+    {
+      "case_id": "esnext/define/commonjs/public-initialized",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "c893a11c51e7d22f46670c88f1ba9830d8f2f9cd09343d58ae021e3ea0e19654",
+      "expected_sha256": "030e0ca422f850e86e1dcf21a6fac4c2e6c8027f0ddbe982a2f6721a24e73d9f"
+    },
+    {
+      "case_id": "esnext/define/commonjs/public-uninitialized",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "57c747a8d9b91fc663f5c23a692ede43f76978d49b16385036bacb2e1fa2fcb6",
+      "expected_sha256": "4115d2d2f421807d005bfe03eadf66029a7a5b9781d62296a6c95c77d6bd2f3a"
+    },
+    {
+      "case_id": "esnext/define/commonjs/auto-accessor",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "bb9ff56fc06b9f9c4c83f0b5d42901abfd4ed3f4774103fc4c97a74e502bb9cb",
+      "expected_sha256": "d297495ce468172331a339b8b3fef8f9e827e3acb7113586e2e5e1e6cd56207a"
+    }
+  ],
+  "working_files": [
+    {
+      "path": "crates/emitter/src/builtins/class_fields/downlevel.rs",
+      "sha256": "cc011159afaafc4400d0ad3f3d454d7ba5c92edd249ec4f9615958cd2bca5413"
+    },
+    {
+      "path": "crates/emitter/src/builtins/class_fields.rs",
+      "sha256": "c9c05e4e2f91df1a926af8e6170c0ceb97b8e8ff7d8f0b13d2f75935054a8da0"
+    },
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "038975bba6e8d22d54c2bdc8e48290bc72cc483e6a74ba9d28bfc5d4addff739"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/emitter/src/metadata.rs",
+      "sha256": "c9eaf94391d3eb0893a1d1e7d4c65ff9d876f8b3772634505325a72cf7430e23"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "5ffd982b2fb2057fa7c082400f502e755f0acaf663245a9898bb48c0820d57b6"
+    },
+    {
+      "path": "crates/emitter/src/source_map.rs",
+      "sha256": "175b9b1cb1a8de357476d59098ada4c42e2473feb6dfe3e734177d17f652ffb9"
+    },
+    {
+      "path": "target/h2-8a-static-initializer-map-ranges-native-before-prelaunch.json",
+      "sha256": "0e3fd30b01386ffe5fc06f20644d195ea0e999d970bc32c7daf42eca5b8deba2"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "726a6d93a6f97ec8e9509772260c71bd05326ae3addb56b90ee17d910e92e695"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/static-initializer-map-ranges.json",
+      "sha256": "5c02323b3b5a00ff6e3a285aef4d40f78b637728490cbeba4b62f436855e69de"
+    },
+    {
+      "path": "scripts/observe-static-initializer-map-ranges.mjs",
+      "sha256": "534a4cc55cc9edc3c76a2ff1fa83a4cf6d10ac3897b6f72f8e5edbe7cc6c3faf"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_static_initializer_map_ranges.rs",
+      "sha256": "a1f91776aae4f0e0ee251f32060f49aa710a3b1913602c7183e5fed1599ed05b"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "06fb3fbd4bdf47f28841e5295f3533f33a926924944990c37d98b174c669d790"
+    },
+    {
+      "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
+      "sha256": "88bcd9824bef3e9edced0ec014bcb41ed4446ce521b862e16d38b53a625f0bce"
+    },
+    {
+      "path": "target/h2-8a-static-initializer-map-ranges-before.log",
+      "sha256": "5102631013105e3cbdd8ba0859ee43909e41c09c12586fb716824632fb3d03c1"
+    },
+    {
+      "path": "target/h2-8a-static-initializer-map-ranges-before-repeat.log",
+      "sha256": "d6f551cc80a10555d9a7c553bef00005946a7f77b8ff436bd1c0dff61d9f80bc"
+    },
+    {
+      "path": "target/h2-8a-static-initializer-map-ranges-mint.log",
+      "sha256": "c97bc4e6b9b741973acfeb8e3d736a9e8c3a7d649da0724aeea2ca2301cae35d"
+    },
+    {
+      "path": "target/h2-8a-static-initializer-map-ranges-observer-check.log",
+      "sha256": "c97bc4e6b9b741973acfeb8e3d736a9e8c3a7d649da0724aeea2ca2301cae35d"
+    },
+    {
+      "path": "target/probe-static-initializer-map-metadata.mjs",
+      "sha256": "2b5cc5e6438f974a429a9b870ca1325d05f924351a503fdba6dc0265a605ac45"
+    },
+    {
+      "path": "target/h2-8a-static-initializer-map-ts-metadata.json",
+      "sha256": "16d71714f734216c42ee2b41f6b8e98f60577d5ae7b2700f79c2964d44ece831"
+    },
+    {
+      "path": "target/h2-8a-static-initializer-map-ts-metadata.log",
+      "sha256": "82826be841a1fb19387bc99a008fbe42894102b4d83cfe4ccf45397bdf34c5a6"
+    },
+    {
+      "path": "target/h2-8a-static-initializer-map-decoded.json",
+      "sha256": "bf84a071b19955316465347624786b34bb90f177a5c8f8997a015b4b2cf3ae4b"
+    },
+    {
+      "path": "target/h2-8a-static-initializer-map-ranges-scout-disposition.json",
+      "sha256": "8e94845110dada7d9bf4af78f6cb0fe75bcdc9f847cb5341eeeed424c62e9627"
+    },
+    {
+      "path": "target/h2-8a-static-initializer-map-ranges-scout.log",
+      "sha256": "60f6f82c7387369ec44da5aeb851d8ce1c00433862991da2dbb55f8286cc53e6"
+    }
+  ]
+}

@@ -1,0 +1,713 @@
+{
+  "version": 1,
+  "status": "complete-before-with-two-independent-native-jobs",
+  "base": "d0ba24c65bc4aec438d1ce90121188f577f1f342",
+  "eligible": 87,
+  "exact_twice": [
+    "cjs/js/namespace",
+    "cjs/js/namespace-conflict",
+    "cjs/js/external-reexport",
+    "cjs/ts/namespace",
+    "cjs/ts/named-conflict",
+    "cjs/ts/quoted-conflict",
+    "cjs/ts/default-conflict",
+    "cjs/ts/namespace-conflict",
+    "cjs/ts/import-equals",
+    "cjs/ts/export-equals-suppression",
+    "cjs/ts/external-reexport",
+    "amd/js/namespace",
+    "amd/js/namespace-conflict",
+    "amd/js/external-reexport",
+    "amd/ts/namespace",
+    "amd/ts/named-conflict",
+    "amd/ts/quoted-conflict",
+    "amd/ts/default-conflict",
+    "amd/ts/namespace-conflict",
+    "amd/ts/import-equals",
+    "amd/ts/export-equals-suppression",
+    "amd/ts/external-reexport",
+    "umd/js/namespace",
+    "umd/js/namespace-conflict",
+    "umd/js/external-reexport",
+    "umd/ts/namespace",
+    "umd/ts/named-conflict",
+    "umd/ts/quoted-conflict",
+    "umd/ts/default-conflict",
+    "umd/ts/namespace-conflict",
+    "umd/ts/import-equals",
+    "umd/ts/export-equals-suppression",
+    "umd/ts/external-reexport"
+  ],
+  "failed_twice": [
+    "cjs/js/named",
+    "cjs/js/quoted",
+    "cjs/js/default",
+    "cjs/js/named-conflict",
+    "cjs/js/quoted-conflict",
+    "cjs/js/default-conflict",
+    "cjs/js/default-namespace",
+    "cjs/js/unicode-alias",
+    "cjs/js/escaped-alias",
+    "cjs/js/multiple-exports-comments",
+    "cjs/ts/named",
+    "cjs/ts/quoted",
+    "cjs/ts/default",
+    "cjs/ts/exported-import-equals",
+    "cjs/ts/default-namespace",
+    "cjs/ts/unicode-alias",
+    "cjs/ts/escaped-alias",
+    "cjs/ts/multiple-exports-comments",
+    "amd/js/named",
+    "amd/js/quoted",
+    "amd/js/default",
+    "amd/js/named-conflict",
+    "amd/js/quoted-conflict",
+    "amd/js/default-conflict",
+    "amd/js/default-namespace",
+    "amd/js/unicode-alias",
+    "amd/js/escaped-alias",
+    "amd/js/multiple-exports-comments",
+    "amd/ts/named",
+    "amd/ts/quoted",
+    "amd/ts/default",
+    "amd/ts/exported-import-equals",
+    "amd/ts/default-namespace",
+    "amd/ts/unicode-alias",
+    "amd/ts/escaped-alias",
+    "amd/ts/multiple-exports-comments",
+    "umd/js/named",
+    "umd/js/quoted",
+    "umd/js/default",
+    "umd/js/named-conflict",
+    "umd/js/quoted-conflict",
+    "umd/js/default-conflict",
+    "umd/js/default-namespace",
+    "umd/js/unicode-alias",
+    "umd/js/escaped-alias",
+    "umd/js/multiple-exports-comments",
+    "umd/ts/named",
+    "umd/ts/quoted",
+    "umd/ts/default",
+    "umd/ts/exported-import-equals",
+    "umd/ts/default-namespace",
+    "umd/ts/unicode-alias",
+    "umd/ts/escaped-alias",
+    "umd/ts/multiple-exports-comments"
+  ],
+  "native_jobs": 2,
+  "positive_executions_per_case": 4,
+  "failed_executions_per_case": 2,
+  "seconds": [
+    59.76,
+    57.03
+  ],
+  "exit_codes": [
+    101,
+    101
+  ],
+  "first_failure_comparisons": [
+    {
+      "case_id": "cjs/js/named",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "2fa311f272b24f5273b6d3c6c6319e278497dadeeaaebefce92891d038b1bb7c",
+      "expected_sha256": "0c6d85c8a3469c2fe847409a9c7fb3d7388d6b24d82f2002f1ac49ad1e2eca1e",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "cjs/js/quoted",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "196a3e3cdf7c944363934497db55f6b863cabf5c909c9a8fdefcf7456736ee7c",
+      "expected_sha256": "29a72a564fe0a3e46d3c3a5fd118d20fbb1e2052eafc438e76477adbd5ac7af7",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "cjs/js/default",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "31c98c5e929156c780a0361eb95572c76912cd0fa3f035ef1104fa79f1287ba1",
+      "expected_sha256": "b39f7855a53fdea49a44ce51a287f58cd5143b6bb319b1b537c276520ac7622e",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "cjs/js/named-conflict",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "58696092841c5a2d3bdacc7b9356d84b0941a02901a70c475eebbc3a81f8f2f7",
+      "expected_sha256": "8bf8604a565c2c8c9d90a03f806359aba7042df0db323a4f84a4537cc768d47b",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "cjs/js/quoted-conflict",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "8293266760aef402406720743aef5a82bbe69bd2b084a22ae2be9b9ba5789816",
+      "expected_sha256": "cce873cf2696ee8e23d5c2a001d338dbd85d0e6897c8c87a17333ae6465b35d0",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "cjs/js/default-conflict",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "cb4d382bba582f324df3b12426938a9fd27d5ac71ce760afe97ff30d079a79dd",
+      "expected_sha256": "4bf43ad941bdb2b1b7925ca24e0beef8b4edd6a3bffbd51e0abecd0fc5246946",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "cjs/js/default-namespace",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "dad9fc395c628a3676f492188e813760567956ad6aab2b39ffc1b89859520a50",
+      "expected_sha256": "257bb3c14ef82642b1a4b5841a9b6718881b2c66283b18cfb56f1eb243e91605",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "cjs/js/unicode-alias",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "60f1b9b1aaf93e6faefc08a05f684eb4f76970d0f375f2210fd3dea7d483b489",
+      "expected_sha256": "445feb2bb93dda25749bb906adefb27d401d9948a46a10fda40ffeb66f8d21bf",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "cjs/js/escaped-alias",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "11214df6ac29370c3d46999b6e66dba57d92bb49c97f850f7bc3135e7413f34d",
+      "expected_sha256": "df9f9d0420b98166e00affc8755ef99511811f1fc84026b36ff910f777c4e29f",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "cjs/js/multiple-exports-comments",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "515c33db58f951b04955540875815bcd843d11cd5872c403692e52a47595284f",
+      "expected_sha256": "030c2705247042afc9536a48a7c95a63c6c390ecb88878d818b2c2b3b43b1473",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "cjs/ts/named",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "381d9ccc519d38cca6e242390cb7b53b949da4cb7cbdef190f465ab437d16e98",
+      "expected_sha256": "b86f2d4e185512d9671ab3d9f3eb208d1e2f65e367058fdb133a256ec1e411af",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "cjs/ts/quoted",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "ddd43eea0fa78837ca828057b788348075ff5ea3ebf5d9a2cf972fecedfa7684",
+      "expected_sha256": "729957ebb737d9f03ecfb5bb91b57c0fb3a00ebd819a12433638bd455add6af0",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "cjs/ts/default",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "613a73cb666110a7bf5882529a1c6c06458c800fe62624decbdb55a1e95c795c",
+      "expected_sha256": "8567fbcce5d5352715be23a1ade2ce899e2efe807534b6547d00283a6808c1af",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "cjs/ts/exported-import-equals",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "335846d1fa300b514dbb9630074aab7c2d475e99f07a66610224e1f339dedd1a",
+      "expected_sha256": "d3b343c52b20c442965f130339bc20fc7175d8de9150567e0b652c4957abf266",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "cjs/ts/default-namespace",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "c7c7d90bf272a07d620319ab075f6b95804a7e9277fc082dc25b066bf71c2473",
+      "expected_sha256": "8eeba160c9d354702ed31a46175645be21c5912ead04a5aabd98b3870446a64e",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "cjs/ts/unicode-alias",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "f593ef11567f27eb22809926039b4c507816c12ade559440b5bdbd8b1a964f4f",
+      "expected_sha256": "b54e31d57ef3efb80d76e7be6a06f09cbd85a5b58f2855939830e4056ccef0a2",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "cjs/ts/escaped-alias",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "d192065d5ecb1d061e9ee6aca20d2eeb8a27457b67d380418b8535b641c05336",
+      "expected_sha256": "37107d82e58fee12a6c0c0b55f6ddb411d9cbe295312a0d00fb036f1e693dc07",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "cjs/ts/multiple-exports-comments",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "16a753c12579e1a634e3ea865e7825d07a1548020bfa95a2f8b03f1b21828997",
+      "expected_sha256": "4418ede927dba3cb2f6b850548272663d780a2d803b4410e0c08a1803ba76f05",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "amd/js/named",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "41c79f24c9bb9d01d64ed7a38ac04c8e8a91fb05bbd5bd80978733007915de0e",
+      "expected_sha256": "4d41743b9d8b8ebc11eda937c66846d7f2adf9908d1f1c90a862516a233c6e17",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "amd/js/quoted",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "1b93d7cee5b87bedd3a7c070d11cc9db44105f8b5281c40b288df92483878087",
+      "expected_sha256": "bf200d92129c8f8cb2b00ccb44b73a8138eb7db77d50fb86ae9c0857e3561c5a",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "amd/js/default",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "a9f1815d4d989fcf7e52345b9860311a6f50fd28f1cb38bed4dbba1bd64ab4d5",
+      "expected_sha256": "d8a231b0acb27dfcce3d82e221992bbdfa1b59c633ab7cae5e74c74d62e8f9b3",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "amd/js/named-conflict",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "25de4f1bc5766022074cb631bc67fbd1834f3103d0456142409197db90382f6b",
+      "expected_sha256": "08170ef4a16e8d9dee699604eca48ab3e9b0c4c6026c64c121d74631ec371766",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "amd/js/quoted-conflict",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "4d0488aec39f7a0d6bc81fd377f2aa0cde39111ce11936a938f69c11f218a08a",
+      "expected_sha256": "08170ef4a16e8d9dee699604eca48ab3e9b0c4c6026c64c121d74631ec371766",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "amd/js/default-conflict",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "c89c6d450d8f2fb8bdc70f3d3e45a1881e6852ca277ea244a1535bb0c856a3ef",
+      "expected_sha256": "8138975febc385e37d1054aecefc6b88ea82d4afba0ea1bb660bb57a827b12ab",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "amd/js/default-namespace",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "5903a6826fb6f0b435355e47b2b5ff65e2b16931d1e731aeb0b1769d395ece4d",
+      "expected_sha256": "6735dd9dd29fcf4bb9f87bfc6ad59363bbf50b73a53b090ec9fd6f898b490dfe",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "amd/js/unicode-alias",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "1d4a8ef7674a116f3110eb3a484e8e7fdb2081c850771d1ba0429b3af3d78df4",
+      "expected_sha256": "c69fbd3b550cca21fdd842e786aa5111e71d7a68783de2f1350874ca55d79e6e",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "amd/js/escaped-alias",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "2c66f15ef304729a2e4fca638ae5a6532b0f02cd3191ee57f859c89607cada42",
+      "expected_sha256": "c475d671c4a12d192bf9ac76a17f2c12dc79cdb709afeef2df89cc343fa155c5",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "amd/js/multiple-exports-comments",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "ec246c75ade8051879cbfe9837ce50dd3616f74d51014b1dc630a29d07c33c84",
+      "expected_sha256": "fd1db0fbaae39380394a09c69a9bb21f4f8556f2b96dc40956546b8f8b34da69",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "amd/ts/named",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "495cf3588c7bea4c2035e9b6500d24d05adb7ec164551a80aed79ecb71c90987",
+      "expected_sha256": "590c3d0d2316fdaa299cf3e190f736c89c9383284949d728088ca9f68e3c97a2",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "amd/ts/quoted",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "72406280648097d7f3bbaaf8f3637c1856594c3855b25303133af09d2db6585f",
+      "expected_sha256": "7c181fb12445fba18f6263abf16ad8c75675bdb0189550daf4d09062e507d83d",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "amd/ts/default",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "96d790ef35ba34f4319494b3628c2c6cfb93b8b51db8feedfe61684c25d341a1",
+      "expected_sha256": "2cac1b9db486220cdbe8293133526855d20b82a5258ba3d82cf9c4ce392f63dd",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "amd/ts/exported-import-equals",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "9ed5796b4a1647224cc12f3082e4dcad52714d23b422d2fdb7314c45d377cf5b",
+      "expected_sha256": "8ab08e0129e5f7dc6d728ca3910e93c54be15faad6c573bcea368c3618b82bfc",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "amd/ts/default-namespace",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "497f48fac46a9acdf41bab4062473fc1aba6b67163a43de8b6a4472c84dba6b0",
+      "expected_sha256": "5f0a7062af6b0dd392934c4faaa9117035dc7093e367c421598aa30e3871a8a2",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "amd/ts/unicode-alias",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "8b30242d13d2d9fe3b09ca1fb86b844fc4678bbeae5b07ec31ef33e56dce8d19",
+      "expected_sha256": "49f8cd51b9b0d608107ca02e817192306dd2588d651c7906b045bb48d3686048",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "amd/ts/escaped-alias",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "38da1e274b6fd9a54a1c0d2a6b618440f84dee1d9066a2e5144ddfb7fb45a9a1",
+      "expected_sha256": "5419260b0c27f081aeb4e2f11edb89aae8aaf7c3df726d91f2f71e1a87b77fa0",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "amd/ts/multiple-exports-comments",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "b7e6ce9a87a07fe751948b7aa3e92475324dc3dee7c0d3844b07cfd114fc92f7",
+      "expected_sha256": "96966bd36c4a740da7723eaecbb3091269aa52d172d0948d781fc93bf61bda8d",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "umd/js/named",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "dd5c1c1197bc7f322252f4191c7dda2e3d92b1f96d304009897654fcbe027c1e",
+      "expected_sha256": "8e0849d6b85a17c05147484b8c2d19803be125931a45140c6fffef412c7f4af9",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "umd/js/quoted",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "9f2a03f4aae9411ed2275f80d118ba2a6dc568e03dbef488aff0b46058b4e36b",
+      "expected_sha256": "41ef784f97c5b2ee46eb503b19b4744f1dc2937b6d72b1f9ce14d3a441a56505",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "umd/js/default",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "672be998935482f45cda49aab731918f234bc2ab7f39ebf83b5ce8939a1795e6",
+      "expected_sha256": "60c45365933219175b6dd37214fd1baf765a6c0d11b04c0b817cdca96cac634c",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "umd/js/named-conflict",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "49ea45155dfb3c5d663a4fd00ed20b358f2cbec5634cb69373d21f7518cc84db",
+      "expected_sha256": "9e0069bac670899af8c7128a141a18c94563710c3528090cb08003eb8625eb68",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "umd/js/quoted-conflict",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "a8258c74e5c9749cfd71c71163e6714dd7cb24861631bb0c96ab82378b063e9d",
+      "expected_sha256": "377a28303fa157a5f1349bc7f13d363bab50186322d088de2102dd51e08d8ead",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "umd/js/default-conflict",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "0f286ee0466915e69076bea905af5c1904ecb7a19a599a8d5240ded400e4f313",
+      "expected_sha256": "f27bf0288dcd286ade23af4eb15c94cabe4e9526b62145d6d9893ccd24510616",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "umd/js/default-namespace",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "d3de3e301df496527972b9a6f889f20daebf506d60f35253c616857a28b50114",
+      "expected_sha256": "fbfeaafbbf09122d53103cc80398ad3880b2d47b386e39977cfc5d285ddda88b",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "umd/js/unicode-alias",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "8e23660e31b758a8e33a62fdc9d8210f378a9dc039380d709749ac45211c4f68",
+      "expected_sha256": "85a23987553330654c88b89eb44e11d27e008a2f60fe3513148f77238d5c131d",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "umd/js/escaped-alias",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "4b38d43ca8de2c6533a1705b654ccd71272f7e73f1b27f4733afa68c301c3077",
+      "expected_sha256": "61560518f1e5fbd704af6a0946a48fb6711aff3b6f973811401d7278ef94fd82",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "umd/js/multiple-exports-comments",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "d501076e8ec43aa1c4d6af1ca9849c3247717b0b13820b3b08c1111f1939a838",
+      "expected_sha256": "2f20233fcc9126d82d95a188a33cb36531c2deb0f071c1b69680f6c4d32b4575",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "umd/ts/named",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "57f1d602a49aa439dfac8aa495873d548eab7b78853d5c3a28236d96270dde3d",
+      "expected_sha256": "ea215328b567a7d53b959e6a6ddfac5fa9b8dff62fec60b4c08fd81c58bd0116",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "umd/ts/quoted",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "e3e9315230242d372435c58601d3a8d3e6073fb7e125fd6a7e15ccfd27049ebe",
+      "expected_sha256": "ad437105a8e0e7dc57ecb34a9de4b54b3e202b729f2cca44c16960e8f3fa9e23",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "umd/ts/default",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "24ebef2cca7e3d685681bac0f2eb7f2ce08931625e42cc6055e9ffd2ad34c4be",
+      "expected_sha256": "ac47ccefd5a18bb31e720c94308b036c4658d246bb5b4aa134a1d7ac9ac09820",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "umd/ts/exported-import-equals",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "0e28e8fe68e38a6240ff3757ded318b2d79f42a62cc75982c5122f44c694d5d5",
+      "expected_sha256": "55b8bc07f06e7fe72e521c7ed48ec5baf489c9ca18c4f617084cad2b53173a7b",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "umd/ts/default-namespace",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "3b0979862302fe8af589cef4b900be68f6e413519fc6c9cd46a0f8951e23e901",
+      "expected_sha256": "850f2ae96f06a90b9e33248c4074c4e36c66d6e6a9ff04fa570260931a0dd3d1",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "umd/ts/unicode-alias",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "0ce0b6a41ffe2b872310fe2e7ec5686045b2293dedc55c20cb3dbec4d95c9ce8",
+      "expected_sha256": "4b9a5ebf2c75af64879390a3f97ea51ebbc7e8f8b7335dbd112278f9ca01b3b9",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "umd/ts/escaped-alias",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "a9f12882b18478dbfec13ceca550a05b94dddbba218b49f957fcfeb0f4ac23e5",
+      "expected_sha256": "65434ad866f221053d8e72df62e456cc31e7fabea4f2fa7fb95e6611febc1d8e",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    },
+    {
+      "case_id": "umd/ts/multiple-exports-comments",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "3187b864ecdab12759062505c25e7b0110bd67fcf70564444ac1b698f83c4460",
+      "expected_sha256": "6bdb4e1b9262384d62fec51d27ecbec5a6cd2df48d170022ad017cd476af6c7b",
+      "changed_map": "main.js",
+      "other_map_fields_and_lib_map": "exact"
+    }
+  ],
+  "resolver_queries": {
+    "case_count": 18,
+    "exact_twice": [
+      "js/named",
+      "js/named-conflict",
+      "js/quoted-conflict",
+      "js/default",
+      "js/default-conflict",
+      "js/namespace",
+      "js/namespace-conflict",
+      "js/equals",
+      "js/exported-equals",
+      "ts/named",
+      "ts/named-conflict",
+      "ts/quoted-conflict",
+      "ts/default",
+      "ts/default-conflict",
+      "ts/namespace",
+      "ts/namespace-conflict",
+      "ts/equals",
+      "ts/exported-equals"
+    ],
+    "native_jobs": 1,
+    "projections_compared": [
+      "getReferencedExportContainer:Reference",
+      "getReferencedImportDeclaration"
+    ],
+    "context_only_ts_fields": [
+      "symbol_flags",
+      "declaration_emit_flags"
+    ],
+    "seconds": 0.01,
+    "exit_code": 0
+  },
+  "deprecation_note": "58 AMD/UMD commands retain TS5107 and qualify outputs, names and maps; CJS29 commands and18 separate resolver query cases qualify active semantic resolution. No diagnostic normalization.",
+  "working_files": [
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "e22ede64ca1e8de31830da985d4dff819b14515302bb07d52bcab66a7dd3900a"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/emitter/src/metadata.rs",
+      "sha256": "c9eaf94391d3eb0893a1d1e7d4c65ff9d876f8b3772634505325a72cf7430e23"
+    },
+    {
+      "path": "crates/checker/src/modules.rs",
+      "sha256": "07c399554224854e75c1fa2d6c40b492fbff16e14236ebc96c4f9bb673a1c8da"
+    },
+    {
+      "path": "crates/checker/src/emit.rs",
+      "sha256": "d43e9507e0f925b4e06ed4956a2bf2e436daf48c605b0876e4b5fc5b432e4dd6"
+    },
+    {
+      "path": "crates/checker/tests/unit/emit/tests.rs",
+      "sha256": "7c7affba68e8ff588301919f2a5841e2b7d0cd603c55465788d00b7a851e77a5"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "dcd0d1f443ac92e5337bf6c97dd984d6621475e62efc2a1daec25ec433d97676"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_import_publication_reference.rs",
+      "sha256": "bf1dd5a3c159338e6d1f903fcede3957cf006a2e371c83a33082ca3f77a9689a"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "eaa50780d3f78654cc2c1b4cbeb73c50395685a0597ad120f4876b8ca9dd6dba"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/import-publication-reference.json",
+      "sha256": "5a40114393dfa071c110337a4d283c37c652c61d1d3bd73447880ead1dafa424"
+    },
+    {
+      "path": "crates/checker/tests/fixtures/import-publication-resolver.json",
+      "sha256": "0f3d4c6f110b74cc798da5e5326cee9fff069749896175a14f332a997aff6ce4"
+    },
+    {
+      "path": "scripts/observe-import-publication-reference.mjs",
+      "sha256": "444ef9111ead4d5e55816db4ae19792a544fabe4dfd6356957606b9e11397b2f"
+    },
+    {
+      "path": "scripts/observe-import-publication-resolver.mjs",
+      "sha256": "a6cb0c556c42580eecab157b1dc050001e3703844560a78d1a959f827fe25856"
+    },
+    {
+      "path": "target/h2-8a-import-publication-reference-before.log",
+      "sha256": "ca1d6164d8e64efd710e6829191246a32ab525045af4bca490aaf95ca6305872"
+    },
+    {
+      "path": "target/h2-8a-import-publication-reference-before-repeat.log",
+      "sha256": "639a48740484af9a8efa6c02c2c1d0151d577d352bb1180b4e521cd8c34f6482"
+    },
+    {
+      "path": "target/h2-8a-import-publication-resolver-before.log",
+      "sha256": "34ad28c14ac46a466c36c3ff4aaf7e9db6adee3463b7e7af220a1891924bea33"
+    },
+    {
+      "path": "target/h2-8a-import-publication-reference-mint.log",
+      "sha256": "067c80060221733e5487ede9472ab65f54f5bd76952cd4118571e165f5f02b6f"
+    },
+    {
+      "path": "target/h2-8a-import-publication-reference-observer-check.log",
+      "sha256": "067c80060221733e5487ede9472ab65f54f5bd76952cd4118571e165f5f02b6f"
+    },
+    {
+      "path": "target/h2-8a-import-publication-resolver-mint.log",
+      "sha256": "6889c0af0970d12b586f14ba60e549474eaf12fd055e1c49cf016c0aef76fcd9"
+    },
+    {
+      "path": "target/h2-8a-import-publication-resolver-observer-check.log",
+      "sha256": "6889c0af0970d12b586f14ba60e549474eaf12fd055e1c49cf016c0aef76fcd9"
+    }
+  ]
+}

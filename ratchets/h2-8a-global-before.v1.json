@@ -1,0 +1,1043 @@
+{
+  "status": "complete-before",
+  "revision": "43e1107e823727df2a62caa88463326f41337e34",
+  "exact": 666,
+  "failed": 103,
+  "eligible": 769,
+  "later_references": 40,
+  "run_seconds": 1066.88,
+  "log_sha256": "e154f791705fa9470240b0aef25b0f16b516961396b543380e17d6ed4c54f017",
+  "failures": [
+    {
+      "case_id": "typescript-6.0.3/compiler/checkJsdocTypeTagOnExportAssignment1.ts#default",
+      "repetition": 0,
+      "error": "reported_diagnostics: length 0 != 1; exit_code: actual 0 != expected 2"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/checkJsdocTypeTagOnExportAssignment1.ts#default",
+      "repetition": 1,
+      "error": "reported_diagnostics: length 0 != 1; exit_code: actual 0 != expected 2"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/checkJsdocTypeTagOnExportAssignment2.ts#default",
+      "repetition": 0,
+      "error": "reported_diagnostics: length 0 != 1; exit_code: actual 0 != expected 2"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/checkJsdocTypeTagOnExportAssignment2.ts#default",
+      "repetition": 1,
+      "error": "reported_diagnostics: length 0 != 1; exit_code: actual 0 != expected 2"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/checkJsdocTypeTagOnExportAssignment3.ts#default",
+      "repetition": 0,
+      "error": "reported_diagnostics: length 0 != 1; exit_code: actual 0 != expected 2"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/checkJsdocTypeTagOnExportAssignment3.ts#default",
+      "repetition": 1,
+      "error": "reported_diagnostics: length 0 != 1; exit_code: actual 0 != expected 2"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/checkJsdocTypeTagOnExportAssignment4.ts#default",
+      "repetition": 0,
+      "error": "reported_diagnostics: length 0 != 1; exit_code: actual 0 != expected 2"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/checkJsdocTypeTagOnExportAssignment4.ts#default",
+      "repetition": 1,
+      "error": "reported_diagnostics: length 0 != 1; exit_code: actual 0 != expected 2"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/checkJsdocTypeTagOnExportAssignment6.ts#default",
+      "repetition": 0,
+      "error": "reported_diagnostics: length 0 != 1; exit_code: actual 0 != expected 2"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/checkJsdocTypeTagOnExportAssignment6.ts#default",
+      "repetition": 1,
+      "error": "reported_diagnostics: length 0 != 1; exit_code: actual 0 != expected 2"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/checkingObjectDefinePropertyOnFunctionNonexistentPropertyNoCrash1.ts#default",
+      "repetition": 0,
+      "error": "reported_diagnostics[0].message: actual \"Property 'fn' does not exist on type '{ (...args: any[]): void; readonly name: any; }'.\" != expected \"Property 'fn' does not exist on type '{ (...args: any[]): void; readonly name: string; }'.\""
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/checkingObjectDefinePropertyOnFunctionNonexistentPropertyNoCrash1.ts#default",
+      "repetition": 1,
+      "error": "reported_diagnostics[0].message: actual \"Property 'fn' does not exist on type '{ (...args: any[]): void; readonly name: any; }'.\" != expected \"Property 'fn' does not exist on type '{ (...args: any[]): void; readonly name: string; }'.\""
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitPathMappingMonorepo2.ts#default",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 32, actual length 99, expected length 97"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitPathMappingMonorepo2.ts#default",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 32, actual length 99, expected length 97"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/elidedJSImport1.ts#default",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 27, actual length 167, expected length 268"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/elidedJSImport1.ts#default",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 27, actual length 167, expected length 268"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/impliedNodeFormatEmit1.ts#module%3Damd",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 0, actual length 36, expected length 199"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/impliedNodeFormatEmit1.ts#module%3Damd",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 0, actual length 36, expected length 199"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/impliedNodeFormatEmit1.ts#module%3Dumd",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 0, actual length 36, expected length 489"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/impliedNodeFormatEmit1.ts#module%3Dumd",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 0, actual length 36, expected length 489"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsDeclarationEmitExportAssignedFunctionWithExtraTypedefsMembers.ts#default",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 58, actual length 267, expected length 170"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsDeclarationEmitExportAssignedFunctionWithExtraTypedefsMembers.ts#default",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 58, actual length 267, expected length 170"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsFileAlternativeUseOfOverloadTag.ts#default",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 765, actual length 2210, expected length 2224"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsFileAlternativeUseOfOverloadTag.ts#default",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 765, actual length 2210, expected length 2224"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsFileFunctionOverloads.ts#default",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 922, actual length 976, expected length 1001"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsFileFunctionOverloads.ts#default",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 922, actual length 976, expected length 1001"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsFileFunctionOverloads2.ts#default",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 942, actual length 996, expected length 1021"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsFileFunctionOverloads2.ts#default",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 942, actual length 996, expected length 1021"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsdocTypeCast.ts#default",
+      "repetition": 0,
+      "error": "reported_diagnostics: length 0 != 2; exit_code: actual 0 != expected 2"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsdocTypeCast.ts#default",
+      "repetition": 1,
+      "error": "reported_diagnostics: length 0 != 2; exit_code: actual 0 != expected 2"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/pathMappingBasedModuleResolution_rootImport_aliasWithRoot_realRootFile.ts#default",
+      "repetition": 0,
+      "error": "reported_diagnostics: length 5 != 3"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/pathMappingBasedModuleResolution_rootImport_aliasWithRoot_realRootFile.ts#default",
+      "repetition": 1,
+      "error": "reported_diagnostics: length 5 != 3"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/pathMappingBasedModuleResolution_rootImport_noAliasWithRoot_realRootFile.ts#default",
+      "repetition": 0,
+      "error": "reported_diagnostics: length 5 != 3"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/pathMappingBasedModuleResolution_rootImport_noAliasWithRoot_realRootFile.ts#default",
+      "repetition": 1,
+      "error": "reported_diagnostics: length 5 != 3"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/reactImportDropped.ts#default",
+      "repetition": 0,
+      "error": "ordinary Program/command: Emit(Transform(UnknownNode(TransformNode { source: TransformSourceId(0), node: NodeId(140856) }))); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/reactImportDropped.ts#default",
+      "repetition": 1,
+      "error": "ordinary Program/command: Emit(Transform(UnknownNode(TransformNode { source: TransformSourceId(0), node: NodeId(140856) }))); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/externalModules/rewriteRelativeImportExtensions/emitModuleCommonJS.ts#module%3Dcommonjs",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 1886, actual length 2118, expected length 2152"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/externalModules/rewriteRelativeImportExtensions/emitModuleCommonJS.ts#module%3Dcommonjs",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 1886, actual length 2118, expected length 2152"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/externalModules/rewriteRelativeImportExtensions/emitModuleCommonJS.ts#module%3Dnodenext",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 479, actual length 695, expected length 665"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/externalModules/rewriteRelativeImportExtensions/emitModuleCommonJS.ts#module%3Dnodenext",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 479, actual length 695, expected length 665"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/externalModules/typeOnly/exportNamespace_js.ts#default",
+      "repetition": 0,
+      "error": "writes[3].callback_utf8_base64: UTF-8 byte 19, actual length 27, expected length 27"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/externalModules/typeOnly/exportNamespace_js.ts#default",
+      "repetition": 1,
+      "error": "writes[3].callback_utf8_base64: UTF-8 byte 19, actual length 27, expected length 27"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/callbackOnConstructor.ts#default",
+      "repetition": 0,
+      "error": "reported_diagnostics: length 2 != 0; exit_code: actual 2 != expected 0"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/callbackOnConstructor.ts#default",
+      "repetition": 1,
+      "error": "reported_diagnostics: length 2 != 0; exit_code: actual 2 != expected 0"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassExtendsVisibility.ts#target%3Des2015",
+      "repetition": 0,
+      "error": "ordinary Program/command: Emit(Transform(Resolver(Factory { method: CreateTypeOfDeclaration, error: FactoryKindMismatch { expected: PropertyAccessExpression, actual: CallExpression } }))); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassExtendsVisibility.ts#target%3Des2015",
+      "repetition": 1,
+      "error": "ordinary Program/command: Emit(Transform(Resolver(Factory { method: CreateTypeOfDeclaration, error: FactoryKindMismatch { expected: PropertyAccessExpression, actual: CallExpression } }))); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassExtendsVisibility.ts#target%3Des5",
+      "repetition": 0,
+      "error": "ordinary Program/command: Emit(Transform(Resolver(Factory { method: CreateTypeOfDeclaration, error: FactoryKindMismatch { expected: PropertyAccessExpression, actual: CallExpression } }))); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassExtendsVisibility.ts#target%3Des5",
+      "repetition": 1,
+      "error": "ordinary Program/command: Emit(Transform(Resolver(Factory { method: CreateTypeOfDeclaration, error: FactoryKindMismatch { expected: PropertyAccessExpression, actual: CallExpression } }))); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassImplementsGenericsSerialization.ts#target%3Des2015",
+      "repetition": 0,
+      "error": "writes[3].callback_utf8_base64: UTF-8 byte 80, actual length 238, expected length 261"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassImplementsGenericsSerialization.ts#target%3Des2015",
+      "repetition": 1,
+      "error": "writes[3].callback_utf8_base64: UTF-8 byte 80, actual length 238, expected length 261"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassImplementsGenericsSerialization.ts#target%3Des5",
+      "repetition": 0,
+      "error": "writes[3].callback_utf8_base64: UTF-8 byte 80, actual length 238, expected length 261"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassImplementsGenericsSerialization.ts#target%3Des5",
+      "repetition": 1,
+      "error": "writes[3].callback_utf8_base64: UTF-8 byte 80, actual length 238, expected length 261"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassMethod.ts#default",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 218, actual length 909, expected length 1152"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassMethod.ts#default",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 218, actual length 909, expected length 1152"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClasses.ts#target%3Des5",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 1313, actual length 6314, expected length 6342"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClasses.ts#target%3Des5",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 1313, actual length 6314, expected length 6342"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsComputedNames.ts#target%3Des5",
+      "repetition": 0,
+      "error": "writes[2].callback_utf8_base64: UTF-8 byte 15, actual length 535, expected length 547"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsComputedNames.ts#target%3Des5",
+      "repetition": 1,
+      "error": "writes[2].callback_utf8_base64: UTF-8 byte 15, actual length 535, expected length 547"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsConstsAsNamespacesWithReferences.ts#default",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 94, actual length 130, expected length 156"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsConstsAsNamespacesWithReferences.ts#default",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 94, actual length 130, expected length 156"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsCrossfileMerge.ts#target%3Des2015",
+      "repetition": 0,
+      "error": "ordinary Program/command: Emit(Transform(Resolver(Factory { method: CreateTypeOfDeclaration, error: FactoryKindMismatch { expected: PropertyAccessExpression, actual: CallExpression } }))); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsCrossfileMerge.ts#target%3Des2015",
+      "repetition": 1,
+      "error": "ordinary Program/command: Emit(Transform(Resolver(Factory { method: CreateTypeOfDeclaration, error: FactoryKindMismatch { expected: PropertyAccessExpression, actual: CallExpression } }))); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsCrossfileMerge.ts#target%3Des5",
+      "repetition": 0,
+      "error": "ordinary Program/command: Emit(Transform(Resolver(Factory { method: CreateTypeOfDeclaration, error: FactoryKindMismatch { expected: PropertyAccessExpression, actual: CallExpression } }))); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsCrossfileMerge.ts#target%3Des5",
+      "repetition": 1,
+      "error": "ordinary Program/command: Emit(Transform(Resolver(Factory { method: CreateTypeOfDeclaration, error: FactoryKindMismatch { expected: PropertyAccessExpression, actual: CallExpression } }))); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsDefaultsErr.ts#target%3Des2015",
+      "repetition": 0,
+      "error": "writes[5].callback_utf8_base64: UTF-8 byte 55, actual length 90, expected length 89"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsDefaultsErr.ts#target%3Des2015",
+      "repetition": 1,
+      "error": "writes[5].callback_utf8_base64: UTF-8 byte 55, actual length 90, expected length 89"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsDefaultsErr.ts#target%3Des5",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 232, actual length 340, expected length 344"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsDefaultsErr.ts#target%3Des5",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 232, actual length 340, expected length 344"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassExpressionAnonymousWithSub.ts#target%3Des2015",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 224, actual length 237, expected length 241"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassExpressionAnonymousWithSub.ts#target%3Des2015",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 224, actual length 237, expected length 241"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassExpressionAnonymousWithSub.ts#target%3Des5",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 224, actual length 237, expected length 241"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassExpressionAnonymousWithSub.ts#target%3Des5",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 224, actual length 237, expected length 241"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassExpressionShadowing.ts#target%3Des2015",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 118, actual length 182, expected length 182"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassExpressionShadowing.ts#target%3Des2015",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 118, actual length 182, expected length 182"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassExpressionShadowing.ts#target%3Des5",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 118, actual length 182, expected length 182"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassExpressionShadowing.ts#target%3Des5",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 118, actual length 182, expected length 182"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance2.ts#target%3Des2015",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 0, actual length 28, expected length 121"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance2.ts#target%3Des2015",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 0, actual length 28, expected length 121"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance2.ts#target%3Des5",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 115, actual length 180, expected length 184"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance2.ts#target%3Des5",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 115, actual length 180, expected length 184"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance3.ts#target%3Des5",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 115, actual length 213, expected length 217"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance3.ts#target%3Des5",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 115, actual length 213, expected length 217"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedVisibility.ts#target%3Des2015",
+      "repetition": 0,
+      "error": "ordinary Program/command: Emit(Transform(Resolver(Factory { method: CreateTypeOfDeclaration, error: FactoryKindMismatch { expected: PropertyAccessExpression, actual: CallExpression } }))); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedVisibility.ts#target%3Des2015",
+      "repetition": 1,
+      "error": "ordinary Program/command: Emit(Transform(Resolver(Factory { method: CreateTypeOfDeclaration, error: FactoryKindMismatch { expected: PropertyAccessExpression, actual: CallExpression } }))); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedVisibility.ts#target%3Des5",
+      "repetition": 0,
+      "error": "ordinary Program/command: Emit(Transform(Resolver(Factory { method: CreateTypeOfDeclaration, error: FactoryKindMismatch { expected: PropertyAccessExpression, actual: CallExpression } }))); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedVisibility.ts#target%3Des5",
+      "repetition": 1,
+      "error": "ordinary Program/command: Emit(Transform(Resolver(Factory { method: CreateTypeOfDeclaration, error: FactoryKindMismatch { expected: PropertyAccessExpression, actual: CallExpression } }))); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportDoubleAssignmentInClosure.ts#default",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 85, actual length 154, expected length 153"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportDoubleAssignmentInClosure.ts#default",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 85, actual length 154, expected length 153"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportForms.ts#target%3Des2015",
+      "repetition": 0,
+      "error": "ordinary Program/command: Emit(Transform(Resolver(Factory { method: CreateTypeOfDeclaration, error: FactoryKindMismatch { expected: PropertyAccessExpression, actual: CallExpression } }))); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportForms.ts#target%3Des2015",
+      "repetition": 1,
+      "error": "ordinary Program/command: Emit(Transform(Resolver(Factory { method: CreateTypeOfDeclaration, error: FactoryKindMismatch { expected: PropertyAccessExpression, actual: CallExpression } }))); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportForms.ts#target%3Des5",
+      "repetition": 0,
+      "error": "ordinary Program/command: Emit(Transform(Resolver(Factory { method: CreateTypeOfDeclaration, error: FactoryKindMismatch { expected: PropertyAccessExpression, actual: CallExpression } }))); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportForms.ts#target%3Des5",
+      "repetition": 1,
+      "error": "ordinary Program/command: Emit(Transform(Resolver(Factory { method: CreateTypeOfDeclaration, error: FactoryKindMismatch { expected: PropertyAccessExpression, actual: CallExpression } }))); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportSpecifierNonlocal.ts#target%3Des2015",
+      "repetition": 0,
+      "error": "writes[3].callback_utf8_base64: UTF-8 byte 30, actual length 59, expected length 58"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportSpecifierNonlocal.ts#target%3Des2015",
+      "repetition": 1,
+      "error": "writes[3].callback_utf8_base64: UTF-8 byte 30, actual length 59, expected length 58"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportSpecifierNonlocal.ts#target%3Des5",
+      "repetition": 0,
+      "error": "writes[3].callback_utf8_base64: UTF-8 byte 30, actual length 59, expected length 58"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportSpecifierNonlocal.ts#target%3Des5",
+      "repetition": 1,
+      "error": "writes[3].callback_utf8_base64: UTF-8 byte 30, actual length 59, expected length 58"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportedClassAliases.ts#default",
+      "repetition": 0,
+      "error": "ordinary Program/command: Emit(Transform(Resolver(Factory { method: CreateTypeOfDeclaration, error: FactoryKindMismatch { expected: PropertyAccessExpression, actual: CallExpression } }))); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportedClassAliases.ts#default",
+      "repetition": 1,
+      "error": "ordinary Program/command: Emit(Transform(Resolver(Factory { method: CreateTypeOfDeclaration, error: FactoryKindMismatch { expected: PropertyAccessExpression, actual: CallExpression } }))); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionKeywordPropExhaustive.ts#target%3Des2015",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 60, actual length 3528, expected length 3759"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionKeywordPropExhaustive.ts#target%3Des2015",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 60, actual length 3528, expected length 3759"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionKeywordPropExhaustive.ts#target%3Des5",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 60, actual length 3528, expected length 3759"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionKeywordPropExhaustive.ts#target%3Des5",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 60, actual length 3528, expected length 3759"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionLikeClasses.ts#target%3Des2015",
+      "repetition": 0,
+      "error": "writes[2].callback_utf8_base64: UTF-8 byte 111, actual length 230, expected length 269"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionLikeClasses.ts#target%3Des2015",
+      "repetition": 1,
+      "error": "writes[2].callback_utf8_base64: UTF-8 byte 111, actual length 230, expected length 269"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionLikeClasses.ts#target%3Des5",
+      "repetition": 0,
+      "error": "writes[2].callback_utf8_base64: UTF-8 byte 111, actual length 230, expected length 267"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionLikeClasses.ts#target%3Des5",
+      "repetition": 1,
+      "error": "writes[2].callback_utf8_base64: UTF-8 byte 111, actual length 230, expected length 267"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionsCjs.ts#default",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 177, actual length 1071, expected length 904"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionsCjs.ts#default",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 177, actual length 1071, expected length 904"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsGetterSetter.ts#default",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 277, actual length 694, expected length 691"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsGetterSetter.ts#default",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 277, actual length 694, expected length 691"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsJson.ts#target%3Des2015",
+      "repetition": 0,
+      "error": "ordinary Program/command: Emit(Transform(Resolver(Factory { method: CreateTypeOfDeclaration, error: FactoryKindMismatch { expected: PropertyAccessExpression, actual: CallExpression } }))); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsJson.ts#target%3Des2015",
+      "repetition": 1,
+      "error": "ordinary Program/command: Emit(Transform(Resolver(Factory { method: CreateTypeOfDeclaration, error: FactoryKindMismatch { expected: PropertyAccessExpression, actual: CallExpression } }))); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsJson.ts#target%3Des5",
+      "repetition": 0,
+      "error": "ordinary Program/command: Emit(Transform(Resolver(Factory { method: CreateTypeOfDeclaration, error: FactoryKindMismatch { expected: PropertyAccessExpression, actual: CallExpression } }))); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsJson.ts#target%3Des5",
+      "repetition": 1,
+      "error": "ordinary Program/command: Emit(Transform(Resolver(Factory { method: CreateTypeOfDeclaration, error: FactoryKindMismatch { expected: PropertyAccessExpression, actual: CallExpression } }))); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsPackageJson.ts#target%3Des2015",
+      "repetition": 0,
+      "error": "ordinary Program/command: Emit(Transform(Resolver(Factory { method: CreateTypeOfDeclaration, error: FactoryKindMismatch { expected: PropertyAccessExpression, actual: CallExpression } }))); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsPackageJson.ts#target%3Des2015",
+      "repetition": 1,
+      "error": "ordinary Program/command: Emit(Transform(Resolver(Factory { method: CreateTypeOfDeclaration, error: FactoryKindMismatch { expected: PropertyAccessExpression, actual: CallExpression } }))); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsPackageJson.ts#target%3Des5",
+      "repetition": 0,
+      "error": "ordinary Program/command: Emit(Transform(Resolver(Factory { method: CreateTypeOfDeclaration, error: FactoryKindMismatch { expected: PropertyAccessExpression, actual: CallExpression } }))); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsPackageJson.ts#target%3Des5",
+      "repetition": 1,
+      "error": "ordinary Program/command: Emit(Transform(Resolver(Factory { method: CreateTypeOfDeclaration, error: FactoryKindMismatch { expected: PropertyAccessExpression, actual: CallExpression } }))); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsParameterTagReusesInputNodeInEmit1.ts#default",
+      "repetition": 0,
+      "error": "writes[3].callback_utf8_base64: UTF-8 byte 430, actual length 627, expected length 689"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsParameterTagReusesInputNodeInEmit1.ts#default",
+      "repetition": 1,
+      "error": "writes[3].callback_utf8_base64: UTF-8 byte 430, actual length 627, expected length 689"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsParameterTagReusesInputNodeInEmit2.ts#default",
+      "repetition": 0,
+      "error": "writes[3].callback_utf8_base64: UTF-8 byte 198, actual length 253, expected length 315"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsParameterTagReusesInputNodeInEmit2.ts#default",
+      "repetition": 1,
+      "error": "writes[3].callback_utf8_base64: UTF-8 byte 198, actual length 253, expected length 315"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_class.ts#default",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 114, actual length 808, expected length 880"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_class.ts#default",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 114, actual length 808, expected length 880"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_interface.ts#default",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 38, actual length 184, expected length 223"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_interface.ts#default",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 38, actual length 184, expected length 223"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_interface_multiple.ts#default",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 83, actual length 244, expected length 302"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_interface_multiple.ts#default",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 83, actual length 244, expected length 302"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_namespacedInterface.ts#default",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 40, actual length 149, expected length 188"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_namespacedInterface.ts#default",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 40, actual length 149, expected length 188"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_properties.ts#default",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 75, actual length 203, expected length 242"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_properties.ts#default",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 75, actual length 203, expected length 242"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_signatures.ts#default",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 42, actual length 48, expected length 63"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_signatures.ts#default",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 42, actual length 48, expected length 63"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/linkTagEmit1.ts#default",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 476, actual length 713, expected length 743"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/linkTagEmit1.ts#default",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 476, actual length 713, expected length 743"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/templateInsideCallback.ts#default",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 887, actual length 941, expected length 966"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/templateInsideCallback.ts#default",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 887, actual length 941, expected length 966"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/typedefOnSemicolonClassElement.ts#default",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 57, actual length 64, expected length 69; reported_diagnostics: length 1 != 0; exit_code: actual 2 != expected 0"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/typedefOnSemicolonClassElement.ts#default",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 57, actual length 64, expected length 69; reported_diagnostics: length 1 != 0; exit_code: actual 2 != expected 0"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/moduleResolution/bundler/bundlerImportTsExtensions.ts#allowimportingtsextensions%3Dtrue%2Cnoemit%3Dfalse",
+      "repetition": 0,
+      "error": "ordinary Program/command: Emit(UnsupportedCompilerOption { option: \"allowImportingTsExtensions\" }); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/moduleResolution/bundler/bundlerImportTsExtensions.ts#allowimportingtsextensions%3Dtrue%2Cnoemit%3Dfalse",
+      "repetition": 1,
+      "error": "ordinary Program/command: Emit(UnsupportedCompilerOption { option: \"allowImportingTsExtensions\" }); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsExportAssignment.ts#module%3Dnode16",
+      "repetition": 0,
+      "error": "writes[2].callback_utf8_base64: UTF-8 byte 15, actual length 135, expected length 71"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsExportAssignment.ts#module%3Dnode16",
+      "repetition": 1,
+      "error": "writes[2].callback_utf8_base64: UTF-8 byte 15, actual length 135, expected length 71"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsExportAssignment.ts#module%3Dnode18",
+      "repetition": 0,
+      "error": "writes[2].callback_utf8_base64: UTF-8 byte 15, actual length 135, expected length 71"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsExportAssignment.ts#module%3Dnode18",
+      "repetition": 1,
+      "error": "writes[2].callback_utf8_base64: UTF-8 byte 15, actual length 135, expected length 71"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsExportAssignment.ts#module%3Dnode20",
+      "repetition": 0,
+      "error": "writes[2].callback_utf8_base64: UTF-8 byte 15, actual length 135, expected length 71"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsExportAssignment.ts#module%3Dnode20",
+      "repetition": 1,
+      "error": "writes[2].callback_utf8_base64: UTF-8 byte 15, actual length 135, expected length 71"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsExportAssignment.ts#module%3Dnodenext",
+      "repetition": 0,
+      "error": "writes[2].callback_utf8_base64: UTF-8 byte 15, actual length 135, expected length 71"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsExportAssignment.ts#module%3Dnodenext",
+      "repetition": 1,
+      "error": "writes[2].callback_utf8_base64: UTF-8 byte 15, actual length 135, expected length 71"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions1.ts#module%3Dnode16",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 79, actual length 224, expected length 275"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions1.ts#module%3Dnode16",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 79, actual length 224, expected length 275"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions1.ts#module%3Dnode18",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 79, actual length 224, expected length 275"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions1.ts#module%3Dnode18",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 79, actual length 224, expected length 275"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions1.ts#module%3Dnode20",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 79, actual length 224, expected length 275"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions1.ts#module%3Dnode20",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 79, actual length 224, expected length 275"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions1.ts#module%3Dnodenext",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 79, actual length 224, expected length 275"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions1.ts#module%3Dnodenext",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 79, actual length 224, expected length 275"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions2.ts#module%3Dnode16",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 101, actual length 203, expected length 254"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions2.ts#module%3Dnode16",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 101, actual length 203, expected length 254"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions2.ts#module%3Dnode18",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 101, actual length 203, expected length 254"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions2.ts#module%3Dnode18",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 101, actual length 203, expected length 254"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions2.ts#module%3Dnode20",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 101, actual length 203, expected length 254"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions2.ts#module%3Dnode20",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 101, actual length 203, expected length 254"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions2.ts#module%3Dnodenext",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 101, actual length 203, expected length 254"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions2.ts#module%3Dnodenext",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 101, actual length 203, expected length 254"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode16%2Ctarget%3Des2015",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 134, actual length 584, expected length 635"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode16%2Ctarget%3Des2015",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 134, actual length 584, expected length 635"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode16%2Ctarget%3Des5",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 134, actual length 584, expected length 633"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode16%2Ctarget%3Des5",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 134, actual length 584, expected length 633"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode18%2Ctarget%3Des2015",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 134, actual length 584, expected length 635"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode18%2Ctarget%3Des2015",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 134, actual length 584, expected length 635"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode18%2Ctarget%3Des5",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 134, actual length 584, expected length 633"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode18%2Ctarget%3Des5",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 134, actual length 584, expected length 633"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode20%2Ctarget%3Des2015",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 134, actual length 584, expected length 635"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode20%2Ctarget%3Des2015",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 134, actual length 584, expected length 635"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode20%2Ctarget%3Des5",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 134, actual length 584, expected length 633"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode20%2Ctarget%3Des5",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 134, actual length 584, expected length 633"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnodenext%2Ctarget%3Des2015",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 134, actual length 584, expected length 635"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnodenext%2Ctarget%3Des2015",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 134, actual length 584, expected length 635"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnodenext%2Ctarget%3Des5",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 134, actual length 584, expected length 633"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnodenext%2Ctarget%3Des5",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 134, actual length 584, expected length 633"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsSynchronousCallErrors.ts#module%3Dnode16",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 9, actual length 187, expected length 444"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsSynchronousCallErrors.ts#module%3Dnode16",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 9, actual length 187, expected length 444"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsSynchronousCallErrors.ts#module%3Dnode18",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 9, actual length 187, expected length 444"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsSynchronousCallErrors.ts#module%3Dnode18",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 9, actual length 187, expected length 444"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsSynchronousCallErrors.ts#module%3Dnode20",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 9, actual length 187, expected length 444"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsSynchronousCallErrors.ts#module%3Dnode20",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 9, actual length 187, expected length 444"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsSynchronousCallErrors.ts#module%3Dnodenext",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 9, actual length 187, expected length 444"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsSynchronousCallErrors.ts#module%3Dnodenext",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 9, actual length 187, expected length 444"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/nodeModulesCJSEmit1.ts#module%3Dnode18",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 15, actual length 101, expected length 37"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/nodeModulesCJSEmit1.ts#module%3Dnode18",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 15, actual length 101, expected length 37"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/nodeModulesCJSEmit1.ts#module%3Dnode20",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 15, actual length 101, expected length 37"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/nodeModulesCJSEmit1.ts#module%3Dnode20",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 15, actual length 101, expected length 37"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/nodeModulesCJSEmit1.ts#module%3Dnodenext",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 15, actual length 101, expected length 37"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/nodeModulesCJSEmit1.ts#module%3Dnodenext",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 15, actual length 101, expected length 37"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/salsa/moduleExportAliasElementAccessExpression.ts#default",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 42, actual length 64, expected length 65"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/salsa/moduleExportAliasElementAccessExpression.ts#default",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 42, actual length 64, expected length 65"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/salsa/moduleExportDuplicateAlias.ts#default",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 7, actual length 32, expected length 53"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/salsa/moduleExportDuplicateAlias.ts#default",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 7, actual length 32, expected length 53"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/salsa/moduleExportDuplicateAlias2.ts#default",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 7, actual length 32, expected length 53"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/salsa/moduleExportDuplicateAlias2.ts#default",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 7, actual length 32, expected length 53"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/salsa/moduleExportDuplicateAlias3.ts#default",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 61, actual length 86, expected length 107"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/salsa/moduleExportDuplicateAlias3.ts#default",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 61, actual length 86, expected length 107"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/salsa/plainJSGrammarErrors.ts#default",
+      "repetition": 0,
+      "error": "ordinary Program/command: Emit(Printer(MissingTransformedChild { parent: ClassDeclaration, field: \"name\" })); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/salsa/plainJSGrammarErrors.ts#default",
+      "repetition": 1,
+      "error": "ordinary Program/command: Emit(Printer(MissingTransformedChild { parent: ClassDeclaration, field: \"name\" })); partial callback paths/SHA256: []"
+    }
+  ],
+  "kind": "h2-8a-global-before"
+}

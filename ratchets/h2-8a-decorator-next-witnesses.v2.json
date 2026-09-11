@@ -1,0 +1,2961 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-41 decorator-next",
+  "status": "isolated draft evidence; not production admission",
+  "worktree": "/Users/hiramatsu/dev/tsc-rs-dec-next",
+  "head": "6f916cd5e315aa5ef03ed8b9af780f2f460fba7a",
+  "branch": "draft/h2-8a-decorator-next",
+  "production_inputs": {
+    "crates/emitter/src/builtins/class_fields.rs": "96f1bfd5ea1be50c01e27699b05467142f2ef33a6155bd5e501e77135650d4b2",
+    "crates/emitter/src/builtins/class_fields/downlevel.rs": "32d5f95dbea6440a228adf4977def865152b88bd1a3bedc1bf26df478779ef02",
+    "crates/emitter/src/builtins/es2018.rs": "40cdbebfebb94b4a6eba3065c23128f99b9ce6160e24666fda74e68539fb2c52",
+    "crates/emitter/src/builtins/generated_bindings.rs": "510a111813e241c2f7a8df3b54399a0449929d67781b7da483a31065236b43a7",
+    "crates/emitter/src/builtins/standard_decorators.rs": "d367bce01a5521e10d0cdff66a2cc52555b486583f4e976e718139fa68be3006",
+    "crates/emitter/src/builtins/target_bindings.rs": "bcdce6113161252bfc74c2be11e2350947938443287f753d3592bd619e0b7396",
+    "crates/emitter/src/execute.rs": "0cf74b891e5c43ba86068d8fc33f49791d2a5a913650b3112d09a8a2643ed42d"
+  },
+  "launch_head": "a4ad3742ea6646aebd31e9f73656a2f5fef9af16",
+  "prelaunch": {
+    "path": "/Users/hiramatsu/dev/tsc-rs-dec-next/target/dec-next-runs/review-all-r3/prelaunch.json",
+    "sha256": "2fd2b1f788d41605dbc47739632c12664b94c914666e6379fe2edf633779c2e0"
+  },
+  "execution": {
+    "path": "/Users/hiramatsu/dev/tsc-rs-dec-next/target/dec-next-runs/review-all-r3/execution.json",
+    "sha256": "49c1fdd393e6d2c391b7269e01c4faa2401d2e38d18fa421ea1ee7a2edbf3f38"
+  },
+  "archive": {
+    "path": "/Users/hiramatsu/dev/tsc-rs-dec-next/target/dec-next-runs/review-all-r3/source-and-inputs.tar.gz",
+    "sha256": "be84205096ab1943ce0e4c20a450ef07069218b034686bac353e0401436a4d5a"
+  },
+  "archived_binaries": {
+    "target/dec-next-runs/review-all-r3/binaries/contracts-cabf44d19c2beb96": {
+      "executed_path": "target/dec-next-review-artifacts/debug/deps/contracts-cabf44d19c2beb96",
+      "sha256": "f80aa47c18a7a32253111131b86f8950addb010a20f2149d05ba025192f3df35"
+    }
+  },
+  "fixtures": {
+    "crates/compiler/tests/fixtures/decorator-transform-order.json": "c831b004c92557b383d19e364829ae960f65361a8253a24a1f53aa4248c8a4ae",
+    "crates/compiler/tests/fixtures/decorator-super-paths.json": "7ef1f767d49eb7f3c89008ba1120a4e93f9de2f1c063bd550c9988fdb0e998de",
+    "crates/compiler/tests/fixtures/decorator-name-owners.json": "9cc04b4a69e083a0660f7709b5e84b12a9e3a92acb66744fe23448149905a71e",
+    "crates/compiler/tests/fixtures/decorator-transform-order-inputs.json": "25afc465f2ea240a23aa40eddcb581eaa7129636fb22d2541ac35d260015cff6",
+    "crates/compiler/tests/fixtures/decorator-super-paths-inputs.json": "185c31d2379924edf965cc9ec618e3978df876a5da48d384549a859cc33321b7",
+    "crates/compiler/tests/fixtures/decorator-name-owners-inputs.json": "c6268e789ceb3a5e3ade3011915a70e03181156d0d3294b2ac5540c8950ea29b"
+  },
+  "run_dir": "/Users/hiramatsu/dev/tsc-rs-dec-next/target/dec-next-runs/review-all-r3",
+  "log_sha256": "cec094b35497a107adf37fcc3e69d96dfed426fd8c85b0bd1a6144f2b7177730",
+  "actual_exit": 0,
+  "executed_binary": "target/dec-next-review-artifacts/debug/deps/contracts-cabf44d19c2beb96",
+  "executed_binary_sha256": "f80aa47c18a7a32253111131b86f8950addb010a20f2149d05ba025192f3df35",
+  "summary": {
+    "cases": 126,
+    "exact_twice": 126,
+    "failed": 0,
+    "errors": 0,
+    "inconsistent": 0
+  },
+  "exact_twice": [
+    "decorator-name-owners/es2015/esnext/define/computed-temp-shared-binding",
+    "decorator-name-owners/es2015/esnext/define/cross-file-global-names",
+    "decorator-name-owners/es2015/esnext/define/sibling-classes-reuse",
+    "decorator-name-owners/es2015/esnext/define/source-identifier-collisions",
+    "decorator-name-owners/es2015/esnext/set/computed-temp-shared-binding",
+    "decorator-name-owners/es2015/esnext/set/cross-file-global-names",
+    "decorator-name-owners/es2015/esnext/set/sibling-classes-reuse",
+    "decorator-name-owners/es2015/esnext/set/source-identifier-collisions",
+    "decorator-name-owners/es2022/esnext/define/computed-temp-shared-binding",
+    "decorator-name-owners/es2022/esnext/define/cross-file-global-names",
+    "decorator-name-owners/es2022/esnext/define/sibling-classes-reuse",
+    "decorator-name-owners/es2022/esnext/define/source-identifier-collisions",
+    "decorator-name-owners/es2022/esnext/set/computed-temp-shared-binding",
+    "decorator-name-owners/es2022/esnext/set/cross-file-global-names",
+    "decorator-name-owners/es2022/esnext/set/sibling-classes-reuse",
+    "decorator-name-owners/es2022/esnext/set/source-identifier-collisions",
+    "decorator-name-owners/esnext/esnext/define/computed-temp-shared-binding",
+    "decorator-name-owners/esnext/esnext/define/cross-file-global-names",
+    "decorator-name-owners/esnext/esnext/define/sibling-classes-reuse",
+    "decorator-name-owners/esnext/esnext/define/source-identifier-collisions",
+    "decorator-name-owners/esnext/esnext/set/computed-temp-shared-binding",
+    "decorator-name-owners/esnext/esnext/set/cross-file-global-names",
+    "decorator-name-owners/esnext/esnext/set/sibling-classes-reuse",
+    "decorator-name-owners/esnext/esnext/set/source-identifier-collisions",
+    "decorator-super-paths/es2015/esnext/define/super-assignment-discarded",
+    "decorator-super-paths/es2015/esnext/define/super-assignment-used",
+    "decorator-super-paths/es2015/esnext/define/super-destructuring",
+    "decorator-super-paths/es2015/esnext/define/super-lexical-boundaries",
+    "decorator-super-paths/es2015/esnext/define/super-member-decorated-only",
+    "decorator-super-paths/es2015/esnext/define/super-read-call-tag",
+    "decorator-super-paths/es2015/esnext/define/super-undecorated-control",
+    "decorator-super-paths/es2015/esnext/set/super-assignment-discarded",
+    "decorator-super-paths/es2015/esnext/set/super-assignment-used",
+    "decorator-super-paths/es2015/esnext/set/super-destructuring",
+    "decorator-super-paths/es2015/esnext/set/super-lexical-boundaries",
+    "decorator-super-paths/es2015/esnext/set/super-member-decorated-only",
+    "decorator-super-paths/es2015/esnext/set/super-read-call-tag",
+    "decorator-super-paths/es2015/esnext/set/super-undecorated-control",
+    "decorator-super-paths/es2022/esnext/define/super-assignment-discarded",
+    "decorator-super-paths/es2022/esnext/define/super-assignment-used",
+    "decorator-super-paths/es2022/esnext/define/super-destructuring",
+    "decorator-super-paths/es2022/esnext/define/super-lexical-boundaries",
+    "decorator-super-paths/es2022/esnext/define/super-member-decorated-only",
+    "decorator-super-paths/es2022/esnext/define/super-read-call-tag",
+    "decorator-super-paths/es2022/esnext/define/super-undecorated-control",
+    "decorator-super-paths/es2022/esnext/set/super-assignment-discarded",
+    "decorator-super-paths/es2022/esnext/set/super-assignment-used",
+    "decorator-super-paths/es2022/esnext/set/super-destructuring",
+    "decorator-super-paths/es2022/esnext/set/super-lexical-boundaries",
+    "decorator-super-paths/es2022/esnext/set/super-member-decorated-only",
+    "decorator-super-paths/es2022/esnext/set/super-read-call-tag",
+    "decorator-super-paths/es2022/esnext/set/super-undecorated-control",
+    "decorator-super-paths/esnext/esnext/define/super-assignment-discarded",
+    "decorator-super-paths/esnext/esnext/define/super-assignment-used",
+    "decorator-super-paths/esnext/esnext/define/super-destructuring",
+    "decorator-super-paths/esnext/esnext/define/super-lexical-boundaries",
+    "decorator-super-paths/esnext/esnext/define/super-member-decorated-only",
+    "decorator-super-paths/esnext/esnext/define/super-read-call-tag",
+    "decorator-super-paths/esnext/esnext/define/super-undecorated-control",
+    "decorator-super-paths/esnext/esnext/set/super-assignment-discarded",
+    "decorator-super-paths/esnext/esnext/set/super-assignment-used",
+    "decorator-super-paths/esnext/esnext/set/super-destructuring",
+    "decorator-super-paths/esnext/esnext/set/super-lexical-boundaries",
+    "decorator-super-paths/esnext/esnext/set/super-member-decorated-only",
+    "decorator-super-paths/esnext/esnext/set/super-read-call-tag",
+    "decorator-super-paths/esnext/esnext/set/super-undecorated-control",
+    "decorator-transform-order/es2015/esnext/define/class-decorator-before-heritage",
+    "decorator-transform-order/es2015/esnext/define/decorated-class-expression-positions",
+    "decorator-transform-order/es2015/esnext/define/decorated-computed-fields",
+    "decorator-transform-order/es2015/esnext/define/heritage-safe-extends",
+    "decorator-transform-order/es2015/esnext/define/nested-class-in-computed-name",
+    "decorator-transform-order/es2015/esnext/define/outer-this-computed-name",
+    "decorator-transform-order/es2015/esnext/define/outer-this-nested-numbering",
+    "decorator-transform-order/es2015/esnext/define/outer-this-static-block",
+    "decorator-transform-order/es2015/esnext/define/pending-into-undecorated-names",
+    "decorator-transform-order/es2015/esnext/define/two-phase-constructor",
+    "decorator-transform-order/es2015/esnext/set/class-decorator-before-heritage",
+    "decorator-transform-order/es2015/esnext/set/decorated-class-expression-positions",
+    "decorator-transform-order/es2015/esnext/set/decorated-computed-fields",
+    "decorator-transform-order/es2015/esnext/set/heritage-safe-extends",
+    "decorator-transform-order/es2015/esnext/set/nested-class-in-computed-name",
+    "decorator-transform-order/es2015/esnext/set/outer-this-computed-name",
+    "decorator-transform-order/es2015/esnext/set/outer-this-nested-numbering",
+    "decorator-transform-order/es2015/esnext/set/outer-this-static-block",
+    "decorator-transform-order/es2015/esnext/set/pending-into-undecorated-names",
+    "decorator-transform-order/es2015/esnext/set/two-phase-constructor",
+    "decorator-transform-order/es2022/esnext/define/class-decorator-before-heritage",
+    "decorator-transform-order/es2022/esnext/define/decorated-class-expression-positions",
+    "decorator-transform-order/es2022/esnext/define/decorated-computed-fields",
+    "decorator-transform-order/es2022/esnext/define/heritage-safe-extends",
+    "decorator-transform-order/es2022/esnext/define/nested-class-in-computed-name",
+    "decorator-transform-order/es2022/esnext/define/outer-this-computed-name",
+    "decorator-transform-order/es2022/esnext/define/outer-this-nested-numbering",
+    "decorator-transform-order/es2022/esnext/define/outer-this-static-block",
+    "decorator-transform-order/es2022/esnext/define/pending-into-undecorated-names",
+    "decorator-transform-order/es2022/esnext/define/two-phase-constructor",
+    "decorator-transform-order/es2022/esnext/set/class-decorator-before-heritage",
+    "decorator-transform-order/es2022/esnext/set/decorated-class-expression-positions",
+    "decorator-transform-order/es2022/esnext/set/decorated-computed-fields",
+    "decorator-transform-order/es2022/esnext/set/heritage-safe-extends",
+    "decorator-transform-order/es2022/esnext/set/nested-class-in-computed-name",
+    "decorator-transform-order/es2022/esnext/set/outer-this-computed-name",
+    "decorator-transform-order/es2022/esnext/set/outer-this-nested-numbering",
+    "decorator-transform-order/es2022/esnext/set/outer-this-static-block",
+    "decorator-transform-order/es2022/esnext/set/pending-into-undecorated-names",
+    "decorator-transform-order/es2022/esnext/set/two-phase-constructor",
+    "decorator-transform-order/esnext/esnext/define/class-decorator-before-heritage",
+    "decorator-transform-order/esnext/esnext/define/decorated-class-expression-positions",
+    "decorator-transform-order/esnext/esnext/define/decorated-computed-fields",
+    "decorator-transform-order/esnext/esnext/define/heritage-safe-extends",
+    "decorator-transform-order/esnext/esnext/define/nested-class-in-computed-name",
+    "decorator-transform-order/esnext/esnext/define/outer-this-computed-name",
+    "decorator-transform-order/esnext/esnext/define/outer-this-nested-numbering",
+    "decorator-transform-order/esnext/esnext/define/outer-this-static-block",
+    "decorator-transform-order/esnext/esnext/define/pending-into-undecorated-names",
+    "decorator-transform-order/esnext/esnext/define/two-phase-constructor",
+    "decorator-transform-order/esnext/esnext/set/class-decorator-before-heritage",
+    "decorator-transform-order/esnext/esnext/set/decorated-class-expression-positions",
+    "decorator-transform-order/esnext/esnext/set/decorated-computed-fields",
+    "decorator-transform-order/esnext/esnext/set/heritage-safe-extends",
+    "decorator-transform-order/esnext/esnext/set/nested-class-in-computed-name",
+    "decorator-transform-order/esnext/esnext/set/outer-this-computed-name",
+    "decorator-transform-order/esnext/esnext/set/outer-this-nested-numbering",
+    "decorator-transform-order/esnext/esnext/set/outer-this-static-block",
+    "decorator-transform-order/esnext/esnext/set/pending-into-undecorated-names",
+    "decorator-transform-order/esnext/esnext/set/two-phase-constructor"
+  ],
+  "failed": [],
+  "rows": [
+    {
+      "case_id": "decorator-name-owners/es2015/esnext/define/computed-temp-shared-binding",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-name-owners/es2015/esnext/define/cross-file-global-names",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-name-owners/es2015/esnext/define/sibling-classes-reuse",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-name-owners/es2015/esnext/define/source-identifier-collisions",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-name-owners/es2015/esnext/set/computed-temp-shared-binding",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-name-owners/es2015/esnext/set/cross-file-global-names",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-name-owners/es2015/esnext/set/sibling-classes-reuse",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-name-owners/es2015/esnext/set/source-identifier-collisions",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-name-owners/es2022/esnext/define/computed-temp-shared-binding",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-name-owners/es2022/esnext/define/cross-file-global-names",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-name-owners/es2022/esnext/define/sibling-classes-reuse",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-name-owners/es2022/esnext/define/source-identifier-collisions",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-name-owners/es2022/esnext/set/computed-temp-shared-binding",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-name-owners/es2022/esnext/set/cross-file-global-names",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-name-owners/es2022/esnext/set/sibling-classes-reuse",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-name-owners/es2022/esnext/set/source-identifier-collisions",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-name-owners/esnext/esnext/define/computed-temp-shared-binding",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-name-owners/esnext/esnext/define/cross-file-global-names",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-name-owners/esnext/esnext/define/sibling-classes-reuse",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-name-owners/esnext/esnext/define/source-identifier-collisions",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-name-owners/esnext/esnext/set/computed-temp-shared-binding",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-name-owners/esnext/esnext/set/cross-file-global-names",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-name-owners/esnext/esnext/set/sibling-classes-reuse",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-name-owners/esnext/esnext/set/source-identifier-collisions",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/es2015/esnext/define/super-assignment-discarded",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/es2015/esnext/define/super-assignment-used",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/es2015/esnext/define/super-destructuring",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/es2015/esnext/define/super-lexical-boundaries",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/es2015/esnext/define/super-member-decorated-only",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/es2015/esnext/define/super-read-call-tag",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/es2015/esnext/define/super-undecorated-control",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/es2015/esnext/set/super-assignment-discarded",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/es2015/esnext/set/super-assignment-used",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/es2015/esnext/set/super-destructuring",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/es2015/esnext/set/super-lexical-boundaries",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/es2015/esnext/set/super-member-decorated-only",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/es2015/esnext/set/super-read-call-tag",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/es2015/esnext/set/super-undecorated-control",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/es2022/esnext/define/super-assignment-discarded",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/es2022/esnext/define/super-assignment-used",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/es2022/esnext/define/super-destructuring",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/es2022/esnext/define/super-lexical-boundaries",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/es2022/esnext/define/super-member-decorated-only",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/es2022/esnext/define/super-read-call-tag",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/es2022/esnext/define/super-undecorated-control",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/es2022/esnext/set/super-assignment-discarded",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/es2022/esnext/set/super-assignment-used",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/es2022/esnext/set/super-destructuring",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/es2022/esnext/set/super-lexical-boundaries",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/es2022/esnext/set/super-member-decorated-only",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/es2022/esnext/set/super-read-call-tag",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/es2022/esnext/set/super-undecorated-control",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/esnext/esnext/define/super-assignment-discarded",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/esnext/esnext/define/super-assignment-used",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/esnext/esnext/define/super-destructuring",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/esnext/esnext/define/super-lexical-boundaries",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/esnext/esnext/define/super-member-decorated-only",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/esnext/esnext/define/super-read-call-tag",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/esnext/esnext/define/super-undecorated-control",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/esnext/esnext/set/super-assignment-discarded",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/esnext/esnext/set/super-assignment-used",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/esnext/esnext/set/super-destructuring",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/esnext/esnext/set/super-lexical-boundaries",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/esnext/esnext/set/super-member-decorated-only",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/esnext/esnext/set/super-read-call-tag",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-super-paths/esnext/esnext/set/super-undecorated-control",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/define/class-decorator-before-heritage",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/define/decorated-class-expression-positions",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/define/decorated-computed-fields",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/define/heritage-safe-extends",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/define/nested-class-in-computed-name",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/define/outer-this-computed-name",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/define/outer-this-nested-numbering",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/define/outer-this-static-block",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/define/pending-into-undecorated-names",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/define/two-phase-constructor",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/set/class-decorator-before-heritage",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/set/decorated-class-expression-positions",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/set/decorated-computed-fields",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/set/heritage-safe-extends",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/set/nested-class-in-computed-name",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/set/outer-this-computed-name",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/set/outer-this-nested-numbering",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/set/outer-this-static-block",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/set/pending-into-undecorated-names",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/set/two-phase-constructor",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/define/class-decorator-before-heritage",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/define/decorated-class-expression-positions",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/define/decorated-computed-fields",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/define/heritage-safe-extends",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/define/nested-class-in-computed-name",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/define/outer-this-computed-name",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/define/outer-this-nested-numbering",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/define/outer-this-static-block",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/define/pending-into-undecorated-names",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/define/two-phase-constructor",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/set/class-decorator-before-heritage",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/set/decorated-class-expression-positions",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/set/decorated-computed-fields",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/set/heritage-safe-extends",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/set/nested-class-in-computed-name",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/set/outer-this-computed-name",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/set/outer-this-nested-numbering",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/set/outer-this-static-block",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/set/pending-into-undecorated-names",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/set/two-phase-constructor",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/define/class-decorator-before-heritage",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/define/decorated-class-expression-positions",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/define/decorated-computed-fields",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/define/heritage-safe-extends",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/define/nested-class-in-computed-name",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/define/outer-this-computed-name",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/define/outer-this-nested-numbering",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/define/outer-this-static-block",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/define/pending-into-undecorated-names",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/define/two-phase-constructor",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/set/class-decorator-before-heritage",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/set/decorated-class-expression-positions",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/set/decorated-computed-fields",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/set/heritage-safe-extends",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/set/nested-class-in-computed-name",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/set/outer-this-computed-name",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/set/outer-this-nested-numbering",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/set/outer-this-static-block",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/set/pending-into-undecorated-names",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/set/two-phase-constructor",
+      "attempts": 2,
+      "exact_twice": true,
+      "error": null
+    }
+  ],
+  "captures": {
+    "decorator-transform-order/esnext/esnext/set/pending-into-undecorated-names": [
+      {
+        "file": "0200a252accfdcf1b1f6b6215d378b8b36d87fd98e067f1f464810cc22c41093-0.json",
+        "capture_index": 0,
+        "sha256": "b3cd5d76d5757c64f07e10b7477c70078e8f0a13de58408fbb29b33f0b311778",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "0200a252accfdcf1b1f6b6215d378b8b36d87fd98e067f1f464810cc22c41093-1.json",
+        "capture_index": 1,
+        "sha256": "ba475b71a2170b80200981ece1abb3189ec5e027e70f0f07c3a0ba890e731bf3",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2022/esnext/define/outer-this-static-block": [
+      {
+        "file": "04a9c2efdf72bc003d6e31c92b196c5e1571dfb835244e5548d43301d589db33-0.json",
+        "capture_index": 0,
+        "sha256": "824e9e34563b493896f2d4fac51b101b9acb5390a8f00d2709bbac93e714a12a",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "04a9c2efdf72bc003d6e31c92b196c5e1571dfb835244e5548d43301d589db33-1.json",
+        "capture_index": 1,
+        "sha256": "cdc657749c0fc28eb679a226a0a939bc2583be10350ad440e37a9b709ea3f137",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-name-owners/es2015/esnext/define/source-identifier-collisions": [
+      {
+        "file": "055aa7072d7bc342db8d6824c3cf2b0cf606db50c9e8dd656d821588f544b4b4-0.json",
+        "capture_index": 0,
+        "sha256": "e044a941772fd3d1ff0ea12ca57deebbedfc80562fc0b6e739022ea057ae27a9",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "055aa7072d7bc342db8d6824c3cf2b0cf606db50c9e8dd656d821588f544b4b4-1.json",
+        "capture_index": 1,
+        "sha256": "efe96bf26aa1da3a3e1dea70959a0c0438a98a1d46f59c9e9dffd06bb8ec194e",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/es2022/esnext/set/super-lexical-boundaries": [
+      {
+        "file": "05a85c919227521741b7dfc784ec4a22b52ac8e64514e6ee64001d8bf22b8a99-0.json",
+        "capture_index": 0,
+        "sha256": "15e4b1f61f21224ec81b319821958fab566e41688a8b3fd899f05e33e8d05453",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "05a85c919227521741b7dfc784ec4a22b52ac8e64514e6ee64001d8bf22b8a99-1.json",
+        "capture_index": 1,
+        "sha256": "57b373bc244c8c49d02ab53141d3fd1ad27833b5d015931723d4bb17b28935fe",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-name-owners/esnext/esnext/set/computed-temp-shared-binding": [
+      {
+        "file": "06c722ed193f542584d0b71a29d0fbb1b81579b58ae012f5a84eb07d9b26c499-0.json",
+        "capture_index": 0,
+        "sha256": "7ddfce04a8584decf059c4f447e6f6b0fb9c6232531574371bff2e80241b5947",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "06c722ed193f542584d0b71a29d0fbb1b81579b58ae012f5a84eb07d9b26c499-1.json",
+        "capture_index": 1,
+        "sha256": "611bb6f0544ac59e444fd1750f3fbc52fc96cb71c24ad2ebc15bd7fb309ad012",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-name-owners/esnext/esnext/define/source-identifier-collisions": [
+      {
+        "file": "08ba37d416ca7525d60849d01a715cecc095940f7837bd1cc3cc6078794a67d9-0.json",
+        "capture_index": 0,
+        "sha256": "07b2c2da792e368b3e51017cda1841d27722b0fa3484f73265ea9777ed9f8b9b",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "08ba37d416ca7525d60849d01a715cecc095940f7837bd1cc3cc6078794a67d9-1.json",
+        "capture_index": 1,
+        "sha256": "2cd08ef1e30d2ed162dd30b014147c33acc28714d541c117a0e0eba644f9f8f9",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/esnext/esnext/set/outer-this-static-block": [
+      {
+        "file": "098da6099bebd78089755a036ed2e939aad37122f47075eeab5a507bf7a4b203-0.json",
+        "capture_index": 0,
+        "sha256": "533d7baf816ae4719d8fc112f56a89bf52dcd1d5a4ec5c8a81b0690601a44c7f",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "098da6099bebd78089755a036ed2e939aad37122f47075eeab5a507bf7a4b203-1.json",
+        "capture_index": 1,
+        "sha256": "1d08faf5b3c54da1c20aaa8e8ba220eb2d6914df7e253d3af9da5b47270e33cc",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-name-owners/esnext/esnext/set/sibling-classes-reuse": [
+      {
+        "file": "126de57975904caf3d97a67034eb337bb5339300a913598d19aded66f2d5e246-0.json",
+        "capture_index": 0,
+        "sha256": "d05150159aef70db0a97bd56485fa3469c655c00fe12d48f3291c80c7f7b52a8",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "126de57975904caf3d97a67034eb337bb5339300a913598d19aded66f2d5e246-1.json",
+        "capture_index": 1,
+        "sha256": "5b9f906fc11a7106e35dda65263d587c08469a42861952085ad6cf34b2af047c",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/esnext/esnext/set/super-member-decorated-only": [
+      {
+        "file": "158d3b9f11882e1e1c7c0431ec951df883e429e9cf2b8e5d840ac97ba25882c2-0.json",
+        "capture_index": 0,
+        "sha256": "096d8bd64e48b92e95553103aa0020c98372e187a52b16b46c2e64284dd73bd0",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "158d3b9f11882e1e1c7c0431ec951df883e429e9cf2b8e5d840ac97ba25882c2-1.json",
+        "capture_index": 1,
+        "sha256": "30bede8dabe693dd10885889918367acd33821dd0d7ef5c066588fdf80b6da11",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-name-owners/es2022/esnext/define/source-identifier-collisions": [
+      {
+        "file": "1671d0110e4cfe0e4058667bfe9c657b1fbafdbea21f4329a297a2892c0439b4-0.json",
+        "capture_index": 0,
+        "sha256": "dea7fa338db765aaf9de795159c1f1ea66753b1869d103b11315bd74f0c16397",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "1671d0110e4cfe0e4058667bfe9c657b1fbafdbea21f4329a297a2892c0439b4-1.json",
+        "capture_index": 1,
+        "sha256": "6b8b72134f90b6fa5080a04f8c924d489e43224160e4ee991d871e39e59b78b0",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2022/esnext/define/heritage-safe-extends": [
+      {
+        "file": "1b0c223fe0a88de53e872cc69fe1af7d32ec08bda981e1a28b066c58f6902bab-0.json",
+        "capture_index": 0,
+        "sha256": "9da8bf0e7dd03511c4f49c2554f2737e3e15ca26f8f91e98f6a644cb5f257d84",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "1b0c223fe0a88de53e872cc69fe1af7d32ec08bda981e1a28b066c58f6902bab-1.json",
+        "capture_index": 1,
+        "sha256": "e85567ced4a42aa97c5ac0a53b2155945c1472f61715efc7e460088d262b28a9",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2022/esnext/define/decorated-computed-fields": [
+      {
+        "file": "1bc47cfa0f14f283f00f2b12159532b80275e3b03e045c419eab71c660cb8f1f-0.json",
+        "capture_index": 0,
+        "sha256": "093ee75671f0a03cd89cbe185f17a43e36083ce5f75cd82c2df9d5d1090d0891",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "1bc47cfa0f14f283f00f2b12159532b80275e3b03e045c419eab71c660cb8f1f-1.json",
+        "capture_index": 1,
+        "sha256": "44a893101371462cc8ebf7893563b381c32387b7cfda9e776a2e7a45af0c19b3",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/esnext/esnext/set/super-destructuring": [
+      {
+        "file": "1e32af5260c1772d3515471e14cee1ba475e728d0bd692f1524bc3cba51d6ae0-0.json",
+        "capture_index": 0,
+        "sha256": "504f9248b8226962357710fb0d2a5e53783f9f6bb7fa78e64d3293c3d62e5a82",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "1e32af5260c1772d3515471e14cee1ba475e728d0bd692f1524bc3cba51d6ae0-1.json",
+        "capture_index": 1,
+        "sha256": "01bd0de00c5b4707530d6886427d6a400e218f33d0148a18a3a711ba92c1832c",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2015/esnext/define/two-phase-constructor": [
+      {
+        "file": "1e9cc4600d2594163f2bd35e7f59ceffe45fec83ff2edfa809de2116f2e1012a-0.json",
+        "capture_index": 0,
+        "sha256": "75aec6d1da1983e0561d88c41127d4b342274a7488341269ecd11a5df2b9e22d",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "1e9cc4600d2594163f2bd35e7f59ceffe45fec83ff2edfa809de2116f2e1012a-1.json",
+        "capture_index": 1,
+        "sha256": "352e2c8eaf32648000db0c731afcba7397d1a26e15404cb632edc4c7ed8f5823",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/es2022/esnext/set/super-destructuring": [
+      {
+        "file": "1fc642bcffa1c10391a88eee23c5453c2430e7bbfda468150cca00401fe3476d-0.json",
+        "capture_index": 0,
+        "sha256": "603264498918b16cda691205a27cc84e1d0268053924f7ce9da3445aa5a09070",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "1fc642bcffa1c10391a88eee23c5453c2430e7bbfda468150cca00401fe3476d-1.json",
+        "capture_index": 1,
+        "sha256": "62fd7fabdadebbd65a43c0d31ec698654a583bc51b55e8f871223f6126e20c5a",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-name-owners/es2022/esnext/define/sibling-classes-reuse": [
+      {
+        "file": "208d9ef5548a95523afba6b91c8ca6ec93b6692bea1700afd1e76b489c601955-0.json",
+        "capture_index": 0,
+        "sha256": "c56a8033560fb198e1d97be6389356cd5b0967420a55f019a020eacaec8f0f31",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "208d9ef5548a95523afba6b91c8ca6ec93b6692bea1700afd1e76b489c601955-1.json",
+        "capture_index": 1,
+        "sha256": "c13dd941293975020cba29bf8ceef2b4df66ddd98be65fc25d59d239ea4c3f5e",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/esnext/esnext/define/outer-this-nested-numbering": [
+      {
+        "file": "251098fa0a358e52d94f58d93cfc1ee63516260af641dbc070977a3ed0744038-0.json",
+        "capture_index": 0,
+        "sha256": "92a4002036e31e8a8a7c268ae747679cde1cd45499e7ce84a28157f33a4d7ae3",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "251098fa0a358e52d94f58d93cfc1ee63516260af641dbc070977a3ed0744038-1.json",
+        "capture_index": 1,
+        "sha256": "c5520f436e6392b019f7a615f061bdafb625469901a475e07a00fe2437b98864",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/esnext/esnext/set/two-phase-constructor": [
+      {
+        "file": "277bbee44b8bdeb5ea4c92ecfa8ef7023651e8d536551ecd296492d60d1a410a-0.json",
+        "capture_index": 0,
+        "sha256": "0cf46b6f384a56deb36d50591fbbd17cf3044963b85644285e2b5a8fd12d78d8",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "277bbee44b8bdeb5ea4c92ecfa8ef7023651e8d536551ecd296492d60d1a410a-1.json",
+        "capture_index": 1,
+        "sha256": "d33ed3340387a55d8ee30b8d428063b1bcac9b712c392a70fc02167fa06ae924",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-name-owners/es2015/esnext/set/computed-temp-shared-binding": [
+      {
+        "file": "27d968b7083c54bc1c80a013a1beaddd8531f038e73f4c1d86aa30b133c02beb-0.json",
+        "capture_index": 0,
+        "sha256": "8cc281560b3b754afe6ca0c10c281c12fe70b5b08f12f7ac2d27e1fc7dd705a9",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "27d968b7083c54bc1c80a013a1beaddd8531f038e73f4c1d86aa30b133c02beb-1.json",
+        "capture_index": 1,
+        "sha256": "4c377b1a58277cf0fd0d82fca19b839cfa7efb86bef99cf4d82b2b3ecd7c1afe",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-name-owners/es2022/esnext/set/source-identifier-collisions": [
+      {
+        "file": "2bfd06d4204af5d93e156c4d17bfe72dc90fac5589082777d80d86303c2c34f9-0.json",
+        "capture_index": 0,
+        "sha256": "841df70f75e683b8f99db09ee2fbc08e4085fbb411b24c820f3fbd1b237c496d",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "2bfd06d4204af5d93e156c4d17bfe72dc90fac5589082777d80d86303c2c34f9-1.json",
+        "capture_index": 1,
+        "sha256": "20097a3ce8869deadf74f8821f0fa2a9fdcd55f8105d9a3841537576b3f2118f",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/esnext/esnext/set/outer-this-computed-name": [
+      {
+        "file": "2d1054611fd7b4c25d967ff82f7575a91a6eeb5065b6006df59b7538d48c00cc-0.json",
+        "capture_index": 0,
+        "sha256": "f0df5a9f7d8f156040752fbf1ecf8fa17b43afa7353ff094f6b73410d6ed36ad",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "2d1054611fd7b4c25d967ff82f7575a91a6eeb5065b6006df59b7538d48c00cc-1.json",
+        "capture_index": 1,
+        "sha256": "41d5e952d7d5a6109eb431d435cdb07eb278bcce3bb021b807fcd2be2f2a9c2a",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2015/esnext/set/pending-into-undecorated-names": [
+      {
+        "file": "2debac8242258ffc45a9998595ef1053aac380c66823a62ab0fd7e78240f00e4-0.json",
+        "capture_index": 0,
+        "sha256": "0a36607889c1acb19657719321a0665367c3b1531bf1e39cbc05b38896017fb4",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "2debac8242258ffc45a9998595ef1053aac380c66823a62ab0fd7e78240f00e4-1.json",
+        "capture_index": 1,
+        "sha256": "851f77f220ad0bf47fb09c227ccbb39f9d52547b175247280c4e33f13c3eb7e8",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/es2022/esnext/set/super-member-decorated-only": [
+      {
+        "file": "2e04a2634ce519ed61c8e668080ce67104232e78bdbcf4c0ac4cee84f452ae49-0.json",
+        "capture_index": 0,
+        "sha256": "e5570132ba930723f03236a2a25403cdcd49bdcb7e7904eecde0e1c7de1d5cec",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "2e04a2634ce519ed61c8e668080ce67104232e78bdbcf4c0ac4cee84f452ae49-1.json",
+        "capture_index": 1,
+        "sha256": "30d3ffef3ec722362c27b4314b871203bac886baa442f9247edc1195c04763f7",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-name-owners/es2015/esnext/define/sibling-classes-reuse": [
+      {
+        "file": "302b5e4784dba5aa9c2037dfd8e9df8eccb0283ff272fcfc7bc569dee746e54b-0.json",
+        "capture_index": 0,
+        "sha256": "d8e293b026cbffd80ceeb1825fe55e3ad294fef3f352beafcc65596d13d0e4bc",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "302b5e4784dba5aa9c2037dfd8e9df8eccb0283ff272fcfc7bc569dee746e54b-1.json",
+        "capture_index": 1,
+        "sha256": "f0ed81ac1024c7be2b0187d7e7ec15d82762448b0e15e5737561aa5fd7046ad8",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2022/esnext/define/class-decorator-before-heritage": [
+      {
+        "file": "36141342f38434350a742dd6b8c9c38db1e7f9a7d5f661661dcd33e902e89cbb-0.json",
+        "capture_index": 0,
+        "sha256": "bfdc9730fcd9471e07fc44e7f1427021437b03ea6ae9eef88eef3eec8c437636",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "36141342f38434350a742dd6b8c9c38db1e7f9a7d5f661661dcd33e902e89cbb-1.json",
+        "capture_index": 1,
+        "sha256": "58af82f3d4bd7cd7948e0a973a3c430478ac45945fb46e438236fc60356dd5ee",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/es2022/esnext/define/super-destructuring": [
+      {
+        "file": "36b9101d22840f918d59ba62130d441d54eccccbe79b2be172c8b90cf39e17c1-0.json",
+        "capture_index": 0,
+        "sha256": "d48f1e558881f2f6614be96cdd7976e9315921bc735c725f2f7ae83ec59a9334",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "36b9101d22840f918d59ba62130d441d54eccccbe79b2be172c8b90cf39e17c1-1.json",
+        "capture_index": 1,
+        "sha256": "eb7bc6db409e4f259a1b28b96f10cf66227493709dc6f3d258a1ff802596ef71",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-name-owners/esnext/esnext/define/computed-temp-shared-binding": [
+      {
+        "file": "374aefbb4cd8a5c162e46280d917879521af889c96f45d32852d0ed4b2785abe-0.json",
+        "capture_index": 0,
+        "sha256": "55bbd72bd305e4439762dce38edb67c9c953694b5f19e0394994cf81872e3382",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "374aefbb4cd8a5c162e46280d917879521af889c96f45d32852d0ed4b2785abe-1.json",
+        "capture_index": 1,
+        "sha256": "28f856d6e1ad52c53fb0340ecbd65446ac473958b3ef55696d01ce3691220ed5",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/esnext/esnext/set/super-read-call-tag": [
+      {
+        "file": "39462fb89bcc6eda6d66d28ce30ad51f5bbe395f629a39488d5221968910349f-0.json",
+        "capture_index": 0,
+        "sha256": "25a18f3775d47ee77b59f26f0d2cce011f8309ece042eb4b25d13352d4bd0095",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "39462fb89bcc6eda6d66d28ce30ad51f5bbe395f629a39488d5221968910349f-1.json",
+        "capture_index": 1,
+        "sha256": "178f3a3f95454664d23c39b0a0c788957845d46aedd6d410421f3bfea6e08983",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/esnext/esnext/define/outer-this-static-block": [
+      {
+        "file": "3b4590d6b0e464a801cd26dd6ca5fdd442ef71452b3d8f1c5c52b71f5ff3a389-0.json",
+        "capture_index": 0,
+        "sha256": "fe06c5a9c71cbd02c90d11aa2cf4ca591f403f5324d0d463c58141ad307462a3",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "3b4590d6b0e464a801cd26dd6ca5fdd442ef71452b3d8f1c5c52b71f5ff3a389-1.json",
+        "capture_index": 1,
+        "sha256": "bd909192ab80cf02824a4b3a403c22096be2f923ee20ec4c9b31d3d1d4edd62f",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-name-owners/esnext/esnext/set/cross-file-global-names": [
+      {
+        "file": "3dc128ff12697d972c836cdee043d690931f17738d133f2f92e3c1dd3357ddf6-0.json",
+        "capture_index": 0,
+        "sha256": "cd001350f14d31e2e90f15f40b3934ab0dff970c8c3d6dd2cab13bef450b110e",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "3dc128ff12697d972c836cdee043d690931f17738d133f2f92e3c1dd3357ddf6-1.json",
+        "capture_index": 1,
+        "sha256": "4ed9a72a56536deb56c3c7ce422cf7f152b9fd11e382e62cf42db5169bb7d3d9",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-name-owners/es2022/esnext/set/sibling-classes-reuse": [
+      {
+        "file": "3de9d619268f33b4b6d63d8db5033c1d5ca908c1979998f225c95a1d78f419f1-0.json",
+        "capture_index": 0,
+        "sha256": "87592205f0542df9a6ac51f973c27aca052105f623e87ed92a3a5c45428c3e3f",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "3de9d619268f33b4b6d63d8db5033c1d5ca908c1979998f225c95a1d78f419f1-1.json",
+        "capture_index": 1,
+        "sha256": "1d577500f2f369c035be9fbc3de0f14dca62d9ee3e5b10e193113bbf729ab455",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/es2015/esnext/define/super-undecorated-control": [
+      {
+        "file": "3ecc0fd4101017eb50b50df921266b7238138e6eab09743a518c5f6d55294855-0.json",
+        "capture_index": 0,
+        "sha256": "0a2a35e34a2acc62ea94c1ba77c1d1acaadd466b15b03f5c64ee38199f4908cb",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "3ecc0fd4101017eb50b50df921266b7238138e6eab09743a518c5f6d55294855-1.json",
+        "capture_index": 1,
+        "sha256": "7e501ac77812b03f8c26ab6f48ae170c3b2f40d0a89c18c99bc9f7c3053629e1",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/esnext/esnext/set/super-assignment-discarded": [
+      {
+        "file": "3f5e68c872b1a7522e14c5939f3a6cd13c03b5d35104dab21e51c4a65a5dba19-0.json",
+        "capture_index": 0,
+        "sha256": "8a75b4f84b9fa80a072b4edcd7db8848ccd93d20ee7d9a88bba711ea6b847b0f",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "3f5e68c872b1a7522e14c5939f3a6cd13c03b5d35104dab21e51c4a65a5dba19-1.json",
+        "capture_index": 1,
+        "sha256": "24ea8b3495178369e1fe0378833f73ede29f8a37e00c725426fd170b87e01989",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2022/esnext/set/nested-class-in-computed-name": [
+      {
+        "file": "4048378eeee2a038206c60f00337b5f4997922b0ce8118ffd785104cedaf6bce-0.json",
+        "capture_index": 0,
+        "sha256": "b28bfbb246f5033365298c4098d0c9eb978b7edd37abbedc6c419fc95675063a",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "4048378eeee2a038206c60f00337b5f4997922b0ce8118ffd785104cedaf6bce-1.json",
+        "capture_index": 1,
+        "sha256": "4285ee30cee68ac3401be17d6c43f09a66affd3dfcfee3350cf43824665fde90",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/esnext/esnext/define/outer-this-computed-name": [
+      {
+        "file": "4238826f206e45dbf3468a9373a5f6e4dac53d2c3fc71fb9bc10e2fa15c07709-0.json",
+        "capture_index": 0,
+        "sha256": "551dc0ecba995f11f2f7a56f273ea153568f6c3910f2373bbce0de559bee60c8",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "4238826f206e45dbf3468a9373a5f6e4dac53d2c3fc71fb9bc10e2fa15c07709-1.json",
+        "capture_index": 1,
+        "sha256": "98b7dca79bff94d691c2a18180198b474d1fb73794556fe5abe21af8eab4e13e",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2022/esnext/define/two-phase-constructor": [
+      {
+        "file": "4376f54626a1421c2953dcbedb42c8f16c2d71369dd2fdb4029ceeaa5895410c-0.json",
+        "capture_index": 0,
+        "sha256": "0c290f9ba3d1fef1f5ef9037a71b8907f56a7bcc82ad81a5f40041be21b3e1e9",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "4376f54626a1421c2953dcbedb42c8f16c2d71369dd2fdb4029ceeaa5895410c-1.json",
+        "capture_index": 1,
+        "sha256": "dfb9ab073ae955c7eda368065d49e338c03c6e81fd6612d01229b76799630c76",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2022/esnext/set/heritage-safe-extends": [
+      {
+        "file": "45fe7f75803048969776a1f4fc814974e7d03b7bdf15118d7f9f8f8cacdea8f2-0.json",
+        "capture_index": 0,
+        "sha256": "b64f3d59c15ff16418e70142646beabe8ea869789d6ccb3181166efd3920f1b5",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "45fe7f75803048969776a1f4fc814974e7d03b7bdf15118d7f9f8f8cacdea8f2-1.json",
+        "capture_index": 1,
+        "sha256": "260682646689c2d3c04ecb0a4745100b6518d50588f0cce4c6c8484587101993",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2022/esnext/set/pending-into-undecorated-names": [
+      {
+        "file": "48e44c5fc1be4f98ba7c9e294fcd6ce316bbe2a73bbc2bac973117cad6652ae8-0.json",
+        "capture_index": 0,
+        "sha256": "783a9682de45f54f5dd01510288f224dc994daeea897ab9aaf383dfbcc8676b9",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "48e44c5fc1be4f98ba7c9e294fcd6ce316bbe2a73bbc2bac973117cad6652ae8-1.json",
+        "capture_index": 1,
+        "sha256": "f1fdb6c702e0618d5fa4788d331b48d01cb8417c16293bc9e6ba0a4486924b92",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2022/esnext/define/pending-into-undecorated-names": [
+      {
+        "file": "4b29cf9cba8474451e0113485795e9ce3e3713b760685e6942fcf19a814e8d65-0.json",
+        "capture_index": 0,
+        "sha256": "e102b67fc816ac094615928ce87d1387c07a77758d904d8737cb1f01f7d43e67",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "4b29cf9cba8474451e0113485795e9ce3e3713b760685e6942fcf19a814e8d65-1.json",
+        "capture_index": 1,
+        "sha256": "83291663d18e3e0cb1f7a3063f351a4ff0f1fcd582ed0374be0907987f515d6f",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/es2015/esnext/set/super-lexical-boundaries": [
+      {
+        "file": "4cc30b29e01821bb301134844c4de9dbc596d16b66e84f92061472b4708747f1-0.json",
+        "capture_index": 0,
+        "sha256": "1e6739dc20f24c2bf23e1ce83767debb92ccd5bd42f7d341e606fc4742cdb098",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "4cc30b29e01821bb301134844c4de9dbc596d16b66e84f92061472b4708747f1-1.json",
+        "capture_index": 1,
+        "sha256": "a0f3c82189f7ad48332ee50947e90e9fb7475cb9b4fa8e6ca2f66eef2a0962ad",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/es2015/esnext/define/super-destructuring": [
+      {
+        "file": "518d160ffe75894f97badcbdecbf1f749069616b2712f70193638b5873552045-0.json",
+        "capture_index": 0,
+        "sha256": "735b940122704e95d0e8041ee6a9694d784eec61a2dfc4fc164f77be8805ed98",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "518d160ffe75894f97badcbdecbf1f749069616b2712f70193638b5873552045-1.json",
+        "capture_index": 1,
+        "sha256": "170b55806b429a433285e7f0019968bf55987a6eaccb3fda2f939d07d9af2170",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-name-owners/es2022/esnext/set/computed-temp-shared-binding": [
+      {
+        "file": "54c35da1be36737f1cc002ad57d50f184e9ac1fdd3ba5319ec67370dc32d570b-0.json",
+        "capture_index": 0,
+        "sha256": "ceace848e4df50b527606517ab4fca76eaf23a8c70c13cbbf6dce3330c49fca2",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "54c35da1be36737f1cc002ad57d50f184e9ac1fdd3ba5319ec67370dc32d570b-1.json",
+        "capture_index": 1,
+        "sha256": "7bfd241a0c16c9331b9c08ab4f0b05ef3b53b672f264f9da60700c41fb02c89b",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/es2015/esnext/define/super-lexical-boundaries": [
+      {
+        "file": "5552d3581f1d421b48638509a13f2b17042bf4c4770907504a20d3d598418455-0.json",
+        "capture_index": 0,
+        "sha256": "cb79190e88fae70fc2070513dae625d3971aa9e1ca34672532b3c8fd50905872",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "5552d3581f1d421b48638509a13f2b17042bf4c4770907504a20d3d598418455-1.json",
+        "capture_index": 1,
+        "sha256": "5b2016c1919195bb28e91da4e9bbcd1935179023b35957d8366ce44f9ee26418",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2015/esnext/set/class-decorator-before-heritage": [
+      {
+        "file": "560d0730a15a32a506d2dac7916e58a9b671985dd2d82677d0127a6b2c1f1cda-0.json",
+        "capture_index": 0,
+        "sha256": "9b4b41f7f6230f62dd553801b4fc2a2645f51ac772cf4045bb980ba92192112c",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "560d0730a15a32a506d2dac7916e58a9b671985dd2d82677d0127a6b2c1f1cda-1.json",
+        "capture_index": 1,
+        "sha256": "d25dda8dee36c038e685e0fa6c2e302615ad92c2412364d611109da745194c11",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/esnext/esnext/set/super-undecorated-control": [
+      {
+        "file": "56238746ad0579518409cd7f6ccf321304857e2a216799bb7800fe880c8d4909-0.json",
+        "capture_index": 0,
+        "sha256": "0d8e28d3f555e82f1a3fae9a8d08715b38e4d2d231a01dfe6f9fa19cc4d789ee",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "56238746ad0579518409cd7f6ccf321304857e2a216799bb7800fe880c8d4909-1.json",
+        "capture_index": 1,
+        "sha256": "fc28e7be6cf69a89d9035e2225a0858e66a27d374edce6e0ae3e6a777ab51520",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-name-owners/esnext/esnext/set/source-identifier-collisions": [
+      {
+        "file": "567f5937cc21ac474aa50dc5f5837315fe46e07a72828975adebbdf22cd7fa6d-0.json",
+        "capture_index": 0,
+        "sha256": "dea5f21ab3f95d18b28d9428869693362dae579fab94b27de2ab88c0e63dd6dc",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "567f5937cc21ac474aa50dc5f5837315fe46e07a72828975adebbdf22cd7fa6d-1.json",
+        "capture_index": 1,
+        "sha256": "d04113d17960b8a04e0fce5c15bb81d30afaeaf35d110212b72492268125357d",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/es2022/esnext/define/super-lexical-boundaries": [
+      {
+        "file": "5bf653d52cab2f4872a09ee669c40755e2b816aeace0df0749276f2b404bfdaa-0.json",
+        "capture_index": 0,
+        "sha256": "ec1ba9fe7cc95e26635016f5392def0826ed1bd52b0fc33881d4f19c747bca0a",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "5bf653d52cab2f4872a09ee669c40755e2b816aeace0df0749276f2b404bfdaa-1.json",
+        "capture_index": 1,
+        "sha256": "4510f3f4633ea0098df4a61d2347bcb54fcbf0d3f4734ccc28dc7c50b78ba0dd",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/es2015/esnext/set/super-destructuring": [
+      {
+        "file": "5c4ac2e370cc47d463291b98e4e274f9b715f5ab591370414b77a85a43fb6aa8-0.json",
+        "capture_index": 0,
+        "sha256": "0d75b67a47a850df264dd205e7c72b13b602b01ed7065a3d73d86ca2b57c6fe5",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "5c4ac2e370cc47d463291b98e4e274f9b715f5ab591370414b77a85a43fb6aa8-1.json",
+        "capture_index": 1,
+        "sha256": "1db4eec9099b14233ecde5e8783d84fe493b91ad836c15fd2db8ffcb5962ba1e",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/esnext/esnext/define/pending-into-undecorated-names": [
+      {
+        "file": "5fedc25ee06ce96998948ccad73f61c9d92e925796d693e94f065f2a09624ba2-0.json",
+        "capture_index": 0,
+        "sha256": "72df75c142dec09e5bdf2606197adc5951cf41e7c4d130188e19d5637662f900",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "5fedc25ee06ce96998948ccad73f61c9d92e925796d693e94f065f2a09624ba2-1.json",
+        "capture_index": 1,
+        "sha256": "4a0aa563bac4befda5ea46fee851dd93e3daeeaf76283adaf99c15c433834290",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/esnext/esnext/define/super-lexical-boundaries": [
+      {
+        "file": "6054c63e8aafc0330c4cec6fd59609e88257ce31cd0a331b6762917b06d34c55-0.json",
+        "capture_index": 0,
+        "sha256": "0afb6ca67ffd040d2a3aeaee9c9b9b1f6fe30aa26a7780230e85832d6d8d39a6",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "6054c63e8aafc0330c4cec6fd59609e88257ce31cd0a331b6762917b06d34c55-1.json",
+        "capture_index": 1,
+        "sha256": "7df0772bc2174d6441c8688fc91c33a7fc15789b2ac42f51bf05adb0a09037a0",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/es2015/esnext/set/super-assignment-used": [
+      {
+        "file": "60b729336a7a90edae0b0deb3228727786be6e62d53dd61826aee5d5e0399e50-0.json",
+        "capture_index": 0,
+        "sha256": "e779db7553dfe5a277a890b87a00a84d2a5c0179120ba90157b61a367dd2968e",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "60b729336a7a90edae0b0deb3228727786be6e62d53dd61826aee5d5e0399e50-1.json",
+        "capture_index": 1,
+        "sha256": "8967ef29ec04ccbd82e0fdd4eadb0355f6fa777ad0c84fb02e40a23c998eb8f1",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/esnext/esnext/set/decorated-class-expression-positions": [
+      {
+        "file": "631a39098ea6b2a2b98e165c334dd3379e0d7ae23e52ec3f2a729390ffa0ba13-0.json",
+        "capture_index": 0,
+        "sha256": "ce582a7b67381d5d57500c9f4202d3ab8c428d21759687be34bb78175e8c8be7",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "631a39098ea6b2a2b98e165c334dd3379e0d7ae23e52ec3f2a729390ffa0ba13-1.json",
+        "capture_index": 1,
+        "sha256": "993d6a8faeb7b52769ae4d2853825c0747cc932c8bcabac906e835822c1bd51f",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/esnext/esnext/define/super-read-call-tag": [
+      {
+        "file": "63547d3ce015318801e23f8798222847284a0e1eeffdb40915903c90188af73d-0.json",
+        "capture_index": 0,
+        "sha256": "43803c8e5f81001bb14381fe9767a92c8fb38742502ca13fea46f9930b89443d",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "63547d3ce015318801e23f8798222847284a0e1eeffdb40915903c90188af73d-1.json",
+        "capture_index": 1,
+        "sha256": "6c2de1dd7630e2c1d1df1fd184003b9ab7c7a27557393745482b2cd9b8d6baf8",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-name-owners/es2022/esnext/define/cross-file-global-names": [
+      {
+        "file": "661127814b88748c759a627bdce0467f32717ae7f941fc538e89bca7dd4bea1a-0.json",
+        "capture_index": 0,
+        "sha256": "69841df0d842a3ec23e948ae7b880f0206b290791531f3f9052ec43f01f869a5",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "661127814b88748c759a627bdce0467f32717ae7f941fc538e89bca7dd4bea1a-1.json",
+        "capture_index": 1,
+        "sha256": "771f4d9a51fb0c4337c34fa8067b55bb5ce5d9ba9795966d84218c1257d084b4",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/es2022/esnext/set/super-read-call-tag": [
+      {
+        "file": "663871e701b88862f91990ebdb14a41ef99bb3c94c41d3e5fea7a06c81375b83-0.json",
+        "capture_index": 0,
+        "sha256": "e999c4611b00df1cd74b33f8561ae71575be95dd10d1024e9ba00ee59d6ae57b",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "663871e701b88862f91990ebdb14a41ef99bb3c94c41d3e5fea7a06c81375b83-1.json",
+        "capture_index": 1,
+        "sha256": "3df3630c9b4993bee843314389242018a176b3b2d26980ed10c41fed20223c3d",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/es2022/esnext/set/super-undecorated-control": [
+      {
+        "file": "6ac38ce84f38d951d2e9bfaf55bb936c04eebc22bc104053ef3813a00a3c5cca-0.json",
+        "capture_index": 0,
+        "sha256": "a9e908e531257fe1bce6f278dd9bfd5ccbc2a9cb2f7d5b988cf64d7ae42bb024",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "6ac38ce84f38d951d2e9bfaf55bb936c04eebc22bc104053ef3813a00a3c5cca-1.json",
+        "capture_index": 1,
+        "sha256": "4ee81f5e72135e89240730e32cdc389c2f282da907e4a84ec35492c3b27cc6a6",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/es2015/esnext/define/super-read-call-tag": [
+      {
+        "file": "6c4f929f2c450160c04b62482de7dcfef156440b81fcd452416e0d1adc03fb89-0.json",
+        "capture_index": 0,
+        "sha256": "b9998fec061ad3bd41327e2716e447defac70ee84accad1a295813534a355630",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "6c4f929f2c450160c04b62482de7dcfef156440b81fcd452416e0d1adc03fb89-1.json",
+        "capture_index": 1,
+        "sha256": "bdfb028adeffd2e77a9bcb00fdfaa7354a30dd08f3646d93fe57cf433bdf9cfa",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/esnext/esnext/define/super-assignment-discarded": [
+      {
+        "file": "6da402b19d710401fb881ec2cf413aec13faecd7349e6975a6bb58c5d1f5806c-0.json",
+        "capture_index": 0,
+        "sha256": "a511771d9de6dbf1c2df006fb5167fa667a2bd2717e1da4f3e25a420998385fc",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "6da402b19d710401fb881ec2cf413aec13faecd7349e6975a6bb58c5d1f5806c-1.json",
+        "capture_index": 1,
+        "sha256": "af7c4fc9e53867f41083e240e609211309e2966e57091fd7b272f06e35cb8294",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-name-owners/esnext/esnext/define/cross-file-global-names": [
+      {
+        "file": "70886698d54c7865fb5761f28dc62671d4d2e00d09200b1455741c42c881c759-0.json",
+        "capture_index": 0,
+        "sha256": "de3a5cbba5a59c69612b31e75ceabcf081991013ae7be758db7236dc4c1e0c02",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "70886698d54c7865fb5761f28dc62671d4d2e00d09200b1455741c42c881c759-1.json",
+        "capture_index": 1,
+        "sha256": "0e61209db6e1fb72ef6c54ddf10ccd500a084378368e767a9ea718cb94b1c86c",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/es2022/esnext/define/super-member-decorated-only": [
+      {
+        "file": "70c7545332d5f42ea7f04023e007ae3dc154cb7aa461f6c3bd12037f47df2568-0.json",
+        "capture_index": 0,
+        "sha256": "b168eaebaf219162365692f8d7941f6d0a8b9c25da18e9e1125343260c26c675",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "70c7545332d5f42ea7f04023e007ae3dc154cb7aa461f6c3bd12037f47df2568-1.json",
+        "capture_index": 1,
+        "sha256": "bf3b80763a75798dfbc9fee1dde022017272e67a54093974a6118ea93a026a34",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-name-owners/es2015/esnext/define/cross-file-global-names": [
+      {
+        "file": "76cd4c5f296f20b867824da0a9baf0fa9d8ead7a751acfebec667c151aa0bb08-0.json",
+        "capture_index": 0,
+        "sha256": "42ebcf40fdaadb76b5f210ba5dfd31444f4e37e4d073478660925c3b84654ee3",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "76cd4c5f296f20b867824da0a9baf0fa9d8ead7a751acfebec667c151aa0bb08-1.json",
+        "capture_index": 1,
+        "sha256": "07caae81461d47328113eba74e84868f9a2b19271ffc9d7d4c920d244b8d6fea",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2015/esnext/define/nested-class-in-computed-name": [
+      {
+        "file": "77cbcf570cb486b3d13bc3a7fe950299f49e09f01ab47bc56e7744e2e23e975a-0.json",
+        "capture_index": 0,
+        "sha256": "3b98172f8f6af9ef8cc7b3d90317304c5f4813df611ffc22d85f5b012e2168cb",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "77cbcf570cb486b3d13bc3a7fe950299f49e09f01ab47bc56e7744e2e23e975a-1.json",
+        "capture_index": 1,
+        "sha256": "05d1e8ccee88045630647e8e502cb873f090833cbf12933ec19b0ce0533c3635",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/esnext/esnext/define/class-decorator-before-heritage": [
+      {
+        "file": "781a087c4da4d8acf48b156ba6e21c4a6c6e9d3c2a8131d5c0307dd7f813fdf7-0.json",
+        "capture_index": 0,
+        "sha256": "55a037f9ba1e43c5bcd4c86a3828cf1e5b03c6b6156be9ca14b90edfc04e5cb6",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "781a087c4da4d8acf48b156ba6e21c4a6c6e9d3c2a8131d5c0307dd7f813fdf7-1.json",
+        "capture_index": 1,
+        "sha256": "4424ccc10eea8e6f300a58f0494b507834924c952d1c1e45340926a73ac60686",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2022/esnext/define/outer-this-computed-name": [
+      {
+        "file": "790ed1bf0ff27436fbb2f2f59617ec49268833349a01a696b56645123cf9268b-0.json",
+        "capture_index": 0,
+        "sha256": "0f078a5ee593fbceeb5b57b4e06bc4246a3e00aadd8dc6b48f00c7d204e161ce",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "790ed1bf0ff27436fbb2f2f59617ec49268833349a01a696b56645123cf9268b-1.json",
+        "capture_index": 1,
+        "sha256": "b21f8250acf62e4310f56606670a583ef68d8ec855a406c7307a57e3d4b6e430",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/es2022/esnext/define/super-undecorated-control": [
+      {
+        "file": "7f457653648bdfba647f515eb71df6d72c29088f7b6b8d7477a21fd68c9137cb-0.json",
+        "capture_index": 0,
+        "sha256": "12f0bbde36568dd90e3c758af80d79a08b40cfe0586e7b088fc92457037a2a82",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "7f457653648bdfba647f515eb71df6d72c29088f7b6b8d7477a21fd68c9137cb-1.json",
+        "capture_index": 1,
+        "sha256": "a1b68beee3246c297cf33d8297c064f4f020e27a1d44b116030362fa84417c91",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2022/esnext/set/class-decorator-before-heritage": [
+      {
+        "file": "80772c081ca78aebf7ec1d125d36beba07c12b807234a06c228174bd44cfb9d5-0.json",
+        "capture_index": 0,
+        "sha256": "3cc07ada0e249e23957ecd534ef27f62d3aa29b46e23c670aee875225dc1c427",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "80772c081ca78aebf7ec1d125d36beba07c12b807234a06c228174bd44cfb9d5-1.json",
+        "capture_index": 1,
+        "sha256": "6c9b149e5a17f3acba670a4f353e6451e0044ee5165cb3db173bcd48c48a79dd",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/esnext/esnext/set/class-decorator-before-heritage": [
+      {
+        "file": "8255e9fc418cf0a3d84d34c80f859b758b41fb62b92f2571de89a95a121571e1-0.json",
+        "capture_index": 0,
+        "sha256": "1dbc608427b400188df5dd7d5594f2cee961bc2a6a2407aa504cbeca31eddfa2",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "8255e9fc418cf0a3d84d34c80f859b758b41fb62b92f2571de89a95a121571e1-1.json",
+        "capture_index": 1,
+        "sha256": "af443ff3edfd018317a1ba581dab662f79fe0bc103d7410c4b141c9bc2d6da5a",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/es2015/esnext/set/super-assignment-discarded": [
+      {
+        "file": "833c9bff55bcf8241d3f273f0a4d275c7fd392854c5973cc0b0a3bb2018c7570-0.json",
+        "capture_index": 0,
+        "sha256": "bb5366822d4af38c2dee29398048ff861633e59a922cc0348a895c3cb07bef91",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "833c9bff55bcf8241d3f273f0a4d275c7fd392854c5973cc0b0a3bb2018c7570-1.json",
+        "capture_index": 1,
+        "sha256": "aabf9e82333d29891850a964a05f850ff3167b6ae954c28d063b063930275b1c",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2015/esnext/define/decorated-computed-fields": [
+      {
+        "file": "83601124e13746827af417f9621e6b99c3ad356e41b623617edb3341986ea4c1-0.json",
+        "capture_index": 0,
+        "sha256": "faadd32a71b36979b81a56250f728876d178118c0b6aad8c710649680d9ccf34",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "83601124e13746827af417f9621e6b99c3ad356e41b623617edb3341986ea4c1-1.json",
+        "capture_index": 1,
+        "sha256": "e4bae1982d0af8c35c1363d81a27fdc73974551ac200a8890726984733c0d9b6",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/es2022/esnext/define/super-read-call-tag": [
+      {
+        "file": "8361e0b7b96d3ba807dd89b6cd19c84de1a5889e9f78f45b6a1511479b4293d8-0.json",
+        "capture_index": 0,
+        "sha256": "ae3a53d7b7397c8130e232be543c40d011d2bf3a42fd685715a6d2c376cd5c9e",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "8361e0b7b96d3ba807dd89b6cd19c84de1a5889e9f78f45b6a1511479b4293d8-1.json",
+        "capture_index": 1,
+        "sha256": "14b8b573115d9a67413ddf794c1736ba7ed0680220a24de07916771998a21d76",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2022/esnext/set/outer-this-nested-numbering": [
+      {
+        "file": "86882639baba15ed0a2cd4c3e7d36594de4f238296e8a00bcd6be5d934a5ea91-0.json",
+        "capture_index": 0,
+        "sha256": "3163d2fd9344bf04237609726cceee721fa885734018b958c168024c42515829",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "86882639baba15ed0a2cd4c3e7d36594de4f238296e8a00bcd6be5d934a5ea91-1.json",
+        "capture_index": 1,
+        "sha256": "f1f6ec8a2dadbddf487242f4231734963021bfc0d653ca3fef85725bea039147",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/esnext/esnext/define/super-undecorated-control": [
+      {
+        "file": "87cc61bd951c162476c1033fd35e38b8d017c6271ffc0bcaa6d365a2c33a7064-0.json",
+        "capture_index": 0,
+        "sha256": "36debd81b8891fd372841ce03ecfe2f172f971293d884f98a333759eb04ddc99",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "87cc61bd951c162476c1033fd35e38b8d017c6271ffc0bcaa6d365a2c33a7064-1.json",
+        "capture_index": 1,
+        "sha256": "8633e989057ea9c99a9f317f8c2144d80541902e25b7ba8750abad08e082a432",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/esnext/esnext/set/nested-class-in-computed-name": [
+      {
+        "file": "886756ab6aa88bbd870ffc37c1d6d46314288740b137e2d61b6f437abcb667f9-0.json",
+        "capture_index": 0,
+        "sha256": "ce8fde85b03eff4b9c917834a27f5cd39cca1383fb9b9b5c9e83440966c0c157",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "886756ab6aa88bbd870ffc37c1d6d46314288740b137e2d61b6f437abcb667f9-1.json",
+        "capture_index": 1,
+        "sha256": "a0146330c985fd17bad315e85c9083865814ebf1fdb394b6afbf7248415a2a81",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/es2015/esnext/define/super-member-decorated-only": [
+      {
+        "file": "89755805c5902e9c232a377e4e68a53c587acc76a3e86f897fa68b5e11eef4e9-0.json",
+        "capture_index": 0,
+        "sha256": "dcfa72f2decfe653966aaea662913f733c75b4857827cce4a3186e7d7f23c3ba",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "89755805c5902e9c232a377e4e68a53c587acc76a3e86f897fa68b5e11eef4e9-1.json",
+        "capture_index": 1,
+        "sha256": "808c61b620dcc23a31a8029309da85f9e20fc1515b483799adc9b2e66da4bf4c",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/es2022/esnext/define/super-assignment-discarded": [
+      {
+        "file": "8ba6975c9b340aa3e6dfb515a4b497984b06258e49009c5c817e81b2de1ebcba-0.json",
+        "capture_index": 0,
+        "sha256": "2659e89d96e3e1c0d33299d6e562bb450c75cd8c401e9c074bac7801ad704788",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "8ba6975c9b340aa3e6dfb515a4b497984b06258e49009c5c817e81b2de1ebcba-1.json",
+        "capture_index": 1,
+        "sha256": "639d20ba8fb480e103aa74b4ac597818459e1454a6662ae92ad7e6c4d34379f2",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2022/esnext/set/outer-this-computed-name": [
+      {
+        "file": "8bbcab061a2631fa81b9637e7b7957ecc0e6721e0fe0e1ab35600b668422d794-0.json",
+        "capture_index": 0,
+        "sha256": "ea458785eb4c41ffa913f2041b6b01f14acc4b0390c6f7f7a7133992b50a5591",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "8bbcab061a2631fa81b9637e7b7957ecc0e6721e0fe0e1ab35600b668422d794-1.json",
+        "capture_index": 1,
+        "sha256": "5f4b2ebcd07d80a1f61eaaf273e18172fee927acca24be3c23d07c269b606e4a",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/esnext/esnext/define/heritage-safe-extends": [
+      {
+        "file": "8bf3763d16c6ab3bda0b3183e18c8b5bac0cfa0ba019961b2dfe93732dc37e5f-0.json",
+        "capture_index": 0,
+        "sha256": "cd0812b1e267c627c9e89eb45dadea6d48e7f6081a13f62f0ef7a1fd3a2a8926",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "8bf3763d16c6ab3bda0b3183e18c8b5bac0cfa0ba019961b2dfe93732dc37e5f-1.json",
+        "capture_index": 1,
+        "sha256": "5009b19d523fc5a902e1e1e52c674b5d72ba8e16c74ca07b33ad91aac3f804b7",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2022/esnext/define/decorated-class-expression-positions": [
+      {
+        "file": "8cf8a914879d9eb3c9881ed3b2e9d51210034a31f361f13a5ab75cfb327247b1-0.json",
+        "capture_index": 0,
+        "sha256": "0354bd043828518d294f07a43c1e4bcfbd8be0418a0faf20e56526caaf8ed8e6",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "8cf8a914879d9eb3c9881ed3b2e9d51210034a31f361f13a5ab75cfb327247b1-1.json",
+        "capture_index": 1,
+        "sha256": "3666a9c0bdfe3109cfb9f6199556b6dbbe71d998caffc2daa7724bb5a91b699c",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/es2015/esnext/define/super-assignment-discarded": [
+      {
+        "file": "8dcbe2dbaaad4596f807741ac2eb3c5b92413dae2336e5e7c843d6fcdab30376-0.json",
+        "capture_index": 0,
+        "sha256": "9627c6f6427b4370667ded492b4d05a309df5deb328b21afdd7de4c86d132585",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "8dcbe2dbaaad4596f807741ac2eb3c5b92413dae2336e5e7c843d6fcdab30376-1.json",
+        "capture_index": 1,
+        "sha256": "efeae4d22610a786bef4512a67e0b3578bf6fbf2d0e68c46f7808454f257c4ec",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-name-owners/esnext/esnext/define/sibling-classes-reuse": [
+      {
+        "file": "93352fda2218c88fc27eda4b5c74eb8ef6ef4b2eceb1ab97fc7657cdf9b2d834-0.json",
+        "capture_index": 0,
+        "sha256": "b97ca62a11e3ecb75d2f4543d56feff4011f0dac67368eea7ae95a730fce7ba9",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "93352fda2218c88fc27eda4b5c74eb8ef6ef4b2eceb1ab97fc7657cdf9b2d834-1.json",
+        "capture_index": 1,
+        "sha256": "161e6e7c3a95ccfaaa5c8c9baac2728dff90b026cfb89b7a458e39a5eda07406",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2015/esnext/define/outer-this-static-block": [
+      {
+        "file": "935d207d44b0a714216927e1b8b990a5cea8224295de21e460809683a000c1bc-0.json",
+        "capture_index": 0,
+        "sha256": "b44645423bc9d21494d1b044a88a5f527cf16176d0405a741f7af1a9d561606e",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "935d207d44b0a714216927e1b8b990a5cea8224295de21e460809683a000c1bc-1.json",
+        "capture_index": 1,
+        "sha256": "cf0928c3758a226e53fb60a8e8a14770a58e11d42159642ad443e69b5dedbf04",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/esnext/esnext/set/outer-this-nested-numbering": [
+      {
+        "file": "94aec45949dfa7cc3ce2152ea73bbc2d178bfd2da071dd9dafa44f1d7802d9b4-0.json",
+        "capture_index": 0,
+        "sha256": "dd0c0048c6b4af88811bddac266c74add7173519aca046fee1d92148a497f826",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "94aec45949dfa7cc3ce2152ea73bbc2d178bfd2da071dd9dafa44f1d7802d9b4-1.json",
+        "capture_index": 1,
+        "sha256": "ba57cc39204f3d783a4a1e569f0586afce24232b8d478086cc8e051b17927458",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2015/esnext/set/nested-class-in-computed-name": [
+      {
+        "file": "992f432f0ae5b3386ddb025fefa2f6886ec91a7c4593c5dc954fb80e903c01c5-0.json",
+        "capture_index": 0,
+        "sha256": "cf7346bbaf9cd166daadb27bc6aa361cfdb1bf62d0dd51e5be6d16780c0ec7de",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "992f432f0ae5b3386ddb025fefa2f6886ec91a7c4593c5dc954fb80e903c01c5-1.json",
+        "capture_index": 1,
+        "sha256": "49345bda938ab1bb0c7a0bf1144f05eba42e189219eee930e4038c6820daf7de",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/es2015/esnext/define/super-assignment-used": [
+      {
+        "file": "9d116fd02d31924b46d2fa961695bf03a3ec4cf96a303cb78e0392133c4494f2-0.json",
+        "capture_index": 0,
+        "sha256": "514ab64b12204967fe232bcceaccdc81e57fd74629ebcb26be3cbb5fb08d60b9",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "9d116fd02d31924b46d2fa961695bf03a3ec4cf96a303cb78e0392133c4494f2-1.json",
+        "capture_index": 1,
+        "sha256": "afb716c1d74d48179e89f8bf63694daabd28a382127c6674d8202139bc2a1efa",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/esnext/esnext/set/super-lexical-boundaries": [
+      {
+        "file": "a0e0ef317faa3b57b01c69fa8f7803570ebc0ef48985b2b0befe6f4f61ff694a-0.json",
+        "capture_index": 0,
+        "sha256": "33544a69c06a8e051c2bb046b59b815f33d6670644ef794078f0642e09982084",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "a0e0ef317faa3b57b01c69fa8f7803570ebc0ef48985b2b0befe6f4f61ff694a-1.json",
+        "capture_index": 1,
+        "sha256": "5f316d3c84eb631a7e5715e10a7d4fd8073bba1287aa15ce5db28a3590e35d98",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2015/esnext/set/decorated-computed-fields": [
+      {
+        "file": "a140a71188812d177368d4eed9c7e0d073954a31ea07868ded8da338dafa6c3a-0.json",
+        "capture_index": 0,
+        "sha256": "4c6ad34d7c6b48f008fa8fbc3b5c8a4097f97aab203b01d7fcf5be5d05db28d3",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "a140a71188812d177368d4eed9c7e0d073954a31ea07868ded8da338dafa6c3a-1.json",
+        "capture_index": 1,
+        "sha256": "f5e392d47a1eb1d0c79f55fef7170c4c24ab6e5479a95955727a55f9c1f1e1b5",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2015/esnext/set/decorated-class-expression-positions": [
+      {
+        "file": "a239b6aaf6f0be6de20f9bd81cde4186cfd0c71ccd4e4ecfb5e558dbcbcfffcd-0.json",
+        "capture_index": 0,
+        "sha256": "09cd2b43c72438a3cb1a210b72d126d5fe21f95b2778f4b3adfb61e430b329f0",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "a239b6aaf6f0be6de20f9bd81cde4186cfd0c71ccd4e4ecfb5e558dbcbcfffcd-1.json",
+        "capture_index": 1,
+        "sha256": "3434ff8f5232962a8d42c6adeccd06b1548a03e4b1e2c4f7d5314ccd355e7da1",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2015/esnext/set/outer-this-static-block": [
+      {
+        "file": "a378b39a0fef9fdef43a193234f974976f39b0d717fe6a0d93af4cfb9ca3b0f6-0.json",
+        "capture_index": 0,
+        "sha256": "34ad3cbaff517528619820356c9d421c29f40b9681fc9693e4fe50f90ef4d240",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "a378b39a0fef9fdef43a193234f974976f39b0d717fe6a0d93af4cfb9ca3b0f6-1.json",
+        "capture_index": 1,
+        "sha256": "aba7d8fed145d299a606d789ea49dd8c3fffae2ac0b1f3df0ced066153c88069",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-name-owners/es2015/esnext/set/sibling-classes-reuse": [
+      {
+        "file": "a82f0a503554d40d61b18d91c165b177ac823b2fedd6fbfc795e2f94cc20329d-0.json",
+        "capture_index": 0,
+        "sha256": "3be935f54355fba3fa0d7fb0bc9d9b81bb68f3b8b9290ff1b464c6a03254da43",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "a82f0a503554d40d61b18d91c165b177ac823b2fedd6fbfc795e2f94cc20329d-1.json",
+        "capture_index": 1,
+        "sha256": "40a89c853baf4594844fe0fdc728f549e410e21fc002ae303ccd64d01cebd461",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/esnext/esnext/set/decorated-computed-fields": [
+      {
+        "file": "a979519d30c67190f3c6e53f6c949f652b0bcd29d846ae1c857890662b87b32c-0.json",
+        "capture_index": 0,
+        "sha256": "7107e688ecd896a3a1e16cb8dcbcd590b057eb6f79401a4fbb994b16f01f3581",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "a979519d30c67190f3c6e53f6c949f652b0bcd29d846ae1c857890662b87b32c-1.json",
+        "capture_index": 1,
+        "sha256": "61b3421162a620e3be4e4eeef353388ee7ac4607ceccff8e0f5a5808279df42d",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/es2015/esnext/set/super-undecorated-control": [
+      {
+        "file": "b08a11868f2307540e147f6f2c2b844d1c4bd3cce36235b6499075aed1098da2-0.json",
+        "capture_index": 0,
+        "sha256": "a265ead09dfb7eced1f1918abc72c0e3e24324798c2cee17939aa92ab6191c61",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "b08a11868f2307540e147f6f2c2b844d1c4bd3cce36235b6499075aed1098da2-1.json",
+        "capture_index": 1,
+        "sha256": "c69454ba1d4ba836b36a7680f87d5fbc9d71b1a215fcba8d204afc79ff3f0b21",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/es2015/esnext/set/super-read-call-tag": [
+      {
+        "file": "b30bed22fc4e816342b94934d75538c1df69788a6c9be0060e255a575f07dd40-0.json",
+        "capture_index": 0,
+        "sha256": "6e3e29e9d2e7a420740599f14c234d9c5b0ae4e6e792e66b6a07e47dc708fcc6",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "b30bed22fc4e816342b94934d75538c1df69788a6c9be0060e255a575f07dd40-1.json",
+        "capture_index": 1,
+        "sha256": "8fb9f15d8d6644ca01f862dc6a3d5cf27cfb6ce3c769193c0d3015579869b293",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-name-owners/es2015/esnext/define/computed-temp-shared-binding": [
+      {
+        "file": "b318e915f72976d6dac77ba7330679b5e8b4211e0290a1d5183d892ae2c0f40d-0.json",
+        "capture_index": 0,
+        "sha256": "1e889a06bf778caf7373266a5eb8d9ff4fcc1a66bcbd5c412eb55d2fb99f96e5",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "b318e915f72976d6dac77ba7330679b5e8b4211e0290a1d5183d892ae2c0f40d-1.json",
+        "capture_index": 1,
+        "sha256": "2d61841c78845f9d17c2bc867394a06d3b6fc6f4d26e2590b0d95b09d91a7e82",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2022/esnext/set/two-phase-constructor": [
+      {
+        "file": "b3d3fbefae1b825fda81c9f26ccca99e9aae0cec1a4114f00f8fa080dc0b542b-0.json",
+        "capture_index": 0,
+        "sha256": "61d55c8fede29a6598820d0afa7f83d264f2c8491d675842c72690808245906a",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "b3d3fbefae1b825fda81c9f26ccca99e9aae0cec1a4114f00f8fa080dc0b542b-1.json",
+        "capture_index": 1,
+        "sha256": "c6e2af4c74eb13ec3037f50d3cd4b8ba5a01bc6f55a2132e918b9127396b3ca9",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2015/esnext/define/pending-into-undecorated-names": [
+      {
+        "file": "b42df6e3f29be87d0970c6cc2cef3c45245c96ce8d9d174d27563da263008c03-0.json",
+        "capture_index": 0,
+        "sha256": "753a72507677a94df91efb31b21b4adbcf3aadd98381c9221129b6237128eb85",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "b42df6e3f29be87d0970c6cc2cef3c45245c96ce8d9d174d27563da263008c03-1.json",
+        "capture_index": 1,
+        "sha256": "8221124e5bd65899d9c5a8eaeb6ae3f488ebbb7ccd88ec481741e025659319d0",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-name-owners/es2022/esnext/define/computed-temp-shared-binding": [
+      {
+        "file": "bb2ba028cc5a376ece795d5e0978a0d21cfbc3ca2ce40c967b3a99f93cf636ac-0.json",
+        "capture_index": 0,
+        "sha256": "52778c236d525d72ac63abc1d6c04cb0bb670d1bbbdbda3792cb0bdafdda8256",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "bb2ba028cc5a376ece795d5e0978a0d21cfbc3ca2ce40c967b3a99f93cf636ac-1.json",
+        "capture_index": 1,
+        "sha256": "fb52a98ae348a02d4ee1104c000b18cef97fc1bff8bd3e6707c9fc28abcc66fe",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2015/esnext/define/heritage-safe-extends": [
+      {
+        "file": "bbfc750fc856b281e822f154a17d0eb5ed2b980eb9f0c871bb1359e8e37c3b5c-0.json",
+        "capture_index": 0,
+        "sha256": "889e2a794de9eae9681e5ad8c50bca0301ed2101c347101ae6c058f617ab36ad",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "bbfc750fc856b281e822f154a17d0eb5ed2b980eb9f0c871bb1359e8e37c3b5c-1.json",
+        "capture_index": 1,
+        "sha256": "25ccd65802cf96420f735b09f662e609ab3c589cd6a10c4920b35e1ffc9b555d",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2015/esnext/define/outer-this-nested-numbering": [
+      {
+        "file": "beb5bec0b9cd9aea920575ee31b2445457bea7e07f0bd669c48fe7aaa1a9458a-0.json",
+        "capture_index": 0,
+        "sha256": "b50be0efb1182ac8c62275a0c4c23291175967a685ff1b7a22137a2744b2d497",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "beb5bec0b9cd9aea920575ee31b2445457bea7e07f0bd669c48fe7aaa1a9458a-1.json",
+        "capture_index": 1,
+        "sha256": "110e72df4e7d4dc50892fadf4eac07c66b6433339508854dff50ca2388e7ab46",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/esnext/esnext/define/super-assignment-used": [
+      {
+        "file": "bed396e6c8d0d55d35058af311e9474ae2fc217519ebede922fc37b1de7c7083-0.json",
+        "capture_index": 0,
+        "sha256": "c9d1ac80a08381ffced4215b68db50f1b9e030c46c0ab62096c34ec17c32c2e1",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "bed396e6c8d0d55d35058af311e9474ae2fc217519ebede922fc37b1de7c7083-1.json",
+        "capture_index": 1,
+        "sha256": "d149878087ee85099fc91e41c6d17c7717d4e2b2cdc7baf53093a48d96b118a4",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2015/esnext/set/outer-this-nested-numbering": [
+      {
+        "file": "c12f87c230729fc511834c4e462c54ddcaa665d8d878338656f04e52fc84be9c-0.json",
+        "capture_index": 0,
+        "sha256": "941413006c09506ee4c5284d05bccbb0227816fcf496c0f599e762ed68a22e87",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "c12f87c230729fc511834c4e462c54ddcaa665d8d878338656f04e52fc84be9c-1.json",
+        "capture_index": 1,
+        "sha256": "36ea0beaa5136ae2f6c20d3be30b739350f4e8cec58eda66dc940dea25ca6bc6",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/es2022/esnext/set/super-assignment-discarded": [
+      {
+        "file": "c16c6b391ccbda0600c797755515b218a826ddd23618012df6f167333ebec6d3-0.json",
+        "capture_index": 0,
+        "sha256": "64d89d000232384fa7cdad42a2f2ac8f0a54b2f22af9a22d87f61906cf62ede9",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "c16c6b391ccbda0600c797755515b218a826ddd23618012df6f167333ebec6d3-1.json",
+        "capture_index": 1,
+        "sha256": "165da5724c70a61d09ffbbf337abe31ef49f5276c4ea1c0b9e17cf16f90a382c",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-name-owners/es2015/esnext/set/source-identifier-collisions": [
+      {
+        "file": "c8dbc0321f03be9b4961dacc03b4b1d452048c8b3f3d6de2500c7ee2f8c20ba7-0.json",
+        "capture_index": 0,
+        "sha256": "16fb6242b6284dd17350b76b2878bd28c431bcf710d2c3c7c56851b72370c92b",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "c8dbc0321f03be9b4961dacc03b4b1d452048c8b3f3d6de2500c7ee2f8c20ba7-1.json",
+        "capture_index": 1,
+        "sha256": "d8019c723ce37a7c3d9c856734d165c5aea80e2a87cf3284b3ccc484880ea8db",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2015/esnext/set/heritage-safe-extends": [
+      {
+        "file": "cb2b39443e4d33a5a3c77c5fea6367c1485f9cac771e8b59ac28611aa5026629-0.json",
+        "capture_index": 0,
+        "sha256": "7339d13a9b32d061be981c6a82e3b5235e424f3503013499c7bdd54c9795b278",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "cb2b39443e4d33a5a3c77c5fea6367c1485f9cac771e8b59ac28611aa5026629-1.json",
+        "capture_index": 1,
+        "sha256": "2258cd54eb2b71b43eea3d6152ccc295f50c39a14b3bf4a07d17c0670f7b0513",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2015/esnext/define/outer-this-computed-name": [
+      {
+        "file": "cd128830144e25f60bf36dfd72a0362417dfaa56ec86a0b58844f7f87e96f4c9-0.json",
+        "capture_index": 0,
+        "sha256": "2915c55938d259621b45505d845f88359dbd480a97d9f0b22e4ab2400cd19f4c",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "cd128830144e25f60bf36dfd72a0362417dfaa56ec86a0b58844f7f87e96f4c9-1.json",
+        "capture_index": 1,
+        "sha256": "e3060dcb60c3064949cd5b19d9362ad25d4b93c78855424edcf3daae186951ac",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2022/esnext/set/outer-this-static-block": [
+      {
+        "file": "ce7f707419af9b3deee68553fece4c51bd7638c63c671d10db6ce68e795f5448-0.json",
+        "capture_index": 0,
+        "sha256": "773654aea53fce3a80c293408c253e19ba10b234f8a7e8035605a030616007a6",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "ce7f707419af9b3deee68553fece4c51bd7638c63c671d10db6ce68e795f5448-1.json",
+        "capture_index": 1,
+        "sha256": "7150887af00da4f38a05b996283ab05b7f7759db4bf3e1fbb594722293931a21",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2015/esnext/define/decorated-class-expression-positions": [
+      {
+        "file": "ced3d3f0abfa32f54ae33fc08924dd9f60a09333304a5b671049c392ef4712e3-0.json",
+        "capture_index": 0,
+        "sha256": "78ebf7c74e4302b706cb64e325ed6c37b219d220ba461820ddc807bbc59ccff3",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "ced3d3f0abfa32f54ae33fc08924dd9f60a09333304a5b671049c392ef4712e3-1.json",
+        "capture_index": 1,
+        "sha256": "6e90066f9e12dd6079ba62b37e24571811a7308c2dc5bf8f16f2bbe7142ac475",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/esnext/esnext/define/two-phase-constructor": [
+      {
+        "file": "cfcd93043c4e0062349c3058dc7da6507ff89e2834d589cee1a124c11709c6f6-0.json",
+        "capture_index": 0,
+        "sha256": "899b58eea71863b7793f05a740904b6735c384e8495d1b13a268853f177b6cb7",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "cfcd93043c4e0062349c3058dc7da6507ff89e2834d589cee1a124c11709c6f6-1.json",
+        "capture_index": 1,
+        "sha256": "3245e63440fbce7eb0b316c64fb400f0c15f56b8e196c370e84f1d1ea50f9ac5",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-name-owners/es2015/esnext/set/cross-file-global-names": [
+      {
+        "file": "d0c6e591b059eae5835ac9ca79d3b576d732cf263c7057da1466c18939300e1a-0.json",
+        "capture_index": 0,
+        "sha256": "24d2125f8ef09041dc0495f4589c82e892760606acf9ffd5b764b89f3c3fe300",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "d0c6e591b059eae5835ac9ca79d3b576d732cf263c7057da1466c18939300e1a-1.json",
+        "capture_index": 1,
+        "sha256": "71828bbd7081df75deef0ee838b581a5e1f0da26b8370d246413c7f4e0299953",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/esnext/esnext/define/nested-class-in-computed-name": [
+      {
+        "file": "d5d23b2485a5061e013fc9c3c5a6451c4d44346a3711128ada0cb6d838198391-0.json",
+        "capture_index": 0,
+        "sha256": "cc20c1c3a9660b38d6dd296707404bb65e34cbce97bc446b5766aa14c12fb254",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "d5d23b2485a5061e013fc9c3c5a6451c4d44346a3711128ada0cb6d838198391-1.json",
+        "capture_index": 1,
+        "sha256": "c696ad23bcd7480cd54549fe5cabc15e974610a8bcddfec6395d209464a940bf",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/esnext/esnext/define/decorated-class-expression-positions": [
+      {
+        "file": "d5db4cd50611b17e8fc9c9e80bacf7f5771042718ae94eff581235ab4dde8669-0.json",
+        "capture_index": 0,
+        "sha256": "f4c552f29cd8bc16a77786af7b2f3dbb83368225f14ee38c12b2a05523d5d11a",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "d5db4cd50611b17e8fc9c9e80bacf7f5771042718ae94eff581235ab4dde8669-1.json",
+        "capture_index": 1,
+        "sha256": "fc9951b7c175c53e4c24ccf482a15c3bc398daddacdcaa5b3fa48e4843b907b9",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2015/esnext/set/two-phase-constructor": [
+      {
+        "file": "d850f5f50af53f9a5b2c7c02767d548e5154810e8f9962b414ae8c37fdb96c96-0.json",
+        "capture_index": 0,
+        "sha256": "517c0387115c585f90f78f7ca1ba3c44ee3a63fbe1e5522f663162636eb68c59",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "d850f5f50af53f9a5b2c7c02767d548e5154810e8f9962b414ae8c37fdb96c96-1.json",
+        "capture_index": 1,
+        "sha256": "19932248e5d07bc41fe6fe91c9b22b7b82fe645337bdaddde3adca3e30a5d4be",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/es2015/esnext/set/super-member-decorated-only": [
+      {
+        "file": "d92b7c3178e5eb13f68006ffbf357f172bb6ffcbcb2ff9321d7fe74fb888fc2b-0.json",
+        "capture_index": 0,
+        "sha256": "11160a58feb2cf4e64c8a25b7092dc7da1af2e5458cb05799a86c0425dc2f39b",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "d92b7c3178e5eb13f68006ffbf357f172bb6ffcbcb2ff9321d7fe74fb888fc2b-1.json",
+        "capture_index": 1,
+        "sha256": "cb6caedcd8ed04483a0c9f0c50e3eb4c457c48c7dfbed5d06c22ec1972cffe22",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2015/esnext/set/outer-this-computed-name": [
+      {
+        "file": "dabb3f2cc80c20beb4a4287a3657a13bb4484f80e80410070a9f408ce705560e-0.json",
+        "capture_index": 0,
+        "sha256": "253d87502ee4e6a619cab4a202b5349602315b397f0114e2ee93f3872abe002c",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "dabb3f2cc80c20beb4a4287a3657a13bb4484f80e80410070a9f408ce705560e-1.json",
+        "capture_index": 1,
+        "sha256": "a9aa4cc21ecb183b89a495ef70fd1d0eac8d4b61ad258e30a731e8587a0c83c8",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2015/esnext/define/class-decorator-before-heritage": [
+      {
+        "file": "db06132bf1708809e8c0e63be46a2187d050911b5fd42d6346637bacfd84cfd6-0.json",
+        "capture_index": 0,
+        "sha256": "5b008f828736dba9ca070c23d34fe05006c6e5f635a15406d03c5cbd63f71745",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "db06132bf1708809e8c0e63be46a2187d050911b5fd42d6346637bacfd84cfd6-1.json",
+        "capture_index": 1,
+        "sha256": "9b4da3cae43f863121317abb3d710060aea45c8f18b9c1a2b1cca00cb0ff94bf",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/esnext/esnext/set/heritage-safe-extends": [
+      {
+        "file": "dc1c45b7a9bd1ae8d227ca80f132abcf8f335645ba324166da1468c1b8db3b04-0.json",
+        "capture_index": 0,
+        "sha256": "b35288ed8e355b7b01d022d3764fd1a02ad91117c05332745e22769fbfab3ea1",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "dc1c45b7a9bd1ae8d227ca80f132abcf8f335645ba324166da1468c1b8db3b04-1.json",
+        "capture_index": 1,
+        "sha256": "8e12bab2ea41078a9b427833359798f1eafb71a91704babd1e6571d88313dc61",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/esnext/esnext/define/decorated-computed-fields": [
+      {
+        "file": "e1acfff386c16360fa86270caf0d39da24d377bd82e41f46c8d6e1f64039d070-0.json",
+        "capture_index": 0,
+        "sha256": "84e9aa0731301c115bdfad2b906b96249efda9dc078f4e539bb1e87f6e76071b",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "e1acfff386c16360fa86270caf0d39da24d377bd82e41f46c8d6e1f64039d070-1.json",
+        "capture_index": 1,
+        "sha256": "c2b97ee061e19b6e61bd06c6dcfb94773d658768573262601ea3dda91d231790",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/es2022/esnext/set/super-assignment-used": [
+      {
+        "file": "e2a61718e04956fe1ea666f001f6d277585a31b9044d457840c94b2be815b02d-0.json",
+        "capture_index": 0,
+        "sha256": "e8ad7c73f93f6b8af808408d6a304e4d370296b2a8b818ed8deef4e0563cc998",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "e2a61718e04956fe1ea666f001f6d277585a31b9044d457840c94b2be815b02d-1.json",
+        "capture_index": 1,
+        "sha256": "78e81e7d85464dd567980db8f358a6424448906ba3f053147a740644f6b86f5c",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/esnext/esnext/set/super-assignment-used": [
+      {
+        "file": "e4037057947672fa0acf3e5b53713286a76c8dfad30f96a7127d82d74c3baf45-0.json",
+        "capture_index": 0,
+        "sha256": "f63bdd7af68033e13b318092c694b9587cfc167ef9f760444975a07dc1202638",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "e4037057947672fa0acf3e5b53713286a76c8dfad30f96a7127d82d74c3baf45-1.json",
+        "capture_index": 1,
+        "sha256": "442ae61628a53a95093e89017eddc4b33c7469d8b054740f6910235aae1ef005",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-name-owners/es2022/esnext/set/cross-file-global-names": [
+      {
+        "file": "ee05a25528725fa5fdae55f80190024986fe8d59bdcb6fbc0e03d90fe950381a-0.json",
+        "capture_index": 0,
+        "sha256": "d1bacf3a24e9f85cc123ec94973609d539b23c4c35bda36796f1b03531d3ad23",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "ee05a25528725fa5fdae55f80190024986fe8d59bdcb6fbc0e03d90fe950381a-1.json",
+        "capture_index": 1,
+        "sha256": "dec6870ee2fa74aed602482caa8e0746469ce710ef16c4313f8da3187ddda3cf",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2022/esnext/set/decorated-computed-fields": [
+      {
+        "file": "f211b086de1a69e1eed2df3d7787f31c7e42672d8552504b7b32b8f280d47e6b-0.json",
+        "capture_index": 0,
+        "sha256": "12212cf46a644f470c8b83b8dcc3f0fd2437fe44388309553362866310d92117",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "f211b086de1a69e1eed2df3d7787f31c7e42672d8552504b7b32b8f280d47e6b-1.json",
+        "capture_index": 1,
+        "sha256": "2d86d9a6e6e6aaa2eddcc3751b3c89ecf44e42eb70ac01892a476bbfd03228c8",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/esnext/esnext/define/super-destructuring": [
+      {
+        "file": "f2969d89749cc063e3bc7f05f218e6a34f2623de08bef614d064ef4554e7bc55-0.json",
+        "capture_index": 0,
+        "sha256": "4d2cd02a965b39449498e7dc36dd4cd6b38bdcb94663707c291c78dfb7038302",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "f2969d89749cc063e3bc7f05f218e6a34f2623de08bef614d064ef4554e7bc55-1.json",
+        "capture_index": 1,
+        "sha256": "1db02282a96789eb2c5f3c14668fdf2b7fb18047e5d10c07f49042f46c351abf",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2022/esnext/define/nested-class-in-computed-name": [
+      {
+        "file": "f2a21e7839ae65044817ae130436efb7f7764101ef27a8b318988763865cd559-0.json",
+        "capture_index": 0,
+        "sha256": "61b6d202e22329c4b1db588a54e2562876da2b92a857c5c96e8e14d981694ce5",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "f2a21e7839ae65044817ae130436efb7f7764101ef27a8b318988763865cd559-1.json",
+        "capture_index": 1,
+        "sha256": "bec5a9dcbe6ce0132062c657acfeeb98caa15c18865109fb6c72ccf5339f403b",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/esnext/esnext/define/super-member-decorated-only": [
+      {
+        "file": "f70569fd70a30c85d6818ca27f70b739b1331629ca7e239627d907be21882d22-0.json",
+        "capture_index": 0,
+        "sha256": "8521693af4f469878459ce6dd3a92395ff67780eded7471a33c8c1658c9b74c4",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "f70569fd70a30c85d6818ca27f70b739b1331629ca7e239627d907be21882d22-1.json",
+        "capture_index": 1,
+        "sha256": "0b1916780b1ed96585d2dd341f807a84586b9e7f47aed83fe63db703decf3213",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2022/esnext/define/outer-this-nested-numbering": [
+      {
+        "file": "f7db3288160d4d1174051e30306d5a0806bd799a47331d661cd887fcf9329036-0.json",
+        "capture_index": 0,
+        "sha256": "349eba0ac562767f75d7c94aa6f7d063d2e398cf65d5bf6d08257bce8e72e7a1",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "f7db3288160d4d1174051e30306d5a0806bd799a47331d661cd887fcf9329036-1.json",
+        "capture_index": 1,
+        "sha256": "6bf4b97157ef4d42a99a5906bf7d0bf183acdd7d5c6e5b05b0e0a082b28e6d4a",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-transform-order/es2022/esnext/set/decorated-class-expression-positions": [
+      {
+        "file": "f946b99c2e8ffb98f5734df2f86da5ee3262d728f71856c8911b8a55828ef2c0-0.json",
+        "capture_index": 0,
+        "sha256": "d8de7a71342d4ee812da3e082797821e911a898b5a0a6c27a409dd460e78f433",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "f946b99c2e8ffb98f5734df2f86da5ee3262d728f71856c8911b8a55828ef2c0-1.json",
+        "capture_index": 1,
+        "sha256": "c74364dc60a51d5089856be4b1b8814f9162580f4ff47089de486efc8cab26ba",
+        "exact": true,
+        "error": null
+      }
+    ],
+    "decorator-super-paths/es2022/esnext/define/super-assignment-used": [
+      {
+        "file": "f984f106a6ae7c7d4dd4f39d48c355ef6a3cc51186f89049535db12c08df107a-0.json",
+        "capture_index": 0,
+        "sha256": "04a02d932f9d1690265205eebf24156dd60d58f45c83cf3718af26ff473fc8eb",
+        "exact": true,
+        "error": null
+      },
+      {
+        "file": "f984f106a6ae7c7d4dd4f39d48c355ef6a3cc51186f89049535db12c08df107a-1.json",
+        "capture_index": 1,
+        "sha256": "1018212bd41d386126fb6e8eb51ff168bf5aeed9e815cd7e88d5cd61ea3c4a1b",
+        "exact": true,
+        "error": null
+      }
+    ]
+  }
+}

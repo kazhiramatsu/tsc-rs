@@ -1,0 +1,767 @@
+{
+  "version": 1,
+  "base": "d12abe61cd90a45d45935bb057be65bf3dfd5abd",
+  "status": "first-after-eight-binding-name-map-regressions-not-complete",
+  "production_paths": [
+    "crates/checker/src/node_builder/statements.rs"
+  ],
+  "eligible_complete_commands": 213,
+  "exact_twice": 197,
+  "failed_once": 16,
+  "native_complete_command_executions": 410,
+  "supplemental_executions": 0,
+  "bands": [
+    {
+      "fixture": "defineproperty-setter-names",
+      "eligible": 88,
+      "exact_twice": [
+        "setter-names/es5/commonjs/descriptor-repeated-call-order",
+        "setter-names/es5/commonjs/descriptor-duplicate-member-order",
+        "setter-names/es5/commonjs/descriptor-variable-argument",
+        "setter-names/es5/commonjs/descriptor-call-argument",
+        "setter-names/es5/commonjs/descriptor-method",
+        "setter-names/es5/commonjs/descriptor-get-set",
+        "setter-names/es5/commonjs/descriptor-rest",
+        "setter-names/es5/commonjs/descriptor-noarg",
+        "setter-names/es5/commonjs/descriptor-function-property",
+        "setter-names/es5/commonjs/descriptor-arrow-property",
+        "setter-names/es5/commonjs/descriptor-identifier-property",
+        "setter-names/es5/commonjs/descriptor-union-property",
+        "setter-names/es5/commonjs/descriptor-static-method",
+        "setter-names/es5/commonjs/actual-js-setter",
+        "setter-names/es5/commonjs/actual-js-get-set",
+        "setter-names/es5/commonjs/actual-js-private-setter",
+        "setter-names/es5/commonjs/actual-ts-setter",
+        "setter-names/es5/commonjs/anonymous-ts-private-setter",
+        "setter-names/es5/esnext/descriptor-repeated-call-order",
+        "setter-names/es5/esnext/descriptor-duplicate-member-order",
+        "setter-names/es5/esnext/descriptor-variable-argument",
+        "setter-names/es5/esnext/descriptor-call-argument",
+        "setter-names/es5/esnext/descriptor-method",
+        "setter-names/es5/esnext/descriptor-get-set",
+        "setter-names/es5/esnext/descriptor-rest",
+        "setter-names/es5/esnext/descriptor-noarg",
+        "setter-names/es5/esnext/descriptor-function-property",
+        "setter-names/es5/esnext/descriptor-arrow-property",
+        "setter-names/es5/esnext/descriptor-identifier-property",
+        "setter-names/es5/esnext/descriptor-union-property",
+        "setter-names/es5/esnext/descriptor-static-method",
+        "setter-names/es5/esnext/actual-js-setter",
+        "setter-names/es5/esnext/actual-js-get-set",
+        "setter-names/es5/esnext/actual-js-private-setter",
+        "setter-names/es5/esnext/actual-ts-setter",
+        "setter-names/es5/esnext/anonymous-ts-private-setter",
+        "setter-names/es2015/commonjs/descriptor-repeated-call-order",
+        "setter-names/es2015/commonjs/descriptor-duplicate-member-order",
+        "setter-names/es2015/commonjs/descriptor-variable-argument",
+        "setter-names/es2015/commonjs/descriptor-call-argument",
+        "setter-names/es2015/commonjs/descriptor-method",
+        "setter-names/es2015/commonjs/descriptor-get-set",
+        "setter-names/es2015/commonjs/descriptor-rest",
+        "setter-names/es2015/commonjs/descriptor-noarg",
+        "setter-names/es2015/commonjs/descriptor-function-property",
+        "setter-names/es2015/commonjs/descriptor-arrow-property",
+        "setter-names/es2015/commonjs/descriptor-identifier-property",
+        "setter-names/es2015/commonjs/descriptor-union-property",
+        "setter-names/es2015/commonjs/descriptor-static-method",
+        "setter-names/es2015/commonjs/actual-js-setter",
+        "setter-names/es2015/commonjs/actual-js-get-set",
+        "setter-names/es2015/commonjs/actual-js-private-setter",
+        "setter-names/es2015/commonjs/actual-ts-setter",
+        "setter-names/es2015/commonjs/anonymous-ts-private-setter",
+        "setter-names/es2015/esnext/descriptor-repeated-call-order",
+        "setter-names/es2015/esnext/descriptor-duplicate-member-order",
+        "setter-names/es2015/esnext/descriptor-variable-argument",
+        "setter-names/es2015/esnext/descriptor-call-argument",
+        "setter-names/es2015/esnext/descriptor-method",
+        "setter-names/es2015/esnext/descriptor-get-set",
+        "setter-names/es2015/esnext/descriptor-rest",
+        "setter-names/es2015/esnext/descriptor-noarg",
+        "setter-names/es2015/esnext/descriptor-function-property",
+        "setter-names/es2015/esnext/descriptor-arrow-property",
+        "setter-names/es2015/esnext/descriptor-identifier-property",
+        "setter-names/es2015/esnext/descriptor-union-property",
+        "setter-names/es2015/esnext/descriptor-static-method",
+        "setter-names/es2015/esnext/actual-js-setter",
+        "setter-names/es2015/esnext/actual-js-get-set",
+        "setter-names/es2015/esnext/actual-js-private-setter",
+        "setter-names/es2015/esnext/actual-ts-setter",
+        "setter-names/es2015/esnext/anonymous-ts-private-setter"
+      ],
+      "failed_once": [
+        "setter-names/es5/commonjs/descriptor-object-binding",
+        "setter-names/es5/commonjs/descriptor-array-binding",
+        "setter-names/es5/commonjs/descriptor-quoted-method",
+        "setter-names/es5/commonjs/descriptor-computed-method",
+        "setter-names/es5/esnext/descriptor-object-binding",
+        "setter-names/es5/esnext/descriptor-array-binding",
+        "setter-names/es5/esnext/descriptor-quoted-method",
+        "setter-names/es5/esnext/descriptor-computed-method",
+        "setter-names/es2015/commonjs/descriptor-object-binding",
+        "setter-names/es2015/commonjs/descriptor-array-binding",
+        "setter-names/es2015/commonjs/descriptor-quoted-method",
+        "setter-names/es2015/commonjs/descriptor-computed-method",
+        "setter-names/es2015/esnext/descriptor-object-binding",
+        "setter-names/es2015/esnext/descriptor-array-binding",
+        "setter-names/es2015/esnext/descriptor-quoted-method",
+        "setter-names/es2015/esnext/descriptor-computed-method"
+      ]
+    },
+    {
+      "fixture": "defineproperty-setter-annotations",
+      "eligible": 20,
+      "exact_twice": [
+        "setter-annotations/es5/commonjs/multiline-private",
+        "setter-annotations/es5/commonjs/multiline-public",
+        "setter-annotations/es5/commonjs/multiline-descriptor",
+        "setter-annotations/es5/commonjs/ts-private",
+        "setter-annotations/es5/commonjs/js-private-alias",
+        "setter-annotations/es5/esnext/multiline-private",
+        "setter-annotations/es5/esnext/multiline-public",
+        "setter-annotations/es5/esnext/multiline-descriptor",
+        "setter-annotations/es5/esnext/ts-private",
+        "setter-annotations/es5/esnext/js-private-alias",
+        "setter-annotations/es2015/commonjs/multiline-private",
+        "setter-annotations/es2015/commonjs/multiline-public",
+        "setter-annotations/es2015/commonjs/multiline-descriptor",
+        "setter-annotations/es2015/commonjs/ts-private",
+        "setter-annotations/es2015/commonjs/js-private-alias",
+        "setter-annotations/es2015/esnext/multiline-private",
+        "setter-annotations/es2015/esnext/multiline-public",
+        "setter-annotations/es2015/esnext/multiline-descriptor",
+        "setter-annotations/es2015/esnext/ts-private",
+        "setter-annotations/es2015/esnext/js-private-alias"
+      ],
+      "failed_once": []
+    },
+    {
+      "fixture": "jsdoc-implements-serialization",
+      "eligible": 96,
+      "exact_twice": [
+        "jsdoc-implements/es5/script/no-implements",
+        "jsdoc-implements/es5/script/class",
+        "jsdoc-implements/es5/script/typedef",
+        "jsdoc-implements/es5/script/multiple",
+        "jsdoc-implements/es5/script/qualified",
+        "jsdoc-implements/es5/script/generic",
+        "jsdoc-implements/es5/script/parenthesized-generic",
+        "jsdoc-implements/es5/script/unknown",
+        "jsdoc-implements/es5/script/empty",
+        "jsdoc-implements/es5/script/partial-unknown",
+        "jsdoc-implements/es5/script/exports-entity",
+        "jsdoc-implements/es5/script/class-expression",
+        "jsdoc-implements/es5/commonjs/no-implements",
+        "jsdoc-implements/es5/commonjs/class",
+        "jsdoc-implements/es5/commonjs/typedef",
+        "jsdoc-implements/es5/commonjs/multiple",
+        "jsdoc-implements/es5/commonjs/qualified",
+        "jsdoc-implements/es5/commonjs/generic",
+        "jsdoc-implements/es5/commonjs/parenthesized-generic",
+        "jsdoc-implements/es5/commonjs/unknown",
+        "jsdoc-implements/es5/commonjs/empty",
+        "jsdoc-implements/es5/commonjs/partial-unknown",
+        "jsdoc-implements/es5/commonjs/exports-entity",
+        "jsdoc-implements/es5/commonjs/class-expression",
+        "jsdoc-implements/es5/esm/no-implements",
+        "jsdoc-implements/es5/esm/class",
+        "jsdoc-implements/es5/esm/typedef",
+        "jsdoc-implements/es5/esm/multiple",
+        "jsdoc-implements/es5/esm/qualified",
+        "jsdoc-implements/es5/esm/generic",
+        "jsdoc-implements/es5/esm/parenthesized-generic",
+        "jsdoc-implements/es5/esm/unknown",
+        "jsdoc-implements/es5/esm/empty",
+        "jsdoc-implements/es5/esm/partial-unknown",
+        "jsdoc-implements/es5/esm/exports-entity",
+        "jsdoc-implements/es5/esm/class-expression",
+        "jsdoc-implements/es2015/script/no-implements",
+        "jsdoc-implements/es2015/script/class",
+        "jsdoc-implements/es2015/script/typedef",
+        "jsdoc-implements/es2015/script/multiple",
+        "jsdoc-implements/es2015/script/qualified",
+        "jsdoc-implements/es2015/script/generic",
+        "jsdoc-implements/es2015/script/parenthesized-generic",
+        "jsdoc-implements/es2015/script/unknown",
+        "jsdoc-implements/es2015/script/empty",
+        "jsdoc-implements/es2015/script/partial-unknown",
+        "jsdoc-implements/es2015/script/exports-entity",
+        "jsdoc-implements/es2015/script/class-expression",
+        "jsdoc-implements/es2015/commonjs/no-implements",
+        "jsdoc-implements/es2015/commonjs/class",
+        "jsdoc-implements/es2015/commonjs/typedef",
+        "jsdoc-implements/es2015/commonjs/multiple",
+        "jsdoc-implements/es2015/commonjs/qualified",
+        "jsdoc-implements/es2015/commonjs/generic",
+        "jsdoc-implements/es2015/commonjs/parenthesized-generic",
+        "jsdoc-implements/es2015/commonjs/unknown",
+        "jsdoc-implements/es2015/commonjs/empty",
+        "jsdoc-implements/es2015/commonjs/partial-unknown",
+        "jsdoc-implements/es2015/commonjs/exports-entity",
+        "jsdoc-implements/es2015/commonjs/class-expression",
+        "jsdoc-implements/es2015/esm/no-implements",
+        "jsdoc-implements/es2015/esm/class",
+        "jsdoc-implements/es2015/esm/typedef",
+        "jsdoc-implements/es2015/esm/multiple",
+        "jsdoc-implements/es2015/esm/qualified",
+        "jsdoc-implements/es2015/esm/generic",
+        "jsdoc-implements/es2015/esm/parenthesized-generic",
+        "jsdoc-implements/es2015/esm/unknown",
+        "jsdoc-implements/es2015/esm/empty",
+        "jsdoc-implements/es2015/esm/partial-unknown",
+        "jsdoc-implements/es2015/esm/exports-entity",
+        "jsdoc-implements/es2015/esm/class-expression",
+        "jsdoc-implements/es5/script/typed-no-implements",
+        "jsdoc-implements/es5/script/typed-simple",
+        "jsdoc-implements/es5/script/typed-multiple",
+        "jsdoc-implements/es5/script/typed-class-expression",
+        "jsdoc-implements/es5/esm/typed-no-implements",
+        "jsdoc-implements/es5/esm/typed-simple",
+        "jsdoc-implements/es5/esm/typed-multiple",
+        "jsdoc-implements/es5/esm/typed-class-expression",
+        "jsdoc-implements/es2015/script/typed-no-implements",
+        "jsdoc-implements/es2015/script/typed-simple",
+        "jsdoc-implements/es2015/script/typed-multiple",
+        "jsdoc-implements/es2015/script/typed-class-expression",
+        "jsdoc-implements/es2015/esm/typed-no-implements",
+        "jsdoc-implements/es2015/esm/typed-simple",
+        "jsdoc-implements/es2015/esm/typed-multiple",
+        "jsdoc-implements/es2015/esm/typed-class-expression",
+        "jsdoc-implements/es5/commonjs/imported-simple",
+        "jsdoc-implements/es5/commonjs/imported-generic",
+        "jsdoc-implements/es5/esm/imported-simple",
+        "jsdoc-implements/es5/esm/imported-generic",
+        "jsdoc-implements/es2015/commonjs/imported-simple",
+        "jsdoc-implements/es2015/commonjs/imported-generic",
+        "jsdoc-implements/es2015/esm/imported-simple",
+        "jsdoc-implements/es2015/esm/imported-generic"
+      ],
+      "failed_once": []
+    }
+  ],
+  "original_exact_twice": [
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsGetterSetter.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassImplementsGenericsSerialization.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassImplementsGenericsSerialization.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/jsdocImplements_class.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/jsdocImplements_interface.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/jsdocImplements_interface_multiple.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/jsdocImplements_namespacedInterface.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/jsdocImplements_properties.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/jsdocImplements_signatures.ts#default"
+  ],
+  "first_failure_comparisons": [
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-object-binding",
+      "boundary": "exact source-map result",
+      "actual_sha256": "1d48c088c0561635e48098dd072608f0c60f28c07e07345412c53733c850713b",
+      "expected_sha256": "eccc19e375a75ad400ef5ecb87885a173bb24138c27675bc367ae92b4c4ef980",
+      "status": "owned-binding-name-map-regression",
+      "actual_declaration_map": {
+        "version": 3,
+        "file": "main.d.ts",
+        "sourceRoot": "",
+        "sources": [
+          "../main.js"
+        ],
+        "names": [],
+        "mappings": "AAGA,mBAAoB,CAAC,CAAC;AAHtB;UACgD,EAAE,KAAK,EAAE;CAD7C"
+      },
+      "expected_declaration_map": {
+        "version": 3,
+        "file": "main.d.ts",
+        "sourceRoot": "",
+        "sources": [
+          "../main.js"
+        ],
+        "names": [],
+        "mappings": "AAGA,mBAAoB,CAAC,CAAC;AAHtB;;CAAY"
+      },
+      "differing_map_keys": [
+        "mappings"
+      ],
+      "javascript_map_exact": true,
+      "later_complete_fields": "not-qualified-after-first-map-boundary"
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-array-binding",
+      "boundary": "exact source-map result",
+      "actual_sha256": "c13ffce56a7ee224eb14ad334b2f14f3e3f417f3cafcf43f2d969cd29c90e814",
+      "expected_sha256": "2b353fd3332308e5d7594e72a492f0c399bccb1d2369a80b25ad5fdae11e467b",
+      "status": "owned-binding-name-map-regression",
+      "actual_declaration_map": {
+        "version": 3,
+        "file": "main.d.ts",
+        "sourceRoot": "",
+        "sources": [
+          "../main.js"
+        ],
+        "names": [],
+        "mappings": "AAGA,mBAAoB,CAAC,CAAC;AAHtB;UACgD,CAAC,KAAK,CAAC;CAD3C"
+      },
+      "expected_declaration_map": {
+        "version": 3,
+        "file": "main.d.ts",
+        "sourceRoot": "",
+        "sources": [
+          "../main.js"
+        ],
+        "names": [],
+        "mappings": "AAGA,mBAAoB,CAAC,CAAC;AAHtB;;CAAY"
+      },
+      "differing_map_keys": [
+        "mappings"
+      ],
+      "javascript_map_exact": true,
+      "later_complete_fields": "not-qualified-after-first-map-boundary"
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-quoted-method",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "45086f44eaef154e272def4052b9aa8b7935069f2867469933172316cf54994c",
+      "expected_sha256": "0bf23c917fbf114741051415dc35d51903e210806ffac5c8f375ca3652df1943",
+      "status": "outside-descriptor-readonly-unchanged"
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-computed-method",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "45086f44eaef154e272def4052b9aa8b7935069f2867469933172316cf54994c",
+      "expected_sha256": "0bf23c917fbf114741051415dc35d51903e210806ffac5c8f375ca3652df1943",
+      "status": "outside-descriptor-readonly-unchanged"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-object-binding",
+      "boundary": "exact source-map result",
+      "actual_sha256": "649f77274a31a1da7c66ee8fda5eadceb7b6ba24d80899f36a98734cdef052be",
+      "expected_sha256": "0979a0d4984bf9678a4f975a8fc676ce5dd8e6952a1e7a161573c02b5fe1a4b0",
+      "status": "owned-binding-name-map-regression",
+      "actual_declaration_map": {
+        "version": 3,
+        "file": "main.d.ts",
+        "sourceRoot": "",
+        "sources": [
+          "../main.js"
+        ],
+        "names": [],
+        "mappings": "AAGA,mBAAoB,CAAC,CAAC;AAHtB;UACgD,EAAE,KAAK,EAAE;CAD7C"
+      },
+      "expected_declaration_map": {
+        "version": 3,
+        "file": "main.d.ts",
+        "sourceRoot": "",
+        "sources": [
+          "../main.js"
+        ],
+        "names": [],
+        "mappings": "AAGA,mBAAoB,CAAC,CAAC;AAHtB;;CAAY"
+      },
+      "differing_map_keys": [
+        "mappings"
+      ],
+      "javascript_map_exact": true,
+      "later_complete_fields": "not-qualified-after-first-map-boundary"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-array-binding",
+      "boundary": "exact source-map result",
+      "actual_sha256": "f3dffcd9b93291f50ce00f82e1d91b28fea47efce1b3bd929e4c7c8b2adad024",
+      "expected_sha256": "94d553a89afb621678cbc1ee200416dc95ee4c4641b2f8022d0f8c66239a0cbe",
+      "status": "owned-binding-name-map-regression",
+      "actual_declaration_map": {
+        "version": 3,
+        "file": "main.d.ts",
+        "sourceRoot": "",
+        "sources": [
+          "../main.js"
+        ],
+        "names": [],
+        "mappings": "AAGA,mBAAoB,CAAC,CAAC;AAHtB;UACgD,CAAC,KAAK,CAAC;CAD3C"
+      },
+      "expected_declaration_map": {
+        "version": 3,
+        "file": "main.d.ts",
+        "sourceRoot": "",
+        "sources": [
+          "../main.js"
+        ],
+        "names": [],
+        "mappings": "AAGA,mBAAoB,CAAC,CAAC;AAHtB;;CAAY"
+      },
+      "differing_map_keys": [
+        "mappings"
+      ],
+      "javascript_map_exact": true,
+      "later_complete_fields": "not-qualified-after-first-map-boundary"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-quoted-method",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "45086f44eaef154e272def4052b9aa8b7935069f2867469933172316cf54994c",
+      "expected_sha256": "0bf23c917fbf114741051415dc35d51903e210806ffac5c8f375ca3652df1943",
+      "status": "outside-descriptor-readonly-unchanged"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-computed-method",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "45086f44eaef154e272def4052b9aa8b7935069f2867469933172316cf54994c",
+      "expected_sha256": "0bf23c917fbf114741051415dc35d51903e210806ffac5c8f375ca3652df1943",
+      "status": "outside-descriptor-readonly-unchanged"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-object-binding",
+      "boundary": "exact source-map result",
+      "actual_sha256": "18f209ca3cbeb451be5cf6504aa993c5bf4bfeb7470ac3c872d1ce4a94da2aa0",
+      "expected_sha256": "2f6843a65f667735335683021b302128c8a3119f919e89e235865e2a6da79b90",
+      "status": "owned-binding-name-map-regression",
+      "actual_declaration_map": {
+        "version": 3,
+        "file": "main.d.ts",
+        "sourceRoot": "",
+        "sources": [
+          "../main.js"
+        ],
+        "names": [],
+        "mappings": "AAGA,mBAAoB,CAAC,CAAC;AAHtB;UACgD,EAAE,KAAK,EAAE;CAD7C"
+      },
+      "expected_declaration_map": {
+        "version": 3,
+        "file": "main.d.ts",
+        "sourceRoot": "",
+        "sources": [
+          "../main.js"
+        ],
+        "names": [],
+        "mappings": "AAGA,mBAAoB,CAAC,CAAC;AAHtB;;CAAY"
+      },
+      "differing_map_keys": [
+        "mappings"
+      ],
+      "javascript_map_exact": true,
+      "later_complete_fields": "not-qualified-after-first-map-boundary"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-array-binding",
+      "boundary": "exact source-map result",
+      "actual_sha256": "3c5572673fc189e4959cf8cedab3b65b19c64f484697c00c2449914571d7ace0",
+      "expected_sha256": "1050ac87ef9cd58f2d3769ba074b963f7c35dac6de29cb1733e9448fd803ce2f",
+      "status": "owned-binding-name-map-regression",
+      "actual_declaration_map": {
+        "version": 3,
+        "file": "main.d.ts",
+        "sourceRoot": "",
+        "sources": [
+          "../main.js"
+        ],
+        "names": [],
+        "mappings": "AAGA,mBAAoB,CAAC,CAAC;AAHtB;UACgD,CAAC,KAAK,CAAC;CAD3C"
+      },
+      "expected_declaration_map": {
+        "version": 3,
+        "file": "main.d.ts",
+        "sourceRoot": "",
+        "sources": [
+          "../main.js"
+        ],
+        "names": [],
+        "mappings": "AAGA,mBAAoB,CAAC,CAAC;AAHtB;;CAAY"
+      },
+      "differing_map_keys": [
+        "mappings"
+      ],
+      "javascript_map_exact": true,
+      "later_complete_fields": "not-qualified-after-first-map-boundary"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-quoted-method",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "45086f44eaef154e272def4052b9aa8b7935069f2867469933172316cf54994c",
+      "expected_sha256": "0bf23c917fbf114741051415dc35d51903e210806ffac5c8f375ca3652df1943",
+      "status": "outside-descriptor-readonly-unchanged"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-computed-method",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "45086f44eaef154e272def4052b9aa8b7935069f2867469933172316cf54994c",
+      "expected_sha256": "0bf23c917fbf114741051415dc35d51903e210806ffac5c8f375ca3652df1943",
+      "status": "outside-descriptor-readonly-unchanged"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-object-binding",
+      "boundary": "exact source-map result",
+      "actual_sha256": "77fe1d838b1a980ccd6c5092549367c35344fe95bd2dd4dbbcf9310bb87fde15",
+      "expected_sha256": "e4092ca11b91d12800a0eaee8586e3899aacdfa9e8cdf5aa8c57bc71c0c51cb8",
+      "status": "owned-binding-name-map-regression",
+      "actual_declaration_map": {
+        "version": 3,
+        "file": "main.d.ts",
+        "sourceRoot": "",
+        "sources": [
+          "../main.js"
+        ],
+        "names": [],
+        "mappings": "AAGA,mBAAoB,CAAC,CAAC;AAHtB;UACgD,EAAE,KAAK,EAAE;CAD7C"
+      },
+      "expected_declaration_map": {
+        "version": 3,
+        "file": "main.d.ts",
+        "sourceRoot": "",
+        "sources": [
+          "../main.js"
+        ],
+        "names": [],
+        "mappings": "AAGA,mBAAoB,CAAC,CAAC;AAHtB;;CAAY"
+      },
+      "differing_map_keys": [
+        "mappings"
+      ],
+      "javascript_map_exact": true,
+      "later_complete_fields": "not-qualified-after-first-map-boundary"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-array-binding",
+      "boundary": "exact source-map result",
+      "actual_sha256": "9f3bc3e95699fb661fec0970d54765b60a603627d77b650d915724950885fb9b",
+      "expected_sha256": "ff08c0dfecdc8f511ca8ea7a44763bb0047826c7121bb9d3f39883542f62c7fa",
+      "status": "owned-binding-name-map-regression",
+      "actual_declaration_map": {
+        "version": 3,
+        "file": "main.d.ts",
+        "sourceRoot": "",
+        "sources": [
+          "../main.js"
+        ],
+        "names": [],
+        "mappings": "AAGA,mBAAoB,CAAC,CAAC;AAHtB;UACgD,CAAC,KAAK,CAAC;CAD3C"
+      },
+      "expected_declaration_map": {
+        "version": 3,
+        "file": "main.d.ts",
+        "sourceRoot": "",
+        "sources": [
+          "../main.js"
+        ],
+        "names": [],
+        "mappings": "AAGA,mBAAoB,CAAC,CAAC;AAHtB;;CAAY"
+      },
+      "differing_map_keys": [
+        "mappings"
+      ],
+      "javascript_map_exact": true,
+      "later_complete_fields": "not-qualified-after-first-map-boundary"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-quoted-method",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "45086f44eaef154e272def4052b9aa8b7935069f2867469933172316cf54994c",
+      "expected_sha256": "0bf23c917fbf114741051415dc35d51903e210806ffac5c8f375ca3652df1943",
+      "status": "outside-descriptor-readonly-unchanged"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-computed-method",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "45086f44eaef154e272def4052b9aa8b7935069f2867469933172316cf54994c",
+      "expected_sha256": "0bf23c917fbf114741051415dc35d51903e210806ffac5c8f375ca3652df1943",
+      "status": "outside-descriptor-readonly-unchanged"
+    }
+  ],
+  "checker_tests": {
+    "passed": 62,
+    "failed": 0
+  },
+  "adjacent_declaration_blocking": {
+    "cases": 22,
+    "native_emit_executions": 44,
+    "command_reporting": false,
+    "passed": true
+  },
+  "seconds": [
+    0.04,
+    0.0,
+    305.12,
+    60.6
+  ],
+  "exit_code": 101,
+  "source_followup": "parameterToParameterDeclarationName shared binding-name clone preserves unwanted parse ranges; qualify/amend this prerequisite before editing it",
+  "working_files": [
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "1f5025d1d60c9c87d0e2e8bfba0f4b614da4b245c696c2f9cb80e11c2ec3bbfb"
+    },
+    {
+      "path": "crates/checker/tests/unit/node_builder_chains/tests.rs",
+      "sha256": "bc775dc84b2c02d0ead3910db01dd2ae20d149836055153d05c1b47ccf5cddef"
+    },
+    {
+      "path": "crates/checker/tests/unit/node_builder_core/tests.rs",
+      "sha256": "5eb77e1900be9862ff0800f22a913f5a0d3a1d0cd015bc713c655cd7f8b44fbb"
+    },
+    {
+      "path": "crates/checker/tests/unit/node_builder_serialize/tests.rs",
+      "sha256": "fe39246701879a319517c38888cb1f6d096bbeeec81057df5ff2cabb4e047d99"
+    },
+    {
+      "path": "crates/checker/tests/unit/node_builder_signatures/tests.rs",
+      "sha256": "958e613b82db066bc926217704d1c338fb442d82e20b70070584917dfb842983"
+    },
+    {
+      "path": "crates/checker/tests/unit/node_builder_specifier/tests.rs",
+      "sha256": "fa63317df3ef12a172df84f2862e7711f76c31435fae31d03fe9057d664b40db"
+    },
+    {
+      "path": "crates/checker/tests/unit/node_builder_statements/tests.rs",
+      "sha256": "30e8bf2197aa9d7db335d8148bc7c0ee20c63ff04256003bba02686c3c5ff4cb"
+    },
+    {
+      "path": "crates/checker/tests/unit/node_builder_type_nodes/tests.rs",
+      "sha256": "949cc27520efb352936e70b8ffce7c0b4cb99689f2b608823b3f3dfb4706bf92"
+    },
+    {
+      "path": "crates/checker/tests/unit/syntactic_type_node_builder/tests.rs",
+      "sha256": "2eca77d2f37b4dce2e6216b74acff0bdd0ccc2f7b24936b33b2fcdbbebad0278"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "ff3f3e7bc1f72c3834a2edb3ff2400f1ffbcf1e9bba8ba5ecb749095263aac5d"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/declaration-blocking.json",
+      "sha256": "39cb808ed67ed7dc930ccd4721e43227ce147cc82e188dc9d22a09815f409ab8"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/defineproperty-setter-annotations.json",
+      "sha256": "e6722af3eec06a7b3b352f03a3f9ccc27a39773860cba1ec216493260cd7d06f"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/defineproperty-setter-names.json",
+      "sha256": "17f4edf8d471fa96b09834c488ba0e2fb5de0c268360cc67060091646e1ed57f"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/jsdoc-implements-serialization.json",
+      "sha256": "46f1ad3ebb5480c9d697fca9c6adf3c95dd3fed2f60e8f37210dd1e1733cc057"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/setter-symbol-invariant.json",
+      "sha256": "db61e9adcdec9ba0f7840629d2a927e9eebed919057fc8074ea25c0acd1ed9e1"
+    },
+    {
+      "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
+      "sha256": "896edb222e0541d4705ce8938dad1f73e5c8b52778be47e836fa4bdbbfde0f35"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+      "sha256": "7b14d30e473948b7a7878c20ed9feb528a629f8d26db042306ba6574a6edde81"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "54d5849d2db6baf84152e6505add6e01906e6740cb21285f8b62631e538599ad"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+      "sha256": "90aff72e27fac502da3ff3f06980c55c4923e35554c3e64800a60213cb1b04ba"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_defineproperty_setter_annotations.rs",
+      "sha256": "c4df90b76ab5cdc4447811923f7d483133a805fa558aa2c61d8a2c90a93f92e2"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_defineproperty_setter_names.rs",
+      "sha256": "1a7b8532d00a898d5d0fb3d07576924da98fd7f52d50fac14a45680fb67944ed"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_jsdoc_implements_serialization.rs",
+      "sha256": "2c035245d37a82d01b4e3ff15f0f5a05740b11d7b256be02a95c7d1fdd0a24eb"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    },
+    {
+      "path": "docs/design/greenfield/post-h1-completion-slices.md",
+      "sha256": "df4e630f4fe348119e43714261d1193a880453fa6847b42c7bf52d086bd840fb"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-defineproperty-setter-names.md",
+      "sha256": "1c73bb9c4b9d2a879e41b95c8ed7b154d329afccf97be92ecc2f6eda8a5f6c9b"
+    },
+    {
+      "path": "ratchets/h2-8a-candidate-inputs.v1.json",
+      "sha256": "6ff7ea8d1d986e8a9d833d45ec694ab0b8616604fdf065ba52e24a34ac86759b"
+    },
+    {
+      "path": "ratchets/h2-8a-candidates.v1.json",
+      "sha256": "e33fbf9b6c7eb96dae5186013e054e57eae371a48fca461a809ae4e6e2a1095c"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-setter-annotations-before.v1.json",
+      "sha256": "7b76e601fb8f815aee83ffe5066a967af5ca3eafc0a715aec074a4cc3fcdd5e3"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-setter-names-before.v1.json",
+      "sha256": "7c9045c6d1e72995845605e60f7686b7ea0a3a3cde36587ac2e128e1074d16b8"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-setter-names-native-before.v1.json",
+      "sha256": "ef4ecb28cc6db746bfa38fc780a2c049e5431ac7b7b75d4757d0660542611534"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-setter-names-native-first-before.v1.json",
+      "sha256": "e147a3a68e38944c9b1a1a0a9280aa2455c94c27a7eeafed3f42ad23500e685b"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-setter-names-readiness.v1.json",
+      "sha256": "9b828770f346b0640cfd07c27bab5d0d8610a1b81de89c010f4d2c6d82fa4c55"
+    },
+    {
+      "path": "ratchets/h2-8a-observations.v1.json",
+      "sha256": "91fc28206d663eab46fef98f72ba296d29e02def72518e012616c4d0d01acc87"
+    },
+    {
+      "path": "scripts/check-defineproperty-setter-names-readiness.py",
+      "sha256": "64868131caf0d2e421e439c5233741a0cb969ffdb87a74674c3b7456fbce7e37"
+    },
+    {
+      "path": "scripts/observe-defineproperty-setter-annotations.mjs",
+      "sha256": "5b26985ce7406353b6d4bfe3c4c92c2bb6cb31860042fae54766a56aa64bddbc"
+    },
+    {
+      "path": "scripts/observe-defineproperty-setter-names.mjs",
+      "sha256": "52643cdaff5ff137f742d3e6774baf89b51721d65b9e8b1fe918dc888b7ece50"
+    },
+    {
+      "path": "scripts/observe-setter-symbol-invariant.mjs",
+      "sha256": "542af1c6138730dbcf89389a555e522068efb2cacecea06c539be208e83283ad"
+    },
+    {
+      "path": "target/freeze-defineproperty-setter-names-first-after.py",
+      "sha256": "b41a4bb30ddd085d30fef7943490b09dd85294f57f008cf2987f85f9a6e12014"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-after-exit.json",
+      "sha256": "fd98f260d55114644af1c9aec1fc379dee121618ce1d8f4b2aef3effd0491a7f"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-after-prelaunch.json",
+      "sha256": "48c45372adf4d8d165322003caf4b414bbd7aea6901c6d746f674ab0fb8dbc13"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-after.log",
+      "sha256": "798afe8c6c6daa39a735958c7af95c9f54e45b55af4b0bc5a8d5c0661be64469"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-fmt-after.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/implement-defineproperty-setter-names.py",
+      "sha256": "a9a661dbf335e35c72fef22b7ab74db23037fa02476524696fa32a44676e3d33"
+    },
+    {
+      "path": "target/prepare-defineproperty-setter-names-after.py",
+      "sha256": "c04f25b20a266552e4c208b0a80c0126c68beced19c8f968c283ae8f34c8b415"
+    },
+    {
+      "path": "target/run-module-transformer-selection-job.py",
+      "sha256": "11551f38fe41fed5f993f671e02e6c7cc695eaa6395bba0fc0537ebd8841af8c"
+    }
+  ],
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-setter-names-first-after-3htn2k_k"
+}

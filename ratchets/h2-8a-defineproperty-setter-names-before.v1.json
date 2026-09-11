@@ -1,0 +1,2866 @@
+{
+  "version": 1,
+  "status": "complete-main-88-before-annotation-supplement-still-required",
+  "base": "d12abe61cd90a45d45935bb057be65bf3dfd5abd",
+  "eligible": 88,
+  "exact_twice": [
+    "setter-names/es5/commonjs/descriptor-duplicate-member-order",
+    "setter-names/es5/commonjs/descriptor-variable-argument",
+    "setter-names/es5/commonjs/descriptor-call-argument",
+    "setter-names/es5/commonjs/descriptor-noarg",
+    "setter-names/es5/commonjs/descriptor-function-property",
+    "setter-names/es5/commonjs/descriptor-arrow-property",
+    "setter-names/es5/commonjs/descriptor-identifier-property",
+    "setter-names/es5/commonjs/descriptor-union-property",
+    "setter-names/es5/commonjs/descriptor-static-method",
+    "setter-names/es5/commonjs/actual-js-setter",
+    "setter-names/es5/commonjs/actual-js-get-set",
+    "setter-names/es5/commonjs/actual-js-private-setter",
+    "setter-names/es5/commonjs/actual-ts-setter",
+    "setter-names/es5/commonjs/anonymous-ts-private-setter",
+    "setter-names/es5/esnext/descriptor-duplicate-member-order",
+    "setter-names/es5/esnext/descriptor-variable-argument",
+    "setter-names/es5/esnext/descriptor-call-argument",
+    "setter-names/es5/esnext/descriptor-noarg",
+    "setter-names/es5/esnext/descriptor-function-property",
+    "setter-names/es5/esnext/descriptor-arrow-property",
+    "setter-names/es5/esnext/descriptor-identifier-property",
+    "setter-names/es5/esnext/descriptor-union-property",
+    "setter-names/es5/esnext/descriptor-static-method",
+    "setter-names/es5/esnext/actual-js-setter",
+    "setter-names/es5/esnext/actual-js-get-set",
+    "setter-names/es5/esnext/actual-js-private-setter",
+    "setter-names/es5/esnext/actual-ts-setter",
+    "setter-names/es5/esnext/anonymous-ts-private-setter",
+    "setter-names/es2015/commonjs/descriptor-duplicate-member-order",
+    "setter-names/es2015/commonjs/descriptor-variable-argument",
+    "setter-names/es2015/commonjs/descriptor-call-argument",
+    "setter-names/es2015/commonjs/descriptor-noarg",
+    "setter-names/es2015/commonjs/descriptor-function-property",
+    "setter-names/es2015/commonjs/descriptor-arrow-property",
+    "setter-names/es2015/commonjs/descriptor-identifier-property",
+    "setter-names/es2015/commonjs/descriptor-union-property",
+    "setter-names/es2015/commonjs/descriptor-static-method",
+    "setter-names/es2015/commonjs/actual-js-setter",
+    "setter-names/es2015/commonjs/actual-js-get-set",
+    "setter-names/es2015/commonjs/actual-js-private-setter",
+    "setter-names/es2015/commonjs/actual-ts-setter",
+    "setter-names/es2015/commonjs/anonymous-ts-private-setter",
+    "setter-names/es2015/esnext/descriptor-duplicate-member-order",
+    "setter-names/es2015/esnext/descriptor-variable-argument",
+    "setter-names/es2015/esnext/descriptor-call-argument",
+    "setter-names/es2015/esnext/descriptor-noarg",
+    "setter-names/es2015/esnext/descriptor-function-property",
+    "setter-names/es2015/esnext/descriptor-arrow-property",
+    "setter-names/es2015/esnext/descriptor-identifier-property",
+    "setter-names/es2015/esnext/descriptor-union-property",
+    "setter-names/es2015/esnext/descriptor-static-method",
+    "setter-names/es2015/esnext/actual-js-setter",
+    "setter-names/es2015/esnext/actual-js-get-set",
+    "setter-names/es2015/esnext/actual-js-private-setter",
+    "setter-names/es2015/esnext/actual-ts-setter",
+    "setter-names/es2015/esnext/anonymous-ts-private-setter"
+  ],
+  "failed_twice": [
+    "setter-names/es5/commonjs/descriptor-repeated-call-order",
+    "setter-names/es5/commonjs/descriptor-method",
+    "setter-names/es5/commonjs/descriptor-get-set",
+    "setter-names/es5/commonjs/descriptor-rest",
+    "setter-names/es5/commonjs/descriptor-object-binding",
+    "setter-names/es5/commonjs/descriptor-array-binding",
+    "setter-names/es5/commonjs/descriptor-quoted-method",
+    "setter-names/es5/commonjs/descriptor-computed-method",
+    "setter-names/es5/esnext/descriptor-repeated-call-order",
+    "setter-names/es5/esnext/descriptor-method",
+    "setter-names/es5/esnext/descriptor-get-set",
+    "setter-names/es5/esnext/descriptor-rest",
+    "setter-names/es5/esnext/descriptor-object-binding",
+    "setter-names/es5/esnext/descriptor-array-binding",
+    "setter-names/es5/esnext/descriptor-quoted-method",
+    "setter-names/es5/esnext/descriptor-computed-method",
+    "setter-names/es2015/commonjs/descriptor-repeated-call-order",
+    "setter-names/es2015/commonjs/descriptor-method",
+    "setter-names/es2015/commonjs/descriptor-get-set",
+    "setter-names/es2015/commonjs/descriptor-rest",
+    "setter-names/es2015/commonjs/descriptor-object-binding",
+    "setter-names/es2015/commonjs/descriptor-array-binding",
+    "setter-names/es2015/commonjs/descriptor-quoted-method",
+    "setter-names/es2015/commonjs/descriptor-computed-method",
+    "setter-names/es2015/esnext/descriptor-repeated-call-order",
+    "setter-names/es2015/esnext/descriptor-method",
+    "setter-names/es2015/esnext/descriptor-get-set",
+    "setter-names/es2015/esnext/descriptor-rest",
+    "setter-names/es2015/esnext/descriptor-object-binding",
+    "setter-names/es2015/esnext/descriptor-array-binding",
+    "setter-names/es2015/esnext/descriptor-quoted-method",
+    "setter-names/es2015/esnext/descriptor-computed-method"
+  ],
+  "primary_comparison_jobs": 2,
+  "positive_primary_executions_per_case": 4,
+  "failed_primary_executions_per_case": 2,
+  "supplemental_executions": 144,
+  "positive_supplemental_executions_per_case": 2,
+  "failed_supplemental_executions_per_case": 1,
+  "fresh_complete_comparison_and_supplemental_executions": 432,
+  "capture_is_full_actual_tuple": false,
+  "components": [
+    {
+      "case_id": "setter-names/es2015/commonjs/actual-js-get-set",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 0,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/6c51cd88fda9d6086ce98147d43b22a400a8a98c908c5f83fecd401c3ec98cc7-0.json",
+          "sha256": "14ce6308f897e458deafd9e5b522521468fb6c4f6bf677c8b9dd6dd2492304ad"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/6c51cd88fda9d6086ce98147d43b22a400a8a98c908c5f83fecd401c3ec98cc7-1.json",
+          "sha256": "ad9d5fc8d0e8ef921282718ed8d3d206551f252d3c1b711c273df35213cf3798"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/actual-js-private-setter",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/f15dd0130dca917a71097b5e90c7161a9430ab79b0d46d2fd36e7e81b9f9b109-0.json",
+          "sha256": "5bd0f948b42d38b0b289d761848f50bea5f151e29d7db8472dcb8bdd2d0527f6"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/f15dd0130dca917a71097b5e90c7161a9430ab79b0d46d2fd36e7e81b9f9b109-1.json",
+          "sha256": "7b376950ce96917849b8152369d19327a25d72b20d8c1de8cc58d536977c73f4"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/actual-js-setter",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/9b371091b35408b82475ddb1616dfc3d3833487bb26c13c49a84dec6794ddca4-0.json",
+          "sha256": "a712556dad7fce083fba107bddca9d5404e441adf028f5aa7a5b56c0a19e92cc"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/9b371091b35408b82475ddb1616dfc3d3833487bb26c13c49a84dec6794ddca4-1.json",
+          "sha256": "63f643609f13a2d3de005b41d0b275852fefac4b9e7eb99588b91cf6c8b3c32c"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/actual-ts-setter",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 0,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/54801f10c353ad551c4bee0d4d82581371c263f91e57802d8caade5cffb095f2-0.json",
+          "sha256": "1ba2c6f04f2a2d12210062e1045670914bdc8fa47577cee4118a96ad939b1029"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/54801f10c353ad551c4bee0d4d82581371c263f91e57802d8caade5cffb095f2-1.json",
+          "sha256": "8c12f6ba328b4567987f4fb1d43a10ab4e2d78d70c830d9725e80a02945833d2"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/anonymous-ts-private-setter",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 1,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/53c3808af0799607ea81d66f17041fec61e668fce49755b97cb07a88435e3bf4-0.json",
+          "sha256": "bc3bdcff443fda92fff33c40310bdbe0e45f020e342068b32b60cde2967355ef"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/53c3808af0799607ea81d66f17041fec61e668fce49755b97cb07a88435e3bf4-1.json",
+          "sha256": "2b28a1f80467cd27f92744cd91c57c7d750a150ccd82ef4c1e5ec89532906933"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-array-binding",
+      "status": "owned-setter-parameter-name",
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 0,
+      "differences": [
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration",
+          "parameter_name_only": true,
+          "readonly_only": false,
+          "actual_sha256": "4ae8b73c8d798c2372f5ce3f76262c5d3ba717951ffe241ea257f62e705d6688",
+          "expected_sha256": "f56e72089df13aa9d7289e3eb7ffae3a7451874833a94eee1e358ddde12ab26b",
+          "diff": "--- native\n+++ ts\n@@ -1,5 +1,5 @@\n export const tail: 1;\r\n export class Foo {\r\n-    set x(value: any);\r\n+    set x([value]: any);\r\n }\r\n //# sourceMappingURL=main.d.ts.map"
+        }
+      ],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/9ff870d1d33690178c294985013aa44486066109019638b74a8cc54dcc8b6387-0.json",
+          "sha256": "b8842dbbe1806a07012d6d5f943443a0141e6af659c3829f8c8f1b74647881bb"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-arrow-property",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 0,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/587ac50aaf059a2af631cb46ce74cce21db9f9de3608cad05d05633eaa408b29-0.json",
+          "sha256": "ceec3803e861f8d4b2b2de399892f000d38855e0503b88f2b997180070c60cc7"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/587ac50aaf059a2af631cb46ce74cce21db9f9de3608cad05d05633eaa408b29-1.json",
+          "sha256": "6b94aa30f9bed784a56bbb52989c28c969aa94f761127773479593d276a267f5"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-call-argument",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/5a72a4b360038ad745e6786facae12d46c7bad7f4690960b82e771ac57c1199e-0.json",
+          "sha256": "3089eb8fdb708e50918704e14630b4285c8300619ddcbe19b4726861edf94999"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/5a72a4b360038ad745e6786facae12d46c7bad7f4690960b82e771ac57c1199e-1.json",
+          "sha256": "d060a847e7c7478c238498c01b1073895793feee5c19ad4e8f2c21fda83da137"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-computed-method",
+      "status": "outside-descriptor-readonly",
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 0,
+      "differences": [
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration",
+          "parameter_name_only": false,
+          "readonly_only": true,
+          "actual_sha256": "3b04940f7abf0f2cd99d3d22ecf0489dbb544341c36d0aa0192f59dabe54d98c",
+          "expected_sha256": "c76a0320851047be5c924ff76930a8f7f2e09c42d28b0ff55461c5b8eb015b30",
+          "diff": "--- native\n+++ ts\n@@ -1,5 +1,5 @@\n export const tail: 1;\r\n export class Foo {\r\n-    readonly x: any;\r\n+    x: any;\r\n }\r\n //# sourceMappingURL=main.d.ts.map"
+        }
+      ],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/5dda13cb7d008f1d9e043af1d294e5053e4193eb67a3f6ae7b45499616a89184-0.json",
+          "sha256": "fbc2855c270604f05885dae80b4753ea4b2ba19a0ebe473e7eb48104594bb096"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-duplicate-member-order",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/ca9436abb41f9ea0eb5dd6af643806477bfdd451f7b21423609e716dc2721811-0.json",
+          "sha256": "34350ef01b300102b086c93747d391eb7911b9d78177c7d014a874e06a5799af"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/ca9436abb41f9ea0eb5dd6af643806477bfdd451f7b21423609e716dc2721811-1.json",
+          "sha256": "31a21aa4fa4af5da45792898bd6b8a682de7504018ab15c8cc472886faa48c0d"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-function-property",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 0,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/58977ab339679f2d221c49221fb517c1eed9a6377329c54df9d0e4e6e9bb3ec0-0.json",
+          "sha256": "663bbe252360deb137fa6c2e4fd53547eddde1d129cf565c068048816a40672d"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/58977ab339679f2d221c49221fb517c1eed9a6377329c54df9d0e4e6e9bb3ec0-1.json",
+          "sha256": "27ad2bf0754d76d5ac0fe81ec4e5f6f3158ef17ac492f4c02089c24bf8b70b71"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-get-set",
+      "status": "owned-setter-parameter-name",
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 0,
+      "differences": [
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration",
+          "parameter_name_only": true,
+          "readonly_only": false,
+          "actual_sha256": "6fcd789da922ef0431b3ac508a5d3001a7a0c2a6488e10bd0771525ffc4559f5",
+          "expected_sha256": "9e8ed693436a83e3fcc570a15aa77a8f8f977acab9cdbfad1f83cb2031b7f353",
+          "diff": "--- native\n+++ ts\n@@ -1,6 +1,6 @@\n export const tail: 1;\r\n export class Foo {\r\n-    set x(value: number);\r\n+    set x(supplied: number);\r\n     get x(): number;\r\n }\r\n //# sourceMappingURL=main.d.ts.map"
+        }
+      ],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/61ba9ea88f39fa35d46723d3aea5ae13318ef9bf768b86d971e4729ff04f4bfd-0.json",
+          "sha256": "7de9552754272e2f6d1a3715b7cc84dbeee6618c25fdfff1c4d1a5580ca09242"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-identifier-property",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/0d96736d84a461e5de37a79b8af4243e2dd074ae700e8ba5784345d22a5227d2-0.json",
+          "sha256": "c24e66b2213bca474c3cc9df6d5d7b8eaa92b8b149ee77300f1aef18d45e6101"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/0d96736d84a461e5de37a79b8af4243e2dd074ae700e8ba5784345d22a5227d2-1.json",
+          "sha256": "d82e221a559989655447d6d17b49370f2e50d460b5a2c2110dd9a0ce58595dff"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-method",
+      "status": "owned-setter-parameter-name",
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 0,
+      "differences": [
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration",
+          "parameter_name_only": true,
+          "readonly_only": false,
+          "actual_sha256": "4ae8b73c8d798c2372f5ce3f76262c5d3ba717951ffe241ea257f62e705d6688",
+          "expected_sha256": "702c4b9525be91f4b319382fecb643c9fd4792971a5d650f2f81fee2cab7a53e",
+          "diff": "--- native\n+++ ts\n@@ -1,5 +1,5 @@\n export const tail: 1;\r\n export class Foo {\r\n-    set x(value: any);\r\n+    set x(supplied: any);\r\n }\r\n //# sourceMappingURL=main.d.ts.map"
+        }
+      ],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/29a261156bcf90bb6d754d0a5668c9018570865595bfbfada58d73f9779f16e8-0.json",
+          "sha256": "c32c8c0fdaf3ea88a5a3c966dbac21e60e2d6507327f9eb65a651c2b1b0f7cae"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-noarg",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 0,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/f2b3fd2b8356e2f7d4001abfd91ae739d3d8fdb17ff73f5908ece46137e0cf36-0.json",
+          "sha256": "c04294bcd08676eb9166af50cf14b8e0ecd45bc373342acbb75a8448046242c5"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/f2b3fd2b8356e2f7d4001abfd91ae739d3d8fdb17ff73f5908ece46137e0cf36-1.json",
+          "sha256": "788cb3cdf28e24e3634cd9a165d2fccd4f66479a4419cfb6488b02f560620b84"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-object-binding",
+      "status": "owned-setter-parameter-name",
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 0,
+      "differences": [
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration",
+          "parameter_name_only": true,
+          "readonly_only": false,
+          "actual_sha256": "4ae8b73c8d798c2372f5ce3f76262c5d3ba717951ffe241ea257f62e705d6688",
+          "expected_sha256": "36955a6728d6380e0bb34ff98486a3285da348deab8be717e036fa4eb50f935b",
+          "diff": "--- native\n+++ ts\n@@ -1,5 +1,5 @@\n export const tail: 1;\r\n export class Foo {\r\n-    set x(value: any);\r\n+    set x({ value }: any);\r\n }\r\n //# sourceMappingURL=main.d.ts.map"
+        }
+      ],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/92f143f5d4db904a277b226e0d29b1d0a9527893bd22a3e4a9039c2d3811b95a-0.json",
+          "sha256": "a201bb66fa7de2e2f410b6cb214b0f29a1574ab2d11f1006699dc8d632df5bcc"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-quoted-method",
+      "status": "outside-descriptor-readonly",
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 0,
+      "differences": [
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration",
+          "parameter_name_only": false,
+          "readonly_only": true,
+          "actual_sha256": "3b04940f7abf0f2cd99d3d22ecf0489dbb544341c36d0aa0192f59dabe54d98c",
+          "expected_sha256": "c76a0320851047be5c924ff76930a8f7f2e09c42d28b0ff55461c5b8eb015b30",
+          "diff": "--- native\n+++ ts\n@@ -1,5 +1,5 @@\n export const tail: 1;\r\n export class Foo {\r\n-    readonly x: any;\r\n+    x: any;\r\n }\r\n //# sourceMappingURL=main.d.ts.map"
+        }
+      ],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/7fa6e4ddfb08f603b7d34965077bb9e3d5ef16771d688af69c84c886afc37e5f-0.json",
+          "sha256": "8195626e14690cd4a9048990d06a357997c172d52dfce1381e4e2ffb3bfaab19"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-repeated-call-order",
+      "status": "owned-setter-parameter-name",
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration",
+          "parameter_name_only": true,
+          "readonly_only": false,
+          "actual_sha256": "4ae8b73c8d798c2372f5ce3f76262c5d3ba717951ffe241ea257f62e705d6688",
+          "expected_sha256": "fc61ed1366d714e2bfd7d94234c4a274fead3972ad76eb7b3a83c55eaf42a41c",
+          "diff": "--- native\n+++ ts\n@@ -1,5 +1,5 @@\n export const tail: 1;\r\n export class Foo {\r\n-    set x(value: any);\r\n+    set x(first: any);\r\n }\r\n //# sourceMappingURL=main.d.ts.map"
+        }
+      ],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/44fcf08f173e9e94ed6ad0db22e932c61076715eea578cdb2547810b9b3dd058-0.json",
+          "sha256": "638d8bb65f8c70b31517673ccadd78749efaaa2c58cbb1c12c55904d954781a8"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-rest",
+      "status": "owned-setter-parameter-name",
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 0,
+      "differences": [
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration",
+          "parameter_name_only": true,
+          "readonly_only": false,
+          "actual_sha256": "4ae8b73c8d798c2372f5ce3f76262c5d3ba717951ffe241ea257f62e705d6688",
+          "expected_sha256": "902f26fb4567468eca57b54ece7122b822cef98cd92aee2ed64ccabe85307c4c",
+          "diff": "--- native\n+++ ts\n@@ -1,5 +1,5 @@\n export const tail: 1;\r\n export class Foo {\r\n-    set x(value: any);\r\n+    set x(args: any);\r\n }\r\n //# sourceMappingURL=main.d.ts.map"
+        }
+      ],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/0a7d9859ad6bea78212d61c3f4c64a3036261da8b7b3d385e74164235a92b41e-0.json",
+          "sha256": "6288a1d951f584b16fc51b35c1a56fad6dcf96670410f9925a513f3317482c7a"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-static-method",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 0,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/3f53ccba4d0adc43cce4f08ec0c4d247031debab1924eba05a02235430b2ca35-0.json",
+          "sha256": "e39264153633541b02c7c11f0a0fa48949b25c79d30364c1ba2780931f1f8d25"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/3f53ccba4d0adc43cce4f08ec0c4d247031debab1924eba05a02235430b2ca35-1.json",
+          "sha256": "240f0d59e69818884f21231b8851bcac3864172cf254a8221d82a64608d16efe"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-union-property",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/5f1f7de70b1c63754078c76801eb3590a078dcb3d1f1e49c2452261027d62607-0.json",
+          "sha256": "f138216b020ed35e543395803c5f587523b2fc5bd43d99930a76942dfc83567f"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/5f1f7de70b1c63754078c76801eb3590a078dcb3d1f1e49c2452261027d62607-1.json",
+          "sha256": "657783bfff1503640efa04189be72bb757bfde887f758660ae1d2ff7e5a3bcdc"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-variable-argument",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/61a7218f69d374ef82e2c749275970fc813aa1fd8ef022bf47d03c46415200be-0.json",
+          "sha256": "a54c1ded7024767eda686e7d5bb1126926503a584bb2692cc964560e26f48905"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/61a7218f69d374ef82e2c749275970fc813aa1fd8ef022bf47d03c46415200be-1.json",
+          "sha256": "5cccd5f3144ca5708bb031fa8a9de1e4b8011a77f735fefc63b0fbaf40e19b83"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/actual-js-get-set",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 0,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/6e975e43cdb54c3e36f5caa1cd38375c4e70c24186ecd15afa6b0970c67d67f7-0.json",
+          "sha256": "0027ad09f6fb5569619f3365a3d3bb9cf3fb8b9a2c93965dd6f46465141d38a6"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/6e975e43cdb54c3e36f5caa1cd38375c4e70c24186ecd15afa6b0970c67d67f7-1.json",
+          "sha256": "8e9ad278466852531394d494a1335ffd9c6cf353b540568f9e47f0c6d7a00e3e"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/actual-js-private-setter",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/201f3eaeaf59f2556ed24f6597bc5415e4aff452503f891256532cdca67d2ce2-0.json",
+          "sha256": "8e75de4066065e8487a091202180c2633c9ad6decabab71c532fe8b5bdb0f120"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/201f3eaeaf59f2556ed24f6597bc5415e4aff452503f891256532cdca67d2ce2-1.json",
+          "sha256": "66567f9bbf116169d2019369b40d3128a45328a881e0ae0806d96698644f3ab5"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/actual-js-setter",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/178c95e34d6585d52fb43ea200551fe7ac26d38321d3d606880a86360ce21f2a-0.json",
+          "sha256": "9e596e0ed7cdcdb899b9166e0dbba90551c067f16225188083a21608cd3478db"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/178c95e34d6585d52fb43ea200551fe7ac26d38321d3d606880a86360ce21f2a-1.json",
+          "sha256": "c58dc8f7d0b444a87831bfffe9d1022d3946e92926601cac9e3e3b53d3c7381e"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/actual-ts-setter",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 0,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/26624e455c56200c965373a8c54841f453562762ee06fc4eb487f71d18897b2e-0.json",
+          "sha256": "27f62408798bfb775ec4bb82110dbbbef907368fb3ec1990de6afee35c0b51df"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/26624e455c56200c965373a8c54841f453562762ee06fc4eb487f71d18897b2e-1.json",
+          "sha256": "3da8b292c81d582b4db2914732f41ab120cd00a28c7dac0a4710e51a3d4d07ae"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/anonymous-ts-private-setter",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 1,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/e3a1d9917a0ec1df6d58970ab3782b562f3f54d6d5f35f77df75c78b944586c0-0.json",
+          "sha256": "5ca34ca0c1f81992a7e60d9b0be80246c343cc3ae8353651941932961412e46e"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/e3a1d9917a0ec1df6d58970ab3782b562f3f54d6d5f35f77df75c78b944586c0-1.json",
+          "sha256": "82645373f3ca34534d12012dc08a382d40f1d16bead6bb16f9b1437c23b82df3"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-array-binding",
+      "status": "owned-setter-parameter-name",
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 0,
+      "differences": [
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration",
+          "parameter_name_only": true,
+          "readonly_only": false,
+          "actual_sha256": "4ae8b73c8d798c2372f5ce3f76262c5d3ba717951ffe241ea257f62e705d6688",
+          "expected_sha256": "f56e72089df13aa9d7289e3eb7ffae3a7451874833a94eee1e358ddde12ab26b",
+          "diff": "--- native\n+++ ts\n@@ -1,5 +1,5 @@\n export const tail: 1;\r\n export class Foo {\r\n-    set x(value: any);\r\n+    set x([value]: any);\r\n }\r\n //# sourceMappingURL=main.d.ts.map"
+        }
+      ],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/67552c862f17acb6e73417d148be7f1dd1fa2b8de12b61bb2cc76c7b148e94cc-0.json",
+          "sha256": "879c68beb8332a2034811b28a54b872f6cbd540f6f0e3aa40a0d4f137d97930e"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-arrow-property",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 0,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/3a49ec845352a5a12981f6de334790c0f0547c6aaab3597f80c76d81841a77c5-0.json",
+          "sha256": "4e7ebd98e24ecc47bcc0372cdecfc7031627d4890bee4613431c15303e8e86ac"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/3a49ec845352a5a12981f6de334790c0f0547c6aaab3597f80c76d81841a77c5-1.json",
+          "sha256": "68e698e232636cb92b63fbefbab8b367f69d7ebb2cc6c7ba775dbff968063db1"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-call-argument",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/44ecf9ce7e1288213e5216488983db53554ff4be242b480e5b4cd9a91cceeb4a-0.json",
+          "sha256": "61a7443f6d132907edb827b2aa61b5878d4cf7e953847d0e35ff8744d68028e7"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/44ecf9ce7e1288213e5216488983db53554ff4be242b480e5b4cd9a91cceeb4a-1.json",
+          "sha256": "b5854957ed6e79b2bc1475183ea0f80dfca79dee328a26a51289b4f7c5fca55b"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-computed-method",
+      "status": "outside-descriptor-readonly",
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 0,
+      "differences": [
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration",
+          "parameter_name_only": false,
+          "readonly_only": true,
+          "actual_sha256": "3b04940f7abf0f2cd99d3d22ecf0489dbb544341c36d0aa0192f59dabe54d98c",
+          "expected_sha256": "c76a0320851047be5c924ff76930a8f7f2e09c42d28b0ff55461c5b8eb015b30",
+          "diff": "--- native\n+++ ts\n@@ -1,5 +1,5 @@\n export const tail: 1;\r\n export class Foo {\r\n-    readonly x: any;\r\n+    x: any;\r\n }\r\n //# sourceMappingURL=main.d.ts.map"
+        }
+      ],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/b5b7f227db84692476f9b64e2ca1873d796dceeeb4777909d3ee1d0b35d8ec00-0.json",
+          "sha256": "97cea6ec6fd538e3b39d851d7a2884155407efab200d149e3c238d4cdb0391f1"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-duplicate-member-order",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/3d27e1080cf4ff61640d4f7ed325be7dceb8ab9f2d897e624cb2d40a702ea5eb-0.json",
+          "sha256": "adf1b1f6e8bc661d8cb90639681f33014458030de91ed6aef0ed669099883cc3"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/3d27e1080cf4ff61640d4f7ed325be7dceb8ab9f2d897e624cb2d40a702ea5eb-1.json",
+          "sha256": "cd47b37c29a93fb6200f3718200210086dd5ac39b4311caf23dae254f43f049f"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-function-property",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 0,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/eb091a5b93ca3e79fb19573ff2c85322603e747e78e1df8a48b025ae123f1fbf-0.json",
+          "sha256": "355ffeac118d2daba8d241f3a0add064ec1fb08db73a04b5bf48c99f2583346e"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/eb091a5b93ca3e79fb19573ff2c85322603e747e78e1df8a48b025ae123f1fbf-1.json",
+          "sha256": "c9065e157d329c9c218316a9ca855841f5a2d63c38a8f0fa1df2d5a8d9ea7ca2"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-get-set",
+      "status": "owned-setter-parameter-name",
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 0,
+      "differences": [
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration",
+          "parameter_name_only": true,
+          "readonly_only": false,
+          "actual_sha256": "6fcd789da922ef0431b3ac508a5d3001a7a0c2a6488e10bd0771525ffc4559f5",
+          "expected_sha256": "9e8ed693436a83e3fcc570a15aa77a8f8f977acab9cdbfad1f83cb2031b7f353",
+          "diff": "--- native\n+++ ts\n@@ -1,6 +1,6 @@\n export const tail: 1;\r\n export class Foo {\r\n-    set x(value: number);\r\n+    set x(supplied: number);\r\n     get x(): number;\r\n }\r\n //# sourceMappingURL=main.d.ts.map"
+        }
+      ],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/6cd643e31fec5e6cd23ddb3571ec154aa4a2f430a2740b2187137d4d51275ba7-0.json",
+          "sha256": "d1edafe16f2af8ac7db3cc50f6caed9dc40aeae04eb7e4ec1b3b93489bb9c2c3"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-identifier-property",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/d34608b1851f7bcc165577d5eb527ab05f5055b9b769df5ad579d6ab976a7c86-0.json",
+          "sha256": "af699fd12efae8d7bd3db30b5297d33b0be9279a3bdca246a3b7322867ceb13f"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/d34608b1851f7bcc165577d5eb527ab05f5055b9b769df5ad579d6ab976a7c86-1.json",
+          "sha256": "833a7ff654f3a0b5a38b271194c388994a0124af0576d24db5295aa30871bf93"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-method",
+      "status": "owned-setter-parameter-name",
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 0,
+      "differences": [
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration",
+          "parameter_name_only": true,
+          "readonly_only": false,
+          "actual_sha256": "4ae8b73c8d798c2372f5ce3f76262c5d3ba717951ffe241ea257f62e705d6688",
+          "expected_sha256": "702c4b9525be91f4b319382fecb643c9fd4792971a5d650f2f81fee2cab7a53e",
+          "diff": "--- native\n+++ ts\n@@ -1,5 +1,5 @@\n export const tail: 1;\r\n export class Foo {\r\n-    set x(value: any);\r\n+    set x(supplied: any);\r\n }\r\n //# sourceMappingURL=main.d.ts.map"
+        }
+      ],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/5c470ff2a27952a53a968a0935f1e6f7694f8dcabef81a7599396c1c84f1962d-0.json",
+          "sha256": "abf4863fb21234e1ad1bac871c03cc65e338ed4d8608abb5ef27af1374ef89f1"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-noarg",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 0,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/f7f1ee816326825e35a52a4822b1706977bd22901b71ea59daab31162bca2719-0.json",
+          "sha256": "edd3766204a8678372bd9de17f6dabab87056d55ad355cc8c8524154827d174e"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/f7f1ee816326825e35a52a4822b1706977bd22901b71ea59daab31162bca2719-1.json",
+          "sha256": "3c0fc1cf5a8071113ef5f57288da5ea16862d507f8082408476be4f8273620ec"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-object-binding",
+      "status": "owned-setter-parameter-name",
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 0,
+      "differences": [
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration",
+          "parameter_name_only": true,
+          "readonly_only": false,
+          "actual_sha256": "4ae8b73c8d798c2372f5ce3f76262c5d3ba717951ffe241ea257f62e705d6688",
+          "expected_sha256": "36955a6728d6380e0bb34ff98486a3285da348deab8be717e036fa4eb50f935b",
+          "diff": "--- native\n+++ ts\n@@ -1,5 +1,5 @@\n export const tail: 1;\r\n export class Foo {\r\n-    set x(value: any);\r\n+    set x({ value }: any);\r\n }\r\n //# sourceMappingURL=main.d.ts.map"
+        }
+      ],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/d8089348f5341274fff7ee8a00ddb6e52b0f9cf8cc53c3080add76dd07394547-0.json",
+          "sha256": "25e12157b8fbe44ebcc4b403af017abfd06ec9f58ca5ba56000cc509429bd5ce"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-quoted-method",
+      "status": "outside-descriptor-readonly",
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 0,
+      "differences": [
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration",
+          "parameter_name_only": false,
+          "readonly_only": true,
+          "actual_sha256": "3b04940f7abf0f2cd99d3d22ecf0489dbb544341c36d0aa0192f59dabe54d98c",
+          "expected_sha256": "c76a0320851047be5c924ff76930a8f7f2e09c42d28b0ff55461c5b8eb015b30",
+          "diff": "--- native\n+++ ts\n@@ -1,5 +1,5 @@\n export const tail: 1;\r\n export class Foo {\r\n-    readonly x: any;\r\n+    x: any;\r\n }\r\n //# sourceMappingURL=main.d.ts.map"
+        }
+      ],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/3d77caf3556ad79c42c26b5e533c8f58dd8ef0777279855ce965f86209d934cb-0.json",
+          "sha256": "e5e51fd176d37d6f5ab76cd843c89ef584f7b97e4edeb0e8b767211de5bb3b8b"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-repeated-call-order",
+      "status": "owned-setter-parameter-name",
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration",
+          "parameter_name_only": true,
+          "readonly_only": false,
+          "actual_sha256": "4ae8b73c8d798c2372f5ce3f76262c5d3ba717951ffe241ea257f62e705d6688",
+          "expected_sha256": "fc61ed1366d714e2bfd7d94234c4a274fead3972ad76eb7b3a83c55eaf42a41c",
+          "diff": "--- native\n+++ ts\n@@ -1,5 +1,5 @@\n export const tail: 1;\r\n export class Foo {\r\n-    set x(value: any);\r\n+    set x(first: any);\r\n }\r\n //# sourceMappingURL=main.d.ts.map"
+        }
+      ],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/beab30fdb229fd01af7cffd0b4dbf33195c2b84775890e27e04e2c6a5ffce067-0.json",
+          "sha256": "b10434f9911d6e0b67aabfba078586c1dbe097ff261bffe6b5f21d2b9598f469"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-rest",
+      "status": "owned-setter-parameter-name",
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 0,
+      "differences": [
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration",
+          "parameter_name_only": true,
+          "readonly_only": false,
+          "actual_sha256": "4ae8b73c8d798c2372f5ce3f76262c5d3ba717951ffe241ea257f62e705d6688",
+          "expected_sha256": "902f26fb4567468eca57b54ece7122b822cef98cd92aee2ed64ccabe85307c4c",
+          "diff": "--- native\n+++ ts\n@@ -1,5 +1,5 @@\n export const tail: 1;\r\n export class Foo {\r\n-    set x(value: any);\r\n+    set x(args: any);\r\n }\r\n //# sourceMappingURL=main.d.ts.map"
+        }
+      ],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/9a409660fe2e0147264e7dbff4b4124207fb96cb4d4223e0bd60d29619a0dd72-0.json",
+          "sha256": "3defb8a5e54fb4ac661ca91e5e17db4c376f7e2b4205b3f8cae71b0b2302b603"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-static-method",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 0,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/194162c0bd1230504b29076005376b3252e566dee7f93e8186e84c5298cec0f0-0.json",
+          "sha256": "29b8fa6695ec55273cca36cf5b4bceac6d97960d1029aed0e18e7993277819fc"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/194162c0bd1230504b29076005376b3252e566dee7f93e8186e84c5298cec0f0-1.json",
+          "sha256": "53d04d2c44aff6c4e51b6648e27ee321c4a6b5a7694cec5cad87c7d095b67f5c"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-union-property",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/f350a735eb9bf615a26110491edf3ea1e847dd6929575291eef044192e0f1c76-0.json",
+          "sha256": "ea96f6637e86b688e211419a3cb6647ad4f6fe0c93bc6eadd61144b14e5a85a0"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/f350a735eb9bf615a26110491edf3ea1e847dd6929575291eef044192e0f1c76-1.json",
+          "sha256": "5b4afeca275b1db1a3213855fff056a57ed3b522428ba09cc39472da7740c685"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-variable-argument",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/78a233963bb481d0a1dd2c7d79fe4e5ed90c97c279cd6327efc763c4bc5e3030-0.json",
+          "sha256": "383e0cdc8489d35a0fed6c80c2b3773814f8a8566d8bba155158dc8f7539281e"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/78a233963bb481d0a1dd2c7d79fe4e5ed90c97c279cd6327efc763c4bc5e3030-1.json",
+          "sha256": "b881f90f81cd15e5d65841543500a23bcddb49aaf0d2506cf5dca01ac6ec3dff"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/actual-js-get-set",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/d8a8abbb5aafba30dc60a009d78362ab2ac412ccae82124e04e7895aa9fb3dfa-0.json",
+          "sha256": "0a146491e2b5f23e5f56984f51bb1e27d79f455e83b00ef8080fd1c65b056d18"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/d8a8abbb5aafba30dc60a009d78362ab2ac412ccae82124e04e7895aa9fb3dfa-1.json",
+          "sha256": "71e887feca9910b5471ead3720d912e46ab7f00615214cca82f2b0ad14aa0cf0"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/actual-js-private-setter",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/7ddfaa89c1ba61201dc7c8e9e1e32715cde79ae6dd0a23be6753e3626bca655e-0.json",
+          "sha256": "bf96ea5b05db21ebfcac76258856c24de12f2e261d1e5a5c7df4755cffff090c"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/7ddfaa89c1ba61201dc7c8e9e1e32715cde79ae6dd0a23be6753e3626bca655e-1.json",
+          "sha256": "f74ae85498ead1d70e16ffeac60c6281a4e106d10a3f350e1ac0b81ed124f2f0"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/actual-js-setter",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/83ae6246c78e6fa25b0d20b86dc61d1fc138f176ea35667b1133ecdec910df40-0.json",
+          "sha256": "aed41d85072e222b2ecee8a67cdc16cab92b7151bc421769d64ba3e86fb97a53"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/83ae6246c78e6fa25b0d20b86dc61d1fc138f176ea35667b1133ecdec910df40-1.json",
+          "sha256": "e93f442b1865f9b35af73a2b9827eb969a0c04b55b3ddbd56bbf006a8b08ec42"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/actual-ts-setter",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/ee4bca26c95c2a31048f0a0f30e50cefb69d8433ed722f072558afb4b7cb5e21-0.json",
+          "sha256": "cdb76a6896a1f386bdba695bdc6e65c85335a3620d773446a293df31722ead6e"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/ee4bca26c95c2a31048f0a0f30e50cefb69d8433ed722f072558afb4b7cb5e21-1.json",
+          "sha256": "3a3e7c4d8749c75e7003a2b7be4d7a3897a13d23f30656e714a1bce0773aa125"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/anonymous-ts-private-setter",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 1,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/902acedf72d1d322f755bffdb38787af3f1c13954058c5f418b061b231d18fff-0.json",
+          "sha256": "ceb81eb38c92b2412f30a819364891853537cbf9b2abd4a84d1a346ab57d4ad7"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/902acedf72d1d322f755bffdb38787af3f1c13954058c5f418b061b231d18fff-1.json",
+          "sha256": "233f9c9a553a142a2fbbf3df03666ffc287e1ee43d61e806fe4a2bf9ac7d1319"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-array-binding",
+      "status": "owned-setter-parameter-name",
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration",
+          "parameter_name_only": true,
+          "readonly_only": false,
+          "actual_sha256": "4ae8b73c8d798c2372f5ce3f76262c5d3ba717951ffe241ea257f62e705d6688",
+          "expected_sha256": "f56e72089df13aa9d7289e3eb7ffae3a7451874833a94eee1e358ddde12ab26b",
+          "diff": "--- native\n+++ ts\n@@ -1,5 +1,5 @@\n export const tail: 1;\r\n export class Foo {\r\n-    set x(value: any);\r\n+    set x([value]: any);\r\n }\r\n //# sourceMappingURL=main.d.ts.map"
+        }
+      ],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/87b249320635eb42b1a9a56fbab480d21d97f982735bdb4ade1293b84886a8b8-0.json",
+          "sha256": "31e10865406a0beb16940d830cce52c652061ba110148d418a4afb371f4659d7"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-arrow-property",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/f3c50ce2aeeecf831d10c9c1c6fe99a587340694598bedbffeaa25f808a61c5d-0.json",
+          "sha256": "3c21c2fe85ba7649fb11a244e42c5f7af94672c3a92f7df1a1e35bdee2defb15"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/f3c50ce2aeeecf831d10c9c1c6fe99a587340694598bedbffeaa25f808a61c5d-1.json",
+          "sha256": "ad2c31f1adc808889c4a225d191e0a3e5f3de950af9aa01d6f747859a5d2bcb8"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-call-argument",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/5ffb91740741482be65fc6d755350441c4638f6dfdb7d52eace3d92163d4506c-0.json",
+          "sha256": "5c547a544b57b4effc8d8aad374ecb29275d75f93747188f957b7f9d33f46110"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/5ffb91740741482be65fc6d755350441c4638f6dfdb7d52eace3d92163d4506c-1.json",
+          "sha256": "ce1a5a0a9779a1189a9e50dcdd04f5ba40cd932f568da23c4d50fb0bc3f16ac0"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-computed-method",
+      "status": "outside-descriptor-readonly",
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration",
+          "parameter_name_only": false,
+          "readonly_only": true,
+          "actual_sha256": "3b04940f7abf0f2cd99d3d22ecf0489dbb544341c36d0aa0192f59dabe54d98c",
+          "expected_sha256": "c76a0320851047be5c924ff76930a8f7f2e09c42d28b0ff55461c5b8eb015b30",
+          "diff": "--- native\n+++ ts\n@@ -1,5 +1,5 @@\n export const tail: 1;\r\n export class Foo {\r\n-    readonly x: any;\r\n+    x: any;\r\n }\r\n //# sourceMappingURL=main.d.ts.map"
+        }
+      ],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/e5bc8098d0c6041c84f2a808b024a2a01b93f4fe2fb0fe052bd32e6fc24016bf-0.json",
+          "sha256": "e772a1c952ebdbb8bc47f4124b38d8cf4b93db67e206aa44651b8107d230cb32"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-duplicate-member-order",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/c3da3dfb16575cfca44bb14dd3a7b461f155683a1e587f27ff58270585eb2f6f-0.json",
+          "sha256": "46c20a434a04925caf2a7197eab25b937fab3f1b2d5c766b92cf929aa11f89b7"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/c3da3dfb16575cfca44bb14dd3a7b461f155683a1e587f27ff58270585eb2f6f-1.json",
+          "sha256": "991ee01b0cf4f5c64120b60a38c112c7b0eb6c70b270091668462ebb7a4cdaa6"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-function-property",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/2d50e9a3512fd140e17c21b00f26bc70e6a1feff36a5c41c191289b21ca901b8-0.json",
+          "sha256": "d81b539ebcee7eb1102afb79112eca1047e2c66df682943022bbe4cdd9cf9b58"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/2d50e9a3512fd140e17c21b00f26bc70e6a1feff36a5c41c191289b21ca901b8-1.json",
+          "sha256": "9844fece370eeb944a93049e917084fd5373661abd33eee75690b74d610b4395"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-get-set",
+      "status": "owned-setter-parameter-name",
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration",
+          "parameter_name_only": true,
+          "readonly_only": false,
+          "actual_sha256": "6fcd789da922ef0431b3ac508a5d3001a7a0c2a6488e10bd0771525ffc4559f5",
+          "expected_sha256": "9e8ed693436a83e3fcc570a15aa77a8f8f977acab9cdbfad1f83cb2031b7f353",
+          "diff": "--- native\n+++ ts\n@@ -1,6 +1,6 @@\n export const tail: 1;\r\n export class Foo {\r\n-    set x(value: number);\r\n+    set x(supplied: number);\r\n     get x(): number;\r\n }\r\n //# sourceMappingURL=main.d.ts.map"
+        }
+      ],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/44ca5a951d26e97a75f32983aff84ce7d6f1fa88eb3f9f195dd5357754ab017b-0.json",
+          "sha256": "99896605e393c6233ad3c514442cb4da55d3d4bca1995860296f2dcd35ae4a53"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-identifier-property",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/04213286a2e1f15754a6891564b8464ef17e36f55011691e37980e7603bd9ae5-0.json",
+          "sha256": "ee36ce1d551ffd3cf687bc1c10a8fc5d313ab02a5a45ecc386a1b7be113e1817"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/04213286a2e1f15754a6891564b8464ef17e36f55011691e37980e7603bd9ae5-1.json",
+          "sha256": "e7ca3605cfcc17f3c7504519979623e5256fdb1efe166a66c57446263c431893"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-method",
+      "status": "owned-setter-parameter-name",
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration",
+          "parameter_name_only": true,
+          "readonly_only": false,
+          "actual_sha256": "4ae8b73c8d798c2372f5ce3f76262c5d3ba717951ffe241ea257f62e705d6688",
+          "expected_sha256": "702c4b9525be91f4b319382fecb643c9fd4792971a5d650f2f81fee2cab7a53e",
+          "diff": "--- native\n+++ ts\n@@ -1,5 +1,5 @@\n export const tail: 1;\r\n export class Foo {\r\n-    set x(value: any);\r\n+    set x(supplied: any);\r\n }\r\n //# sourceMappingURL=main.d.ts.map"
+        }
+      ],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/6dc9b406829a1031a50b2d7e2f017294f1cb75376dfd2cd052ea34f5aa418fba-0.json",
+          "sha256": "5ecec1a9b4536e0f085342cea5fbcb27812ad26d4f1c291e7d864de0cb6476a3"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-noarg",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/45fab238d7b02b52800fa0d8961cf29eb8ced8b4f0ff588fa3eef399ab6a9f49-0.json",
+          "sha256": "343a94fc209442fd2c68c348188eb2277bd47c74e2415075faba145f378e4928"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/45fab238d7b02b52800fa0d8961cf29eb8ced8b4f0ff588fa3eef399ab6a9f49-1.json",
+          "sha256": "91ac904a29311bcca301e06b79c0b10e3ce5bb6f39c44c8130dfeb1ce6a7ffb0"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-object-binding",
+      "status": "owned-setter-parameter-name",
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration",
+          "parameter_name_only": true,
+          "readonly_only": false,
+          "actual_sha256": "4ae8b73c8d798c2372f5ce3f76262c5d3ba717951ffe241ea257f62e705d6688",
+          "expected_sha256": "36955a6728d6380e0bb34ff98486a3285da348deab8be717e036fa4eb50f935b",
+          "diff": "--- native\n+++ ts\n@@ -1,5 +1,5 @@\n export const tail: 1;\r\n export class Foo {\r\n-    set x(value: any);\r\n+    set x({ value }: any);\r\n }\r\n //# sourceMappingURL=main.d.ts.map"
+        }
+      ],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/fb0f9d810f82fec4ca5496922177a74e94bda495262c2e510358ef6071963bd5-0.json",
+          "sha256": "0449642ce581939541e67bbf6bb9fc0b75bab71365a127159b2784f03b4039dd"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-quoted-method",
+      "status": "outside-descriptor-readonly",
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration",
+          "parameter_name_only": false,
+          "readonly_only": true,
+          "actual_sha256": "3b04940f7abf0f2cd99d3d22ecf0489dbb544341c36d0aa0192f59dabe54d98c",
+          "expected_sha256": "c76a0320851047be5c924ff76930a8f7f2e09c42d28b0ff55461c5b8eb015b30",
+          "diff": "--- native\n+++ ts\n@@ -1,5 +1,5 @@\n export const tail: 1;\r\n export class Foo {\r\n-    readonly x: any;\r\n+    x: any;\r\n }\r\n //# sourceMappingURL=main.d.ts.map"
+        }
+      ],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/762e0a0fef07c9d2fd51f7aef7cec39fe218a424401b5e6f3bd3b599a2542e51-0.json",
+          "sha256": "196029c174dca343c6ae998999a667a1f915581dc4ca5e7efe665bd7da7cdd8d"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-repeated-call-order",
+      "status": "owned-setter-parameter-name",
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration",
+          "parameter_name_only": true,
+          "readonly_only": false,
+          "actual_sha256": "4ae8b73c8d798c2372f5ce3f76262c5d3ba717951ffe241ea257f62e705d6688",
+          "expected_sha256": "fc61ed1366d714e2bfd7d94234c4a274fead3972ad76eb7b3a83c55eaf42a41c",
+          "diff": "--- native\n+++ ts\n@@ -1,5 +1,5 @@\n export const tail: 1;\r\n export class Foo {\r\n-    set x(value: any);\r\n+    set x(first: any);\r\n }\r\n //# sourceMappingURL=main.d.ts.map"
+        }
+      ],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/68536bb7c701f91581f596e5258d4f71f5d545bedcf992e985638aff110d2049-0.json",
+          "sha256": "70a59fcf14601983e7b85454dd8448036df4424a1543753e84fd9ad01c8cfd22"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-rest",
+      "status": "owned-setter-parameter-name",
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration",
+          "parameter_name_only": true,
+          "readonly_only": false,
+          "actual_sha256": "4ae8b73c8d798c2372f5ce3f76262c5d3ba717951ffe241ea257f62e705d6688",
+          "expected_sha256": "902f26fb4567468eca57b54ece7122b822cef98cd92aee2ed64ccabe85307c4c",
+          "diff": "--- native\n+++ ts\n@@ -1,5 +1,5 @@\n export const tail: 1;\r\n export class Foo {\r\n-    set x(value: any);\r\n+    set x(args: any);\r\n }\r\n //# sourceMappingURL=main.d.ts.map"
+        }
+      ],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/8d76b8d7183c4ab165bfe04d4bcd1cf5084d51a0ef946428fa4af0c997705480-0.json",
+          "sha256": "37ebbf4d4b718dcec6eb15d52c06c6d78302dc458cce457ac0d3099656adff9b"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-static-method",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/06c76b67f757ce7df0eaf1283172e158e3667974e75cc7c21c0595c74b2ed06b-0.json",
+          "sha256": "855904e0e8392297a9621d18425e55d6ea527c9ae52328acf63ff5bfece714f1"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/06c76b67f757ce7df0eaf1283172e158e3667974e75cc7c21c0595c74b2ed06b-1.json",
+          "sha256": "b3aa32f4f622cce52174debdad398da1be9609122c0abe68340ad3d698a3f908"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-union-property",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/fb3fcc62df028cf8d9b96f36325108951c67384a3c6dc45789766210299e7cb4-0.json",
+          "sha256": "65f9cf0919c8167f111f81b3e3e890b7f80940fa4bfbeccfb40f74f89d96d280"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/fb3fcc62df028cf8d9b96f36325108951c67384a3c6dc45789766210299e7cb4-1.json",
+          "sha256": "12568b92374189a3d37c1961cd00e0168bd0aeff64cb86daa1d725e4d125a600"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-variable-argument",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/a8955b73d669fcfcf64f1e144cfc654e37a175eb7116b3773080ec81c9fb62cf-0.json",
+          "sha256": "3914cea4c4d14331d1cdb2b256673cb19399774afe087aaf8c5b9b844a83803d"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/a8955b73d669fcfcf64f1e144cfc654e37a175eb7116b3773080ec81c9fb62cf-1.json",
+          "sha256": "231acc65e8745422d3f740198cf1c9e51f3cc118a4bfa07049f5da054c9f2fb6"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/esnext/actual-js-get-set",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/076b35f81f019658a2252bac78532ae452acba4ac68a685f017ae58f04cf4ac7-0.json",
+          "sha256": "c8c1f45d10d35baf595c9fa52b9f3071e227871576223ab63d02e28fbd86e468"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/076b35f81f019658a2252bac78532ae452acba4ac68a685f017ae58f04cf4ac7-1.json",
+          "sha256": "f8320c6010aa538c4ad46766f4c37df1f8722fb4f3e12bbc152bc2850cfaa2cb"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/esnext/actual-js-private-setter",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/a3cd8979ad5da179e947649f24f0cede09fb80258799d1ccad4c47f16fe5643b-0.json",
+          "sha256": "e8f787f5fe0509f0af5d39ff66792d8573c5e4197f0b89d528774ad4ad4f0525"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/a3cd8979ad5da179e947649f24f0cede09fb80258799d1ccad4c47f16fe5643b-1.json",
+          "sha256": "cb617512a5223385aab978d6cd12f2adc80e6a439eb0fa1e9749e562e33ed2be"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/esnext/actual-js-setter",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/2bd87559fb35f173f58df81f144544b771905127c4c78633cf0fc2c437cf9c86-0.json",
+          "sha256": "2f6197026b31479293c4d463418f3d56423a2cef05a8794a0b4825d9fccbe809"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/2bd87559fb35f173f58df81f144544b771905127c4c78633cf0fc2c437cf9c86-1.json",
+          "sha256": "8833252861b35345f6543de3f2146ee99202d1bf1c40bdcc39b1a1f6f954cfcf"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/esnext/actual-ts-setter",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/d3ad6c801c701f0996b163f8008b00338345dc849e81f46e7ada05e546178191-0.json",
+          "sha256": "0e6e665034d9cbfe3c1b76a8312cdd5aa4189d78e7fd812128cbb290e6b247c6"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/d3ad6c801c701f0996b163f8008b00338345dc849e81f46e7ada05e546178191-1.json",
+          "sha256": "42095fd9ff6917b2c076255d731ec25ca4677f659ffdac65a5737bc465abebc8"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/esnext/anonymous-ts-private-setter",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 1,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/2107da07a87b179a3f2c32f21eccdd3a8fe0228b4a5357596f5a1bb1a5208e2e-0.json",
+          "sha256": "29e8fe0ab7d3410762c5d87a0252c30c2924191866d588889da4bdad56eadf29"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/2107da07a87b179a3f2c32f21eccdd3a8fe0228b4a5357596f5a1bb1a5208e2e-1.json",
+          "sha256": "9dda2de6bda1d909c8848fa8c2c84acffeded891a3abb6724e01de97122b6c1e"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-array-binding",
+      "status": "owned-setter-parameter-name",
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration",
+          "parameter_name_only": true,
+          "readonly_only": false,
+          "actual_sha256": "4ae8b73c8d798c2372f5ce3f76262c5d3ba717951ffe241ea257f62e705d6688",
+          "expected_sha256": "f56e72089df13aa9d7289e3eb7ffae3a7451874833a94eee1e358ddde12ab26b",
+          "diff": "--- native\n+++ ts\n@@ -1,5 +1,5 @@\n export const tail: 1;\r\n export class Foo {\r\n-    set x(value: any);\r\n+    set x([value]: any);\r\n }\r\n //# sourceMappingURL=main.d.ts.map"
+        }
+      ],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/cd4124bf0fec8350e7ca4d1397b2177d3d7c5cf42c97bf986e5700814bd55d11-0.json",
+          "sha256": "f4e0cc147399b0dad82b2c62c717e8053ce5774e0a07a4dd6650660587bb33c4"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-arrow-property",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/d833ab2a901b6478f30dd0f6c0eb11cd391b78bbead036c6457586648a7c379f-0.json",
+          "sha256": "c6cef0ada24bc5d201fe612d2e11ab1fdb40a36da0748f360b2f662e7401abea"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/d833ab2a901b6478f30dd0f6c0eb11cd391b78bbead036c6457586648a7c379f-1.json",
+          "sha256": "13ba6d4b1607b52107bd4d62e30fd5019e7b4d1b3ac86d2b9ac41d6458277b41"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-call-argument",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/5c2fe799f6df809fb0553849eb6e08b5ad5c7533e143fdd5adf49ba6af512a72-0.json",
+          "sha256": "ecd2faca98bf5e05aacb5d6e859f88f02db24a4ccdf01eebabcf65a8388ab5b1"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/5c2fe799f6df809fb0553849eb6e08b5ad5c7533e143fdd5adf49ba6af512a72-1.json",
+          "sha256": "027629aadf95f58b485a3464d55065ad85bdcc177bbba68aeeadd3b3f13b111c"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-computed-method",
+      "status": "outside-descriptor-readonly",
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration",
+          "parameter_name_only": false,
+          "readonly_only": true,
+          "actual_sha256": "3b04940f7abf0f2cd99d3d22ecf0489dbb544341c36d0aa0192f59dabe54d98c",
+          "expected_sha256": "c76a0320851047be5c924ff76930a8f7f2e09c42d28b0ff55461c5b8eb015b30",
+          "diff": "--- native\n+++ ts\n@@ -1,5 +1,5 @@\n export const tail: 1;\r\n export class Foo {\r\n-    readonly x: any;\r\n+    x: any;\r\n }\r\n //# sourceMappingURL=main.d.ts.map"
+        }
+      ],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/c7d2bc4d57ac7eb8363a3b6f4673acc47be7814829c6d4bb284dc551ca923bf7-0.json",
+          "sha256": "abb7830472ecd520b30880d3353654e255d25a9ad305f66764a8aa314b6b50fc"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-duplicate-member-order",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/1b2670889a1b9ccc2172bdb2613d34b9b8cf32b98f012236973201fbcba9611e-0.json",
+          "sha256": "335bdb06eaf0f7b66372499dab514bae7ae6302c5405c053af2c6cdec8f11e5d"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/1b2670889a1b9ccc2172bdb2613d34b9b8cf32b98f012236973201fbcba9611e-1.json",
+          "sha256": "06dbde093dc44e42134aff03c1085f0fd39ffd8ca32a2f925ab425c6c10c0921"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-function-property",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/b9d23fcfbfa56c16fb8313a433b6e9fd6d2e0dda69a4cce26187df37870ed09c-0.json",
+          "sha256": "faa05a9f887d0b9579fc9b11c0825498815f1e81e5d121ca6d03de340a76ee9d"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/b9d23fcfbfa56c16fb8313a433b6e9fd6d2e0dda69a4cce26187df37870ed09c-1.json",
+          "sha256": "245a1e317c44cf6103c50b77ece92159789eb3bd997dcbdf84eb80dbf5fea4c6"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-get-set",
+      "status": "owned-setter-parameter-name",
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration",
+          "parameter_name_only": true,
+          "readonly_only": false,
+          "actual_sha256": "6fcd789da922ef0431b3ac508a5d3001a7a0c2a6488e10bd0771525ffc4559f5",
+          "expected_sha256": "9e8ed693436a83e3fcc570a15aa77a8f8f977acab9cdbfad1f83cb2031b7f353",
+          "diff": "--- native\n+++ ts\n@@ -1,6 +1,6 @@\n export const tail: 1;\r\n export class Foo {\r\n-    set x(value: number);\r\n+    set x(supplied: number);\r\n     get x(): number;\r\n }\r\n //# sourceMappingURL=main.d.ts.map"
+        }
+      ],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/2b08937cd62ec658391d76a1cc79dd54e36b77dc82aa9dd47f3df1792f539e71-0.json",
+          "sha256": "e4b239a3fc2d8286ffd8c997f56d62322084fbd86c9bbe104803503f50efa9b8"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-identifier-property",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/2d2ed55de39c206bb3fe460b2aeef55a68029d02769210a86c23ba22f843a07e-0.json",
+          "sha256": "e22c9c74b2178517d67bec9e0b6a9b25c71e72bd8ddcc2280645413b695a0768"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/2d2ed55de39c206bb3fe460b2aeef55a68029d02769210a86c23ba22f843a07e-1.json",
+          "sha256": "e9cbd660c009c99aeaf3f6e229820f2b7cf8fa5467b4922aa53b02416368f896"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-method",
+      "status": "owned-setter-parameter-name",
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration",
+          "parameter_name_only": true,
+          "readonly_only": false,
+          "actual_sha256": "4ae8b73c8d798c2372f5ce3f76262c5d3ba717951ffe241ea257f62e705d6688",
+          "expected_sha256": "702c4b9525be91f4b319382fecb643c9fd4792971a5d650f2f81fee2cab7a53e",
+          "diff": "--- native\n+++ ts\n@@ -1,5 +1,5 @@\n export const tail: 1;\r\n export class Foo {\r\n-    set x(value: any);\r\n+    set x(supplied: any);\r\n }\r\n //# sourceMappingURL=main.d.ts.map"
+        }
+      ],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/b39af0e3e5998f2b40fffcb36d57d04bfb9c92ac5470cd4109d8465e41291fd6-0.json",
+          "sha256": "58bad50ad9561dfdade90335ff237f6a0f0dc7419b31964ca4af32d09fca85cc"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-noarg",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/dd9b141eb3e54cda313b6cd28c1f2a741a3e535f8b8ce37b76baa834fca535e6-0.json",
+          "sha256": "6e5aff4acedd531383e0a74f96342cb7e16da631dd983d48dffbe1bc0081fa66"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/dd9b141eb3e54cda313b6cd28c1f2a741a3e535f8b8ce37b76baa834fca535e6-1.json",
+          "sha256": "e2b5343a76f31bf30f0321d437f415657a1853981c5b1ba6108d7aab2d0b0d9c"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-object-binding",
+      "status": "owned-setter-parameter-name",
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration",
+          "parameter_name_only": true,
+          "readonly_only": false,
+          "actual_sha256": "4ae8b73c8d798c2372f5ce3f76262c5d3ba717951ffe241ea257f62e705d6688",
+          "expected_sha256": "36955a6728d6380e0bb34ff98486a3285da348deab8be717e036fa4eb50f935b",
+          "diff": "--- native\n+++ ts\n@@ -1,5 +1,5 @@\n export const tail: 1;\r\n export class Foo {\r\n-    set x(value: any);\r\n+    set x({ value }: any);\r\n }\r\n //# sourceMappingURL=main.d.ts.map"
+        }
+      ],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/57c06d9b338ddde15d920dbd4ce0cec78fb257a99f15bfc1d39f46312b0b113e-0.json",
+          "sha256": "619aefddaada5ae1c628d79b04f4e23b6e968b5b096f51d5b7345337ffbd523f"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-quoted-method",
+      "status": "outside-descriptor-readonly",
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration",
+          "parameter_name_only": false,
+          "readonly_only": true,
+          "actual_sha256": "3b04940f7abf0f2cd99d3d22ecf0489dbb544341c36d0aa0192f59dabe54d98c",
+          "expected_sha256": "c76a0320851047be5c924ff76930a8f7f2e09c42d28b0ff55461c5b8eb015b30",
+          "diff": "--- native\n+++ ts\n@@ -1,5 +1,5 @@\n export const tail: 1;\r\n export class Foo {\r\n-    readonly x: any;\r\n+    x: any;\r\n }\r\n //# sourceMappingURL=main.d.ts.map"
+        }
+      ],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/df57b7185b6532df92c56783d6ec6431a9b34e88eefda86fba8cf04036f3061d-0.json",
+          "sha256": "ea2e67da12690dfdc6af7907d64f47e41c0f0c56bba605718e9555a83f0fd580"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-repeated-call-order",
+      "status": "owned-setter-parameter-name",
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration",
+          "parameter_name_only": true,
+          "readonly_only": false,
+          "actual_sha256": "4ae8b73c8d798c2372f5ce3f76262c5d3ba717951ffe241ea257f62e705d6688",
+          "expected_sha256": "fc61ed1366d714e2bfd7d94234c4a274fead3972ad76eb7b3a83c55eaf42a41c",
+          "diff": "--- native\n+++ ts\n@@ -1,5 +1,5 @@\n export const tail: 1;\r\n export class Foo {\r\n-    set x(value: any);\r\n+    set x(first: any);\r\n }\r\n //# sourceMappingURL=main.d.ts.map"
+        }
+      ],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/4af62e6d29cfeeff7aed33847f5ec49d946df8c50ab24cd91fee3367e5c09111-0.json",
+          "sha256": "71ad17d8e97c8fb6ad8f4f1fd4190f16d622c6380dc16cae308c9c666e8f12ad"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-rest",
+      "status": "owned-setter-parameter-name",
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [
+        {
+          "path": "/project/out/main.d.ts",
+          "kind": "Declaration",
+          "parameter_name_only": true,
+          "readonly_only": false,
+          "actual_sha256": "4ae8b73c8d798c2372f5ce3f76262c5d3ba717951ffe241ea257f62e705d6688",
+          "expected_sha256": "902f26fb4567468eca57b54ece7122b822cef98cd92aee2ed64ccabe85307c4c",
+          "diff": "--- native\n+++ ts\n@@ -1,5 +1,5 @@\n export const tail: 1;\r\n export class Foo {\r\n-    set x(value: any);\r\n+    set x(args: any);\r\n }\r\n //# sourceMappingURL=main.d.ts.map"
+        }
+      ],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/c80499043bedc1b953535592dc7772290178f189b20beff23797a970f985cc23-0.json",
+          "sha256": "fac875b64d8f1f3a12d6c1e9ac16e9fb1c44170386fa0493c2f0d8de29b0d773"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-static-method",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/8caac69ed68fb8e18cd9049bad4b903e33281025e9ffc86c48075c0a8ff4bb6b-0.json",
+          "sha256": "cc5a331355298f196ed58be750fad10512ddce6d275c52c9232a95f66ac0caf9"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/8caac69ed68fb8e18cd9049bad4b903e33281025e9ffc86c48075c0a8ff4bb6b-1.json",
+          "sha256": "e75b432181b48547ee731ac4493c8c57aa2d3d540e7c913b76fa7f9d4d352f17"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-union-property",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/e85783192f0cbcfb4eee6fbef4d913762fcd4a4dbd8e927dbf3135197a8e071d-0.json",
+          "sha256": "d341d02fef351294f20b5d274d0c299ad200e11c5c3b21ad16a125ebf8b4648f"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/e85783192f0cbcfb4eee6fbef4d913762fcd4a4dbd8e927dbf3135197a8e071d-1.json",
+          "sha256": "4a2852e29481f64c38e3975d7c8354e93abdcdb88f93f0951ac7127b853addd2"
+        }
+      ]
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-variable-argument",
+      "status": "adjacent-exact",
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": [],
+      "capture_files": [
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/e1bdb5f78a8e60ce0a10cdf61039872c7f7cd53eb5105f214b88f7c099642da4-0.json",
+          "sha256": "c905f7bedd33b43660f6b9769cdd87526a1ecdf3c9c28497b66596dda103220c"
+        },
+        {
+          "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/e1bdb5f78a8e60ce0a10cdf61039872c7f7cd53eb5105f214b88f7c099642da4-1.json",
+          "sha256": "8f46523d3ad5aacab4e4148f6cc7db5f5725462f1db16fbf616bf5d6686f5c35"
+        }
+      ]
+    }
+  ],
+  "first_failure_comparisons": [
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-repeated-call-order",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "b5bc45743961676fa7752a761be2ed8dfdeab6b8a99f433865df90b314707f36",
+      "expected_sha256": "89d0c48591af4b893a4c29260086eb16162ce0b55e0fd7bad53bf953f2da1967"
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-method",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "b5bc45743961676fa7752a761be2ed8dfdeab6b8a99f433865df90b314707f36",
+      "expected_sha256": "968f7e5f0b6ef674660d40eff53f977a80a675d49ba3ccf2ff581e5f2e3e6ea0"
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-get-set",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "896c312cdec8f8b4b95582d35e6fa014804fcc3f11112332ca07a1b6d083a11c",
+      "expected_sha256": "e7226344fd57d8305a672d3af4ea3de2cd7e005c59cb8fcd6de7c48c31466de8"
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-rest",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "b5bc45743961676fa7752a761be2ed8dfdeab6b8a99f433865df90b314707f36",
+      "expected_sha256": "7cf920675c12dc24616bc193b3aaca10c3c523337ff9cf646f0d4a1a5a12c71a"
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-object-binding",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "b5bc45743961676fa7752a761be2ed8dfdeab6b8a99f433865df90b314707f36",
+      "expected_sha256": "33ba9a4483f9df641f3006b7fde2ba48b6d488478e829ec621420d8eec1c9624"
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-array-binding",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "b5bc45743961676fa7752a761be2ed8dfdeab6b8a99f433865df90b314707f36",
+      "expected_sha256": "d3a4e8c90e4316e26c4afaa788b63874e3c07458dfdd8766e6ee73046a777951"
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-quoted-method",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "45086f44eaef154e272def4052b9aa8b7935069f2867469933172316cf54994c",
+      "expected_sha256": "0bf23c917fbf114741051415dc35d51903e210806ffac5c8f375ca3652df1943"
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-computed-method",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "45086f44eaef154e272def4052b9aa8b7935069f2867469933172316cf54994c",
+      "expected_sha256": "0bf23c917fbf114741051415dc35d51903e210806ffac5c8f375ca3652df1943"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-repeated-call-order",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "b5bc45743961676fa7752a761be2ed8dfdeab6b8a99f433865df90b314707f36",
+      "expected_sha256": "89d0c48591af4b893a4c29260086eb16162ce0b55e0fd7bad53bf953f2da1967"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-method",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "b5bc45743961676fa7752a761be2ed8dfdeab6b8a99f433865df90b314707f36",
+      "expected_sha256": "968f7e5f0b6ef674660d40eff53f977a80a675d49ba3ccf2ff581e5f2e3e6ea0"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-get-set",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "896c312cdec8f8b4b95582d35e6fa014804fcc3f11112332ca07a1b6d083a11c",
+      "expected_sha256": "e7226344fd57d8305a672d3af4ea3de2cd7e005c59cb8fcd6de7c48c31466de8"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-rest",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "b5bc45743961676fa7752a761be2ed8dfdeab6b8a99f433865df90b314707f36",
+      "expected_sha256": "7cf920675c12dc24616bc193b3aaca10c3c523337ff9cf646f0d4a1a5a12c71a"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-object-binding",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "b5bc45743961676fa7752a761be2ed8dfdeab6b8a99f433865df90b314707f36",
+      "expected_sha256": "33ba9a4483f9df641f3006b7fde2ba48b6d488478e829ec621420d8eec1c9624"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-array-binding",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "b5bc45743961676fa7752a761be2ed8dfdeab6b8a99f433865df90b314707f36",
+      "expected_sha256": "d3a4e8c90e4316e26c4afaa788b63874e3c07458dfdd8766e6ee73046a777951"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-quoted-method",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "45086f44eaef154e272def4052b9aa8b7935069f2867469933172316cf54994c",
+      "expected_sha256": "0bf23c917fbf114741051415dc35d51903e210806ffac5c8f375ca3652df1943"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-computed-method",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "45086f44eaef154e272def4052b9aa8b7935069f2867469933172316cf54994c",
+      "expected_sha256": "0bf23c917fbf114741051415dc35d51903e210806ffac5c8f375ca3652df1943"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-repeated-call-order",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "b5bc45743961676fa7752a761be2ed8dfdeab6b8a99f433865df90b314707f36",
+      "expected_sha256": "89d0c48591af4b893a4c29260086eb16162ce0b55e0fd7bad53bf953f2da1967"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-method",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "b5bc45743961676fa7752a761be2ed8dfdeab6b8a99f433865df90b314707f36",
+      "expected_sha256": "968f7e5f0b6ef674660d40eff53f977a80a675d49ba3ccf2ff581e5f2e3e6ea0"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-get-set",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "896c312cdec8f8b4b95582d35e6fa014804fcc3f11112332ca07a1b6d083a11c",
+      "expected_sha256": "e7226344fd57d8305a672d3af4ea3de2cd7e005c59cb8fcd6de7c48c31466de8"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-rest",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "b5bc45743961676fa7752a761be2ed8dfdeab6b8a99f433865df90b314707f36",
+      "expected_sha256": "7cf920675c12dc24616bc193b3aaca10c3c523337ff9cf646f0d4a1a5a12c71a"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-object-binding",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "b5bc45743961676fa7752a761be2ed8dfdeab6b8a99f433865df90b314707f36",
+      "expected_sha256": "33ba9a4483f9df641f3006b7fde2ba48b6d488478e829ec621420d8eec1c9624"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-array-binding",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "b5bc45743961676fa7752a761be2ed8dfdeab6b8a99f433865df90b314707f36",
+      "expected_sha256": "d3a4e8c90e4316e26c4afaa788b63874e3c07458dfdd8766e6ee73046a777951"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-quoted-method",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "45086f44eaef154e272def4052b9aa8b7935069f2867469933172316cf54994c",
+      "expected_sha256": "0bf23c917fbf114741051415dc35d51903e210806ffac5c8f375ca3652df1943"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-computed-method",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "45086f44eaef154e272def4052b9aa8b7935069f2867469933172316cf54994c",
+      "expected_sha256": "0bf23c917fbf114741051415dc35d51903e210806ffac5c8f375ca3652df1943"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-repeated-call-order",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "b5bc45743961676fa7752a761be2ed8dfdeab6b8a99f433865df90b314707f36",
+      "expected_sha256": "89d0c48591af4b893a4c29260086eb16162ce0b55e0fd7bad53bf953f2da1967"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-method",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "b5bc45743961676fa7752a761be2ed8dfdeab6b8a99f433865df90b314707f36",
+      "expected_sha256": "968f7e5f0b6ef674660d40eff53f977a80a675d49ba3ccf2ff581e5f2e3e6ea0"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-get-set",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "896c312cdec8f8b4b95582d35e6fa014804fcc3f11112332ca07a1b6d083a11c",
+      "expected_sha256": "e7226344fd57d8305a672d3af4ea3de2cd7e005c59cb8fcd6de7c48c31466de8"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-rest",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "b5bc45743961676fa7752a761be2ed8dfdeab6b8a99f433865df90b314707f36",
+      "expected_sha256": "7cf920675c12dc24616bc193b3aaca10c3c523337ff9cf646f0d4a1a5a12c71a"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-object-binding",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "b5bc45743961676fa7752a761be2ed8dfdeab6b8a99f433865df90b314707f36",
+      "expected_sha256": "33ba9a4483f9df641f3006b7fde2ba48b6d488478e829ec621420d8eec1c9624"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-array-binding",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "b5bc45743961676fa7752a761be2ed8dfdeab6b8a99f433865df90b314707f36",
+      "expected_sha256": "d3a4e8c90e4316e26c4afaa788b63874e3c07458dfdd8766e6ee73046a777951"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-quoted-method",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "45086f44eaef154e272def4052b9aa8b7935069f2867469933172316cf54994c",
+      "expected_sha256": "0bf23c917fbf114741051415dc35d51903e210806ffac5c8f375ca3652df1943"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-computed-method",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "45086f44eaef154e272def4052b9aa8b7935069f2867469933172316cf54994c",
+      "expected_sha256": "0bf23c917fbf114741051415dc35d51903e210806ffac5c8f375ca3652df1943"
+    }
+  ],
+  "seconds": [
+    118.13,
+    68.16
+  ],
+  "exit_codes": [
+    101,
+    101
+  ],
+  "original": {
+    "eligible": 1,
+    "failed_twice": [
+      "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsGetterSetter.ts#default"
+    ],
+    "native_executions": 2,
+    "full_tuples": 2,
+    "differences": [
+      {
+        "path": "./out/index.d.ts",
+        "kind": "declaration",
+        "differing_fields": [
+          "callback_utf8_base64",
+          "callback_utf8_bytes",
+          "materialized_utf8_base64",
+          "materialized_utf8_bytes"
+        ],
+        "parameter_name_only": true,
+        "actual_sha256": "bedf9514349cbcb0d2a8a1afe753fa6062f6e15c5a4f717fcbe6dc141e9ce813",
+        "expected_sha256": "e6e528d8e45d14159f1317ce8de62fa5aafbe9ada3a405b8fe7e1de8a6306e7f",
+        "diff": "--- native\n+++ ts\n@@ -15,14 +15,14 @@\n     get x(): number;\r\n }\r\n export class E {\r\n-    set x(value: number);\r\n+    set x(_arg: number);\r\n }\r\n export class F {\r\n-    set x(value: number);\r\n+    set x(_arg: number);\r\n     get x(): number;\r\n }\r\n export class G {\r\n-    set x(value: number);\r\n+    set x(args: number);\r\n }\r\n export class H {\r\n     set x(value: any);\r\n"
+      }
+    ]
+  },
+  "total_complete_comparison_and_supplemental_executions": 434,
+  "adjacent_declaration_blocking": {
+    "cases": 22,
+    "native_emit_executions": 44,
+    "command_reporting": false,
+    "passed": true
+  },
+  "test_input_projection": {
+    "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+    "addition": "                    \"declarationMap\" => options.declaration_map = value.as_bool(),\n",
+    "behavior": "project declarationMap bool; original exact comparator unchanged"
+  },
+  "unqualified_annotation_branch": "inline JSDoc in main witnesses does not produce private/type annotations; add separate multiline annotation witnesses before readiness",
+  "working_files": [
+    {
+      "path": "crates/binder/src/assignment.rs",
+      "sha256": "3589abfd9c9de29468e06d3582419e34c01f1ec58c0b88b62ebd350918a3afcc"
+    },
+    {
+      "path": "crates/binder/src/bind.rs",
+      "sha256": "5252a966639e5e4dcdee538ff1f1594f04bb25d1d20cb9316f8a5a6a14a2d396"
+    },
+    {
+      "path": "crates/binder/src/node_util.rs",
+      "sha256": "5d3eea9d3dc9a23a6cb4240aaa01cc85f41c1e5b39e0d074f43e36a101f7d551"
+    },
+    {
+      "path": "crates/checker/src/class.rs",
+      "sha256": "0cac7e0564ba2c2eeaee5cd7fd41c90abf10d5b21e6ca385d15d8e794aa71856"
+    },
+    {
+      "path": "crates/checker/src/emit.rs",
+      "sha256": "ed7a09cb4ca7b57b839aa03186385142141911d2af117b611e55191ff9bda105"
+    },
+    {
+      "path": "crates/checker/src/node_builder/serialize.rs",
+      "sha256": "0ab71141dac64fdf557c93d30a1a8ed2ce9ccf6c2f10daa5cbba5ea19f053330"
+    },
+    {
+      "path": "crates/checker/src/node_builder/signatures.rs",
+      "sha256": "d46a6c370c777dc7f90624d8a7efcd7c277ba3350f84a8db5fbfa9bbb70c4a3a"
+    },
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "71853704eadfbdfe31f25171c2241b3a76db192671a0cec0d8c2cdd884081b55"
+    },
+    {
+      "path": "crates/checker/src/program.rs",
+      "sha256": "b7a6e8c75296e6e6ea3fa284d438bec910f1034c974653d42e260feedd45693b"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "c95e9b203fa0877255ca16eaac7e80853de2d45206ff8155dcff23c2ccc5ef28"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/declaration-blocking.json",
+      "sha256": "39cb808ed67ed7dc930ccd4721e43227ce147cc82e188dc9d22a09815f409ab8"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/defineproperty-setter-names.json",
+      "sha256": "17f4edf8d471fa96b09834c488ba0e2fb5de0c268360cc67060091646e1ed57f"
+    },
+    {
+      "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
+      "sha256": "896edb222e0541d4705ce8938dad1f73e5c8b52778be47e836fa4bdbbfde0f35"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+      "sha256": "7b14d30e473948b7a7878c20ed9feb528a629f8d26db042306ba6574a6edde81"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "54d5849d2db6baf84152e6505add6e01906e6740cb21285f8b62631e538599ad"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+      "sha256": "90aff72e27fac502da3ff3f06980c55c4923e35554c3e64800a60213cb1b04ba"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_defineproperty_setter_names.rs",
+      "sha256": "1a7b8532d00a898d5d0fb3d07576924da98fd7f52d50fac14a45680fb67944ed"
+    },
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "03191340f09238ee4802e90d56b9f6aac246189e6d44da6230cd6caeca2bbf7d"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "5ffd982b2fb2057fa7c082400f502e755f0acaf663245a9898bb48c0820d57b6"
+    },
+    {
+      "path": "ratchets/h2-8a-candidate-inputs.v1.json",
+      "sha256": "6ff7ea8d1d986e8a9d833d45ec694ab0b8616604fdf065ba52e24a34ac86759b"
+    },
+    {
+      "path": "ratchets/h2-8a-candidates.v1.json",
+      "sha256": "e33fbf9b6c7eb96dae5186013e054e57eae371a48fca461a809ae4e6e2a1095c"
+    },
+    {
+      "path": "ratchets/h2-8a-observations.v1.json",
+      "sha256": "91fc28206d663eab46fef98f72ba296d29e02def72518e012616c4d0d01acc87"
+    },
+    {
+      "path": "scripts/observe-defineproperty-setter-names.mjs",
+      "sha256": "52643cdaff5ff137f742d3e6774baf89b51721d65b9e8b1fe918dc888b7ece50"
+    },
+    {
+      "path": "target/freeze-defineproperty-setter-names-before.py",
+      "sha256": "f4018fbee89db3189510e00c4e9c7eae50fb6853782e62476b3ea574543194ce"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/04213286a2e1f15754a6891564b8464ef17e36f55011691e37980e7603bd9ae5-0.json",
+      "sha256": "ee36ce1d551ffd3cf687bc1c10a8fc5d313ab02a5a45ecc386a1b7be113e1817"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/04213286a2e1f15754a6891564b8464ef17e36f55011691e37980e7603bd9ae5-1.json",
+      "sha256": "e7ca3605cfcc17f3c7504519979623e5256fdb1efe166a66c57446263c431893"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/06c76b67f757ce7df0eaf1283172e158e3667974e75cc7c21c0595c74b2ed06b-0.json",
+      "sha256": "855904e0e8392297a9621d18425e55d6ea527c9ae52328acf63ff5bfece714f1"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/06c76b67f757ce7df0eaf1283172e158e3667974e75cc7c21c0595c74b2ed06b-1.json",
+      "sha256": "b3aa32f4f622cce52174debdad398da1be9609122c0abe68340ad3d698a3f908"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/076b35f81f019658a2252bac78532ae452acba4ac68a685f017ae58f04cf4ac7-0.json",
+      "sha256": "c8c1f45d10d35baf595c9fa52b9f3071e227871576223ab63d02e28fbd86e468"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/076b35f81f019658a2252bac78532ae452acba4ac68a685f017ae58f04cf4ac7-1.json",
+      "sha256": "f8320c6010aa538c4ad46766f4c37df1f8722fb4f3e12bbc152bc2850cfaa2cb"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/0a7d9859ad6bea78212d61c3f4c64a3036261da8b7b3d385e74164235a92b41e-0.json",
+      "sha256": "6288a1d951f584b16fc51b35c1a56fad6dcf96670410f9925a513f3317482c7a"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/0d96736d84a461e5de37a79b8af4243e2dd074ae700e8ba5784345d22a5227d2-0.json",
+      "sha256": "c24e66b2213bca474c3cc9df6d5d7b8eaa92b8b149ee77300f1aef18d45e6101"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/0d96736d84a461e5de37a79b8af4243e2dd074ae700e8ba5784345d22a5227d2-1.json",
+      "sha256": "d82e221a559989655447d6d17b49370f2e50d460b5a2c2110dd9a0ce58595dff"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/178c95e34d6585d52fb43ea200551fe7ac26d38321d3d606880a86360ce21f2a-0.json",
+      "sha256": "9e596e0ed7cdcdb899b9166e0dbba90551c067f16225188083a21608cd3478db"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/178c95e34d6585d52fb43ea200551fe7ac26d38321d3d606880a86360ce21f2a-1.json",
+      "sha256": "c58dc8f7d0b444a87831bfffe9d1022d3946e92926601cac9e3e3b53d3c7381e"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/194162c0bd1230504b29076005376b3252e566dee7f93e8186e84c5298cec0f0-0.json",
+      "sha256": "29b8fa6695ec55273cca36cf5b4bceac6d97960d1029aed0e18e7993277819fc"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/194162c0bd1230504b29076005376b3252e566dee7f93e8186e84c5298cec0f0-1.json",
+      "sha256": "53d04d2c44aff6c4e51b6648e27ee321c4a6b5a7694cec5cad87c7d095b67f5c"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/1b2670889a1b9ccc2172bdb2613d34b9b8cf32b98f012236973201fbcba9611e-0.json",
+      "sha256": "335bdb06eaf0f7b66372499dab514bae7ae6302c5405c053af2c6cdec8f11e5d"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/1b2670889a1b9ccc2172bdb2613d34b9b8cf32b98f012236973201fbcba9611e-1.json",
+      "sha256": "06dbde093dc44e42134aff03c1085f0fd39ffd8ca32a2f925ab425c6c10c0921"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/201f3eaeaf59f2556ed24f6597bc5415e4aff452503f891256532cdca67d2ce2-0.json",
+      "sha256": "8e75de4066065e8487a091202180c2633c9ad6decabab71c532fe8b5bdb0f120"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/201f3eaeaf59f2556ed24f6597bc5415e4aff452503f891256532cdca67d2ce2-1.json",
+      "sha256": "66567f9bbf116169d2019369b40d3128a45328a881e0ae0806d96698644f3ab5"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/2107da07a87b179a3f2c32f21eccdd3a8fe0228b4a5357596f5a1bb1a5208e2e-0.json",
+      "sha256": "29e8fe0ab7d3410762c5d87a0252c30c2924191866d588889da4bdad56eadf29"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/2107da07a87b179a3f2c32f21eccdd3a8fe0228b4a5357596f5a1bb1a5208e2e-1.json",
+      "sha256": "9dda2de6bda1d909c8848fa8c2c84acffeded891a3abb6724e01de97122b6c1e"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/26624e455c56200c965373a8c54841f453562762ee06fc4eb487f71d18897b2e-0.json",
+      "sha256": "27f62408798bfb775ec4bb82110dbbbef907368fb3ec1990de6afee35c0b51df"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/26624e455c56200c965373a8c54841f453562762ee06fc4eb487f71d18897b2e-1.json",
+      "sha256": "3da8b292c81d582b4db2914732f41ab120cd00a28c7dac0a4710e51a3d4d07ae"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/29a261156bcf90bb6d754d0a5668c9018570865595bfbfada58d73f9779f16e8-0.json",
+      "sha256": "c32c8c0fdaf3ea88a5a3c966dbac21e60e2d6507327f9eb65a651c2b1b0f7cae"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/2b08937cd62ec658391d76a1cc79dd54e36b77dc82aa9dd47f3df1792f539e71-0.json",
+      "sha256": "e4b239a3fc2d8286ffd8c997f56d62322084fbd86c9bbe104803503f50efa9b8"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/2bd87559fb35f173f58df81f144544b771905127c4c78633cf0fc2c437cf9c86-0.json",
+      "sha256": "2f6197026b31479293c4d463418f3d56423a2cef05a8794a0b4825d9fccbe809"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/2bd87559fb35f173f58df81f144544b771905127c4c78633cf0fc2c437cf9c86-1.json",
+      "sha256": "8833252861b35345f6543de3f2146ee99202d1bf1c40bdcc39b1a1f6f954cfcf"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/2d2ed55de39c206bb3fe460b2aeef55a68029d02769210a86c23ba22f843a07e-0.json",
+      "sha256": "e22c9c74b2178517d67bec9e0b6a9b25c71e72bd8ddcc2280645413b695a0768"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/2d2ed55de39c206bb3fe460b2aeef55a68029d02769210a86c23ba22f843a07e-1.json",
+      "sha256": "e9cbd660c009c99aeaf3f6e229820f2b7cf8fa5467b4922aa53b02416368f896"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/2d50e9a3512fd140e17c21b00f26bc70e6a1feff36a5c41c191289b21ca901b8-0.json",
+      "sha256": "d81b539ebcee7eb1102afb79112eca1047e2c66df682943022bbe4cdd9cf9b58"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/2d50e9a3512fd140e17c21b00f26bc70e6a1feff36a5c41c191289b21ca901b8-1.json",
+      "sha256": "9844fece370eeb944a93049e917084fd5373661abd33eee75690b74d610b4395"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/3a49ec845352a5a12981f6de334790c0f0547c6aaab3597f80c76d81841a77c5-0.json",
+      "sha256": "4e7ebd98e24ecc47bcc0372cdecfc7031627d4890bee4613431c15303e8e86ac"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/3a49ec845352a5a12981f6de334790c0f0547c6aaab3597f80c76d81841a77c5-1.json",
+      "sha256": "68e698e232636cb92b63fbefbab8b367f69d7ebb2cc6c7ba775dbff968063db1"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/3d27e1080cf4ff61640d4f7ed325be7dceb8ab9f2d897e624cb2d40a702ea5eb-0.json",
+      "sha256": "adf1b1f6e8bc661d8cb90639681f33014458030de91ed6aef0ed669099883cc3"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/3d27e1080cf4ff61640d4f7ed325be7dceb8ab9f2d897e624cb2d40a702ea5eb-1.json",
+      "sha256": "cd47b37c29a93fb6200f3718200210086dd5ac39b4311caf23dae254f43f049f"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/3d77caf3556ad79c42c26b5e533c8f58dd8ef0777279855ce965f86209d934cb-0.json",
+      "sha256": "e5e51fd176d37d6f5ab76cd843c89ef584f7b97e4edeb0e8b767211de5bb3b8b"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/3f53ccba4d0adc43cce4f08ec0c4d247031debab1924eba05a02235430b2ca35-0.json",
+      "sha256": "e39264153633541b02c7c11f0a0fa48949b25c79d30364c1ba2780931f1f8d25"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/3f53ccba4d0adc43cce4f08ec0c4d247031debab1924eba05a02235430b2ca35-1.json",
+      "sha256": "240f0d59e69818884f21231b8851bcac3864172cf254a8221d82a64608d16efe"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/44ca5a951d26e97a75f32983aff84ce7d6f1fa88eb3f9f195dd5357754ab017b-0.json",
+      "sha256": "99896605e393c6233ad3c514442cb4da55d3d4bca1995860296f2dcd35ae4a53"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/44ecf9ce7e1288213e5216488983db53554ff4be242b480e5b4cd9a91cceeb4a-0.json",
+      "sha256": "61a7443f6d132907edb827b2aa61b5878d4cf7e953847d0e35ff8744d68028e7"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/44ecf9ce7e1288213e5216488983db53554ff4be242b480e5b4cd9a91cceeb4a-1.json",
+      "sha256": "b5854957ed6e79b2bc1475183ea0f80dfca79dee328a26a51289b4f7c5fca55b"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/44fcf08f173e9e94ed6ad0db22e932c61076715eea578cdb2547810b9b3dd058-0.json",
+      "sha256": "638d8bb65f8c70b31517673ccadd78749efaaa2c58cbb1c12c55904d954781a8"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/45fab238d7b02b52800fa0d8961cf29eb8ced8b4f0ff588fa3eef399ab6a9f49-0.json",
+      "sha256": "343a94fc209442fd2c68c348188eb2277bd47c74e2415075faba145f378e4928"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/45fab238d7b02b52800fa0d8961cf29eb8ced8b4f0ff588fa3eef399ab6a9f49-1.json",
+      "sha256": "91ac904a29311bcca301e06b79c0b10e3ce5bb6f39c44c8130dfeb1ce6a7ffb0"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/4af62e6d29cfeeff7aed33847f5ec49d946df8c50ab24cd91fee3367e5c09111-0.json",
+      "sha256": "71ad17d8e97c8fb6ad8f4f1fd4190f16d622c6380dc16cae308c9c666e8f12ad"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/53c3808af0799607ea81d66f17041fec61e668fce49755b97cb07a88435e3bf4-0.json",
+      "sha256": "bc3bdcff443fda92fff33c40310bdbe0e45f020e342068b32b60cde2967355ef"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/53c3808af0799607ea81d66f17041fec61e668fce49755b97cb07a88435e3bf4-1.json",
+      "sha256": "2b28a1f80467cd27f92744cd91c57c7d750a150ccd82ef4c1e5ec89532906933"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/54801f10c353ad551c4bee0d4d82581371c263f91e57802d8caade5cffb095f2-0.json",
+      "sha256": "1ba2c6f04f2a2d12210062e1045670914bdc8fa47577cee4118a96ad939b1029"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/54801f10c353ad551c4bee0d4d82581371c263f91e57802d8caade5cffb095f2-1.json",
+      "sha256": "8c12f6ba328b4567987f4fb1d43a10ab4e2d78d70c830d9725e80a02945833d2"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/57c06d9b338ddde15d920dbd4ce0cec78fb257a99f15bfc1d39f46312b0b113e-0.json",
+      "sha256": "619aefddaada5ae1c628d79b04f4e23b6e968b5b096f51d5b7345337ffbd523f"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/587ac50aaf059a2af631cb46ce74cce21db9f9de3608cad05d05633eaa408b29-0.json",
+      "sha256": "ceec3803e861f8d4b2b2de399892f000d38855e0503b88f2b997180070c60cc7"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/587ac50aaf059a2af631cb46ce74cce21db9f9de3608cad05d05633eaa408b29-1.json",
+      "sha256": "6b94aa30f9bed784a56bbb52989c28c969aa94f761127773479593d276a267f5"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/58977ab339679f2d221c49221fb517c1eed9a6377329c54df9d0e4e6e9bb3ec0-0.json",
+      "sha256": "663bbe252360deb137fa6c2e4fd53547eddde1d129cf565c068048816a40672d"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/58977ab339679f2d221c49221fb517c1eed9a6377329c54df9d0e4e6e9bb3ec0-1.json",
+      "sha256": "27ad2bf0754d76d5ac0fe81ec4e5f6f3158ef17ac492f4c02089c24bf8b70b71"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/5a72a4b360038ad745e6786facae12d46c7bad7f4690960b82e771ac57c1199e-0.json",
+      "sha256": "3089eb8fdb708e50918704e14630b4285c8300619ddcbe19b4726861edf94999"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/5a72a4b360038ad745e6786facae12d46c7bad7f4690960b82e771ac57c1199e-1.json",
+      "sha256": "d060a847e7c7478c238498c01b1073895793feee5c19ad4e8f2c21fda83da137"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/5c2fe799f6df809fb0553849eb6e08b5ad5c7533e143fdd5adf49ba6af512a72-0.json",
+      "sha256": "ecd2faca98bf5e05aacb5d6e859f88f02db24a4ccdf01eebabcf65a8388ab5b1"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/5c2fe799f6df809fb0553849eb6e08b5ad5c7533e143fdd5adf49ba6af512a72-1.json",
+      "sha256": "027629aadf95f58b485a3464d55065ad85bdcc177bbba68aeeadd3b3f13b111c"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/5c470ff2a27952a53a968a0935f1e6f7694f8dcabef81a7599396c1c84f1962d-0.json",
+      "sha256": "abf4863fb21234e1ad1bac871c03cc65e338ed4d8608abb5ef27af1374ef89f1"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/5dda13cb7d008f1d9e043af1d294e5053e4193eb67a3f6ae7b45499616a89184-0.json",
+      "sha256": "fbc2855c270604f05885dae80b4753ea4b2ba19a0ebe473e7eb48104594bb096"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/5f1f7de70b1c63754078c76801eb3590a078dcb3d1f1e49c2452261027d62607-0.json",
+      "sha256": "f138216b020ed35e543395803c5f587523b2fc5bd43d99930a76942dfc83567f"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/5f1f7de70b1c63754078c76801eb3590a078dcb3d1f1e49c2452261027d62607-1.json",
+      "sha256": "657783bfff1503640efa04189be72bb757bfde887f758660ae1d2ff7e5a3bcdc"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/5ffb91740741482be65fc6d755350441c4638f6dfdb7d52eace3d92163d4506c-0.json",
+      "sha256": "5c547a544b57b4effc8d8aad374ecb29275d75f93747188f957b7f9d33f46110"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/5ffb91740741482be65fc6d755350441c4638f6dfdb7d52eace3d92163d4506c-1.json",
+      "sha256": "ce1a5a0a9779a1189a9e50dcdd04f5ba40cd932f568da23c4d50fb0bc3f16ac0"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/61a7218f69d374ef82e2c749275970fc813aa1fd8ef022bf47d03c46415200be-0.json",
+      "sha256": "a54c1ded7024767eda686e7d5bb1126926503a584bb2692cc964560e26f48905"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/61a7218f69d374ef82e2c749275970fc813aa1fd8ef022bf47d03c46415200be-1.json",
+      "sha256": "5cccd5f3144ca5708bb031fa8a9de1e4b8011a77f735fefc63b0fbaf40e19b83"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/61ba9ea88f39fa35d46723d3aea5ae13318ef9bf768b86d971e4729ff04f4bfd-0.json",
+      "sha256": "7de9552754272e2f6d1a3715b7cc84dbeee6618c25fdfff1c4d1a5580ca09242"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/67552c862f17acb6e73417d148be7f1dd1fa2b8de12b61bb2cc76c7b148e94cc-0.json",
+      "sha256": "879c68beb8332a2034811b28a54b872f6cbd540f6f0e3aa40a0d4f137d97930e"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/68536bb7c701f91581f596e5258d4f71f5d545bedcf992e985638aff110d2049-0.json",
+      "sha256": "70a59fcf14601983e7b85454dd8448036df4424a1543753e84fd9ad01c8cfd22"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/6c51cd88fda9d6086ce98147d43b22a400a8a98c908c5f83fecd401c3ec98cc7-0.json",
+      "sha256": "14ce6308f897e458deafd9e5b522521468fb6c4f6bf677c8b9dd6dd2492304ad"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/6c51cd88fda9d6086ce98147d43b22a400a8a98c908c5f83fecd401c3ec98cc7-1.json",
+      "sha256": "ad9d5fc8d0e8ef921282718ed8d3d206551f252d3c1b711c273df35213cf3798"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/6cd643e31fec5e6cd23ddb3571ec154aa4a2f430a2740b2187137d4d51275ba7-0.json",
+      "sha256": "d1edafe16f2af8ac7db3cc50f6caed9dc40aeae04eb7e4ec1b3b93489bb9c2c3"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/6dc9b406829a1031a50b2d7e2f017294f1cb75376dfd2cd052ea34f5aa418fba-0.json",
+      "sha256": "5ecec1a9b4536e0f085342cea5fbcb27812ad26d4f1c291e7d864de0cb6476a3"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/6e975e43cdb54c3e36f5caa1cd38375c4e70c24186ecd15afa6b0970c67d67f7-0.json",
+      "sha256": "0027ad09f6fb5569619f3365a3d3bb9cf3fb8b9a2c93965dd6f46465141d38a6"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/6e975e43cdb54c3e36f5caa1cd38375c4e70c24186ecd15afa6b0970c67d67f7-1.json",
+      "sha256": "8e9ad278466852531394d494a1335ffd9c6cf353b540568f9e47f0c6d7a00e3e"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/762e0a0fef07c9d2fd51f7aef7cec39fe218a424401b5e6f3bd3b599a2542e51-0.json",
+      "sha256": "196029c174dca343c6ae998999a667a1f915581dc4ca5e7efe665bd7da7cdd8d"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/78a233963bb481d0a1dd2c7d79fe4e5ed90c97c279cd6327efc763c4bc5e3030-0.json",
+      "sha256": "383e0cdc8489d35a0fed6c80c2b3773814f8a8566d8bba155158dc8f7539281e"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/78a233963bb481d0a1dd2c7d79fe4e5ed90c97c279cd6327efc763c4bc5e3030-1.json",
+      "sha256": "b881f90f81cd15e5d65841543500a23bcddb49aaf0d2506cf5dca01ac6ec3dff"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/7ddfaa89c1ba61201dc7c8e9e1e32715cde79ae6dd0a23be6753e3626bca655e-0.json",
+      "sha256": "bf96ea5b05db21ebfcac76258856c24de12f2e261d1e5a5c7df4755cffff090c"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/7ddfaa89c1ba61201dc7c8e9e1e32715cde79ae6dd0a23be6753e3626bca655e-1.json",
+      "sha256": "f74ae85498ead1d70e16ffeac60c6281a4e106d10a3f350e1ac0b81ed124f2f0"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/7fa6e4ddfb08f603b7d34965077bb9e3d5ef16771d688af69c84c886afc37e5f-0.json",
+      "sha256": "8195626e14690cd4a9048990d06a357997c172d52dfce1381e4e2ffb3bfaab19"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/83ae6246c78e6fa25b0d20b86dc61d1fc138f176ea35667b1133ecdec910df40-0.json",
+      "sha256": "aed41d85072e222b2ecee8a67cdc16cab92b7151bc421769d64ba3e86fb97a53"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/83ae6246c78e6fa25b0d20b86dc61d1fc138f176ea35667b1133ecdec910df40-1.json",
+      "sha256": "e93f442b1865f9b35af73a2b9827eb969a0c04b55b3ddbd56bbf006a8b08ec42"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/87b249320635eb42b1a9a56fbab480d21d97f982735bdb4ade1293b84886a8b8-0.json",
+      "sha256": "31e10865406a0beb16940d830cce52c652061ba110148d418a4afb371f4659d7"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/8caac69ed68fb8e18cd9049bad4b903e33281025e9ffc86c48075c0a8ff4bb6b-0.json",
+      "sha256": "cc5a331355298f196ed58be750fad10512ddce6d275c52c9232a95f66ac0caf9"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/8caac69ed68fb8e18cd9049bad4b903e33281025e9ffc86c48075c0a8ff4bb6b-1.json",
+      "sha256": "e75b432181b48547ee731ac4493c8c57aa2d3d540e7c913b76fa7f9d4d352f17"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/8d76b8d7183c4ab165bfe04d4bcd1cf5084d51a0ef946428fa4af0c997705480-0.json",
+      "sha256": "37ebbf4d4b718dcec6eb15d52c06c6d78302dc458cce457ac0d3099656adff9b"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/902acedf72d1d322f755bffdb38787af3f1c13954058c5f418b061b231d18fff-0.json",
+      "sha256": "ceb81eb38c92b2412f30a819364891853537cbf9b2abd4a84d1a346ab57d4ad7"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/902acedf72d1d322f755bffdb38787af3f1c13954058c5f418b061b231d18fff-1.json",
+      "sha256": "233f9c9a553a142a2fbbf3df03666ffc287e1ee43d61e806fe4a2bf9ac7d1319"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/92f143f5d4db904a277b226e0d29b1d0a9527893bd22a3e4a9039c2d3811b95a-0.json",
+      "sha256": "a201bb66fa7de2e2f410b6cb214b0f29a1574ab2d11f1006699dc8d632df5bcc"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/9a409660fe2e0147264e7dbff4b4124207fb96cb4d4223e0bd60d29619a0dd72-0.json",
+      "sha256": "3defb8a5e54fb4ac661ca91e5e17db4c376f7e2b4205b3f8cae71b0b2302b603"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/9b371091b35408b82475ddb1616dfc3d3833487bb26c13c49a84dec6794ddca4-0.json",
+      "sha256": "a712556dad7fce083fba107bddca9d5404e441adf028f5aa7a5b56c0a19e92cc"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/9b371091b35408b82475ddb1616dfc3d3833487bb26c13c49a84dec6794ddca4-1.json",
+      "sha256": "63f643609f13a2d3de005b41d0b275852fefac4b9e7eb99588b91cf6c8b3c32c"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/9ff870d1d33690178c294985013aa44486066109019638b74a8cc54dcc8b6387-0.json",
+      "sha256": "b8842dbbe1806a07012d6d5f943443a0141e6af659c3829f8c8f1b74647881bb"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/a3cd8979ad5da179e947649f24f0cede09fb80258799d1ccad4c47f16fe5643b-0.json",
+      "sha256": "e8f787f5fe0509f0af5d39ff66792d8573c5e4197f0b89d528774ad4ad4f0525"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/a3cd8979ad5da179e947649f24f0cede09fb80258799d1ccad4c47f16fe5643b-1.json",
+      "sha256": "cb617512a5223385aab978d6cd12f2adc80e6a439eb0fa1e9749e562e33ed2be"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/a8955b73d669fcfcf64f1e144cfc654e37a175eb7116b3773080ec81c9fb62cf-0.json",
+      "sha256": "3914cea4c4d14331d1cdb2b256673cb19399774afe087aaf8c5b9b844a83803d"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/a8955b73d669fcfcf64f1e144cfc654e37a175eb7116b3773080ec81c9fb62cf-1.json",
+      "sha256": "231acc65e8745422d3f740198cf1c9e51f3cc118a4bfa07049f5da054c9f2fb6"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/b39af0e3e5998f2b40fffcb36d57d04bfb9c92ac5470cd4109d8465e41291fd6-0.json",
+      "sha256": "58bad50ad9561dfdade90335ff237f6a0f0dc7419b31964ca4af32d09fca85cc"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/b5b7f227db84692476f9b64e2ca1873d796dceeeb4777909d3ee1d0b35d8ec00-0.json",
+      "sha256": "97cea6ec6fd538e3b39d851d7a2884155407efab200d149e3c238d4cdb0391f1"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/b9d23fcfbfa56c16fb8313a433b6e9fd6d2e0dda69a4cce26187df37870ed09c-0.json",
+      "sha256": "faa05a9f887d0b9579fc9b11c0825498815f1e81e5d121ca6d03de340a76ee9d"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/b9d23fcfbfa56c16fb8313a433b6e9fd6d2e0dda69a4cce26187df37870ed09c-1.json",
+      "sha256": "245a1e317c44cf6103c50b77ece92159789eb3bd997dcbdf84eb80dbf5fea4c6"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/beab30fdb229fd01af7cffd0b4dbf33195c2b84775890e27e04e2c6a5ffce067-0.json",
+      "sha256": "b10434f9911d6e0b67aabfba078586c1dbe097ff261bffe6b5f21d2b9598f469"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/c3da3dfb16575cfca44bb14dd3a7b461f155683a1e587f27ff58270585eb2f6f-0.json",
+      "sha256": "46c20a434a04925caf2a7197eab25b937fab3f1b2d5c766b92cf929aa11f89b7"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/c3da3dfb16575cfca44bb14dd3a7b461f155683a1e587f27ff58270585eb2f6f-1.json",
+      "sha256": "991ee01b0cf4f5c64120b60a38c112c7b0eb6c70b270091668462ebb7a4cdaa6"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/c7d2bc4d57ac7eb8363a3b6f4673acc47be7814829c6d4bb284dc551ca923bf7-0.json",
+      "sha256": "abb7830472ecd520b30880d3353654e255d25a9ad305f66764a8aa314b6b50fc"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/c80499043bedc1b953535592dc7772290178f189b20beff23797a970f985cc23-0.json",
+      "sha256": "fac875b64d8f1f3a12d6c1e9ac16e9fb1c44170386fa0493c2f0d8de29b0d773"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/ca9436abb41f9ea0eb5dd6af643806477bfdd451f7b21423609e716dc2721811-0.json",
+      "sha256": "34350ef01b300102b086c93747d391eb7911b9d78177c7d014a874e06a5799af"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/ca9436abb41f9ea0eb5dd6af643806477bfdd451f7b21423609e716dc2721811-1.json",
+      "sha256": "31a21aa4fa4af5da45792898bd6b8a682de7504018ab15c8cc472886faa48c0d"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/cd4124bf0fec8350e7ca4d1397b2177d3d7c5cf42c97bf986e5700814bd55d11-0.json",
+      "sha256": "f4e0cc147399b0dad82b2c62c717e8053ce5774e0a07a4dd6650660587bb33c4"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/d34608b1851f7bcc165577d5eb527ab05f5055b9b769df5ad579d6ab976a7c86-0.json",
+      "sha256": "af699fd12efae8d7bd3db30b5297d33b0be9279a3bdca246a3b7322867ceb13f"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/d34608b1851f7bcc165577d5eb527ab05f5055b9b769df5ad579d6ab976a7c86-1.json",
+      "sha256": "833a7ff654f3a0b5a38b271194c388994a0124af0576d24db5295aa30871bf93"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/d3ad6c801c701f0996b163f8008b00338345dc849e81f46e7ada05e546178191-0.json",
+      "sha256": "0e6e665034d9cbfe3c1b76a8312cdd5aa4189d78e7fd812128cbb290e6b247c6"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/d3ad6c801c701f0996b163f8008b00338345dc849e81f46e7ada05e546178191-1.json",
+      "sha256": "42095fd9ff6917b2c076255d731ec25ca4677f659ffdac65a5737bc465abebc8"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/d8089348f5341274fff7ee8a00ddb6e52b0f9cf8cc53c3080add76dd07394547-0.json",
+      "sha256": "25e12157b8fbe44ebcc4b403af017abfd06ec9f58ca5ba56000cc509429bd5ce"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/d833ab2a901b6478f30dd0f6c0eb11cd391b78bbead036c6457586648a7c379f-0.json",
+      "sha256": "c6cef0ada24bc5d201fe612d2e11ab1fdb40a36da0748f360b2f662e7401abea"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/d833ab2a901b6478f30dd0f6c0eb11cd391b78bbead036c6457586648a7c379f-1.json",
+      "sha256": "13ba6d4b1607b52107bd4d62e30fd5019e7b4d1b3ac86d2b9ac41d6458277b41"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/d8a8abbb5aafba30dc60a009d78362ab2ac412ccae82124e04e7895aa9fb3dfa-0.json",
+      "sha256": "0a146491e2b5f23e5f56984f51bb1e27d79f455e83b00ef8080fd1c65b056d18"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/d8a8abbb5aafba30dc60a009d78362ab2ac412ccae82124e04e7895aa9fb3dfa-1.json",
+      "sha256": "71e887feca9910b5471ead3720d912e46ab7f00615214cca82f2b0ad14aa0cf0"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/dd9b141eb3e54cda313b6cd28c1f2a741a3e535f8b8ce37b76baa834fca535e6-0.json",
+      "sha256": "6e5aff4acedd531383e0a74f96342cb7e16da631dd983d48dffbe1bc0081fa66"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/dd9b141eb3e54cda313b6cd28c1f2a741a3e535f8b8ce37b76baa834fca535e6-1.json",
+      "sha256": "e2b5343a76f31bf30f0321d437f415657a1853981c5b1ba6108d7aab2d0b0d9c"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/df57b7185b6532df92c56783d6ec6431a9b34e88eefda86fba8cf04036f3061d-0.json",
+      "sha256": "ea2e67da12690dfdc6af7907d64f47e41c0f0c56bba605718e9555a83f0fd580"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/e1bdb5f78a8e60ce0a10cdf61039872c7f7cd53eb5105f214b88f7c099642da4-0.json",
+      "sha256": "c905f7bedd33b43660f6b9769cdd87526a1ecdf3c9c28497b66596dda103220c"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/e1bdb5f78a8e60ce0a10cdf61039872c7f7cd53eb5105f214b88f7c099642da4-1.json",
+      "sha256": "8f46523d3ad5aacab4e4148f6cc7db5f5725462f1db16fbf616bf5d6686f5c35"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/e3a1d9917a0ec1df6d58970ab3782b562f3f54d6d5f35f77df75c78b944586c0-0.json",
+      "sha256": "5ca34ca0c1f81992a7e60d9b0be80246c343cc3ae8353651941932961412e46e"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/e3a1d9917a0ec1df6d58970ab3782b562f3f54d6d5f35f77df75c78b944586c0-1.json",
+      "sha256": "82645373f3ca34534d12012dc08a382d40f1d16bead6bb16f9b1437c23b82df3"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/e5bc8098d0c6041c84f2a808b024a2a01b93f4fe2fb0fe052bd32e6fc24016bf-0.json",
+      "sha256": "e772a1c952ebdbb8bc47f4124b38d8cf4b93db67e206aa44651b8107d230cb32"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/e85783192f0cbcfb4eee6fbef4d913762fcd4a4dbd8e927dbf3135197a8e071d-0.json",
+      "sha256": "d341d02fef351294f20b5d274d0c299ad200e11c5c3b21ad16a125ebf8b4648f"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/e85783192f0cbcfb4eee6fbef4d913762fcd4a4dbd8e927dbf3135197a8e071d-1.json",
+      "sha256": "4a2852e29481f64c38e3975d7c8354e93abdcdb88f93f0951ac7127b853addd2"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/eb091a5b93ca3e79fb19573ff2c85322603e747e78e1df8a48b025ae123f1fbf-0.json",
+      "sha256": "355ffeac118d2daba8d241f3a0add064ec1fb08db73a04b5bf48c99f2583346e"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/eb091a5b93ca3e79fb19573ff2c85322603e747e78e1df8a48b025ae123f1fbf-1.json",
+      "sha256": "c9065e157d329c9c218316a9ca855841f5a2d63c38a8f0fa1df2d5a8d9ea7ca2"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/ee4bca26c95c2a31048f0a0f30e50cefb69d8433ed722f072558afb4b7cb5e21-0.json",
+      "sha256": "cdb76a6896a1f386bdba695bdc6e65c85335a3620d773446a293df31722ead6e"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/ee4bca26c95c2a31048f0a0f30e50cefb69d8433ed722f072558afb4b7cb5e21-1.json",
+      "sha256": "3a3e7c4d8749c75e7003a2b7be4d7a3897a13d23f30656e714a1bce0773aa125"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/f15dd0130dca917a71097b5e90c7161a9430ab79b0d46d2fd36e7e81b9f9b109-0.json",
+      "sha256": "5bd0f948b42d38b0b289d761848f50bea5f151e29d7db8472dcb8bdd2d0527f6"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/f15dd0130dca917a71097b5e90c7161a9430ab79b0d46d2fd36e7e81b9f9b109-1.json",
+      "sha256": "7b376950ce96917849b8152369d19327a25d72b20d8c1de8cc58d536977c73f4"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/f2b3fd2b8356e2f7d4001abfd91ae739d3d8fdb17ff73f5908ece46137e0cf36-0.json",
+      "sha256": "c04294bcd08676eb9166af50cf14b8e0ecd45bc373342acbb75a8448046242c5"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/f2b3fd2b8356e2f7d4001abfd91ae739d3d8fdb17ff73f5908ece46137e0cf36-1.json",
+      "sha256": "788cb3cdf28e24e3634cd9a165d2fccd4f66479a4419cfb6488b02f560620b84"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/f350a735eb9bf615a26110491edf3ea1e847dd6929575291eef044192e0f1c76-0.json",
+      "sha256": "ea96f6637e86b688e211419a3cb6647ad4f6fe0c93bc6eadd61144b14e5a85a0"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/f350a735eb9bf615a26110491edf3ea1e847dd6929575291eef044192e0f1c76-1.json",
+      "sha256": "5b4afeca275b1db1a3213855fff056a57ed3b522428ba09cc39472da7740c685"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/f3c50ce2aeeecf831d10c9c1c6fe99a587340694598bedbffeaa25f808a61c5d-0.json",
+      "sha256": "3c21c2fe85ba7649fb11a244e42c5f7af94672c3a92f7df1a1e35bdee2defb15"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/f3c50ce2aeeecf831d10c9c1c6fe99a587340694598bedbffeaa25f808a61c5d-1.json",
+      "sha256": "ad2c31f1adc808889c4a225d191e0a3e5f3de950af9aa01d6f747859a5d2bcb8"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/f7f1ee816326825e35a52a4822b1706977bd22901b71ea59daab31162bca2719-0.json",
+      "sha256": "edd3766204a8678372bd9de17f6dabab87056d55ad355cc8c8524154827d174e"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/f7f1ee816326825e35a52a4822b1706977bd22901b71ea59daab31162bca2719-1.json",
+      "sha256": "3c0fc1cf5a8071113ef5f57288da5ea16862d507f8082408476be4f8273620ec"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/fb0f9d810f82fec4ca5496922177a74e94bda495262c2e510358ef6071963bd5-0.json",
+      "sha256": "0449642ce581939541e67bbf6bb9fc0b75bab71365a127159b2784f03b4039dd"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/fb3fcc62df028cf8d9b96f36325108951c67384a3c6dc45789766210299e7cb4-0.json",
+      "sha256": "65f9cf0919c8167f111f81b3e3e890b7f80940fa4bfbeccfb40f74f89d96d280"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-artifacts/fb3fcc62df028cf8d9b96f36325108951c67384a3c6dc45789766210299e7cb4-1.json",
+      "sha256": "12568b92374189a3d37c1961cd00e0168bd0aeff64cb86daa1d725e4d125a600"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-exit.json",
+      "sha256": "b22e791d7c47e834e5f65beb956ea049c341e257f8977c759207e00affe862a7"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-prelaunch.json",
+      "sha256": "e30d555c9ef8c84f59d8be08561fb0a8f3c3e9c1a4973b2666f73bb65a663e97"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-repeat-exit.json",
+      "sha256": "27438aa9b0811a9754f95a942d361381a2f601fa3aa9f97a1d52df27870c8ae1"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-repeat-prelaunch.json",
+      "sha256": "c53dc7f44c361c9cc5378c327513d28b31d76547c7f29baf2c55df9fb1c3a93f"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before-repeat.log",
+      "sha256": "68ef183efb2c1d4b0b1771b92867c13e60e4acf5b2de32f3f011d4fb540986ed"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-before.log",
+      "sha256": "3b986270286dfbdf739dcec0e5ce3a1240ee34ffc6dffb12c8f7b73ed31ae7c4"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-fmt-before.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-original-before-tuples/4273766403a3194199301f88fd0b1ddb6cccb1a370a1bb281a727ee959cf2fc4-0.json",
+      "sha256": "3beb13720d2ed5795c19d7eac1d5d2da6d992ca65edb6ac5f8afb232aecfa557"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-original-before-tuples/4273766403a3194199301f88fd0b1ddb6cccb1a370a1bb281a727ee959cf2fc4-1.json",
+      "sha256": "82d7a581cf26db75f11c8ba268fdd95cbb1fbbaa3ef0fbfda1949d67b77b6a75"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-ts-before-exit.json",
+      "sha256": "98a40b3ef3668fe53cf1a87548c49109ef9e75996000beb834c27c5d932862a0"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-ts-before-prelaunch.json",
+      "sha256": "5f181cd26b652a53dca25e0b96ef81419ec112781dadbaf6bfb7aafc3ab0ec27"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-ts-before.log",
+      "sha256": "f5f506522231dedfda3b6353a88f3ca80fcc71e1c9080f41a46527ba3bdb1595"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-ts-check-exit.json",
+      "sha256": "1609396a82088b22c172eca2b846fc8d94ec854a3fe22a7d0f880cf2280596b5"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-ts-check-prelaunch.json",
+      "sha256": "6e3c96b28c235e6006cd69d5230700c7c3581cabae937f6e7f7d5d13efcf0e72"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-ts-check.log",
+      "sha256": "f5f506522231dedfda3b6353a88f3ca80fcc71e1c9080f41a46527ba3bdb1595"
+    },
+    {
+      "path": "target/run-module-transformer-selection-job.py",
+      "sha256": "11551f38fe41fed5f993f671e02e6c7cc695eaa6395bba0fc0537ebd8841af8c"
+    }
+  ],
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-setter-names-before-ueftj4yy"
+}

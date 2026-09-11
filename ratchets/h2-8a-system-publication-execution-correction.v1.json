@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "status": "execution-count-correction",
+  "helper": {
+    "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+    "sha256": "c0a3f18ada4e9465e407ad0cd9f74daac31c888c56737a7c0a5f10e705d6cfd8",
+    "catch_unwind_line": 49,
+    "repeat_loop_line": 152,
+    "panic_replay_line": 235
+  },
+  "finding": "A failing complete-command assertion unwinds out of the internal two-run loop on its first execution. The panic hook and enclosing aggregate assertion print the same payload twice. These are two renderings of one execution. Successful cases do execute twice.",
+  "scope": "All fresh wrappers using this helper have these semantics unless an independent second invocation is evidenced. Historical repetitions=2 fields derived solely from the duplicate payloads must be read as two log copies, not two failed native commands.",
+  "active_system_records": [
+    {
+      "record": "ratchets/h2-8a-system-variable-publication-before.v1.json",
+      "record_sha256": "9bb0396bf7ced688e4f04a60f40fd8a19c446d553defcc472b6ad3b1d1946d7c",
+      "log": "target/h2-8a-system-variable-publication-before.log",
+      "log_sha256": "400f11264d338ec5255581eb7f39d460dc34713c8aac82a4a14c84827a4f0a94",
+      "system_cases": 72,
+      "exact_cases": 28,
+      "native_executions_per_exact_case": 2,
+      "failed_cases": 44,
+      "native_executions_per_failed_case": 1,
+      "renderings_per_failure": 2
+    },
+    {
+      "record": "ratchets/h2-8a-system-variable-publication-first-after.v1.json",
+      "record_sha256": "c526d11502fa710676adb62833d57beffebb1a6b8acd2d371fa95f6ec48f6a6a",
+      "log": "target/h2-8a-system-variable-publication-first-after.log",
+      "log_sha256": "3d1a35ba1b03ee4d7007667e25c1f276a73ce44018c3b3b5032fe4566198fa93",
+      "system_cases": 72,
+      "exact_cases": 64,
+      "native_executions_per_exact_case": 2,
+      "failed_cases": 8,
+      "native_executions_per_failed_case": 1,
+      "renderings_per_failure": 2
+    },
+    {
+      "record": "ratchets/h2-8a-system-variable-publication-second-after.v1.json",
+      "record_sha256": "45c50527a065b9b76626c1cfea53381fef74ca80094c1cca5671b4cd6888520a",
+      "log": "target/h2-8a-system-variable-publication-second-after.log",
+      "log_sha256": "3d6899ad3a32cf3a58075a545adf1558a9e5a91773f81470a1bc5d6f2c3f0ebf",
+      "system_cases": 72,
+      "exact_cases": 68,
+      "native_executions_per_exact_case": 2,
+      "failed_cases": 4,
+      "native_executions_per_failed_case": 1,
+      "renderings_per_failure": 2
+    }
+  ],
+  "prior_export_name_record": "ratchets/h2-8a-export-name-syntax-after.v1.json",
+  "prior_export_name_interpretation": {
+    "exact_commands": 178,
+    "executions_per_exact_command": 2,
+    "retained_failed_commands": 22,
+    "executions_per_failed_command": 1
+  },
+  "unchanged": "Case membership, exact/failed counts, expected TS artifacts, actual comparison bytes and successful native repetition claims remain valid. Original-corpus tuple runners and the standalone list-comment-flags loop perform their own per-repetition capture and are not affected. All frozen historical artifacts are retained.",
+  "new_token_before": "Two separately launched native jobs will establish the 54-case token-comment before; each failure then has two actual independent executions."
+}

@@ -1,0 +1,163 @@
+{
+  "version": 1,
+  "base": "d12abe61cd90a45d45935bb057be65bf3dfd5abd",
+  "status": "complete-native-controls-before",
+  "exit_code": 101,
+  "seconds": 0.01,
+  "test_results": {
+    "passed": 0,
+    "failed": 2
+  },
+  "cache_control": "public serialization completed; private type omitted but write_type cache incorrectly populated",
+  "invariant_control": "corrupted checker-owned clone declarations returned success instead of asserting",
+  "typescript_internal_invariant": "crates/compiler/tests/fixtures/setter-symbol-invariant.json",
+  "typescript_internal_observations_per_run": 4,
+  "typescript_internal_mint_and_check_exit_codes": [
+    0,
+    0
+  ],
+  "not_source_input_admission": true,
+  "working_files": [
+    {
+      "path": "crates/binder/src/assignment.rs",
+      "sha256": "3589abfd9c9de29468e06d3582419e34c01f1ec58c0b88b62ebd350918a3afcc"
+    },
+    {
+      "path": "crates/binder/src/bind.rs",
+      "sha256": "5252a966639e5e4dcdee538ff1f1594f04bb25d1d20cb9316f8a5a6a14a2d396"
+    },
+    {
+      "path": "crates/binder/src/node_util.rs",
+      "sha256": "5d3eea9d3dc9a23a6cb4240aaa01cc85f41c1e5b39e0d074f43e36a101f7d551"
+    },
+    {
+      "path": "crates/checker/src/access.rs",
+      "sha256": "317fb130f96c1a5f2d55d00de119b5cb719494edda8ca9c8d6ba5aa5070bfd5e"
+    },
+    {
+      "path": "crates/checker/src/annotate.rs",
+      "sha256": "20eb0dcaaab36deaef67cd36207cf0cf40f7ac55b9f6c306fecd8697698fca6c"
+    },
+    {
+      "path": "crates/checker/src/class.rs",
+      "sha256": "0cac7e0564ba2c2eeaee5cd7fd41c90abf10d5b21e6ca385d15d8e794aa71856"
+    },
+    {
+      "path": "crates/checker/src/emit.rs",
+      "sha256": "ed7a09cb4ca7b57b839aa03186385142141911d2af117b611e55191ff9bda105"
+    },
+    {
+      "path": "crates/checker/src/instantiate.rs",
+      "sha256": "4d409efca2e636732ca5ec938f7aca36c7bc6b845897b24b377ec6ffc89eaa70"
+    },
+    {
+      "path": "crates/checker/src/links.rs",
+      "sha256": "07a50c8976a559103cfc9f686e1e1db2dac4dc11176c556bca3779acbfce5a5a"
+    },
+    {
+      "path": "crates/checker/src/merge.rs",
+      "sha256": "7ebe0f165d780395c865c21a885c90101f7be170739221172513754a1192632d"
+    },
+    {
+      "path": "crates/checker/src/node_builder/serialize.rs",
+      "sha256": "0ab71141dac64fdf557c93d30a1a8ed2ce9ccf6c2f10daa5cbba5ea19f053330"
+    },
+    {
+      "path": "crates/checker/src/node_builder/signatures.rs",
+      "sha256": "d46a6c370c777dc7f90624d8a7efcd7c277ba3350f84a8db5fbfa9bbb70c4a3a"
+    },
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "71853704eadfbdfe31f25171c2241b3a76db192671a0cec0d8c2cdd884081b55"
+    },
+    {
+      "path": "crates/checker/src/program.rs",
+      "sha256": "b7a6e8c75296e6e6ea3fa284d438bec910f1034c974653d42e260feedd45693b"
+    },
+    {
+      "path": "crates/checker/src/structural.rs",
+      "sha256": "7a77541359c03bb6c0f7a9578b4638c52177cfe1b8078142ff51daa24fa32b73"
+    },
+    {
+      "path": "crates/checker/tests/unit/node_builder_statements/tests.rs",
+      "sha256": "30e8bf2197aa9d7db335d8148bc7c0ee20c63ff04256003bba02686c3c5ff4cb"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/setter-symbol-invariant.json",
+      "sha256": "db61e9adcdec9ba0f7840629d2a927e9eebed919057fc8074ea25c0acd1ed9e1"
+    },
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "03191340f09238ee4802e90d56b9f6aac246189e6d44da6230cd6caeca2bbf7d"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "5ffd982b2fb2057fa7c082400f502e755f0acaf663245a9898bb48c0820d57b6"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-setter-annotations-before.v1.json",
+      "sha256": "7b76e601fb8f815aee83ffe5066a967af5ca3eafc0a715aec074a4cc3fcdd5e3"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-setter-names-before.v1.json",
+      "sha256": "7c9045c6d1e72995845605e60f7686b7ea0a3a3cde36587ac2e128e1074d16b8"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-setter-names-native-first-before.v1.json",
+      "sha256": "e147a3a68e38944c9b1a1a0a9280aa2455c94c27a7eeafed3f42ad23500e685b"
+    },
+    {
+      "path": "scripts/observe-setter-symbol-invariant.mjs",
+      "sha256": "542af1c6138730dbcf89389a555e522068efb2cacecea06c539be208e83283ad"
+    },
+    {
+      "path": "target/freeze-defineproperty-setter-names-native-before.py",
+      "sha256": "cd28bc375c25a3b9e6a19ede6856066b237676d38fe3601751b7f128fc071bd9"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-native-final-before-exit.json",
+      "sha256": "4f017fbbe3a94c4c44e357d1b791df6b314e1048f70b0896de0abeb08b19477f"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-native-final-before-prelaunch.json",
+      "sha256": "843ca5b20a17ed7ac2699e9fb6c1b007a6c37fdf2752ed49929d67ef9c761bf3"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-native-final-before.log",
+      "sha256": "94b00df3cd2601bb608b353b6f25cc481b25d8f2f55e727fb9adf42beed3caf3"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-native-final-fmt-before.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-native-fmt-final-before.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-setter-names-owner-spans.complete.draft.json",
+      "sha256": "b20dac5997694f13f81c8f450a739c5775ba4e8055355233e0e683fc805c5749"
+    },
+    {
+      "path": "target/h2-8a-setter-symbol-invariant-before.log",
+      "sha256": "5251d8a59136c3041131a641c86ab0e51779501a69791c2feb30876328735898"
+    },
+    {
+      "path": "target/h2-8a-setter-symbol-invariant-check.log",
+      "sha256": "5251d8a59136c3041131a641c86ab0e51779501a69791c2feb30876328735898"
+    },
+    {
+      "path": "target/pin-defineproperty-setter-names-owners-complete.mjs",
+      "sha256": "23d1ceb47a0468ccf59d6a20b073cff45eee443d840348807c5f9c9d9e0df746"
+    },
+    {
+      "path": "target/run-module-transformer-selection-job.py",
+      "sha256": "11551f38fe41fed5f993f671e02e6c7cc695eaa6395bba0fc0537ebd8841af8c"
+    }
+  ],
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-setter-names-native-before-2zl2e099"
+}

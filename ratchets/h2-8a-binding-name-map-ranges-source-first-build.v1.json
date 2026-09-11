@@ -1,0 +1,184 @@
+{
+  "version": 1,
+  "status": "test-setup-compile-failure-zero-tests",
+  "base": "d12abe61cd90a45d45935bb057be65bf3dfd5abd",
+  "errors": [
+    "E0593 with_context callback needs four arguments",
+    "E0061 with_context missing out parameter"
+  ],
+  "exit": {
+    "manifest": "target/h2-8a-binding-name-map-ranges-source-controls-before-prelaunch.json",
+    "manifest_sha256": "42e39beef79ea9493a28414b9ac8ff99c6b5b69f66191c3fd238efd3d47296ef",
+    "argv": [
+      "taskpolicy",
+      "-b",
+      "nice",
+      "-n",
+      "15",
+      "cargo",
+      "test",
+      "-p",
+      "tsc-rs-checker",
+      "--lib",
+      "--",
+      "binding_name_clone",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "exit_code": 101,
+    "wall_seconds": 29.49866712500807,
+    "log": "target/h2-8a-binding-name-map-ranges-source-controls-before.log",
+    "log_sha256": "8b377b12ae4ee99a0dbe382b02b430770195abc02f6e7f208f3da6710c0b32f2"
+  },
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-binding-name-source-first-build-ff_pyoj3",
+  "working_files": [
+    {
+      "path": "crates/binder/src/assignment.rs",
+      "sha256": "3589abfd9c9de29468e06d3582419e34c01f1ec58c0b88b62ebd350918a3afcc"
+    },
+    {
+      "path": "crates/binder/src/bind.rs",
+      "sha256": "5252a966639e5e4dcdee538ff1f1594f04bb25d1d20cb9316f8a5a6a14a2d396"
+    },
+    {
+      "path": "crates/binder/src/node_util.rs",
+      "sha256": "5d3eea9d3dc9a23a6cb4240aaa01cc85f41c1e5b39e0d074f43e36a101f7d551"
+    },
+    {
+      "path": "crates/checker/src/access.rs",
+      "sha256": "317fb130f96c1a5f2d55d00de119b5cb719494edda8ca9c8d6ba5aa5070bfd5e"
+    },
+    {
+      "path": "crates/checker/src/annotate.rs",
+      "sha256": "20eb0dcaaab36deaef67cd36207cf0cf40f7ac55b9f6c306fecd8697698fca6c"
+    },
+    {
+      "path": "crates/checker/src/class.rs",
+      "sha256": "0cac7e0564ba2c2eeaee5cd7fd41c90abf10d5b21e6ca385d15d8e794aa71856"
+    },
+    {
+      "path": "crates/checker/src/emit.rs",
+      "sha256": "ed7a09cb4ca7b57b839aa03186385142141911d2af117b611e55191ff9bda105"
+    },
+    {
+      "path": "crates/checker/src/instantiate.rs",
+      "sha256": "4d409efca2e636732ca5ec938f7aca36c7bc6b845897b24b377ec6ffc89eaa70"
+    },
+    {
+      "path": "crates/checker/src/links.rs",
+      "sha256": "07a50c8976a559103cfc9f686e1e1db2dac4dc11176c556bca3779acbfce5a5a"
+    },
+    {
+      "path": "crates/checker/src/merge.rs",
+      "sha256": "7ebe0f165d780395c865c21a885c90101f7be170739221172513754a1192632d"
+    },
+    {
+      "path": "crates/checker/src/node_builder/serialize.rs",
+      "sha256": "0ab71141dac64fdf557c93d30a1a8ed2ce9ccf6c2f10daa5cbba5ea19f053330"
+    },
+    {
+      "path": "crates/checker/src/node_builder/signatures.rs",
+      "sha256": "d46a6c370c777dc7f90624d8a7efcd7c277ba3350f84a8db5fbfa9bbb70c4a3a"
+    },
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "1f5025d1d60c9c87d0e2e8bfba0f4b614da4b245c696c2f9cb80e11c2ec3bbfb"
+    },
+    {
+      "path": "crates/checker/src/program.rs",
+      "sha256": "b7a6e8c75296e6e6ea3fa284d438bec910f1034c974653d42e260feedd45693b"
+    },
+    {
+      "path": "crates/checker/src/structural.rs",
+      "sha256": "7a77541359c03bb6c0f7a9578b4638c52177cfe1b8078142ff51daa24fa32b73"
+    },
+    {
+      "path": "crates/checker/tests/unit/node_builder_signatures/tests.rs",
+      "sha256": "48f1c804e48c26d4465af62f776398f541f5f500ad628985fa99587171b03b0b"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "827231114c167de493f2bd308e3c527e3793751822addce94be38228c3d2f12e"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/binding-name-map-ranges.json",
+      "sha256": "c04ecf94865c90fc39958e7967b7b10e594065147dd8d982edaf8b917b5e75c5"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+      "sha256": "7b14d30e473948b7a7878c20ed9feb528a629f8d26db042306ba6574a6edde81"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "54d5849d2db6baf84152e6505add6e01906e6740cb21285f8b62631e538599ad"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_binding_name_map_ranges.rs",
+      "sha256": "0d82d8478b7149f7c55019aff81fdb74f4f6250d924d5789723229a07085fc92"
+    },
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "03191340f09238ee4802e90d56b9f6aac246189e6d44da6230cd6caeca2bbf7d"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "5ffd982b2fb2057fa7c082400f502e755f0acaf663245a9898bb48c0820d57b6"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-setter-names-first-after.v1.json",
+      "sha256": "83da646d49308fe67148e5eae044139610c17ecd08e256c5769606cc3bcca774"
+    },
+    {
+      "path": "scripts/observe-binding-name-map-ranges.mjs",
+      "sha256": "39ff81289e8148b97df197399674decce503e39dc74d4fb57904f6561f1a7f68"
+    },
+    {
+      "path": "target/h2-8a-binding-name-map-ranges-fmt-before.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-binding-name-map-ranges-native-fmt-before.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-binding-name-map-ranges-source-controls-before-exit.json",
+      "sha256": "2948e69054e0ff26dc73c08c3bddbd8793b17bb46ec832cd3a2c713221f99db0"
+    },
+    {
+      "path": "target/h2-8a-binding-name-map-ranges-source-controls-before-prelaunch.json",
+      "sha256": "42e39beef79ea9493a28414b9ac8ff99c6b5b69f66191c3fd238efd3d47296ef"
+    },
+    {
+      "path": "target/h2-8a-binding-name-map-ranges-source-controls-before.log",
+      "sha256": "8b377b12ae4ee99a0dbe382b02b430770195abc02f6e7f208f3da6710c0b32f2"
+    },
+    {
+      "path": "target/h2-8a-binding-name-map-ranges-ts-before-exit.json",
+      "sha256": "15912df806f9f6c4d92b55bbad2d961e98cf7429d5b295c17c84b51368cde44d"
+    },
+    {
+      "path": "target/h2-8a-binding-name-map-ranges-ts-before-prelaunch.json",
+      "sha256": "c7f14ba09f502416e9bbd96141286192906067482ccb88451d8f6af05cd0cb0b"
+    },
+    {
+      "path": "target/h2-8a-binding-name-map-ranges-ts-before.log",
+      "sha256": "5d796e1215f0ce517303013134da07f6f9718f034f7ca1e9857953d46c0a4fe6"
+    },
+    {
+      "path": "target/h2-8a-binding-name-map-ranges-ts-check-exit.json",
+      "sha256": "8c1d2cc621efafff7b0661fd7d27c050b245f3931a16a7b6c6a637021c6cae32"
+    },
+    {
+      "path": "target/h2-8a-binding-name-map-ranges-ts-check-prelaunch.json",
+      "sha256": "069cec30caeb67ff3cf15da6f2440e3d2e42a5faf4ed05d194f7e5b75b91cfdd"
+    },
+    {
+      "path": "target/h2-8a-binding-name-map-ranges-ts-check.log",
+      "sha256": "5d796e1215f0ce517303013134da07f6f9718f034f7ca1e9857953d46c0a4fe6"
+    }
+  ]
+}

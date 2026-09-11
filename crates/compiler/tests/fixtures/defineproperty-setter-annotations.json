@@ -1,0 +1,2530 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "5b26985ce7406353b6d4bfe3c4c92c2bb6cb31860042fae54766a56aa64bddbc",
+  "repetitions": 2,
+  "cases": [
+    {
+      "case_id": "setter-annotations/es5/commonjs/multiline-private",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "export class Foo {\n/**\n * @private\n * @param {number} supplied\n */\nset x(supplied) {}\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUE7SUFBQTtJQU1BLENBQUM7SUFERCxzQkFBSSxrQkFBQztRQUpMOzs7V0FHRzthQUNILFVBQU0sUUFBUSxJQUFHLENBQUM7OztPQUFBO0lBQ2xCLFVBQUM7QUFBRCxDQUFDLEFBTkQsSUFNQztBQU5ZLGtCQUFHIn0=",
+            "callback_utf8_bytes": 221,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUE7SUFBQTtJQU1BLENBQUM7SUFERCxzQkFBSSxrQkFBQztRQUpMOzs7V0FHRzthQUNILFVBQU0sUUFBUSxJQUFHLENBQUM7OztPQUFBO0lBQ2xCLFVBQUM7QUFBRCxDQUFDLEFBTkQsSUFNQztBQU5ZLGtCQUFHIn0=",
+            "materialized_utf8_bytes": 221,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRm9vID0gdm9pZCAwOw0KdmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgfQ0KICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShGb28ucHJvdG90eXBlLCAieCIsIHsNCiAgICAgICAgLyoqDQogICAgICAgICAqIEBwcml2YXRlDQogICAgICAgICAqIEBwYXJhbSB7bnVtYmVyfSBzdXBwbGllZA0KICAgICAgICAgKi8NCiAgICAgICAgc2V0OiBmdW5jdGlvbiAoc3VwcGxpZWQpIHsgfSwNCiAgICAgICAgZW51bWVyYWJsZTogZmFsc2UsDQogICAgICAgIGNvbmZpZ3VyYWJsZTogdHJ1ZQ0KICAgIH0pOw0KICAgIHJldHVybiBGb287DQp9KCkpOw0KZXhwb3J0cy5Gb28gPSBGb287DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 484,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRm9vID0gdm9pZCAwOw0KdmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgfQ0KICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShGb28ucHJvdG90eXBlLCAieCIsIHsNCiAgICAgICAgLyoqDQogICAgICAgICAqIEBwcml2YXRlDQogICAgICAgICAqIEBwYXJhbSB7bnVtYmVyfSBzdXBwbGllZA0KICAgICAgICAgKi8NCiAgICAgICAgc2V0OiBmdW5jdGlvbiAoc3VwcGxpZWQpIHsgfSwNCiAgICAgICAgZW51bWVyYWJsZTogZmFsc2UsDQogICAgICAgIGNvbmZpZ3VyYWJsZTogdHJ1ZQ0KICAgIH0pOw0KICAgIHJldHVybiBGb287DQp9KCkpOw0KZXhwb3J0cy5Gb28gPSBGb287DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 484,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 452,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtJQUNBOzs7T0FHRztJQUNILHdCQUFrQjtDQUNqQiJ9",
+            "callback_utf8_bytes": 132,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtJQUNBOzs7T0FHRztJQUNILHdCQUFrQjtDQUNqQiJ9",
+            "materialized_utf8_bytes": 132,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNsYXNzIEZvbyB7DQogICAgLyoqDQogICAgICogQHByaXZhdGUNCiAgICAgKiBAcGFyYW0ge251bWJlcn0gc3VwcGxpZWQNCiAgICAgKi8NCiAgICBwcml2YXRlIHNldCB4KHN1cHBsaWVkKTsNCn0NCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "callback_utf8_bytes": 155,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNsYXNzIEZvbyB7DQogICAgLyoqDQogICAgICogQHByaXZhdGUNCiAgICAgKiBAcGFyYW0ge251bWJlcn0gc3VwcGxpZWQNCiAgICAgKi8NCiAgICBwcml2YXRlIHNldCB4KHN1cHBsaWVkKTsNCn0NCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "materialized_utf8_bytes": 155,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 121,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";;;AAAA;IAAA;IAMA,CAAC;IADD,sBAAI,kBAAC;QAJL;;;WAGG;aACH,UAAM,QAAQ,IAAG,CAAC;;;OAAA;IAClB,UAAC;AAAD,CAAC,AAND,IAMC;AANY,kBAAG\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAAA;IACA;;;OAGG;IACH,wBAAkB;CACjB\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "setter-annotations/es5/commonjs/multiline-public",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "export class Foo {\n/**\n * @param {number} supplied\n */\nset x(supplied) {}\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUE7SUFBQTtJQUtBLENBQUM7SUFERCxzQkFBSSxrQkFBQztRQUhMOztXQUVHO2FBQ0gsVUFBTSxRQUFRLElBQUcsQ0FBQzs7O09BQUE7SUFDbEIsVUFBQztBQUFELENBQUMsQUFMRCxJQUtDO0FBTFksa0JBQUcifQ==",
+            "callback_utf8_bytes": 220,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUE7SUFBQTtJQUtBLENBQUM7SUFERCxzQkFBSSxrQkFBQztRQUhMOztXQUVHO2FBQ0gsVUFBTSxRQUFRLElBQUcsQ0FBQzs7O09BQUE7SUFDbEIsVUFBQztBQUFELENBQUMsQUFMRCxJQUtDO0FBTFksa0JBQUcifQ==",
+            "materialized_utf8_bytes": 220,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRm9vID0gdm9pZCAwOw0KdmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgfQ0KICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShGb28ucHJvdG90eXBlLCAieCIsIHsNCiAgICAgICAgLyoqDQogICAgICAgICAqIEBwYXJhbSB7bnVtYmVyfSBzdXBwbGllZA0KICAgICAgICAgKi8NCiAgICAgICAgc2V0OiBmdW5jdGlvbiAoc3VwcGxpZWQpIHsgfSwNCiAgICAgICAgZW51bWVyYWJsZTogZmFsc2UsDQogICAgICAgIGNvbmZpZ3VyYWJsZTogdHJ1ZQ0KICAgIH0pOw0KICAgIHJldHVybiBGb287DQp9KCkpOw0KZXhwb3J0cy5Gb28gPSBGb287DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 463,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRm9vID0gdm9pZCAwOw0KdmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgfQ0KICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShGb28ucHJvdG90eXBlLCAieCIsIHsNCiAgICAgICAgLyoqDQogICAgICAgICAqIEBwYXJhbSB7bnVtYmVyfSBzdXBwbGllZA0KICAgICAgICAgKi8NCiAgICAgICAgc2V0OiBmdW5jdGlvbiAoc3VwcGxpZWQpIHsgfSwNCiAgICAgICAgZW51bWVyYWJsZTogZmFsc2UsDQogICAgICAgIGNvbmZpZ3VyYWJsZTogdHJ1ZQ0KICAgIH0pOw0KICAgIHJldHVybiBGb287DQp9KCkpOw0KZXhwb3J0cy5Gb28gPSBGb287DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 463,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 431,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtJQUNBOztPQUVHO0lBQ0gsZ0JBRlcsTUFBTSxFQUVDO0NBQ2pCIn0=",
+            "callback_utf8_bytes": 140,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtJQUNBOztPQUVHO0lBQ0gsZ0JBRlcsTUFBTSxFQUVDO0NBQ2pCIn0=",
+            "materialized_utf8_bytes": 140,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNsYXNzIEZvbyB7DQogICAgLyoqDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHN1cHBsaWVkDQogICAgICovDQogICAgc2V0IHgoc3VwcGxpZWQ6IG51bWJlcik7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "callback_utf8_bytes": 138,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNsYXNzIEZvbyB7DQogICAgLyoqDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHN1cHBsaWVkDQogICAgICovDQogICAgc2V0IHgoc3VwcGxpZWQ6IG51bWJlcik7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "materialized_utf8_bytes": 138,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 104,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";;;AAAA;IAAA;IAKA,CAAC;IADD,sBAAI,kBAAC;QAHL;;WAEG;aACH,UAAM,QAAQ,IAAG,CAAC;;;OAAA;IAClB,UAAC;AAAD,CAAC,AALD,IAKC;AALY,kBAAG\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAAA;IACA;;OAEG;IACH,gBAFW,MAAM,EAEC;CACjB\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "setter-annotations/es5/commonjs/multiline-descriptor",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "export class Foo {}\nObject.defineProperty(Foo.prototype, \"x\", {\n/**\n * @param {number} supplied\n */\nset(supplied) {}\n});\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUE7SUFBQTtJQUFrQixDQUFDO0lBQUQsVUFBQztBQUFELENBQUMsQUFBbkIsSUFBbUI7QUFBTixrQkFBRztBQUNoQixNQUFNLENBQUMsY0FBYyxDQUFDLEdBQUcsQ0FBQyxTQUFTLEVBQUUsR0FBRyxFQUFFO0lBQzFDOztPQUVHO0lBQ0gsR0FBRyxZQUFDLFFBQVEsSUFBRyxDQUFDO0NBQ2YsQ0FBQyxDQUFDIn0=",
+            "callback_utf8_bytes": 275,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUE7SUFBQTtJQUFrQixDQUFDO0lBQUQsVUFBQztBQUFELENBQUMsQUFBbkIsSUFBbUI7QUFBTixrQkFBRztBQUNoQixNQUFNLENBQUMsY0FBYyxDQUFDLEdBQUcsQ0FBQyxTQUFTLEVBQUUsR0FBRyxFQUFFO0lBQzFDOztPQUVHO0lBQ0gsR0FBRyxZQUFDLFFBQVEsSUFBRyxDQUFDO0NBQ2YsQ0FBQyxDQUFDIn0=",
+            "materialized_utf8_bytes": 275,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRm9vID0gdm9pZCAwOw0KdmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgfQ0KICAgIHJldHVybiBGb287DQp9KCkpOw0KZXhwb3J0cy5Gb28gPSBGb287DQpPYmplY3QuZGVmaW5lUHJvcGVydHkoRm9vLnByb3RvdHlwZSwgIngiLCB7DQogICAgLyoqDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHN1cHBsaWVkDQogICAgICovDQogICAgc2V0OiBmdW5jdGlvbiAoc3VwcGxpZWQpIHsgfQ0KfSk7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 382,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRm9vID0gdm9pZCAwOw0KdmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgfQ0KICAgIHJldHVybiBGb287DQp9KCkpOw0KZXhwb3J0cy5Gb28gPSBGb287DQpPYmplY3QuZGVmaW5lUHJvcGVydHkoRm9vLnByb3RvdHlwZSwgIngiLCB7DQogICAgLyoqDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHN1cHBsaWVkDQogICAgICovDQogICAgc2V0OiBmdW5jdGlvbiAoc3VwcGxpZWQpIHsgfQ0KfSk7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 382,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 350,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTs7Q0FBbUIifQ==",
+            "callback_utf8_bytes": 109,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTs7Q0FBbUIifQ==",
+            "materialized_utf8_bytes": 109,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNsYXNzIEZvbyB7DQogICAgc2V0IHgoc3VwcGxpZWQ6IG51bWJlcik7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "callback_utf8_bytes": 87,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNsYXNzIEZvbyB7DQogICAgc2V0IHgoc3VwcGxpZWQ6IG51bWJlcik7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "materialized_utf8_bytes": 87,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 53,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";;;AAAA;IAAA;IAAkB,CAAC;IAAD,UAAC;AAAD,CAAC,AAAnB,IAAmB;AAAN,kBAAG;AAChB,MAAM,CAAC,cAAc,CAAC,GAAG,CAAC,SAAS,EAAE,GAAG,EAAE;IAC1C;;OAEG;IACH,GAAG,YAAC,QAAQ,IAAG,CAAC;CACf,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAAA;;CAAmB\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "setter-annotations/es5/commonjs/ts-private",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class Foo { private set x(supplied: number) {} }\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUE7SUFBQTtJQUFzRCxDQUFDO0lBQXBDLHNCQUFZLGtCQUFDO2FBQWIsVUFBYyxRQUFnQixJQUFHLENBQUM7OztPQUFBO0lBQUMsVUFBQztBQUFELENBQUMsQUFBdkQsSUFBdUQ7QUFBMUMsa0JBQUcifQ==",
+            "callback_utf8_bytes": 214,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUE7SUFBQTtJQUFzRCxDQUFDO0lBQXBDLHNCQUFZLGtCQUFDO2FBQWIsVUFBYyxRQUFnQixJQUFHLENBQUM7OztPQUFBO0lBQUMsVUFBQztBQUFELENBQUMsQUFBdkQsSUFBdUQ7QUFBMUMsa0JBQUcifQ==",
+            "materialized_utf8_bytes": 214,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRm9vID0gdm9pZCAwOw0KdmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgfQ0KICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShGb28ucHJvdG90eXBlLCAieCIsIHsNCiAgICAgICAgc2V0OiBmdW5jdGlvbiAoc3VwcGxpZWQpIHsgfSwNCiAgICAgICAgZW51bWVyYWJsZTogZmFsc2UsDQogICAgICAgIGNvbmZpZ3VyYWJsZTogdHJ1ZQ0KICAgIH0pOw0KICAgIHJldHVybiBGb287DQp9KCkpOw0KZXhwb3J0cy5Gb28gPSBGb287DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 400,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRm9vID0gdm9pZCAwOw0KdmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgfQ0KICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShGb28ucHJvdG90eXBlLCAieCIsIHsNCiAgICAgICAgc2V0OiBmdW5jdGlvbiAoc3VwcGxpZWQpIHsgfSwNCiAgICAgICAgZW51bWVyYWJsZTogZmFsc2UsDQogICAgICAgIGNvbmZpZ3VyYWJsZTogdHJ1ZQ0KICAgIH0pOw0KICAgIHJldHVybiBGb287DQp9KCkpOw0KZXhwb3J0cy5Gb28gPSBGb287DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 400,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 368,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxxQkFBYSxHQUFHO0lBQUcsT0FBTyxLQUFLLENBQUMsUUFBcUI7Q0FBRSJ9",
+            "callback_utf8_bytes": 144,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxxQkFBYSxHQUFHO0lBQUcsT0FBTyxLQUFLLENBQUMsUUFBcUI7Q0FBRSJ9",
+            "materialized_utf8_bytes": 144,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY2xhc3MgRm9vIHsNCiAgICBwcml2YXRlIHNldCB4KHZhbHVlKTsNCn0NCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "callback_utf8_bytes": 92,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY2xhc3MgRm9vIHsNCiAgICBwcml2YXRlIHNldCB4KHZhbHVlKTsNCn0NCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "materialized_utf8_bytes": 92,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 58,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AAAA;IAAA;IAAsD,CAAC;IAApC,sBAAY,kBAAC;aAAb,UAAc,QAAgB,IAAG,CAAC;;;OAAA;IAAC,UAAC;AAAD,CAAC,AAAvD,IAAuD;AAA1C,kBAAG\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAA,qBAAa,GAAG;IAAG,OAAO,KAAK,CAAC,QAAqB;CAAE\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "setter-annotations/es5/commonjs/js-private-alias",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "class Foo {\n/**\n * @private\n * @param {number} supplied\n */\nset x(supplied) {}\n}\nexport const Alias = Foo;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUE7SUFBQTtJQU1BLENBQUM7SUFERCxzQkFBSSxrQkFBQztRQUpMOzs7V0FHRzthQUNILFVBQU0sUUFBUSxJQUFHLENBQUM7OztPQUFBO0lBQ2xCLFVBQUM7QUFBRCxDQUFDLEFBTkQsSUFNQztBQUNZLFFBQUEsS0FBSyxHQUFHLEdBQUcsQ0FBQyJ9",
+            "callback_utf8_bytes": 240,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUE7SUFBQTtJQU1BLENBQUM7SUFERCxzQkFBSSxrQkFBQztRQUpMOzs7V0FHRzthQUNILFVBQU0sUUFBUSxJQUFHLENBQUM7OztPQUFBO0lBQ2xCLFVBQUM7QUFBRCxDQUFDLEFBTkQsSUFNQztBQUNZLFFBQUEsS0FBSyxHQUFHLEdBQUcsQ0FBQyJ9",
+            "materialized_utf8_bytes": 240,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuQWxpYXMgPSB2b2lkIDA7DQp2YXIgRm9vID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgIGZ1bmN0aW9uIEZvbygpIHsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KEZvby5wcm90b3R5cGUsICJ4Iiwgew0KICAgICAgICAvKioNCiAgICAgICAgICogQHByaXZhdGUNCiAgICAgICAgICogQHBhcmFtIHtudW1iZXJ9IHN1cHBsaWVkDQogICAgICAgICAqLw0KICAgICAgICBzZXQ6IGZ1bmN0aW9uIChzdXBwbGllZCkgeyB9LA0KICAgICAgICBlbnVtZXJhYmxlOiBmYWxzZSwNCiAgICAgICAgY29uZmlndXJhYmxlOiB0cnVlDQogICAgfSk7DQogICAgcmV0dXJuIEZvbzsNCn0oKSk7DQpleHBvcnRzLkFsaWFzID0gRm9vOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 488,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuQWxpYXMgPSB2b2lkIDA7DQp2YXIgRm9vID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgew0KICAgIGZ1bmN0aW9uIEZvbygpIHsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KEZvby5wcm90b3R5cGUsICJ4Iiwgew0KICAgICAgICAvKioNCiAgICAgICAgICogQHByaXZhdGUNCiAgICAgICAgICogQHBhcmFtIHtudW1iZXJ9IHN1cHBsaWVkDQogICAgICAgICAqLw0KICAgICAgICBzZXQ6IGZ1bmN0aW9uIChzdXBwbGllZCkgeyB9LA0KICAgICAgICBlbnVtZXJhYmxlOiBmYWxzZSwNCiAgICAgICAgY29uZmlndXJhYmxlOiB0cnVlDQogICAgfSk7DQogICAgcmV0dXJuIEZvbzsNCn0oKSk7DQpleHBvcnRzLkFsaWFzID0gRm9vOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 488,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 456,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFPQSwrQkFBeUI7QUFQekI7SUFDQTs7O09BR0c7SUFDSCx3QkFBa0I7Q0FDakIifQ==",
+            "callback_utf8_bytes": 145,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFPQSwrQkFBeUI7QUFQekI7SUFDQTs7O09BR0c7SUFDSCx3QkFBa0I7Q0FDakIifQ==",
+            "materialized_utf8_bytes": 145,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IEFsaWFzOiB0eXBlb2YgRm9vOw0KZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIC8qKg0KICAgICAqIEBwcml2YXRlDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHN1cHBsaWVkDQogICAgICovDQogICAgcHJpdmF0ZSBzZXQgeChzdXBwbGllZCk7DQp9DQpleHBvcnQge307DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "callback_utf8_bytes": 201,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IEFsaWFzOiB0eXBlb2YgRm9vOw0KZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIC8qKg0KICAgICAqIEBwcml2YXRlDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHN1cHBsaWVkDQogICAgICovDQogICAgcHJpdmF0ZSBzZXQgeChzdXBwbGllZCk7DQp9DQpleHBvcnQge307DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "materialized_utf8_bytes": 201,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 167,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";;;AAAA;IAAA;IAMA,CAAC;IADD,sBAAI,kBAAC;QAJL;;;WAGG;aACH,UAAM,QAAQ,IAAG,CAAC;;;OAAA;IAClB,UAAC;AAAD,CAAC,AAND,IAMC;AACY,QAAA,KAAK,GAAG,GAAG,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAOA,+BAAyB;AAPzB;IACA;;;OAGG;IACH,wBAAkB;CACjB\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "setter-annotations/es5/esnext/multiline-private",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "export class Foo {\n/**\n * @private\n * @param {number} supplied\n */\nset x(supplied) {}\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUE7SUFBQTtJQU1BLENBQUM7SUFERCxzQkFBSSxrQkFBQztRQUpMOzs7V0FHRzthQUNILFVBQU0sUUFBUSxJQUFHLENBQUM7OztPQUFBO0lBQ2xCLFVBQUM7QUFBRCxDQUFDLEFBTkQsSUFNQyJ9",
+            "callback_utf8_bytes": 207,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUE7SUFBQTtJQU1BLENBQUM7SUFERCxzQkFBSSxrQkFBQztRQUpMOzs7V0FHRzthQUNILFVBQU0sUUFBUSxJQUFHLENBQUM7OztPQUFBO0lBQ2xCLFVBQUM7QUFBRCxDQUFDLEFBTkQsSUFNQyJ9",
+            "materialized_utf8_bytes": 207,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "dmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgfQ0KICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShGb28ucHJvdG90eXBlLCAieCIsIHsNCiAgICAgICAgLyoqDQogICAgICAgICAqIEBwcml2YXRlDQogICAgICAgICAqIEBwYXJhbSB7bnVtYmVyfSBzdXBwbGllZA0KICAgICAgICAgKi8NCiAgICAgICAgc2V0OiBmdW5jdGlvbiAoc3VwcGxpZWQpIHsgfSwNCiAgICAgICAgZW51bWVyYWJsZTogZmFsc2UsDQogICAgICAgIGNvbmZpZ3VyYWJsZTogdHJ1ZQ0KICAgIH0pOw0KICAgIHJldHVybiBGb287DQp9KCkpOw0KZXhwb3J0IHsgRm9vIH07DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 379,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "dmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgfQ0KICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShGb28ucHJvdG90eXBlLCAieCIsIHsNCiAgICAgICAgLyoqDQogICAgICAgICAqIEBwcml2YXRlDQogICAgICAgICAqIEBwYXJhbSB7bnVtYmVyfSBzdXBwbGllZA0KICAgICAgICAgKi8NCiAgICAgICAgc2V0OiBmdW5jdGlvbiAoc3VwcGxpZWQpIHsgfSwNCiAgICAgICAgZW51bWVyYWJsZTogZmFsc2UsDQogICAgICAgIGNvbmZpZ3VyYWJsZTogdHJ1ZQ0KICAgIH0pOw0KICAgIHJldHVybiBGb287DQp9KCkpOw0KZXhwb3J0IHsgRm9vIH07DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 379,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 347,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtJQUNBOzs7T0FHRztJQUNILHdCQUFrQjtDQUNqQiJ9",
+            "callback_utf8_bytes": 132,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtJQUNBOzs7T0FHRztJQUNILHdCQUFrQjtDQUNqQiJ9",
+            "materialized_utf8_bytes": 132,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNsYXNzIEZvbyB7DQogICAgLyoqDQogICAgICogQHByaXZhdGUNCiAgICAgKiBAcGFyYW0ge251bWJlcn0gc3VwcGxpZWQNCiAgICAgKi8NCiAgICBwcml2YXRlIHNldCB4KHN1cHBsaWVkKTsNCn0NCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "callback_utf8_bytes": 155,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNsYXNzIEZvbyB7DQogICAgLyoqDQogICAgICogQHByaXZhdGUNCiAgICAgKiBAcGFyYW0ge251bWJlcn0gc3VwcGxpZWQNCiAgICAgKi8NCiAgICBwcml2YXRlIHNldCB4KHN1cHBsaWVkKTsNCn0NCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "materialized_utf8_bytes": 155,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 121,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAAA;IAAA;IAMA,CAAC;IADD,sBAAI,kBAAC;QAJL;;;WAGG;aACH,UAAM,QAAQ,IAAG,CAAC;;;OAAA;IAClB,UAAC;AAAD,CAAC,AAND,IAMC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAAA;IACA;;;OAGG;IACH,wBAAkB;CACjB\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "setter-annotations/es5/esnext/multiline-public",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "export class Foo {\n/**\n * @param {number} supplied\n */\nset x(supplied) {}\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUE7SUFBQTtJQUtBLENBQUM7SUFERCxzQkFBSSxrQkFBQztRQUhMOztXQUVHO2FBQ0gsVUFBTSxRQUFRLElBQUcsQ0FBQzs7O09BQUE7SUFDbEIsVUFBQztBQUFELENBQUMsQUFMRCxJQUtDIn0=",
+            "callback_utf8_bytes": 206,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUE7SUFBQTtJQUtBLENBQUM7SUFERCxzQkFBSSxrQkFBQztRQUhMOztXQUVHO2FBQ0gsVUFBTSxRQUFRLElBQUcsQ0FBQzs7O09BQUE7SUFDbEIsVUFBQztBQUFELENBQUMsQUFMRCxJQUtDIn0=",
+            "materialized_utf8_bytes": 206,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "dmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgfQ0KICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShGb28ucHJvdG90eXBlLCAieCIsIHsNCiAgICAgICAgLyoqDQogICAgICAgICAqIEBwYXJhbSB7bnVtYmVyfSBzdXBwbGllZA0KICAgICAgICAgKi8NCiAgICAgICAgc2V0OiBmdW5jdGlvbiAoc3VwcGxpZWQpIHsgfSwNCiAgICAgICAgZW51bWVyYWJsZTogZmFsc2UsDQogICAgICAgIGNvbmZpZ3VyYWJsZTogdHJ1ZQ0KICAgIH0pOw0KICAgIHJldHVybiBGb287DQp9KCkpOw0KZXhwb3J0IHsgRm9vIH07DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 358,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "dmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgfQ0KICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShGb28ucHJvdG90eXBlLCAieCIsIHsNCiAgICAgICAgLyoqDQogICAgICAgICAqIEBwYXJhbSB7bnVtYmVyfSBzdXBwbGllZA0KICAgICAgICAgKi8NCiAgICAgICAgc2V0OiBmdW5jdGlvbiAoc3VwcGxpZWQpIHsgfSwNCiAgICAgICAgZW51bWVyYWJsZTogZmFsc2UsDQogICAgICAgIGNvbmZpZ3VyYWJsZTogdHJ1ZQ0KICAgIH0pOw0KICAgIHJldHVybiBGb287DQp9KCkpOw0KZXhwb3J0IHsgRm9vIH07DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 358,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 326,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtJQUNBOztPQUVHO0lBQ0gsZ0JBRlcsTUFBTSxFQUVDO0NBQ2pCIn0=",
+            "callback_utf8_bytes": 140,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtJQUNBOztPQUVHO0lBQ0gsZ0JBRlcsTUFBTSxFQUVDO0NBQ2pCIn0=",
+            "materialized_utf8_bytes": 140,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNsYXNzIEZvbyB7DQogICAgLyoqDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHN1cHBsaWVkDQogICAgICovDQogICAgc2V0IHgoc3VwcGxpZWQ6IG51bWJlcik7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "callback_utf8_bytes": 138,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNsYXNzIEZvbyB7DQogICAgLyoqDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHN1cHBsaWVkDQogICAgICovDQogICAgc2V0IHgoc3VwcGxpZWQ6IG51bWJlcik7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "materialized_utf8_bytes": 138,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 104,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAAA;IAAA;IAKA,CAAC;IADD,sBAAI,kBAAC;QAHL;;WAEG;aACH,UAAM,QAAQ,IAAG,CAAC;;;OAAA;IAClB,UAAC;AAAD,CAAC,AALD,IAKC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAAA;IACA;;OAEG;IACH,gBAFW,MAAM,EAEC;CACjB\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "setter-annotations/es5/esnext/multiline-descriptor",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "export class Foo {}\nObject.defineProperty(Foo.prototype, \"x\", {\n/**\n * @param {number} supplied\n */\nset(supplied) {}\n});\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUE7SUFBQTtJQUFrQixDQUFDO0lBQUQsVUFBQztBQUFELENBQUMsQUFBbkIsSUFBbUI7O0FBQ25CLE1BQU0sQ0FBQyxjQUFjLENBQUMsR0FBRyxDQUFDLFNBQVMsRUFBRSxHQUFHLEVBQUU7SUFDMUM7O09BRUc7SUFDSCxHQUFHLFlBQUMsUUFBUSxJQUFHLENBQUM7Q0FDZixDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 262,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUE7SUFBQTtJQUFrQixDQUFDO0lBQUQsVUFBQztBQUFELENBQUMsQUFBbkIsSUFBbUI7O0FBQ25CLE1BQU0sQ0FBQyxjQUFjLENBQUMsR0FBRyxDQUFDLFNBQVMsRUFBRSxHQUFHLEVBQUU7SUFDMUM7O09BRUc7SUFDSCxHQUFHLFlBQUMsUUFBUSxJQUFHLENBQUM7Q0FDZixDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 262,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "dmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgfQ0KICAgIHJldHVybiBGb287DQp9KCkpOw0KZXhwb3J0IHsgRm9vIH07DQpPYmplY3QuZGVmaW5lUHJvcGVydHkoRm9vLnByb3RvdHlwZSwgIngiLCB7DQogICAgLyoqDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHN1cHBsaWVkDQogICAgICovDQogICAgc2V0OiBmdW5jdGlvbiAoc3VwcGxpZWQpIHsgfQ0KfSk7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 277,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "dmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgfQ0KICAgIHJldHVybiBGb287DQp9KCkpOw0KZXhwb3J0IHsgRm9vIH07DQpPYmplY3QuZGVmaW5lUHJvcGVydHkoRm9vLnByb3RvdHlwZSwgIngiLCB7DQogICAgLyoqDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHN1cHBsaWVkDQogICAgICovDQogICAgc2V0OiBmdW5jdGlvbiAoc3VwcGxpZWQpIHsgfQ0KfSk7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 277,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 245,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTs7Q0FBbUIifQ==",
+            "callback_utf8_bytes": 109,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTs7Q0FBbUIifQ==",
+            "materialized_utf8_bytes": 109,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNsYXNzIEZvbyB7DQogICAgc2V0IHgoc3VwcGxpZWQ6IG51bWJlcik7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "callback_utf8_bytes": 87,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNsYXNzIEZvbyB7DQogICAgc2V0IHgoc3VwcGxpZWQ6IG51bWJlcik7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "materialized_utf8_bytes": 87,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 53,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAAA;IAAA;IAAkB,CAAC;IAAD,UAAC;AAAD,CAAC,AAAnB,IAAmB;;AACnB,MAAM,CAAC,cAAc,CAAC,GAAG,CAAC,SAAS,EAAE,GAAG,EAAE;IAC1C;;OAEG;IACH,GAAG,YAAC,QAAQ,IAAG,CAAC;CACf,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAAA;;CAAmB\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "setter-annotations/es5/esnext/ts-private",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class Foo { private set x(supplied: number) {} }\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUE7SUFBQTtJQUFzRCxDQUFDO0lBQXBDLHNCQUFZLGtCQUFDO2FBQWIsVUFBYyxRQUFnQixJQUFHLENBQUM7OztPQUFBO0lBQUMsVUFBQztBQUFELENBQUMsQUFBdkQsSUFBdUQifQ==",
+            "callback_utf8_bytes": 199,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUE7SUFBQTtJQUFzRCxDQUFDO0lBQXBDLHNCQUFZLGtCQUFDO2FBQWIsVUFBYyxRQUFnQixJQUFHLENBQUM7OztPQUFBO0lBQUMsVUFBQztBQUFELENBQUMsQUFBdkQsSUFBdUQifQ==",
+            "materialized_utf8_bytes": 199,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "dmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgfQ0KICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShGb28ucHJvdG90eXBlLCAieCIsIHsNCiAgICAgICAgc2V0OiBmdW5jdGlvbiAoc3VwcGxpZWQpIHsgfSwNCiAgICAgICAgZW51bWVyYWJsZTogZmFsc2UsDQogICAgICAgIGNvbmZpZ3VyYWJsZTogdHJ1ZQ0KICAgIH0pOw0KICAgIHJldHVybiBGb287DQp9KCkpOw0KZXhwb3J0IHsgRm9vIH07DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 295,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "dmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgfQ0KICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShGb28ucHJvdG90eXBlLCAieCIsIHsNCiAgICAgICAgc2V0OiBmdW5jdGlvbiAoc3VwcGxpZWQpIHsgfSwNCiAgICAgICAgZW51bWVyYWJsZTogZmFsc2UsDQogICAgICAgIGNvbmZpZ3VyYWJsZTogdHJ1ZQ0KICAgIH0pOw0KICAgIHJldHVybiBGb287DQp9KCkpOw0KZXhwb3J0IHsgRm9vIH07DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 295,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 263,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxxQkFBYSxHQUFHO0lBQUcsT0FBTyxLQUFLLENBQUMsUUFBcUI7Q0FBRSJ9",
+            "callback_utf8_bytes": 144,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxxQkFBYSxHQUFHO0lBQUcsT0FBTyxLQUFLLENBQUMsUUFBcUI7Q0FBRSJ9",
+            "materialized_utf8_bytes": 144,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY2xhc3MgRm9vIHsNCiAgICBwcml2YXRlIHNldCB4KHZhbHVlKTsNCn0NCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "callback_utf8_bytes": 92,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY2xhc3MgRm9vIHsNCiAgICBwcml2YXRlIHNldCB4KHZhbHVlKTsNCn0NCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "materialized_utf8_bytes": 92,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 58,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAA;IAAA;IAAsD,CAAC;IAApC,sBAAY,kBAAC;aAAb,UAAc,QAAgB,IAAG,CAAC;;;OAAA;IAAC,UAAC;AAAD,CAAC,AAAvD,IAAuD\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAA,qBAAa,GAAG;IAAG,OAAO,KAAK,CAAC,QAAqB;CAAE\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "setter-annotations/es5/esnext/js-private-alias",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "class Foo {\n/**\n * @private\n * @param {number} supplied\n */\nset x(supplied) {}\n}\nexport const Alias = Foo;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUE7SUFBQTtJQU1BLENBQUM7SUFERCxzQkFBSSxrQkFBQztRQUpMOzs7V0FHRzthQUNILFVBQU0sUUFBUSxJQUFHLENBQUM7OztPQUFBO0lBQ2xCLFVBQUM7QUFBRCxDQUFDLEFBTkQsSUFNQztBQUNELE1BQU0sQ0FBQyxJQUFNLEtBQUssR0FBRyxHQUFHLENBQUMifQ==",
+            "callback_utf8_bytes": 247,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUE7SUFBQTtJQU1BLENBQUM7SUFERCxzQkFBSSxrQkFBQztRQUpMOzs7V0FHRzthQUNILFVBQU0sUUFBUSxJQUFHLENBQUM7OztPQUFBO0lBQ2xCLFVBQUM7QUFBRCxDQUFDLEFBTkQsSUFNQztBQUNELE1BQU0sQ0FBQyxJQUFNLEtBQUssR0FBRyxHQUFHLENBQUMifQ==",
+            "materialized_utf8_bytes": 247,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "dmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgfQ0KICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShGb28ucHJvdG90eXBlLCAieCIsIHsNCiAgICAgICAgLyoqDQogICAgICAgICAqIEBwcml2YXRlDQogICAgICAgICAqIEBwYXJhbSB7bnVtYmVyfSBzdXBwbGllZA0KICAgICAgICAgKi8NCiAgICAgICAgc2V0OiBmdW5jdGlvbiAoc3VwcGxpZWQpIHsgfSwNCiAgICAgICAgZW51bWVyYWJsZTogZmFsc2UsDQogICAgICAgIGNvbmZpZ3VyYWJsZTogdHJ1ZQ0KICAgIH0pOw0KICAgIHJldHVybiBGb287DQp9KCkpOw0KZXhwb3J0IHZhciBBbGlhcyA9IEZvbzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "callback_utf8_bytes": 387,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "dmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgfQ0KICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShGb28ucHJvdG90eXBlLCAieCIsIHsNCiAgICAgICAgLyoqDQogICAgICAgICAqIEBwcml2YXRlDQogICAgICAgICAqIEBwYXJhbSB7bnVtYmVyfSBzdXBwbGllZA0KICAgICAgICAgKi8NCiAgICAgICAgc2V0OiBmdW5jdGlvbiAoc3VwcGxpZWQpIHsgfSwNCiAgICAgICAgZW51bWVyYWJsZTogZmFsc2UsDQogICAgICAgIGNvbmZpZ3VyYWJsZTogdHJ1ZQ0KICAgIH0pOw0KICAgIHJldHVybiBGb287DQp9KCkpOw0KZXhwb3J0IHZhciBBbGlhcyA9IEZvbzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "materialized_utf8_bytes": 387,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 355,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFPQSwrQkFBeUI7QUFQekI7SUFDQTs7O09BR0c7SUFDSCx3QkFBa0I7Q0FDakIifQ==",
+            "callback_utf8_bytes": 145,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFPQSwrQkFBeUI7QUFQekI7SUFDQTs7O09BR0c7SUFDSCx3QkFBa0I7Q0FDakIifQ==",
+            "materialized_utf8_bytes": 145,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IEFsaWFzOiB0eXBlb2YgRm9vOw0KZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIC8qKg0KICAgICAqIEBwcml2YXRlDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHN1cHBsaWVkDQogICAgICovDQogICAgcHJpdmF0ZSBzZXQgeChzdXBwbGllZCk7DQp9DQpleHBvcnQge307DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "callback_utf8_bytes": 201,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IEFsaWFzOiB0eXBlb2YgRm9vOw0KZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIC8qKg0KICAgICAqIEBwcml2YXRlDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHN1cHBsaWVkDQogICAgICovDQogICAgcHJpdmF0ZSBzZXQgeChzdXBwbGllZCk7DQp9DQpleHBvcnQge307DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "materialized_utf8_bytes": 201,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 167,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAAA;IAAA;IAMA,CAAC;IADD,sBAAI,kBAAC;QAJL;;;WAGG;aACH,UAAM,QAAQ,IAAG,CAAC;;;OAAA;IAClB,UAAC;AAAD,CAAC,AAND,IAMC;AACD,MAAM,CAAC,IAAM,KAAK,GAAG,GAAG,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAOA,+BAAyB;AAPzB;IACA;;;OAGG;IACH,wBAAkB;CACjB\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "setter-annotations/es2015/commonjs/multiline-private",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "export class Foo {\n/**\n * @private\n * @param {number} supplied\n */\nset x(supplied) {}\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUEsTUFBYSxHQUFHO0lBQ2hCOzs7T0FHRztJQUNILElBQUksQ0FBQyxDQUFDLFFBQVEsSUFBRyxDQUFDO0NBQ2pCO0FBTkQsa0JBTUMifQ==",
+            "callback_utf8_bytes": 178,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUEsTUFBYSxHQUFHO0lBQ2hCOzs7T0FHRztJQUNILElBQUksQ0FBQyxDQUFDLFFBQVEsSUFBRyxDQUFDO0NBQ2pCO0FBTkQsa0JBTUMifQ==",
+            "materialized_utf8_bytes": 178,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRm9vID0gdm9pZCAwOw0KY2xhc3MgRm9vIHsNCiAgICAvKioNCiAgICAgKiBAcHJpdmF0ZQ0KICAgICAqIEBwYXJhbSB7bnVtYmVyfSBzdXBwbGllZA0KICAgICAqLw0KICAgIHNldCB4KHN1cHBsaWVkKSB7IH0NCn0NCmV4cG9ydHMuRm9vID0gRm9vOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 263,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRm9vID0gdm9pZCAwOw0KY2xhc3MgRm9vIHsNCiAgICAvKioNCiAgICAgKiBAcHJpdmF0ZQ0KICAgICAqIEBwYXJhbSB7bnVtYmVyfSBzdXBwbGllZA0KICAgICAqLw0KICAgIHNldCB4KHN1cHBsaWVkKSB7IH0NCn0NCmV4cG9ydHMuRm9vID0gRm9vOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 263,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 231,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtJQUNBOzs7T0FHRztJQUNILHdCQUFrQjtDQUNqQiJ9",
+            "callback_utf8_bytes": 132,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtJQUNBOzs7T0FHRztJQUNILHdCQUFrQjtDQUNqQiJ9",
+            "materialized_utf8_bytes": 132,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNsYXNzIEZvbyB7DQogICAgLyoqDQogICAgICogQHByaXZhdGUNCiAgICAgKiBAcGFyYW0ge251bWJlcn0gc3VwcGxpZWQNCiAgICAgKi8NCiAgICBwcml2YXRlIHNldCB4KHN1cHBsaWVkKTsNCn0NCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "callback_utf8_bytes": 155,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNsYXNzIEZvbyB7DQogICAgLyoqDQogICAgICogQHByaXZhdGUNCiAgICAgKiBAcGFyYW0ge251bWJlcn0gc3VwcGxpZWQNCiAgICAgKi8NCiAgICBwcml2YXRlIHNldCB4KHN1cHBsaWVkKTsNCn0NCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "materialized_utf8_bytes": 155,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 121,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";;;AAAA,MAAa,GAAG;IAChB;;;OAGG;IACH,IAAI,CAAC,CAAC,QAAQ,IAAG,CAAC;CACjB;AAND,kBAMC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAAA;IACA;;;OAGG;IACH,wBAAkB;CACjB\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "setter-annotations/es2015/commonjs/multiline-public",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "export class Foo {\n/**\n * @param {number} supplied\n */\nset x(supplied) {}\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUEsTUFBYSxHQUFHO0lBQ2hCOztPQUVHO0lBQ0gsSUFBSSxDQUFDLENBQUMsUUFBUSxJQUFHLENBQUM7Q0FDakI7QUFMRCxrQkFLQyJ9",
+            "callback_utf8_bytes": 177,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUEsTUFBYSxHQUFHO0lBQ2hCOztPQUVHO0lBQ0gsSUFBSSxDQUFDLENBQUMsUUFBUSxJQUFHLENBQUM7Q0FDakI7QUFMRCxrQkFLQyJ9",
+            "materialized_utf8_bytes": 177,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRm9vID0gdm9pZCAwOw0KY2xhc3MgRm9vIHsNCiAgICAvKioNCiAgICAgKiBAcGFyYW0ge251bWJlcn0gc3VwcGxpZWQNCiAgICAgKi8NCiAgICBzZXQgeChzdXBwbGllZCkgeyB9DQp9DQpleHBvcnRzLkZvbyA9IEZvbzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "callback_utf8_bytes": 246,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRm9vID0gdm9pZCAwOw0KY2xhc3MgRm9vIHsNCiAgICAvKioNCiAgICAgKiBAcGFyYW0ge251bWJlcn0gc3VwcGxpZWQNCiAgICAgKi8NCiAgICBzZXQgeChzdXBwbGllZCkgeyB9DQp9DQpleHBvcnRzLkZvbyA9IEZvbzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "materialized_utf8_bytes": 246,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 214,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtJQUNBOztPQUVHO0lBQ0gsZ0JBRlcsTUFBTSxFQUVDO0NBQ2pCIn0=",
+            "callback_utf8_bytes": 140,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtJQUNBOztPQUVHO0lBQ0gsZ0JBRlcsTUFBTSxFQUVDO0NBQ2pCIn0=",
+            "materialized_utf8_bytes": 140,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNsYXNzIEZvbyB7DQogICAgLyoqDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHN1cHBsaWVkDQogICAgICovDQogICAgc2V0IHgoc3VwcGxpZWQ6IG51bWJlcik7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "callback_utf8_bytes": 138,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNsYXNzIEZvbyB7DQogICAgLyoqDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHN1cHBsaWVkDQogICAgICovDQogICAgc2V0IHgoc3VwcGxpZWQ6IG51bWJlcik7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "materialized_utf8_bytes": 138,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 104,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";;;AAAA,MAAa,GAAG;IAChB;;OAEG;IACH,IAAI,CAAC,CAAC,QAAQ,IAAG,CAAC;CACjB;AALD,kBAKC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAAA;IACA;;OAEG;IACH,gBAFW,MAAM,EAEC;CACjB\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "setter-annotations/es2015/commonjs/multiline-descriptor",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "export class Foo {}\nObject.defineProperty(Foo.prototype, \"x\", {\n/**\n * @param {number} supplied\n */\nset(supplied) {}\n});\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUEsTUFBYSxHQUFHO0NBQUc7QUFBbkIsa0JBQW1CO0FBQ25CLE1BQU0sQ0FBQyxjQUFjLENBQUMsR0FBRyxDQUFDLFNBQVMsRUFBRSxHQUFHLEVBQUU7SUFDMUM7O09BRUc7SUFDSCxHQUFHLENBQUMsUUFBUSxJQUFHLENBQUM7Q0FDZixDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 244,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUEsTUFBYSxHQUFHO0NBQUc7QUFBbkIsa0JBQW1CO0FBQ25CLE1BQU0sQ0FBQyxjQUFjLENBQUMsR0FBRyxDQUFDLFNBQVMsRUFBRSxHQUFHLEVBQUU7SUFDMUM7O09BRUc7SUFDSCxHQUFHLENBQUMsUUFBUSxJQUFHLENBQUM7Q0FDZixDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 244,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRm9vID0gdm9pZCAwOw0KY2xhc3MgRm9vIHsNCn0NCmV4cG9ydHMuRm9vID0gRm9vOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KEZvby5wcm90b3R5cGUsICJ4Iiwgew0KICAgIC8qKg0KICAgICAqIEBwYXJhbSB7bnVtYmVyfSBzdXBwbGllZA0KICAgICAqLw0KICAgIHNldChzdXBwbGllZCkgeyB9DQp9KTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "callback_utf8_bytes": 294,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRm9vID0gdm9pZCAwOw0KY2xhc3MgRm9vIHsNCn0NCmV4cG9ydHMuRm9vID0gRm9vOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KEZvby5wcm90b3R5cGUsICJ4Iiwgew0KICAgIC8qKg0KICAgICAqIEBwYXJhbSB7bnVtYmVyfSBzdXBwbGllZA0KICAgICAqLw0KICAgIHNldChzdXBwbGllZCkgeyB9DQp9KTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "materialized_utf8_bytes": 294,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 262,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTs7Q0FBbUIifQ==",
+            "callback_utf8_bytes": 109,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTs7Q0FBbUIifQ==",
+            "materialized_utf8_bytes": 109,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNsYXNzIEZvbyB7DQogICAgc2V0IHgoc3VwcGxpZWQ6IG51bWJlcik7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "callback_utf8_bytes": 87,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNsYXNzIEZvbyB7DQogICAgc2V0IHgoc3VwcGxpZWQ6IG51bWJlcik7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "materialized_utf8_bytes": 87,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 53,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";;;AAAA,MAAa,GAAG;CAAG;AAAnB,kBAAmB;AACnB,MAAM,CAAC,cAAc,CAAC,GAAG,CAAC,SAAS,EAAE,GAAG,EAAE;IAC1C;;OAEG;IACH,GAAG,CAAC,QAAQ,IAAG,CAAC;CACf,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAAA;;CAAmB\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "setter-annotations/es2015/commonjs/ts-private",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class Foo { private set x(supplied: number) {} }\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUEsTUFBYSxHQUFHO0lBQUcsSUFBWSxDQUFDLENBQUMsUUFBZ0IsSUFBRyxDQUFDO0NBQUU7QUFBdkQsa0JBQXVEIn0=",
+            "callback_utf8_bytes": 167,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUEsTUFBYSxHQUFHO0lBQUcsSUFBWSxDQUFDLENBQUMsUUFBZ0IsSUFBRyxDQUFDO0NBQUU7QUFBdkQsa0JBQXVEIn0=",
+            "materialized_utf8_bytes": 167,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRm9vID0gdm9pZCAwOw0KY2xhc3MgRm9vIHsNCiAgICBzZXQgeChzdXBwbGllZCkgeyB9DQp9DQpleHBvcnRzLkZvbyA9IEZvbzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "callback_utf8_bytes": 195,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRm9vID0gdm9pZCAwOw0KY2xhc3MgRm9vIHsNCiAgICBzZXQgeChzdXBwbGllZCkgeyB9DQp9DQpleHBvcnRzLkZvbyA9IEZvbzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "materialized_utf8_bytes": 195,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 163,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxxQkFBYSxHQUFHO0lBQUcsT0FBTyxLQUFLLENBQUMsUUFBcUI7Q0FBRSJ9",
+            "callback_utf8_bytes": 144,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxxQkFBYSxHQUFHO0lBQUcsT0FBTyxLQUFLLENBQUMsUUFBcUI7Q0FBRSJ9",
+            "materialized_utf8_bytes": 144,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY2xhc3MgRm9vIHsNCiAgICBwcml2YXRlIHNldCB4KHZhbHVlKTsNCn0NCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "callback_utf8_bytes": 92,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY2xhc3MgRm9vIHsNCiAgICBwcml2YXRlIHNldCB4KHZhbHVlKTsNCn0NCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "materialized_utf8_bytes": 92,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 58,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";;;AAAA,MAAa,GAAG;IAAG,IAAY,CAAC,CAAC,QAAgB,IAAG,CAAC;CAAE;AAAvD,kBAAuD\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAA,qBAAa,GAAG;IAAG,OAAO,KAAK,CAAC,QAAqB;CAAE\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "setter-annotations/es2015/commonjs/js-private-alias",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "class Foo {\n/**\n * @private\n * @param {number} supplied\n */\nset x(supplied) {}\n}\nexport const Alias = Foo;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUEsTUFBTSxHQUFHO0lBQ1Q7OztPQUdHO0lBQ0gsSUFBSSxDQUFDLENBQUMsUUFBUSxJQUFHLENBQUM7Q0FDakI7QUFDWSxRQUFBLEtBQUssR0FBRyxHQUFHLENBQUMifQ==",
+            "callback_utf8_bytes": 196,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUEsTUFBTSxHQUFHO0lBQ1Q7OztPQUdHO0lBQ0gsSUFBSSxDQUFDLENBQUMsUUFBUSxJQUFHLENBQUM7Q0FDakI7QUFDWSxRQUFBLEtBQUssR0FBRyxHQUFHLENBQUMifQ==",
+            "materialized_utf8_bytes": 196,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuQWxpYXMgPSB2b2lkIDA7DQpjbGFzcyBGb28gew0KICAgIC8qKg0KICAgICAqIEBwcml2YXRlDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHN1cHBsaWVkDQogICAgICovDQogICAgc2V0IHgoc3VwcGxpZWQpIHsgfQ0KfQ0KZXhwb3J0cy5BbGlhcyA9IEZvbzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "callback_utf8_bytes": 267,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuQWxpYXMgPSB2b2lkIDA7DQpjbGFzcyBGb28gew0KICAgIC8qKg0KICAgICAqIEBwcml2YXRlDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHN1cHBsaWVkDQogICAgICovDQogICAgc2V0IHgoc3VwcGxpZWQpIHsgfQ0KfQ0KZXhwb3J0cy5BbGlhcyA9IEZvbzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "materialized_utf8_bytes": 267,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 235,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFPQSwrQkFBeUI7QUFQekI7SUFDQTs7O09BR0c7SUFDSCx3QkFBa0I7Q0FDakIifQ==",
+            "callback_utf8_bytes": 145,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFPQSwrQkFBeUI7QUFQekI7SUFDQTs7O09BR0c7SUFDSCx3QkFBa0I7Q0FDakIifQ==",
+            "materialized_utf8_bytes": 145,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IEFsaWFzOiB0eXBlb2YgRm9vOw0KZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIC8qKg0KICAgICAqIEBwcml2YXRlDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHN1cHBsaWVkDQogICAgICovDQogICAgcHJpdmF0ZSBzZXQgeChzdXBwbGllZCk7DQp9DQpleHBvcnQge307DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "callback_utf8_bytes": 201,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IEFsaWFzOiB0eXBlb2YgRm9vOw0KZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIC8qKg0KICAgICAqIEBwcml2YXRlDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHN1cHBsaWVkDQogICAgICovDQogICAgcHJpdmF0ZSBzZXQgeChzdXBwbGllZCk7DQp9DQpleHBvcnQge307DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "materialized_utf8_bytes": 201,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 167,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";;;AAAA,MAAM,GAAG;IACT;;;OAGG;IACH,IAAI,CAAC,CAAC,QAAQ,IAAG,CAAC;CACjB;AACY,QAAA,KAAK,GAAG,GAAG,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAOA,+BAAyB;AAPzB;IACA;;;OAGG;IACH,wBAAkB;CACjB\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "setter-annotations/es2015/esnext/multiline-private",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "export class Foo {\n/**\n * @private\n * @param {number} supplied\n */\nset x(supplied) {}\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxPQUFPLEdBQUc7SUFDaEI7OztPQUdHO0lBQ0gsSUFBSSxDQUFDLENBQUMsUUFBUSxJQUFHLENBQUM7Q0FDakIifQ==",
+            "callback_utf8_bytes": 169,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxPQUFPLEdBQUc7SUFDaEI7OztPQUdHO0lBQ0gsSUFBSSxDQUFDLENBQUMsUUFBUSxJQUFHLENBQUM7Q0FDakIifQ==",
+            "materialized_utf8_bytes": 169,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNsYXNzIEZvbyB7DQogICAgLyoqDQogICAgICogQHByaXZhdGUNCiAgICAgKiBAcGFyYW0ge251bWJlcn0gc3VwcGxpZWQNCiAgICAgKi8NCiAgICBzZXQgeChzdXBwbGllZCkgeyB9DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 148,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNsYXNzIEZvbyB7DQogICAgLyoqDQogICAgICogQHByaXZhdGUNCiAgICAgKiBAcGFyYW0ge251bWJlcn0gc3VwcGxpZWQNCiAgICAgKi8NCiAgICBzZXQgeChzdXBwbGllZCkgeyB9DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 148,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 116,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtJQUNBOzs7T0FHRztJQUNILHdCQUFrQjtDQUNqQiJ9",
+            "callback_utf8_bytes": 132,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtJQUNBOzs7T0FHRztJQUNILHdCQUFrQjtDQUNqQiJ9",
+            "materialized_utf8_bytes": 132,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNsYXNzIEZvbyB7DQogICAgLyoqDQogICAgICogQHByaXZhdGUNCiAgICAgKiBAcGFyYW0ge251bWJlcn0gc3VwcGxpZWQNCiAgICAgKi8NCiAgICBwcml2YXRlIHNldCB4KHN1cHBsaWVkKTsNCn0NCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "callback_utf8_bytes": 155,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNsYXNzIEZvbyB7DQogICAgLyoqDQogICAgICogQHByaXZhdGUNCiAgICAgKiBAcGFyYW0ge251bWJlcn0gc3VwcGxpZWQNCiAgICAgKi8NCiAgICBwcml2YXRlIHNldCB4KHN1cHBsaWVkKTsNCn0NCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "materialized_utf8_bytes": 155,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 121,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAAA,MAAM,OAAO,GAAG;IAChB;;;OAGG;IACH,IAAI,CAAC,CAAC,QAAQ,IAAG,CAAC;CACjB\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAAA;IACA;;;OAGG;IACH,wBAAkB;CACjB\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "setter-annotations/es2015/esnext/multiline-public",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "export class Foo {\n/**\n * @param {number} supplied\n */\nset x(supplied) {}\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxPQUFPLEdBQUc7SUFDaEI7O09BRUc7SUFDSCxJQUFJLENBQUMsQ0FBQyxRQUFRLElBQUcsQ0FBQztDQUNqQiJ9",
+            "callback_utf8_bytes": 168,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxPQUFPLEdBQUc7SUFDaEI7O09BRUc7SUFDSCxJQUFJLENBQUMsQ0FBQyxRQUFRLElBQUcsQ0FBQztDQUNqQiJ9",
+            "materialized_utf8_bytes": 168,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNsYXNzIEZvbyB7DQogICAgLyoqDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHN1cHBsaWVkDQogICAgICovDQogICAgc2V0IHgoc3VwcGxpZWQpIHsgfQ0KfQ0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 131,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNsYXNzIEZvbyB7DQogICAgLyoqDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHN1cHBsaWVkDQogICAgICovDQogICAgc2V0IHgoc3VwcGxpZWQpIHsgfQ0KfQ0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 131,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 99,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtJQUNBOztPQUVHO0lBQ0gsZ0JBRlcsTUFBTSxFQUVDO0NBQ2pCIn0=",
+            "callback_utf8_bytes": 140,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtJQUNBOztPQUVHO0lBQ0gsZ0JBRlcsTUFBTSxFQUVDO0NBQ2pCIn0=",
+            "materialized_utf8_bytes": 140,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNsYXNzIEZvbyB7DQogICAgLyoqDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHN1cHBsaWVkDQogICAgICovDQogICAgc2V0IHgoc3VwcGxpZWQ6IG51bWJlcik7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "callback_utf8_bytes": 138,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNsYXNzIEZvbyB7DQogICAgLyoqDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHN1cHBsaWVkDQogICAgICovDQogICAgc2V0IHgoc3VwcGxpZWQ6IG51bWJlcik7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "materialized_utf8_bytes": 138,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 104,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAAA,MAAM,OAAO,GAAG;IAChB;;OAEG;IACH,IAAI,CAAC,CAAC,QAAQ,IAAG,CAAC;CACjB\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAAA;IACA;;OAEG;IACH,gBAFW,MAAM,EAEC;CACjB\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "setter-annotations/es2015/esnext/multiline-descriptor",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "export class Foo {}\nObject.defineProperty(Foo.prototype, \"x\", {\n/**\n * @param {number} supplied\n */\nset(supplied) {}\n});\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxPQUFPLEdBQUc7Q0FBRztBQUNuQixNQUFNLENBQUMsY0FBYyxDQUFDLEdBQUcsQ0FBQyxTQUFTLEVBQUUsR0FBRyxFQUFFO0lBQzFDOztPQUVHO0lBQ0gsR0FBRyxDQUFDLFFBQVEsSUFBRyxDQUFDO0NBQ2YsQ0FBQyxDQUFDIn0=",
+            "callback_utf8_bytes": 233,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxPQUFPLEdBQUc7Q0FBRztBQUNuQixNQUFNLENBQUMsY0FBYyxDQUFDLEdBQUcsQ0FBQyxTQUFTLEVBQUUsR0FBRyxFQUFFO0lBQzFDOztPQUVHO0lBQ0gsR0FBRyxDQUFDLFFBQVEsSUFBRyxDQUFDO0NBQ2YsQ0FBQyxDQUFDIn0=",
+            "materialized_utf8_bytes": 233,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNsYXNzIEZvbyB7DQp9DQpPYmplY3QuZGVmaW5lUHJvcGVydHkoRm9vLnByb3RvdHlwZSwgIngiLCB7DQogICAgLyoqDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHN1cHBsaWVkDQogICAgICovDQogICAgc2V0KHN1cHBsaWVkKSB7IH0NCn0pOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 179,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNsYXNzIEZvbyB7DQp9DQpPYmplY3QuZGVmaW5lUHJvcGVydHkoRm9vLnByb3RvdHlwZSwgIngiLCB7DQogICAgLyoqDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHN1cHBsaWVkDQogICAgICovDQogICAgc2V0KHN1cHBsaWVkKSB7IH0NCn0pOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 179,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 147,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTs7Q0FBbUIifQ==",
+            "callback_utf8_bytes": 109,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTs7Q0FBbUIifQ==",
+            "materialized_utf8_bytes": 109,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNsYXNzIEZvbyB7DQogICAgc2V0IHgoc3VwcGxpZWQ6IG51bWJlcik7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "callback_utf8_bytes": 87,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNsYXNzIEZvbyB7DQogICAgc2V0IHgoc3VwcGxpZWQ6IG51bWJlcik7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "materialized_utf8_bytes": 87,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 53,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAAA,MAAM,OAAO,GAAG;CAAG;AACnB,MAAM,CAAC,cAAc,CAAC,GAAG,CAAC,SAAS,EAAE,GAAG,EAAE;IAC1C;;OAEG;IACH,GAAG,CAAC,QAAQ,IAAG,CAAC;CACf,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAAA;;CAAmB\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "setter-annotations/es2015/esnext/ts-private",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class Foo { private set x(supplied: number) {} }\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxPQUFPLEdBQUc7SUFBRyxJQUFZLENBQUMsQ0FBQyxRQUFnQixJQUFHLENBQUM7Q0FBRSJ9",
+            "callback_utf8_bytes": 156,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxPQUFPLEdBQUc7SUFBRyxJQUFZLENBQUMsQ0FBQyxRQUFnQixJQUFHLENBQUM7Q0FBRSJ9",
+            "materialized_utf8_bytes": 156,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNsYXNzIEZvbyB7DQogICAgc2V0IHgoc3VwcGxpZWQpIHsgfQ0KfQ0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 80,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNsYXNzIEZvbyB7DQogICAgc2V0IHgoc3VwcGxpZWQpIHsgfQ0KfQ0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 80,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 48,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxxQkFBYSxHQUFHO0lBQUcsT0FBTyxLQUFLLENBQUMsUUFBcUI7Q0FBRSJ9",
+            "callback_utf8_bytes": 144,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxxQkFBYSxHQUFHO0lBQUcsT0FBTyxLQUFLLENBQUMsUUFBcUI7Q0FBRSJ9",
+            "materialized_utf8_bytes": 144,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY2xhc3MgRm9vIHsNCiAgICBwcml2YXRlIHNldCB4KHZhbHVlKTsNCn0NCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "callback_utf8_bytes": 92,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY2xhc3MgRm9vIHsNCiAgICBwcml2YXRlIHNldCB4KHZhbHVlKTsNCn0NCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "materialized_utf8_bytes": 92,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 58,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,OAAO,GAAG;IAAG,IAAY,CAAC,CAAC,QAAgB,IAAG,CAAC;CAAE\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAA,qBAAa,GAAG;IAAG,OAAO,KAAK,CAAC,QAAqB;CAAE\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "setter-annotations/es2015/esnext/js-private-alias",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "class Foo {\n/**\n * @private\n * @param {number} supplied\n */\nset x(supplied) {}\n}\nexport const Alias = Foo;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxHQUFHO0lBQ1Q7OztPQUdHO0lBQ0gsSUFBSSxDQUFDLENBQUMsUUFBUSxJQUFHLENBQUM7Q0FDakI7QUFDRCxNQUFNLENBQUMsTUFBTSxLQUFLLEdBQUcsR0FBRyxDQUFDIn0=",
+            "callback_utf8_bytes": 203,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxHQUFHO0lBQ1Q7OztPQUdHO0lBQ0gsSUFBSSxDQUFDLENBQUMsUUFBUSxJQUFHLENBQUM7Q0FDakI7QUFDRCxNQUFNLENBQUMsTUFBTSxLQUFLLEdBQUcsR0FBRyxDQUFDIn0=",
+            "materialized_utf8_bytes": 203,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "Y2xhc3MgRm9vIHsNCiAgICAvKioNCiAgICAgKiBAcHJpdmF0ZQ0KICAgICAqIEBwYXJhbSB7bnVtYmVyfSBzdXBwbGllZA0KICAgICAqLw0KICAgIHNldCB4KHN1cHBsaWVkKSB7IH0NCn0NCmV4cG9ydCBjb25zdCBBbGlhcyA9IEZvbzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "callback_utf8_bytes": 168,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "Y2xhc3MgRm9vIHsNCiAgICAvKioNCiAgICAgKiBAcHJpdmF0ZQ0KICAgICAqIEBwYXJhbSB7bnVtYmVyfSBzdXBwbGllZA0KICAgICAqLw0KICAgIHNldCB4KHN1cHBsaWVkKSB7IH0NCn0NCmV4cG9ydCBjb25zdCBBbGlhcyA9IEZvbzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "materialized_utf8_bytes": 168,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 136,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFPQSwrQkFBeUI7QUFQekI7SUFDQTs7O09BR0c7SUFDSCx3QkFBa0I7Q0FDakIifQ==",
+            "callback_utf8_bytes": 145,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFPQSwrQkFBeUI7QUFQekI7SUFDQTs7O09BR0c7SUFDSCx3QkFBa0I7Q0FDakIifQ==",
+            "materialized_utf8_bytes": 145,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IEFsaWFzOiB0eXBlb2YgRm9vOw0KZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIC8qKg0KICAgICAqIEBwcml2YXRlDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHN1cHBsaWVkDQogICAgICovDQogICAgcHJpdmF0ZSBzZXQgeChzdXBwbGllZCk7DQp9DQpleHBvcnQge307DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "callback_utf8_bytes": 201,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IEFsaWFzOiB0eXBlb2YgRm9vOw0KZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIC8qKg0KICAgICAqIEBwcml2YXRlDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHN1cHBsaWVkDQogICAgICovDQogICAgcHJpdmF0ZSBzZXQgeChzdXBwbGllZCk7DQp9DQpleHBvcnQge307DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "materialized_utf8_bytes": 201,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 167,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAAA,MAAM,GAAG;IACT;;;OAGG;IACH,IAAI,CAAC,CAAC,QAAQ,IAAG,CAAC;CACjB;AACD,MAAM,CAAC,MAAM,KAAK,GAAG,GAAG,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAOA,+BAAyB;AAPzB;IACA;;;OAGG;IACH,wBAAkB;CACjB\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    }
+  ]
+}

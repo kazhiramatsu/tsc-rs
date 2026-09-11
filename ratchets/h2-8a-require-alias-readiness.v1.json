@@ -1,0 +1,256 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-2",
+  "base": "43e1107e823727df2a62caa88463326f41337e34",
+  "unresolved": 0,
+  "undispositioned": 0,
+  "authorities": [
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-require-aliases.md",
+      "sha256": "928b47faa05d20354c4c116f60649b6cf796fec7e370687bd9052ba4090c388a"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    },
+    {
+      "path": "ratchets/h2-8a-candidates.v1.json",
+      "sha256": "e33fbf9b6c7eb96dae5186013e054e57eae371a48fca461a809ae4e6e2a1095c"
+    },
+    {
+      "path": "ratchets/h2-8a-candidate-inputs.v1.json",
+      "sha256": "6ff7ea8d1d986e8a9d833d45ec694ab0b8616604fdf065ba52e24a34ac86759b"
+    },
+    {
+      "path": "ratchets/h2-8a-observations.v1.json",
+      "sha256": "91fc28206d663eab46fef98f72ba296d29e02def72518e012616c4d0d01acc87"
+    },
+    {
+      "path": "ratchets/h2-8a-global-before.v1.json",
+      "sha256": "d8beabca4abf261656a3d7897a6c042b1b448fdf17b84cf54a384376a0b9a11e"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "8d227b2efe675e708dbb6ffc9fd161edff50cdad63432683ef760f0ec36aedcc"
+    },
+    {
+      "path": "crates/checker/src/node_builder/specifier.rs",
+      "sha256": "ed910c3e549cd645c2853e460ccf20a10c0df62b7044e4a9b1b20be52b3bba58"
+    },
+    {
+      "path": "crates/checker/src/node_builder/chains.rs",
+      "sha256": "ceddd104b930ed504ce77375a919db57e0968438e12f3b99799895a0461d8709"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/syntax/src/parser.rs",
+      "sha256": "c30ad50f80148d8a7aaa49c2df2ec2f8be05d1ea635c69c0a7ac6d0731ce0732"
+    },
+    {
+      "path": "crates/checker/src/program.rs",
+      "sha256": "b04b89bebc3ec3929272eae20b30d9aa158301e3cc11c0b7dd904c188bf3d653"
+    }
+  ],
+  "owners": [
+    {
+      "owner": "isJsonSourceFile",
+      "start": 14122,
+      "end": 14124,
+      "sha256": "916f4ee9aa201d6a1f517bb01eff1ab541c3e5d61580eb92b2c7b5c392d58c7a"
+    },
+    {
+      "owner": "createImportEqualsDeclaration",
+      "start": 23460,
+      "end": 23473,
+      "sha256": "cd9f16baa6064edf0ddd264a39e0a8e83e7c70d6d9dc77e0765829dc80b493b9"
+    },
+    {
+      "owner": "getSpecifierForModuleSymbol",
+      "start": 53060,
+      "end": 53109,
+      "sha256": "cc081ccc9162d99c71cfb5013a0786210de8d66472567a9ee1d6eab90f686463"
+    },
+    {
+      "owner": "includePrivateSymbol",
+      "start": 54180,
+      "end": 54186,
+      "sha256": "47e3cfac44d1da24d0576ff68a44b9145c0b4d6d090ec814e2fb751ef8a09906"
+    },
+    {
+      "owner": "serializeAsAlias",
+      "start": 54707,
+      "end": 54946,
+      "sha256": "60776812c24ded3bcf5a0336651b8c0726ab37d473a3a104a5495b4937227277"
+    },
+    {
+      "owner": "serializeMaybeAliasAssignment",
+      "start": 54966,
+      "end": 55082,
+      "sha256": "76bea3c93c2aab13e158de586792f0b9e24d6840feaaf5ff7151b7d97ef249c0"
+    },
+    {
+      "owner": "getInternalSymbolName",
+      "start": 55429,
+      "end": 55437,
+      "sha256": "dabcf231a2d04cdc2cacbf91315a119bb0d9036f89eba69a2df05969003ddce2"
+    }
+  ],
+  "steps": [
+    "A6-2-1",
+    "A6-2-2"
+  ],
+  "architecture": [
+    {
+      "id": "E-PROTOCOL",
+      "disposition": "premise-unchanged but rechecked"
+    },
+    {
+      "id": "E-RESOLVER-BASE",
+      "disposition": "premise-unchanged but rechecked"
+    },
+    {
+      "id": "E-METADATA-BASE",
+      "disposition": "premise-unchanged but rechecked"
+    }
+  ],
+  "test": "crates/compiler/tests/h2_8a_original_corpus.rs",
+  "witnesses": [
+    {
+      "case_id": "typescript-6.0.3/compiler/requireOfJsonFileWithDeclaration.ts#default",
+      "input_sha256": "efd1bfdf7cfee89c950c2ea939950a7c17d84db2ec4cb62f6475eae325094a2f",
+      "observation_sha256": "1a0fed6d762873496f0ad3c33a1e920580a011255e41967548bca89b7f56cc21",
+      "before": "exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/declarationEmit/leaveOptionalParameterAsWritten.ts#default",
+      "input_sha256": "cf58aad87ab8a459da9182b86b50fbfe066fd0cf3bfaa6716fff12f555abdb9f",
+      "observation_sha256": "290dc0e2a3e183629cde86539b02186ef3590ba8c02fbf735cb1988e7ce231d2",
+      "before": "exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassExtendsVisibility.ts#target%3Des2015",
+      "input_sha256": "ddc31ceb3e7371c075c57169d1e8b16d7972561b3264c56da857f3da0b346609",
+      "observation_sha256": "09f5e48fb682a68100e6b863f1de2fba687e4fba3ab22c91392e7b8ea896397d",
+      "before": "failed"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassExtendsVisibility.ts#target%3Des5",
+      "input_sha256": "17e81c0c9fdf2c7def04551041237725503f80b1cb9afdada7ab6b11dc4ace79",
+      "observation_sha256": "1ac17fe4315c6d8186cfea32a0e9360eaa01f018986bd6e34f665d79db66472b",
+      "before": "failed"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsCrossfileMerge.ts#target%3Des2015",
+      "input_sha256": "168f996462e2500456754e0e9c1cc160355401535b49604f9a2cb8b5db7fb9fd",
+      "observation_sha256": "b2b53891b427ca97112942c5a18ec7b7d5ff50d6d96a2c75247fabb63f5d2cee",
+      "before": "failed"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsCrossfileMerge.ts#target%3Des5",
+      "input_sha256": "56000ffdf2383bbbe10e8aa9ade33ef87d2c39a1f7ecb45d22901bde4288dcd1",
+      "observation_sha256": "49ab61306e9eb5570ccc4b784cf4c7432656ec768b4daaed7fc2203ed8911092",
+      "before": "failed"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedVisibility.ts#target%3Des2015",
+      "input_sha256": "afe9c14f33ea0ff40558981cf9b63809d3f9ee0f213b070c5de5316fc2f50a17",
+      "observation_sha256": "4c939d34045acafa8d2d76289117b8e0941aab09a50793a56a8be87ce4bd1f32",
+      "before": "failed"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedVisibility.ts#target%3Des5",
+      "input_sha256": "cb0e05b432d397382dfa1db41a3afbcb84e0386347305446610db65f0c69444c",
+      "observation_sha256": "c15e78c42cf28d6fafc9d296d4d541acc3de949c791e53b6d6c0f95045821322",
+      "before": "failed"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportedClassAliases.ts#default",
+      "input_sha256": "80517e3c323ccc733dc029d8e2c6533e34e54ac7535bc837a4bd536c10b179fb",
+      "observation_sha256": "4553145fd419a6ba430f31bcd48daa27fe0251aa255c27d5eddcf4e5b2d24224",
+      "before": "failed"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportForms.ts#target%3Des2015",
+      "input_sha256": "34e04686fac92fbdc55d9d7f031a714ef50b07443198b5ef605db396b9b0d055",
+      "observation_sha256": "7df6580ebc9f4cf3b522a04614130cbb27d5816ed8d0802258a1d78152d6fcad",
+      "before": "failed"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportForms.ts#target%3Des5",
+      "input_sha256": "265078df8bb69ed58223f94a983b0e36cee520072f5d13b5a3b7d59fe0cc0578",
+      "observation_sha256": "a78c5b465884133ae190bc9d1e0ac1f237cb377625d601f5165ef469146b3594",
+      "before": "failed"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsJson.ts#target%3Des2015",
+      "input_sha256": "60df259449bfa3f4f406987fb62e74296ef4a13ab512038b6191fb542b2918dd",
+      "observation_sha256": "c1426c096c436a044abf8a78dd3800966ab72ac415984e5bfc38472366681e3d",
+      "before": "failed"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsJson.ts#target%3Des5",
+      "input_sha256": "0b72f51d6665d40f14588baeb70edbc19484ceda0979128d91bc265f4cf3e5ff",
+      "observation_sha256": "87f17154fa4b9230741a2cda179331d84c8f747e3565f989a03f34d868e3cc7f",
+      "before": "failed"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsPackageJson.ts#target%3Des2015",
+      "input_sha256": "607bbfd858a9c7a412f569a64b95818c8d4779ab7a51559d6739fde4416c69aa",
+      "observation_sha256": "75d2e905bbf4ad5be853a860b0205f365df2e2a44d69a5a2642a21c252323313",
+      "before": "failed"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsPackageJson.ts#target%3Des5",
+      "input_sha256": "a3bb4bcbff1800dda9391cacfd67b43ddcb9fd12fe5d29b58439348f15b255c8",
+      "observation_sha256": "3ba78f19baf73a472b6986110680b8e2de886766db62b9d4f59cf878e9675944",
+      "before": "failed"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReexportedCjsAlias.ts#target%3Des2015",
+      "input_sha256": "34bd7687c5abb26562feed44d0bbae95a99d2f564bdcd4141f0ccb17ed1fa76c",
+      "observation_sha256": "aa12fd97f081234aea00224858e139d37e1a0ed4feef3a62bfb4003c9299fd66",
+      "before": "exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReexportedCjsAlias.ts#target%3Des5",
+      "input_sha256": "c233ee4701d63f507602d165d4fef187a3950b73436006e42e4385390c09c4a9",
+      "observation_sha256": "b68654f906bdefb72718992de387646c3d69e378b4556633d94bcd303e59171d",
+      "before": "exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypeReferences.ts#target%3Des2015",
+      "input_sha256": "c59380324dcd5909b0e5f500738f571bf086fe5670a73f22d2526e3d6fb3e519",
+      "observation_sha256": "02508c8a2685d568a41f567e6a402f5ced50eb6af1bd21ea229e25febc51a5e5",
+      "before": "exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypeReferences.ts#target%3Des5",
+      "input_sha256": "683d76c4bc5b6a46104be403133cfd90667c60442c17270b2017ce97b84e6ec4",
+      "observation_sha256": "a1ab906263a2fc412757565962a1114ef0b76826a0417d250ea8422bc3e48f34",
+      "before": "exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypeReferences3.ts#target%3Des2015",
+      "input_sha256": "7aaa464adaf19d042a567a4945ca319356b129dcd25a256f59e1b70a648dd38d",
+      "observation_sha256": "a7c3987a214de43113da80e7194483dc310950cda6ad823a4b4bcd8936129eed",
+      "before": "exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypeReferences3.ts#target%3Des5",
+      "input_sha256": "aa014d5d3e80905cd58b9b6e71f8af615b2c31d2418b10cd28226a6ab43b2836",
+      "observation_sha256": "a324ec996e5493881e2bf3ae10d78e968ba8ad88544a8863ff8aa90e84314f61",
+      "before": "exact"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/salsa/requireOfESWithPropertyAccess.ts#default",
+      "input_sha256": "61cdb869945be19c0e6a7f8fe43e42a5842fb0248c55bff69aaf30af654108fc",
+      "observation_sha256": "95f6ec769a04cec7bdf8663be49a3a7b627bc2080139681f80bfd129fc5f91e6",
+      "before": "exact"
+    }
+  ]
+}

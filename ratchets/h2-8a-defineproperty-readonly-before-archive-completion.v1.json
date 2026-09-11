@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "status": "archive-copy-completed-with-explicit-source-path-map",
+  "before": "ratchets/h2-8a-defineproperty-readonly-before.v1.json",
+  "before_sha256": "421c4f47a5df74e56e89a9612005dfa4c70b60f4652aaa01652ac09e26499e0c",
+  "first_copy_error": "Path joining an absolute supplemental capture path selected the source itself; copy2 rejected it with SameFileError before copying any receipt. Observation results and the minted before record were unchanged.",
+  "repair": "Resume archive copy by making workspace absolute source paths relative to the workspace root, validating every source and destination hash; preserve the original record and failing freezer script.",
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-readonly-before-n59fjvka",
+  "verified_receipts": 448,
+  "archive_path_map": "archive-path-map.json",
+  "archive_path_map_sha256": "c30849ef29cf4310235c2d63adbb243d76cb1e8ab023c31e6660e68e4ca50fb0",
+  "resumption_script": "target/complete-defineproperty-readonly-before-archive.py",
+  "resumption_script_sha256": "2c73bb777eaae628687a94d027cc66141f25c8b036993e649d5b5e9e10a5128b"
+}

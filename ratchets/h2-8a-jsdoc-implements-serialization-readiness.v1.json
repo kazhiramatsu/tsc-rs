@@ -1,0 +1,1462 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-21",
+  "base": "2c040c23338f7fc17aaa4dc4d5c83d6638208ec1",
+  "unresolved": 0,
+  "undispositioned": 0,
+  "runtime_paths": [
+    "crates/checker/src/class.rs",
+    "crates/checker/src/node_builder/statements.rs",
+    "crates/checker/src/node_builder/serialize.rs",
+    "crates/checker/src/node_builder/mod.rs"
+  ],
+  "unit_path": "crates/checker/tests/unit/node_builder_statements/tests.rs",
+  "steps": [
+    "A6-21-1",
+    "A6-21-2",
+    "A6-21-3"
+  ],
+  "owners": [
+    {
+      "owner": "getJSDocImplementsTags",
+      "start": 11645,
+      "end": 11647,
+      "sha256": "1c17545783a1ea9c31347e0b710bd75cb1ac53efae416dc6e48ac9580e2f6c35"
+    },
+    {
+      "owner": "getEffectiveImplementsTypeNodes",
+      "start": 15756,
+      "end": 15763,
+      "sha256": "7b48d400da24af97592c82568fc79e75d199be120737ae53e40c96d40fe74d3c"
+    },
+    {
+      "owner": "getHeritageClause",
+      "start": 15768,
+      "end": 15777,
+      "sha256": "9d761ae0d10cae5538f2867cb17ffe2d4005f2b734d7f39a01abf2d6f81f281a"
+    },
+    {
+      "owner": "isEntityNameExpression",
+      "start": 17128,
+      "end": 17130,
+      "sha256": "2e7694f05260a41567e84db34bfbfd9ec77c27e3c37116b2a9cf88f0ddccfeee"
+    },
+    {
+      "owner": "getFirstIdentifier",
+      "start": 17131,
+      "end": 17146,
+      "sha256": "90d15bfc484f6bde12d68363ff2927e8c449f9cb7d4f9ea42cdc384e9f62d1c5"
+    },
+    {
+      "owner": "createExpressionWithTypeArguments",
+      "start": 22944,
+      "end": 22954,
+      "sha256": "9d82e84ce18b62e683344bdba7f4067959b02e3ba13c9303ea37889e54517ddf"
+    },
+    {
+      "owner": "getMeaningOfEntityNameReference",
+      "start": 50595,
+      "end": 50605,
+      "sha256": "8784944e5eb1e33d5e3df2aa701fc3275e8eb6f0b0608b0ebf355177a2e6f8e2"
+    },
+    {
+      "owner": "getTypeFromTypeNodeWithoutContext",
+      "start": 50774,
+      "end": 50776,
+      "sha256": "933ff5fd5ea6e20fea30125f2b4d19888b78674e76d2bba1b877692dc6ff26a4"
+    },
+    {
+      "owner": "getTypeFromTypeNode2",
+      "start": 51096,
+      "end": 51101,
+      "sha256": "f9c9056ae0674444ccf84bfde2d55862444d1927b02a1344a328e44ed99e2e5f"
+    },
+    {
+      "owner": "typeToTypeNodeHelper",
+      "start": 51311,
+      "end": 51318,
+      "sha256": "69fd0744f9ba5217b598eaa6816f1650532dca59a9044240e3738d2b3e8ff86f"
+    },
+    {
+      "owner": "trackExistingEntityName",
+      "start": 53555,
+      "end": 53655,
+      "sha256": "209b12123fd836edaefcaef413f04659f4e3b998dac70ab139b159a0125e85ed"
+    },
+    {
+      "owner": "sanitizeJSDocImplements",
+      "start": 54565,
+      "end": 54599,
+      "sha256": "8ef6127728fc0f5d33791a61d92b478c788836a0a73be6f408bfb2cfe423d30e"
+    },
+    {
+      "owner": "serializeAsClass",
+      "start": 54600,
+      "end": 54686,
+      "sha256": "ccb4c10cb58d4154e83303d911464ee3af0f91f4b9cc33d3d43e98266e113bff"
+    },
+    {
+      "owner": "serializeImplementedType",
+      "start": 55377,
+      "end": 55389,
+      "sha256": "8dc5d28d5c09c61f977c319e980df02034d39a52ed02f2d19919b9c9d13987b6"
+    },
+    {
+      "owner": "isErrorType",
+      "start": 55821,
+      "end": 55823,
+      "sha256": "2c5f5aabe3bf8bf77f0dbb8160922bdde8b776142a5387117432426d7ca501c4"
+    },
+    {
+      "owner": "getImplementsTypes",
+      "start": 57190,
+      "end": 57209,
+      "sha256": "5c4e8fadb855ac7137714a0347323f8f47f2b9ac5bd2ebe7e5837ae3e0c52dfa"
+    },
+    {
+      "owner": "getTypeFromTypeNode",
+      "start": 63196,
+      "end": 63198,
+      "sha256": "5d4a798af65bf23738c21df6d7142d44f9ac093ea314f620267fde2a974f3004"
+    },
+    {
+      "owner": "checkClassLikeDeclaration",
+      "start": 84994,
+      "end": 85111,
+      "sha256": "c6d19b4f07ff5e371ca23c7525da95a00bbd334e745ba9ae039197957eeb7330"
+    },
+    {
+      "owner": "tryReuseExistingTypeNode",
+      "start": 133293,
+      "end": 133688,
+      "sha256": "73134f6715280a2e5ee712256fea004260db59f5797e30ce14d2d37f21a6d5a4"
+    }
+  ],
+  "architecture": [
+    {
+      "id": "E-CHECKER-FACTS-BASE",
+      "disposition": "modified-requalify"
+    },
+    {
+      "id": "E-PROTOCOL",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-RESOLVER-BASE",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-ARENA",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-METADATA-BASE",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-PRINTER-BASE",
+      "disposition": "premise-unchanged"
+    }
+  ],
+  "authorities": [
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-jsdoc-implements-serialization.md",
+      "sha256": "3477829173e293be11f4fdcab5c5b2739a40aeb657ed4a6bfac606003477ceb8"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    },
+    {
+      "path": "docs/design/greenfield/post-h1-completion-slices.md",
+      "sha256": "df4e630f4fe348119e43714261d1193a880453fa6847b42c7bf52d086bd840fb"
+    },
+    {
+      "path": "ratchets/h2-8a-jsdoc-implements-serialization-before.v1.json",
+      "sha256": "979ab13e75105ffcd1ba891b5ede8ea008916490a5c676e3397291e0d897bfbe"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/jsdoc-implements-serialization.json",
+      "sha256": "46f1ad3ebb5480c9d697fca9c6adf3c95dd3fed2f60e8f37210dd1e1733cc057"
+    },
+    {
+      "path": "scripts/observe-jsdoc-implements-serialization.mjs",
+      "sha256": "8f408f62162626dda590e3b7cb32464f00744f13e7851c9222f330446c0400ba"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "726a6d93a6f97ec8e9509772260c71bd05326ae3addb56b90ee17d910e92e695"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+      "sha256": "90aff72e27fac502da3ff3f06980c55c4923e35554c3e64800a60213cb1b04ba"
+    },
+    {
+      "path": "ratchets/h2-8a-synthetic-namespace-export-modifiers-after.v1.json",
+      "sha256": "5e7a555f300434a530fc87ff78cd60dbaff452de623f46e69593e41f2521524f"
+    },
+    {
+      "path": "ratchets/h2-8a-global-after-a6-14.v1.json",
+      "sha256": "2902e23044cb6d8d0d15d433a2ba51468ee72aeb628c486e511f525803bd7c8d"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/checker/src/class.rs",
+      "sha256": "7b03f7f7cdca7350cf1dd4001073d4b09419bf30abeb31e14666db0501b7c12b"
+    },
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "c6abf4d5083008eefcaceb50bd8945100100f2eab35e322f045c2b1b4b732da2"
+    },
+    {
+      "path": "crates/checker/src/node_builder/serialize.rs",
+      "sha256": "1f3ec654ee5eeb0a4b2912858128a522236ecbbc922ca1830b96af6fd79be27d"
+    },
+    {
+      "path": "crates/checker/src/node_builder/mod.rs",
+      "sha256": "fd29baeb9104f3da2ea3db5fda94eafea7623ae3f4e103590d8732d48e703c1b"
+    },
+    {
+      "path": "crates/checker/src/node_builder/context.rs",
+      "sha256": "beba5a3add26b6e917101adfb73796b1370e1d47de501d2dd010c340297910c4"
+    },
+    {
+      "path": "crates/checker/src/node_builder/chains.rs",
+      "sha256": "cbf3b8549fcb85a51951836650ec0b7f657dc248aa039d7dc562cc3379347162"
+    },
+    {
+      "path": "crates/checker/src/syntactic_type_node_builder.rs",
+      "sha256": "a543c48150b86f6444bb1bad2d57f6948d40fd9e644247a6d22cb1d86ac65717"
+    },
+    {
+      "path": "crates/checker/src/annotate.rs",
+      "sha256": "20eb0dcaaab36deaef67cd36207cf0cf40f7ac55b9f6c306fecd8697698fca6c"
+    },
+    {
+      "path": "crates/types/src/tables.rs",
+      "sha256": "fb40af06e83696e2b750a53de857fe5ff89563c6b7fa2038a2039d6e5396865a"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/checker/tests/unit/node_builder_statements/tests.rs",
+      "sha256": "6973bc13424e0f25d320a2ebad9ae9a0068c6367360a10af33b6fa4dddad5b9f"
+    }
+  ],
+  "witnesses": [
+    {
+      "case_id": "jsdoc-implements/es5/script/no-implements",
+      "row_sha256": "3fab9e78a83177b956e80a7554591291b644024d13e33d4ccc497f5c02545848",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/script/class",
+      "row_sha256": "736c16f15834dafe36a6093ce91f42229ecf38ac6a6037a42f5c46e24d28f9d8",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es5/script/class",
+        "missing_implements": true,
+        "additional_declarations": [],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/script/typedef",
+      "row_sha256": "ff21ba562d8080315039983a83eaf410f5a359dcb4568d344fecc2e0458c5dd8",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es5/script/typedef",
+        "missing_implements": true,
+        "additional_declarations": [],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/script/multiple",
+      "row_sha256": "c589dc9466031ffc3ad626e449dd889d1da7b1c024e45bf6fb9812a436e0e734",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es5/script/multiple",
+        "missing_implements": true,
+        "additional_declarations": [],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/script/qualified",
+      "row_sha256": "cebbdafc47b4c67e3afaee1e4ad0134598e5f2a63e8a2dca0cecf52f45e1f947",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es5/script/qualified",
+        "missing_implements": true,
+        "additional_declarations": [],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/script/generic",
+      "row_sha256": "455128280c59a7e60244efed3920f3a5c09986162fd2e33b599a2058879bd630",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es5/script/generic",
+        "missing_implements": true,
+        "additional_declarations": [],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/script/parenthesized-generic",
+      "row_sha256": "89c98c41fad5123578f7f6f4040bbe69c9d441a12c21f9d231518776ce4029b2",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es5/script/parenthesized-generic",
+        "missing_implements": true,
+        "additional_declarations": [],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/script/unknown",
+      "row_sha256": "baf2b762c83eec507b8796b488102b01dc627209025315de3cb5dc92badc3645",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es5/script/unknown",
+        "missing_implements": true,
+        "additional_declarations": [],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/script/empty",
+      "row_sha256": "c0b7f198222e3ac5d27d44661344eda16d11a4c501740fa0e8310c5db7ff4db9",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/script/partial-unknown",
+      "row_sha256": "0ed4840157d8fffcd3e891386562da059d13d5ab1cf981834edda858f2a74f20",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es5/script/partial-unknown",
+        "missing_implements": true,
+        "additional_declarations": [],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/script/exports-entity",
+      "row_sha256": "f1a5db2ab0232ee14d1b0a1a3510aa50ab97982af1a205a93c220b314ab892f2",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/script/class-expression",
+      "row_sha256": "cfbf6cc23a5e457128c83eb74dab84db64e70a1f245023bcff3fec2b347e49ac",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/commonjs/no-implements",
+      "row_sha256": "608b4b62b9d7308cac9160f614e1b4e860b9c5e10612e7c84e62683c8e89baa2",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/commonjs/class",
+      "row_sha256": "35d8dc8276123b714005914c9dd713b40ea5f7380000abd77903bab958ee1405",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es5/commonjs/class",
+        "missing_implements": true,
+        "additional_declarations": [
+          "declare class A {",
+          "    method(): number;",
+          "}"
+        ],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/commonjs/typedef",
+      "row_sha256": "85de9b5581334b1653c465dbc39ad1eec8ec706c5343a4a85c577fe45be9324b",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es5/commonjs/typedef",
+        "missing_implements": true,
+        "additional_declarations": [],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/commonjs/multiple",
+      "row_sha256": "8401794a7a0373ca6e2db7049fddfd72ecb3354741d2321476e4a3409cb3cc8f",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es5/commonjs/multiple",
+        "missing_implements": true,
+        "additional_declarations": [
+          "declare class A {",
+          "    method(): number;",
+          "}"
+        ],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/commonjs/qualified",
+      "row_sha256": "2a163a2d4f858fa393bb1aade6574bf0077fe09cc16036708ce679a0e2985410",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es5/commonjs/qualified",
+        "missing_implements": true,
+        "additional_declarations": [
+          "declare namespace Ns {",
+          "    export { A };",
+          "}",
+          "declare class A {",
+          "    method(): number;",
+          "}"
+        ],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/commonjs/generic",
+      "row_sha256": "7678c311d8e22a0e13103e88a8317a1d5e9af1c44d43ed3cb9bd22e0f8b8bc23",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es5/commonjs/generic",
+        "missing_implements": true,
+        "additional_declarations": [
+          "/** @template T */",
+          "declare class A<T> {",
+          "    method(value: any): any;",
+          "}"
+        ],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/commonjs/parenthesized-generic",
+      "row_sha256": "feb8ec682a2c76cec9ef8e9d769324b0f5f4573f09bc321203a7e0c61caa48f0",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es5/commonjs/parenthesized-generic",
+        "missing_implements": true,
+        "additional_declarations": [
+          "/** @template T */",
+          "declare class A<T> {",
+          "    method(value: any): any;",
+          "}"
+        ],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/commonjs/unknown",
+      "row_sha256": "df3269cbb58fc534a928232c693ec50fad99eb03a3a1b6003078f2cecee1c39b",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es5/commonjs/unknown",
+        "missing_implements": true,
+        "additional_declarations": [],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/commonjs/empty",
+      "row_sha256": "e933f32f1f2d9820314f84a9b0b2395e2ab19e20719a90f263509ee36479aed2",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/commonjs/partial-unknown",
+      "row_sha256": "364edfbe75a7c7b8a47f38ca661e0c5ff14e6104c539c7b1edce5436b41c8e56",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es5/commonjs/partial-unknown",
+        "missing_implements": true,
+        "additional_declarations": [
+          "declare class A {",
+          "    method(): number;",
+          "}"
+        ],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/commonjs/exports-entity",
+      "row_sha256": "4cccd3e0724dc29832a0ca821393083a7cc6f4e56451fe6dfa86d0629a5a9f0c",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es5/commonjs/exports-entity",
+        "missing_implements": true,
+        "additional_declarations": [],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/commonjs/class-expression",
+      "row_sha256": "e4d8d52617765af35c5c43d4e5fb4ac805beaf24bd97933969905566173f610f",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/esm/no-implements",
+      "row_sha256": "307ea88564cfa16ad136068119cd5a197bba6d20b0bb5d7aeb427b6ecb4a3ae9",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/esm/class",
+      "row_sha256": "1f58054aa7b18a049a470587018b063d8c2efee4c6eb8124688a8d3be0fd6f90",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es5/esm/class",
+        "missing_implements": true,
+        "additional_declarations": [
+          "declare class A {",
+          "    method(): number;",
+          "}",
+          "export {};"
+        ],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/esm/typedef",
+      "row_sha256": "6090999b90ad20ea27548a0aa1c5d9ea94a6d785252632c78ec3d60f72551c1b",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es5/esm/typedef",
+        "missing_implements": true,
+        "additional_declarations": [],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/esm/multiple",
+      "row_sha256": "5b4202741c075c757e77d897d12667a227fe66e2ab6afa3a03914fcd8d62d306",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es5/esm/multiple",
+        "missing_implements": true,
+        "additional_declarations": [
+          "declare class A {",
+          "    method(): number;",
+          "}",
+          "export {};"
+        ],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/esm/qualified",
+      "row_sha256": "6af44df2bbd3a902328029295e528037c21623f26d1fb25f696f82824bacc2b2",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es5/esm/qualified",
+        "missing_implements": true,
+        "additional_declarations": [
+          "declare namespace Ns {",
+          "    export { A };",
+          "}",
+          "declare class A {",
+          "    method(): number;",
+          "}",
+          "export {};"
+        ],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/esm/generic",
+      "row_sha256": "7b6571650a733112f58d500db675f3803dc0507f8f95f0c8495287202ec62aec",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es5/esm/generic",
+        "missing_implements": true,
+        "additional_declarations": [
+          "/** @template T */",
+          "declare class A<T> {",
+          "    method(value: any): any;",
+          "}",
+          "export {};"
+        ],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/esm/parenthesized-generic",
+      "row_sha256": "a1c6edc387c1a6616b420776cdddf7439eda43b24ee926554903c9d63c015103",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es5/esm/parenthesized-generic",
+        "missing_implements": true,
+        "additional_declarations": [
+          "/** @template T */",
+          "declare class A<T> {",
+          "    method(value: any): any;",
+          "}",
+          "export {};"
+        ],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/esm/unknown",
+      "row_sha256": "bb377e695d979ab5e7801f73d09db7a92e32245368ff826c653a5caae322a6fa",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es5/esm/unknown",
+        "missing_implements": true,
+        "additional_declarations": [],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/esm/empty",
+      "row_sha256": "ab208c7ff091690bca8a6610e73fbf9625352dc1e149ce90909c4f8573ba3e59",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/esm/partial-unknown",
+      "row_sha256": "08bd1875b586b6ec6a00c45fe7d2af7a132df3874a7f9d8794bcb15348abdb12",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es5/esm/partial-unknown",
+        "missing_implements": true,
+        "additional_declarations": [
+          "declare class A {",
+          "    method(): number;",
+          "}",
+          "export {};"
+        ],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/esm/exports-entity",
+      "row_sha256": "3c163040d1b92c42952ca5fa46984caa5ebc4c72dfcabe3928543209b46187f4",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/esm/class-expression",
+      "row_sha256": "e0b9f16e43454f7556cf98a43e1a62867f379179a506f7a59a63fbe3411c90aa",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/script/no-implements",
+      "row_sha256": "024fedfd78b0e3332a8d291863ef761c261ab9e6069862573a4126c93427c403",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/script/class",
+      "row_sha256": "568a2aeae9dbf235bd3080a1f4da2aaa56c52497b5783daea499e89c9fdbf637",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es2015/script/class",
+        "missing_implements": true,
+        "additional_declarations": [],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/script/typedef",
+      "row_sha256": "01f34b3ecf1ae516363b4288d03c2ef9c73981f09df4323b9fb953c3e8705057",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es2015/script/typedef",
+        "missing_implements": true,
+        "additional_declarations": [],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/script/multiple",
+      "row_sha256": "263dd45f5a6de2d92f8d7168f57a6ba250d6429161b7ef0cf2192bb2540b2875",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es2015/script/multiple",
+        "missing_implements": true,
+        "additional_declarations": [],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/script/qualified",
+      "row_sha256": "2ed70ff0dfa1dc1578c9d6a1a7df271c7d12e26fbd61b10b1705f0ea16ed16a4",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es2015/script/qualified",
+        "missing_implements": true,
+        "additional_declarations": [],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/script/generic",
+      "row_sha256": "22dcf38189609bbcf678f903f963ee5b3b9e8e0de088c8a6e7e7ce37924c2296",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es2015/script/generic",
+        "missing_implements": true,
+        "additional_declarations": [],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/script/parenthesized-generic",
+      "row_sha256": "f3a0d4f79f76de9e02b4c585283ee4f9d17ecd9f8764da69a76025f2bc82d0bd",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es2015/script/parenthesized-generic",
+        "missing_implements": true,
+        "additional_declarations": [],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/script/unknown",
+      "row_sha256": "606aa97d68bf9d6e1c1dfc5b547e1dca03b646a322eb35c056801c0824b4b2ea",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es2015/script/unknown",
+        "missing_implements": true,
+        "additional_declarations": [],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/script/empty",
+      "row_sha256": "27547d36c89a62a323a5098b952dff1e9cea5638c42bd441d13ecc1367ca67e5",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/script/partial-unknown",
+      "row_sha256": "517ba9bfbaa235022af9d9a5dc0b33fadca6f418bb8d22775e71689feffcace9",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es2015/script/partial-unknown",
+        "missing_implements": true,
+        "additional_declarations": [],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/script/exports-entity",
+      "row_sha256": "a7f12182c14ad8ff8033bc263cc09a555eba5557a41c6bfeef29b192e202b69f",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/script/class-expression",
+      "row_sha256": "39f1f1e4fefdf71a073c63f54d8f376b6ac01adf19761f102f7a7688d35e87ab",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/commonjs/no-implements",
+      "row_sha256": "f568583d6ecee5ec0843899907ae6e861a2e2b24717b399606af5461d54ccd54",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/commonjs/class",
+      "row_sha256": "51a1986f3cf0079947f21147d062ad3b172f06a3cf8ec6c6948296a94823c8e0",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es2015/commonjs/class",
+        "missing_implements": true,
+        "additional_declarations": [
+          "declare class A {",
+          "    method(): number;",
+          "}"
+        ],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/commonjs/typedef",
+      "row_sha256": "e4ce32b1291cf8cdc1fb295ab8a7b53c5719ef9900c7af940caa5c99a0f590a0",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es2015/commonjs/typedef",
+        "missing_implements": true,
+        "additional_declarations": [],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/commonjs/multiple",
+      "row_sha256": "e4c2392cd19ebc1ffd03d33a12cbf0857bdd05d81985757fd2ca51df514774b1",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es2015/commonjs/multiple",
+        "missing_implements": true,
+        "additional_declarations": [
+          "declare class A {",
+          "    method(): number;",
+          "}"
+        ],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/commonjs/qualified",
+      "row_sha256": "ab88efa3c5e6f0f3be8bc7087fdd2c808e98ae63508ee50c4531ce54c2ec526f",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es2015/commonjs/qualified",
+        "missing_implements": true,
+        "additional_declarations": [
+          "declare namespace Ns {",
+          "    export { A };",
+          "}",
+          "declare class A {",
+          "    method(): number;",
+          "}"
+        ],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/commonjs/generic",
+      "row_sha256": "4e75a26d783b083f25fb0d72e7e29b0c2cdc51c7cd586897ae63e7be40ff66b7",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es2015/commonjs/generic",
+        "missing_implements": true,
+        "additional_declarations": [
+          "/** @template T */",
+          "declare class A<T> {",
+          "    method(value: any): any;",
+          "}"
+        ],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/commonjs/parenthesized-generic",
+      "row_sha256": "2a3ccaf728bf38776633318f390de9f5a4c87010e6ec36d9d384a3c26a0de164",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es2015/commonjs/parenthesized-generic",
+        "missing_implements": true,
+        "additional_declarations": [
+          "/** @template T */",
+          "declare class A<T> {",
+          "    method(value: any): any;",
+          "}"
+        ],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/commonjs/unknown",
+      "row_sha256": "531e3be6cf5beda1d7133f6800f286f081344f62e714e5f2d371de5342d309f2",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es2015/commonjs/unknown",
+        "missing_implements": true,
+        "additional_declarations": [],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/commonjs/empty",
+      "row_sha256": "cfef6aefb9642df31550f605ef5126259cfa738e6d6464cf2d473d21ecfd7eee",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/commonjs/partial-unknown",
+      "row_sha256": "654de8f01bb0791958a0c1201f62d95edf5f014b04c42c575827d77094c8ce3d",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es2015/commonjs/partial-unknown",
+        "missing_implements": true,
+        "additional_declarations": [
+          "declare class A {",
+          "    method(): number;",
+          "}"
+        ],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/commonjs/exports-entity",
+      "row_sha256": "8aebe7e22ae9ee6b54f08da74453fe1b5a12f21f35470e7020457d7b7f73380f",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es2015/commonjs/exports-entity",
+        "missing_implements": true,
+        "additional_declarations": [],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/commonjs/class-expression",
+      "row_sha256": "759322a1177c59f7bc0f66c5e61fb411657ab1b46f8957977905fbbe37506a98",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/esm/no-implements",
+      "row_sha256": "bfe9b472df5aea5e88982b13e33e3c06b155d9be74587000496ad7a3759ff2b4",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/esm/class",
+      "row_sha256": "e32eada69eeda9a62633e7795060eae814b7c46c44ff4f41e42986c297122756",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es2015/esm/class",
+        "missing_implements": true,
+        "additional_declarations": [
+          "declare class A {",
+          "    method(): number;",
+          "}",
+          "export {};"
+        ],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/esm/typedef",
+      "row_sha256": "04b9f182a6251f7972737336dbfaaa1a255ea5fd6d769240766fdd6c2c381ef7",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es2015/esm/typedef",
+        "missing_implements": true,
+        "additional_declarations": [],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/esm/multiple",
+      "row_sha256": "8efea461bab849ed40f30923a99684481fa2bddf1eff4e21aceba8ab7f28bed6",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es2015/esm/multiple",
+        "missing_implements": true,
+        "additional_declarations": [
+          "declare class A {",
+          "    method(): number;",
+          "}",
+          "export {};"
+        ],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/esm/qualified",
+      "row_sha256": "7f50b81af6fdc1da7aa08a2db1fb01da841900981b4a0418b3af6372775d1b95",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es2015/esm/qualified",
+        "missing_implements": true,
+        "additional_declarations": [
+          "declare namespace Ns {",
+          "    export { A };",
+          "}",
+          "declare class A {",
+          "    method(): number;",
+          "}",
+          "export {};"
+        ],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/esm/generic",
+      "row_sha256": "905422021c6a7189b147da49a7c1c59cc5fb3ed4063c76ea183a135df05a01be",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es2015/esm/generic",
+        "missing_implements": true,
+        "additional_declarations": [
+          "/** @template T */",
+          "declare class A<T> {",
+          "    method(value: any): any;",
+          "}",
+          "export {};"
+        ],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/esm/parenthesized-generic",
+      "row_sha256": "14d2a66de9c224bf89dcadbd2eb503196a8d9a68a077088f4187816758049663",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es2015/esm/parenthesized-generic",
+        "missing_implements": true,
+        "additional_declarations": [
+          "/** @template T */",
+          "declare class A<T> {",
+          "    method(value: any): any;",
+          "}",
+          "export {};"
+        ],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/esm/unknown",
+      "row_sha256": "74f2d8bd1c6ec02ad8abe6e5c38716e8224cb1dde7ecaedfb359bf6b39ecad7e",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es2015/esm/unknown",
+        "missing_implements": true,
+        "additional_declarations": [],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/esm/empty",
+      "row_sha256": "a6d03c727f17a1c42f177a08876bfb7a087c737c8a2598db319ccdca83f2938e",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/esm/partial-unknown",
+      "row_sha256": "1cd08f675bcaa902f5841399845740e8059ef22574d77f121eaf4d958c77e544",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es2015/esm/partial-unknown",
+        "missing_implements": true,
+        "additional_declarations": [
+          "declare class A {",
+          "    method(): number;",
+          "}",
+          "export {};"
+        ],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/esm/exports-entity",
+      "row_sha256": "7fd429dce8458254c929d6ae63054de6f801cd2d714d471285c9ac54570c500e",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/esm/class-expression",
+      "row_sha256": "ad41c50b6b280c7d5df952b80de9258fde6f9b9cc40a3333df942683ec49bfc8",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/script/typed-no-implements",
+      "row_sha256": "5fd518e1acf77ed88d1f7109c7d7efc8e0d8587591464a8bff913aaa18bc328e",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/script/typed-simple",
+      "row_sha256": "62425571b71634b18b5e649e9d64bb5f58b6f5ed7111ec9a38bc490110ab4322",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/script/typed-multiple",
+      "row_sha256": "d9b83c62922282c36340faa332232f2ce6b22030bdc404064eb01c78b5b36b01",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/script/typed-class-expression",
+      "row_sha256": "deb564377fcf30f35787fe47643019d6240c4a34397ed812cf77f538419a1ef0",
+      "status": "outside-source-map-result",
+      "before": "failed-once-per-job",
+      "component": null,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/esm/typed-no-implements",
+      "row_sha256": "583e3d72e354c7f318efc5cc673d24e3ba2a401152662a9f5c29d141087e4957",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/esm/typed-simple",
+      "row_sha256": "60c1f6f2a506b36a07082e50e8e4a5ab6a8fd21d6fa050fe541807b754581346",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/esm/typed-multiple",
+      "row_sha256": "453336926ec95d95614483e1e270868ab958a582e2b51d11bdb78c421714f33c",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/esm/typed-class-expression",
+      "row_sha256": "b47c098dbfb349c94489bd568ddef039b047827ba62d0032b827fa3ccacafc1c",
+      "status": "outside-source-map-result",
+      "before": "failed-once-per-job",
+      "component": null,
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/script/typed-no-implements",
+      "row_sha256": "625e410fcd8db0951d53a1e70a5ec7c40aafc63d74ea75764e3dfd98aae06259",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/script/typed-simple",
+      "row_sha256": "aeff0dc6142889fa7aef9f7954960a5c910ad0b8b009fbd65205e83a68627cad",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/script/typed-multiple",
+      "row_sha256": "64fbcb22b7b59f595767168b53829bad0bf1d1d24a18f5452a0f943e4c931a82",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/script/typed-class-expression",
+      "row_sha256": "ca7ec441d98b7284e8042d09baa914bb0834933ba90da1023417d0a5b62474d4",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/esm/typed-no-implements",
+      "row_sha256": "e404cf292cb22a7badbd31b0482da382f6fe576b9a89be40b0af82ea78828830",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/esm/typed-simple",
+      "row_sha256": "4b443fc48281c305c9c4403b6ee45eb30bad48bd48745e4e9fdc3a667999c109",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/esm/typed-multiple",
+      "row_sha256": "42f3d5137f8fef925475ce7a55c2ae9557ba7d0d66ab52aed7ff4f578fadfb15",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/esm/typed-class-expression",
+      "row_sha256": "02ac633025f7009f181b1b075057f485f2eab67a3708813509ca35bc03a19cfa",
+      "status": "adjacent-exact",
+      "before": "exact-twice-per-job",
+      "component": null,
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/commonjs/imported-simple",
+      "row_sha256": "b6f9bbc59a75ce4e0526f19095c1d93b102dd9241f0001a4eddfde01153399bc",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es5/commonjs/imported-simple",
+        "missing_implements": true,
+        "additional_declarations": [
+          "import { A } from \"./types\";"
+        ],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/commonjs/imported-generic",
+      "row_sha256": "79308d62040c84fb1875197add9ccd300a508631f260ade5b2fba292d8dc422b",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es5/commonjs/imported-generic",
+        "missing_implements": true,
+        "additional_declarations": [
+          "import { A } from \"./types\";"
+        ],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/esm/imported-simple",
+      "row_sha256": "8aac307c5987a6fd8c8230f4829459e7f84d483912b87e7cf87c90b9e67d92fc",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es5/esm/imported-simple",
+        "missing_implements": true,
+        "additional_declarations": [
+          "import { A } from \"./types\";"
+        ],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/esm/imported-generic",
+      "row_sha256": "201cedd04c17befff7002897c8eb54a7e3e2fcec3ee7656969745ec6be710774",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es5/esm/imported-generic",
+        "missing_implements": true,
+        "additional_declarations": [
+          "import { A } from \"./types\";"
+        ],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/commonjs/imported-simple",
+      "row_sha256": "ef0e60e2f446a4e267153ebef264d8146141afb9828fabce62545bc56aa0c1d5",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es2015/commonjs/imported-simple",
+        "missing_implements": true,
+        "additional_declarations": [
+          "import { A } from \"./types\";"
+        ],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/commonjs/imported-generic",
+      "row_sha256": "2a7a1a77bd891cfa5e335cb60cfaa337f98c95a564a468de2ba1d2c769ab7575",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es2015/commonjs/imported-generic",
+        "missing_implements": true,
+        "additional_declarations": [
+          "import { A } from \"./types\";"
+        ],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/esm/imported-simple",
+      "row_sha256": "6909a161a0ced3c5a20238c1f8c87e3dba0c396e29659227cc225e9397ad1a8c",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es2015/esm/imported-simple",
+        "missing_implements": true,
+        "additional_declarations": [
+          "import { A } from \"./types\";"
+        ],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/esm/imported-generic",
+      "row_sha256": "a193becd6ed811d4c7394c8d6e331984562f62bf4a459b684041b221b6effaba",
+      "status": "owned-implements-and-tracking",
+      "before": "failed-once-per-job",
+      "component": {
+        "case_id": "jsdoc-implements/es2015/esm/imported-generic",
+        "missing_implements": true,
+        "additional_declarations": [
+          "import { A } from \"./types\";"
+        ],
+        "other_removed_lines": []
+      },
+      "later_complete_command_fields": "not-qualified"
+    }
+  ],
+  "before_counts": {
+    "eligible": 96,
+    "exact_per_job": 36,
+    "failed_per_job": 60,
+    "native_jobs": 2
+  },
+  "after_required_complete_commands": 344,
+  "after_target_exact_twice": 342,
+  "checker_unit_tests_required": 31
+}

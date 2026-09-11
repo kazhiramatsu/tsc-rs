@@ -1,0 +1,3862 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "40d54e8a9128341d9dfe59a7989601cf437c30ec3a1817145afcba5877d664cf",
+  "repetitions": 2,
+  "cases": [
+    {
+      "case_id": "filesystem/out/deep/none",
+      "current_directory": "/project",
+      "fault": "none",
+      "initial_directories": [
+        "/",
+        "/project",
+        "/project/src"
+      ],
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "// before\nexport const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "outDir": "out/deep",
+        "emitBOM": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/deep/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "callback_utf8_bytes": 127,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "materialized_utf8_bytes": 130,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "out/deep/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 121,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "out/deep/a.js",
+            "out/deep/b.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/out/deep/a.js",
+          "TSFILE: /project/out/deep/b.js"
+        ],
+        "exit_code": 0,
+        "filesystem": {
+          "operations": [
+            {
+              "operation": "write-file",
+              "path": "out/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": "H2.8 parent directory is missing"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out",
+              "exists": false
+            },
+            {
+              "operation": "create-directory",
+              "path": "out",
+              "error": null
+            },
+            {
+              "operation": "create-directory",
+              "path": "out/deep",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "out/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "out/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": null
+            }
+          ],
+          "materialized_files": [
+            {
+              "path": "/project/out/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg=="
+            },
+            {
+              "path": "/project/out/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg=="
+            }
+          ],
+          "directories": [
+            "/",
+            "/project",
+            "/project/src",
+            "/project/out",
+            "/project/out/deep"
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "filesystem/out/deep/first-write",
+      "current_directory": "/project",
+      "fault": "first-write",
+      "initial_directories": [
+        "/",
+        "/project",
+        "/project/src"
+      ],
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "// before\nexport const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "outDir": "out/deep",
+        "emitBOM": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/deep/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "callback_utf8_bytes": 127,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "materialized_utf8_bytes": 130,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "out/deep/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 121,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "out/deep/a.js",
+            "out/deep/b.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/out/deep/a.js",
+          "TSFILE: /project/out/deep/b.js"
+        ],
+        "exit_code": 0,
+        "filesystem": {
+          "operations": [
+            {
+              "operation": "write-file",
+              "path": "out/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": "H2.8 discarded first write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out",
+              "exists": false
+            },
+            {
+              "operation": "create-directory",
+              "path": "out",
+              "error": null
+            },
+            {
+              "operation": "create-directory",
+              "path": "out/deep",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "out/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "out/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": "H2.8 discarded first write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out/deep",
+              "exists": true
+            },
+            {
+              "operation": "write-file",
+              "path": "out/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": null
+            }
+          ],
+          "materialized_files": [
+            {
+              "path": "/project/out/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg=="
+            },
+            {
+              "path": "/project/out/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg=="
+            }
+          ],
+          "directories": [
+            "/",
+            "/project",
+            "/project/src",
+            "/project/out",
+            "/project/out/deep"
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "filesystem/out/deep/create-directory",
+      "current_directory": "/project",
+      "fault": "create-directory",
+      "initial_directories": [
+        "/",
+        "/project",
+        "/project/src"
+      ],
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "// before\nexport const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "outDir": "out/deep",
+        "emitBOM": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/deep/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "callback_utf8_bytes": 127,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "materialized_utf8_bytes": 130,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "out/deep/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 121,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file 'out/deep/a.js': H2.8 controlled create failure.",
+            "related_information": null
+          },
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file 'out/deep/b.js': H2.8 controlled create failure.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file 'out/deep/a.js': H2.8 controlled create failure.",
+              "related_information": null
+            },
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file 'out/deep/b.js': H2.8 controlled create failure.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": [
+            "out/deep/a.js",
+            "out/deep/b.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/out/deep/a.js",
+          "TSFILE: /project/out/deep/b.js"
+        ],
+        "exit_code": 2,
+        "filesystem": {
+          "operations": [
+            {
+              "operation": "write-file",
+              "path": "out/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": "H2.8 parent directory is missing"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out",
+              "exists": false
+            },
+            {
+              "operation": "create-directory",
+              "path": "out",
+              "error": "H2.8 controlled create failure"
+            },
+            {
+              "operation": "write-file",
+              "path": "out/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": "H2.8 parent directory is missing"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out",
+              "exists": false
+            },
+            {
+              "operation": "create-directory",
+              "path": "out",
+              "error": "H2.8 controlled create failure"
+            }
+          ],
+          "materialized_files": [],
+          "directories": [
+            "/",
+            "/project",
+            "/project/src"
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "filesystem/out/deep/all-writes",
+      "current_directory": "/project",
+      "fault": "all-writes",
+      "initial_directories": [
+        "/",
+        "/project",
+        "/project/src"
+      ],
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "// before\nexport const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "outDir": "out/deep",
+        "emitBOM": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "out/deep/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "callback_utf8_bytes": 127,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "materialized_utf8_bytes": 130,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "out/deep/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 121,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file 'out/deep/a.js': H2.8 controlled write failure.",
+            "related_information": null
+          },
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file 'out/deep/b.js': H2.8 controlled write failure.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file 'out/deep/a.js': H2.8 controlled write failure.",
+              "related_information": null
+            },
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file 'out/deep/b.js': H2.8 controlled write failure.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": [
+            "out/deep/a.js",
+            "out/deep/b.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/out/deep/a.js",
+          "TSFILE: /project/out/deep/b.js"
+        ],
+        "exit_code": 2,
+        "filesystem": {
+          "operations": [
+            {
+              "operation": "write-file",
+              "path": "out/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": "H2.8 controlled write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out",
+              "exists": false
+            },
+            {
+              "operation": "create-directory",
+              "path": "out",
+              "error": null
+            },
+            {
+              "operation": "create-directory",
+              "path": "out/deep",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "out/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": "H2.8 controlled write failure"
+            },
+            {
+              "operation": "write-file",
+              "path": "out/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": "H2.8 controlled write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "out/deep",
+              "exists": true
+            },
+            {
+              "operation": "write-file",
+              "path": "out/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": "H2.8 controlled write failure"
+            }
+          ],
+          "materialized_files": [],
+          "directories": [
+            "/",
+            "/project",
+            "/project/src",
+            "/project/out",
+            "/project/out/deep"
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "filesystem/./out/../gen/deep/none",
+      "current_directory": "/project",
+      "fault": "none",
+      "initial_directories": [
+        "/",
+        "/project",
+        "/project/src"
+      ],
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "// before\nexport const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "outDir": "./out/../gen/deep",
+        "emitBOM": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "./out/../gen/deep/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "callback_utf8_bytes": 127,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "materialized_utf8_bytes": 130,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "./out/../gen/deep/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 121,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "./out/../gen/deep/a.js",
+            "./out/../gen/deep/b.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/gen/deep/a.js",
+          "TSFILE: /project/gen/deep/b.js"
+        ],
+        "exit_code": 0,
+        "filesystem": {
+          "operations": [
+            {
+              "operation": "write-file",
+              "path": "./out/../gen/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": "H2.8 parent directory is missing"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "gen/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "gen",
+              "exists": false
+            },
+            {
+              "operation": "create-directory",
+              "path": "gen",
+              "error": null
+            },
+            {
+              "operation": "create-directory",
+              "path": "gen/deep",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "./out/../gen/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "./out/../gen/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": null
+            }
+          ],
+          "materialized_files": [
+            {
+              "path": "/project/gen/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg=="
+            },
+            {
+              "path": "/project/gen/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg=="
+            }
+          ],
+          "directories": [
+            "/",
+            "/project",
+            "/project/src",
+            "/project/gen",
+            "/project/gen/deep"
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "filesystem/./out/../gen/deep/first-write",
+      "current_directory": "/project",
+      "fault": "first-write",
+      "initial_directories": [
+        "/",
+        "/project",
+        "/project/src"
+      ],
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "// before\nexport const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "outDir": "./out/../gen/deep",
+        "emitBOM": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "./out/../gen/deep/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "callback_utf8_bytes": 127,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "materialized_utf8_bytes": 130,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "./out/../gen/deep/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 121,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "./out/../gen/deep/a.js",
+            "./out/../gen/deep/b.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/gen/deep/a.js",
+          "TSFILE: /project/gen/deep/b.js"
+        ],
+        "exit_code": 0,
+        "filesystem": {
+          "operations": [
+            {
+              "operation": "write-file",
+              "path": "./out/../gen/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": "H2.8 discarded first write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "gen/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "gen",
+              "exists": false
+            },
+            {
+              "operation": "create-directory",
+              "path": "gen",
+              "error": null
+            },
+            {
+              "operation": "create-directory",
+              "path": "gen/deep",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "./out/../gen/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "./out/../gen/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": "H2.8 discarded first write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "gen/deep",
+              "exists": true
+            },
+            {
+              "operation": "write-file",
+              "path": "./out/../gen/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": null
+            }
+          ],
+          "materialized_files": [
+            {
+              "path": "/project/gen/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg=="
+            },
+            {
+              "path": "/project/gen/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg=="
+            }
+          ],
+          "directories": [
+            "/",
+            "/project",
+            "/project/src",
+            "/project/gen",
+            "/project/gen/deep"
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "filesystem/./out/../gen/deep/create-directory",
+      "current_directory": "/project",
+      "fault": "create-directory",
+      "initial_directories": [
+        "/",
+        "/project",
+        "/project/src"
+      ],
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "// before\nexport const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "outDir": "./out/../gen/deep",
+        "emitBOM": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "./out/../gen/deep/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "callback_utf8_bytes": 127,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "materialized_utf8_bytes": 130,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "./out/../gen/deep/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 121,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file './out/../gen/deep/a.js': H2.8 controlled create failure.",
+            "related_information": null
+          },
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file './out/../gen/deep/b.js': H2.8 controlled create failure.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file './out/../gen/deep/a.js': H2.8 controlled create failure.",
+              "related_information": null
+            },
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file './out/../gen/deep/b.js': H2.8 controlled create failure.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": [
+            "./out/../gen/deep/a.js",
+            "./out/../gen/deep/b.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/gen/deep/a.js",
+          "TSFILE: /project/gen/deep/b.js"
+        ],
+        "exit_code": 2,
+        "filesystem": {
+          "operations": [
+            {
+              "operation": "write-file",
+              "path": "./out/../gen/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": "H2.8 parent directory is missing"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "gen/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "gen",
+              "exists": false
+            },
+            {
+              "operation": "create-directory",
+              "path": "gen",
+              "error": "H2.8 controlled create failure"
+            },
+            {
+              "operation": "write-file",
+              "path": "./out/../gen/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": "H2.8 parent directory is missing"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "gen/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "gen",
+              "exists": false
+            },
+            {
+              "operation": "create-directory",
+              "path": "gen",
+              "error": "H2.8 controlled create failure"
+            }
+          ],
+          "materialized_files": [],
+          "directories": [
+            "/",
+            "/project",
+            "/project/src"
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "filesystem/./out/../gen/deep/all-writes",
+      "current_directory": "/project",
+      "fault": "all-writes",
+      "initial_directories": [
+        "/",
+        "/project",
+        "/project/src"
+      ],
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "// before\nexport const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "outDir": "./out/../gen/deep",
+        "emitBOM": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "./out/../gen/deep/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "callback_utf8_bytes": 127,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "materialized_utf8_bytes": 130,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "./out/../gen/deep/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 121,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file './out/../gen/deep/a.js': H2.8 controlled write failure.",
+            "related_information": null
+          },
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file './out/../gen/deep/b.js': H2.8 controlled write failure.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file './out/../gen/deep/a.js': H2.8 controlled write failure.",
+              "related_information": null
+            },
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file './out/../gen/deep/b.js': H2.8 controlled write failure.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": [
+            "./out/../gen/deep/a.js",
+            "./out/../gen/deep/b.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/gen/deep/a.js",
+          "TSFILE: /project/gen/deep/b.js"
+        ],
+        "exit_code": 2,
+        "filesystem": {
+          "operations": [
+            {
+              "operation": "write-file",
+              "path": "./out/../gen/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": "H2.8 controlled write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "gen/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "gen",
+              "exists": false
+            },
+            {
+              "operation": "create-directory",
+              "path": "gen",
+              "error": null
+            },
+            {
+              "operation": "create-directory",
+              "path": "gen/deep",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "./out/../gen/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": "H2.8 controlled write failure"
+            },
+            {
+              "operation": "write-file",
+              "path": "./out/../gen/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": "H2.8 controlled write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "gen/deep",
+              "exists": true
+            },
+            {
+              "operation": "write-file",
+              "path": "./out/../gen/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": "H2.8 controlled write failure"
+            }
+          ],
+          "materialized_files": [],
+          "directories": [
+            "/",
+            "/project",
+            "/project/src",
+            "/project/gen",
+            "/project/gen/deep"
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "filesystem//project/new/deep/none",
+      "current_directory": "/project",
+      "fault": "none",
+      "initial_directories": [
+        "/",
+        "/project",
+        "/project/src"
+      ],
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "// before\nexport const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "outDir": "/project/new/deep",
+        "emitBOM": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/new/deep/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "callback_utf8_bytes": 127,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "materialized_utf8_bytes": 130,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/new/deep/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 121,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/new/deep/a.js",
+            "/project/new/deep/b.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/new/deep/a.js",
+          "TSFILE: /project/new/deep/b.js"
+        ],
+        "exit_code": 0,
+        "filesystem": {
+          "operations": [
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": "H2.8 parent directory is missing"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project",
+              "exists": true
+            },
+            {
+              "operation": "create-directory",
+              "path": "/project/new",
+              "error": null
+            },
+            {
+              "operation": "create-directory",
+              "path": "/project/new/deep",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": null
+            }
+          ],
+          "materialized_files": [
+            {
+              "path": "/project/new/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg=="
+            },
+            {
+              "path": "/project/new/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg=="
+            }
+          ],
+          "directories": [
+            "/",
+            "/project",
+            "/project/src",
+            "/project/new",
+            "/project/new/deep"
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "filesystem//project/new/deep/first-write",
+      "current_directory": "/project",
+      "fault": "first-write",
+      "initial_directories": [
+        "/",
+        "/project",
+        "/project/src"
+      ],
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "// before\nexport const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "outDir": "/project/new/deep",
+        "emitBOM": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/new/deep/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "callback_utf8_bytes": 127,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "materialized_utf8_bytes": 130,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/new/deep/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 121,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/new/deep/a.js",
+            "/project/new/deep/b.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/new/deep/a.js",
+          "TSFILE: /project/new/deep/b.js"
+        ],
+        "exit_code": 0,
+        "filesystem": {
+          "operations": [
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": "H2.8 discarded first write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project",
+              "exists": true
+            },
+            {
+              "operation": "create-directory",
+              "path": "/project/new",
+              "error": null
+            },
+            {
+              "operation": "create-directory",
+              "path": "/project/new/deep",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": "H2.8 discarded first write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new/deep",
+              "exists": true
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": null
+            }
+          ],
+          "materialized_files": [
+            {
+              "path": "/project/new/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg=="
+            },
+            {
+              "path": "/project/new/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg=="
+            }
+          ],
+          "directories": [
+            "/",
+            "/project",
+            "/project/src",
+            "/project/new",
+            "/project/new/deep"
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "filesystem//project/new/deep/create-directory",
+      "current_directory": "/project",
+      "fault": "create-directory",
+      "initial_directories": [
+        "/",
+        "/project",
+        "/project/src"
+      ],
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "// before\nexport const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "outDir": "/project/new/deep",
+        "emitBOM": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/new/deep/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "callback_utf8_bytes": 127,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "materialized_utf8_bytes": 130,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/new/deep/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 121,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file '/project/new/deep/a.js': H2.8 controlled create failure.",
+            "related_information": null
+          },
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file '/project/new/deep/b.js': H2.8 controlled create failure.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file '/project/new/deep/a.js': H2.8 controlled create failure.",
+              "related_information": null
+            },
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file '/project/new/deep/b.js': H2.8 controlled create failure.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": [
+            "/project/new/deep/a.js",
+            "/project/new/deep/b.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/new/deep/a.js",
+          "TSFILE: /project/new/deep/b.js"
+        ],
+        "exit_code": 2,
+        "filesystem": {
+          "operations": [
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": "H2.8 parent directory is missing"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project",
+              "exists": true
+            },
+            {
+              "operation": "create-directory",
+              "path": "/project/new",
+              "error": "H2.8 controlled create failure"
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": "H2.8 parent directory is missing"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project",
+              "exists": true
+            },
+            {
+              "operation": "create-directory",
+              "path": "/project/new",
+              "error": "H2.8 controlled create failure"
+            }
+          ],
+          "materialized_files": [],
+          "directories": [
+            "/",
+            "/project",
+            "/project/src"
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "filesystem//project/new/deep/all-writes",
+      "current_directory": "/project",
+      "fault": "all-writes",
+      "initial_directories": [
+        "/",
+        "/project",
+        "/project/src"
+      ],
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "// before\nexport const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "outDir": "/project/new/deep",
+        "emitBOM": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/new/deep/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "callback_utf8_bytes": 127,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "materialized_utf8_bytes": 130,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/new/deep/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 121,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file '/project/new/deep/a.js': H2.8 controlled write failure.",
+            "related_information": null
+          },
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file '/project/new/deep/b.js': H2.8 controlled write failure.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file '/project/new/deep/a.js': H2.8 controlled write failure.",
+              "related_information": null
+            },
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file '/project/new/deep/b.js': H2.8 controlled write failure.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": [
+            "/project/new/deep/a.js",
+            "/project/new/deep/b.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/new/deep/a.js",
+          "TSFILE: /project/new/deep/b.js"
+        ],
+        "exit_code": 2,
+        "filesystem": {
+          "operations": [
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": "H2.8 controlled write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project",
+              "exists": true
+            },
+            {
+              "operation": "create-directory",
+              "path": "/project/new",
+              "error": null
+            },
+            {
+              "operation": "create-directory",
+              "path": "/project/new/deep",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": "H2.8 controlled write failure"
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": "H2.8 controlled write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/new/deep",
+              "exists": true
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/new/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": "H2.8 controlled write failure"
+            }
+          ],
+          "materialized_files": [],
+          "directories": [
+            "/",
+            "/project",
+            "/project/src",
+            "/project/new",
+            "/project/new/deep"
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "filesystem/C:/emit/deep/none",
+      "current_directory": "/project",
+      "fault": "none",
+      "initial_directories": [
+        "/",
+        "/project",
+        "/project/src"
+      ],
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "// before\nexport const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "outDir": "C:/emit/deep",
+        "emitBOM": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "C:/emit/deep/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "callback_utf8_bytes": 127,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "materialized_utf8_bytes": 130,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "C:/emit/deep/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 121,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "C:/emit/deep/a.js",
+            "C:/emit/deep/b.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: C:/emit/deep/a.js",
+          "TSFILE: C:/emit/deep/b.js"
+        ],
+        "exit_code": 0,
+        "filesystem": {
+          "operations": [
+            {
+              "operation": "write-file",
+              "path": "C:/emit/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": "H2.8 parent directory is missing"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "C:/emit/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "C:/emit",
+              "exists": false
+            },
+            {
+              "operation": "create-directory",
+              "path": "C:/emit",
+              "error": null
+            },
+            {
+              "operation": "create-directory",
+              "path": "C:/emit/deep",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "C:/emit/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "C:/emit/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": null
+            }
+          ],
+          "materialized_files": [
+            {
+              "path": "C:/emit/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg=="
+            },
+            {
+              "path": "C:/emit/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg=="
+            }
+          ],
+          "directories": [
+            "/",
+            "/project",
+            "/project/src",
+            "C:/emit",
+            "C:/emit/deep"
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "filesystem/C:/emit/deep/first-write",
+      "current_directory": "/project",
+      "fault": "first-write",
+      "initial_directories": [
+        "/",
+        "/project",
+        "/project/src"
+      ],
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "// before\nexport const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "outDir": "C:/emit/deep",
+        "emitBOM": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "C:/emit/deep/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "callback_utf8_bytes": 127,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "materialized_utf8_bytes": 130,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "C:/emit/deep/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 121,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "C:/emit/deep/a.js",
+            "C:/emit/deep/b.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: C:/emit/deep/a.js",
+          "TSFILE: C:/emit/deep/b.js"
+        ],
+        "exit_code": 0,
+        "filesystem": {
+          "operations": [
+            {
+              "operation": "write-file",
+              "path": "C:/emit/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": "H2.8 discarded first write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "C:/emit/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "C:/emit",
+              "exists": false
+            },
+            {
+              "operation": "create-directory",
+              "path": "C:/emit",
+              "error": null
+            },
+            {
+              "operation": "create-directory",
+              "path": "C:/emit/deep",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "C:/emit/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "C:/emit/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": "H2.8 discarded first write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "C:/emit/deep",
+              "exists": true
+            },
+            {
+              "operation": "write-file",
+              "path": "C:/emit/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": null
+            }
+          ],
+          "materialized_files": [
+            {
+              "path": "C:/emit/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg=="
+            },
+            {
+              "path": "C:/emit/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg=="
+            }
+          ],
+          "directories": [
+            "/",
+            "/project",
+            "/project/src",
+            "C:/emit",
+            "C:/emit/deep"
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "filesystem/C:/emit/deep/create-directory",
+      "current_directory": "/project",
+      "fault": "create-directory",
+      "initial_directories": [
+        "/",
+        "/project",
+        "/project/src"
+      ],
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "// before\nexport const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "outDir": "C:/emit/deep",
+        "emitBOM": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "C:/emit/deep/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "callback_utf8_bytes": 127,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "materialized_utf8_bytes": 130,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "C:/emit/deep/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 121,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file 'C:/emit/deep/a.js': H2.8 controlled create failure.",
+            "related_information": null
+          },
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file 'C:/emit/deep/b.js': H2.8 controlled create failure.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file 'C:/emit/deep/a.js': H2.8 controlled create failure.",
+              "related_information": null
+            },
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file 'C:/emit/deep/b.js': H2.8 controlled create failure.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": [
+            "C:/emit/deep/a.js",
+            "C:/emit/deep/b.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: C:/emit/deep/a.js",
+          "TSFILE: C:/emit/deep/b.js"
+        ],
+        "exit_code": 2,
+        "filesystem": {
+          "operations": [
+            {
+              "operation": "write-file",
+              "path": "C:/emit/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": "H2.8 parent directory is missing"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "C:/emit/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "C:/emit",
+              "exists": false
+            },
+            {
+              "operation": "create-directory",
+              "path": "C:/emit",
+              "error": "H2.8 controlled create failure"
+            },
+            {
+              "operation": "write-file",
+              "path": "C:/emit/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": "H2.8 parent directory is missing"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "C:/emit/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "C:/emit",
+              "exists": false
+            },
+            {
+              "operation": "create-directory",
+              "path": "C:/emit",
+              "error": "H2.8 controlled create failure"
+            }
+          ],
+          "materialized_files": [],
+          "directories": [
+            "/",
+            "/project",
+            "/project/src"
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "filesystem/C:/emit/deep/all-writes",
+      "current_directory": "/project",
+      "fault": "all-writes",
+      "initial_directories": [
+        "/",
+        "/project",
+        "/project/src"
+      ],
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "// before\nexport const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "outDir": "C:/emit/deep",
+        "emitBOM": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "C:/emit/deep/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "callback_utf8_bytes": 127,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "materialized_utf8_bytes": 130,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "C:/emit/deep/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 121,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file 'C:/emit/deep/a.js': H2.8 controlled write failure.",
+            "related_information": null
+          },
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file 'C:/emit/deep/b.js': H2.8 controlled write failure.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file 'C:/emit/deep/a.js': H2.8 controlled write failure.",
+              "related_information": null
+            },
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file 'C:/emit/deep/b.js': H2.8 controlled write failure.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": [
+            "C:/emit/deep/a.js",
+            "C:/emit/deep/b.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: C:/emit/deep/a.js",
+          "TSFILE: C:/emit/deep/b.js"
+        ],
+        "exit_code": 2,
+        "filesystem": {
+          "operations": [
+            {
+              "operation": "write-file",
+              "path": "C:/emit/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": "H2.8 controlled write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "C:/emit/deep",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "C:/emit",
+              "exists": false
+            },
+            {
+              "operation": "create-directory",
+              "path": "C:/emit",
+              "error": null
+            },
+            {
+              "operation": "create-directory",
+              "path": "C:/emit/deep",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "C:/emit/deep/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": "H2.8 controlled write failure"
+            },
+            {
+              "operation": "write-file",
+              "path": "C:/emit/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": "H2.8 controlled write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "C:/emit/deep",
+              "exists": true
+            },
+            {
+              "operation": "write-file",
+              "path": "C:/emit/deep/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": "H2.8 controlled write failure"
+            }
+          ],
+          "materialized_files": [],
+          "directories": [
+            "/",
+            "/project",
+            "/project/src",
+            "C:/emit",
+            "C:/emit/deep"
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "filesystem///server/share/emit/none",
+      "current_directory": "/project",
+      "fault": "none",
+      "initial_directories": [
+        "/",
+        "/project",
+        "/project/src"
+      ],
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "// before\nexport const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "outDir": "//server/share/emit",
+        "emitBOM": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "//server/share/emit/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "callback_utf8_bytes": 127,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "materialized_utf8_bytes": 130,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "//server/share/emit/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 121,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "//server/share/emit/a.js",
+            "//server/share/emit/b.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: //server/share/emit/a.js",
+          "TSFILE: //server/share/emit/b.js"
+        ],
+        "exit_code": 0,
+        "filesystem": {
+          "operations": [
+            {
+              "operation": "write-file",
+              "path": "//server/share/emit/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": "H2.8 parent directory is missing"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "//server/share/emit",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "//server/share",
+              "exists": false
+            },
+            {
+              "operation": "create-directory",
+              "path": "//server/share",
+              "error": null
+            },
+            {
+              "operation": "create-directory",
+              "path": "//server/share/emit",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "//server/share/emit/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "//server/share/emit/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": null
+            }
+          ],
+          "materialized_files": [
+            {
+              "path": "//server/share/emit/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg=="
+            },
+            {
+              "path": "//server/share/emit/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg=="
+            }
+          ],
+          "directories": [
+            "/",
+            "/project",
+            "/project/src",
+            "//server/share",
+            "//server/share/emit"
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "filesystem///server/share/emit/first-write",
+      "current_directory": "/project",
+      "fault": "first-write",
+      "initial_directories": [
+        "/",
+        "/project",
+        "/project/src"
+      ],
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "// before\nexport const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "outDir": "//server/share/emit",
+        "emitBOM": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "//server/share/emit/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "callback_utf8_bytes": 127,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "materialized_utf8_bytes": 130,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "//server/share/emit/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 121,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "//server/share/emit/a.js",
+            "//server/share/emit/b.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: //server/share/emit/a.js",
+          "TSFILE: //server/share/emit/b.js"
+        ],
+        "exit_code": 0,
+        "filesystem": {
+          "operations": [
+            {
+              "operation": "write-file",
+              "path": "//server/share/emit/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": "H2.8 discarded first write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "//server/share/emit",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "//server/share",
+              "exists": false
+            },
+            {
+              "operation": "create-directory",
+              "path": "//server/share",
+              "error": null
+            },
+            {
+              "operation": "create-directory",
+              "path": "//server/share/emit",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "//server/share/emit/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "//server/share/emit/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": "H2.8 discarded first write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "//server/share/emit",
+              "exists": true
+            },
+            {
+              "operation": "write-file",
+              "path": "//server/share/emit/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": null
+            }
+          ],
+          "materialized_files": [
+            {
+              "path": "//server/share/emit/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg=="
+            },
+            {
+              "path": "//server/share/emit/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg=="
+            }
+          ],
+          "directories": [
+            "/",
+            "/project",
+            "/project/src",
+            "//server/share",
+            "//server/share/emit"
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "filesystem///server/share/emit/create-directory",
+      "current_directory": "/project",
+      "fault": "create-directory",
+      "initial_directories": [
+        "/",
+        "/project",
+        "/project/src"
+      ],
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "// before\nexport const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "outDir": "//server/share/emit",
+        "emitBOM": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "//server/share/emit/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "callback_utf8_bytes": 127,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "materialized_utf8_bytes": 130,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "//server/share/emit/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 121,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file '//server/share/emit/a.js': H2.8 controlled create failure.",
+            "related_information": null
+          },
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file '//server/share/emit/b.js': H2.8 controlled create failure.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file '//server/share/emit/a.js': H2.8 controlled create failure.",
+              "related_information": null
+            },
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file '//server/share/emit/b.js': H2.8 controlled create failure.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": [
+            "//server/share/emit/a.js",
+            "//server/share/emit/b.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: //server/share/emit/a.js",
+          "TSFILE: //server/share/emit/b.js"
+        ],
+        "exit_code": 2,
+        "filesystem": {
+          "operations": [
+            {
+              "operation": "write-file",
+              "path": "//server/share/emit/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": "H2.8 parent directory is missing"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "//server/share/emit",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "//server/share",
+              "exists": false
+            },
+            {
+              "operation": "create-directory",
+              "path": "//server/share",
+              "error": "H2.8 controlled create failure"
+            },
+            {
+              "operation": "write-file",
+              "path": "//server/share/emit/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": "H2.8 parent directory is missing"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "//server/share/emit",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "//server/share",
+              "exists": false
+            },
+            {
+              "operation": "create-directory",
+              "path": "//server/share",
+              "error": "H2.8 controlled create failure"
+            }
+          ],
+          "materialized_files": [],
+          "directories": [
+            "/",
+            "/project",
+            "/project/src"
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "filesystem///server/share/emit/all-writes",
+      "current_directory": "/project",
+      "fault": "all-writes",
+      "initial_directories": [
+        "/",
+        "/project",
+        "/project/src"
+      ],
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "// before\nexport const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "outDir": "//server/share/emit",
+        "emitBOM": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "//server/share/emit/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "callback_utf8_bytes": 127,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "materialized_utf8_bytes": 130,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "//server/share/emit/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 121,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file '//server/share/emit/a.js': H2.8 controlled write failure.",
+            "related_information": null
+          },
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file '//server/share/emit/b.js': H2.8 controlled write failure.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file '//server/share/emit/a.js': H2.8 controlled write failure.",
+              "related_information": null
+            },
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file '//server/share/emit/b.js': H2.8 controlled write failure.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": [
+            "//server/share/emit/a.js",
+            "//server/share/emit/b.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: //server/share/emit/a.js",
+          "TSFILE: //server/share/emit/b.js"
+        ],
+        "exit_code": 2,
+        "filesystem": {
+          "operations": [
+            {
+              "operation": "write-file",
+              "path": "//server/share/emit/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": "H2.8 controlled write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "//server/share/emit",
+              "exists": false
+            },
+            {
+              "operation": "directory-exists",
+              "path": "//server/share",
+              "exists": false
+            },
+            {
+              "operation": "create-directory",
+              "path": "//server/share",
+              "error": null
+            },
+            {
+              "operation": "create-directory",
+              "path": "//server/share/emit",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "//server/share/emit/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": "H2.8 controlled write failure"
+            },
+            {
+              "operation": "write-file",
+              "path": "//server/share/emit/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": "H2.8 controlled write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "//server/share/emit",
+              "exists": true
+            },
+            {
+              "operation": "write-file",
+              "path": "//server/share/emit/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": "H2.8 controlled write failure"
+            }
+          ],
+          "materialized_files": [],
+          "directories": [
+            "/",
+            "/project",
+            "/project/src",
+            "//server/share",
+            "//server/share/emit"
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "filesystem//none",
+      "current_directory": "/project",
+      "fault": "none",
+      "initial_directories": [
+        "/",
+        "/project",
+        "/project/src"
+      ],
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "// before\nexport const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "outDir": "",
+        "emitBOM": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/src/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "callback_utf8_bytes": 127,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "materialized_utf8_bytes": 130,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/src/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 121,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/src/a.js",
+            "/project/src/b.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/src/a.js",
+          "TSFILE: /project/src/b.js"
+        ],
+        "exit_code": 0,
+        "filesystem": {
+          "operations": [
+            {
+              "operation": "write-file",
+              "path": "/project/src/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/src/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": null
+            }
+          ],
+          "materialized_files": [
+            {
+              "path": "/project/src/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg=="
+            },
+            {
+              "path": "/project/src/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg=="
+            }
+          ],
+          "directories": [
+            "/",
+            "/project",
+            "/project/src"
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "filesystem//first-write",
+      "current_directory": "/project",
+      "fault": "first-write",
+      "initial_directories": [
+        "/",
+        "/project",
+        "/project/src"
+      ],
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "// before\nexport const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "outDir": "",
+        "emitBOM": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/src/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "callback_utf8_bytes": 127,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "materialized_utf8_bytes": 130,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/src/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 121,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/src/a.js",
+            "/project/src/b.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/src/a.js",
+          "TSFILE: /project/src/b.js"
+        ],
+        "exit_code": 0,
+        "filesystem": {
+          "operations": [
+            {
+              "operation": "write-file",
+              "path": "/project/src/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": "H2.8 discarded first write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/src",
+              "exists": true
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/src/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/src/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": "H2.8 discarded first write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/src",
+              "exists": true
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/src/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": null
+            }
+          ],
+          "materialized_files": [
+            {
+              "path": "/project/src/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg=="
+            },
+            {
+              "path": "/project/src/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg=="
+            }
+          ],
+          "directories": [
+            "/",
+            "/project",
+            "/project/src"
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "filesystem//create-directory",
+      "current_directory": "/project",
+      "fault": "create-directory",
+      "initial_directories": [
+        "/",
+        "/project",
+        "/project/src"
+      ],
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "// before\nexport const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "outDir": "",
+        "emitBOM": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/src/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "callback_utf8_bytes": 127,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "materialized_utf8_bytes": 130,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/src/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 121,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/src/a.js",
+            "/project/src/b.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/src/a.js",
+          "TSFILE: /project/src/b.js"
+        ],
+        "exit_code": 0,
+        "filesystem": {
+          "operations": [
+            {
+              "operation": "write-file",
+              "path": "/project/src/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": null
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/src/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": null
+            }
+          ],
+          "materialized_files": [
+            {
+              "path": "/project/src/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg=="
+            },
+            {
+              "path": "/project/src/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg=="
+            }
+          ],
+          "directories": [
+            "/",
+            "/project",
+            "/project/src"
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "filesystem//all-writes",
+      "current_directory": "/project",
+      "fault": "all-writes",
+      "initial_directories": [
+        "/",
+        "/project",
+        "/project/src"
+      ],
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "// before\nexport const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: string = 'b';\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "strict": true,
+        "outDir": "",
+        "emitBOM": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/src/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "callback_utf8_bytes": 127,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+            "materialized_utf8_bytes": 130,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/src/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+            "materialized_utf8_bytes": 121,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file '/project/src/a.js': H2.8 controlled write failure.",
+            "related_information": null
+          },
+          {
+            "code": 5033,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Could not write file '/project/src/b.js': H2.8 controlled write failure.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file '/project/src/a.js': H2.8 controlled write failure.",
+              "related_information": null
+            },
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file '/project/src/b.js': H2.8 controlled write failure.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": [
+            "/project/src/a.js",
+            "/project/src/b.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/src/a.js",
+          "TSFILE: /project/src/b.js"
+        ],
+        "exit_code": 2,
+        "filesystem": {
+          "operations": [
+            {
+              "operation": "write-file",
+              "path": "/project/src/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": "H2.8 controlled write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/src",
+              "exists": true
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/src/a.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYSA9IHZvaWQgMDsNCi8vIGJlZm9yZQ0KZXhwb3J0cy5hID0gMTsNCg==",
+              "error": "H2.8 controlled write failure"
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/src/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": "H2.8 controlled write failure"
+            },
+            {
+              "operation": "directory-exists",
+              "path": "/project/src",
+              "exists": true
+            },
+            {
+              "operation": "write-file",
+              "path": "/project/src/b.js",
+              "utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuYiA9IHZvaWQgMDsNCmV4cG9ydHMuYiA9ICdiJzsNCg==",
+              "error": "H2.8 controlled write failure"
+            }
+          ],
+          "materialized_files": [],
+          "directories": [
+            "/",
+            "/project",
+            "/project/src"
+          ]
+        }
+      }
+    }
+  ]
+}

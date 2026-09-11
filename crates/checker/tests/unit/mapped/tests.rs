@@ -120,8 +120,8 @@ fn mapped_members_copy_modifiers_create_index_info_and_report_keyof() {
             let copied = annotation_type(state, "copied");
             let a = property(state, copied, "a");
             let b = property(state, copied, "b");
-            assert!(state.is_readonly_symbol(a));
-            assert!(!state.is_readonly_symbol(b));
+            assert!(state.is_readonly_symbol(a).expect("readonly symbol query"));
+            assert!(!state.is_readonly_symbol(b).expect("readonly symbol query"));
             assert!(!state.symbol_flags(a).intersects(SymbolFlags::OPTIONAL));
 
             let indexed = annotation_type(state, "indexed");

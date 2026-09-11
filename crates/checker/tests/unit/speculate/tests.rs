@@ -20,6 +20,138 @@ fn with_state<R>(run: impl FnOnce(&mut CheckerState) -> R) -> R {
     )
 }
 
+#[test]
+fn nonexistent_property_cache_deduplicates_within_nested_speculation() {
+    with_state(|state| {
+        let node = state.binder.source(0).root;
+        let permanent = format!("{}|false", state.tables.intrinsics.string.0);
+        let parent_key = format!("{}|false", state.tables.intrinsics.number.0);
+        let child_key = format!("{}|true", state.tables.intrinsics.number.0);
+        assert!(state
+            .links
+            .insert_node_non_existent_prop_key(0, node, permanent.clone()));
+        let outer = state.begin_speculation();
+        let mut observed = vec![
+            state.links.insert_node_non_existent_prop_key(
+                state.speculation_depth,
+                node,
+                permanent.clone(),
+            ),
+            state.links.insert_node_non_existent_prop_key(
+                state.speculation_depth,
+                node,
+                parent_key.clone(),
+            ),
+            state.links.insert_node_non_existent_prop_key(
+                state.speculation_depth,
+                node,
+                parent_key.clone(),
+            ),
+        ];
+        let inner = state.begin_speculation();
+        observed.extend([
+            state.links.insert_node_non_existent_prop_key(
+                state.speculation_depth,
+                node,
+                parent_key.clone(),
+            ),
+            state.links.insert_node_non_existent_prop_key(
+                state.speculation_depth,
+                node,
+                child_key.clone(),
+            ),
+            state.links.insert_node_non_existent_prop_key(
+                state.speculation_depth,
+                node,
+                child_key.clone(),
+            ),
+        ]);
+        state.commit_speculation(inner);
+        observed.extend([
+            state
+                .links
+                .node(node)
+                .non_existent_prop_check_cache
+                .contains(&parent_key),
+            state
+                .links
+                .node(node)
+                .non_existent_prop_check_cache
+                .contains(&child_key),
+        ]);
+        state.rollback_speculation(outer);
+        observed.extend([
+            state
+                .links
+                .node(node)
+                .non_existent_prop_check_cache
+                .contains(&permanent),
+            state
+                .links
+                .node(node)
+                .non_existent_prop_check_cache
+                .contains(&parent_key),
+            state
+                .links
+                .node(node)
+                .non_existent_prop_check_cache
+                .contains(&child_key),
+        ]);
+        assert_eq!(
+            observed,
+            [false, true, false, false, true, false, true, false, true, false, false]
+        );
+    });
+}
+
+#[test]
+fn nonexistent_property_cache_restores_every_transaction_boundary() {
+    with_state(|state| {
+        let node = state.binder.source(0).root;
+        let permanent = format!("{}|false", state.tables.intrinsics.string.0);
+        let trial = format!("{}|false", state.tables.intrinsics.number.0);
+        assert!(state
+            .links
+            .insert_node_non_existent_prop_key(0, node, permanent.clone()));
+        let baseline = state.links.node(node).non_existent_prop_check_cache;
+        let mut observed = Vec::new();
+        for outcome in 0..4 {
+            let mut visible_inside = false;
+            let result: crate::state::CheckResult<()> = state.speculate(|state| {
+                state.links.insert_node_non_existent_prop_key(
+                    state.speculation_depth,
+                    node,
+                    trial.clone(),
+                );
+                visible_inside = state
+                    .links
+                    .node(node)
+                    .non_existent_prop_check_cache
+                    .contains(&trial);
+                match outcome {
+                    0 => Ok(SpeculationOutcome::Commit(())),
+                    1 => Ok(SpeculationOutcome::Rollback(())),
+                    2 => Ok(SpeculationOutcome::Reject(())),
+                    _ => Err(CheckAbort::BoundaryProbe),
+                }
+            });
+            assert_eq!(
+                result,
+                if outcome == 3 {
+                    Err(CheckAbort::BoundaryProbe)
+                } else {
+                    Ok(())
+                }
+            );
+            observed.push((
+                visible_inside,
+                state.links.node(node).non_existent_prop_check_cache == baseline,
+            ));
+        }
+        assert_eq!(observed, [(true, true); 4]);
+    });
+}
+
 /// Push something onto every checkpoint-covered piece of state a
 /// unit test can reach without heavier machinery, then return the
 /// values needed to assert restoration.

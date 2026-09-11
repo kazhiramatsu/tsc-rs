@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "status": "complete-before-with-two-independent-native-jobs",
+  "base": "9c0cc016092eaade9be34aaf83faa78db2e1a735",
+  "eligible": 40,
+  "exact_twice": [
+    "es5/js/declaration-one",
+    "es5/js/declaration-three",
+    "es5/js/declaration-no-parens",
+    "es5/js/no-tag-one",
+    "es5/js/inline-type-one",
+    "es5/js/inline-type-three",
+    "es5/js/inline-satisfies",
+    "es5/js/declaration-inline-satisfies",
+    "es5/js/declaration-comment-one",
+    "es5/ts/declaration-one",
+    "es5/ts/declaration-three",
+    "es5/ts/declaration-no-parens",
+    "es5/ts/no-tag-one",
+    "es5/ts/inline-type-one",
+    "es5/ts/inline-type-three",
+    "es5/ts/inline-satisfies",
+    "es5/ts/declaration-inline-satisfies",
+    "es5/ts/declaration-comment-one",
+    "es5/ts/declaration-literal",
+    "es2015/js/declaration-no-parens",
+    "es2015/js/no-tag-one",
+    "es2015/js/inline-type-one",
+    "es2015/js/inline-type-three",
+    "es2015/js/inline-satisfies",
+    "es2015/js/declaration-inline-satisfies",
+    "es2015/js/declaration-comment-one",
+    "es2015/ts/declaration-one",
+    "es2015/ts/declaration-three",
+    "es2015/ts/declaration-no-parens",
+    "es2015/ts/no-tag-one",
+    "es2015/ts/inline-type-one",
+    "es2015/ts/inline-type-three",
+    "es2015/ts/inline-satisfies",
+    "es2015/ts/declaration-inline-satisfies",
+    "es2015/ts/declaration-comment-one",
+    "es2015/ts/declaration-literal"
+  ],
+  "failed_twice": [
+    "es5/js/declaration-literal",
+    "es2015/js/declaration-one",
+    "es2015/js/declaration-three",
+    "es2015/js/declaration-literal"
+  ],
+  "native_jobs": 2,
+  "positive_executions_per_case": 4,
+  "failed_executions_per_case": 2,
+  "seconds": [
+    32.1,
+    32.32
+  ],
+  "exit_codes": [
+    101,
+    101
+  ],
+  "first_failure_comparisons": [
+    {
+      "case_id": "es5/js/declaration-literal",
+      "native_executions": 2,
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "8a5d4dc37235cd27dad13a7182bded99f9ff0d9c780c4373ba818032a6fe00db",
+      "expected_sha256": "211da09e9f4f0675dfe02b14bbc88d9b685c408e5e3687eb35896cdcf98f2ec5"
+    },
+    {
+      "case_id": "es2015/js/declaration-one",
+      "native_executions": 2,
+      "boundary": "exact ordered reported diagnostics",
+      "actual_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "expected_sha256": "6b2b99f53bb80c8e4e9a55c9344daf6dad2e37b61b4297b04654de6129702581"
+    },
+    {
+      "case_id": "es2015/js/declaration-three",
+      "native_executions": 2,
+      "boundary": "exact ordered reported diagnostics",
+      "actual_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "expected_sha256": "6b2b99f53bb80c8e4e9a55c9344daf6dad2e37b61b4297b04654de6129702581"
+    },
+    {
+      "case_id": "es2015/js/declaration-literal",
+      "native_executions": 2,
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "8a5d4dc37235cd27dad13a7182bded99f9ff0d9c780c4373ba818032a6fe00db",
+      "expected_sha256": "211da09e9f4f0675dfe02b14bbc88d9b685c408e5e3687eb35896cdcf98f2ec5"
+    }
+  ],
+  "working_files": [
+    {
+      "path": "crates/checker/src/expr.rs",
+      "sha256": "aa527076b30eb7b1d13bf3ec1e989ce270e627ebb54927545d0aea64280b421b"
+    },
+    {
+      "path": "crates/checker/src/jsdoc.rs",
+      "sha256": "6c6b28c7e1a7da50d0852bc3bc04c2c69eafa77c5a9f716cb940585ec6630c6c"
+    },
+    {
+      "path": "crates/binder/src/node_util.rs",
+      "sha256": "5d3eea9d3dc9a23a6cb4240aaa01cc85f41c1e5b39e0d074f43e36a101f7d551"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "eaa50780d3f78654cc2c1b4cbeb73c50395685a0597ad120f4876b8ca9dd6dba"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/jsdoc-parentheses-guard.json",
+      "sha256": "4ee4710a95359b5e1bb73cb85edd5ef548cce0696e0458222fec1390f1ae285f"
+    },
+    {
+      "path": "scripts/observe-jsdoc-parentheses-guard.mjs",
+      "sha256": "1dfc9816633b6fe0151577e286005c7d6232d8f94eb7d01a37e9ff52c84bbf92"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_jsdoc_parentheses_guard.rs",
+      "sha256": "7d1f4ca7f7b1c1559757e6086518486d28e27820bfdde3e9ba598a544a7b29e3"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "41c284c51186e1f71c67fc01298285b4cbf7cc231143147db5ea317eda57c947"
+    },
+    {
+      "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
+      "sha256": "88bcd9824bef3e9edced0ec014bcb41ed4446ce521b862e16d38b53a625f0bce"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-parentheses-guard-before.log",
+      "sha256": "9f02ee943b96da4dc9aca4bf7b0a0e06fa7e4a32009bf128085ebbad6adead36"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-parentheses-guard-before-repeat.log",
+      "sha256": "72cdc92932ed690e8f75739f1ea24a4763fe0a52cbf1730d0c254a10e100223a"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-parentheses-guard-mint.log",
+      "sha256": "8cc88fd0157b295bc7f6482f71327fa008506927b39c2e1da7d5da8c1bd3dee2"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-parentheses-guard-observer-check.log",
+      "sha256": "8cc88fd0157b295bc7f6482f71327fa008506927b39c2e1da7d5da8c1bd3dee2"
+    }
+  ]
+}

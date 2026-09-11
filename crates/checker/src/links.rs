@@ -161,8 +161,8 @@ pub struct NodeLinks {
     /// array literal (getSpreadIndices 73248).
     pub spread_indices: Option<(Option<u32>, Option<u32>)>,
     /// tsc links.nonExistentPropCheckCache (reportNonexistentProperty
-    /// 75417): `{typeId}|{isUncheckedJS}` dedupe keys — a grow-only
-    /// diagnostic-path cache, never speculative.
+    /// 75417): `{typeId}|{isUncheckedJS}` dedupe keys. Trial-local
+    /// insertions are visible to re-entry and restored at the boundary.
     pub non_existent_prop_check_cache: std::collections::HashSet<String>,
     /// tsc links.jsxFlags (getIntrinsicTagSymbol 74540/74545) on JSX
     /// opening-like/closing elements — an accumulating flags word.
@@ -577,6 +577,7 @@ pub(crate) struct SpeculativeLinksMarks {
     conditional_caches: usize,
     type_members: usize,
     simplified_types: usize,
+    non_existent_props: usize,
 }
 
 #[derive(Debug, Default)]
@@ -600,6 +601,9 @@ pub struct LinksTables {
     /// needs one stable type identity (and resolving sentinels) while
     /// it runs, but the AST cache must return to its entry state.
     speculative_resolved_type_writes: Vec<SpeculativeResolvedTypeWrite>,
+    /// Diagnostic keys must suppress re-entry inside a candidate without
+    /// preventing a later candidate from reporting its own diagnostics.
+    speculative_non_existent_prop_writes: Vec<(NodeId, String)>,
     /// Trial-local decorator-signature protocol writes. The
     /// `any_signature` sentinel must remain visible to re-entrant
     /// decorator checks inside the same candidate.
@@ -1577,6 +1581,7 @@ impl LinksTables {
             conditional_caches: self.speculative_conditional_cache_mark(),
             type_members: self.speculative_type_members_mark(),
             simplified_types: self.speculative_simplified_type_mark(),
+            non_existent_props: self.speculative_non_existent_prop_writes.len(),
         }
     }
 
@@ -1613,6 +1618,7 @@ impl LinksTables {
         self.restore_speculative_conditional_caches(marks.conditional_caches);
         self.restore_speculative_type_members(marks.type_members);
         self.restore_speculative_simplified_types(marks.simplified_types);
+        self.restore_speculative_non_existent_props(marks.non_existent_props);
     }
 
     /// tsrs-native: restore every LinksTables journal to its marks.
@@ -1637,6 +1643,7 @@ impl LinksTables {
         self.restore_speculative_conditional_caches(marks.conditional_caches);
         self.restore_speculative_type_members(marks.type_members);
         self.restore_speculative_simplified_types(marks.simplified_types);
+        self.restore_speculative_non_existent_props(marks.non_existent_props);
     }
 
     /// tsrs-native: speculation-transaction unwind for call caches.
@@ -2968,18 +2975,41 @@ impl LinksTables {
         id: NodeId,
         key: String,
     ) -> bool {
-        // Candidate diagnostics are transactional; their de-duplication
-        // key must not survive the candidate either. Treat each
-        // speculative report as new and leave the shared set untouched.
-        if speculation_depth != 0 {
-            return true;
+        if speculation_depth == 0 {
+            Self::assert_writable(speculation_depth);
+            return self
+                .node
+                .entry(id)
+                .or_default()
+                .non_existent_prop_check_cache
+                .insert(key);
         }
-        Self::assert_writable(speculation_depth);
-        self.node
+        let inserted = self
+            .node
             .entry(id)
             .or_default()
             .non_existent_prop_check_cache
-            .insert(key)
+            .insert(key.clone());
+        if inserted {
+            self.speculative_non_existent_prop_writes.push((id, key));
+        }
+        inserted
+    }
+
+    /// tsrs-native: restore newly inserted diagnostic de-duplication keys
+    /// at either candidate boundary, preserving outer and permanent keys.
+    fn restore_speculative_non_existent_props(&mut self, mark: usize) {
+        while self.speculative_non_existent_prop_writes.len() > mark {
+            let (node, key) = self
+                .speculative_non_existent_prop_writes
+                .pop()
+                .expect("length checked");
+            self.node
+                .entry(node)
+                .or_default()
+                .non_existent_prop_check_cache
+                .remove(&key);
+        }
     }
 
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable

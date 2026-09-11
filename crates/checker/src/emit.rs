@@ -535,6 +535,14 @@ impl EmitResolver for CheckerSession<'_> {
         )
     }
 
+    /// tsrs-native: validated borrowing projection of the binder's CommonJS
+    /// indicator for the module transform's esModule marker decision.
+    fn is_common_js_module(&self, node: EmitResolverNode) -> Result<bool, EmitResolverError> {
+        self.with_resolver_node(EmitResolverMethod::IsCommonJsModule, node, |state, node| {
+            Ok(state.binder.is_common_js_module_of_node(node))
+        })
+    }
+
     fn is_instantiated_module(&self, node: EmitResolverNode) -> Result<bool, EmitResolverError> {
         self.with_resolver_node(
             EmitResolverMethod::IsInstantiatedModule,

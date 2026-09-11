@@ -1,0 +1,2220 @@
+{
+  "version": 1,
+  "status": "class-helper-accessor-producers-qualified-on-train",
+  "base": "9cc63a83d134816bd7785c435a171ef10a5dcd64",
+  "shared_after": "ratchets/h2-8a-class-helper-accessor-producers-after.v1.json",
+  "eligible": 1140,
+  "exact_twice": 1020,
+  "shared_required_failures": [],
+  "original_A28_owned_failures": [],
+  "emitter_suites": {
+    "library": {
+      "passed": 494,
+      "failed": 0,
+      "ignored": 0,
+      "filtered_out": 0,
+      "test_ids": [
+        "activity::tests::declaration_profiles_admit_only_their_own_completed_runtime_slices",
+        "activity::tests::every_h2_runtime_slice_fails_closed_before_admission",
+        "activity::tests::h1_profile_has_positive_wiring_and_zero_h2_runtime_activity",
+        "activity::tests::h2_1b_profile_admits_only_the_two_completed_runtime_slices",
+        "activity::tests::h2_1c_profile_admits_only_the_three_completed_runtime_slices",
+        "activity::tests::h2_1d_profile_admits_only_the_four_completed_runtime_slices",
+        "activity::tests::h2_1e_profile_admits_only_the_five_completed_runtime_slices",
+        "activity::tests::h2_2a_profile_admits_only_the_six_completed_runtime_slices",
+        "activity::tests::h2_2b_profile_admits_only_the_seven_completed_runtime_slices",
+        "activity::tests::h2_2c_profile_admits_only_the_eight_completed_runtime_slices",
+        "activity::tests::h2_2d_profile_admits_only_the_nine_completed_runtime_slices",
+        "activity::tests::h2_3a_profile_admits_only_the_ten_completed_runtime_slices",
+        "activity::tests::h2_3b_profile_admits_only_the_eleven_completed_runtime_slices",
+        "activity::tests::h2_3c_profile_admits_only_the_twelve_completed_runtime_slices",
+        "activity::tests::h2_3d_profile_admits_only_the_thirteen_completed_runtime_slices",
+        "activity::tests::h2_4a_profile_admits_only_the_fourteen_completed_runtime_slices",
+        "activity::tests::h2_4b_profile_admits_only_the_fifteen_completed_runtime_slices",
+        "activity::tests::h2_5f_profile_admits_only_the_twenty_one_completed_runtime_slices",
+        "activity::tests::h2_5g_profile_admits_only_the_twenty_two_completed_runtime_slices",
+        "activity::tests::h2_5h_profile_admits_only_the_twenty_three_completed_runtime_slices",
+        "builtins::es2015::tests::captured_this_super_fold_survives_a_source_super_collision",
+        "builtins::es2015::tests::class_property_declaration_is_a_typed_error",
+        "builtins::es2015::tests::default_exported_class_lowers_to_var_statement_plus_export_assignment",
+        "builtins::es2015::tests::detached_header_comment_precedes_the_helper_block",
+        "builtins::es2015::tests::exported_class_lowers_to_var_statement_plus_export_declaration",
+        "builtins::es2015::tests::private_accessor_name_is_a_typed_error",
+        "builtins::es2015::tests::projects_arrow_basic",
+        "builtins::es2015::tests::projects_arrow_block_body",
+        "builtins::es2015::tests::projects_arrow_default_param",
+        "builtins::es2015::tests::projects_arrow_in_method_super",
+        "builtins::es2015::tests::projects_arrow_multiline",
+        "builtins::es2015::tests::projects_arrow_nested_this",
+        "builtins::es2015::tests::projects_arrow_this_fn",
+        "builtins::es2015::tests::projects_arrow_this_toplevel",
+        "builtins::es2015::tests::projects_captured_this_collision",
+        "builtins::es2015::tests::projects_captured_this_two_fns",
+        "builtins::es2015::tests::projects_class_accessors",
+        "builtins::es2015::tests::projects_class_basic",
+        "builtins::es2015::tests::projects_class_ctor",
+        "builtins::es2015::tests::projects_class_derived_return_this",
+        "builtins::es2015::tests::projects_class_derived_super_tail",
+        "builtins::es2015::tests::projects_class_expr_anon",
+        "builtins::es2015::tests::projects_class_expr_named",
+        "builtins::es2015::tests::projects_class_extends",
+        "builtins::es2015::tests::projects_class_extends_default_ctor",
+        "builtins::es2015::tests::projects_class_extends_null",
+        "builtins::es2015::tests::projects_class_generator_method",
+        "builtins::es2015::tests::projects_class_method_default_param",
+        "builtins::es2015::tests::projects_class_methods_static",
+        "builtins::es2015::tests::projects_class_new_target_ctor",
+        "builtins::es2015::tests::projects_class_semicolon_element",
+        "builtins::es2015::tests::projects_class_static_super_property",
+        "builtins::es2015::tests::projects_class_super_property",
+        "builtins::es2015::tests::projects_class_udcf_method",
+        "builtins::es2015::tests::projects_comma_unused_result",
+        "builtins::es2015::tests::projects_const_basic",
+        "builtins::es2015::tests::projects_destr_assignment",
+        "builtins::es2015::tests::projects_destr_assignment_expr_value",
+        "builtins::es2015::tests::projects_destr_catch",
+        "builtins::es2015::tests::projects_destr_for_of_pattern",
+        "builtins::es2015::tests::projects_destr_let_block",
+        "builtins::es2015::tests::projects_destr_nested_defaults",
+        "builtins::es2015::tests::projects_destr_var_array",
+        "builtins::es2015::tests::projects_destr_var_object",
+        "builtins::es2015::tests::projects_fn_expr_named_new_target",
+        "builtins::es2015::tests::projects_fn_new_target",
+        "builtins::es2015::tests::projects_forof_array_basic",
+        "builtins::es2015::tests::projects_forof_array_expr",
+        "builtins::es2015::tests::projects_forof_assign_destr_head",
+        "builtins::es2015::tests::projects_forof_assign_head",
+        "builtins::es2015::tests::projects_forof_capture_body",
+        "builtins::es2015::tests::projects_forof_iterable",
+        "builtins::es2015::tests::projects_forof_iterable_nested",
+        "builtins::es2015::tests::projects_forof_labeled_break",
+        "builtins::es2015::tests::projects_forof_let_head",
+        "builtins::es2015::tests::projects_ident_unicode_escape",
+        "builtins::es2015::tests::projects_labeled_nonloop",
+        "builtins::es2015::tests::projects_let_basic",
+        "builtins::es2015::tests::projects_let_block_collision",
+        "builtins::es2015::tests::projects_let_explicit_init_block",
+        "builtins::es2015::tests::projects_let_for_in",
+        "builtins::es2015::tests::projects_let_in_switch_case",
+        "builtins::es2015::tests::projects_let_loop_no_capture",
+        "builtins::es2015::tests::projects_let_no_init_toplevel",
+        "builtins::es2015::tests::projects_let_shadow_fn",
+        "builtins::es2015::tests::projects_let_two_blocks",
+        "builtins::es2015::tests::projects_let_uninit_captured_in_loop",
+        "builtins::es2015::tests::projects_let_uninit_colliding_block",
+        "builtins::es2015::tests::projects_let_uninit_colliding_in_loop",
+        "builtins::es2015::tests::projects_loop_capture_arguments",
+        "builtins::es2015::tests::projects_loop_capture_basic",
+        "builtins::es2015::tests::projects_loop_capture_break",
+        "builtins::es2015::tests::projects_loop_capture_continue",
+        "builtins::es2015::tests::projects_loop_capture_do",
+        "builtins::es2015::tests::projects_loop_capture_for_in",
+        "builtins::es2015::tests::projects_loop_capture_for_of",
+        "builtins::es2015::tests::projects_loop_capture_labeled_break",
+        "builtins::es2015::tests::projects_loop_capture_labeled_break_mid",
+        "builtins::es2015::tests::projects_loop_capture_labeled_continue",
+        "builtins::es2015::tests::projects_loop_capture_nested_return",
+        "builtins::es2015::tests::projects_loop_capture_out_param",
+        "builtins::es2015::tests::projects_loop_capture_return",
+        "builtins::es2015::tests::projects_loop_capture_return_void",
+        "builtins::es2015::tests::projects_loop_capture_switch_break",
+        "builtins::es2015::tests::projects_loop_capture_this",
+        "builtins::es2015::tests::projects_loop_capture_this_arrow",
+        "builtins::es2015::tests::projects_loop_capture_var_destr",
+        "builtins::es2015::tests::projects_loop_capture_var_hoist",
+        "builtins::es2015::tests::projects_loop_capture_while",
+        "builtins::es2015::tests::projects_loop_cond_conversion",
+        "builtins::es2015::tests::projects_loop_incr_conversion",
+        "builtins::es2015::tests::projects_loop_init_conversion",
+        "builtins::es2015::tests::projects_numeric_binary_octal",
+        "builtins::es2015::tests::projects_obj_accessor_computed_mix",
+        "builtins::es2015::tests::projects_obj_computed_first",
+        "builtins::es2015::tests::projects_obj_computed_middle",
+        "builtins::es2015::tests::projects_obj_computed_multiline",
+        "builtins::es2015::tests::projects_obj_computed_shorthand_method_mix",
+        "builtins::es2015::tests::projects_obj_generator_method",
+        "builtins::es2015::tests::projects_obj_method",
+        "builtins::es2015::tests::projects_obj_shorthand",
+        "builtins::es2015::tests::projects_param_default",
+        "builtins::es2015::tests::projects_param_default_two",
+        "builtins::es2015::tests::projects_param_pattern_array",
+        "builtins::es2015::tests::projects_param_pattern_object_default",
+        "builtins::es2015::tests::projects_param_pattern_rest_mix",
+        "builtins::es2015::tests::projects_param_rest",
+        "builtins::es2015::tests::projects_param_rest_only",
+        "builtins::es2015::tests::projects_spread_array",
+        "builtins::es2015::tests::projects_spread_array_downlevel",
+        "builtins::es2015::tests::projects_spread_array_literal_seg",
+        "builtins::es2015::tests::projects_spread_array_trailing_comma",
+        "builtins::es2015::tests::projects_spread_call",
+        "builtins::es2015::tests::projects_spread_call_downlevel",
+        "builtins::es2015::tests::projects_spread_call_only",
+        "builtins::es2015::tests::projects_spread_elem_call",
+        "builtins::es2015::tests::projects_spread_method_call",
+        "builtins::es2015::tests::projects_spread_new",
+        "builtins::es2015::tests::projects_spread_new_prop_callee",
+        "builtins::es2015::tests::projects_spread_super_call",
+        "builtins::es2015::tests::projects_string_extended_unicode",
+        "builtins::es2015::tests::projects_switch_in_converted_loop",
+        "builtins::es2015::tests::projects_synthetic_super_collision",
+        "builtins::es2015::tests::projects_tagged_crlf_raw",
+        "builtins::es2015::tests::projects_tagged_expr_tag",
+        "builtins::es2015::tests::projects_tagged_in_generator",
+        "builtins::es2015::tests::projects_tagged_in_loop_capture",
+        "builtins::es2015::tests::projects_tagged_invalid_escape",
+        "builtins::es2015::tests::projects_tagged_invalid_octal",
+        "builtins::es2015::tests::projects_tagged_invalid_unicode_brace",
+        "builtins::es2015::tests::projects_tagged_module_export",
+        "builtins::es2015::tests::projects_tagged_module_invalid",
+        "builtins::es2015::tests::projects_tagged_module_two",
+        "builtins::es2015::tests::projects_tagged_multi_span",
+        "builtins::es2015::tests::projects_tagged_nested",
+        "builtins::es2015::tests::projects_tagged_no_subst",
+        "builtins::es2015::tests::projects_template_basic",
+        "builtins::es2015::tests::projects_template_expr_only",
+        "builtins::es2015::tests::projects_template_multi_span",
+        "builtins::es2015::tests::projects_template_no_subst",
+        "builtins::es2015::tests::projects_yield_star_body_site",
+        "builtins::es2015::tests::projects_yield_star_init_site",
+        "builtins::es2015::tests::type_script_class_wrapper_surgery_flattens_the_wrapped_class",
+        "builtins::flatten_destructuring::tests::all_omitted_unused_assignment_is_a_typed_error",
+        "builtins::flatten_destructuring::tests::all_omitted_used_assignment_returns_the_bare_value",
+        "builtins::flatten_destructuring::tests::method_element_in_assignment_pattern_is_a_typed_error",
+        "builtins::flatten_destructuring::tests::projects_arr_downlevel_empty",
+        "builtins::flatten_destructuring::tests::projects_arr_downlevel_pair",
+        "builtins::flatten_destructuring::tests::projects_arr_downlevel_rest",
+        "builtins::flatten_destructuring::tests::projects_arr_empty",
+        "builtins::flatten_destructuring::tests::projects_arr_holes_default_rest",
+        "builtins::flatten_destructuring::tests::projects_arr_nested_deep",
+        "builtins::flatten_destructuring::tests::projects_arr_single",
+        "builtins::flatten_destructuring::tests::projects_assign_array",
+        "builtins::flatten_destructuring::tests::projects_assign_collision",
+        "builtins::flatten_destructuring::tests::projects_assign_empty_unwrap",
+        "builtins::flatten_destructuring::tests::projects_assign_unused",
+        "builtins::flatten_destructuring::tests::projects_assign_used",
+        "builtins::flatten_destructuring::tests::projects_effectful_computed_rebind",
+        "builtins::flatten_destructuring::tests::projects_obj_computed",
+        "builtins::flatten_destructuring::tests::projects_obj_computed_literal",
+        "builtins::flatten_destructuring::tests::projects_obj_default",
+        "builtins::flatten_destructuring::tests::projects_obj_empty",
+        "builtins::flatten_destructuring::tests::projects_obj_multi",
+        "builtins::flatten_destructuring::tests::projects_obj_nested",
+        "builtins::flatten_destructuring::tests::projects_obj_nested_default",
+        "builtins::flatten_destructuring::tests::projects_obj_numeric_prop",
+        "builtins::flatten_destructuring::tests::projects_obj_single",
+        "builtins::flatten_destructuring::tests::projects_obj_string_prop",
+        "builtins::flatten_destructuring::tests::projects_objectrest_assign",
+        "builtins::flatten_destructuring::tests::projects_objectrest_binding",
+        "builtins::flatten_destructuring::tests::projects_objectrest_computed",
+        "builtins::generated_bindings::tests::active_ancestor_bindings_stay_reserved_in_descendants",
+        "builtins::generated_bindings::tests::descendant_reserved_preferred_bindings_still_reuse_in_siblings",
+        "builtins::generated_bindings::tests::duplicate_planned_temp_in_same_scope_falls_back_to_temp_sequence",
+        "builtins::generated_bindings::tests::eager_local_preferred_reservations_are_not_hoisted_bindings",
+        "builtins::generated_bindings::tests::file_level_optimistic_peers_share_text_but_reserve_descendants",
+        "builtins::generated_bindings::tests::formatted_private_temps_have_a_role_local_sequence",
+        "builtins::generated_bindings::tests::generated_name_state_starts_fresh_for_each_print",
+        "builtins::generated_bindings::tests::generated_private_names_reserve_ancestors_but_reuse_in_siblings",
+        "builtins::generated_bindings::tests::loop_variable_prefers_the_dedicated_slot_once_per_scope",
+        "builtins::generated_bindings::tests::node_keyed_allocation_is_stable_per_node_and_advances_per_source_name",
+        "builtins::generated_bindings::tests::occupied_loop_slot_falls_through_to_the_temp_sequence",
+        "builtins::generated_bindings::tests::planned_temp_can_be_reused_in_sibling_scopes",
+        "builtins::generated_bindings::tests::planned_temp_is_retained_when_available",
+        "builtins::generated_bindings::tests::preferred_reconciliation_advances_from_the_planned_suffix",
+        "builtins::generated_bindings::tests::print_generated_name_ignores_an_ordinary_synthetic_sibling",
+        "builtins::generated_bindings::tests::print_generated_name_reserves_identifiers_outside_the_printed_node",
+        "builtins::generated_bindings::tests::print_generated_name_starts_with_first_suffix_without_a_source_collision",
+        "builtins::generated_bindings::tests::sibling_scopes_reuse_the_loop_variable_spelling",
+        "builtins::generated_bindings::tests::source_occupied_allocator_pushes_past_the_reserved_names",
+        "builtins::generators::tests::binding_less_catch_is_a_typed_error",
+        "builtins::generators::tests::generator_method_is_a_typed_error",
+        "builtins::generators::tests::projects_accessor_nested_generator",
+        "builtins::generators::tests::projects_array_leading_hole",
+        "builtins::generators::tests::projects_array_literal",
+        "builtins::generators::tests::projects_array_yield_first",
+        "builtins::generators::tests::projects_binary_cache",
+        "builtins::generators::tests::projects_call_args",
+        "builtins::generators::tests::projects_call_yield_first_arg",
+        "builtins::generators::tests::projects_catch_generated_reuse",
+        "builtins::generators::tests::projects_comma_expr",
+        "builtins::generators::tests::projects_compound_assign",
+        "builtins::generators::tests::projects_conditional",
+        "builtins::generators::tests::projects_continue_break",
+        "builtins::generators::tests::projects_continue_in_for_yield_incr",
+        "builtins::generators::tests::projects_do_loop",
+        "builtins::generators::tests::projects_elem_access",
+        "builtins::generators::tests::projects_elem_access_target_assign",
+        "builtins::generators::tests::projects_elem_call_args",
+        "builtins::generators::tests::projects_empty",
+        "builtins::generators::tests::projects_fn_expr_generator",
+        "builtins::generators::tests::projects_for_bare",
+        "builtins::generators::tests::projects_for_in",
+        "builtins::generators::tests::projects_for_loop",
+        "builtins::generators::tests::projects_hoisted_fn",
+        "builtins::generators::tests::projects_if_else",
+        "builtins::generators::tests::projects_if_no_else",
+        "builtins::generators::tests::projects_labeled_block_break",
+        "builtins::generators::tests::projects_labeled_break",
+        "builtins::generators::tests::projects_logical_and",
+        "builtins::generators::tests::projects_logical_or",
+        "builtins::generators::tests::projects_method_call_args",
+        "builtins::generators::tests::projects_multiline_body",
+        "builtins::generators::tests::projects_multiline_obj",
+        "builtins::generators::tests::projects_named_fn_expr_generator",
+        "builtins::generators::tests::projects_nested_fn",
+        "builtins::generators::tests::projects_nested_generator",
+        "builtins::generators::tests::projects_nested_try",
+        "builtins::generators::tests::projects_new_args",
+        "builtins::generators::tests::projects_non_generator_untouched",
+        "builtins::generators::tests::projects_obj_accessor_initial_chunk",
+        "builtins::generators::tests::projects_obj_accessor_pair_post_yield",
+        "builtins::generators::tests::projects_obj_accessor_post_yield",
+        "builtins::generators::tests::projects_obj_method_post_yield",
+        "builtins::generators::tests::projects_obj_string_numeric_after_yield",
+        "builtins::generators::tests::projects_object_literal",
+        "builtins::generators::tests::projects_params",
+        "builtins::generators::tests::projects_paren_call_target",
+        "builtins::generators::tests::projects_plain_vars",
+        "builtins::generators::tests::projects_prop_access_target_assign",
+        "builtins::generators::tests::projects_return_bare",
+        "builtins::generators::tests::projects_return_value",
+        "builtins::generators::tests::projects_script_do_in_yield_stmt",
+        "builtins::generators::tests::projects_script_labeled_in_yield_stmt",
+        "builtins::generators::tests::projects_script_loop_in_yield_stmt",
+        "builtins::generators::tests::projects_script_switch_in_yield_stmt",
+        "builtins::generators::tests::projects_switch_yield",
+        "builtins::generators::tests::projects_throw_in_try",
+        "builtins::generators::tests::projects_throw_stmt",
+        "builtins::generators::tests::projects_try_catch",
+        "builtins::generators::tests::projects_try_catch_finally",
+        "builtins::generators::tests::projects_try_catch_use",
+        "builtins::generators::tests::projects_try_finally",
+        "builtins::generators::tests::projects_two_yields",
+        "builtins::generators::tests::projects_use_strict_directive",
+        "builtins::generators::tests::projects_var_multi_split",
+        "builtins::generators::tests::projects_while_loop",
+        "builtins::generators::tests::projects_with_stmt",
+        "builtins::generators::tests::projects_yield_bare",
+        "builtins::generators::tests::projects_yield_in_condition_only",
+        "builtins::generators::tests::projects_yield_one",
+        "builtins::generators::tests::projects_yield_star",
+        "builtins::generators::tests::projects_yield_star_in_expr",
+        "builtins::generators::tests::projects_yield_value_use",
+        "builtins::helpers::helpers_tests::helper_texts_match_the_vendored_declarations",
+        "builtins::jsx::tests::jsx_text_normalizer_classifies_only_first_middle_and_last_lines",
+        "builtins::tagged_template::tagged_template_tests::consumption_mirrors_the_scanner_across_sequences",
+        "builtins::tagged_template::tagged_template_tests::malformed_extended_unicode_escapes_are_invalid",
+        "builtins::tagged_template::tagged_template_tests::octal_and_digit_escapes_are_invalid",
+        "builtins::tagged_template::tagged_template_tests::short_hex_and_unicode_runs_are_invalid",
+        "builtins::tagged_template::tagged_template_tests::valid_escapes_and_plain_text_are_not_invalid",
+        "builtins::target_bindings::tests::authoritative_temp_policy_falls_back_on_collision",
+        "builtins::target_bindings::tests::authoritative_temp_policy_retains_available_planned_spelling",
+        "builtins::target_bindings::tests::parsed_identifier_snapshot_retains_erased_file_level_collisions",
+        "builtins::target_bindings::tests::traversal_temp_policy_uses_final_scope_cursor",
+        "builtins::tests::amd_import_equals_call_keeps_its_local_parameter_receiver_free",
+        "builtins::tests::amd_import_re_exports_are_published_at_their_import_source_positions",
+        "builtins::tests::amd_nested_dynamic_import_reserves_executor_bindings_in_emit_order",
+        "builtins::tests::amd_unnamed_dependency_comment_is_emitted_only_outside_the_wrapper",
+        "builtins::tests::class_fields_do_not_synthesize_super_for_transparently_wrapped_null_heritage",
+        "builtins::tests::class_fields_insert_initializers_after_a_parenthesized_super_statement",
+        "builtins::tests::classic_jsx_preserves_single_line_whitespace_text_children",
+        "builtins::tests::common_js_appends_explicit_exports_for_each_array_binding_leaf",
+        "builtins::tests::common_js_default_class_publishes_after_its_static_field_operations",
+        "builtins::tests::common_js_default_class_skips_only_its_undefined_preinitializer",
+        "builtins::tests::common_js_direct_export_does_not_reexport_a_conflicting_import_binding",
+        "builtins::tests::common_js_direct_variable_publishes_primary_before_collector_aliases",
+        "builtins::tests::common_js_duplicate_export_equals_keeps_the_first_assignment",
+        "builtins::tests::common_js_elides_an_embedded_uninitialized_direct_export_and_substitutes_its_read",
+        "builtins::tests::common_js_embedded_initialized_direct_export_owns_its_primary_publication",
+        "builtins::tests::common_js_erased_ambient_export_still_qualifies_same_file_reads",
+        "builtins::tests::common_js_esmodule_marker_queries_only_the_forced_javascript_source",
+        "builtins::tests::common_js_esmodule_marker_resolver_default_is_typed_unavailable",
+        "builtins::tests::common_js_export_equals_suppresses_appended_class_export",
+        "builtins::tests::common_js_exported_updates_publish_new_values_and_preserve_postfix_results",
+        "builtins::tests::common_js_exported_updates_use_direct_storage_and_publish_only_aliases",
+        "builtins::tests::common_js_family_preserves_recovery_empty_non_export_variable_statements",
+        "builtins::tests::common_js_file_level_generated_export_map_rejects_ordinary_generated_ids",
+        "builtins::tests::common_js_flattens_destructuring_assignments_to_all_exported_names",
+        "builtins::tests::common_js_flattens_exported_destructuring_variable_declarations",
+        "builtins::tests::common_js_generated_require_leaves_import_tail_comments_with_the_statement",
+        "builtins::tests::common_js_import_equals_appends_explicit_export_specifiers",
+        "builtins::tests::common_js_marker_does_not_reown_exported_enum_jsdoc",
+        "builtins::tests::common_js_materializes_anonymous_default_function_binding",
+        "builtins::tests::common_js_materializes_invalid_anonymous_exported_class_identity",
+        "builtins::tests::common_js_merged_exported_namespace_publishes_its_initializer",
+        "builtins::tests::common_js_named_re_exports_use_live_bindings_and_source_comments",
+        "builtins::tests::common_js_nested_export_update_temps_belong_to_the_module_scope",
+        "builtins::tests::common_js_publishes_each_duplicate_anonymous_default_function",
+        "builtins::tests::common_js_publishes_export_specifiers_for_erased_ambient_functions",
+        "builtins::tests::common_js_publishes_the_standard_decorator_synthetic_named_export",
+        "builtins::tests::common_js_substitutes_orphan_automatic_jsx_import_references",
+        "builtins::tests::common_js_trailing_module_specifier_uses_tsc_generated_name",
+        "builtins::tests::common_js_unused_export_star_identity_does_not_consume_a_module_name",
+        "builtins::tests::common_js_wraps_exported_legacy_decorator_assignment",
+        "builtins::tests::commonjs_import_bindings_keep_const_at_es2015_and_above",
+        "builtins::tests::commonjs_import_bindings_use_var_below_es2015",
+        "builtins::tests::commonjs_import_equals_binding_uses_var_below_es2015",
+        "builtins::tests::constructor_prologue_stops_before_strings_and_noncontiguous_custom_statements",
+        "builtins::tests::decorated_computed_names_are_shared_for_identifiers_and_class_expressions",
+        "builtins::tests::duplicate_default_re_export_preinitializes_a_hoisted_function_export",
+        "builtins::tests::duplicate_private_getter_ordinal_precedes_the_generated_role_suffix",
+        "builtins::tests::dynamic_import_recovery_preserves_a_missing_argument_across_module_formats",
+        "builtins::tests::es5_pipeline_registers_the_joint_es2015_generators_pass_in_upstream_order",
+        "builtins::tests::export_default_reparenthesizes_a_class_exposed_by_type_erasure",
+        "builtins::tests::exported_import_equals_re_exports_from_the_export_object_owner",
+        "builtins::tests::invalid_private_enum_member_recovers_as_an_empty_expression_name",
+        "builtins::tests::jsx_spread_attributes_keep_object_assign_at_es2015_and_above",
+        "builtins::tests::jsx_spread_attributes_use_the_assign_helper_below_es2015",
+        "builtins::tests::legacy_decorator_and_class_field_temps_share_final_binding_order",
+        "builtins::tests::legacy_decorator_recovers_default_class_without_export",
+        "builtins::tests::lowered_optional_chain_heritage_keeps_its_left_hand_side_boundary",
+        "builtins::tests::meta_property_token_maps_internal_invariants_match_typescript",
+        "builtins::tests::meta_property_token_maps_module_name_context_is_not_a_value_reference",
+        "builtins::tests::module_export_substitution_uses_enum_binding_identity_across_namespaces",
+        "builtins::tests::module_transformer_selection_absent_host_and_missing_format_keep_distinct_boundaries",
+        "builtins::tests::module_transformer_selection_factory_names_match_typescript_twice",
+        "builtins::tests::module_transformer_selection_host_calls_and_bundle_activity_follow_selected_factory",
+        "builtins::tests::named_amd_module_keeps_named_dependency_semantics_without_reemitting_pragmas",
+        "builtins::tests::named_default_function_namespace_merge_uses_the_source_export_owner",
+        "builtins::tests::namespace_default_classes_share_generated_declaration_identity",
+        "builtins::tests::namespace_default_functions_keep_recovery_syntax_and_generated_export_identity",
+        "builtins::tests::namespace_erases_external_import_equals_even_when_the_alias_is_referenced",
+        "builtins::tests::namespace_exported_internal_alias_uses_container_storage",
+        "builtins::tests::nested_class_computed_field_names_use_the_enclosing_static_evaluation_frame",
+        "builtins::tests::nested_private_storage_setup_precedes_its_private_computed_key_read",
+        "builtins::tests::ordinary_detached_comment_uses_the_same_relocated_statement_list_contract",
+        "builtins::tests::parsed_class_transform_flags_match_typescript_owned_bits",
+        "builtins::tests::parsed_private_expression_flags_exclude_declaration_names",
+        "builtins::tests::private_assignment_target_skips_parentheses_and_erased_type_wrappers",
+        "builtins::tests::private_method_constructor_references_use_the_class_alias",
+        "builtins::tests::private_storage_captured_by_a_loop_class_expression_is_declared_in_the_loop_body",
+        "builtins::tests::private_storage_names_follow_current_class_provenance",
+        "builtins::tests::private_storage_setup_precedes_a_computed_member_key",
+        "builtins::tests::remove_comments_suppresses_relocated_prefix_without_losing_amd_dependency_semantics",
+        "builtins::tests::standard_decorator_class_references_preserve_parsed_and_generated_identity",
+        "builtins::tests::static_super_frame_is_inherited_by_arrows_but_nested_class_owns_its_static_base",
+        "builtins::tests::static_super_targets_share_reflect_lowering_for_every_value_use",
+        "builtins::tests::static_this_frame_is_inherited_by_arrows_but_not_functions_or_nested_classes",
+        "builtins::tests::system_default_import_call_keeps_the_substituted_direct_callee",
+        "builtins::tests::system_module_hoists_uninitialized_export_from_source_owned_if_statement",
+        "builtins::tests::system_module_preserves_generated_automatic_jsx_local_reference",
+        "builtins::tests::system_module_reuses_single_destructuring_initializer_without_a_temp",
+        "builtins::tests::typescript_transform_erases_preserved_jsx_type_arguments",
+        "builtins::tests::typescript_transform_materializes_missing_accessor_bodies",
+        "builtins::tests::typescript_transform_preserves_jsdoc_recovery_type_arguments",
+        "builtins::tests::typescript_transform_structurally_erases_jsx_recovery_type_arguments",
+        "builtins::tests::umd_dynamic_import_preserves_literal_quote_provenance_in_its_amd_copy",
+        "builtins::tests::umd_dynamic_import_temp_converts_a_concise_arrow_to_an_owned_body",
+        "builtins::tests::umd_dynamic_import_temp_is_owned_by_a_static_block",
+        "builtins::tests::umd_dynamic_import_temp_is_owned_by_the_nearest_method_body",
+        "builtins::tests::umd_dynamic_import_temp_moves_an_es2015_parameter_default_into_the_body",
+        "builtins::tests::umd_exported_function_inherits_the_module_parameter_temp_scope",
+        "builtins::tests::umd_mixed_dependencies_keep_paired_aliases_and_one_outer_comment_prefix",
+        "builtins::tests::umd_nested_dynamic_import_reserves_executor_bindings_in_emit_order",
+        "builtins::tests::umd_single_amd_dependency_pragmas_remain_owned_by_the_outer_source_prefix",
+        "builtins::tests::updated_class_expression_transform_flags_match_typescript_owned_bits",
+        "builtins::tests::updated_class_transform_flags_match_typescript_owned_bits",
+        "builtins::tests::using_anonymous_default_decorator_handoff_keeps_owner_and_binding_domains",
+        "builtins::tests::yield_parenthesizes_a_synthetic_umd_dynamic_import_comma_sequence",
+        "declarations::tests::boundary_observer_records_rewritten_output_provenance_and_flags",
+        "declarations::tests::diagnostic_context_selects_all_three_external_module_messages",
+        "declarations::tests::ensure_type_restores_error_name_and_diagnostic_context_on_resolver_error",
+        "declarations::tests::ensure_type_selects_explicit_synthesized_fallback_and_private_arms",
+        "declarations::tests::private_method_collapse_preserves_jsdoc_array_and_comment_range",
+        "declarations::tests::state_reset_and_owned_frames_restore_before_error_propagation",
+        "declarations::tests::subtree_binding_pattern_direct_return_preserves_upstream_diagnostic_leak",
+        "declarations::tests::subtree_private_method_direct_return_preserves_upstream_enclosing_leak",
+        "declarations::tests::tracker_assigns_first_alias_vector_verbatim_then_merges_uniquely",
+        "declarations_p2_tests::custom_declaration_transformers_are_a_typed_refusal",
+        "declarations_p2_tests::preserved_reference_is_synthesized_with_relative_target_and_sentinel_range",
+        "declarations_p2_tests::update_faces_preserve_identity_and_attach_original_on_change",
+        "external_module_names::tests::h2_7d_hostless_bundle_module_names_are_refused",
+        "external_module_names::tests::h2_7d_module_identities_match_typescript_source_facts_twice",
+        "external_module_names::tests::h2_7d_module_paths_match_all_typescript_helper_observations_twice",
+        "factory::factory_classifier_tests::binding_pattern_and_spread_rows_classify",
+        "factory::factory_classifier_tests::declaration_and_completion_rows_classify",
+        "factory::factory_classifier_tests::identifier_name_position_strips_possible_top_level_await",
+        "factory::factory_classifier_tests::lexical_this_and_super_rows_classify_through_super_calls",
+        "factory::factory_classifier_tests::token_facets_match_the_creation_table",
+        "factory::factory_classifier_tests::yield_and_generator_rows_classify_and_exclude_at_the_function_boundary",
+        "factory::original_provenance_tests::not_emitted_type_element_and_utf16_literal_metadata_are_exact",
+        "factory::original_provenance_tests::reuse_clone_accepts_cross_source_original_within_one_arena_only",
+        "factory::original_provenance_tests::type_parenthesizer_rule_tables_cover_direct_and_delegated_kinds",
+        "factory::original_provenance_tests::typed_faces_smoke_families_and_preserve_exact_type_flags",
+        "factory::original_provenance_tests::typed_updates_reuse_identity_or_preserve_original_provenance",
+        "factory::original_provenance_tests::unique_names_allocate_arena_owned_generated_binding_identities",
+        "factory::original_provenance_tests::utf16_factory_literals_print_like_equivalent_parsed_literals_for_both_quotes",
+        "factory::parsed_metadata::tests::parsed_constants_preserve_number_bits_and_string_code_units",
+        "factory::parsed_metadata::tests::parsed_metadata_rejects_foreign_program_authority_and_conflicting_targets_atomically",
+        "factory::parsed_metadata::tests::parsed_metadata_rejects_same_snapshot_and_numeric_nodes_from_another_parse_domain",
+        "factory::parsed_metadata::tests::parsed_metadata_rejects_unimplemented_fields_and_synthetic_type_references",
+        "factory::parsed_metadata::tests::parsed_metadata_survives_reordered_mounts_without_projecting_synthetic_originals",
+        "plan::tests::bundle_shape_is_valid_but_older_profiles_still_reject_emit_requests",
+        "plan::tests::h2_7d_bundle_module_filter_requires_authoritative_source_syntax",
+        "plan::tests::h2_7d_bundle_plans_match_typescript_selection_paths_and_collisions",
+        "plan::tests::h2_7d_common_directory_eligibility_includes_excluded_modules_without_syntax",
+        "plan::tests::h2_7d_retained_module_facts_plan_without_borrowing_checked_syntax",
+        "printer::bundle::bundle_printer_tests::declaration_and_untransformed_external_module_members_require_their_printers",
+        "printer::bundle::bundle_printer_tests::global_script_bundles_match_complete_typescript_output_bytes_twice",
+        "printer::comment_scope_predicate_tests::at_zero_start_with_positive_end_claims_both_sides",
+        "printer::comment_scope_predicate_tests::jsx_one_sided_ranges_require_present_suppressed_side",
+        "printer::comment_scope_predicate_tests::jsx_text_claims_exactly_the_flagged_side",
+        "printer::comment_scope_predicate_tests::jsx_text_without_flags_claims_neither_side",
+        "printer::comment_scope_predicate_tests::one_sided_comment_ranges_claim_present_endpoint_and_inherit_other",
+        "printer::comment_scope_predicate_tests::one_sided_zero_position_has_no_comment_extent",
+        "printer::comment_scope_predicate_tests::ordinary_original_range_claims_both_sides",
+        "printer::comment_scope_predicate_tests::suppression_flags_claim_while_suppressing_emission",
+        "printer::comment_scope_predicate_tests::synthesized_and_zero_width_ranges_claim_nothing_so_the_scope_inherits",
+        "resolver::node_builder_seam_tests::declaration_emit_flag_words_match_the_vendored_constants",
+        "resolver::node_builder_seam_tests::factory_view_constructs_this_type_token_and_rejects_other_type_kinds",
+        "resolver::node_builder_seam_tests::parse_tree_transform_node_round_trips_and_rejects_foreign_ids",
+        "resolver::node_builder_seam_tests::serialization_members_fail_closed_by_default",
+        "source_map::tests::a_source_map_range_naming_a_second_source_registers_and_records_against_it",
+        "source_map::tests::add_source_dedupes_on_relative_key_and_keeps_raw_order",
+        "source_map::tests::backtracking_source_position_commits_prior_mapping",
+        "source_map::tests::base64_vectors_match_reference_encodings",
+        "source_map::tests::h2_6b_lane_replays_are_byte_equal",
+        "source_map::tests::h2_7e_bundle_declaration_map_path_lanes_match_typescript",
+        "source_map::tests::identical_position_readds_collapse",
+        "source_map::tests::json_escaper_matches_serde_reference",
+        "source_map::tests::leading_and_trailing_source_map_flags_suppress_exactly_one_side",
+        "source_map::tests::line_advances_emit_semicolon_runs_and_reset_character_base",
+        "source_map::tests::no_nested_source_maps_suppresses_node_token_and_comment_records_inside_the_subtree",
+        "source_map::tests::no_token_source_maps_gates_the_token_lane_only",
+        "source_map::tests::relativizer_cross_root_uses_file_url_prefix",
+        "source_map::tests::same_position_source_advance_overwrites_pending",
+        "source_map::tests::serialization_shape_key_order_and_sources_content",
+        "source_map::tests::source_root_field_forms",
+        "source_map::tests::sourceless_mapping_after_sourced_commits_intact",
+        "source_map::tests::vlq_spec_vectors",
+        "source_map::tests::witness_replays_are_byte_equal",
+        "tests::claiming_preserves_the_declaration_list_end",
+        "tests::comment_ranges_validate_independent_endpoints_and_preserve_source_identity",
+        "tests::declaration_emit_resolver_surface_preserves_pinned_values_and_names",
+        "tests::declaration_list_claim_arms_the_dedupe_and_inherits_like_the_others",
+        "tests::declaration_list_end_guards_without_a_claimed_container",
+        "tests::emit_helper_name_distinguishes_user_calls_and_survives_factory_updates",
+        "tests::empty_scope_retains_no_end_and_exposes_no_sides",
+        "tests::factory_private_expression_flags_distinguish_declarations_property_access_and_in",
+        "tests::guards_never_match_across_sources",
+        "tests::outcome_retains_optional_presence_and_independent_emitted_file_order",
+        "tests::per_side_claim_replaces_some_sides_and_inherits_none_sides",
+        "tests::range_views_reject_synthesized_and_zero_width_ranges",
+        "tests::relative_module_specifier_rewrite_matches_typescript_suffix_rules",
+        "token_cursor_tests::comment_resume_can_only_merge_progress_for_the_same_owner_boundary",
+        "token_cursor_tests::position_cursor_2727_statement_work_is_linear_and_scan_free",
+        "transform::bundle_transform_tests::builtin_bundle_helpers_belong_to_the_requesting_source",
+        "transform::bundle_transform_tests::bundle_transform_traces_match_pinned_typescript_twice",
+        "transform::bundle_transform_tests::failed_bundle_member_disposes_the_transformer_once",
+        "transform::hook_chaining_tests::notification_wraps_with_the_first_registered_transformer_outermost",
+        "transform::hook_chaining_tests::substitution_delegates_previous_first_in_registration_order",
+        "transform::hook_chaining_tests::substitution_only_registration_never_fires_notification_hooks"
+      ],
+      "binary": {
+        "path": "target/debug/deps/tsc_emitter-221a698c259a056a",
+        "sha256": "630d9baef4530ad10b1675775c17d7622585c68b4d1a66c31d866424084877f2",
+        "size": 15304672,
+        "mtime_ns": 1788948097724622230
+      },
+      "binary_provenance": {
+        "build_log": "target/h2-8a-class-helper-accessor-producers-emitter-build.log",
+        "build_finished_line": "    Finished `test` profile [unoptimized] target(s) in 3m 42s"
+      },
+      "binary_bytes_retained": false,
+      "exit": {
+        "manifest": "target/h2-8a-class-helper-accessor-producers-emitter-library-after-prelaunch.json",
+        "manifest_sha256": "152eef3126cc7b4c58d105aa885bb8dc1b666cf329548f3c4468de9a37ef0e37",
+        "argv": [
+          "taskpolicy",
+          "-b",
+          "nice",
+          "-n",
+          "15",
+          "/Users/hiramatsu/dev/tsc-rs/target/debug/deps/tsc_emitter-221a698c259a056a",
+          "--nocapture",
+          "--test-threads=1"
+        ],
+        "exit_code": 0,
+        "wall_seconds": 26.80576374998782,
+        "log": "target/h2-8a-class-helper-accessor-producers-emitter-library-after.log",
+        "log_sha256": "1db71065dba63e95b5798ff0d8436e185ed7d6628a627fec18db505719c210bd"
+      }
+    },
+    "contracts": {
+      "passed": 451,
+      "failed": 0,
+      "ignored": 0,
+      "filtered_out": 0,
+      "test_ids": [
+        "active_transform_contract::abstract_class_forces_constructor_through_typescript_class_element_visitor",
+        "active_transform_contract::alias_elision_uses_the_borrowed_resolver_and_never_queries_type_only_specifiers",
+        "active_transform_contract::aliasless_legacy_decorated_class_keeps_post_decorator_comment_owners",
+        "active_transform_contract::ambient_and_runtime_legacy_computed_names_share_order_but_not_storage",
+        "active_transform_contract::ambient_legacy_decorator_anchor_owns_static_bucket_classification",
+        "active_transform_contract::ambient_legacy_decorator_anchor_visits_decorator_and_name_expressions",
+        "active_transform_contract::ambient_legacy_decorator_call_names_evaluate_once_at_decoration_site",
+        "active_transform_contract::ambient_legacy_decorator_computed_names_remain_direct_expressions",
+        "active_transform_contract::ambient_namespace_exports_keep_only_their_non_emitted_anchor",
+        "active_transform_contract::anonymous_class_expression_reuses_the_property_access_assignment_name",
+        "active_transform_contract::anonymous_class_expression_reuses_the_property_assignment_name",
+        "active_transform_contract::anonymous_class_expression_reuses_the_variable_declaration_name",
+        "active_transform_contract::anonymous_class_receiver_precedes_its_computed_static_key_binding",
+        "active_transform_contract::anonymous_default_class_fields_share_declaration_and_runtime_names",
+        "active_transform_contract::array_element_end_comments_precede_their_delimiter",
+        "active_transform_contract::array_list_comment_boundaries_cover_trailing_commas_and_omitted_elements",
+        "active_transform_contract::array_literal_elements_preserve_parsed_sibling_line_breaks",
+        "active_transform_contract::arrow_object_body_is_parenthesized_after_type_erasure",
+        "active_transform_contract::assignment_mode_parameter_properties_precede_field_initializers",
+        "active_transform_contract::assignment_to_an_erased_instantiation_expression_keeps_grammar_parentheses",
+        "active_transform_contract::auto_accessor_backing_names_follow_member_identity_in_runtime_scope",
+        "active_transform_contract::automatic_jsx_children_retain_expression_trailing_comments",
+        "active_transform_contract::binary_operator_token_boundaries_retain_leading_and_trailing_comments",
+        "active_transform_contract::call_list_start_distinguishes_comment_first_from_newline_first",
+        "active_transform_contract::case_block_end_comments_survive_class_field_relocation",
+        "active_transform_contract::case_colon_token_owns_its_same_line_trailing_comment",
+        "active_transform_contract::chained_property_access_retains_a_comment_before_its_dot_token",
+        "active_transform_contract::changed_node_printer_uses_the_configured_newline_and_preserves_unicode_literals",
+        "active_transform_contract::class_binding_allocations_follow_tsc_lexical_environment_phases",
+        "active_transform_contract::class_field_key_evaluation_drains_into_the_next_computed_member",
+        "active_transform_contract::class_fields_keep_legacy_decorated_declarations_statement_expandable",
+        "active_transform_contract::class_pending_prefix_and_member_walk_drain_into_one_retained_computed_name",
+        "active_transform_contract::classic_jsx_attribute_tail_is_not_owned_by_the_generated_property",
+        "active_transform_contract::classic_jsx_children_retain_expression_trailing_comments",
+        "active_transform_contract::classic_jsx_factory_root_carries_typed_namespace_identity",
+        "active_transform_contract::classic_jsx_fragment_roots_keep_opening_fragment_identity",
+        "active_transform_contract::classic_self_closing_jsx_factory_root_keeps_opening_node_identity",
+        "active_transform_contract::commentless_const_enum_integer_access_keeps_the_property_dot_boundary",
+        "active_transform_contract::commentless_const_enum_numeric_substitution_keeps_expression_grammar",
+        "active_transform_contract::common_js_detached_reference_stays_between_strict_and_custom_prologues",
+        "active_transform_contract::common_js_named_import_tag_erases_the_substituted_property_receiver",
+        "active_transform_contract::common_js_using_file_level_defaults_respect_erased_source_identifiers",
+        "active_transform_contract::common_js_using_generated_decorator_binding_map_miss_stays_out_of_the_resolver",
+        "active_transform_contract::common_js_using_hoist_chains_anonymous_default_class_binding",
+        "active_transform_contract::common_js_using_hoist_chains_direct_and_aliased_exports",
+        "active_transform_contract::common_js_using_hoist_chains_named_default_class_bindings",
+        "active_transform_contract::common_js_using_hoist_keeps_generated_default_publication_after_export_equals",
+        "active_transform_contract::common_js_using_hoist_keeps_generated_default_publication_before_export_equals",
+        "active_transform_contract::common_js_using_hoist_keeps_local_variable_initializer_local",
+        "active_transform_contract::common_js_using_hoist_preserves_export_alias_assignment_order",
+        "active_transform_contract::common_js_using_hoist_preserves_multiple_alias_source_order",
+        "active_transform_contract::common_js_using_hoist_renames_default_binding_around_a_source_collision",
+        "active_transform_contract::common_js_using_hoist_substitutes_exported_variable_initializer",
+        "active_transform_contract::common_js_using_hoist_substitutes_named_export_class_once",
+        "active_transform_contract::compact_binding_pattern_does_not_indent_after_source_line_comment",
+        "active_transform_contract::compact_private_function_body_emits_inter_statement_comment_once",
+        "active_transform_contract::computed_auto_accessor_pairs_share_one_class_definition_key_evaluation",
+        "active_transform_contract::computed_class_field_named_evaluation_reuses_the_class_key_cache",
+        "active_transform_contract::computed_object_property_named_evaluation_uses_prop_key_once",
+        "active_transform_contract::concise_arrow_body_retains_its_leading_comment",
+        "active_transform_contract::concise_arrow_body_retains_its_same_line_leading_comment_once",
+        "active_transform_contract::conditional_expression_boundaries_retain_each_branch_comment_once",
+        "active_transform_contract::conditional_separator_uses_its_source_anchor_after_a_synthetic_condition",
+        "active_transform_contract::conditional_true_branch_line_comment_stays_before_the_colon",
+        "active_transform_contract::const_enum_access_comment_escapes_closing_multiline_delimiter",
+        "active_transform_contract::const_enum_negative_access_comment_stays_inside_access_parentheses",
+        "active_transform_contract::const_enum_numeric_substitution_uses_javascript_number_spelling",
+        "active_transform_contract::const_enum_string_substitution_preserves_utf16_code_units",
+        "active_transform_contract::constructor_and_getter_recovery_fields_follow_factory_update_boundaries",
+        "active_transform_contract::decorated_class_pending_comma_keys_preserve_tsc_operand_boundaries",
+        "active_transform_contract::decorated_static_private_and_auto_accessor_facts_supply_static_this_identity",
+        "active_transform_contract::detached_source_prefix_stays_before_standard_decorator_helpers",
+        "active_transform_contract::dotted_namespace_iife_body_retains_module_block_closing_comments",
+        "active_transform_contract::dotted_namespace_inherits_export_and_lexical_declaration_ownership",
+        "active_transform_contract::downlevel_standard_decorator_metadata_uses_the_class_receiver",
+        "active_transform_contract::duplicate_private_fields_preserve_distinct_recovery_storage",
+        "active_transform_contract::duplicate_private_kinds_use_the_last_effective_slot_without_losing_allocations",
+        "active_transform_contract::duplicate_private_static_then_instance_field_uses_the_effective_weak_map_slot",
+        "active_transform_contract::element_access_brackets_own_each_internal_comment_boundary",
+        "active_transform_contract::empty_case_block_uses_the_multiline_case_block_list_format_after_transform",
+        "active_transform_contract::empty_delimited_lists_retain_their_node_array_boundary_comments",
+        "active_transform_contract::empty_function_body_does_not_reown_the_open_brace_trailing_comment",
+        "active_transform_contract::empty_legacy_decorated_anonymous_default_does_not_request_named_evaluation",
+        "active_transform_contract::empty_multiline_block_indents_its_node_array_comment",
+        "active_transform_contract::empty_namespace_body_does_not_reown_an_erased_statement_comment",
+        "active_transform_contract::enum_member_substitution_respects_property_access_identifier_names",
+        "active_transform_contract::erased_arrow_head_does_not_reemit_comments_before_the_arrow_token",
+        "active_transform_contract::erased_assertions_restore_expression_statement_and_numeric_access_grammar",
+        "active_transform_contract::erased_class_heritage_slot_keeps_the_name_boundary_comment",
+        "active_transform_contract::erased_class_member_keeps_its_same_line_comment_out_of_the_next_member",
+        "active_transform_contract::erased_declarations_remain_empty_embedded_statements",
+        "active_transform_contract::erased_export_under_a_label_keeps_the_module_transform_statement_slot",
+        "active_transform_contract::erased_parameter_types_keep_both_comment_boundaries",
+        "active_transform_contract::erased_parenthesized_arrow_body_preserves_its_no_asi_comment",
+        "active_transform_contract::erased_source_leader_preserves_only_recognized_triple_slash_comments",
+        "active_transform_contract::erased_type_only_namespace_anchors_source_trailing_comments",
+        "active_transform_contract::erased_variable_types_preserve_declaration_boundary_comments",
+        "active_transform_contract::es2015_await_lowering_restores_prefix_unary_operand_parentheses",
+        "active_transform_contract::es2015_base_class_does_not_hoist_nested_static_block_super_base",
+        "active_transform_contract::es2015_class_bindings_created_in_parameters_move_defaults_to_the_body",
+        "active_transform_contract::es2015_exponentiation_keeps_statement_comments_outside_synthetic_arguments",
+        "active_transform_contract::es2015_exponentiation_uses_typed_lexical_temp_ownership",
+        "active_transform_contract::es2015_nullish_expansion_is_parenthesized_as_a_conditional_condition",
+        "active_transform_contract::es2015_single_object_literal_spread_retains_object_assign_call",
+        "active_transform_contract::es2015_static_auto_accessor_redirectors_use_the_class_constructor_identity",
+        "active_transform_contract::es2015_static_class_expression_keeps_its_assigned_name_and_helper_order",
+        "active_transform_contract::es2016_common_js_using_default_families_reconcile_collisions_independently",
+        "active_transform_contract::es2016_standard_class_and_member_decorators_share_the_generated_default_binding",
+        "active_transform_contract::es2017_async_lexical_arguments_capture_respects_arrow_and_function_boundaries",
+        "active_transform_contract::es2017_async_rest_parameters_remain_in_the_outer_es2015_function",
+        "active_transform_contract::es2017_await_recovery_uses_the_non_top_level_transform_context",
+        "active_transform_contract::es2017_hoists_for_await_names_derived_from_a_simple_async_parameter",
+        "active_transform_contract::es2017_queries_async_private_function_through_parsed_member",
+        "active_transform_contract::es2018_array_binding_defers_identifier_default_after_object_rest",
+        "active_transform_contract::es2018_discarded_outer_call_still_requires_object_rest_argument_values",
+        "active_transform_contract::es2018_empty_array_object_rest_target_materializes_only_its_value",
+        "active_transform_contract::es2018_non_final_declaration_rest_remains_in_the_final_rest_exclusion_set",
+        "active_transform_contract::es2018_object_rest_assignment_captures_a_rhs_identifier_reassigned_by_the_pattern",
+        "active_transform_contract::es2018_object_rest_classifies_literal_computed_keys_without_temporaries",
+        "active_transform_contract::es2018_optional_catch_bindings_preserve_original_token_comments",
+        "active_transform_contract::es2018_optional_catch_bindings_use_scoped_generated_names",
+        "active_transform_contract::es2018_retained_object_binding_comment_has_one_list_owner",
+        "active_transform_contract::es2018_using_named_evaluation_restores_erased_outer_expressions",
+        "active_transform_contract::es2018_visits_a_synthetic_descriptor_that_contains_object_rest_in_its_value",
+        "active_transform_contract::es2019_optional_call_preserves_erased_instantiation_grammar_boundary",
+        "active_transform_contract::es2019_optional_calls_keep_the_exact_javascript_receiver",
+        "active_transform_contract::es2019_optional_chain_composition_matches_the_pinned_transform",
+        "active_transform_contract::es2019_optional_chains_and_nullish_coalescing_preserve_evaluation_order",
+        "active_transform_contract::es2019_optional_chains_restore_erased_typescript_outer_expressions",
+        "active_transform_contract::es2019_parameter_hoists_share_the_typed_function_scope_plan",
+        "active_transform_contract::es2020_logical_assignment_hoists_are_owned_by_each_function_scope",
+        "active_transform_contract::es2020_logical_assignments_stabilize_each_access_operand_once",
+        "active_transform_contract::es2020_parameter_hoists_move_defaults_into_typed_function_prologues",
+        "active_transform_contract::es2021_auto_accessors_expand_into_downlevel_private_storage",
+        "active_transform_contract::es2021_class_lowering_finalizes_outer_bindings_before_nested_static_evaluation",
+        "active_transform_contract::es2021_private_auto_accessor_keeps_logical_and_backing_slots_distinct",
+        "active_transform_contract::es2021_private_behavior_uses_a_shared_brand_and_named_functions",
+        "active_transform_contract::es2021_private_fields_use_owned_slots_and_helper_operations",
+        "active_transform_contract::es2021_public_fields_use_typed_assignment_and_define_policies",
+        "active_transform_contract::es2021_static_initializers_own_lexical_this_and_super_bindings",
+        "active_transform_contract::es2022_auto_accessor_lowers_while_native_fields_remain_owned",
+        "active_transform_contract::es2022_decorated_auto_accessor_comment_belongs_to_getter_only",
+        "active_transform_contract::es2022_decorator_call_bindings_preserve_receivers_and_lexical_super",
+        "active_transform_contract::es2022_disposal_names_follow_output_scope_ownership",
+        "active_transform_contract::es2022_disposal_names_follow_retained_class_member_order",
+        "active_transform_contract::es2022_using_scope_is_lowered_through_typed_disposal_state",
+        "active_transform_contract::es_module_class_publications_follow_declaration_owned_operations",
+        "active_transform_contract::es_module_default_classes_publish_after_class_field_and_decorator_operations",
+        "active_transform_contract::esnext_accesses_and_calls_distinguish_optional_chain_continuations_from_chain_breaks",
+        "active_transform_contract::esnext_assignment_mode_static_auto_accessor_keeps_dynamic_this_receiver",
+        "active_transform_contract::exact_bootstrap_transformer_order_erases_the_frozen_typescript_tree",
+        "active_transform_contract::exported_legacy_decorated_classes_without_constructors_skip_metadata_in_modules",
+        "active_transform_contract::external_import_equals_recovery_respects_source_element_ownership",
+        "active_transform_contract::fallback_class_expression_result_in_a_loop_is_iteration_scoped",
+        "active_transform_contract::for_await_result_temp_derives_from_the_final_iterator_spelling",
+        "active_transform_contract::function_body_detached_comment_precedes_relocated_field_initializer",
+        "active_transform_contract::generated_binding_in_concise_arrow_keeps_synthetic_body_single_line",
+        "active_transform_contract::h2_3a_javascript_print_preserves_shebang_directive_and_attached_comments",
+        "active_transform_contract::if_statement_tokens_own_each_internal_comment_boundary",
+        "active_transform_contract::inline_array_list_indent_is_retained_by_a_multiline_object_element",
+        "active_transform_contract::invalid_bigint_enum_name_is_cloned_for_emit_after_diagnostics",
+        "active_transform_contract::invalid_constructor_parameter_modifiers_are_erased_after_diagnostics",
+        "active_transform_contract::invalid_react_namespace_option_value_is_retained_by_recovery_emit",
+        "active_transform_contract::isolated_accessor_constructor_retains_modifier_without_parent_typescript_visit",
+        "active_transform_contract::labeled_enum_uses_the_surrounding_typescript_lexical_scope",
+        "active_transform_contract::legacy_accessor_recovery_limits_ownership_to_the_first_two_declarations",
+        "active_transform_contract::legacy_alias_and_producer_temp_hoists_keep_two_epochs_in_every_scope",
+        "active_transform_contract::legacy_binding_kinds_control_descendant_shadowing",
+        "active_transform_contract::legacy_bodyless_accessor_direct_admission_uses_the_current_tree",
+        "active_transform_contract::legacy_bodyless_setter_recovery_keeps_parameter_temp_in_synthesized_body",
+        "active_transform_contract::legacy_class_alias_ordinals_follow_output_ast_order_at_esnext",
+        "active_transform_contract::legacy_class_elements_finish_nested_temp_work_before_the_next_members_metadata",
+        "active_transform_contract::legacy_class_expression_decorator_is_visitation_only_before_heritage_and_members",
+        "active_transform_contract::legacy_class_parameter_metadata_requires_an_explicit_constructor_body",
+        "active_transform_contract::legacy_class_transaction_visits_modifiers_metadata_heritage_then_members",
+        "active_transform_contract::legacy_computed_bigint_accessors_own_independent_decorations",
+        "active_transform_contract::legacy_computed_decorator_separates_erased_key_from_helper_identity",
+        "active_transform_contract::legacy_computed_name_hoists_are_owned_by_sibling_function_bodies",
+        "active_transform_contract::legacy_concise_arrow_only_expands_when_its_body_owns_a_hoist",
+        "active_transform_contract::legacy_decorated_anonymous_default_reserves_definition_before_computed_key",
+        "active_transform_contract::legacy_decorated_class_alias_storage_is_a_custom_prologue",
+        "active_transform_contract::legacy_decorated_class_comments_have_one_deliberate_owner",
+        "active_transform_contract::legacy_decorated_class_exports_follow_lowered_static_fields",
+        "active_transform_contract::legacy_decorated_class_materializes_pending_work_as_individual_statements",
+        "active_transform_contract::legacy_decorated_definition_binding_serves_static_this_but_not_super",
+        "active_transform_contract::legacy_decorated_named_evaluation_does_not_allocate_for_control_classes",
+        "active_transform_contract::legacy_decorated_static_initializers_use_invalid_lexical_receivers",
+        "active_transform_contract::legacy_dynamic_accessor_names_own_independent_decorations_in_source_order",
+        "active_transform_contract::legacy_explicit_this_rules_keep_admission_serialization_and_runtime_distinct",
+        "active_transform_contract::legacy_import_metadata_uses_the_class_name_scope_for_value_resolution",
+        "active_transform_contract::legacy_invalid_super_calls_preserve_only_an_available_definition_receiver",
+        "active_transform_contract::legacy_literal_computed_accessors_share_one_decoration_owner",
+        "active_transform_contract::legacy_member_decorator_expression_is_consumed_once_from_the_visited_handoff",
+        "active_transform_contract::legacy_member_decorator_expression_is_visited_before_its_metadata",
+        "active_transform_contract::legacy_member_decorator_expressions_use_the_typescript_erased_tree",
+        "active_transform_contract::legacy_metadata_temporaries_precede_computed_key_binding_for_the_same_member",
+        "active_transform_contract::legacy_metadata_unknown_conditional_branches_do_not_hoist_fallback_temps",
+        "active_transform_contract::legacy_metadata_unwraps_jsdoc_nullable_and_non_nullable_types",
+        "active_transform_contract::legacy_method_overload_signature_is_not_a_decoration_owner",
+        "active_transform_contract::legacy_nested_class_alias_declaration_uses_its_function_frame",
+        "active_transform_contract::legacy_noncomputed_bigint_accessor_clones_the_helper_key",
+        "active_transform_contract::legacy_parameter_decorator_index_excludes_the_erased_this_parameter",
+        "active_transform_contract::legacy_parameter_decorator_nested_temps_belong_to_method_and_constructor_bodies",
+        "active_transform_contract::legacy_parameter_only_computed_decorator_does_not_prepare_shared_binding",
+        "active_transform_contract::legacy_parameter_transactions_interleave_decorator_name_and_initializer",
+        "active_transform_contract::legacy_private_expression_flag_is_scanned_before_runtime_admission",
+        "active_transform_contract::legacy_setter_metadata_falls_back_to_the_getter_return_type",
+        "active_transform_contract::legacy_signed_accessor_split_drops_runtime_setter_parameter_decoration_only",
+        "active_transform_contract::legacy_signed_numeric_accessors_split_after_metadata_grouping",
+        "active_transform_contract::legacy_static_accessor_runtime_group_includes_setter_parameter_decorators",
+        "active_transform_contract::legacy_static_blocks_are_sibling_temp_scopes_with_source_wide_aliases",
+        "active_transform_contract::member_assignment_is_not_an_identifier_named_evaluation_source",
+        "active_transform_contract::multiline_array_of_lowered_class_wrappers_breaks_between_elements",
+        "active_transform_contract::multiline_comment_indentation_is_relative_to_its_source_line",
+        "active_transform_contract::multiline_object_drops_only_comments_on_the_opening_delimiter_line",
+        "active_transform_contract::namespace_body_does_not_reown_a_removed_tail_declaration_comment",
+        "active_transform_contract::namespace_body_retains_comments_after_its_last_runtime_statement",
+        "active_transform_contract::namespace_destructuring_plan_hoists_temps_and_preserves_leaf_order",
+        "active_transform_contract::namespace_export_assignment_does_not_reown_the_declaration_comment",
+        "active_transform_contract::namespace_exported_binding_patterns_publish_each_leaf",
+        "active_transform_contract::namespace_parameter_names_reserve_descendant_bindings_not_member_names",
+        "active_transform_contract::native_standard_decorator_root_is_owned_after_typescript_erasure",
+        "active_transform_contract::no_asi_projection_preserves_parsed_parenthesis_token_comments",
+        "active_transform_contract::nullish_lowering_parentheses_do_not_reown_the_statement_comment",
+        "active_transform_contract::numeric_literal_source_text_is_reused_only_when_the_target_allows_it",
+        "active_transform_contract::object_rest_binding_pattern_comments_keep_declaration_indentation",
+        "active_transform_contract::object_spread_keeps_object_assign_at_es2015_and_above",
+        "active_transform_contract::object_spread_uses_the_assign_helper_below_es2015",
+        "active_transform_contract::optional_element_and_call_comments_follow_tsc_delimiter_ownership",
+        "active_transform_contract::ordinary_class_expression_keeps_pending_and_static_work_as_ordered_operands",
+        "active_transform_contract::parameter_lists_retain_comments_at_each_delimiter_boundary",
+        "active_transform_contract::parameter_property_assignments_preserve_escaped_identifier_spelling",
+        "active_transform_contract::parenthesized_jsx_line_comment_terminates_before_closing_delimiters",
+        "active_transform_contract::parenthesized_open_token_owns_its_same_line_trailing_comment",
+        "active_transform_contract::parsed_arrow_directive_body_remains_multiline_after_type_erasure",
+        "active_transform_contract::parsed_comma_computed_name_is_not_reparenthesized_by_the_printer",
+        "active_transform_contract::parser_recovery_statement_tokens_keep_tsc_canonical_spacing",
+        "active_transform_contract::partially_emitted_satisfies_wrappers_preserve_inner_comments",
+        "active_transform_contract::preserved_jsx_expression_comments_follow_jsx_token_boundaries",
+        "active_transform_contract::preserved_jsx_tags_use_expression_namespace_substitution",
+        "active_transform_contract::private_accessor_pairing_follows_the_effective_slot_and_source_order",
+        "active_transform_contract::private_auto_accessor_provenance_does_not_invent_a_constructor_fact",
+        "active_transform_contract::private_field_destructuring_targets_use_setter_wrappers",
+        "active_transform_contract::private_member_definition_comments_follow_tsc_ownership",
+        "active_transform_contract::private_method_calls_and_tags_preserve_receiver_binding",
+        "active_transform_contract::private_method_updates_preserve_tsc_value_and_comment_boundaries",
+        "active_transform_contract::private_postfix_update_value_is_grouped_in_a_variable_initializer",
+        "active_transform_contract::private_static_class_expression_uses_its_hash_prefixed_assigned_name",
+        "active_transform_contract::private_static_optional_call_preserves_the_receiver_binding",
+        "active_transform_contract::property_access_cursor_comments_follow_the_token_line_scopes",
+        "active_transform_contract::property_initializer_retains_its_intervening_comment",
+        "active_transform_contract::relocated_assignment_field_owns_its_leading_comment_once",
+        "active_transform_contract::relocated_class_field_operation_owns_initializer_trailing_comment_once",
+        "active_transform_contract::relocated_field_initializer_does_not_reown_constructor_header_comments",
+        "active_transform_contract::remove_comments_keeps_only_the_top_detached_pinned_group",
+        "active_transform_contract::remove_comments_suppresses_simple_parameter_and_retained_arrow_comments",
+        "active_transform_contract::rest_parameter_loop_reuses_the_dedicated_i_slot_per_function",
+        "active_transform_contract::retained_arrow_comment_resumes_before_a_parenthesized_concise_body",
+        "active_transform_contract::retained_arrow_line_comment_keeps_tsc_body_spacing",
+        "active_transform_contract::retained_arrow_token_owns_its_same_line_trailing_comment_once",
+        "active_transform_contract::retained_arrow_token_owns_multiple_comments_before_a_block_body",
+        "active_transform_contract::return_and_yield_no_asi_parentheses_follow_erased_left_edges",
+        "active_transform_contract::runtime_in_operator_remains_a_javascript_token",
+        "active_transform_contract::runtime_legacy_decorator_call_names_evaluate_once_in_the_class",
+        "active_transform_contract::runtime_legacy_decorator_computed_names_keep_one_shared_binding",
+        "active_transform_contract::semantic_class_expression_identity_in_a_loop_is_iteration_scoped",
+        "active_transform_contract::setter_update_erases_parameter_types_but_preserves_recovery_signature_fields",
+        "active_transform_contract::simple_arrow_parameter_and_arrow_token_keep_distinct_trailing_comments",
+        "active_transform_contract::simple_arrow_parameter_list_preserves_tsc_intervening_comment_replay",
+        "active_transform_contract::source_file_closes_an_eof_multiline_comment_like_tsc",
+        "active_transform_contract::standard_class_decorator_anonymous_default_has_no_name_projection",
+        "active_transform_contract::standard_class_decorator_common_js_namespace_merge_uses_exported_binding_identity",
+        "active_transform_contract::standard_decorator_class_evaluation_precedes_pending_field_keys",
+        "active_transform_contract::standard_decorator_class_expression_keeps_inline_comment_outside_iife",
+        "active_transform_contract::standard_decorator_class_extra_follows_static_field_extra_in_trailing_block",
+        "active_transform_contract::standard_decorator_class_extra_follows_static_method_extra_in_leading_block",
+        "active_transform_contract::standard_decorator_default_export_statement_owns_adjacent_leading_comment",
+        "active_transform_contract::standard_decorator_fallback_erases_invalid_declaration_modifiers_only",
+        "active_transform_contract::standard_decorator_fallback_erases_parameter_marker_inside_decorated_class",
+        "active_transform_contract::standard_decorator_fallback_preserves_invalid_static_block_owner",
+        "active_transform_contract::standard_decorator_generated_default_shares_one_collision_safe_binding",
+        "active_transform_contract::standard_decorator_helper_does_not_claim_same_spelling_source_call",
+        "active_transform_contract::standard_decorator_metadata_definition_is_a_single_line_if_statement",
+        "active_transform_contract::standard_decorator_mode_does_not_retain_an_ambient_legacy_anchor",
+        "active_transform_contract::standard_decorator_named_declaration_has_one_outer_leading_comment_owner",
+        "active_transform_contract::standard_decorator_named_default_projects_mapped_and_unmapped_roles",
+        "active_transform_contract::standard_decorator_named_export_projects_the_parsed_class_name",
+        "active_transform_contract::standard_decorator_parameter_property_bridge_is_inactive_in_esnext_define_mode",
+        "active_transform_contract::standard_decorator_parameter_property_initializer_follows_direct_super_call",
+        "active_transform_contract::standard_decorator_parameter_property_initializer_follows_nested_try_super_path",
+        "active_transform_contract::standard_decorator_parameter_property_initializer_follows_parenthesized_super_paths",
+        "active_transform_contract::standard_decorator_pending_class_operations_keep_source_order_and_statement_ownership",
+        "active_transform_contract::standard_decorator_pending_initializers_flow_through_ordinary_instance_fields",
+        "active_transform_contract::standard_decorator_pending_method_initializer_falls_back_to_constructor_without_fields",
+        "active_transform_contract::standard_decorator_pending_method_initializer_flows_into_es2015_parameter_property",
+        "active_transform_contract::standard_decorator_pending_method_initializer_flows_into_es2022_parameter_property",
+        "active_transform_contract::standard_decorator_pending_method_initializer_only_owns_first_parameter_property",
+        "active_transform_contract::standard_decorator_pending_method_initializer_owns_uninitialized_first_field",
+        "active_transform_contract::standard_decorator_pending_static_method_initializer_creates_uninitialized_field_value",
+        "active_transform_contract::standard_decorator_pending_static_method_initializer_owns_first_ordinary_field",
+        "active_transform_contract::standard_decorator_pending_static_method_initializer_precedes_static_block_body",
+        "active_transform_contract::standard_decorator_residual_initializer_keeps_derived_prologue_single",
+        "active_transform_contract::standard_decorator_residual_initializer_replays_base_constructor_prologue",
+        "active_transform_contract::standard_decorator_residual_initializer_replays_custom_variable_prologue",
+        "active_transform_contract::standard_decorator_residual_instance_initializer_follows_parenthesized_super_paths",
+        "active_transform_contract::standard_decorator_residual_static_field_initializer_uses_trailing_block",
+        "active_transform_contract::standard_decorator_residual_static_method_initializer_stays_in_leading_block",
+        "active_transform_contract::standard_decorator_terminal_initializer_follows_nested_try_super_path",
+        "active_transform_contract::standard_member_decorator_common_js_namespace_merge_uses_exported_binding_identity",
+        "active_transform_contract::static_super_assignment_value_stays_grouped_in_a_define_property_initializer",
+        "active_transform_contract::synthesized_disposal_body_keeps_detached_prefix_inside_the_try",
+        "active_transform_contract::synthesized_exponentiation_arguments_retain_recovery_leading_comments",
+        "active_transform_contract::synthesized_jsx_import_owns_position_before_detached_source_prefix",
+        "active_transform_contract::synthetic_constructor_does_not_reown_the_class_leading_comment",
+        "active_transform_contract::system_default_export_value_does_not_reown_asi_trailing_comments",
+        "active_transform_contract::system_module_hoists_nested_var_but_keeps_nested_lexical_bindings_local",
+        "active_transform_contract::system_module_keeps_import_hoists_in_source_order_when_setters_are_deduplicated",
+        "active_transform_contract::system_module_materializes_anonymous_default_declaration_bindings",
+        "active_transform_contract::tagged_template_optional_chain_recovery_omits_the_diagnostic_question_dot",
+        "active_transform_contract::transformed_super_switch_retains_the_empty_case_block_line_in_crlf_output",
+        "active_transform_contract::try_clause_boundaries_split_trailing_and_leading_comment_ownership",
+        "active_transform_contract::type_erasure_parentheses_do_not_reown_the_statement_comment",
+        "active_transform_contract::typed_class_expression_forces_constructor_through_typescript_class_element_visitor",
+        "active_transform_contract::typed_sibling_forces_constructor_through_typescript_class_element_visitor",
+        "active_transform_contract::typescript_and_legacy_passes_exchange_one_ambient_property_anchor",
+        "active_transform_contract::typescript_class_facts_legacy_private_member_does_not_name_anonymous_default",
+        "active_transform_contract::typescript_class_facts_legacy_private_method_parameter_admits_recovery_emit",
+        "active_transform_contract::typescript_class_facts_legacy_runtime_parameter_decorator_names_anonymous_default",
+        "active_transform_contract::typescript_class_facts_standard_ambient_properties_do_not_name_anonymous_default",
+        "active_transform_contract::typescript_class_facts_standard_member_decorator_names_anonymous_default",
+        "active_transform_contract::typescript_class_facts_standard_parameter_decorator_does_not_name_anonymous_default",
+        "active_transform_contract::typescript_parent_preserves_non_constructor_accessor_recovery_modifiers",
+        "active_transform_contract::unannotated_this_parameters_admit_typescript_erasure",
+        "active_transform_contract::unassigned_member_only_standard_decorator_does_not_install_a_runtime_name",
+        "active_transform_contract::unassigned_standard_class_decorator_installs_the_empty_runtime_name",
+        "active_transform_contract::unresolved_private_method_access_uses_tsc_diagnostic_recovery_output",
+        "active_transform_contract::using_standard_anonymous_default_keeps_tsc_owner_family_across_targets_and_modules",
+        "active_transform_contract::variable_initializers_retain_comments_around_erased_type_boundaries",
+        "artifact_sink_contract::artifact_retains_callback_bytes_bom_provenance_and_metadata_independently",
+        "artifact_sink_contract::filesystem_sink_creates_missing_parents_outward_in_and_retries_with_bom",
+        "artifact_sink_contract::filesystem_sink_reports_create_failure_without_retrying_the_file",
+        "artifact_sink_contract::filesystem_sink_reports_only_the_final_retry_failure",
+        "artifact_sink_contract::filesystem_sink_writes_once_without_parent_observations_on_success",
+        "artifact_sink_contract::memory_sink_is_ordered_and_reports_only_written",
+        "artifact_sink_contract::optional_callback_arguments_preserve_absent_versus_present_empty",
+        "artifact_sink_contract::sink_io_failures_retain_operation_path_and_stable_message",
+        "comment_scope_witness_contract::every_frozen_witness_case_reproduces_the_oracle_bytes",
+        "declaration_printer_reprint_contract::declaration_print_consults_the_fallible_file_level_name_oracle",
+        "declaration_printer_reprint_contract::declaration_printer_reprint_contract",
+        "declaration_printer_reprint_contract::declaration_requests_and_ungated_type_roots_fail_closed",
+        "declaration_printer_reprint_contract::jsdoc_function_type_arm_prints_upstream_token_shape",
+        "declaration_printer_reprint_contract::single_line_writer_write_line_is_an_unconditional_space",
+        "declaration_printer_reprint_contract::synthesized_template_fragments_escape_paired_and_lone_surrogates_like_parsed_tokens",
+        "dependency_direction_contract::emitter_dependency_direction_is_acyclic_and_host_stays_read_only",
+        "factory_transform_contract::explicit_arrow_comment_range_orders_source_and_synthetic_comments",
+        "factory_transform_contract::factory_and_transform_lifecycle_are_session_owned_and_disposed",
+        "factory_transform_contract::failed_transformation_disposes_initialized_transformers",
+        "factory_transform_contract::hook_wrapped_nested_nodes_inherit_the_enclosing_comment_scope",
+        "factory_transform_contract::no_asi_parsed_parentheses_place_wrapper_comments_outside_source_delimiters",
+        "factory_transform_contract::no_asi_partial_parenthesization_is_disabled_when_comments_are_removed",
+        "factory_transform_contract::no_asi_whole_partial_expression_keeps_wrapper_comments_inside_synthetic_delimiters",
+        "factory_transform_contract::parsed_export_assignment_tokens_own_their_internal_comments",
+        "factory_transform_contract::parsed_export_assignments_emit_zero_width_recovery_expressions",
+        "factory_transform_contract::parsed_throw_line_break_recovery_preserves_statement_comment_ownership",
+        "factory_transform_contract::property_name_flags_survive_named_declaration_subtree_exclusions",
+        "factory_transform_contract::resolver_projection_rejects_synthetic_ids_that_alias_the_next_program_source",
+        "factory_transform_contract::retained_arrow_comment_adapter_honors_advise_on_emit_node",
+        "factory_transform_contract::retained_arrow_comment_adapter_honors_no_substitution",
+        "factory_transform_contract::retained_arrow_comment_adapter_rejects_emit_pipeline_hooks",
+        "factory_transform_contract::retained_arrow_comment_adapter_rejects_notification_only",
+        "factory_transform_contract::retained_arrow_comment_adapter_rejects_substitution_only",
+        "factory_transform_contract::shared_class_member_array_fails_closed_across_contextual_parent_owners",
+        "factory_transform_contract::synthetic_arrow_token_original_does_not_borrow_source_comments",
+        "factory_transform_contract::synthetic_export_assignments_cover_both_branches_and_an_absent_child",
+        "factory_transform_contract::synthetic_throw_recovery_emits_an_empty_expression_slot",
+        "output_plan_contract::a_planned_javascript_map_member_is_accepted",
+        "output_plan_contract::bootstrap_shape_is_whole_program_source_file_javascript_only",
+        "output_plan_contract::bundle_requests_require_their_profile_before_transforming_or_writing",
+        "output_plan_contract::case_insensitive_planning_preserves_callback_visible_source_spelling",
+        "output_plan_contract::computed_resolve_json_module_is_validated_against_module_kind",
+        "output_plan_contract::declaration_collision_preflight_covers_overwrite_duplicate_case_and_js_suppression",
+        "output_plan_contract::declaration_is_admitted_while_composite_remains_refused",
+        "output_plan_contract::declaration_only_javascript_absence_requires_typed_plan_provenance",
+        "output_plan_contract::duplicate_output_preflight_reaches_no_sink_and_obeys_no_emit_on_error",
+        "output_plan_contract::erasable_syntax_only_is_checker_policy_not_an_emit_preflight_axis",
+        "output_plan_contract::every_dormant_axis_is_typed_and_rejected",
+        "output_plan_contract::executable_planning_preserves_source_order_eligibility_and_out_dir_layout",
+        "output_plan_contract::h2_3a_javascript_families_keep_their_runtime_extensions_when_relocated",
+        "output_plan_contract::h2_7b_rejects_declaration_option_and_forced_requests_before_printing",
+        "output_plan_contract::legacy_javascript_option_requests_retain_h2_7b",
+        "output_plan_contract::malformed_active_slot_is_a_contract_failure",
+        "output_plan_contract::new_declaration_resolver_members_fail_closed_when_unavailable",
+        "output_plan_contract::overwrite_and_case_aware_duplicate_outputs_are_blocked_before_writes",
+        "output_plan_contract::plan_declaration_paths_forces_source_reference_targets_independently_of_emit",
+        "output_plan_contract::remove_comments_is_an_active_javascript_emit_option",
+        "output_plan_contract::sink_errors_continue_and_emitted_files_remain_independent_from_disposition",
+        "printer_foundation_contract::canonical_asi_jump_comments_follow_the_synthesized_terminator",
+        "printer_foundation_contract::canonical_binary_and_prefix_operators_preserve_lexical_separation",
+        "printer_foundation_contract::canonical_binding_patterns_emit_omitted_expressions_as_empty_slots",
+        "printer_foundation_contract::canonical_call_arguments_keep_line_comment_spacing_without_indent_drift",
+        "printer_foundation_contract::canonical_call_list_keeps_comments_before_the_closing_delimiter",
+        "printer_foundation_contract::canonical_continue_statement_writes_its_asi_safe_terminator",
+        "printer_foundation_contract::canonical_do_statement_ends_a_non_block_body_before_while",
+        "printer_foundation_contract::canonical_jump_statements_preserve_keyword_and_label_comments",
+        "printer_foundation_contract::canonical_leading_block_comment_separates_the_following_token",
+        "printer_foundation_contract::canonical_multiline_comments_preserve_empty_lines",
+        "printer_foundation_contract::canonical_nested_conditionals_preserve_source_line_structure",
+        "printer_foundation_contract::canonical_object_literals_preserve_same_line_property_groups",
+        "printer_foundation_contract::canonical_property_access_preserves_a_line_break_after_the_dot",
+        "printer_foundation_contract::canonical_source_file_mode_emits_deferred_import_phase",
+        "printer_foundation_contract::canonical_source_file_mode_walks_an_unchanged_tree",
+        "printer_foundation_contract::canonical_string_line_continuation_keeps_its_source_newline",
+        "printer_foundation_contract::canonical_switch_tokens_own_internal_comments",
+        "printer_foundation_contract::canonical_template_spans_do_not_preserve_incidental_source_spaces",
+        "printer_foundation_contract::empty_case_block_uses_the_multiline_case_block_list_format",
+        "printer_foundation_contract::recording_absent_uses_the_same_pipeline_and_dormant_roots_fail_typed",
+        "printer_foundation_contract::standalone_tsx_child_keeps_comment_newline_separate_from_raw_jsx_text",
+        "printer_foundation_contract::standalone_tsx_printer_emits_type_argument_delimiters",
+        "printer_foundation_contract::standalone_tsx_printer_preserves_attribute_and_child_comments",
+        "printer_foundation_contract::standalone_tsx_tag_name_line_comment_uses_the_configured_newline",
+        "printer_foundation_contract::template_span_comment_ownership_covers_open_expression_and_close_boundaries",
+        "printer_foundation_contract::template_span_expression_owns_comments_after_the_substitution_open",
+        "printer_foundation_contract::throw_keyword_and_expression_share_internal_comment_boundaries_once",
+        "printer_foundation_contract::whole_source_pipeline_preserves_text_and_positions",
+        "printer_oracle_contract::source_byte_to_utf16_locations_match_vendored_line_maps",
+        "printer_oracle_contract::text_writer_matches_vendored_unicode_and_newline_steps",
+        "printer_oracle_contract::whole_source_printer_coordinates_match_vendored_printer",
+        "token_cursor_contract::await_keyword_owns_the_frozen_inner_comment_boundary",
+        "token_cursor_contract::binary_separators_handoff_comments_once_across_layouts_and_in_keyword",
+        "token_cursor_contract::chained_access_keeps_a_line_comment_with_the_preceding_call",
+        "token_cursor_contract::comment_and_source_map_ranges_are_independent_metadata",
+        "token_cursor_contract::detached_prefix_resume_handles_crlf_and_jsdoc_boundaries",
+        "token_cursor_contract::detached_prefix_resumes_before_the_first_attached_comment",
+        "token_cursor_contract::for_headers_advance_across_every_internal_comment_boundary",
+        "token_cursor_contract::jsx_brace_positions_do_not_duplicate_unicode_comments",
+        "token_cursor_contract::keyword_expression_tokens_resume_into_their_operands",
+        "token_cursor_contract::loop_and_with_headers_advance_across_internal_comments",
+        "token_cursor_contract::module_token_positions_preserve_unicode_comments_once",
+        "token_cursor_contract::nested_await_comments_resume_once_and_remove_cleanly",
+        "token_cursor_contract::nullish_lowering_reuses_the_binary_child_completion_contract",
+        "token_cursor_contract::optional_catch_binding_advances_from_positions_without_token_search",
+        "token_cursor_contract::optional_chain_lowering_repeats_only_source_trailing_receiver_comments",
+        "token_cursor_contract::property_token_handoff_remains_non_duplicating",
+        "token_cursor_contract::remove_comments_uses_the_same_position_cursor_without_comment_output",
+        "token_cursor_contract::return_and_throw_tokens_resume_comments_into_their_expressions",
+        "token_cursor_contract::transformed_child_does_not_claim_its_original_declarations_trailing_comment",
+        "token_cursor_contract::yield_and_yield_star_resume_comments_into_their_operands",
+        "tsx_type_argument_transform_contract::preserved_jsx_erases_type_arguments_without_consuming_the_attribute_boundary",
+        "writer_position_contract::leading_trivia_removal_is_bounded_by_the_source_range",
+        "writer_position_contract::source_positions_reject_byte_utf16_and_synthetic_confusion",
+        "writer_position_contract::writer_tracks_utf8_text_and_utf16_coordinates_independently"
+      ],
+      "binary": {
+        "path": "target/debug/deps/contracts-f64a19b8f0cd5475",
+        "sha256": "fa1794b8073c64e4092a6997694714280f7c9b4de7c7e278c05b1221106d6d0f",
+        "size": 12516720,
+        "mtime_ns": 1788948092560784148
+      },
+      "binary_provenance": {
+        "build_log": "target/h2-8a-class-helper-accessor-producers-emitter-build.log",
+        "build_finished_line": "    Finished `test` profile [unoptimized] target(s) in 3m 42s"
+      },
+      "binary_bytes_retained": false,
+      "exit": {
+        "manifest": "target/h2-8a-class-helper-accessor-producers-emitter-contracts-after-prelaunch.json",
+        "manifest_sha256": "60bd1bceb7f398d5d1a5983f99e2253b624b5f096ecc60ed2daa8c40fe2a4ebd",
+        "argv": [
+          "taskpolicy",
+          "-b",
+          "nice",
+          "-n",
+          "15",
+          "/Users/hiramatsu/dev/tsc-rs/target/debug/deps/contracts-f64a19b8f0cd5475",
+          "--nocapture",
+          "--test-threads=1"
+        ],
+        "exit_code": 0,
+        "wall_seconds": 33.15244837501086,
+        "log": "target/h2-8a-class-helper-accessor-producers-emitter-contracts-after.log",
+        "log_sha256": "da231397ab42522d970154860093935e59944d3e29a2adaed9fbbe7e94764f1c"
+      }
+    }
+  },
+  "unit_test_id_replacements": [],
+  "unit_test_id_additions": [],
+  "inputs": [
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "baa272ed5d7a308fc09cb004cdf8f008e0bfa84303a2be57cb3ed8c24a514419"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/class-field-alias-map-positions.json",
+      "sha256": "5d6857331fe90d1559adcb6d4afea4040218738255f09a08f8906069e2356207"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/class-field-initializer-comments.json",
+      "sha256": "21b016586cce29537e88e6e8efc9880ca64c5944cde75f14bc34df465641aaba"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/class-helper-accessor-producers.json",
+      "sha256": "67355775d6c510ab537350dee7c2e4e97b186167d8de4e19cbb112490b5e84e6"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/hoisted-declaration-export-ranges.json",
+      "sha256": "0f13d2838627a8201d3aba4aa320194f12ee752fc078d5367bf6629a2a0c5fca"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/one-sided-class-comments.json",
+      "sha256": "b2fdf8445ec03ff57b3a979ff6a3fe087da7197ea5712474202332c4ebe90ada"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/promoted-class-export-maps.json",
+      "sha256": "186c1685a5b3fa6fff396a905d614c7f2fe69aa3982b6b1b363883582c11a1a5"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/transformed-class-assigned-names.json",
+      "sha256": "f04166260e4005fa6bd5df31ef98ef6d7d8cd79b0054e137f5c52e806d906ffb"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+      "sha256": "7b14d30e473948b7a7878c20ed9feb528a629f8d26db042306ba6574a6edde81"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "cfcfed0823c78c6c7593661e4152b49d4569a5ee1d9a0246eda74f92979813d5"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_class_field_alias_map_positions.rs",
+      "sha256": "a3b26f42503b655c7ce3af9b7a7fb23d0533c20e5b6ec1e1e43fe30e1e83ef9e"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_class_field_initializer_comments.rs",
+      "sha256": "bebefd062e96bb14de8639adc0de4f540341340df90f890316fc65260a314d57"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_class_helper_accessor_producers.rs",
+      "sha256": "d1ecfce5f1f9f0746a65200394da001d48a68ce2e8e5c78332424a6d1413d6b1"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_hoisted_declaration_export_ranges.rs",
+      "sha256": "dcd50df5dc6dc4f0e0d92848dfb01e0519a55e5c99ac131f2b456dfa5626a1f9"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_one_sided_class_comments.rs",
+      "sha256": "1eb67e79248129018ef74d9ac3dd69d90200f19632210a43adc275a18c535ef8"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_promoted_class_export_maps.rs",
+      "sha256": "e9e25e62c93b89be7dc141885e342bfd6ac69422b9ef879138f52ede5fa677d3"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_transformed_class_assigned_names.rs",
+      "sha256": "103cba6f7064c3fca0891ab7598930fbabb17f319bab8303349ad6a9028f7a81"
+    },
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "da848e2bfc595c2fa5f6994095afde97712f4c6a0bdfeea3fceebe2838b2edff"
+    },
+    {
+      "path": "crates/emitter/src/builtins/class_fields.rs",
+      "sha256": "c9c05e4e2f91df1a926af8e6170c0ceb97b8e8ff7d8f0b13d2f75935054a8da0"
+    },
+    {
+      "path": "crates/emitter/src/builtins/class_fields/downlevel.rs",
+      "sha256": "8dff6ef023c5b3963bf49269caca07bb7356cd4a8d06e3f3b952c0016f2003a2"
+    },
+    {
+      "path": "crates/emitter/src/builtins/es2015.rs",
+      "sha256": "be0cfa774263d6b67e34c8ff225ac3ff11d3ce321c2d44125b5e566b6cc11d78"
+    },
+    {
+      "path": "crates/emitter/src/builtins/helpers.rs",
+      "sha256": "63dcef3f0620497d5e1e922a49c9cf0206ad22757d05df1eabc9e1dec7e19eaf"
+    },
+    {
+      "path": "crates/emitter/src/builtins/legacy_decorators.rs",
+      "sha256": "5162c5d7a5055d91334ddec970ddcaf397591f3aae79ecda567333f4f16b8858"
+    },
+    {
+      "path": "crates/emitter/src/builtins/target_bindings.rs",
+      "sha256": "0034f463ff6f1323753377f7c2fa2760b894ba37b59eeb81ec0980e4a6c45338"
+    },
+    {
+      "path": "crates/emitter/src/comment_cursor.rs",
+      "sha256": "2fc7de4954361992832cf95b579cb0b63f85cf344217c61e01b8e56bb02562c6"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "4c0ade2cd1a17a83bb9af5c0c53628a4f88017ef241ed6bb3e27a42aff1094f0"
+    },
+    {
+      "path": "crates/emitter/src/factory/parsed_metadata.rs",
+      "sha256": "2e9f0a3588adf1e80f451b1b99acbe59469d532c754ef071ffd98d2675f2b6b9"
+    },
+    {
+      "path": "crates/emitter/src/lib.rs",
+      "sha256": "745eed3731bda2fcf0a3b2e79208f6ac879ecdd34bd93f6c1970b00515c31e8c"
+    },
+    {
+      "path": "crates/emitter/src/metadata.rs",
+      "sha256": "25923890a96209d994a67256312e7eafc97ef487b69bfbde41c3f0b42e8100ae"
+    },
+    {
+      "path": "crates/emitter/src/position.rs",
+      "sha256": "f70397ff2bb756810d2fd6edf912a62cfe938b50ae491337dc9d5676899cb243"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "70d1d8fcb5c42d07f7d332b749aced1930f293789218a01295f6cdc4b0f0d0ba"
+    },
+    {
+      "path": "crates/emitter/src/source_map.rs",
+      "sha256": "175b9b1cb1a8de357476d59098ada4c42e2473feb6dfe3e734177d17f652ffb9"
+    },
+    {
+      "path": "crates/emitter/src/transform.rs",
+      "sha256": "374ed96dc09f518a8f137cf7400e4cc6e634d3427b0b20346698e4b31a11011c"
+    },
+    {
+      "path": "crates/emitter/src/writer.rs",
+      "sha256": "0e3c1168e6251a7c42a5d9a811c0e4debfaa85398cafb9c512116a85f6bcecb6"
+    },
+    {
+      "path": "crates/emitter/tests/integration/active_transform_contract.rs",
+      "sha256": "9d9780fa4225f7a50f2932984cbda4ed9a4370f397c5348266cfd6b9994c7975"
+    },
+    {
+      "path": "crates/emitter/tests/unit/builtins/tests.rs",
+      "sha256": "0c7c9dabcf832e318d41df314b62a14b35fb52f4e80a1374640a7046bfdfb8bd"
+    },
+    {
+      "path": "crates/emitter/tests/unit/comment_scope_predicate/tests.rs",
+      "sha256": "d5b721d4ac7e0d67c2a9cce52bd0aa6e557e004e292415495f450e7ca4e37ff2"
+    },
+    {
+      "path": "crates/emitter/tests/unit/lib/tests.rs",
+      "sha256": "439f7a5ade35c9c413a5c53b2f862a2a2e157bf9672d8ab50ca4083523d07aad"
+    },
+    {
+      "path": "crates/oracle/vfs-directory-overlay.mjs",
+      "sha256": "2868391e75941127f8eb3a352232190fd98c6d794235913e288432e5626aab76"
+    },
+    {
+      "path": "crates/syntax/src/for_each_child.rs",
+      "sha256": "20fd808bde00d377865d8a14f924fb23fbb82a8182708218581b20338c7bd8ce"
+    },
+    {
+      "path": "crates/syntax/src/nodes.rs",
+      "sha256": "3f7dda1c3f16bb9115bc8c509d38ecf506ac5efea80a2a229fcb931425552940"
+    },
+    {
+      "path": "crates/syntax/src/scanner.rs",
+      "sha256": "a1fdc4107e764f235efc2e6d8ce73ec255e0e9fe07574646b16306a030a651a5"
+    },
+    {
+      "path": "crates/syntax/src/tokens.rs",
+      "sha256": "054ace65fc6e936276dfd39b7055f3795920fa39b9fce79c60d7a0d99000f673"
+    },
+    {
+      "path": "crates/types/src/options.rs",
+      "sha256": "125de828b477a5c141a411855d4f885bd36b71f3f6d1c0dc6be640a54d3bf4c0"
+    },
+    {
+      "path": "docs/design/README.md",
+      "sha256": "c2843bea19df08c887bd6461f10b7daf4ea2c86c32ca9ecc908008316a3497e0"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "1cfa65f4381eb5738bf765cde368f00f02971c0ea5e739200b99dfd5382b3d9c"
+    },
+    {
+      "path": "docs/design/greenfield/post-h1-completion-slices.md",
+      "sha256": "df4e630f4fe348119e43714261d1193a880453fa6847b42c7bf52d086bd840fb"
+    },
+    {
+      "path": "docs/design/greenfield/slices/README.md",
+      "sha256": "46476c99369bfbdd6d0c1adf2203c24079480cadb200d3454241c50a69796c4d"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-class-field-alias-map-positions.md",
+      "sha256": "3e925d359c916efbb5a1f6a54ef61ac0533f16cf3ddac83d841dda33c46c8f53"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-class-field-initializer-comments.md",
+      "sha256": "b3dd7f6e2d02018a5f651559e8cc56ad5ad92800f7d665fcbb0cce90383f31d6"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-class-helper-accessor-producers.md",
+      "sha256": "52a0660bbf92edc601641a0a0bffdba1292eebf661e1ce511aed744c9ef195fc"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-one-sided-class-comments.md",
+      "sha256": "f35a450ed18024eba2644c2dea8c6556ec04f49d72a896f3cb299d8d1a8955b3"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-promoted-class-export-maps.md",
+      "sha256": "46a8cb54c32c322bc8a4090a0f276e3fcadf202052c695c4067a78bde27cbbc0"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-alias-map-positions-amended-before.v1.json",
+      "sha256": "41c37b08bcf13c37fe28080bc3325e0e39a39befdaf0009e73d7411152bf4bb2"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-alias-map-positions-before.v1.json",
+      "sha256": "a97d895abac02a94f1868539582ad14fd6190aeccbe2547658e12027de3319b9"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-alias-map-positions-first-after.v1.json",
+      "sha256": "6084cbfb3498bddaaabf91cb4911222ca476d41ec90427d9ef226768defa1f51"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-alias-map-positions-first-before.v1.json",
+      "sha256": "eb88c8a84adfd2795f26b8e9f55172ddd65ad2ba76d27e8eaa2e0cc9e96acd33"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-alias-map-positions-first-regressions.v1.json",
+      "sha256": "80b1da356bef5cad20eb1ccd3b152a1d178b9a16483c1dd7c54d16344b4b3d50"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+      "sha256": "b110a96c5c3d66e5aade7eccb5e3fd4a9c52547d3055b213ff8fb40c8cc5ab44"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-initializer-comments-before.v1.json",
+      "sha256": "4dbb5056a45c34cd83fe5c9057f9af77be050f0df5aff6c349c1b7e0551c68a9"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-initializer-comments-first-before.v1.json",
+      "sha256": "84d4020acfc6d1ac0098d57c240128b620e36b84647316491c8df7a659a4c2cd"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-initializer-comments-readiness.v1.json",
+      "sha256": "f22ec0ccc8d9922be304726b09effae2177fd70b6db3b56aeca095e8a42d0a1c"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-initializer-comments-shared-after.v1.json",
+      "sha256": "b3bd2bd3df162bee37a28c26ad03beb4791ba27e868e967b0b197559c12f3813"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-initializer-comments-shared-regressions.v1.json",
+      "sha256": "c697d75483659361c1829bf860440b954855d23042b6ca50226082b35b40c631"
+    },
+    {
+      "path": "ratchets/h2-8a-class-helper-accessor-producers-after.v1.json",
+      "sha256": "a8fd8c5c10e8ae84cb6725cb1f466c0ec9fa5e371cb87a1e18a144f3de2b8ca8"
+    },
+    {
+      "path": "ratchets/h2-8a-class-helper-accessor-producers-before.v1.json",
+      "sha256": "194d419262ed50e2e21f8b8eb3acf5aa6895b5f27f8295b6e0abf21832771ebd"
+    },
+    {
+      "path": "ratchets/h2-8a-class-helper-accessor-producers-first-before.v1.json",
+      "sha256": "ad92803a5cb536d3326cfc83c7050ceab96649f6e5c9832e95e8b2137a2a14bd"
+    },
+    {
+      "path": "ratchets/h2-8a-class-helper-accessor-producers-readiness.v1.json",
+      "sha256": "70091df65d8991f0b273407feeb014d1ba93e0713d0591e466376efd2711f2e1"
+    },
+    {
+      "path": "ratchets/h2-8a-directory-readiness.v1.json",
+      "sha256": "403e091dd3181d07fc0b837e7045503008e4c4c4e6147b8ccbd917edef6ae135"
+    },
+    {
+      "path": "ratchets/h2-8a-meta-property-token-maps-after.v1.json",
+      "sha256": "180834ca76543245948a282e7729e5eefb991bccb3069e1a1d938411036749fe"
+    },
+    {
+      "path": "ratchets/h2-8a-one-sided-class-comments-after.v1.json",
+      "sha256": "fb8a748f70d1c0b7cc4fe4af0a5346c1f1e5ceb7633278aa6697514d39392761"
+    },
+    {
+      "path": "ratchets/h2-8a-one-sided-class-comments-before.v1.json",
+      "sha256": "e7cfa303a1574834a3fb3cf09d3788e016fe800def0a640a1536140dd6f992b6"
+    },
+    {
+      "path": "ratchets/h2-8a-one-sided-class-comments-first-before.v1.json",
+      "sha256": "4facfbc51198c6287e42f5525e79a49dda1a529724f5475a3bc865dcb2706efb"
+    },
+    {
+      "path": "ratchets/h2-8a-one-sided-class-comments-readiness.v1.json",
+      "sha256": "7b3f7e5a6ec46bc6c60026250534c54016d38703e9e19f83456666d399dcb12c"
+    },
+    {
+      "path": "ratchets/h2-8a-one-sided-class-comments-regressions.v1.json",
+      "sha256": "9fcdeea204915353b11296781058db45516b3c1fdaec20e76a161690689f3c2d"
+    },
+    {
+      "path": "ratchets/h2-8a-promoted-class-export-maps-amended-after.v1.json",
+      "sha256": "219f824188f7f6aa64084410990f48ced4d4134169936a4d72165e25463900df"
+    },
+    {
+      "path": "ratchets/h2-8a-promoted-class-export-maps-before.v1.json",
+      "sha256": "4857177775774f0cbb778b674b1b519a7dbedcd9709a6b7fb2d6ab05b2b8de51"
+    },
+    {
+      "path": "ratchets/h2-8a-promoted-class-export-maps-first-before.v1.json",
+      "sha256": "1d52a24f77579b692b8eb563ea04331d072286e7f113691370a9184f9379d4b0"
+    },
+    {
+      "path": "ratchets/h2-8a-promoted-class-export-maps-readiness.v1.json",
+      "sha256": "1d555d1b6f5e08a3f4ecf236220e5c172e2735b636e06db3d7765be51b3db0a0"
+    },
+    {
+      "path": "ratchets/h2-8a-promoted-class-export-maps-shared-after.v1.json",
+      "sha256": "3ea4bb5db882c02d62216f6cb79d530205341eee57db2755c83a7be9b87c775a"
+    },
+    {
+      "path": "ratchets/h2-8a-promoted-class-export-maps-shared-regressions.v1.json",
+      "sha256": "40815314fd4212e53a285c151e12dfe1bd24f8bf78b34b7f5e35005a4b96c9f8"
+    },
+    {
+      "path": "ratchets/h2-8a-transformed-class-assigned-names-after.v1.json",
+      "sha256": "61ad5b1149cea97be64926326a532d92f241ca3360ac4412566c63d1ad55e416"
+    },
+    {
+      "path": "scripts/check-class-field-alias-map-positions-readiness.py",
+      "sha256": "b0cae767a4d519e2fdafec75ea34798932ad4da6499cb7f752b14f33c707c65b"
+    },
+    {
+      "path": "scripts/check-class-field-initializer-comments-readiness.py",
+      "sha256": "7a509c8c3bd1bef09b1fac5fb1cf7cb1a13cabf731773dd8e694e0b1b593ceef"
+    },
+    {
+      "path": "scripts/check-class-helper-accessor-producers-readiness.py",
+      "sha256": "15aace8584efc13635d1893a91a0c326726b148a8ac71399b190e53023570b55"
+    },
+    {
+      "path": "scripts/check-one-sided-class-comments-readiness.py",
+      "sha256": "b6f51e0c193b4a7f48328cade687b5176253da03b3ef53cc2b813db726f58726"
+    },
+    {
+      "path": "scripts/check-promoted-class-export-maps-readiness.py",
+      "sha256": "16e5ce3267402a5fa70b8da6fae35a4bdbe19ae17307963d8eaa9c49b14176ef"
+    },
+    {
+      "path": "scripts/observe-class-field-alias-map-positions.mjs",
+      "sha256": "cecb2aef351d5a9e6705e8523d314e12305ba93db457b6841486b5c5f4a9fa4a"
+    },
+    {
+      "path": "scripts/observe-class-field-initializer-comments.mjs",
+      "sha256": "706d4b11475409c10239769ba6fe33bb0a2d35e3eb836d343058d107bc83e95d"
+    },
+    {
+      "path": "scripts/observe-class-helper-accessor-producers.mjs",
+      "sha256": "5c44a5733c1a7b41d5062bc5cb73e2835c346701a3d34d397adc44da87e66f7e"
+    },
+    {
+      "path": "scripts/observe-one-sided-class-comments.mjs",
+      "sha256": "08a87de4754c1646b3d465d0cbcdd9239bb7231ac99d2ce56475be8574b5b335"
+    },
+    {
+      "path": "scripts/observe-promoted-class-export-maps.mjs",
+      "sha256": "33e22106f5339b1a00481516c2899c9d7aa9846959c488868f6eb93ec4f2b88d"
+    },
+    {
+      "path": "target/amend-one-sided-class-comments-contract-type.py",
+      "sha256": "0d0e36a6fe3ef1e8d766e6add51aa114ec586d06c633b312491444c57dfd3309"
+    },
+    {
+      "path": "target/analyze-class-field-alias-map-positions-amended-before.py",
+      "sha256": "a668daac8d8d59bb235ba6fca935b2a19910071908105753f7a1e57dd1057674"
+    },
+    {
+      "path": "target/analyze-class-field-alias-map-positions-first-before-v2.py",
+      "sha256": "6a714266912e55acf42644c76f57310a4f9c7c63369316bc445e62dd68909abf"
+    },
+    {
+      "path": "target/freeze-class-field-alias-map-positions-first-before-v2.py",
+      "sha256": "f53879b0b82888488abb346e5d3de7dc86b039534bd74fcad748c2a3e27627d0"
+    },
+    {
+      "path": "target/freeze-class-helper-accessor-producers-pre-edit-first-attempt.py",
+      "sha256": "57e5ee262cb2af4a2576dc32b2b4affb7d7af891cba29c1c31d0ba05ecfeceb7"
+    },
+    {
+      "path": "target/freeze-class-helper-accessor-producers-regressions.py",
+      "sha256": "3f73b2f355f8c6c5b2891e0d57451f244b87e1661ea1dfbca1a5000fd72b5aaf"
+    },
+    {
+      "path": "target/h2-8a-class-auto-accessor-setter-modifier-ahead.md",
+      "sha256": "40a358c3ae9931d6de9207664eb670f475dbac81eede4c8cef7756fcdda2423e"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-first-after-owner-findings.md",
+      "sha256": "a54c2f21e2a89a35d01318889e2a71e7c3c7249b44b4335c3607aaf2ba48185a"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-es2015-phase-scope-correction.md",
+      "sha256": "2d9270578590849c0358600ecdd5cd5b98ee9b674cf67d291b22a05d1de799ec"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-inflight-findings.md",
+      "sha256": "4cc3746f857b3b528894dcc933cfe60083413213cfb813bdaf4510b2527362ee"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-amended-adapter-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-amended-before-analysis.json",
+      "sha256": "be39660ac446a04c005d5281bc9cab8c067b34fd271ac7015b188e41f8c36c8c"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-amended-before-exit.json",
+      "sha256": "0ebbf67d79601b0419ace250175c0fb00cf457299c06256197401fd7b7a08911"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-amended-before-prelaunch.json",
+      "sha256": "bdaa92d37df51d9811999cf6a0cf73ec93bbde4487ffa374d98eb98f578182cd"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-amended-before-repeat-exit.json",
+      "sha256": "65f4c5f5f7b941f4f1afc6fc2e94da204388cef3f977ced7bb3999144a239dff"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-amended-before-repeat-prelaunch.json",
+      "sha256": "9684bda7362ad9246118b5e62099b158484c3e0666108220056b781a1e8c1b05"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-amended-before-repeat.log",
+      "sha256": "0a8ff926492938f2da796850308f7f512f8b916badb6f7bc632e4d7e1cd83758"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-amended-before.log",
+      "sha256": "87a0d04d74bbb60c2700eb2941d03a4f4f0b1ff0c4d2a741384f8fd9150154e9"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-before-exit.json",
+      "sha256": "4869d2cf23ccbfca83ad251098a0ecb6704ec68b838a91756790b4d448ddf689"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-before-prelaunch.json",
+      "sha256": "965d966400a4a4e88154bc30679bb93d32cb9009b2c0a89599a4622754527c7e"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-before.log",
+      "sha256": "2918a4d1c3d3d0eb9eed059fcf81affbb26b52c8919ef76373997ffa8e3a0a9b"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-first-after-prelaunch.json",
+      "sha256": "2e0fb83cf8f592817437890e0a5dd55724e87e0fd66207b20af6cb76fe0d36f5"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-first-before-analysis-v2.json",
+      "sha256": "89ec2bf3539739309c25557a9f934c430dae1ae44d7d4650f9a5597d1ba59f32"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-first-runtime-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-packet.draft.md",
+      "sha256": "6e429c9f3751e1605d5dc72db8ed8e7375789cbee31f2d86756f569a79883d54"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-plan-v2.md",
+      "sha256": "0def61c9e970e236e4e1434c967bace0f6b0c3203e7b7245252f2e67662c7c5d"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-test-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-ts-before-exit.json",
+      "sha256": "e955df960279f89ea5acd03dfa2f61675d7506132da4cd54a8882b38afb4d8bf"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-ts-before-prelaunch.json",
+      "sha256": "78fcaf886b31d31d13f0cba527ce553cd4f9bdc3cbbb09e7346067ac41ba3b5f"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-ts-before.log",
+      "sha256": "3273c6b2cb156536101d349413c2435d67ce16ca2b9a9c0146627920f377022a"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-ts-branch-audit.json",
+      "sha256": "e6760af627546be550597486fe12f55441168fe36b8d2a084af94f90de56ef06"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-ts-check-exit.json",
+      "sha256": "6d37ecdafff046770b2cb27895238f422d4efd6698adfbd4061b3f80392df788"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-ts-check-prelaunch.json",
+      "sha256": "27c828dabd0350f0f7070266701db68c6cbbea0df6afb212896d841a3cf18b61"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-ts-check.log",
+      "sha256": "3273c6b2cb156536101d349413c2435d67ce16ca2b9a9c0146627920f377022a"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-shapes.draft.json",
+      "sha256": "c0d906e0613b53fc43addf2e0ed024d6a937ac395e8243589ba327d3054d5e95"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-source-audit-v2.json",
+      "sha256": "70abddbccb652966980cf84053723100e0e4ddbf7ad947dd41a612050f1b5bab"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-source-audit-v3.json",
+      "sha256": "420e3d261fd717d8c17182e6f4813e09473098a0feeae579600b034c057a7d99"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-source-audit-v5.json",
+      "sha256": "7938ecb6b0c744dc0fc1c09125e5751361f839e27c185e6094769f8921809d99"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-source-audit.json",
+      "sha256": "d504cddc177a4fa89ceb4d80c8eca9890d2085f9d02a636c547096289789ae0f"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-ranges-ts-research.json",
+      "sha256": "65e8a76978f33424e5051240ccc5d978180b4892a8c1a52585dbc6137937c48b"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-ranges-ts-research.log",
+      "sha256": "2182bbd30e5ec095d331261439c6cb4f65d17ec8cee16140b9f89c8b57dfe55a"
+    },
+    {
+      "path": "target/h2-8a-class-field-initializer-comment-source-audit.json",
+      "sha256": "ae6b07cd04e1fd9a5cffe3703e574afb292e6f47c23d0e2873f163e829f31f7e"
+    },
+    {
+      "path": "target/h2-8a-class-field-initializer-comments-architecture-refresh-selector-correction.md",
+      "sha256": "9d22749c0ca19e71d82df5072db8598d8a0221b8eef531d948ed8bc48eb4801e"
+    },
+    {
+      "path": "target/h2-8a-class-field-initializer-comments-architecture-refresh.json",
+      "sha256": "d64df01d5700d1aa41cb74b8fb5afedd483f6943f5bbe71e0f1e7fc8937034cd"
+    },
+    {
+      "path": "target/h2-8a-class-field-initializer-comments-pre-edit-freeze.json",
+      "sha256": "45eed952a62b2e8fc4b8c83c6a67924724dc9441c9d9a103bb1843b9b60e95f3"
+    },
+    {
+      "path": "target/h2-8a-class-field-initializer-comments-runtime-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-class-field-initializer-comments-shared-after-prelaunch.json",
+      "sha256": "0b9fcdee0ef6ae5ff6d039e82cb1599584fb322020ed95f2714435eac88ef231"
+    },
+    {
+      "path": "target/h2-8a-class-field-initializer-comments-source-plan.md",
+      "sha256": "76af2b31bf38a20632c674f93705c972605c31eb9a749f9457448b7859769f04"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producer-comment-boundary-source-audit.json",
+      "sha256": "98612c754c0cada1afb4ceac02ea4a732b69c4c5aadbe76d1dcc9b3f367dd194"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-after-disposition-review.json",
+      "sha256": "4a5cfef4d2f313b3f230d8c7bced60938b0a2d940d99b62c36659bc0404faab9"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-after-exit.json",
+      "sha256": "174882c79a217ea3059c01cf19ee4c2d9f288110bd4aff4c689a73946aeae997"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-after-prelaunch.json",
+      "sha256": "bf551029b009fe32bedd5a47cf29794b5cca956ad910d5277956a5aadf4d5273"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-after.log",
+      "sha256": "f961c8810a79d0f3fd9ccfae8cf0b6c029ecdfde4b9b53dfcc5f2a6f2189b100"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-ahead-plan.md",
+      "sha256": "aa7bee836a97093c6b6ee1af1a8fd4262a4d6f4c94ec1016091c566437ca6951"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-before-analysis.json",
+      "sha256": "5033f1e0e3e355623dc152b8116f87ae42d59c601760c5171883800f24f2946d"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-before-exit.json",
+      "sha256": "fb11ba8593ead9153c44cb4165788343a663c75bc605ddc12febabc710c4920b"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-before-prelaunch.json",
+      "sha256": "3460a89b91067fd1c4a4bb5f3c21ff5e662d8bc41b8b2bff0c185358a7a90a96"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-before-repeat-exit.json",
+      "sha256": "c8ca93d8e362c229106e787676d4be6f690ffe362f7d8a5ac539db8bad75dd46"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-before-repeat-prelaunch.json",
+      "sha256": "dfafaf9bf757927bd855d5b00a55b03089d2e0ad53e3756c44e463beda8eb14a"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-before-repeat.log",
+      "sha256": "d0b264e70f0f6e0093b77bfb1cbe527668c1ff0447507d837c6f3be3840c6951"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-before-source-dispositions.json",
+      "sha256": "297e4c89cd765e870466d2547db07f3625cc16fff92cef6c0f43094bf7e158b7"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-before.log",
+      "sha256": "c8f9550df67ad05e040888ef32efd429b9df354a81239bb2d1b0a22a25ff5f74"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-candidate-refresh.json",
+      "sha256": "9f38d2f72ba2632ec7e7323c09581951e68584b6389af7b1b62687c4b47df950"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-emitter-build-exit.json",
+      "sha256": "63de5a9df536f2b23eea2d05d94b7173a3e55e6770bdb792be6b59b455c5701e"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-emitter-build-prelaunch.json",
+      "sha256": "081f0c383b045d6770a6a257e57d379297b7aa4ae3af969da461194ad01a681a"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-emitter-build.log",
+      "sha256": "88c9f93c7834d7b0340638b784b0cd1d17fd836cd85cc8b87901d98f038cb22d"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-emitter-contracts-after-exit.json",
+      "sha256": "d9d8f827af8fe9e6c5d201ebde44dd03b3015f04670ba36d2fd827067e109a0e"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-emitter-contracts-after-prelaunch.json",
+      "sha256": "60bd1bceb7f398d5d1a5983f99e2253b624b5f096ecc60ed2daa8c40fe2a4ebd"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-emitter-contracts-after.log",
+      "sha256": "da231397ab42522d970154860093935e59944d3e29a2adaed9fbbe7e94764f1c"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-emitter-library-after-exit.json",
+      "sha256": "7a0181514bc681567e7eb057a94243ae9f52c14fc38c0a02047ee5e04639161b"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-emitter-library-after-prelaunch.json",
+      "sha256": "152eef3126cc7b4c58d105aa885bb8dc1b666cf329548f3c4468de9a37ef0e37"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-emitter-library-after.log",
+      "sha256": "1db71065dba63e95b5798ff0d8436e185ed7d6628a627fec18db505719c210bd"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-first-readiness-failure.json",
+      "sha256": "f862edc596c03e8646379868fabd12b73eb9d409cb3617c3e12276393f5899a8"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-packet.draft.md",
+      "sha256": "52a0660bbf92edc601641a0a0bffdba1292eebf661e1ce511aed744c9ef195fc"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-pre-edit-freeze.json",
+      "sha256": "76a212b89caf54b2dcdc5e35d327cfe4c03dd482de8135ed4d5bc2e6f17e4903"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-pre-edit-path-repair.json",
+      "sha256": "e69bc14237f7af183e94f7a987ab7e8190a2098191810b0f5505de93e185973f"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-production-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-prospective-scope-amendment.json",
+      "sha256": "ba1559fae03bb148dc8f807fc98206534a8e5da49b6f1f1fcd262169f018cec9"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-shapes.draft.json",
+      "sha256": "d7a9d78d8774fcdb22f24401e92fe81ee29648de88b8a057034fc77fe03bf16c"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-source-audit.json",
+      "sha256": "d2e73a452980ea266804e4f251454f58e85050be46aa656bdb5824d06feee109"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-test-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-ts-before-exit.json",
+      "sha256": "584829307aef7fbf64a6d61ab3ab8e3f19ee4a576e94777320eae0cd360807f1"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-ts-before-prelaunch.json",
+      "sha256": "1abe4c2bbcf042d9c85177fa7c222ddfb874b8147b688ac19f5adec2e8b36e08"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-ts-before.log",
+      "sha256": "7178ae69a3ec0db72cc19cd5d00e442c8d3f472640106c3193ba61a7bfd3254e"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-ts-branch-audit.json",
+      "sha256": "4fc0df4c7b5fa353aa17aa9d947d8075c3942f2898e484877d5720254dd17524"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-ts-branch-audit.py",
+      "sha256": "1f88c162fbe26f567ed2472b002e735a7efdd3eae5dc570cb904b65d69ad34dd"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-ts-check-exit.json",
+      "sha256": "9d35e3251b434251a5bd11aa5aeb0dd08321eb24238e74758605f4c8e53561c6"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-ts-check-prelaunch.json",
+      "sha256": "92761bf2e963b5161f7463b3587a6b1e98d18ad2b2b38fd31eab1ae54a6c24c6"
+    },
+    {
+      "path": "target/h2-8a-class-helper-accessor-producers-ts-check.log",
+      "sha256": "7178ae69a3ec0db72cc19cd5d00e442c8d3f472640106c3193ba61a7bfd3254e"
+    },
+    {
+      "path": "target/h2-8a-class-name-helper-request-dependency-audit.json",
+      "sha256": "21055fe0661b06ecbe4909d59d00ec1d9c0d7a73e6bdf411b3069ea7357783af"
+    },
+    {
+      "path": "target/h2-8a-class-name-helper-request-prior-vector-refinement.json",
+      "sha256": "2f4031d6beef9c2a295fe3eda4a237cdefb11ee1186c9215cb955ccc92975b05"
+    },
+    {
+      "path": "target/h2-8a-class-name-helper-request-source-audit.json",
+      "sha256": "b9754f8a40a38f85743e4ef5228b939216df5168053158f1f5c3b1e94127a387"
+    },
+    {
+      "path": "target/h2-8a-one-sided-class-comment-constructor-source-audit.json",
+      "sha256": "04c74abd063504b7c27469a7e6b633f271b4f4a60dc55f7b4f46a5d3a145b08a"
+    },
+    {
+      "path": "target/h2-8a-one-sided-class-comment-endpoint-source-audit.json",
+      "sha256": "9ccac18ffa8de6480c30b42cd5a6d7dd0f17d3e667cc30fc28066ed31394f47c"
+    },
+    {
+      "path": "target/h2-8a-one-sided-class-comment-source-audit.json",
+      "sha256": "71b89ad84f3436fe55eb2862af04a596a8dd0dcdb0d8e918df4108a4582cf82e"
+    },
+    {
+      "path": "target/h2-8a-one-sided-class-comments-architecture-refresh.json",
+      "sha256": "380395351de04bca226a675694991bd274daaaaca5b65cf58aff4dc2ec979db1"
+    },
+    {
+      "path": "target/h2-8a-one-sided-class-comments-before-analysis.json",
+      "sha256": "3b1a062f8ff73f1157e8f50a57b9ee4153e7c2b2d8f2892a331437d964194215"
+    },
+    {
+      "path": "target/h2-8a-one-sided-class-comments-before-exit.json",
+      "sha256": "80af9767a057f3cf7cb91d0c00a7cb646849ebc16c5075541f13e78a16be1dec"
+    },
+    {
+      "path": "target/h2-8a-one-sided-class-comments-before-prelaunch.json",
+      "sha256": "431b5ba3bdae578c4ee5ee88385847842902d95cac9ff1c485e8a5bc0fe34a79"
+    },
+    {
+      "path": "target/h2-8a-one-sided-class-comments-before-repeat-exit.json",
+      "sha256": "e1b76ab5dcf97e23bb5a9f50b02df9ef779325d4b06c159a377b931b381533e1"
+    },
+    {
+      "path": "target/h2-8a-one-sided-class-comments-before-repeat-prelaunch.json",
+      "sha256": "e5c720bacd6fde0973b4439b73d43599461f7ecff681aa29d16e064c8f5475a3"
+    },
+    {
+      "path": "target/h2-8a-one-sided-class-comments-before-repeat.log",
+      "sha256": "096c7cfdfbdc1c3c47b9a4e0a4a707c00e358a131d9c86112049269957923312"
+    },
+    {
+      "path": "target/h2-8a-one-sided-class-comments-before-source-dispositions.json",
+      "sha256": "bd9129344d6d4906f740c2d8cc093f191a87e737cfbfb7698fc7929a1a4846aa"
+    },
+    {
+      "path": "target/h2-8a-one-sided-class-comments-before.log",
+      "sha256": "59a02d2678c12401a31c2a0b34309c56d6faa7f81042a0ebe92109f2f4eff065"
+    },
+    {
+      "path": "target/h2-8a-one-sided-class-comments-contract-type-amendment.json",
+      "sha256": "e559639b0bb25e89e780ffe0c537878a33995e241de699e9b1a8d1ad0c65234d"
+    },
+    {
+      "path": "target/h2-8a-one-sided-class-comments-final-runtime-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-one-sided-class-comments-inflight-findings.md",
+      "sha256": "9011903bac18f3dc1751a1791b4fa07bb02ee9c0080b0d687bb159838590e1c2"
+    },
+    {
+      "path": "target/h2-8a-one-sided-class-comments-packet.draft.md",
+      "sha256": "27263cce853715e5467d89b127b6d4e9fe767d2a98bd2b4f0c381f8bc7226ce3"
+    },
+    {
+      "path": "target/h2-8a-one-sided-class-comments-pre-edit-freeze.json",
+      "sha256": "54afa177075e18d934164e6dd70bec31d0609ddafdea8099b319b71e5e1a1002"
+    },
+    {
+      "path": "target/h2-8a-one-sided-class-comments-qualification-doc-refresh.json",
+      "sha256": "46cd2bc9d628da0eef7aa178ad3e346dbe422422f42659ce7f9a34e765beb8e0"
+    },
+    {
+      "path": "target/h2-8a-one-sided-class-comments-runtime-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-one-sided-class-comments-rust-map.draft.json",
+      "sha256": "cbd732ec9dd7fbba6493f35e22f8b6f8307f349e8f89f6b05f124837cffc3c53"
+    },
+    {
+      "path": "target/h2-8a-one-sided-class-comments-shapes.draft.json",
+      "sha256": "de0355367e66edfbeda8e4ccde9f6c7565eccb05e4ba90bc21263af034ddccb6"
+    },
+    {
+      "path": "target/h2-8a-one-sided-class-comments-test-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-one-sided-class-comments-ts-before-exit.json",
+      "sha256": "36f4ed4c93c443ebed4b4e6aa53a0dc296de53fa6d14072c9a3c85824794ca36"
+    },
+    {
+      "path": "target/h2-8a-one-sided-class-comments-ts-before-prelaunch.json",
+      "sha256": "a9e3f41e0e1edd9a60e0f36faacccf458121a0d0cdbe5fe6fd2460304fb7fb62"
+    },
+    {
+      "path": "target/h2-8a-one-sided-class-comments-ts-before.log",
+      "sha256": "4a44790b8812c0775b49680ae40bbc91b8450390b4996bba82844f6d9b9b3cdb"
+    },
+    {
+      "path": "target/h2-8a-one-sided-class-comments-ts-branch-audit.json",
+      "sha256": "12718dfdac7ba6223ab7a1da8bf250bd81934996741b596967f067d2871e6465"
+    },
+    {
+      "path": "target/h2-8a-one-sided-class-comments-ts-branch-audit.py",
+      "sha256": "5a9755357af9c85cd7564fd8a6bbd402c0f23841ff33219a15e1065023412c52"
+    },
+    {
+      "path": "target/h2-8a-one-sided-class-comments-ts-check-exit.json",
+      "sha256": "795b77de1beeca5d00d37a5bfee1230ad6df8bb03675122951b6ef50d3237a86"
+    },
+    {
+      "path": "target/h2-8a-one-sided-class-comments-ts-check-prelaunch.json",
+      "sha256": "e6ffa2ffd5a38b3834a41b72a12099e029cc45a849ea69ec6bff918e5b45da27"
+    },
+    {
+      "path": "target/h2-8a-one-sided-class-comments-ts-check.log",
+      "sha256": "4a44790b8812c0775b49680ae40bbc91b8450390b4996bba82844f6d9b9b3cdb"
+    },
+    {
+      "path": "target/h2-8a-one-sided-comment-range-consumer-audit.md",
+      "sha256": "1f1b39ed499b2dfd2d349cbd130ad39d1aec16b2559def43cbdac6cba7a35fb8"
+    },
+    {
+      "path": "target/h2-8a-promoted-class-default-export-source-supplement.md",
+      "sha256": "fa0116ea7cd68e18698418d71d309eae0deb3ba41509ab3956c2bc29d4026f14"
+    },
+    {
+      "path": "target/h2-8a-promoted-class-export-decoration-amendment-pre-edit.json",
+      "sha256": "b3c3056c7b0a14815f3bdf907179b3ebb16f96f54b902442adbb904271113ef2"
+    },
+    {
+      "path": "target/h2-8a-promoted-class-export-decoration-amendment.json",
+      "sha256": "9d3105a93d5cbcfb9409d3b7a9f7ba8c38525bf94f5395d7f787dd093efcb8fb"
+    },
+    {
+      "path": "target/h2-8a-promoted-class-export-map-ahead-findings.md",
+      "sha256": "0aaf73088e3715d8c2e6886b393e5516b568ddf797b4ff3a10b90aa2822deeb1"
+    },
+    {
+      "path": "target/h2-8a-promoted-class-export-map-source-audit.json",
+      "sha256": "073221523addc93a6a96ca396e5a369fc42a3b406160b83685d79e8ab7445b08"
+    },
+    {
+      "path": "target/h2-8a-promoted-class-export-maps-amended-runtime-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-promoted-class-export-maps-packet.draft.md",
+      "sha256": "05b805de2233ee346817407ce62bb1215996266212a48671eb1b419332f54611"
+    },
+    {
+      "path": "target/h2-8a-promoted-class-export-maps-pre-edit-freeze.json",
+      "sha256": "32a2415e6997262ffd2178135e6c320905f02c5ff5d0570183b231f36988f42f"
+    },
+    {
+      "path": "target/h2-8a-promoted-class-export-maps-qualification-doc-refresh.json",
+      "sha256": "e4f6eccb87547115b354d4fd275b4f0e571e614506a1ff9e61d67c961b5c0034"
+    },
+    {
+      "path": "target/h2-8a-promoted-class-export-maps-runtime-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-promoted-class-export-maps-shapes.draft.json",
+      "sha256": "3f7a31fd2d100039ce706b2c55040167b8413f6b4af70ece42c6f3d208fb828a"
+    },
+    {
+      "path": "target/h2-8a-promoted-class-export-maps-shared-after-exit.json",
+      "sha256": "184e08b7d506bdeb2287eb3f3c04408a4100cf97d7b1ca18eac4126b2cdd3479"
+    },
+    {
+      "path": "target/h2-8a-promoted-class-export-maps-shared-after-prelaunch.json",
+      "sha256": "a03e51146e175860008309ae2c8de2d86d98a531947694e169c73f446a10ed4b"
+    },
+    {
+      "path": "target/h2-8a-promoted-class-export-maps-shared-after.log",
+      "sha256": "32829149532e8e04aa69004ddf56cdf855665dbb532f75e6bd8891bd571b50df"
+    },
+    {
+      "path": "target/h2-8a-promoted-class-export-maps-test-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-promoted-class-export-maps-ts-before-exit.json",
+      "sha256": "ffd3019e786f1bf5e5e248c86ec2977dac7dd7711fdbbbd7091e5da9e01cc81c"
+    },
+    {
+      "path": "target/h2-8a-promoted-class-export-maps-ts-before-prelaunch.json",
+      "sha256": "52710de47fc8108fe5643fd0b092ac772221da69e2f5415fe64f6896bfa9f870"
+    },
+    {
+      "path": "target/h2-8a-promoted-class-export-maps-ts-before.log",
+      "sha256": "9ef781146fbaff6b627b398e91c688265f2aa48f96947a8f2c6545a780c14c78"
+    },
+    {
+      "path": "target/h2-8a-promoted-class-export-maps-ts-branch-audit.json",
+      "sha256": "1e5e32c544ce0105bafeff48a1e74a1fe6750baaabb2a6ce160dd470530b5fac"
+    },
+    {
+      "path": "target/h2-8a-promoted-class-export-maps-ts-branch-audit.py",
+      "sha256": "ce7339b8a91cd09a54addfc7347f2be77cbb653e802d84d779123428b32514ab"
+    },
+    {
+      "path": "target/h2-8a-promoted-class-export-maps-ts-check-exit.json",
+      "sha256": "e3be811ffc33f125129b78634b4210df96ca4305a5f8395203817c5316b3c6e8"
+    },
+    {
+      "path": "target/h2-8a-promoted-class-export-maps-ts-check-prelaunch.json",
+      "sha256": "48879307cfdfd61219a716832d680b8164048ff8a4d8bd2dd0201c0115163dc3"
+    },
+    {
+      "path": "target/h2-8a-promoted-class-export-maps-ts-check.log",
+      "sha256": "9ef781146fbaff6b627b398e91c688265f2aa48f96947a8f2c6545a780c14c78"
+    },
+    {
+      "path": "target/h2-8a-promoted-export-first-candidate-source-dispositions.json",
+      "sha256": "b9682470c5abc428e44a420ebd6e1ad1fa48ae75f751a35e201f8e7d88cd7900"
+    },
+    {
+      "path": "target/h2_8a_class_helper_accessor_producers.draft.rs",
+      "sha256": "a668ac99c85d53c523d677042e7e0dfca98a32834a3e9b55115797c2f73dc84a"
+    },
+    {
+      "path": "target/install-class-helper-accessor-producers-observations.py",
+      "sha256": "711824ff65487c5f72de8564ec26e2efe1566c6ea756e924bc748689bc50d50f"
+    },
+    {
+      "path": "target/install-one-sided-class-comments-observations.py",
+      "sha256": "7cfa33afb0dc63a5b9e455bc7906cb81cf92e8991a689f1b9fd15259abebd061"
+    },
+    {
+      "path": "target/observe-class-helper-accessor-producers.draft.mjs",
+      "sha256": "5c44a5733c1a7b41d5062bc5cb73e2835c346701a3d34d397adc44da87e66f7e"
+    },
+    {
+      "path": "target/prepare-class-field-alias-map-positions-amended-before-repeat.py",
+      "sha256": "b0e61d101a7dff07d2a9bd8cb87817839d9996308cdf66c66c4a8e8b79a35637"
+    },
+    {
+      "path": "target/prepare-class-field-alias-map-positions-amended-before.py",
+      "sha256": "5c772550f9c97c1d78bf68d68a7798495a81ad8c73303851957e3f4b44ea3447"
+    },
+    {
+      "path": "target/prepare-class-field-alias-map-positions-before.py",
+      "sha256": "0a44251aee97afddc8fc1c266a48815eca1edcfaef440a72ad10be6923dc9d77"
+    },
+    {
+      "path": "target/prepare-class-field-alias-map-positions-first-after.py",
+      "sha256": "443bcd1149244c912c2e85fe15b739431409c90912eb44a06f8cab395e5790e7"
+    },
+    {
+      "path": "target/prepare-class-field-alias-map-positions-readiness.py",
+      "sha256": "dca51987441a98e87ebd968431502eec80b2e8901eede95c135eaf2e88eef118"
+    },
+    {
+      "path": "target/prepare-class-field-alias-map-positions-ts-check.py",
+      "sha256": "44e047057f95fd4abeb1e9208ea580c7aad6845ecff877e390d1d3f7f3891a26"
+    },
+    {
+      "path": "target/prepare-class-field-alias-map-positions-ts.py",
+      "sha256": "31216b47c1134ccf7703e57409f0369ded27c5668b0c6bf5e853c78ba53ea01c"
+    },
+    {
+      "path": "target/prepare-class-field-initializer-comments-readiness.py",
+      "sha256": "0cc40f99fdd9716bae8f7fda91a65171f9274acc540c810c2cdb2055949a680a"
+    },
+    {
+      "path": "target/prepare-class-field-initializer-comments-shared-after.py",
+      "sha256": "b03c7b58f800da3f702ad99cc450e0827f5d26a60d4622373361e72f561019a2"
+    },
+    {
+      "path": "target/prepare-class-helper-accessor-producers-after.py",
+      "sha256": "fce97f920096133ac27e3f1b09348638e6b5008d652c4a9a7e7d171a7e312399"
+    },
+    {
+      "path": "target/prepare-class-helper-accessor-producers-before-repeat.py",
+      "sha256": "0164dc62e751814d3e54cb652b576951a4dc8626a933ff81fc6dd34839138501"
+    },
+    {
+      "path": "target/prepare-class-helper-accessor-producers-before.py",
+      "sha256": "460451a09e763843403636f82008c570c658f62886383572ee0a815cb4253355"
+    },
+    {
+      "path": "target/prepare-class-helper-accessor-producers-emitter-build.py",
+      "sha256": "e04dea12f2d027838a2406fbb44ef9630a73dde2219b08c309ff98027de0e3e8"
+    },
+    {
+      "path": "target/prepare-class-helper-accessor-producers-emitter-regressions.py",
+      "sha256": "5b4d6f7c78dd4e8687a204461ebbcc2db07da7db57820eb4072909e690bd64c9"
+    },
+    {
+      "path": "target/prepare-class-helper-accessor-producers-readiness.py",
+      "sha256": "8de3f089e843555db211b4e29cdd643ab6b41f3ce86924bb6c979cdb07460476"
+    },
+    {
+      "path": "target/prepare-class-helper-accessor-producers-ts-check.py",
+      "sha256": "0e05621354f56abcd84a8afb4229d217e9a72c671ffecb1d362882ea6cd7e2b7"
+    },
+    {
+      "path": "target/prepare-class-helper-accessor-producers-ts.py",
+      "sha256": "dc9b581ef435168e2ba472b688d49db22c5d9222f70a140cbaba2d37d23f265d"
+    },
+    {
+      "path": "target/prepare-one-sided-class-comments-after.py",
+      "sha256": "edabead1023c767be63065730813fa7abc9fcbf8a6a5e5640a4a04beefe5ee46"
+    },
+    {
+      "path": "target/prepare-one-sided-class-comments-before-repeat.py",
+      "sha256": "0fb675a8350971756bf0cd6efa6f4679e229500dd60611727aca197311843328"
+    },
+    {
+      "path": "target/prepare-one-sided-class-comments-before.py",
+      "sha256": "c3926be6c88f0068bdb7199702f0e8b972a5e93bbd304d86ad20370ac1a50818"
+    },
+    {
+      "path": "target/prepare-one-sided-class-comments-draft.py",
+      "sha256": "8081d2ec3f474b853d68f4295335b22deddedc8911f2d233bc450aca81ba6490"
+    },
+    {
+      "path": "target/prepare-one-sided-class-comments-ts-check.py",
+      "sha256": "cf2af7cebdc7a1492626ede7008f3fdac15c57bcd94dfa517bd7b8bc1960cbfc"
+    },
+    {
+      "path": "target/prepare-one-sided-class-comments-ts.py",
+      "sha256": "a5d1606ad614304153c933c02a1ebdb5340968252cdde8bf4c23b0a73c0198e4"
+    },
+    {
+      "path": "target/prepare-promoted-class-export-decoration-amendment.py",
+      "sha256": "41813113e829b46628c0b61caab31e591c9629d914b334547834a13aa48c77a4"
+    },
+    {
+      "path": "target/prepare-promoted-class-export-maps-amended-after.py",
+      "sha256": "185518333f54aac5a1faceef01d71554ad69a736396abe179a6a77c9502c2734"
+    },
+    {
+      "path": "target/prepare-promoted-class-export-maps-before.py",
+      "sha256": "dba289466a866cfa26d736a620dac5dbd58c32406e8c88e69149e85e9d3246b1"
+    },
+    {
+      "path": "target/prepare-promoted-class-export-maps-draft.py",
+      "sha256": "107aa60c8a6703436ff8848c296bbb8b6a588cd77b03f9ea173f75c7bbbc1360"
+    },
+    {
+      "path": "target/prepare-promoted-class-export-maps-readiness.py",
+      "sha256": "9b2fce15bbfb75fef86761318580b6e5a7767360eb375fc7fe61ca8c1c38125c"
+    },
+    {
+      "path": "target/prepare-promoted-class-export-maps-shared-after.py",
+      "sha256": "3c0b527571f25414d4899a4acd76ad0c1d2eb3af14b00b5cbacf4f000e70282c"
+    },
+    {
+      "path": "target/prepare-promoted-class-export-maps-ts-check.py",
+      "sha256": "adea4f58322127e98b98bdfc569276ceac3564911414c8fd00d4705431e2de91"
+    },
+    {
+      "path": "target/prepare-promoted-class-export-maps-ts.py",
+      "sha256": "962a55d6b3d1a77d8237ef29e98e69ccf1798576d7984271647bbf8f7a674848"
+    },
+    {
+      "path": "target/promoted-class-export-decoration-amendment.patch",
+      "sha256": "7ba4246454452794f5028dfe43675428b966d76c109ca4657db2ac38d5239b22"
+    },
+    {
+      "path": "target/refresh-class-field-initializer-comment-architecture.py",
+      "sha256": "de0a825027c3550e51000d7f52280503e3eeae89536e0bf63178a50f8793f27a"
+    },
+    {
+      "path": "target/refresh-class-helper-accessor-producers-candidate.py",
+      "sha256": "4840a239e6aedb230fd31c36a60676f6467798988a2a6ae43ea87203e06f3cc7"
+    },
+    {
+      "path": "target/refresh-one-sided-class-comments-architecture.py",
+      "sha256": "76d47d722c757ffec7cf6614848f70c8125da751b4e0e1df41f16b0bdd1d1493"
+    },
+    {
+      "path": "target/research-class-field-alias-map-owners-v2.mjs",
+      "sha256": "98bc71105e32ce0839ebc3d92168586bf1eaa6b2e93598859f2b747a9a885552"
+    },
+    {
+      "path": "target/research-class-field-alias-map-owners-v3.mjs",
+      "sha256": "7574320c0becf6707a8806f5089045d20654001a675de67a8ad6c0e1a97e9bd1"
+    },
+    {
+      "path": "target/research-class-field-alias-map-owners-v5.mjs",
+      "sha256": "cab6f8c043bad8b7395778a3f5d93d0e25393a75b155d8331bf3bfe502839a08"
+    },
+    {
+      "path": "target/research-class-field-alias-map-owners.mjs",
+      "sha256": "b60c351f6b3dc42e38be7a41c73f11ace433c8ba76ac1725f409aad305bc06f2"
+    },
+    {
+      "path": "target/research-class-field-alias-ranges.mjs",
+      "sha256": "af522d89af77b41fd973706a61c95e9aa78a1d95837e2a1479cf9d1d822bb948"
+    },
+    {
+      "path": "target/research-class-helper-accessor-producer-comment-boundary.mjs",
+      "sha256": "abdf2b56252221a99d86d436876b3f265ef7705f9cc6ca4184b35b42fad1e60d"
+    },
+    {
+      "path": "target/research-class-helper-accessor-producers-owners.mjs",
+      "sha256": "3b27cd3069d211f7ed1bb61b8948185f5ab2fb0312fdd92ed21f2f00eb6d568d"
+    },
+    {
+      "path": "target/research-class-name-helper-request-dependencies.mjs",
+      "sha256": "1af31899f583dfb8da6ec7b7b80fdc4b2f73bc51c5bdb5597d54ff6494472432"
+    },
+    {
+      "path": "target/research-class-name-helper-request-owners.mjs",
+      "sha256": "aa27c8037662d2ddf57afdfea90023e6a576ce774b6f7cbcca845133f0378460"
+    },
+    {
+      "path": "target/research-one-sided-class-comment-constructor-owners.mjs",
+      "sha256": "3f15e0678d6458653567954d9977a0184d4e3088b7e0b57045a79b6847513f04"
+    },
+    {
+      "path": "target/research-one-sided-class-comment-endpoint-helpers.mjs",
+      "sha256": "dad1c5d3ad64f3eaa758a4df2deba6666f4dd13c9264f67c4191731faebc9e27"
+    },
+    {
+      "path": "target/research-one-sided-class-comment-owners.mjs",
+      "sha256": "40414ecde665562a0b1c98df7523a6a774ca41c5678c374a88b3d21fe84f67f6"
+    },
+    {
+      "path": "target/research-promoted-class-export-map-owners.mjs",
+      "sha256": "47d02192f188cfb09f02a9de9918766a7231e9efda19c5dabeb3f45e3f3d1b44"
+    },
+    {
+      "path": "target/review-class-helper-accessor-producers-after-map-owner.py",
+      "sha256": "5979a0757c13eb966e15df1909610751fdedde9cfcf8fe9032429a4cdee4e350"
+    },
+    {
+      "path": "target/review-class-helper-accessor-producers-after.py",
+      "sha256": "ad89eb9938f4c5bbd9791f1ef39c66f1081c968cb4d7381091b22b9b9da05665"
+    },
+    {
+      "path": "target/run-module-transformer-selection-job.py",
+      "sha256": "11551f38fe41fed5f993f671e02e6c7cc695eaa6395bba0fc0537ebd8841af8c"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    }
+  ],
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-helper-accessor-regressions-sm9tjpgu"
+}

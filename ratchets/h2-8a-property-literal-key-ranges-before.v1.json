@@ -1,0 +1,139 @@
+{
+  "version": 1,
+  "status": "complete-before-two-independent-jobs-on-first-a6-18-after",
+  "base": "d7863caaad331660aee8d3bf3704273cab10e190",
+  "runtime_reference": "ratchets/h2-8a-static-initializer-map-ranges-first-after.v1.json",
+  "runtime_reference_sha256": "6aa095a8ccadfe5655cf717c3b36b322840c132bd9ae54cf14be8e67ebd57b8e",
+  "runtime_production_sha256": "8af93f39acf3b9ef7531826c45a66adee7d6dc81e74c43e50c369e6d1cb26947",
+  "eligible": 20,
+  "exact_twice": [
+    "literal-key/es5/set/identifier",
+    "literal-key/es5/set/quoted-double",
+    "literal-key/es5/set/quoted-single",
+    "literal-key/es5/set/numeric",
+    "literal-key/es5/set/computed-string",
+    "literal-key/es5/define/identifier",
+    "literal-key/es5/define/computed-string",
+    "literal-key/es2015/set/identifier",
+    "literal-key/es2015/set/quoted-double",
+    "literal-key/es2015/set/quoted-single",
+    "literal-key/es2015/set/numeric",
+    "literal-key/es2015/set/computed-string",
+    "literal-key/es2015/define/identifier",
+    "literal-key/es2015/define/computed-string"
+  ],
+  "failed_twice": [
+    "literal-key/es5/define/quoted-double",
+    "literal-key/es5/define/quoted-single",
+    "literal-key/es5/define/numeric",
+    "literal-key/es2015/define/quoted-double",
+    "literal-key/es2015/define/quoted-single",
+    "literal-key/es2015/define/numeric"
+  ],
+  "native_jobs": 2,
+  "positive_executions_per_case": 4,
+  "failed_executions_per_case": 2,
+  "seconds": [
+    19.15,
+    18.29
+  ],
+  "exit_codes": [
+    101,
+    101
+  ],
+  "first_failure_comparisons": [
+    {
+      "case_id": "literal-key/es5/define/quoted-double",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "ab4056e591aafdc266915334f83a6e7326eb7b2b843106187e631781448de11b",
+      "expected_sha256": "044c05944d4d4109c725ed0236dc31de0f1be45721bccddbfb28422a2fbf2001"
+    },
+    {
+      "case_id": "literal-key/es5/define/quoted-single",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "ab4056e591aafdc266915334f83a6e7326eb7b2b843106187e631781448de11b",
+      "expected_sha256": "044c05944d4d4109c725ed0236dc31de0f1be45721bccddbfb28422a2fbf2001"
+    },
+    {
+      "case_id": "literal-key/es5/define/numeric",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "c9fbfbdf82dce27e86bc8066450a3fdd2533015a55942e60409530e722b3056a",
+      "expected_sha256": "2502ea83cfe2b1127c450ff57d5d328b66768c302c398c7750954f7accb3ce35"
+    },
+    {
+      "case_id": "literal-key/es2015/define/quoted-double",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "42ff8284a1e242b11a93d8a64d60142e8a98263cbe96fd04ebcb3cdf884f6a42",
+      "expected_sha256": "2067dc37a5e2767e2c8f27293c54a502514b937545c5c16dadeb8f72401d2321"
+    },
+    {
+      "case_id": "literal-key/es2015/define/quoted-single",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "42ff8284a1e242b11a93d8a64d60142e8a98263cbe96fd04ebcb3cdf884f6a42",
+      "expected_sha256": "2067dc37a5e2767e2c8f27293c54a502514b937545c5c16dadeb8f72401d2321"
+    },
+    {
+      "case_id": "literal-key/es2015/define/numeric",
+      "native_executions": 2,
+      "boundary": "exact source-map result",
+      "actual_sha256": "0a70187ce316c0e0cee5c5dfd2aeb0fa0a13efa476924087b38599191b941a33",
+      "expected_sha256": "4ad8e1797ba17b6ea239370d1ab6227fac5bca43d66713cf23ebcf90547e744d"
+    }
+  ],
+  "working_files": [
+    {
+      "path": "crates/emitter/src/builtins/class_fields/downlevel.rs",
+      "sha256": "8af93f39acf3b9ef7531826c45a66adee7d6dc81e74c43e50c369e6d1cb26947"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/property-literal-key-ranges.json",
+      "sha256": "ab161b74a368187cf78398127e2ecf951748fa4a398c08b0e9e071c8242ccd8a"
+    },
+    {
+      "path": "scripts/observe-property-literal-key-ranges.mjs",
+      "sha256": "2641adb871dfc7b5250a0c6660c6f1b40374370f0a3a3b93655f1ffd8cb4f3d5"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_static_initializer_map_ranges.rs",
+      "sha256": "bee007cbc47b29e2cbbdc3416bcc1703ebcd48e63e892b258cad7ae000a46e72"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "726a6d93a6f97ec8e9509772260c71bd05326ae3addb56b90ee17d910e92e695"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "06fb3fbd4bdf47f28841e5295f3533f33a926924944990c37d98b174c669d790"
+    },
+    {
+      "path": "ratchets/h2-8a-static-initializer-map-ranges-first-after.v1.json",
+      "sha256": "6aa095a8ccadfe5655cf717c3b36b322840c132bd9ae54cf14be8e67ebd57b8e"
+    },
+    {
+      "path": "target/h2-8a-property-literal-key-ranges-before-prelaunch.json",
+      "sha256": "3d2e85913e264def49434f5e79216bd178a4b1e060ee0364973532847f57f96f"
+    },
+    {
+      "path": "target/h2-8a-property-literal-key-ranges-mint.log",
+      "sha256": "efb7769d4ee9a0bfbb0df614299f2ebb547a00270df4da40349a734912a95419"
+    },
+    {
+      "path": "target/h2-8a-property-literal-key-ranges-observer-check.log",
+      "sha256": "efb7769d4ee9a0bfbb0df614299f2ebb547a00270df4da40349a734912a95419"
+    },
+    {
+      "path": "target/h2-8a-property-literal-key-ranges-before.log",
+      "sha256": "6acb1b7ea0cb27e680c7a99d510ed3fb55f704235b3d690944e986c4a62ea374"
+    },
+    {
+      "path": "target/h2-8a-property-literal-key-ranges-before-repeat.log",
+      "sha256": "5bac59d4acf27f025570a44d911219b6c1dab6a5e44ee60b2bf02ce090ade5db"
+    }
+  ],
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-property-literal-key-before-nw53pfhk"
+}

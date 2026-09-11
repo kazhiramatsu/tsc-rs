@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "base": "74447b72aa0e51826b6bc832580aa4780d9a1eca",
+  "status": "build-failed-before-test-execution",
+  "exit_code": 101,
+  "test_executions": 0,
+  "native_command_executions": 0,
+  "cause": "new activity control read getters on H2ActivityCanary instead of its counters() snapshot",
+  "repair": "test-only let activity = activity.counters() after recording all three member identities",
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-module-factory-first-build-qxznmry1",
+  "receipts": [
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "3be53e2b5b6deadcd518a4279148ff8711a0792f78d59151d2f1eae68f904700"
+    },
+    {
+      "path": "crates/emitter/src/host.rs",
+      "sha256": "24935f213e955723e3beefb6054c52c37ca7a69203ac666a1d2490a88c4f0f7b"
+    },
+    {
+      "path": "crates/emitter/src/transform.rs",
+      "sha256": "374ed96dc09f518a8f137cf7400e4cc6e634d3427b0b20346698e4b31a11011c"
+    },
+    {
+      "path": "crates/checker/src/emit.rs",
+      "sha256": "ed7a09cb4ca7b57b839aa03186385142141911d2af117b611e55191ff9bda105"
+    },
+    {
+      "path": "crates/emitter/src/builtins/system.rs",
+      "sha256": "b01023d7854e56fb8134abd9e354aa678703ed164bc956e6647cac56332413ed"
+    },
+    {
+      "path": "crates/emitter/src/activity.rs",
+      "sha256": "f13e1d5c8cf91b502c64b24679605e3fe5f637b672ff6f2bae861f05d58713fd"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/module-transformer-selection.json",
+      "sha256": "7a4b7bd3a6ddaf00fd3cacddaed1d3c3b782b58db96e58ab6b500d00ce5693d9"
+    },
+    {
+      "path": "scripts/observe-module-transformer-selection.mjs",
+      "sha256": "85d246467b93370084922b822de18a7782f80ddd8df2c41432afd39ede58f2d8"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "54d2eae1a4708676308b6a7f43e1e75a3213681b20d3fc7a453d5cd23670d8b5"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_module_transformer_selection.rs",
+      "sha256": "3266ac890d11a97337904f45bf1d7d5c1800e4f2f643ff38259f7c03f40c0325"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "726a6d93a6f97ec8e9509772260c71bd05326ae3addb56b90ee17d910e92e695"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+      "sha256": "7b14d30e473948b7a7878c20ed9feb528a629f8d26db042306ba6574a6edde81"
+    },
+    {
+      "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
+      "sha256": "d191fd83ed4598fdb119bcdc8842b02a0295e70c4e74c621c907a86deb42784b"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+      "sha256": "90aff72e27fac502da3ff3f06980c55c4923e35554c3e64800a60213cb1b04ba"
+    },
+    {
+      "path": "crates/compiler/tests/integration/emit_session_contract.rs",
+      "sha256": "9eab1c0b932532308d4dae3b0e27363fdf078ddf9a5f6ad89313347571ab8dd8"
+    },
+    {
+      "path": "crates/emitter/tests/unit/builtins/tests.rs",
+      "sha256": "121f619952637f709490e8d4210d3ec4b862c387816e52e009ab9c6b8fc2f249"
+    },
+    {
+      "path": "ratchets/h2-8a-candidate-inputs.v1.json",
+      "sha256": "6ff7ea8d1d986e8a9d833d45ec694ab0b8616604fdf065ba52e24a34ac86759b"
+    },
+    {
+      "path": "ratchets/h2-8a-observations.v1.json",
+      "sha256": "91fc28206d663eab46fef98f72ba296d29e02def72518e012616c4d0d01acc87"
+    },
+    {
+      "path": "ratchets/h2-8a-candidates.v1.json",
+      "sha256": "e33fbf9b6c7eb96dae5186013e054e57eae371a48fca461a809ae4e6e2a1095c"
+    },
+    {
+      "path": "target/h2-8a-module-transformer-selection-ts-before.log",
+      "sha256": "7b5ec12326e1e50e1062f0209aa568033922bb354b672a601eda8afb5b542bbc"
+    },
+    {
+      "path": "target/h2-8a-module-transformer-selection-ts-check.log",
+      "sha256": "7b5ec12326e1e50e1062f0209aa568033922bb354b672a601eda8afb5b542bbc"
+    },
+    {
+      "path": "target/h2-8a-module-transformer-selection-fmt-before.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-module-transformer-selection-before-prelaunch.json",
+      "sha256": "13f798754a6fe082d0da03dcedba1e2f1faae9ab6b7eb38ae22319e1bee411a2"
+    },
+    {
+      "path": "target/h2-8a-module-transformer-selection-before.log",
+      "sha256": "e6d16ea1f17706e87852cbb76311aeca7d31b237ab336e65c7e5edf1505722a1"
+    }
+  ]
+}

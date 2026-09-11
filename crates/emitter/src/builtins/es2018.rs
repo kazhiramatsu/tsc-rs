@@ -3186,7 +3186,10 @@ impl<'context> Es2018Visitor<'context> {
         } else {
             self.inline_expressions(expressions)?
         };
-        self.set_original_and_range(expression, original)
+        // flattenDestructuringAssignment returns inlineExpressions directly:
+        // each assignment owns its range, while the enclosing comma sequence
+        // is synthesized and must not introduce pattern-boundary mappings.
+        Ok(expression)
     }
 
     fn flatten_destructuring_binding(
@@ -3404,7 +3407,11 @@ impl<'context> Es2018Visitor<'context> {
             return Ok(());
         }
         let pattern = self.create_object_pattern(plan.mode, std::mem::take(retained))?;
-        self.set_original_and_range(pattern, original_pattern)?;
+        if plan.mode == DestructuringMode::Binding {
+            self.set_original_and_range(pattern, original_pattern)?;
+        }
+        // makeObjectAssignmentPattern creates a fresh object literal. Its
+        // chunk no longer spans the original rest element or closing brace.
         plan.push(pattern, value, original);
         Ok(())
     }
@@ -3623,15 +3630,21 @@ impl<'context> Es2018Visitor<'context> {
                     )?);
                 }
                 NodeData::PropertyAssignment(mut assignment) => {
-                    assignment.name = self.visit_optional_node(assignment.name)?;
                     assignment.initializer = self.visit_optional_node(assignment.initializer)?;
-                    let flags = flags_after_update(
-                        self.context.arena(),
-                        property,
-                        &NodeData::PropertyAssignment(assignment.clone()),
-                    )?;
-                    chunk.push(self.context.factory()?.update_node(
-                        property,
+                    // chunkObjectLiteralElements creates a fresh property:
+                    // its name keeps source ownership, while the property
+                    // itself has no parsed range or original parent.
+                    assignment.modifiers = None;
+                    assignment.question_token = None;
+                    assignment.exclamation_token = None;
+                    let flags = [assignment.name, assignment.initializer]
+                        .into_iter()
+                        .flatten()
+                        .fold(TransformFlags::NONE, |flags, child| {
+                            flags | self.context.arena().transform_flags(self.node(child))
+                        });
+                    chunk.push(self.context.factory()?.create_node(
+                        self.source,
                         NodeData::PropertyAssignment(assignment),
                         flags,
                     )?);
@@ -3770,7 +3783,7 @@ impl<'context> Es2018Visitor<'context> {
         if self.context.arena().node(property_name)?.kind == SyntaxKind::StringLiteral {
             self.context
                 .arena_mut()?
-                .metadata_mut(clone)
+                .literal_properties_mut(clone)?
                 .set_string_literal_text_source(property_name);
         }
         Ok(clone)
@@ -3867,7 +3880,7 @@ impl<'context> Es2018Visitor<'context> {
         if self.context.arena().node(property_name)?.kind == SyntaxKind::StringLiteral {
             self.context
                 .arena_mut()?
-                .metadata_mut(literal)
+                .literal_properties_mut(literal)?
                 .set_string_literal_text_source(property_name);
         }
         Ok(literal)

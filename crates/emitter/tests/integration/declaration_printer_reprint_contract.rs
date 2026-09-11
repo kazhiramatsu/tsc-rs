@@ -584,7 +584,7 @@ impl Transformer for SyntheticPrinterNodeTransformer {
                 .create_node(source, data, TransformFlags::NONE)?;
             context
                 .arena_mut()?
-                .metadata_mut(node)
+                .literal_properties_mut(node)?
                 .set_javascript_string_value(JavaScriptString::from_code_units(vec![
                     0xd83d, 0xde00, 0xd800,
                 ]));
@@ -662,11 +662,11 @@ fn synthetic_printer_nodes() -> (
     (result, nodes)
 }
 
-fn print_standalone(
+fn print_standalone_value(
     result: &mut TransformationResult<'_>,
     node: TransformNode,
     never_ascii_escape: bool,
-) -> String {
+) -> tsc_emitter::PrintedText {
     create_printer(
         PrinterOptions::new(NewLineKind::LineFeed)
             .with_declaration_syntax(true)
@@ -681,11 +681,19 @@ fn print_standalone(
         None,
     )
     .expect("standalone node prints")
-    .text()
-    .to_owned()
 }
 
-fn print_parsed_template_fragment(kind: SyntaxKind, source_text: &str) -> String {
+fn print_standalone(
+    result: &mut TransformationResult<'_>,
+    node: TransformNode,
+    never_ascii_escape: bool,
+) -> String {
+    print_standalone_value(result, node, never_ascii_escape)
+        .text()
+        .to_owned()
+}
+
+fn print_parsed_template_fragment(kind: SyntaxKind, source_text: &str) -> tsc_emitter::PrintedText {
     let parsed = parse_source_file(
         "parsed-template.ts",
         source_text,
@@ -718,50 +726,69 @@ fn print_parsed_template_fragment(kind: SyntaxKind, source_text: &str) -> String
         true,
     )
     .expect("identity transform parsed template");
-    print_standalone(&mut result, fragment, false)
+    print_standalone_value(&mut result, fragment, false)
 }
 
 #[test]
-fn synthesized_template_fragments_escape_paired_and_lone_surrogates_like_parsed_tokens() {
-    let (mut result, nodes) = synthetic_printer_nodes();
-    let templates = nodes.borrow().templates.clone();
-    let fixtures = [
-        (
-            SyntaxKind::NoSubstitutionTemplateLiteral,
-            "const value = `\\uD83D\\uDE00\\uD800`;",
-            "const value = `😀\\uD800`;",
-        ),
-        (
-            SyntaxKind::TemplateHead,
-            "const value = `\\uD83D\\uDE00\\uD800${expression}`;",
-            "const value = `😀\\uD800${expression}`;",
-        ),
-        (
-            SyntaxKind::TemplateMiddle,
-            "const value = `${left}\\uD83D\\uDE00\\uD800${right}`;",
-            "const value = `${left}😀\\uD800${right}`;",
-        ),
-        (
-            SyntaxKind::TemplateTail,
-            "const value = `${left}\\uD83D\\uDE00\\uD800`;",
-            "const value = `${left}😀\\uD800`;",
-        ),
-    ];
-    for (kind, default_source, never_ascii_source) in fixtures {
-        let node = templates
-            .iter()
-            .find_map(|(candidate, node)| (*candidate == kind).then_some(*node))
-            .unwrap_or_else(|| panic!("synthetic fixture contains {kind:?}"));
-        assert_eq!(
-            print_standalone(&mut result, node, false),
-            print_parsed_template_fragment(kind, default_source),
-            "default escaping for {kind:?}"
-        );
-        assert_eq!(
-            print_standalone(&mut result, node, true),
-            print_parsed_template_fragment(kind, never_ascii_source),
-            "neverAsciiEscape for {kind:?}"
-        );
+fn synthesized_template_fragments_match_typescript_literal_provenance() {
+    let artifact: Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/template-fragment-provenance.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 8);
+    let capture = |printed: &tsc_emitter::PrintedText| {
+        serde_json::json!({
+            "text_utf16": printed.text_utf16().as_ref(),
+            "utf8_base64": tsc_emitter::base64_encode(printed.text().as_bytes()),
+            "utf8_bytes": printed.text().len(),
+            "end_utf16": {"position": printed.end().position().value(), "line": printed.end().line(), "column": printed.end().column()},
+        })
+    };
+    for case in cases {
+        let id = case["case_id"].as_str().unwrap();
+        for repetition in 0..2 {
+            let (mut result, nodes) = synthetic_printer_nodes();
+            let kind = match case["kind"].as_str().unwrap() {
+                "NoSubstitutionTemplateLiteral" => SyntaxKind::NoSubstitutionTemplateLiteral,
+                "TemplateHead" => SyntaxKind::TemplateHead,
+                "TemplateMiddle" => SyntaxKind::TemplateMiddle,
+                "TemplateTail" => SyntaxKind::TemplateTail,
+                other => panic!("unknown source fixture kind: {other}"),
+            };
+            let node = nodes
+                .borrow()
+                .templates
+                .iter()
+                .find_map(|(candidate, node)| (*candidate == kind).then_some(*node))
+                .unwrap();
+            assert_eq!(
+                serde_json::json!(result
+                    .arena()
+                    .literal_properties(node)
+                    .unwrap()
+                    .javascript_string_value()
+                    .unwrap()
+                    .code_units()),
+                case["units"]
+            );
+            let synthetic = print_standalone_value(
+                &mut result,
+                node,
+                case["never_ascii_escape"].as_bool().unwrap(),
+            );
+            let parsed =
+                print_parsed_template_fragment(kind, case["parsed_source"].as_str().unwrap());
+            let actual = serde_json::json!({"synthetic": capture(&synthetic), "parsed": capture(&parsed),
+                "equal_utf16": synthetic.text_utf16() == parsed.text_utf16()});
+            assert_eq!(
+                actual, case["typescript_observation"],
+                "{id} repetition {repetition}"
+            );
+        }
+        println!("Template fragment provenance EXACT x2 {id}");
     }
 }
 

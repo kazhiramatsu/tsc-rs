@@ -1,0 +1,66 @@
+{
+  "status": "completed-native-query-research-not-complete-command-qualification",
+  "base": "83d06cfbb21340e13ba6f43bd8c7cae0617661f2",
+  "rows": [
+    {
+      "repetition": 0,
+      "extra": false,
+      "declared_type": 62,
+      "exported_type": 70,
+      "object_flags": 16,
+      "symbol_is_class": true,
+      "same_as_declared_type": false,
+      "alias_name": "Foo",
+      "properties": [
+        "member"
+      ]
+    },
+    {
+      "repetition": 0,
+      "extra": true,
+      "declared_type": 62,
+      "exported_type": 72,
+      "object_flags": 16,
+      "symbol_is_class": true,
+      "same_as_declared_type": false,
+      "alias_name": "Foo",
+      "properties": [
+        "member"
+      ]
+    },
+    {
+      "repetition": 1,
+      "extra": false,
+      "declared_type": 62,
+      "exported_type": 70,
+      "object_flags": 16,
+      "symbol_is_class": true,
+      "same_as_declared_type": false,
+      "alias_name": "Foo",
+      "properties": [
+        "member"
+      ]
+    },
+    {
+      "repetition": 1,
+      "extra": true,
+      "declared_type": 62,
+      "exported_type": 72,
+      "object_flags": 16,
+      "symbol_is_class": true,
+      "same_as_declared_type": false,
+      "alias_name": "Foo",
+      "properties": [
+        "member"
+      ]
+    }
+  ],
+  "seconds": 0.02,
+  "exit_code": 0,
+  "log_sha256": "24c03a30dd60cce95d4da15a5342a76e641b6ea9e4e55a172644469de363416d",
+  "prelaunch_sha256": "b1c8d9b334b79a6b8e0e2bdb871db9e909acf6481e88f7452e88fb0f38a417e4",
+  "version": 1,
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-instance-native-probe-dn5nfi7q",
+  "preparation": "check_source_file_then_raw_export_symbol_without_declaration_entry_preparation",
+  "extra_member_rows": "early-query-only-not-final-production-type"
+}

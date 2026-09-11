@@ -461,6 +461,7 @@ pub enum EmitResolverMethod {
     IsBindingCapturedByNode,
     IsDeclarationWithCollidingName,
     IsExternalOrCommonJsModule,
+    IsCommonJsModule,
     IsInstantiatedModule,
     IsUniqueLocalName,
     HasGlobalName,
@@ -537,6 +538,7 @@ impl EmitResolverMethod {
             Self::IsBindingCapturedByNode => "isBindingCapturedByNode",
             Self::IsDeclarationWithCollidingName => "isDeclarationWithCollidingName",
             Self::IsExternalOrCommonJsModule => "isExternalOrCommonJsModule",
+            Self::IsCommonJsModule => "isCommonJsModule",
             Self::IsInstantiatedModule => "isInstantiatedModule",
             Self::IsUniqueLocalName => "isUniqueLocalName",
             Self::HasGlobalName => "hasGlobalName",
@@ -981,6 +983,15 @@ pub trait EmitResolver {
             EmitResolverMethod::IsExternalOrCommonJsModule,
             node,
         ))
+    }
+
+    /// Whether the source owning `node` has the binder's CommonJS indicator.
+    /// Forced external-module status alone does not establish this fact.
+    /// tsrs-native: borrowing projection of TypeScript's direct
+    /// `SourceFile.commonJsModuleIndicator` read in
+    /// `shouldEmitUnderscoreUnderscoreESModule` (_tsc.js:110158-110166).
+    fn is_common_js_module(&self, node: EmitResolverNode) -> Result<bool, EmitResolverError> {
+        Err(unavailable(EmitResolverMethod::IsCommonJsModule, node))
     }
 
     fn is_instantiated_module(&self, node: EmitResolverNode) -> Result<bool, EmitResolverError> {

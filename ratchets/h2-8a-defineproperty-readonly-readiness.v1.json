@@ -1,0 +1,1969 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-26",
+  "base": "b89c73fe675da10934c8be78580545c23c383fa2",
+  "unresolved": 0,
+  "undispositioned": 0,
+  "runtime_paths": [
+    "crates/checker/src/access.rs",
+    "crates/checker/src/annotate.rs",
+    "crates/checker/src/check.rs",
+    "crates/checker/src/expr.rs",
+    "crates/checker/src/functions.rs",
+    "crates/checker/src/literals.rs",
+    "crates/checker/src/mapped.rs",
+    "crates/checker/src/node_builder/statements.rs",
+    "crates/checker/src/node_builder/type_nodes.rs",
+    "crates/checker/src/structural.rs"
+  ],
+  "steps": [
+    "A6-26-1",
+    "A6-26-2",
+    "A6-26-3"
+  ],
+  "owners": [
+    {
+      "owner": "isReadonlyAssignmentDeclaration",
+      "start": 79226,
+      "end": 79252,
+      "sha256": "b24314da6ed2383d7effcd36e7298f7bfc7a28b6ac97beaecf56c41759ef0c4c"
+    },
+    {
+      "owner": "isReadonlySymbol",
+      "start": 79253,
+      "end": 79255,
+      "sha256": "f4bb3512724bb23e8f837910378f78347824481f39847034aec8d8fdf8cf6f3b"
+    },
+    {
+      "owner": "isBindableObjectDefinePropertyCall",
+      "start": 15059,
+      "end": 15065,
+      "sha256": "11b59e7edd8f66683d81b05c7488aa75a2404cf5328472fffb75d1a94f2cb2a9"
+    },
+    {
+      "owner": "getTypeOfPropertyOfType",
+      "start": 55803,
+      "end": 55806,
+      "sha256": "ddd47344f8b1b3d0de20c2241560a370790f21248f978ea95d10914e91566057"
+    },
+    {
+      "owner": "getPropertyOfType",
+      "start": 59348,
+      "end": 59389,
+      "sha256": "39a7221f835629e1b6b6c3d3e53d7aec1032999299e682d96846922fa299498a"
+    },
+    {
+      "owner": "getTypeOfSymbol",
+      "start": 56945,
+      "end": 56975,
+      "sha256": "36123c37428ab9dcfb6c89ba1c42dbf1a5461becdfdade097ed545e21b50bfd7"
+    },
+    {
+      "owner": "checkExpressionCached",
+      "start": 80580,
+      "end": 80595,
+      "sha256": "d53b8def69286cea6beb2fdadf985dcd3c6d0dec3ef171f10eda495f50485178"
+    },
+    {
+      "owner": "checkExpression",
+      "start": 80960,
+      "end": 80974,
+      "sha256": "b56997759c77785af8c96e94324267893636cd83bfdc656d059ef139e4cd71ac"
+    },
+    {
+      "owner": "getCheckFlags",
+      "start": 17433,
+      "end": 17435,
+      "sha256": "a83648d039471a61a67a19bbf1a35c6a4bee49544839d279d7194fcf8a6ad7a4"
+    },
+    {
+      "owner": "getDeclarationModifierFlagsFromSymbol",
+      "start": 17436,
+      "end": 17452,
+      "sha256": "640b7c9d80362bc126b54abbed85737561ceff6a8dec412cfaf111c794a4ef8d"
+    },
+    {
+      "owner": "getDeclarationNodeFlagsFromSymbol",
+      "start": 74859,
+      "end": 74861,
+      "sha256": "a19a53639783b499d7b4b2741669b1b24e90e46a22e849eb4edf43b60c79042b"
+    },
+    {
+      "owner": "isAssignmentToReadonlyEntity",
+      "start": 79256,
+      "end": 79290,
+      "sha256": "2381c469899908deddba8fbd4bbc7ce0898d86865a1e6f19062ef7f8166720de"
+    },
+    {
+      "owner": "resolveReverseMappedTypeMembers",
+      "start": 58423,
+      "end": 58455,
+      "sha256": "9c2b1ea3f2113f2c77230deba94d6bda93f3a13f722929468e52407b4525146c"
+    },
+    {
+      "owner": "getSpreadSymbol",
+      "start": 63044,
+      "end": 63056,
+      "sha256": "081b8438c5ab6cb37771a452a7f336cc67ee020d921994fcd1e6cc09100e97f9"
+    },
+    {
+      "owner": "addPropertyToElementList",
+      "start": 52241,
+      "end": 52397,
+      "sha256": "6c6b916aa8ce07acd5ac0ba435bbb827fea9ee957fdaf3e2843643414cba7580"
+    },
+    {
+      "owner": "isConstantReference",
+      "start": 70374,
+      "end": 70393,
+      "sha256": "63298ed7776bb8e07259b2d8bb0051c1ce8c9e2f1e4be5517b1c15c6eca65e81"
+    },
+    {
+      "owner": "propertyRelatedTo",
+      "start": 66663,
+      "end": 66707,
+      "sha256": "19d5c6a584328bf185f97857552fb6e2d018cee9a73a975a40b8decf71d676da"
+    },
+    {
+      "owner": "compareProperties",
+      "start": 67536,
+      "end": 67558,
+      "sha256": "42f04303574ccb64448bdeda07e716852dbca284333cf3f172159a566c991bb9"
+    },
+    {
+      "owner": "createUnionOrIntersectionProperty",
+      "start": 59101,
+      "end": 59245,
+      "sha256": "21791f74b0558b599db3de8950d26bd93152bbb62c3e250727503334167bf713"
+    },
+    {
+      "owner": "isPropertyIdenticalTo",
+      "start": 67533,
+      "end": 67535,
+      "sha256": "e5bc0670b1b176c446db71d2ecbd36ba6cdc4903be20e3bb2ac807ec25c89652"
+    },
+    {
+      "owner": "addMemberForKeyTypeWorker",
+      "start": 58539,
+      "end": 58575,
+      "sha256": "cffc0b4ecb403dd48564a65c1fdcfaa1388a7fd5b8a78ef6b82daeb1c648a6ac"
+    },
+    {
+      "owner": "checkIdentifier",
+      "start": 72126,
+      "end": 72213,
+      "sha256": "9fe9fcc0b033367436dd525613db28f5705a42f8428a97215ce75bef6e985875"
+    },
+    {
+      "owner": "checkDeleteExpression",
+      "start": 79303,
+      "end": 79323,
+      "sha256": "098796e01bc1bebf86af1a1f3845547ec8ed79951a6b573798b6fbaae6ac96e9"
+    },
+    {
+      "owner": "makeSerializePropertySymbol",
+      "start": 55099,
+      "end": 55229,
+      "sha256": "fab03df95bee26e871b1bc817932eb99b58a9c262f37009266cc1a5291f817a7"
+    }
+  ],
+  "call_sites": [
+    {
+      "path": "crates/checker/src/access.rs",
+      "line": 3101,
+      "expression": "self.is_readonly_symbol(symbol)"
+    },
+    {
+      "path": "crates/checker/src/annotate.rs",
+      "line": 4171,
+      "expression": "state.is_readonly_symbol(property)"
+    },
+    {
+      "path": "crates/checker/src/check.rs",
+      "line": 9055,
+      "expression": "self.is_readonly_symbol(property)"
+    },
+    {
+      "path": "crates/checker/src/check.rs",
+      "line": 9119,
+      "expression": "self.is_readonly_symbol(property)"
+    },
+    {
+      "path": "crates/checker/src/expr.rs",
+      "line": 1029,
+      "expression": "self.is_readonly_symbol(local_or_export_symbol)"
+    },
+    {
+      "path": "crates/checker/src/expr.rs",
+      "line": 3321,
+      "expression": "self.is_readonly_symbol(symbol)"
+    },
+    {
+      "path": "crates/checker/src/functions.rs",
+      "line": 1259,
+      "expression": "self.is_readonly_symbol(resolved)"
+    },
+    {
+      "path": "crates/checker/src/literals.rs",
+      "line": 1951,
+      "expression": "self.is_readonly_symbol(prop)"
+    },
+    {
+      "path": "crates/checker/src/mapped.rs",
+      "line": 589,
+      "expression": "self.is_readonly_symbol(property)"
+    },
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "line": 4653,
+      "expression": "self.checker.is_readonly_symbol(base_property)"
+    },
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "line": 4654,
+      "expression": "self.checker.is_readonly_symbol(property)"
+    },
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "line": 4892,
+      "expression": "self.checker.is_readonly_symbol(property)"
+    },
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "line": 4990,
+      "expression": "self.checker.is_readonly_symbol(property)"
+    },
+    {
+      "path": "crates/checker/src/node_builder/type_nodes.rs",
+      "line": 4467,
+      "expression": "checker.is_readonly_symbol(property)"
+    },
+    {
+      "path": "crates/checker/src/node_builder/type_nodes.rs",
+      "line": 4540,
+      "expression": "checker.is_readonly_symbol(property)"
+    },
+    {
+      "path": "crates/checker/src/structural.rs",
+      "line": 2200,
+      "expression": "self.st.is_readonly_symbol(source_prop)"
+    },
+    {
+      "path": "crates/checker/src/structural.rs",
+      "line": 2201,
+      "expression": "self.st.is_readonly_symbol(target_prop)"
+    },
+    {
+      "path": "crates/checker/src/structural.rs",
+      "line": 2945,
+      "expression": "self.st.is_readonly_symbol(source_prop)"
+    },
+    {
+      "path": "crates/checker/src/structural.rs",
+      "line": 2945,
+      "expression": "self.st.is_readonly_symbol(target_prop)"
+    },
+    {
+      "path": "crates/checker/src/structural.rs",
+      "line": 5263,
+      "expression": "self.is_readonly_symbol(prop)"
+    },
+    {
+      "path": "crates/checker/src/structural.rs",
+      "line": 5265,
+      "expression": "self.is_readonly_symbol(prop)"
+    },
+    {
+      "path": "crates/checker/src/structural.rs",
+      "line": 5539,
+      "expression": "self.is_readonly_symbol(source_prop)"
+    },
+    {
+      "path": "crates/checker/src/structural.rs",
+      "line": 5539,
+      "expression": "self.is_readonly_symbol(target_prop)"
+    },
+    {
+      "path": "crates/checker/src/structural.rs",
+      "line": 6642,
+      "expression": "self.is_readonly_symbol(source_prop)"
+    },
+    {
+      "path": "crates/checker/src/structural.rs",
+      "line": 6642,
+      "expression": "self.is_readonly_symbol(target_prop)"
+    }
+  ],
+  "witnesses": [
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/value-absent-writable",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "dc81719f9cd552a0adde0558cc0dc7fd80d299bb4ae2b1262965afbaa7cf816e"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/value-false",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "41bf705397e6e3c3f4e6c0ddd0f793f1b0904832bf04ee16175ef94455785f21"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/value-true",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "3e05e2c3ef462938c89c5446504b6b37da0be134ec1c82418bd73b87fe6e636a"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/value-undefined-writable",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "944141bc2c134cb757d1665684172ab73f7db4b773deb528acdb2b8883f7463f"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/value-quoted-false",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "24e32ed762a89dc1acb4773f847d20e171701f206b1c5efbb508a119399d7390"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/value-computed-false",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "37202b40a681914ef9791ce48a99065789d779f580c06d1e33ebeb8532796c30"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/value-and-set",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "9cf8e3b65c8c3dc4c1d05920d5aa41e1efbdcc691c19050661a2b85f96421ee5"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/identifier-set",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "82104fad037478040fc4e34f8c42fa7f9668a31eb22bbfbea1fd3bffa31130a7"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/quoted-set",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "5b17dac01defbaeccc18954b4e725ad7e81ec5a072d015ea1ee1553c08843c74"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/computed-set",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "7a3c0ff4ec939c880e55b29c59fe1b28bad4ac40ce41d1e9e1594bf6d027dabb"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/getter-only",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "c2a051c9e1ac9e7785804afd7d288a8650cfdb3e79282e4d1c19b3444c7cd717"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/quoted-getter-only",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "2d37e2361dd87ff5b8da76264bb8143c7096e741491e547776ca1a82bc01bcf5"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/getter-and-setter",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "45008774e52a4c3e2af23b7d2f25ccffa8b26262c55658627f8928bbc335d934"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/set-function-property",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "70d98f66e28eb9d279d4458a5f8c08644c151f6a65f2a3a96f71d66dec8f77f7"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/set-undefined-property",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "51e238664a44c4f0424caa6bcf0a6c1b83829b10a516666dd5fd880314567b5a"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/empty-descriptor",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "78807df30f81ca850f8959da506a8d03a70e6ac0a78aa6b739f5335588bb1324"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/false-const",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "1eab55ede19284e35a57e059b515fb066e6f710523c06787b583b37de5d0f179"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/true-const",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "854de9347f4d13f5d226568243b6b5265447fb305bfaa599e1d9046ef04fe0f2"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/false-let",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "a695cf714aebbe40ae499ffd524065aeb295caf4776faec8a7d8dc1947aca7bc"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/boolean-let",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "1adc5498c5b667ec9c5d6875c3d017a7d089bd847a26c584d15d30fd1f6bdd38"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/false-conditional",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "76a25c23a3e6c2e4cb2520de1d886077e2cff09270d7feea840f493bfae2a25e"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/boolean-cast",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "ca3c38f99ca177424b9f9c264154a3044226db01096bd351a40e6f42a1bb581b"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/descriptor-variable-value",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "6c3a9f734ed7bb37643756f22520829fb17bddc9138f1b45c456f04843d52b39"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/descriptor-variable-false",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "6126d35afc6a6fb772bc430cdc7fc07f184d8031778026101f185da48be39749"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/descriptor-variable-true",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "5418484612b94ae56ff316eb0b340e7cd2b4af8c42d64eab2b0d384b278b7d49"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/descriptor-variable-set",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "34e8d9385b52e557f13bf717b2ed8026af6f262c80a59f649fb571297223c134"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/descriptor-call-value",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "c98324e34fc4284f5a823c8fc3d80fa2c89b950f154b8c9701f86b3aa406f23a"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/descriptor-call-set",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "ba2a08f5ebcbcb26cfa9b9bfa739ce5d3a4a68a0a641cced47d60e49caccc762"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/repeated-set-then-value",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "5e78f6bd6cc5b548502c6a73efcd1268be1d478fc92f21d7f38016ec66a81144"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/repeated-value-then-set",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "ad7f11a7a98250e76ae777c579caac112aa211d176ab8e631ee7b105a7acb012"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/static-value-false",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "307e0f7501db6aa9eaa02df9a2d01e0b4e8fe1368e08ac6018b2a354532a6338"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/static-quoted-set",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "0cb1a78bf1c670f0d6a1f7f65878a972f61aed38cae5994eb7cdc67a4d778454"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/assignment-false",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "6662b82252c176c6bc2512778bb2aa5feb7b10bb1aa40c607ad538b741d86e41"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/assignment-true",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "139007d18c3e6d75cab7446683b6553bbdb502da1d1fb5baba5c8bf80b2cb663"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/assignment-quoted-set",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "041f637a27520c5d6b850db24147f30ee71d4dff41b06c338c41a872f5393427"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/assignment-computed-set",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "0405c74993f17fdb00daf949a909f9fc47c260643172f1d4ac8fdae8ded92441"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/ts-readonly-field",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "2cdbdfb2fd2ce2418d24f4d0a45e5556bc30b7da26d9cfb2dfea85dae41b2d98"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/ts-writable-field",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "89b526a185a57c43c836f71b2886a470a6d16e78d9810b46e7bbe856e68c4a11"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/ts-get-only",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "cbece4909a5c9ae2c3e7a5f0a15ab0de8ef42a8164d3891a35ac60f07c39c148"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/ts-get-and-set",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "f9aabec3aa83ad8ebd6fd4aee7b3c506f9ad2ee8a88a9073bee26e34b742cf4a"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/ts-const-assignment",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "7b5df61d246313bc3872aa5fb2c2acae2d7404a347ec4b0600c9ff8d74335b64"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/ts-enum-assignment",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "49dab8cab98e17706c8ece827bd02c107e1fae092bbefd96e0f427db2ffedf12"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/ts-mapped-readonly",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "9ee69df7862f05ab4e55e1c44cc0060c269dc1990f92cc340136a694c9ce931c"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/ts-mapped-strip",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "e1330cb52228f157297b706aa8ec6f609f9d92b7dce38a0789007a018248f9a7"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/ts-union-readonly",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "b754e85519b795f19840bdf417dbb78d234b1ae683c6da99c5b6c87f87f01544"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/ts-intersection-readonly",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "83093398063733d9bc8312b52264edf611279054327bf9c0624bfdb8158db6ae"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/ts-object-spread",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "e2f2f0f3c3a3d60bdf89ca9eba1da9298c360c82e8a26f63bffa36abd7509589"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/ts-structural-identity",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "4902de7feab18b8ca017351c1c584ecdef9246502e6d4acf2e15cb7b3bef4f7b"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/descriptor-any",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "19531d42570a5c5188388bb6f7201d4fc2f5cdaa04498e34a1eb82a54404c201"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/descriptor-index-signature",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "9f6edcbdceb3c6f69c081292b68d8dadd9edee8dbe545655c168cd80c2177f7f"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/descriptor-union",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "5edce0cfd7a60890f9d85bfe0fdd3e48d1893b19be3eb1b1c5cfae13420b6da0"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/descriptor-intersection",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "2f063c3acd573c758a86fa284c341f9e2b1a81eb20362bcbb6d78a34ddd39008"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/writable-getter",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "5f6bb8c9d28daaf8e05a39a534ff12cb4d877bb33fbb365d47112ecc4e7c8b48"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/delete-false",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "015c8703abf94fb268d2520d9e3d4ed29d2a85d6ee50c62853b6b86dd5b508df"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/delete-quoted-set",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "30f64eaa3d2c70c36f7af6b6d3b68aebd70cdb9b9c5e4df939ad1c98483710a2"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/commonjs/value-undefined-and-set",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "352b9d30eb83fc5edcd0b057b67831aa0fe84962682b59e64c9926a3079095dc"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/value-absent-writable",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "3b6ad461c9d61a60571f609da69fc4846684b66ddc536efedc2f456f2b693bab"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/value-false",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "59430bc188d44a89aa02fae8f44fe8a4e91bba5420ecc235fc2d3f21411062f4"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/value-true",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "75cf0625be24d5eb8762db4fad5aba684e5f0dafd39501634585d0f4f27d8db3"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/value-undefined-writable",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "b9c55b89f33266694cd3339730d20e8c4ea61fcdce74efa947dc1dff006a3ff1"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/value-quoted-false",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "8ac79d461e6d875c19467d8a6771b6d695537c9827060067e298461c751a1791"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/value-computed-false",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "694ab220787b67b0b9d746552e78339143d515667fbdd6d436047cb85f6d3340"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/value-and-set",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "01dbf64f28625540fe7f0b038a1c79d3e90fd8b833a23bfbca760779be9999e1"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/identifier-set",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "45410967222ce0691ef6e3c61b0b532e94254118252bd4734efe9e0a042f9fc7"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/quoted-set",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "86a48e708b0aa7fb5fc7428abfebf33ca56681e9267565a3cf2cd4197be3fc8e"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/computed-set",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "5ea892736b0ce0a775b760378975a289ed0eafe4a5b683eada89da68159a0f25"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/getter-only",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "cc33d698279c2a46b98028f1470981bcb7b432cf1d0b729046f549c22cc63f4a"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/quoted-getter-only",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "de778b6ec205687c16cc13e117ad9bc81aa239589803f3a48eba371b87e2820a"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/getter-and-setter",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "0fecf3714821222cd55d5594d90199e5d4d5b8e93c75ddeedda8c3784f8dbcbb"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/set-function-property",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "7674f80b78aecedb284ea48cf290cb94459fb69858d7f6152223fb3f8460a537"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/set-undefined-property",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "2b568ce2e0530b25719ccc116a946817a8d67a0d315c8153bc9850949d34d4cd"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/empty-descriptor",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "3b436f971894e27604375c93218c5f41761703c30c0fab7108de3e5cab7509c5"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/false-const",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "f418f6de5469455ad5998ff28ef671d84b6e0c47920cd703ce81e2b85d345562"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/true-const",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "e2fbd7b2908e1ea0de4fdccc2f7317becd304a13852f8db0ce4f2195e67a670e"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/false-let",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "bb591cbe34a2b90aeaf9bad2ef132ed07418c771379c082567ce9a94fb66b834"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/boolean-let",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "ca0c98b6fec29d29b68af0e068de9076e37797980cb35f1ec8af6a7d2cab391c"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/false-conditional",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "2a730ec0a7dd5ab36f9f904de09ff02f159f943434d6953e2e6236b898e6a11a"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/boolean-cast",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "111181ead358cb1a0f3f1fee64e4a12ca647285f1c8e261eb6c96c5c6d88f38b"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/descriptor-variable-value",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "fe4b0f9773e34443dcd254984d51b83e28ae361d66085d19433b2c25dc3efc3e"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/descriptor-variable-false",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "b77c3caf592911039f0da03a91661c38dfcb85529eaa91a6a401115d92e1a704"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/descriptor-variable-true",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "6141c1a7b19c43257ce81f4ad3bb82026684f552f6ebe36873d6e0271f4388df"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/descriptor-variable-set",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "ee5e2a8889c6d7af63e1d42878819c1d3c8b9eed07804bda5fbc02f56c3b311d"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/descriptor-call-value",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "95b382b2b3dd2fccf101a3e1cd29e59e1b6e013cfe37138e5f1bebf8e0b868eb"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/descriptor-call-set",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "b95ba6d46c6ec1368d8114114c9c2dab74e5602b32ae5683161ee1e5d7e38738"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/repeated-set-then-value",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "94ca18b2b3b74ddfa83d16a6f67df2270027f0d0ae1ffa21bafab1e8ef6279e3"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/repeated-value-then-set",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "0f9dc429f5156c783e96e01d809aee987ef4e9bd29b6776eaa2c30ef74a95475"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/static-value-false",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "c4c99d1cd0c953506bd9e6a282e5edd48a9c9e86be31df7ad1a38329c0754536"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/static-quoted-set",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "d346c18357a9898d4a85afe929e23d04c81ac24960d4f9a8296f9fd73dfe167a"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/assignment-false",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "29acf2bf6676f2784f14d196ad646d0ffcc8efaee778491ce350a4821c8dcbcd"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/assignment-true",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "8496e14b8a8c531302fdd4f20c782e5896f6e60150c45c775b0a8219bada1b86"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/assignment-quoted-set",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "c81ec9c4920a69d5ec20c1908ff2bc0ecaf23d358b1e458ac59ea98d03033e60"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/assignment-computed-set",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "57df93a5360b9e5f23b04ff526591012fdc72d3d78fd61fe1b7a0ef947c20921"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/ts-readonly-field",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "bf5dd4c37710845b1a4d20ea3e87a27ea9bdffc0cb499bf8bb2416e94e718b61"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/ts-writable-field",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "ca4a9b22ff90bc23dbb086acc8b25abe90169e147c6ca771b238959656e27c01"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/ts-get-only",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "b1acaf3803d33b709fd821eb91fc673d2c3aaec69719a25f11447ab282d3510e"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/ts-get-and-set",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "4e8d156277ddba3a4ee243a477ca1ec0a1418ebe0653f59143b46b967252928a"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/ts-const-assignment",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "e32f7763127c55891956e5a2a78289eecc5a4b173d52ff6f86157d530c6f63ef"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/ts-enum-assignment",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "b770b8890886f516e03e498d23ac5ff1371c2fb10d6e20468c4e188b6ee79638"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/ts-mapped-readonly",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "f16ceb01a72277106e481d76580dd00df0a9da42866e45ab4566cb09345131d3"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/ts-mapped-strip",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "e5c16e503591d96e863d459bc5f778111fc0e80f152f3b43e21bac63a892d7c7"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/ts-union-readonly",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "f6514df8a66b1dbd9920f492bd016f8737e93244b9feaf5019d45a1e0c27b761"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/ts-intersection-readonly",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "95f9c3c4ef86ac1cce2997d2899b639bb67684d564d7b4e3fe5d66f1f0b3ded7"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/ts-object-spread",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "7a45a61d29154cf59e70e6cd7c7dcf8e3b0ff20a3f145bc9cda5100092df051a"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/ts-structural-identity",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "01909887aa33e88bd5e574613331e28a81d2352f9022ac4aa3bdba27f7fdc44f"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/descriptor-any",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "0a6e900d3c8a14f85e570be57576600e2bffad909f4228c0ed233b9ad9faacba"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/descriptor-index-signature",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "eeb183febac8dcce6efd503a95969a3249fb5f8d9c6c3cba6656723de6923af3"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/descriptor-union",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "f1b7a5aa940ab7cb832e6c033b2c156efa35945df522428bd9e0e8507a1ecd76"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/descriptor-intersection",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "d89f629f1b6be49c9e5d97647a93a899de3dcf89d6418d9d4e9dd80ab61131da"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/writable-getter",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "b43c40d3f052d693acf709e3a7f787713593fca28ae2d0707ced7c1bf8d74fc0"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/delete-false",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "3d2920cedc793d7b0e959eb29994176c8c7a861217fb3fd6a87c0add7b5474c1"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/delete-quoted-set",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "8acd449c6b9de55d1f5d87baf547c55c8b68415eb5875acef197bebd626a2e1c"
+    },
+    {
+      "case_id": "defineproperty-readonly/es5/esnext/value-undefined-and-set",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "172881dc3792c094b35eb9945709ec0b854cbe70b638f88f9f38763b61e9b750"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/value-absent-writable",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "7accf40a2023ea4852d519705f5ec08961e023bf9ede77f3a01c54c737551415"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/value-false",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "6bb6adc91fe993db5281a5a03e4d8c34d211ace7e5bcef28aaafe575370c7948"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/value-true",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "283bc0c19948d27c4a8bb5a61d6c8f9b54ec65d107573dce5210559593d4fab3"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/value-undefined-writable",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "7586c37e35e39b2ab608b4086b3946f2f482041067a611f4c4cbabe44885c9f3"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/value-quoted-false",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "410576a13458e116b33fed3f9ff20f962551b31967899f0282cd290311341924"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/value-computed-false",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "bd58b1aaf7755434b7924c1c2f9abea741ca71ee1437b3c7a4945be69e3e10bb"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/value-and-set",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "eaaf22197e5691b02ad1588d9ffbe87fb6e9cf7e10da9a5e9de409258f48d4ac"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/identifier-set",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "fcd719e7596e3639d27ac4de509daa83580ee0a9d783d3f8433ebab3d771c24b"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/quoted-set",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "959f1a7ad9a724ab60c4674a02212a72f5b347f79f629ae296d10f5c24db6460"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/computed-set",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "98ec37c60a6a3ccd31f573d6ec1314df853274031dc737cb9e38933548e6d0d8"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/getter-only",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "b075e6c8a777b05361b01921518e0f44644a388624995c126182408562d581ce"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/quoted-getter-only",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "fb0ae48148e4d9d0d353be2f94db9481bc46f66c40aa12152e0dc51d14c4e3f9"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/getter-and-setter",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "6c1d1113e6c416c944c8d8e2cfedaab785d01a3963eb8181bae25b497959e3e4"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/set-function-property",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "4ece0c5969173707b582bd00197ad9a9dbadc0f671bb5cdbaac627ba548f3f83"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/set-undefined-property",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "6319f074d3af23599a40e93da3d5f2f4a568f29d84a1fab4746a6276924b9bda"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/empty-descriptor",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "9ca2fd1f7c12a7af8aaa8752ad21a9b0bcb6c09f1d98620fe566ae0c178f6e1a"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/false-const",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "98ce66517e91f215b4d551ffce944651cd67927a0af98edc9915cb5fad3104c1"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/true-const",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "61c526f0aaf4eb0749f510de6621a1be1688089cb2d6a614644e1c6cb0928b37"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/false-let",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "53d4831da6c1a3af5a39c1b46da773d3c9f24e5377e4b60b0aba30d58c046a5f"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/boolean-let",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "1636eb40da9850eba059fc668e92457a26852d6db41991bc2ac46c9f368e5bde"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/false-conditional",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "e8c1a7d0f1e17db1d489a936a74b09962ab381da7cdb501d18f2af2ca77ecff9"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/boolean-cast",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "90c6d971b01e18bf67a6bbc48bfa44d61054e7bfbe2e6556ec3c3ca035f9b76b"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/descriptor-variable-value",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "ec4c82c84c971f738173b154ad8c5dc3c45684608690595aa72c9dae40481844"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/descriptor-variable-false",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "cb1634d5a124e432db08b65e59842f60c2558799d877e3c4675cdd925ed443fc"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/descriptor-variable-true",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "06f9ec148a513737213ce0da345ba68f3eb7e92cc503aeacc0278215666122b3"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/descriptor-variable-set",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "0a21cb75ded8a17e6224ddc70a08de78cc6008eab3e60f5c54e92c3e4a6d1cd9"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/descriptor-call-value",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "67a1495a3a93e4234354bf6b44293b164a9ef2580cdcf1b4675f1a49a1da4fd2"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/descriptor-call-set",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "060971fc55fbb0979313edb60f1f1b5813eb018e8d7b36218d543d29a6f32379"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/repeated-set-then-value",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "31c32cda9f2c7fad6d27febe898c8a5977db8bf65600d9aacb37d50d15aeace1"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/repeated-value-then-set",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "50ca8a3042f03343892f2b9edd3425376897243fc01e024dada0898cae1ba9df"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/static-value-false",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "40304abccb254629fc1804e82c2e258ca519c7b54bb653f2e06967698c9b7d02"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/static-quoted-set",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "977d5bbd628811f70d9dd689f07f2f05642b358251d66f8009689ad6dd645312"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/assignment-false",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "cd9fc7c6f0e289b2bd06ab26ea125d1897adf8f09c88e9dd286cfa09b74cd182"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/assignment-true",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "691ee764c38485a11624cc9f251c78246a1d170a1cc5fb9705ee7ccb4a62cb5b"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/assignment-quoted-set",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "7f43a77eb72e798411f411d23e218e88a2035360d6cd83be7bb3e61e91300d07"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/assignment-computed-set",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "41e95688e37712e9c3e1167d1636f9ef7e0310fb0792d4f90f8c44d62d795ffb"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/ts-readonly-field",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "6a18d4d84d6009fbe6b32f9932d38b0e6c42d767bb94c3cd1060bfdabb0cca62"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/ts-writable-field",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "65b6b278d2135dafe7e9186678db82812c815cf58c3b47bb1d3c1f5a9e84a788"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/ts-get-only",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "76ec8daa37912b2421b1d0f48bbf0c22850286f6d5fbfa0d715178838883edec"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/ts-get-and-set",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "121dad0a44901d956b52d39cb24dec0eae6565b78ed0656c65127bd629c324be"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/ts-const-assignment",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "32cb914b63446abc54fb97d45e498cc9dc8fbe8237be7f0814fb3a75c9dd43b3"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/ts-enum-assignment",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "b61d6a06e123b41f189c71a2f6ffb3fee9bb38abc61c8d0ec0e9d21380c91215"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/ts-mapped-readonly",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "f4f2cf24a8af8116b35293e902850d7cefa98569c567d545509ce6c91b245134"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/ts-mapped-strip",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "8cfde7f68cff136af4dcc6b4c9e95bd69cd10ff40259e0af33b57c6266be53d8"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/ts-union-readonly",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "51a4ed70cece015a90eb5bb413c20583dd5c69a22e39debd3f94b100c8eaffd7"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/ts-intersection-readonly",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "eed22c4dc6c4a55a0e465d52c5381d88c636985a2e5e83d7e099dc7c3ddc99c3"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/ts-object-spread",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "d8f5ac9e7be9f977b6e469a8035d5765e07d0304edf56512c400abab755b67ac"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/ts-structural-identity",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "6c470562f5ae4f2d600ede9dd22662aa7bbbc90a82079d84b095b792e9b20b9f"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/descriptor-any",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "616eec99469592620a9d0502002adc1552bfb4d6d9219afdefa24304a5a14829"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/descriptor-index-signature",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "0cb868d5315e7e271f2fa97c6e8ce0ff6f9313e558f86e4f9d303d760f8b0207"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/descriptor-union",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "d7aa127bfb4c17a31e191dde0372ccb677ecd03bbcdc11a5d66bbfe03ede75c7"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/descriptor-intersection",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "7593750fae33895994741bc1f6763a81499721e977bc8f813e15bbc087a79e3f"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/writable-getter",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "e1cf986d128eea7eb8462dba6a855818297e59709c5d3a979ff228d02d3bc2a8"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/delete-false",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "1e7a778e53a6cf8f3807f316ebaaa5b5842d88a697b1d66267873c4af693ab7f"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/delete-quoted-set",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "c8215bf4e97ed7e367ab0778a7cd146b57bbf5a143fc71d400a54c2308ab0d0e"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/commonjs/value-undefined-and-set",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "e974b1f74dab9c8cf23d273e450547cece40692524f6e777205e4bfff24133c7"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/value-absent-writable",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "7ae0e3b2764dc6c9fd00e687be5e2ecbb8976e5d10bc6fabeb19128c302320bc"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/value-false",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "2d6fd2ba9541b12ac2ff140e6790257daf5f8866bac189d1c26fddfda86787d3"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/value-true",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "4c4a1f092fb1fffafe3ed821ed29f3e238ced9e1ed3f44c4445e31721c1c9dd5"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/value-undefined-writable",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "bd552fe6deb214cff721442a8a25c9cd8aad1b5d4f0c3000282c54633ec3a69d"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/value-quoted-false",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "7852b0218181c038a55ce8028f8ad19107a37c2b310ca1fdb21f324227ff9238"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/value-computed-false",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "ea67b5ab90147d8f9fb7b13a4042450d7cfa1492a163a793a73057cb1e52de2e"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/value-and-set",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "002a6aa280137ca8429ec25ea06a981c8fc9669aa07a425d894c3163a2638e39"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/identifier-set",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "26fca093602cc3947e222e1c5528dec336f6ab0a0cac1bf4b7c16b3bb10153f8"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/quoted-set",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "094daa5c0cf606c761ffe50071693cfb9188891ccce69fba5a82dd7854ec7ccc"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/computed-set",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "6c34ed9bd9c2149131adc3c9cf170a4c7bad9a1ad09ffcbeee1e82255f9a928b"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/getter-only",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "1408f378764822498a9253713f0d317fa189ae09ae2030305666f7d690c2e15c"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/quoted-getter-only",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "187fcce8894d6562ef711d732946f6b0db20a7dacc685e8e7f76503c8ea65981"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/getter-and-setter",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "c1edac617e25a1c1ff8793c4cc238a7abbc4f21c22efd0d9bf127d5504148a43"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/set-function-property",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "077cbef58938eca761d3fe128feee9ab091f13c59f6ab39dc2c834423c4ebd85"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/set-undefined-property",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "5de64287dcdc9faee03fae86da6a10014df5bad89d914f72994fde71a30b8232"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/empty-descriptor",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "a328b45599773a0d2816b9c512116622e074dfcaba1f712d65cdb438c96840c9"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/false-const",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "847498bbf5701f194ad1a699bda1f947bf98a0ef4957adfb0ab2449f73cf2d23"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/true-const",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "fba1fe25d8991b052c6abdfc01b967b9e84c0ef0fb31874f5185d2300f4da6e8"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/false-let",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "26760e9b960ea54a7c999d1632b6af1412782514974ff27af2ee724504bf7fff"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/boolean-let",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "2442e5f2ae68be2701348f031c3987c3b15e4fa3ae8bdac7088f2369ee752851"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/false-conditional",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "22c1511dc152a1398db5b38bada420a5ec36b9f204535d64f3c1a1614270ab0e"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/boolean-cast",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "9214c82048b8535b92b28ff99bdbff0416127133325a80251cbcd2013b8c416f"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/descriptor-variable-value",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "f4afa15919a1010ed785fa1090dd24ae1995ef2760f299f29bd6ab3f7c30ad7d"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/descriptor-variable-false",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "9eaa85fd1cb2070ef97aab5ca30925d9db60077b8648fd04cac65fbcfbdd0dcd"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/descriptor-variable-true",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "48a9335575bb1a56e970b0981020cfabb804ebde6c0da41bc00f23eb399394d7"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/descriptor-variable-set",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "354670e7a8da2a9048b50e1ff30fc4e10a1a5c02e85930f8c26d0cbbd6e0596f"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/descriptor-call-value",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "8722c52ccebd2e4962991978099c2cae955a843c62bbee2db5f4c507776e8ff3"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/descriptor-call-set",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "d154d0ccaaf3e43800145b31a2f9edac3098732f87ec7d5a174320004dec7459"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/repeated-set-then-value",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "53e0ee02cc930bdc802fb9f9713db6d5cf405a0a296b15349e6f31a1818ce44b"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/repeated-value-then-set",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "7307262d290319b689801285496014122d561d25a04e642428e016ab001c2c9b"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/static-value-false",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "b563e1582530e692ca8875a005cb212500199503da81d63a85469e1b94016ea9"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/static-quoted-set",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "15bd9aad812d8de55bb8b9cb4d87bfaac3686f029e7f6c920b6522ee567b5d57"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/assignment-false",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "3412a1bb20774d94512dafa442b2ba340c5aefef7994d3ef39f1fb9673347aec"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/assignment-true",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "1834932a28a98745841e8bf865c7261789bb227c3e85e32af1f66642537f54a4"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/assignment-quoted-set",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "b17020f8b5585b89b2cbabd4ec756696889ffcb7d3d1cb5052cd5a419885c13b"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/assignment-computed-set",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "191b21bb13f9ca36f4bce1cb00fa1ec076c66b874116647869795b50189e2998"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/ts-readonly-field",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "cf012943b0b830cb40f815bcb75daf5a141fd00d0d1c5392780d29f58066275d"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/ts-writable-field",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "47cc1c5fa4e21ca3f4d68db4682983c2ce9f7f8524721f1904af4e7378f6f10c"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/ts-get-only",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "acf8763a110af8fff70d60feb44fce369d4c40869ce6de0a8c9cea7da4e3a3bc"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/ts-get-and-set",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "506111a79a0090e2826149cd92d5786c1848ab4394b7d1749717f40fcb6bcaaf"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/ts-const-assignment",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "85d73229ad1872530279be2afbdce67bd70a099e82782d1830f10ebc379a0d38"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/ts-enum-assignment",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "95d043b65ae014d6cf98a2eb5b8b9011bbcbdfcd5c8e428015d045883936ee75"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/ts-mapped-readonly",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "7ebdfbfe5656e6b77051c7dcbbad681f34a485a7c4c87c9c1382e6bf818d6dab"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/ts-mapped-strip",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "03d0ae4cc7f8a9ddd1e8b3f7b9164b879cad5844d334d0e3b3c5b7d314651ed3"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/ts-union-readonly",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "ba5930b4c992fe0af2223e80d33da798e2a69cf0850e33e46af2380da2b351b9"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/ts-intersection-readonly",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "516ab7a51e366b0a6917c75068a0e953f63f4343a944cbb20360b7458a8022f8"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/ts-object-spread",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "f58394429fac253679239dbbc4a02d8583e44cb6b32d80ab7710c58300993c08"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/ts-structural-identity",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "42890652a5d340653896d6a870a95d9abf3b2a7abed19b6013a42265136c508b"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/descriptor-any",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "60b57ddea1aa2ed61b88fe26d9260fc2a8aac8a802cb940091264e219a1e57cc"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/descriptor-index-signature",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "90da05138048f83d023eba8026d2ad055ef7260fbf12b174165c72b281553ab4"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/descriptor-union",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "3980c54edac25091c070c96f8d67a0311854f024035e38850b1caaaf6cf2cbd5"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/descriptor-intersection",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "26bed7e885b5ee983a5f36059fe3ea3789f62b950b16f91d5cfd61cfdaf26438"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/writable-getter",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "684f1099fea89c55b9a4b4c8bf82f412d27a002a2e2ca31499f6ab9af7300316"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/delete-false",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "2aa765d1efb753b05644261a3d7209409a9ae89802f01e845961c0a608a77925"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/delete-quoted-set",
+      "family": "defineproperty-readonly",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "da458093a853ab0f4bc2d972f8baa76cc955ae6038634c07a1a285980ffabbe6"
+    },
+    {
+      "case_id": "defineproperty-readonly/es2015/esnext/value-undefined-and-set",
+      "family": "defineproperty-readonly",
+      "status": "adjacent-exact",
+      "row_sha256": "bb5892c0e195e6f83374d4565d66f894825ccc4dda4f9c333eeed4688a09b84f"
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es5/commonjs/exports-shorthand-false",
+      "family": "defineproperty-readonly-exports",
+      "status": "adjacent-exact",
+      "row_sha256": "097a139565fefd643b6d1a95292c61b851aab54b7c74daa404f98c7ff207bc73"
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es5/commonjs/exports-quoted-set",
+      "family": "defineproperty-readonly-exports",
+      "status": "adjacent-exact",
+      "row_sha256": "d7419e8dd493dd46ea03f71370496e98f4f4d297c437995d5e1a575519e148be"
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es5/commonjs/module-exports-variable-false",
+      "family": "defineproperty-readonly-exports",
+      "status": "adjacent-exact",
+      "row_sha256": "d2242d169ba67a1f1118101a76c948bb93bd9e3c02751cf337771e45ee33f9a2"
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es5/commonjs/module-exports-computed-set",
+      "family": "defineproperty-readonly-exports",
+      "status": "adjacent-exact",
+      "row_sha256": "c876cd243361da877133c633ec7fd0a600da040f8424abd0fdbdbc4269979766"
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es5/esnext/exports-shorthand-false",
+      "family": "defineproperty-readonly-exports",
+      "status": "adjacent-exact",
+      "row_sha256": "d23924011fafa7feca1fe6777e66a764c484addc5b125bd94fcddd4689483c53"
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es5/esnext/exports-quoted-set",
+      "family": "defineproperty-readonly-exports",
+      "status": "adjacent-exact",
+      "row_sha256": "53dc228c353daa2b9ea22671df429719e52c60cbbc943186cea54d8bc21d1562"
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es5/esnext/module-exports-variable-false",
+      "family": "defineproperty-readonly-exports",
+      "status": "adjacent-exact",
+      "row_sha256": "9026c33b219308c0bbf909bee747d3c6988f082025519328c6aa1e1fb28954dc"
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es5/esnext/module-exports-computed-set",
+      "family": "defineproperty-readonly-exports",
+      "status": "adjacent-exact",
+      "row_sha256": "033fa68efaa9daaf40073df433f5a3617e2e1c8124d4469bf38587fcd6528ad7"
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es2015/commonjs/exports-shorthand-false",
+      "family": "defineproperty-readonly-exports",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "abb8b5c7761c38c51384cfb6ae5c16868dd38079c4c025abe94616495f23502a"
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es2015/commonjs/exports-quoted-set",
+      "family": "defineproperty-readonly-exports",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "8f5d90a377e500c6e7fddaf36446f3bd7aa121a598bf2f5e0ed3578ec253a2ce"
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es2015/commonjs/module-exports-variable-false",
+      "family": "defineproperty-readonly-exports",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "872ba58e1a0daa92eb57376a816224df509df1ba41cd3d83686f37af713da487"
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es2015/commonjs/module-exports-computed-set",
+      "family": "defineproperty-readonly-exports",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "06484769b4b5331bb0b2743d6e50d12fbab3508c71f197bef6d749d75dd5d6b7"
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es2015/esnext/exports-shorthand-false",
+      "family": "defineproperty-readonly-exports",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "3d9659a776c23f3bba15631b07e5997e26b5ea00e4ada696ae16d91ece239f70"
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es2015/esnext/exports-quoted-set",
+      "family": "defineproperty-readonly-exports",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "496666d4cb26ebacc043c79dbc6c403e96b9543b204d9d2e974a5d482c1b0f91"
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es2015/esnext/module-exports-variable-false",
+      "family": "defineproperty-readonly-exports",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "739164a3c00c663c1d5ed5b5371e3e406325ee1fcb3717ddebfc9bef419f1743"
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es2015/esnext/module-exports-computed-set",
+      "family": "defineproperty-readonly-exports",
+      "status": "owned-descriptor-readonly",
+      "row_sha256": "0ed8d9c76a2a6f52f23d4b9208f9f8cec02af0197742c933743d14de6d36873e"
+    }
+  ],
+  "architecture": [
+    {
+      "id": "E-RESOLVER-BASE",
+      "disposition": "modified-requalify"
+    },
+    {
+      "id": "E-ENTRY",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-PROTOCOL",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-ARENA",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-CONTEXT",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-METADATA-BASE",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-POSITIONS",
+      "disposition": "premise-unchanged"
+    }
+  ],
+  "authorities": [
+    {
+      "path": "crates/compiler/tests/fixtures/defineproperty-readonly-exports.json",
+      "sha256": "f7e18b168d4127d4a6bd2dbffa2889dd39a9188d36dd1001d02f29330305823a"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/defineproperty-readonly.json",
+      "sha256": "114ef087a19f5e1f4f1fa27dc828b17a240a6776ad0b49455616d68dc2584a35"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_defineproperty_readonly.rs",
+      "sha256": "afd5b18d70e2fe3ad41ae5efed8148ecd6a0240aaa5e7744f88acf8692a5fbd0"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_defineproperty_readonly_exports.rs",
+      "sha256": "f0939792ba728b540fb73734010ce636a6199d190896e9ec0bedea51cf4c3c59"
+    },
+    {
+      "path": "docs/design/README.md",
+      "sha256": "c2843bea19df08c887bd6461f10b7daf4ea2c86c32ca9ecc908008316a3497e0"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    },
+    {
+      "path": "docs/design/greenfield/post-h1-completion-slices.md",
+      "sha256": "df4e630f4fe348119e43714261d1193a880453fa6847b42c7bf52d086bd840fb"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-defineproperty-readonly.md",
+      "sha256": "b4209d073972731bd1429feac425720fa57fcfea669f43fae660efc96f11dbc2"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-readonly-before-archive-completion.v1.json",
+      "sha256": "77d77d6d675a9f30bcff67b37f99b93e44402d1d86df913915cb49a86ab6e949"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-readonly-before.v1.json",
+      "sha256": "421c4f47a5df74e56e89a9612005dfa4c70b60f4652aaa01652ac09e26499e0c"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-readonly-checker-before.v1.json",
+      "sha256": "b69d52272ef9617cb97192b88ac85ad9a57b63f6fe9e7cfd96ec23bb526dfe25"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-readonly-exports-before.v1.json",
+      "sha256": "73445b7d44bc9598344af421021d54ff11120cf69c0ab514ee8156867f44f4ad"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-setter-names-after.v1.json",
+      "sha256": "89e59a3babfc3e2b39868f9f3d87efe45a1dd736b8e14b53a0e439581008228d"
+    },
+    {
+      "path": "scripts/observe-defineproperty-readonly-exports.mjs",
+      "sha256": "82eaeff9740581870b49774e951f25de66b4c9032e06cda99b8038ab49aa3da2"
+    },
+    {
+      "path": "scripts/observe-defineproperty-readonly.mjs",
+      "sha256": "eae7c9c632e75973855c615cb47990df74a18b6948aaace6b7e06090ce25647d"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-caller-census.json",
+      "sha256": "57a8a9c1b4a6407819fcb75e3d813622cde5ed580ae0fda5e9e24387c2083982"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-caller-ledger-audit.json",
+      "sha256": "4d69cf86d3a7e3f5121d80c13847b24d35eb37864f33ca19bf2ad5d3d5b2f9cb"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-readonly-first-after-build.v1.json",
+      "sha256": "8f37d6288fa186c2695f2248e7f87b26f7633e98ab380a6ddcbc29f952f76de7"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/binder/src/assignment.rs",
+      "sha256": "3589abfd9c9de29468e06d3582419e34c01f1ec58c0b88b62ebd350918a3afcc"
+    },
+    {
+      "path": "crates/binder/src/node_util.rs",
+      "sha256": "5d3eea9d3dc9a23a6cb4240aaa01cc85f41c1e5b39e0d074f43e36a101f7d551"
+    },
+    {
+      "path": "crates/checker/src/access.rs",
+      "sha256": "317fb130f96c1a5f2d55d00de119b5cb719494edda8ca9c8d6ba5aa5070bfd5e"
+    },
+    {
+      "path": "crates/checker/src/annotate.rs",
+      "sha256": "20eb0dcaaab36deaef67cd36207cf0cf40f7ac55b9f6c306fecd8697698fca6c"
+    },
+    {
+      "path": "crates/checker/src/check.rs",
+      "sha256": "ee7aea6a75fcab25644c0b49f3357d9f77cb2467bb4ae5da052b7f69f68b6f24"
+    },
+    {
+      "path": "crates/checker/src/emit.rs",
+      "sha256": "ed7a09cb4ca7b57b839aa03186385142141911d2af117b611e55191ff9bda105"
+    },
+    {
+      "path": "crates/checker/src/engine.rs",
+      "sha256": "9715ad017afd9b9f79ae725b1ed09ff6f52f77f765244edd1eabccd89c66253e"
+    },
+    {
+      "path": "crates/checker/src/expr.rs",
+      "sha256": "3c4501f03c97c22f02de58b7f7802ed18cd64ba0cd06f2a6a975890ef49f744c"
+    },
+    {
+      "path": "crates/checker/src/functions.rs",
+      "sha256": "2512b1419ac689d761a71731d41ce9b870b7810a267023720907316c1dcc6406"
+    },
+    {
+      "path": "crates/checker/src/links.rs",
+      "sha256": "07a50c8976a559103cfc9f686e1e1db2dac4dc11176c556bca3779acbfce5a5a"
+    },
+    {
+      "path": "crates/checker/src/literals.rs",
+      "sha256": "1e7ec2bf7c4cfe1a9182150e825d67068e5827490be48b89bf1a389772d0f8b0"
+    },
+    {
+      "path": "crates/checker/src/mapped.rs",
+      "sha256": "199e222546267ad6f1a98d2edc86f9106a7ff1822f7aa8ce4147ecafba24e56c"
+    },
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "1f5025d1d60c9c87d0e2e8bfba0f4b614da4b245c696c2f9cb80e11c2ec3bbfb"
+    },
+    {
+      "path": "crates/checker/src/node_builder/type_nodes.rs",
+      "sha256": "751892a7a600c2df5642035d4f62d8c2350586b22fc0b5b9f3fe639a8657ba22"
+    },
+    {
+      "path": "crates/checker/src/state.rs",
+      "sha256": "d74d5d4bbf6c2dccc9bfb380d61117ba64f8cdb08bb4c84ea0f8c378349fcd26"
+    },
+    {
+      "path": "crates/checker/src/structural.rs",
+      "sha256": "7a77541359c03bb6c0f7a9578b4638c52177cfe1b8078142ff51daa24fa32b73"
+    },
+    {
+      "path": "crates/compiler/src/lib.rs",
+      "sha256": "dbb4f77c549791f38b225c3d93305cc311a9bdb75b8560ead8529149e1b40d37"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/emitter/src/metadata.rs",
+      "sha256": "c9eaf94391d3eb0893a1d1e7d4c65ff9d876f8b3772634505325a72cf7430e23"
+    },
+    {
+      "path": "crates/emitter/src/position.rs",
+      "sha256": "f70397ff2bb756810d2fd6edf912a62cfe938b50ae491337dc9d5676899cb243"
+    },
+    {
+      "path": "crates/emitter/src/resolver.rs",
+      "sha256": "cdd2f82a3ed89375d0d79f2541d86326e3ea85c3e29505f2e93d1f20e221f051"
+    },
+    {
+      "path": "crates/emitter/src/transform.rs",
+      "sha256": "374ed96dc09f518a8f137cf7400e4cc6e634d3427b0b20346698e4b31a11011c"
+    },
+    {
+      "path": "crates/types/src/tables.rs",
+      "sha256": "fb40af06e83696e2b750a53de857fe5ff89563c6b7fa2038a2039d6e5396865a"
+    },
+    {
+      "path": "crates/checker/tests/unit/inference/tests.rs",
+      "sha256": "06d357ee5df5da6dbd02312b8249a5e031784310bfc2cd84ce3417d9ed8630a9"
+    },
+    {
+      "path": "crates/checker/tests/unit/mapped/tests.rs",
+      "sha256": "ea6e0d857e78dbe16f1cf1b459fc75cb35843142b1ca2080d8a10194c836229b"
+    }
+  ],
+  "before_complete_comparison_and_supplemental_executions": 1238,
+  "after_required_complete_commands": 502,
+  "after_required_owned_and_positive_exact_twice": 501,
+  "after_optional_unchanged_outside_case": "typescript-6.0.3/compiler/checkingObjectDefinePropertyOnFunctionNonexistentPropertyNoCrash1.ts#default",
+  "checker_units_required": 1718,
+  "native_test_api_amendment": "Two new private-helper callers add expect(\"readonly descriptor query\"); three existing public-helper assertions in mapped/inference tests add expect(\"readonly symbol query\"). Preserve all assertions, negations, inputs and other logic.",
+  "additional_existing_test_callers": [
+    {
+      "path": "crates/checker/tests/unit/inference/tests.rs",
+      "line": 2024,
+      "expression": "state.is_readonly_symbol(b)"
+    },
+    {
+      "path": "crates/checker/tests/unit/mapped/tests.rs",
+      "line": 123,
+      "expression": "state.is_readonly_symbol(a)"
+    },
+    {
+      "path": "crates/checker/tests/unit/mapped/tests.rs",
+      "line": 124,
+      "expression": "state.is_readonly_symbol(b)"
+    }
+  ],
+  "native_test_api_callers": 5
+}

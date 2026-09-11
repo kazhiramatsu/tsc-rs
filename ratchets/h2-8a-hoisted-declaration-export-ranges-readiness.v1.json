@@ -1,0 +1,7774 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-19",
+  "base": "2f7f297c13046fb569bbb199b39393b4a235a3e5",
+  "unresolved": 0,
+  "undispositioned": 0,
+  "runtime_paths": [
+    "crates/emitter/src/builtins.rs",
+    "crates/emitter/src/builtins/system.rs"
+  ],
+  "steps": [
+    "A6-19-1",
+    "A6-19-2",
+    "A6-19-3"
+  ],
+  "owners": [
+    {
+      "owner": "getOriginalNode",
+      "start": 11400,
+      "end": 11410,
+      "sha256": "e6e639e966314faf444b9b68796893745ffb06eb0adcf1180d6935332d8797a3"
+    },
+    {
+      "owner": "isParseTreeNode",
+      "start": 11423,
+      "end": 11425,
+      "sha256": "d8a6d217a3087e6809bfb3df3a4815eefce954e8175aed4c744b515f891dbe8d"
+    },
+    {
+      "owner": "getParseTreeNode",
+      "start": 11426,
+      "end": 11437,
+      "sha256": "80b5c2449cb8320cf209184a8eef484f944379da161e54d74dd54ed1f0d2d592"
+    },
+    {
+      "owner": "cloneNode",
+      "start": 24436,
+      "end": 24466,
+      "sha256": "d223dcea6ccf14e9212d40d5b8df188197023622ea3e5d624ffb974a25db19d6"
+    },
+    {
+      "owner": "getName",
+      "start": 24788,
+      "end": 24799,
+      "sha256": "9734f5576b1aa153598ff7ae70a2a2f994bb50d0370fbfc547c47952f72dea33"
+    },
+    {
+      "owner": "getLocalName",
+      "start": 24803,
+      "end": 24805,
+      "sha256": "db85ef71236480d7de1d2e131b01d6f8fed272ef41d0f5297ce7fb3485ee7979"
+    },
+    {
+      "owner": "getDeclarationName",
+      "start": 24809,
+      "end": 24811,
+      "sha256": "2774ac8674f5e2cbedb331ad2c3c64fa2474c0df15cd30c16f824775fdb87714"
+    },
+    {
+      "owner": "setTextRange",
+      "start": 28256,
+      "end": 28258,
+      "sha256": "b4484231223d27d5a3bd94103656b0f7ee336d397d3f1af742f67f893bd1cc08"
+    },
+    {
+      "owner": "getReferencedExportContainer",
+      "start": 87870,
+      "end": 87899,
+      "sha256": "64fe010400264ccd927bf7b73511da7c480cf87f60b40ed5c8f43c8090aea8eb"
+    },
+    {
+      "owner": "getReferencedImportDeclaration",
+      "start": 87900,
+      "end": 87917,
+      "sha256": "32efa07ac60055a482669428125107b75b8241d4362602ff91d352d6d9405b11"
+    },
+    {
+      "owner": "collectExternalModuleInfo",
+      "start": 92779,
+      "end": 92919,
+      "sha256": "2694413ce6ea08091a03db3a313b50ee3ff526b065f199270311ac583350220e"
+    },
+    {
+      "owner": "appendExportsOfHoistedDeclaration",
+      "start": 111722,
+      "end": 111742,
+      "sha256": "bfbaa381d44c81a747e6de4dd148b3d0dc129a1d6e350138cee1ced097b4a3f7"
+    },
+    {
+      "owner": "appendExportsOfDeclaration",
+      "start": 111743,
+      "end": 111762,
+      "sha256": "b1e3c0856abab75bf412486742c157c5a6b6a7a41fd293c039ba0936fa70cad2"
+    },
+    {
+      "owner": "appendExportStatement",
+      "start": 111763,
+      "end": 111772,
+      "sha256": "b056e7b5768b85a874f11ae38b31c178a5efaef3b66df881480b462ec4e80610"
+    },
+    {
+      "owner": "createExportStatement",
+      "start": 111791,
+      "end": 111804,
+      "sha256": "d533ed2215809bab955e6b206a545e71c1a8490754d2bb396fec41aca15000cc"
+    },
+    {
+      "owner": "createExportExpression",
+      "start": 111805,
+      "end": 111851,
+      "sha256": "75fd880a658644ec017e38813933a1710d9f1ec7929387c8755990e3d6c9fbf8"
+    },
+    {
+      "owner": "substituteExpressionIdentifier",
+      "start": 111946,
+      "end": 111989,
+      "sha256": "972830b79228dc51aaec4b3b13ebd2a12795701304627fef3bdc5ba8b7ab3a96"
+    },
+    {
+      "owner": "addExportStarIfNeeded",
+      "start": 112245,
+      "end": 112316,
+      "sha256": "c0d7318ab3996c48f9b0868cf4b7755b202767fd2a4720fac382253fd83e897a",
+      "context": "transformSystemModule consumer retained"
+    },
+    {
+      "owner": "visitFunctionDeclaration",
+      "start": 112576,
+      "end": 112604,
+      "sha256": "c9849240c0fe34698d20c78bc1e0e89f5a6b06d37b7e9133450057840c271667",
+      "context": "transformSystemModule consumer retained"
+    },
+    {
+      "owner": "visitClassDeclaration",
+      "start": 112605,
+      "end": 112633,
+      "sha256": "de6afa6b3825a73326606b89f43e7620cddea99d7de289df7990f87fdfd3ad69",
+      "context": "transformSystemModule consumer retained"
+    },
+    {
+      "owner": "appendExportsOfHoistedDeclaration",
+      "start": 112795,
+      "end": 112809,
+      "sha256": "99fef8ae7429a78f3b3e5c8edb7d4033beac0eb6c5f9253a4910352e50dba94e",
+      "context": "transformSystemModule consumer retained"
+    },
+    {
+      "owner": "appendExportsOfDeclaration",
+      "start": 112810,
+      "end": 112824,
+      "sha256": "13b49063d17b505f1ac55a6cd3bff563cc556dca34c999d38c7acfc344e7cc38",
+      "context": "transformSystemModule consumer retained"
+    },
+    {
+      "owner": "appendExportStatement",
+      "start": 112825,
+      "end": 112828,
+      "sha256": "f12c6a36ef06695d7a086b29c67d0e261ec915634e3965275a859f0ab901f1ff",
+      "context": "transformSystemModule consumer retained"
+    },
+    {
+      "owner": "createExportStatement",
+      "start": 112829,
+      "end": 112836,
+      "sha256": "6d8d7a439b41649c648f5f37b9d3041fa8e2ca5bcf538311f55c1f470c1372a2",
+      "context": "transformSystemModule consumer retained"
+    },
+    {
+      "owner": "createExportExpression",
+      "start": 112837,
+      "end": 112846,
+      "sha256": "1047eae1c9c391b34504e0e5ec4bacdb1c36d2b2d3ba04b5f672d966769b8394",
+      "context": "transformSystemModule consumer retained"
+    }
+  ],
+  "architecture": [
+    {
+      "id": "E-METADATA-BASE",
+      "disposition": "modified-requalify"
+    },
+    {
+      "id": "E-NAMES-BASE",
+      "disposition": "modified-requalify"
+    },
+    {
+      "id": "E-ARENA",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-PROTOCOL",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-RESOLVER-BASE",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-PRINTER-BASE",
+      "disposition": "premise-unchanged"
+    }
+  ],
+  "authorities": [
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-hoisted-declaration-export-ranges.md",
+      "sha256": "2512ca53132c1bde3a8262c509839cdd36773c39a02b75ac81e041b61fd0bd14"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    },
+    {
+      "path": "docs/design/greenfield/post-h1-completion-slices.md",
+      "sha256": "df4e630f4fe348119e43714261d1193a880453fa6847b42c7bf52d086bd840fb"
+    },
+    {
+      "path": "ratchets/h2-8a-hoisted-declaration-export-ranges-before.v1.json",
+      "sha256": "f43c8e77c912460ed958c66f1797a3627a074b6a806915807614bd13b271dcc7"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/hoisted-declaration-export-ranges.json",
+      "sha256": "0f13d2838627a8201d3aba4aa320194f12ee752fc078d5367bf6629a2a0c5fca"
+    },
+    {
+      "path": "scripts/observe-hoisted-declaration-export-ranges.mjs",
+      "sha256": "63fc03d202e8743e0cb516e71e90ddaa8216e0d7d5c68f0be8a2f9472bdf7baf"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "726a6d93a6f97ec8e9509772260c71bd05326ae3addb56b90ee17d910e92e695"
+    },
+    {
+      "path": "ratchets/h2-8a-static-initializer-map-ranges-after.v1.json",
+      "sha256": "7881b76580c3bc381f21923e8cc7171fac342673fd7d3b03e7c620565b359aaa"
+    },
+    {
+      "path": "ratchets/h2-8a-import-publication-reference-after.v1.json",
+      "sha256": "a41f78ef76c8072d52dbc2ce46ed0d68ea8cbb34bdd98659a53fd58b547baf49"
+    },
+    {
+      "path": "crates/checker/tests/fixtures/import-publication-resolver.json",
+      "sha256": "0f3d4c6f110b74cc798da5e5326cee9fff069749896175a14f332a997aff6ce4"
+    },
+    {
+      "path": "ratchets/h2-8a-global-after-a6-14.v1.json",
+      "sha256": "2902e23044cb6d8d0d15d433a2ba51468ee72aeb628c486e511f525803bd7c8d"
+    },
+    {
+      "path": "ratchets/h2-8a-hoisted-declaration-export-ranges-compile-failure.v1.json",
+      "sha256": "4f5f3f724e9f0549b1154d7316a75bdb5475f19d64b015c0b5d453b72bddb557"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/system-variable-publication.json",
+      "sha256": "99fb90b738886bf6f3867eb827f1156c3d70a5ec2d7119fc2e1ef1077777c425"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/system-dynamic-imports.json",
+      "sha256": "9e6164473c8ea1f2e532bb6adda9ef39e44e54238e6c85d497e651397d7a80e6"
+    },
+    {
+      "path": "ratchets/h2-8a-hoisted-declaration-export-ranges-static-super-disposition.v1.json",
+      "sha256": "b8a5fcbf7503d088fc75d5c32024b9e78681f4a3832bb337a91e22cd8be8a2e8"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "038975bba6e8d22d54c2bdc8e48290bc72cc483e6a74ba9d28bfc5d4addff739"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/emitter/src/metadata.rs",
+      "sha256": "c9eaf94391d3eb0893a1d1e7d4c65ff9d876f8b3772634505325a72cf7430e23"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "5ffd982b2fb2057fa7c082400f502e755f0acaf663245a9898bb48c0820d57b6"
+    },
+    {
+      "path": "crates/emitter/src/builtins/es2015.rs",
+      "sha256": "fcfdbb8bee41b28ed435843bdb2e9a370edda95c0b169b5bc173992eece130b7"
+    },
+    {
+      "path": "crates/checker/src/emit.rs",
+      "sha256": "d43e9507e0f925b4e06ed4956a2bf2e436daf48c605b0876e4b5fc5b432e4dd6"
+    },
+    {
+      "path": "crates/emitter/src/builtins/system.rs",
+      "sha256": "7ec5252ec1f44499d4a1a5e046c24b0f2e96efc52a72bfafbc86550380051640"
+    }
+  ],
+  "witnesses": [
+    {
+      "case_id": "hoisted-export/es5/commonjs/class/direct",
+      "row_sha256": "685437e3130aa1bb71415bc0245589d9107b34e74e861926130ac84a0c544cf9",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/class/local",
+      "row_sha256": "b83c902b6c388bf274ee9732c443abda3deec9d9b6003deb5cbf2b53a0f59e21",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/class/renamed",
+      "row_sha256": "a4cee42512c166d2d01ac6368b17d6ad03aab98c9bfbf10e1af252dd26736381",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/class/quoted",
+      "row_sha256": "4fd0c27955949f3dd86ae176e1b46c1e82a6759c39f654c3dd5b7f0726072781",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/class/default-named",
+      "row_sha256": "66f0b5fc867359c391673032bab340bfdcf0dda931f44d9f63c0dfd60d080851",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/class/default-anonymous",
+      "row_sha256": "06cf4b7148c11fbf32ee375291e2827c8332a9817ef322115ef02bfe6159c62f",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/class/multiple",
+      "row_sha256": "9f9f04a3148b567f21c39fe49697a5a008a37df188c8e1716f9ccd3c1e813cff",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/class/direct-and-explicit",
+      "row_sha256": "4701601f584b4f5218270e0baf83b5ce37e62a092e83c8f26eaf8df354e1f9a7",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/class/escaped",
+      "row_sha256": "b92f304a12c9c8cec3c520fd5898353438f97432450c5737e6da2fb66079430a",
+      "before": "failed-two-independent-jobs",
+      "status": "outside-es2015-name",
+      "owned_components": [],
+      "outside_components": [
+        "es2015-declaration-name-raw-range"
+      ],
+      "before_map_difference": {
+        "difference_blocks": 3,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              6,
+              24,
+              0,
+              0,
+              23,
+              null
+            ],
+            [
+              6,
+              27,
+              0,
+              0,
+              17,
+              null
+            ],
+            [
+              6,
+              41,
+              0,
+              0,
+              28,
+              null
+            ],
+            [
+              6,
+              48,
+              0,
+              0,
+              35,
+              null
+            ],
+            [
+              6,
+              49,
+              0,
+              0,
+              36,
+              null
+            ],
+            [
+              6,
+              50,
+              0,
+              0,
+              37,
+              null
+            ],
+            [
+              6,
+              51,
+              0,
+              0,
+              38,
+              null
+            ],
+            [
+              6,
+              52,
+              0,
+              0,
+              39,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              6,
+              29,
+              0,
+              0,
+              23,
+              null
+            ],
+            [
+              6,
+              32,
+              0,
+              0,
+              17,
+              null
+            ],
+            [
+              6,
+              46,
+              0,
+              0,
+              28,
+              null
+            ],
+            [
+              6,
+              53,
+              0,
+              0,
+              35,
+              null
+            ],
+            [
+              6,
+              54,
+              0,
+              0,
+              36,
+              null
+            ],
+            [
+              6,
+              55,
+              0,
+              0,
+              37,
+              null
+            ],
+            [
+              6,
+              56,
+              0,
+              0,
+              38,
+              null
+            ],
+            [
+              6,
+              57,
+              0,
+              0,
+              39,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          6,
+          7,
+          9
+        ],
+        "all_differences_on_publication_lines": false
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/class/direct-escaped",
+      "row_sha256": "1b91373b105487bed277c6ad89734f084f3dbb08c3bf6e6723a8f2a1e5f07a61",
+      "before": "failed-two-independent-jobs",
+      "status": "outside-es2015-name",
+      "owned_components": [],
+      "outside_components": [
+        "es2015-declaration-name-raw-range"
+      ],
+      "before_map_difference": {
+        "difference_blocks": 3,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              6,
+              24,
+              0,
+              0,
+              30,
+              null
+            ],
+            [
+              6,
+              27,
+              0,
+              0,
+              24,
+              null
+            ],
+            [
+              6,
+              41,
+              0,
+              0,
+              35,
+              null
+            ],
+            [
+              6,
+              48,
+              0,
+              0,
+              42,
+              null
+            ],
+            [
+              6,
+              49,
+              0,
+              0,
+              43,
+              null
+            ],
+            [
+              6,
+              50,
+              0,
+              0,
+              44,
+              null
+            ],
+            [
+              6,
+              51,
+              0,
+              0,
+              45,
+              null
+            ],
+            [
+              6,
+              52,
+              0,
+              0,
+              46,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              6,
+              29,
+              0,
+              0,
+              30,
+              null
+            ],
+            [
+              6,
+              32,
+              0,
+              0,
+              24,
+              null
+            ],
+            [
+              6,
+              46,
+              0,
+              0,
+              35,
+              null
+            ],
+            [
+              6,
+              53,
+              0,
+              0,
+              42,
+              null
+            ],
+            [
+              6,
+              54,
+              0,
+              0,
+              43,
+              null
+            ],
+            [
+              6,
+              55,
+              0,
+              0,
+              44,
+              null
+            ],
+            [
+              6,
+              56,
+              0,
+              0,
+              45,
+              null
+            ],
+            [
+              6,
+              57,
+              0,
+              0,
+              46,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          6,
+          7,
+          9
+        ],
+        "all_differences_on_publication_lines": false
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/class/export-before",
+      "row_sha256": "6e9792f00bb4dc42afd985b051f660263996ebf96dbcdccd28f1b8e96f8c5a99",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/class/comments",
+      "row_sha256": "b8aa251ed9555dad8c1ca78d1712e36b6a9351b4f2c70296c4351ca2f8596221",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/class/duplicate-quoted",
+      "row_sha256": "ce222c931b5f137bb66ecf35bc73e4052e18e321e095bfc7bad8b0e208cf5977",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/class/export-equals",
+      "row_sha256": "4d30930c0e8ae12c693e17d11a0e291ff2589e9df297e0c9cd3c70718c05b4f0",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/function/direct",
+      "row_sha256": "f692cf2c4665ed52ad4a38d17a0d809bbefe6db401631639a55a4ee0aa56cc99",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/function/local",
+      "row_sha256": "fd6b9833582701e0546000b02afe105aa4c1fa584096646a8f361478b504a093",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              2,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              2,
+              18,
+              0,
+              0,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              2,
+              0,
+              0,
+              1,
+              9,
+              null
+            ],
+            [
+              2,
+              18,
+              0,
+              1,
+              12,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          2
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/function/renamed",
+      "row_sha256": "b2407aa1f9c126b24865c676dbd371c5ba425c2be9de0f134f964d6c4ee7ab80",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              2,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              2,
+              18,
+              0,
+              0,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              2,
+              0,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              2,
+              18,
+              0,
+              1,
+              19,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          2
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/function/quoted",
+      "row_sha256": "b3c3176adbe890419e6fdadea0e85ef605ef7e5d1d8256803475e49c99e3a94f",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              2,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              2,
+              26,
+              0,
+              0,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              2,
+              0,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              2,
+              26,
+              0,
+              1,
+              26,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          2
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/function/default-named",
+      "row_sha256": "461f7536af500cf9f4fcf9e8ad94cc430b091c99566155f170d1f0491ac6d90c",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/function/default-anonymous",
+      "row_sha256": "aa61ebdc1af7d1c7ff55818b30fb9a57a9c55615e0be0c50ccf0c570375abb55",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/function/multiple",
+      "row_sha256": "13bc0b93e8d423e892896417e102fa838750876ae0e99f9d48f8bea3fb72cfa9",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              2,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              2,
+              16,
+              0,
+              0,
+              28,
+              null
+            ],
+            [
+              3,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              3,
+              16,
+              0,
+              0,
+              28,
+              null
+            ],
+            [
+              4,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              4,
+              24,
+              0,
+              0,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              2,
+              0,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              2,
+              16,
+              0,
+              1,
+              17,
+              null
+            ],
+            [
+              3,
+              0,
+              0,
+              1,
+              26,
+              null
+            ],
+            [
+              3,
+              16,
+              0,
+              1,
+              27,
+              null
+            ],
+            [
+              4,
+              0,
+              0,
+              1,
+              36,
+              null
+            ],
+            [
+              4,
+              24,
+              0,
+              1,
+              44,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          2,
+          3,
+          4
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/function/direct-and-explicit",
+      "row_sha256": "93dc7c79b5a9a1e1a11fa1309b223863aad9eb3b2e3cbebc63911497e8694c0d",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              3,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              3,
+              18,
+              0,
+              0,
+              35,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              3,
+              0,
+              0,
+              1,
+              21,
+              null
+            ],
+            [
+              3,
+              18,
+              0,
+              1,
+              24,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          3
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/function/escaped",
+      "row_sha256": "9022b8c6efde065461c896f801433d28fd103d43a1cbe0a1fc16bf5054579590",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range",
+        "declaration-name-source-spelling"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              2,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              2,
+              18,
+              0,
+              0,
+              33,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              2,
+              0,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              2,
+              23,
+              0,
+              1,
+              19,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          2
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/function/direct-escaped",
+      "row_sha256": "b2b4851b386235feadda3f194fc7d47a3ae55767ecd79aa465c6b667c86c401c",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "declaration-name-source-spelling"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              2,
+              18,
+              0,
+              0,
+              40,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              2,
+              23,
+              0,
+              0,
+              40,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          2
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/function/export-before",
+      "row_sha256": "534170679c3cb2e82107f964bf7ac326d9c7f5fa246e2b6c98981995a65150dc",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              2,
+              0,
+              0,
+              1,
+              0,
+              null
+            ],
+            [
+              2,
+              18,
+              0,
+              1,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              2,
+              0,
+              0,
+              0,
+              16,
+              null
+            ],
+            [
+              2,
+              18,
+              0,
+              0,
+              19,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          2
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/function/comments",
+      "row_sha256": "6aa27141f3e9c2616b0d2178dca831099b40fe38348afac969965e2d771ec79a",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              2,
+              0,
+              0,
+              0,
+              18,
+              null
+            ],
+            [
+              2,
+              18,
+              0,
+              0,
+              46,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              2,
+              0,
+              0,
+              1,
+              40,
+              null
+            ],
+            [
+              2,
+              18,
+              0,
+              1,
+              43,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          2
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/function/duplicate-quoted",
+      "row_sha256": "4ab2792489981109334671499764a82711694406df44d0f179f7d5d2eb2ad572",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              2,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              2,
+              21,
+              0,
+              0,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              2,
+              0,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              2,
+              21,
+              0,
+              1,
+              21,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          2
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/commonjs/function/export-equals",
+      "row_sha256": "3451d2fe028aff93fe32017ece6be424e1d52143e343c00b6ea34673ddd08e3f",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/class/direct",
+      "row_sha256": "8faa4e401247a4d140bf2df0d21be19d231a04eaf0518fccd92aa8b7afde88b0",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/class/local",
+      "row_sha256": "fba7ccff065f897275f155fa574dedb257d67dcfb3439eb149586931af95d55b",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/class/renamed",
+      "row_sha256": "6d7e77b6fd975066c6ed6c03cccced2592b6a98ae64de3cd47472260c1ceddb4",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/class/quoted",
+      "row_sha256": "60c9439e2735a6db86d0cfaa66b7cade18a1dc118bf9cf87e857e1bc34086f23",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/class/default-named",
+      "row_sha256": "65d6434b9bcebf0a5163346f3851f313645e01a7e931f2185737675d2c2550d6",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/class/default-anonymous",
+      "row_sha256": "ee7b1c2b453c49b2b2f1d0286b7e04c2b8ee006b9ade6a770c2ae9e280ef949f",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/class/multiple",
+      "row_sha256": "251af0fc657e32eee58625e3b2e3be86007304195e2d3ac2c1851139355820fd",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/class/direct-and-explicit",
+      "row_sha256": "6f4bcb7dc096354d5467aef5d3f8d57d4c10e3ae8bc12406ee6d42a032b674e1",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/class/escaped",
+      "row_sha256": "ae27ad49603f7c0accea291b8df23ccd945723f06a9e6404ae4ba9c6aa9e2ec8",
+      "before": "failed-two-independent-jobs",
+      "status": "outside-es2015-name",
+      "owned_components": [],
+      "outside_components": [
+        "es2015-declaration-name-raw-range"
+      ],
+      "before_map_difference": {
+        "difference_blocks": 3,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              7,
+              28,
+              0,
+              0,
+              23,
+              null
+            ],
+            [
+              7,
+              31,
+              0,
+              0,
+              17,
+              null
+            ],
+            [
+              7,
+              45,
+              0,
+              0,
+              28,
+              null
+            ],
+            [
+              7,
+              52,
+              0,
+              0,
+              35,
+              null
+            ],
+            [
+              7,
+              53,
+              0,
+              0,
+              36,
+              null
+            ],
+            [
+              7,
+              54,
+              0,
+              0,
+              37,
+              null
+            ],
+            [
+              7,
+              55,
+              0,
+              0,
+              38,
+              null
+            ],
+            [
+              7,
+              56,
+              0,
+              0,
+              39,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              7,
+              33,
+              0,
+              0,
+              23,
+              null
+            ],
+            [
+              7,
+              36,
+              0,
+              0,
+              17,
+              null
+            ],
+            [
+              7,
+              50,
+              0,
+              0,
+              28,
+              null
+            ],
+            [
+              7,
+              57,
+              0,
+              0,
+              35,
+              null
+            ],
+            [
+              7,
+              58,
+              0,
+              0,
+              36,
+              null
+            ],
+            [
+              7,
+              59,
+              0,
+              0,
+              37,
+              null
+            ],
+            [
+              7,
+              60,
+              0,
+              0,
+              38,
+              null
+            ],
+            [
+              7,
+              61,
+              0,
+              0,
+              39,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          7,
+          8,
+          10
+        ],
+        "all_differences_on_publication_lines": false
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/class/direct-escaped",
+      "row_sha256": "0d6f20cd338eed50ad2ef351ae27a412990ec7d97bc45d71f850a6427c9eabfd",
+      "before": "failed-two-independent-jobs",
+      "status": "outside-es2015-name",
+      "owned_components": [],
+      "outside_components": [
+        "es2015-declaration-name-raw-range"
+      ],
+      "before_map_difference": {
+        "difference_blocks": 3,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              7,
+              28,
+              0,
+              0,
+              30,
+              null
+            ],
+            [
+              7,
+              31,
+              0,
+              0,
+              24,
+              null
+            ],
+            [
+              7,
+              45,
+              0,
+              0,
+              35,
+              null
+            ],
+            [
+              7,
+              52,
+              0,
+              0,
+              42,
+              null
+            ],
+            [
+              7,
+              53,
+              0,
+              0,
+              43,
+              null
+            ],
+            [
+              7,
+              54,
+              0,
+              0,
+              44,
+              null
+            ],
+            [
+              7,
+              55,
+              0,
+              0,
+              45,
+              null
+            ],
+            [
+              7,
+              56,
+              0,
+              0,
+              46,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              7,
+              33,
+              0,
+              0,
+              30,
+              null
+            ],
+            [
+              7,
+              36,
+              0,
+              0,
+              24,
+              null
+            ],
+            [
+              7,
+              50,
+              0,
+              0,
+              35,
+              null
+            ],
+            [
+              7,
+              57,
+              0,
+              0,
+              42,
+              null
+            ],
+            [
+              7,
+              58,
+              0,
+              0,
+              43,
+              null
+            ],
+            [
+              7,
+              59,
+              0,
+              0,
+              44,
+              null
+            ],
+            [
+              7,
+              60,
+              0,
+              0,
+              45,
+              null
+            ],
+            [
+              7,
+              61,
+              0,
+              0,
+              46,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          7,
+          8,
+          10
+        ],
+        "all_differences_on_publication_lines": false
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/class/export-before",
+      "row_sha256": "b23fe11737dc494fc48e3091f95ccd8cf8393ccbf73062277438ae0dc892966f",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/class/comments",
+      "row_sha256": "f7983d1d127227a7adc50719c530c021829cbc9b7a38a1cc395c54bcc895f64b",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/class/duplicate-quoted",
+      "row_sha256": "44fcdbb9370b47bfff399a1d0dca5df055cad8afb8bfcb178d1a0526b7575eb0",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/class/export-equals",
+      "row_sha256": "cc58c6426020aee8bc5703d13c78b72871911aba3284c9c41769290b4fca4376",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/function/direct",
+      "row_sha256": "4fa58d76f1b398f7216536c6bad80ba61a58d7bc2fd6bd67d45394f9e122dea0",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/function/local",
+      "row_sha256": "a6f914dc4fdae58a12fc5d2aa9bd61373f35a9440da5f547ce9f3f478d602f4d",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              3,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              3,
+              22,
+              0,
+              0,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              3,
+              4,
+              0,
+              1,
+              9,
+              null
+            ],
+            [
+              3,
+              22,
+              0,
+              1,
+              12,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          3
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/function/renamed",
+      "row_sha256": "a80c23fb75d0517c5f6e10847568388bbd162a809dc3dd7420ed59fa597b71db",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              3,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              3,
+              22,
+              0,
+              0,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              3,
+              4,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              3,
+              22,
+              0,
+              1,
+              19,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          3
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/function/quoted",
+      "row_sha256": "d6560b46d49fae0c96f6ffb0db08e650e8c61d71ed0947048d468b803643fe2c",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              3,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              3,
+              30,
+              0,
+              0,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              3,
+              4,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              3,
+              30,
+              0,
+              1,
+              26,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          3
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/function/default-named",
+      "row_sha256": "0757120637be67248e63b4d753df5decaf9717d7855de259ec34b39396d90d6e",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/function/default-anonymous",
+      "row_sha256": "bcf12deaeea2ccb30db0e803da377de654dca1d181a6c439b37dfd4cecb15039",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/function/multiple",
+      "row_sha256": "c430a6cde046ba1a02914f49ab8a58da3dc2ccdf74dc0afc88fa26f487a418d0",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              3,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              3,
+              20,
+              0,
+              0,
+              28,
+              null
+            ],
+            [
+              4,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              4,
+              20,
+              0,
+              0,
+              28,
+              null
+            ],
+            [
+              5,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              5,
+              28,
+              0,
+              0,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              3,
+              4,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              3,
+              20,
+              0,
+              1,
+              17,
+              null
+            ],
+            [
+              4,
+              4,
+              0,
+              1,
+              26,
+              null
+            ],
+            [
+              4,
+              20,
+              0,
+              1,
+              27,
+              null
+            ],
+            [
+              5,
+              4,
+              0,
+              1,
+              36,
+              null
+            ],
+            [
+              5,
+              28,
+              0,
+              1,
+              44,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          3,
+          4,
+          5
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/function/direct-and-explicit",
+      "row_sha256": "32bb6ced8d8bd6b0723c7181885ebf55d43359c82b67a0a38b48990290883c20",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              4,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              4,
+              22,
+              0,
+              0,
+              35,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              4,
+              4,
+              0,
+              1,
+              21,
+              null
+            ],
+            [
+              4,
+              22,
+              0,
+              1,
+              24,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          4
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/function/escaped",
+      "row_sha256": "0dbd717bad3130ffdbc54dad26121b44f968a17b7873878108bc6f6047b7dec9",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range",
+        "declaration-name-source-spelling"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              3,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              3,
+              22,
+              0,
+              0,
+              33,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              3,
+              4,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              3,
+              27,
+              0,
+              1,
+              19,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          3
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/function/direct-escaped",
+      "row_sha256": "1712463083fcb74cc79c6b4871dcff317266a7fdaf099cca82cf00c5486be69f",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "declaration-name-source-spelling"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              3,
+              22,
+              0,
+              0,
+              40,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              3,
+              27,
+              0,
+              0,
+              40,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          3
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/function/export-before",
+      "row_sha256": "dd42c9a0544e77b086ebc50f0f31783fb27f1f493560935a8b06140aaf9d7d95",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              3,
+              4,
+              0,
+              1,
+              0,
+              null
+            ],
+            [
+              3,
+              22,
+              0,
+              1,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              3,
+              4,
+              0,
+              0,
+              16,
+              null
+            ],
+            [
+              3,
+              22,
+              0,
+              0,
+              19,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          3
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/function/comments",
+      "row_sha256": "3d02b93854cbdb1df30efc6849cb6b65b0f54e4e91cadc1e1593b7efa16afe2e",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              3,
+              4,
+              0,
+              0,
+              18,
+              null
+            ],
+            [
+              3,
+              22,
+              0,
+              0,
+              46,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              3,
+              4,
+              0,
+              1,
+              40,
+              null
+            ],
+            [
+              3,
+              22,
+              0,
+              1,
+              43,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          3
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/function/duplicate-quoted",
+      "row_sha256": "b57096e40b21ddb4d43cf2bd3faf989df49f640134a4e68cf62881f12f3937b6",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              3,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              3,
+              25,
+              0,
+              0,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              3,
+              4,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              3,
+              25,
+              0,
+              1,
+              21,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          3
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es5/amd/function/export-equals",
+      "row_sha256": "e876b6962c2c2341aaa54e0e6ad3381fec8b8e4515333fc42f910adf65a71be3",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/class/direct",
+      "row_sha256": "392c11e31a39aa9aace942833b7ac4aa785b2ab2d24a15b7c1885d5c2a4518ca",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/class/local",
+      "row_sha256": "7517cdd83babecbf5ddb51baac7234a0dc679f199d693dc7d9739d91b0001abf",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              6,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              6,
+              18,
+              0,
+              0,
+              36,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              6,
+              0,
+              0,
+              1,
+              9,
+              null
+            ],
+            [
+              6,
+              18,
+              0,
+              1,
+              12,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          6
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/class/renamed",
+      "row_sha256": "7833a80f46631f5e712b497d0941dcd4a6135f3da8b08270bb59b5b496d30666",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              6,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              6,
+              18,
+              0,
+              0,
+              36,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              6,
+              0,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              6,
+              18,
+              0,
+              1,
+              19,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          6
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/class/quoted",
+      "row_sha256": "6883d804ac5882397da8c972a569bb745079330d5590f3ca864aed9182c169bb",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              6,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              6,
+              26,
+              0,
+              0,
+              36,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              6,
+              0,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              6,
+              26,
+              0,
+              1,
+              26,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          6
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/class/default-named",
+      "row_sha256": "72de20a4a75ae2a315f546a84315e37a4d8a14de3d9621dfaea37712b28879fc",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/class/default-anonymous",
+      "row_sha256": "41bf65b6a99dc653fa8e4dd565c2ce29b69927404c66d09b2976d2c9e87b4702",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/class/multiple",
+      "row_sha256": "361eeb5eee9c84aaeac904df09bda46dfd67452518f8f2f19dbd08ad424ed568",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              6,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              6,
+              16,
+              0,
+              0,
+              36,
+              null
+            ],
+            [
+              7,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              7,
+              16,
+              0,
+              0,
+              36,
+              null
+            ],
+            [
+              8,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              8,
+              24,
+              0,
+              0,
+              36,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              6,
+              0,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              6,
+              16,
+              0,
+              1,
+              17,
+              null
+            ],
+            [
+              7,
+              0,
+              0,
+              1,
+              26,
+              null
+            ],
+            [
+              7,
+              16,
+              0,
+              1,
+              27,
+              null
+            ],
+            [
+              8,
+              0,
+              0,
+              1,
+              36,
+              null
+            ],
+            [
+              8,
+              24,
+              0,
+              1,
+              44,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          6,
+          7,
+          8
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/class/direct-and-explicit",
+      "row_sha256": "122529368dc83eea89862996a5d2c5aacec06de0b76063169f6d3aaf38a35c83",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              7,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              7,
+              18,
+              0,
+              0,
+              43,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              7,
+              0,
+              0,
+              1,
+              21,
+              null
+            ],
+            [
+              7,
+              18,
+              0,
+              1,
+              24,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          7
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/class/escaped",
+      "row_sha256": "c8796603b4f5eb3094d23762b0d713ec049174e79f993690b77ab614e9e4c1fb",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range",
+        "declaration-name-source-spelling"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              6,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              6,
+              18,
+              0,
+              0,
+              41,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              6,
+              0,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              6,
+              23,
+              0,
+              1,
+              19,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          6
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/class/direct-escaped",
+      "row_sha256": "caf136e3efdb8a1d3e890d15fa4500711f21708afc4ad4624d2c0bb726e47391",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "declaration-name-source-spelling"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              6,
+              18,
+              0,
+              0,
+              48,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              6,
+              23,
+              0,
+              0,
+              48,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          6
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/class/export-before",
+      "row_sha256": "2e0ba1c5c94c7f762d335601972c660028c0a088f18de9c53f7c989f27717926",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              6,
+              0,
+              0,
+              1,
+              0,
+              null
+            ],
+            [
+              6,
+              18,
+              0,
+              1,
+              36,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              6,
+              0,
+              0,
+              0,
+              16,
+              null
+            ],
+            [
+              6,
+              18,
+              0,
+              0,
+              19,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          6
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/class/comments",
+      "row_sha256": "842f9d5fba39eec7486d9d76c78be830c1ddae902af9c716ec42374bf171cccd",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              6,
+              0,
+              0,
+              0,
+              18,
+              null
+            ],
+            [
+              6,
+              18,
+              0,
+              0,
+              54,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              6,
+              0,
+              0,
+              1,
+              40,
+              null
+            ],
+            [
+              6,
+              18,
+              0,
+              1,
+              43,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          6
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/class/duplicate-quoted",
+      "row_sha256": "b762d42755316b0faf05899519a7369ccd94f927e9d6679eb2751ce17ed46bcb",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              6,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              6,
+              21,
+              0,
+              0,
+              36,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              6,
+              0,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              6,
+              21,
+              0,
+              1,
+              21,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          6
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/class/export-equals",
+      "row_sha256": "38ee6b8ad48c0c932775900885345cce7d6d38dc75534ea080777eac59e0f9dd",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/function/direct",
+      "row_sha256": "4064fc645ea4c4e3c622790058d047da3334dbcf16f31109ff2f73b29562fa9b",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/function/local",
+      "row_sha256": "14664a26cacd73656bc609cc8272dd7edd841237cbd3e10af16259fa7dbd634b",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              2,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              2,
+              18,
+              0,
+              0,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              2,
+              0,
+              0,
+              1,
+              9,
+              null
+            ],
+            [
+              2,
+              18,
+              0,
+              1,
+              12,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          2
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/function/renamed",
+      "row_sha256": "e98ad22057bee91a048f7a1044707127be77e602c74b59e9f5e7e7cd403ba49a",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              2,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              2,
+              18,
+              0,
+              0,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              2,
+              0,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              2,
+              18,
+              0,
+              1,
+              19,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          2
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/function/quoted",
+      "row_sha256": "b05ce99a2dbb7b7c5aac6adbde364b8ab65d9f2862d42875ca73bef2e8b9f64a",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              2,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              2,
+              26,
+              0,
+              0,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              2,
+              0,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              2,
+              26,
+              0,
+              1,
+              26,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          2
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/function/default-named",
+      "row_sha256": "25e7f9fba8296fcf35d92ffb91575827793285b2b9bef47ffd6dfc5da240c928",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/function/default-anonymous",
+      "row_sha256": "cf9d015f5950e79d43357e94307eb22c0c5e2f7f79668b8e41ffc2393043eedd",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/function/multiple",
+      "row_sha256": "f6d5a0b5b8afb8353f7d8588fb0222504b5517069d798b4f509606d33b928624",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              2,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              2,
+              16,
+              0,
+              0,
+              28,
+              null
+            ],
+            [
+              3,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              3,
+              16,
+              0,
+              0,
+              28,
+              null
+            ],
+            [
+              4,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              4,
+              24,
+              0,
+              0,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              2,
+              0,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              2,
+              16,
+              0,
+              1,
+              17,
+              null
+            ],
+            [
+              3,
+              0,
+              0,
+              1,
+              26,
+              null
+            ],
+            [
+              3,
+              16,
+              0,
+              1,
+              27,
+              null
+            ],
+            [
+              4,
+              0,
+              0,
+              1,
+              36,
+              null
+            ],
+            [
+              4,
+              24,
+              0,
+              1,
+              44,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          2,
+          3,
+          4
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/function/direct-and-explicit",
+      "row_sha256": "106c9396e89df772b4d2a5f1d467562303af2317c6503678c697730317acc61f",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              3,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              3,
+              18,
+              0,
+              0,
+              35,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              3,
+              0,
+              0,
+              1,
+              21,
+              null
+            ],
+            [
+              3,
+              18,
+              0,
+              1,
+              24,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          3
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/function/escaped",
+      "row_sha256": "2cd549bc3c1a432a96f3b5675bb5635c7d7e8ee455f759908d8f75af901d71c3",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range",
+        "declaration-name-source-spelling"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              2,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              2,
+              18,
+              0,
+              0,
+              33,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              2,
+              0,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              2,
+              23,
+              0,
+              1,
+              19,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          2
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/function/direct-escaped",
+      "row_sha256": "b68ba70d08a8b5026e92321c7e70be8920eac82e2af552fe6e5ef9b94314827a",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "declaration-name-source-spelling"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              2,
+              18,
+              0,
+              0,
+              40,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              2,
+              23,
+              0,
+              0,
+              40,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          2
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/function/export-before",
+      "row_sha256": "9cfacdc88bd4e29428ae5fec1c13e069600ee1c466087313573c2e878bb167be",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              2,
+              0,
+              0,
+              1,
+              0,
+              null
+            ],
+            [
+              2,
+              18,
+              0,
+              1,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              2,
+              0,
+              0,
+              0,
+              16,
+              null
+            ],
+            [
+              2,
+              18,
+              0,
+              0,
+              19,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          2
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/function/comments",
+      "row_sha256": "eca1459fa8e114ffb139dd25a3fe07e6e9c82d59dc1e4d120098ab87d29c6ead",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              2,
+              0,
+              0,
+              0,
+              18,
+              null
+            ],
+            [
+              2,
+              18,
+              0,
+              0,
+              46,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              2,
+              0,
+              0,
+              1,
+              40,
+              null
+            ],
+            [
+              2,
+              18,
+              0,
+              1,
+              43,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          2
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/function/duplicate-quoted",
+      "row_sha256": "9e06d4ed8949a904fa5fe627088bed719ad4fb4fad0f03829ca34d5fde953000",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              2,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              2,
+              21,
+              0,
+              0,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              2,
+              0,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              2,
+              21,
+              0,
+              1,
+              21,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          2
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/commonjs/function/export-equals",
+      "row_sha256": "d09c3620848bd1edc3bcde2a5e00f8cc9658d7ed9160e59ca1cf5ea5ecf07e38",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/class/direct",
+      "row_sha256": "beccd97df4b74c3c86956a2f7ef7b19edd9ffd8ef3dc4fa91da5fa1519275ad1",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/class/local",
+      "row_sha256": "72a9b95dd296a2e2857026073f6001487e28b0528112c43a7544834b5edf2fb7",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              7,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              7,
+              22,
+              0,
+              0,
+              36,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              7,
+              4,
+              0,
+              1,
+              9,
+              null
+            ],
+            [
+              7,
+              22,
+              0,
+              1,
+              12,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          7
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/class/renamed",
+      "row_sha256": "f55057da39adcaf4f9caae2e06ca716d5d17862037abeb97bb229d5c4a087e12",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              7,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              7,
+              22,
+              0,
+              0,
+              36,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              7,
+              4,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              7,
+              22,
+              0,
+              1,
+              19,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          7
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/class/quoted",
+      "row_sha256": "9589ca239e578d64b71a90d1e896e92110cc7d2cc4915d3a5f72af8c0219f648",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              7,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              7,
+              30,
+              0,
+              0,
+              36,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              7,
+              4,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              7,
+              30,
+              0,
+              1,
+              26,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          7
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/class/default-named",
+      "row_sha256": "39154af171cc0c441e92909e92e088a04a9d1c07784049e319b9c95bf6a6529b",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/class/default-anonymous",
+      "row_sha256": "9e52aea01d70dc8c15faab09dda900539277ef1d2b9edcceab6faf7a4339fd7d",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/class/multiple",
+      "row_sha256": "76954df63f81732a05fdb12728a29dac54e1fe1134224bc036d1600ef3aba207",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              7,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              7,
+              20,
+              0,
+              0,
+              36,
+              null
+            ],
+            [
+              8,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              8,
+              20,
+              0,
+              0,
+              36,
+              null
+            ],
+            [
+              9,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              9,
+              28,
+              0,
+              0,
+              36,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              7,
+              4,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              7,
+              20,
+              0,
+              1,
+              17,
+              null
+            ],
+            [
+              8,
+              4,
+              0,
+              1,
+              26,
+              null
+            ],
+            [
+              8,
+              20,
+              0,
+              1,
+              27,
+              null
+            ],
+            [
+              9,
+              4,
+              0,
+              1,
+              36,
+              null
+            ],
+            [
+              9,
+              28,
+              0,
+              1,
+              44,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          7,
+          8,
+          9
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/class/direct-and-explicit",
+      "row_sha256": "8449ffe4a574827a6576639686cedefbefddbcc8ff36c38e392de886b237ad99",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              8,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              8,
+              22,
+              0,
+              0,
+              43,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              8,
+              4,
+              0,
+              1,
+              21,
+              null
+            ],
+            [
+              8,
+              22,
+              0,
+              1,
+              24,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          8
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/class/escaped",
+      "row_sha256": "6d3f592389f3b5d340025784228d2705480c7546d457fa34ddc0b0a6bf79cdf7",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range",
+        "declaration-name-source-spelling"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              7,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              7,
+              22,
+              0,
+              0,
+              41,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              7,
+              4,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              7,
+              27,
+              0,
+              1,
+              19,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          7
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/class/direct-escaped",
+      "row_sha256": "2ce15ab8740269cc584492d4c52fee605bf3a18b943f3b0a928a718c6ce63877",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "declaration-name-source-spelling"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              7,
+              22,
+              0,
+              0,
+              48,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              7,
+              27,
+              0,
+              0,
+              48,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          7
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/class/export-before",
+      "row_sha256": "68ff15cfa7a97b9212a355f27b68acd484a7c169ffeb3b702211ffe0bf37247f",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              7,
+              4,
+              0,
+              1,
+              0,
+              null
+            ],
+            [
+              7,
+              22,
+              0,
+              1,
+              36,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              7,
+              4,
+              0,
+              0,
+              16,
+              null
+            ],
+            [
+              7,
+              22,
+              0,
+              0,
+              19,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          7
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/class/comments",
+      "row_sha256": "f5c74cb72098d7e63408900075f4ddeff4fc6d381d11623dd1b4d9dde972efa4",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              7,
+              4,
+              0,
+              0,
+              18,
+              null
+            ],
+            [
+              7,
+              22,
+              0,
+              0,
+              54,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              7,
+              4,
+              0,
+              1,
+              40,
+              null
+            ],
+            [
+              7,
+              22,
+              0,
+              1,
+              43,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          7
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/class/duplicate-quoted",
+      "row_sha256": "eac302db4f721be412292b06eb4092afc4d06b44cab989f37e81d3bdf2f440da",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              7,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              7,
+              25,
+              0,
+              0,
+              36,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              7,
+              4,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              7,
+              25,
+              0,
+              1,
+              21,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          7
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/class/export-equals",
+      "row_sha256": "a47240c5dd433e33b643feac118abb3845e74eddeb2630f1411054d52e079526",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/function/direct",
+      "row_sha256": "c7e29eb2757e499892b8449ed6d34c43b396866325c07fda8e24f22b860f16c0",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/function/local",
+      "row_sha256": "3dbcb12c7171ce1bf215ad7d4a2924354685ec132daed3dbbe33c04352bd3f1f",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              3,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              3,
+              22,
+              0,
+              0,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              3,
+              4,
+              0,
+              1,
+              9,
+              null
+            ],
+            [
+              3,
+              22,
+              0,
+              1,
+              12,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          3
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/function/renamed",
+      "row_sha256": "e176ea8ac3c7f58c2c34eaa55b6fe3e40a8449e819eec0e89e74c42c41283b51",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              3,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              3,
+              22,
+              0,
+              0,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              3,
+              4,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              3,
+              22,
+              0,
+              1,
+              19,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          3
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/function/quoted",
+      "row_sha256": "447f72d4d0a872844f3a55cb7d832b50913560d5d56ffda3f5d3c89c1cc27444",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              3,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              3,
+              30,
+              0,
+              0,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              3,
+              4,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              3,
+              30,
+              0,
+              1,
+              26,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          3
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/function/default-named",
+      "row_sha256": "866c068c3bc22d26f513a76c9be52e6b44d9a33f8e6a021b908b5148cc1465be",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/function/default-anonymous",
+      "row_sha256": "313c06f489a4f5005b8272139f2261d3eacb26d452edb0d56fd9a2c3342aad6c",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/function/multiple",
+      "row_sha256": "57957d7ac50865fa510030e5e75cbfeedcbbc670d568b6ae9d8438848914145b",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              3,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              3,
+              20,
+              0,
+              0,
+              28,
+              null
+            ],
+            [
+              4,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              4,
+              20,
+              0,
+              0,
+              28,
+              null
+            ],
+            [
+              5,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              5,
+              28,
+              0,
+              0,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              3,
+              4,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              3,
+              20,
+              0,
+              1,
+              17,
+              null
+            ],
+            [
+              4,
+              4,
+              0,
+              1,
+              26,
+              null
+            ],
+            [
+              4,
+              20,
+              0,
+              1,
+              27,
+              null
+            ],
+            [
+              5,
+              4,
+              0,
+              1,
+              36,
+              null
+            ],
+            [
+              5,
+              28,
+              0,
+              1,
+              44,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          3,
+          4,
+          5
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/function/direct-and-explicit",
+      "row_sha256": "32e1eaed3b09a99ae7c51db9e206eda4ca405c267ecdcb7d0c35b5d5151eca3f",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              4,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              4,
+              22,
+              0,
+              0,
+              35,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              4,
+              4,
+              0,
+              1,
+              21,
+              null
+            ],
+            [
+              4,
+              22,
+              0,
+              1,
+              24,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          4
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/function/escaped",
+      "row_sha256": "ba2331e0ad475359be4445e2bfaeed9f513a2c5576d939cb608f032978bcd35b",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range",
+        "declaration-name-source-spelling"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              3,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              3,
+              22,
+              0,
+              0,
+              33,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              3,
+              4,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              3,
+              27,
+              0,
+              1,
+              19,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          3
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/function/direct-escaped",
+      "row_sha256": "75889285a77ee39ac359cd33ceaa77f0529a161324932bc5099e88851990f790",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "declaration-name-source-spelling"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              3,
+              22,
+              0,
+              0,
+              40,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              3,
+              27,
+              0,
+              0,
+              40,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          3
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/function/export-before",
+      "row_sha256": "a40a2cddb6ba26d6a7d231ad25233dc294ec77085ddc028280b8790fba075384",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              3,
+              4,
+              0,
+              1,
+              0,
+              null
+            ],
+            [
+              3,
+              22,
+              0,
+              1,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              3,
+              4,
+              0,
+              0,
+              16,
+              null
+            ],
+            [
+              3,
+              22,
+              0,
+              0,
+              19,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          3
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/function/comments",
+      "row_sha256": "b31e3f3ac55d431cc9fe97d31e70388b7d4e0d120e051b47c0f68b4525a2db6e",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              3,
+              4,
+              0,
+              0,
+              18,
+              null
+            ],
+            [
+              3,
+              22,
+              0,
+              0,
+              46,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              3,
+              4,
+              0,
+              1,
+              40,
+              null
+            ],
+            [
+              3,
+              22,
+              0,
+              1,
+              43,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          3
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/function/duplicate-quoted",
+      "row_sha256": "0e1dbb06e92c2b07d82cba5c36e30576d8a85857ecac324862fe47bf3f00b35c",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              3,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              3,
+              25,
+              0,
+              0,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              3,
+              4,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              3,
+              25,
+              0,
+              1,
+              21,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          3
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2015/amd/function/export-equals",
+      "row_sha256": "2f0a45fa54642c3d051c66f6cf2fa58236d01f4fc1845422114b99b46efad976",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/class/direct",
+      "row_sha256": "d89fff0bdb726a5c63d2ebe2e1717bec8e8a4513c50d5f5543f22ccb8aad9606",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/class/local",
+      "row_sha256": "1d061b148d75a2e6e096a02d406d0722ca04bda093f30bb26a7ef359a8a0ec34",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              6,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              6,
+              18,
+              0,
+              0,
+              36,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              6,
+              0,
+              0,
+              1,
+              9,
+              null
+            ],
+            [
+              6,
+              18,
+              0,
+              1,
+              12,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          6
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/class/renamed",
+      "row_sha256": "96819f025085b4e43b04139a254568d64aaf55449b262842fe6509fff11c1488",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              6,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              6,
+              18,
+              0,
+              0,
+              36,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              6,
+              0,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              6,
+              18,
+              0,
+              1,
+              19,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          6
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/class/quoted",
+      "row_sha256": "a5971a97d4da1de8f69cb7ee699fb9dfcaff82f16d07348d1f46a625abf987a1",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              6,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              6,
+              26,
+              0,
+              0,
+              36,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              6,
+              0,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              6,
+              26,
+              0,
+              1,
+              26,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          6
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/class/default-named",
+      "row_sha256": "e9fad5b304b0a4db5ee24faee6068f9dd02aa5cd1a035c55edd3dcc48a2b6dea",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/class/default-anonymous",
+      "row_sha256": "48c6d8763f4e89167e6fcbd7e81ccd7b1ac33ca214ae061d10dc544838721ad2",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/class/multiple",
+      "row_sha256": "236fc37d051dd5b9d999b3e4a08e6c37eef2914e241295d760713ab34a9e974f",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              6,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              6,
+              16,
+              0,
+              0,
+              36,
+              null
+            ],
+            [
+              7,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              7,
+              16,
+              0,
+              0,
+              36,
+              null
+            ],
+            [
+              8,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              8,
+              24,
+              0,
+              0,
+              36,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              6,
+              0,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              6,
+              16,
+              0,
+              1,
+              17,
+              null
+            ],
+            [
+              7,
+              0,
+              0,
+              1,
+              26,
+              null
+            ],
+            [
+              7,
+              16,
+              0,
+              1,
+              27,
+              null
+            ],
+            [
+              8,
+              0,
+              0,
+              1,
+              36,
+              null
+            ],
+            [
+              8,
+              24,
+              0,
+              1,
+              44,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          6,
+          7,
+          8
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/class/direct-and-explicit",
+      "row_sha256": "675b3892cadfd5428ef18ed3da16410b60844633ad9e8ed0ac4d486f5ea74c6a",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              7,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              7,
+              18,
+              0,
+              0,
+              43,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              7,
+              0,
+              0,
+              1,
+              21,
+              null
+            ],
+            [
+              7,
+              18,
+              0,
+              1,
+              24,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          7
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/class/escaped",
+      "row_sha256": "54d87e2fae9c9756bff9e66c0c881c052f08f781983bb7a3fc08f848d09aa93e",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range",
+        "declaration-name-source-spelling"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              6,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              6,
+              18,
+              0,
+              0,
+              41,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              6,
+              0,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              6,
+              23,
+              0,
+              1,
+              19,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          6
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/class/direct-escaped",
+      "row_sha256": "c14f4b3087edc41784e768eb3bbd1a9cd1bcfde274043e576c318b5849e35e20",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "declaration-name-source-spelling"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              6,
+              18,
+              0,
+              0,
+              48,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              6,
+              23,
+              0,
+              0,
+              48,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          6
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/class/export-before",
+      "row_sha256": "da4d19e0ce3675e220b4edcb6bffe9bce20137399e998ca32eafa2a2432cc242",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              6,
+              0,
+              0,
+              1,
+              0,
+              null
+            ],
+            [
+              6,
+              18,
+              0,
+              1,
+              36,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              6,
+              0,
+              0,
+              0,
+              16,
+              null
+            ],
+            [
+              6,
+              18,
+              0,
+              0,
+              19,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          6
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/class/comments",
+      "row_sha256": "f4f6ecd7eb41cfbbb43ed18ff2a0dd1f39c256d894d87eadc96e20cb21282599",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              6,
+              0,
+              0,
+              0,
+              18,
+              null
+            ],
+            [
+              6,
+              18,
+              0,
+              0,
+              54,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              6,
+              0,
+              0,
+              1,
+              40,
+              null
+            ],
+            [
+              6,
+              18,
+              0,
+              1,
+              43,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          6
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/class/duplicate-quoted",
+      "row_sha256": "32e2712677777272c6122510454e10e12fa8237401fbcff10acece9e6f61af77",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              6,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              6,
+              21,
+              0,
+              0,
+              36,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              6,
+              0,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              6,
+              21,
+              0,
+              1,
+              21,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          6
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/class/export-equals",
+      "row_sha256": "9f53506a1fc2bff0caaac0c580506b26e53e9be95716c9e72f4ea7c246ca5b35",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/function/direct",
+      "row_sha256": "bcd99ba46ceeb644565257673ad5a3ba9b3e49647ea89d9d0009c5c42d61b614",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/function/local",
+      "row_sha256": "ad2ab140eceaae4de3fda434ebec623b1057356d7cd97ebd65d58eb9a1359422",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              2,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              2,
+              18,
+              0,
+              0,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              2,
+              0,
+              0,
+              1,
+              9,
+              null
+            ],
+            [
+              2,
+              18,
+              0,
+              1,
+              12,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          2
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/function/renamed",
+      "row_sha256": "1161770d9288833180f5b2b19ca3edb4e8dc2505f55b65a7d774372fb90d91f3",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              2,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              2,
+              18,
+              0,
+              0,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              2,
+              0,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              2,
+              18,
+              0,
+              1,
+              19,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          2
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/function/quoted",
+      "row_sha256": "95fb049d1dbdc1c1e6c6e9b698fa740950f7fe5bbc625cda9cfb3c46c35c2996",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              2,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              2,
+              26,
+              0,
+              0,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              2,
+              0,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              2,
+              26,
+              0,
+              1,
+              26,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          2
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/function/default-named",
+      "row_sha256": "375d378657ff0caecdecb546e06d7d3a18222eecaf119253da1b7c655415cf50",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/function/default-anonymous",
+      "row_sha256": "7a5848df020558d38c29b1d219f43b831fe8c9005869d8e72483b601dcd67acb",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/function/multiple",
+      "row_sha256": "c2859190afa17da23b089361ebb637b2927a3d4a4fe2883a0cc84a4a4e549a49",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              2,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              2,
+              16,
+              0,
+              0,
+              28,
+              null
+            ],
+            [
+              3,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              3,
+              16,
+              0,
+              0,
+              28,
+              null
+            ],
+            [
+              4,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              4,
+              24,
+              0,
+              0,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              2,
+              0,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              2,
+              16,
+              0,
+              1,
+              17,
+              null
+            ],
+            [
+              3,
+              0,
+              0,
+              1,
+              26,
+              null
+            ],
+            [
+              3,
+              16,
+              0,
+              1,
+              27,
+              null
+            ],
+            [
+              4,
+              0,
+              0,
+              1,
+              36,
+              null
+            ],
+            [
+              4,
+              24,
+              0,
+              1,
+              44,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          2,
+          3,
+          4
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/function/direct-and-explicit",
+      "row_sha256": "b519ba1f1101524695435bb29003d880edf81a80dfdbe2465dd8189584271c91",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              3,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              3,
+              18,
+              0,
+              0,
+              35,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              3,
+              0,
+              0,
+              1,
+              21,
+              null
+            ],
+            [
+              3,
+              18,
+              0,
+              1,
+              24,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          3
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/function/escaped",
+      "row_sha256": "e4df1bc62463886ecf04d3c80f718593d54b317509caf12b10ac435290816e84",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range",
+        "declaration-name-source-spelling"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              2,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              2,
+              18,
+              0,
+              0,
+              33,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              2,
+              0,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              2,
+              23,
+              0,
+              1,
+              19,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          2
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/function/direct-escaped",
+      "row_sha256": "b03a5f7ae2e98e57914bb7fb2d52ce7f588486219b48b675c2a816c989b2d2f4",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "declaration-name-source-spelling"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              2,
+              18,
+              0,
+              0,
+              40,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              2,
+              23,
+              0,
+              0,
+              40,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          2
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/function/export-before",
+      "row_sha256": "44ca8d2d811dac33a168cba7743d4a0eabf191312ff36b7318896ebb7906f4d0",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              2,
+              0,
+              0,
+              1,
+              0,
+              null
+            ],
+            [
+              2,
+              18,
+              0,
+              1,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              2,
+              0,
+              0,
+              0,
+              16,
+              null
+            ],
+            [
+              2,
+              18,
+              0,
+              0,
+              19,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          2
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/function/comments",
+      "row_sha256": "e211fadae7d8808435ab4c788e53230ad6ac1f3a87f021e278cc1620d81ab5dc",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              2,
+              0,
+              0,
+              0,
+              18,
+              null
+            ],
+            [
+              2,
+              18,
+              0,
+              0,
+              46,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              2,
+              0,
+              0,
+              1,
+              40,
+              null
+            ],
+            [
+              2,
+              18,
+              0,
+              1,
+              43,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          2
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/function/duplicate-quoted",
+      "row_sha256": "7ff3f456cc0b9e30c80caf15009614ca022735b53bca108a169b1c30289aa5fe",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              2,
+              0,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              2,
+              21,
+              0,
+              0,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              2,
+              0,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              2,
+              21,
+              0,
+              1,
+              21,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          2
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/commonjs/function/export-equals",
+      "row_sha256": "455f037ab10be6c3c6dfa057190de901d058a21ed65290f07f1fbbf126a9e85b",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "active-semantic-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/class/direct",
+      "row_sha256": "2d2be3f3e03913df5e38c2ddddce8b206db59a5689aabb8b9a228187f1d394ba",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/class/local",
+      "row_sha256": "492e0aee1e9827cced2f75f07e6aea6d10ee1b888d6faacb1c732b625ec570e0",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              7,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              7,
+              22,
+              0,
+              0,
+              36,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              7,
+              4,
+              0,
+              1,
+              9,
+              null
+            ],
+            [
+              7,
+              22,
+              0,
+              1,
+              12,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          7
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/class/renamed",
+      "row_sha256": "27dbab1064e41f970a512224a028bbe637cd81f48dc604aa3bf94cb7ab5cc45a",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              7,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              7,
+              22,
+              0,
+              0,
+              36,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              7,
+              4,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              7,
+              22,
+              0,
+              1,
+              19,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          7
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/class/quoted",
+      "row_sha256": "9832188c6813d89f6d84ea79ecb24c740c419f75d29a49821d66a1b1d1c2e571",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              7,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              7,
+              30,
+              0,
+              0,
+              36,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              7,
+              4,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              7,
+              30,
+              0,
+              1,
+              26,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          7
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/class/default-named",
+      "row_sha256": "4a1c2995058a7d23af780e34dfafb95460cd8f4699ca4d4993ce1cdc28627dcc",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/class/default-anonymous",
+      "row_sha256": "14d0c8523ce99eb7129c5fa20be22569319c2a8ab1c0680f79485576af036798",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/class/multiple",
+      "row_sha256": "a8921a7e9912cfaf64f7fec879511d06774b50a2a845ece50396e172fd416b1e",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              7,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              7,
+              20,
+              0,
+              0,
+              36,
+              null
+            ],
+            [
+              8,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              8,
+              20,
+              0,
+              0,
+              36,
+              null
+            ],
+            [
+              9,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              9,
+              28,
+              0,
+              0,
+              36,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              7,
+              4,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              7,
+              20,
+              0,
+              1,
+              17,
+              null
+            ],
+            [
+              8,
+              4,
+              0,
+              1,
+              26,
+              null
+            ],
+            [
+              8,
+              20,
+              0,
+              1,
+              27,
+              null
+            ],
+            [
+              9,
+              4,
+              0,
+              1,
+              36,
+              null
+            ],
+            [
+              9,
+              28,
+              0,
+              1,
+              44,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          7,
+          8,
+          9
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/class/direct-and-explicit",
+      "row_sha256": "03596a55bc77c03cbcdc1e8912601f322b61ede982ec5c524a490487ab431189",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              8,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              8,
+              22,
+              0,
+              0,
+              43,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              8,
+              4,
+              0,
+              1,
+              21,
+              null
+            ],
+            [
+              8,
+              22,
+              0,
+              1,
+              24,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          8
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/class/escaped",
+      "row_sha256": "6be5e4230fca520db140a37ba21b10beb0ab09fd7c576e11c23146b85862aaa5",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range",
+        "declaration-name-source-spelling"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              7,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              7,
+              22,
+              0,
+              0,
+              41,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              7,
+              4,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              7,
+              27,
+              0,
+              1,
+              19,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          7
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/class/direct-escaped",
+      "row_sha256": "a12138e11284f328e88ffbe86381a76c3f43584b05745f908ae86d4e63a378d8",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "declaration-name-source-spelling"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              7,
+              22,
+              0,
+              0,
+              48,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              7,
+              27,
+              0,
+              0,
+              48,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          7
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/class/export-before",
+      "row_sha256": "afa286ea41502086167a0c2519c2c945e93c75b69c621d61eb0b0d005073c5d9",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              7,
+              4,
+              0,
+              1,
+              0,
+              null
+            ],
+            [
+              7,
+              22,
+              0,
+              1,
+              36,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              7,
+              4,
+              0,
+              0,
+              16,
+              null
+            ],
+            [
+              7,
+              22,
+              0,
+              0,
+              19,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          7
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/class/comments",
+      "row_sha256": "65fec139f2593794c5b2d894a1f429ea711e44654e98a9c45a7740274c6f196b",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              7,
+              4,
+              0,
+              0,
+              18,
+              null
+            ],
+            [
+              7,
+              22,
+              0,
+              0,
+              54,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              7,
+              4,
+              0,
+              1,
+              40,
+              null
+            ],
+            [
+              7,
+              22,
+              0,
+              1,
+              43,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          7
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/class/duplicate-quoted",
+      "row_sha256": "9651924694e7f16428d950768164f8f653de00cf4503ec3028055af578d9cf4c",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              7,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              7,
+              25,
+              0,
+              0,
+              36,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              7,
+              4,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              7,
+              25,
+              0,
+              1,
+              21,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          7
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/class/export-equals",
+      "row_sha256": "2b9a6a8d44897f531ad259bc0387a7afdfd0796f29cc6c824ddbcdfb0cfea5e7",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/function/direct",
+      "row_sha256": "995fdc64dd25fc0082636ac2112a7a6ddd3345a43aaf9c6bff59447fcf097e71",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/function/local",
+      "row_sha256": "6e76f04bfe68e926fc9122afc874aa220b62bb7a4837bccaf6feb3e0528046cb",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              3,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              3,
+              22,
+              0,
+              0,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              3,
+              4,
+              0,
+              1,
+              9,
+              null
+            ],
+            [
+              3,
+              22,
+              0,
+              1,
+              12,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          3
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/function/renamed",
+      "row_sha256": "fb9c31b012b5559d274dfaea9aed3d129d3259809e06029fedeb373409ecf93d",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              3,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              3,
+              22,
+              0,
+              0,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              3,
+              4,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              3,
+              22,
+              0,
+              1,
+              19,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          3
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/function/quoted",
+      "row_sha256": "eabafe2ff3e93b615079f24fbd1c65c8430c5acedb379fe8b8cca232192b9705",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              3,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              3,
+              30,
+              0,
+              0,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              3,
+              4,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              3,
+              30,
+              0,
+              1,
+              26,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          3
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/function/default-named",
+      "row_sha256": "3bb744efb768e35f0576486030f2d9ec8da9d709f2b7cb18741a650effaefbce",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/function/default-anonymous",
+      "row_sha256": "37b7a74fa6dcdb7e036606be3551a0f5599d07ff3855392b2b538ca59032cae0",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/function/multiple",
+      "row_sha256": "bdd15d7ae4a0cd3f4ebf897d0eb24db14babf92d72fe355944afb2fc0e69e2b0",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              3,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              3,
+              20,
+              0,
+              0,
+              28,
+              null
+            ],
+            [
+              4,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              4,
+              20,
+              0,
+              0,
+              28,
+              null
+            ],
+            [
+              5,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              5,
+              28,
+              0,
+              0,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              3,
+              4,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              3,
+              20,
+              0,
+              1,
+              17,
+              null
+            ],
+            [
+              4,
+              4,
+              0,
+              1,
+              26,
+              null
+            ],
+            [
+              4,
+              20,
+              0,
+              1,
+              27,
+              null
+            ],
+            [
+              5,
+              4,
+              0,
+              1,
+              36,
+              null
+            ],
+            [
+              5,
+              28,
+              0,
+              1,
+              44,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          3,
+          4,
+          5
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/function/direct-and-explicit",
+      "row_sha256": "1ef9ffbf4f2d4f2809437a1d3c9377ee1ed4d9c32a4e6a1193bb93bf232fcdf3",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              4,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              4,
+              22,
+              0,
+              0,
+              35,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              4,
+              4,
+              0,
+              1,
+              21,
+              null
+            ],
+            [
+              4,
+              22,
+              0,
+              1,
+              24,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          4
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/function/escaped",
+      "row_sha256": "99e13623eb9d0dbcd650f3d916dda30aff0de3bd0973de66e64a051b2aaa1631",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range",
+        "declaration-name-source-spelling"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              3,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              3,
+              22,
+              0,
+              0,
+              33,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              3,
+              4,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              3,
+              27,
+              0,
+              1,
+              19,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          3
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/function/direct-escaped",
+      "row_sha256": "655382caf5738a08159b76b8a956e4aa19b253a5703f9db1493c550093d1dbf2",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "declaration-name-source-spelling"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              3,
+              22,
+              0,
+              0,
+              40,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              3,
+              27,
+              0,
+              0,
+              40,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          3
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/function/export-before",
+      "row_sha256": "1634aa59299d146a7f77fa0a07be52d39f9e5b4f1965a63cdd9f19dbf5096a46",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              3,
+              4,
+              0,
+              1,
+              0,
+              null
+            ],
+            [
+              3,
+              22,
+              0,
+              1,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              3,
+              4,
+              0,
+              0,
+              16,
+              null
+            ],
+            [
+              3,
+              22,
+              0,
+              0,
+              19,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          3
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/function/comments",
+      "row_sha256": "f2ae2c478151a87adde14733a80da2de1540ae96554df35ea9da168d00a88a12",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              3,
+              4,
+              0,
+              0,
+              18,
+              null
+            ],
+            [
+              3,
+              22,
+              0,
+              0,
+              46,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              3,
+              4,
+              0,
+              1,
+              40,
+              null
+            ],
+            [
+              3,
+              22,
+              0,
+              1,
+              43,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          3
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/function/duplicate-quoted",
+      "row_sha256": "8988444efa9e866aa90b9d56b3e38821342196e996e7f2f398e48e969aa98fea",
+      "before": "failed-two-independent-jobs",
+      "status": "owned",
+      "owned_components": [
+        "explicit-publication-statement-range"
+      ],
+      "outside_components": [],
+      "before_map_difference": {
+        "difference_blocks": 1,
+        "first_difference": {
+          "kind": "replace",
+          "native_points": [
+            [
+              3,
+              4,
+              0,
+              0,
+              0,
+              null
+            ],
+            [
+              3,
+              25,
+              0,
+              0,
+              28,
+              null
+            ]
+          ],
+          "typescript_points": [
+            [
+              3,
+              4,
+              0,
+              1,
+              16,
+              null
+            ],
+            [
+              3,
+              25,
+              0,
+              1,
+              21,
+              null
+            ]
+          ]
+        },
+        "affected_generated_lines": [
+          3
+        ],
+        "all_differences_on_publication_lines": true
+      },
+      "diagnostic_mode": "deprecation-output-control"
+    },
+    {
+      "case_id": "hoisted-export/es2022/amd/function/export-equals",
+      "row_sha256": "86f41568f4842f10656dbea345ed010841afd53fbc25632c7220620391d4670e",
+      "before": "exact-twice",
+      "status": "adjacent-exact",
+      "owned_components": [],
+      "outside_components": [],
+      "before_map_difference": null,
+      "diagnostic_mode": "deprecation-output-control"
+    }
+  ],
+  "before_counts": {
+    "exact": 64,
+    "owned": 100,
+    "outside": 4
+  },
+  "after_required_complete_commands": 581,
+  "after_target_exact_twice": 530,
+  "observed_adjacent_disposition_corrections": "ratchets/h2-8a-hoisted-declaration-export-ranges-static-super-disposition.v1.json"
+}

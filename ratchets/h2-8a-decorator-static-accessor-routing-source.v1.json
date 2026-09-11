@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "status": "fresh printed-output source controls; not complete compiler commands",
+  "argv": [
+    "/usr/sbin/taskpolicy",
+    "-b",
+    "/usr/bin/nice",
+    "-n",
+    "15",
+    "node",
+    "/Users/hiramatsu/dev/tsc-rs/scripts/observe-decorator-static-accessor-routing.mjs",
+    "--check"
+  ],
+  "actual_exit": 0,
+  "elapsed_seconds": 0.7905232080956921,
+  "script_sha256": "a5be8aa50feadf5f9c29f94d81bbad28300b76babe5068384fae4bd66169c384",
+  "fixture": {
+    "path": "crates/emitter/tests/fixtures/decorator-static-accessor-routing.json",
+    "sha256": "062dfb6eccb239bc0a0edf9f309a7cb8bc1682690c68a4088eb44dbeaade387f"
+  },
+  "log_sha256": "bbe7e18dbccce1e096ebdf7f01fa90959ab627d087a6b4bd692d9dec304ff6a1",
+  "log_text": "{\"cases\":4,\"repetitions\":2,\"destination\":\"/Users/hiramatsu/dev/tsc-rs/crates/emitter/tests/fixtures/decorator-static-accessor-routing.json\",\"sha256\":\"062dfb6eccb239bc0a0edf9f309a7cb8bc1682690c68a4088eb44dbeaade387f\",\"routing\":[{\"case_id\":\"es2022/set\",\"retains_static_accessor\":false,\"lowers_to_static_getter\":true},{\"case_id\":\"es2022/define\",\"retains_static_accessor\":false,\"lowers_to_static_getter\":true},{\"case_id\":\"esnext/set\",\"retains_static_accessor\":true,\"lowers_to_static_getter\":false},{\"case_id\":\"esnext/define\",\"retains_static_accessor\":true,\"lowers_to_static_getter\":false}]}\n",
+  "repetitions": 2,
+  "cases": 4,
+  "source_diagnostics_preserved": true,
+  "original_test_mismatch": "The original native assertion required generated getters at ESNext; upstream retains static accessor for both field modes. ES2022 lowers for both modes."
+}

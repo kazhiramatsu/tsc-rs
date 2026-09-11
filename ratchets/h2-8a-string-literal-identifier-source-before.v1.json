@@ -1,0 +1,138 @@
+{
+  "version": 1,
+  "status": "complete-printer-before",
+  "case_count": 72,
+  "exact_twice": [
+    "plain/parsed/ascii",
+    "plain/parsed/unicode",
+    "plain/clone/ascii",
+    "plain/clone/unicode",
+    "plain/synthetic/ascii",
+    "plain/synthetic/unicode",
+    "plain/foreign/ascii",
+    "plain/foreign/unicode",
+    "underscores/parsed/ascii",
+    "underscores/parsed/unicode",
+    "underscores/clone/ascii",
+    "underscores/clone/unicode",
+    "underscores/synthetic/ascii",
+    "underscores/synthetic/unicode",
+    "underscores/foreign/ascii",
+    "underscores/foreign/unicode",
+    "unicode/parsed/ascii",
+    "unicode/parsed/unicode",
+    "unicode/clone/ascii",
+    "unicode/clone/unicode",
+    "unicode/synthetic/ascii",
+    "unicode/synthetic/unicode",
+    "unicode/foreign/ascii",
+    "unicode/foreign/unicode",
+    "escaped/clone/ascii",
+    "escaped/clone/unicode",
+    "escaped/synthetic/ascii",
+    "escaped/synthetic/unicode",
+    "escaped/foreign/ascii",
+    "escaped/foreign/unicode",
+    "extended-escape/clone/ascii",
+    "extended-escape/clone/unicode",
+    "extended-escape/synthetic/ascii",
+    "extended-escape/synthetic/unicode",
+    "extended-escape/foreign/ascii",
+    "extended-escape/foreign/unicode",
+    "astral/parsed/ascii",
+    "astral/parsed/unicode",
+    "astral/clone/ascii",
+    "astral/clone/unicode",
+    "astral/synthetic/ascii",
+    "astral/synthetic/unicode",
+    "astral/foreign/ascii",
+    "astral/foreign/unicode",
+    "astral-escape/clone/ascii",
+    "astral-escape/clone/unicode",
+    "astral-escape/synthetic/ascii",
+    "astral-escape/synthetic/unicode",
+    "astral-escape/foreign/ascii",
+    "astral-escape/foreign/unicode",
+    "mixed/clone/ascii",
+    "mixed/clone/unicode",
+    "mixed/synthetic/ascii",
+    "mixed/synthetic/unicode",
+    "mixed/foreign/ascii",
+    "mixed/foreign/unicode",
+    "single-quote/parsed/ascii",
+    "single-quote/parsed/unicode",
+    "line-continuation/parsed/ascii",
+    "line-continuation/parsed/unicode",
+    "string-unicode/parsed/ascii",
+    "string-unicode/parsed/unicode",
+    "lone-surrogate/parsed/ascii",
+    "lone-surrogate/parsed/unicode"
+  ],
+  "failed_twice": [
+    "astral-escape/parsed/ascii",
+    "astral-escape/parsed/unicode",
+    "escaped/parsed/ascii",
+    "escaped/parsed/unicode",
+    "extended-escape/parsed/ascii",
+    "extended-escape/parsed/unicode",
+    "mixed/parsed/ascii",
+    "mixed/parsed/unicode"
+  ],
+  "failed_executions_per_case": 2,
+  "positive_executions_per_case": 2,
+  "native_jobs": 1,
+  "seconds": 0.01,
+  "exit_code": 101,
+  "preliminary_compile_failure": "Wrong TransformFlags import; exit101 before any test. Fixed only test import; no runtime mutation.",
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-string-literal-identifier-source-before-wha6__b7",
+  "receipts": [
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "038975bba6e8d22d54c2bdc8e48290bc72cc483e6a74ba9d28bfc5d4addff739"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "52d1835dc36c14f939a38d78580f8002163f1fb65b58981094be70f24a181e3d"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/emitter/src/metadata.rs",
+      "sha256": "c9eaf94391d3eb0893a1d1e7d4c65ff9d876f8b3772634505325a72cf7430e23"
+    },
+    {
+      "path": "crates/emitter/tests/unit/builtins/tests.rs",
+      "sha256": "43803c5a6e2409e87e36a9fe42ef0e94532b1fe9e368efd36aa1ac9ca875dcf8"
+    },
+    {
+      "path": "crates/emitter/tests/string_literal_identifier_source_contract.rs",
+      "sha256": "52566df0e08fd206cd16a3d874c1e6e053d455b1175d4ca2e6fbb30574da2ca9"
+    },
+    {
+      "path": "crates/emitter/tests/fixtures/string-literal-identifier-source.json",
+      "sha256": "fb0419b437e540e6551343b9953b8df9c36feb65d27fe382e9c3d39e3c8ab73b"
+    },
+    {
+      "path": "scripts/observe-string-literal-identifier-source.mjs",
+      "sha256": "d6c990e2d9e9ab17719915afc62090011f2297fdf95f6d2e627b5786e46726c0"
+    },
+    {
+      "path": "target/h2-8a-string-literal-identifier-source-before.log",
+      "sha256": "054e7ff9ffc714a5a4f08d37d77d7cd38e854ace929d12a067d5c3217d0e1a71"
+    },
+    {
+      "path": "target/h2-8a-string-literal-identifier-source-before-compile-error.log",
+      "sha256": "dd5bc26ab73f4532cce8b922fff5a1d217cbf214f605e8c53af408e43131ccfd"
+    },
+    {
+      "path": "target/h2-8a-string-literal-identifier-source-mint.log",
+      "sha256": "abd9505237f171706ea30b0bfa94b3e7b8b62e8799aa480169c9136c55019bc4"
+    },
+    {
+      "path": "target/h2-8a-string-literal-identifier-source-observer-check.log",
+      "sha256": "abd9505237f171706ea30b0bfa94b3e7b8b62e8799aa480169c9136c55019bc4"
+    }
+  ]
+}

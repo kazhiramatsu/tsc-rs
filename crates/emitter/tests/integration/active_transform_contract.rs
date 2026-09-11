@@ -8,8 +8,8 @@ use tsc_emitter::{
     transform_type_script, EmitConstantValue, EmitEnumMemberValue, EmitExportContainerMode,
     EmitFlags, EmitHost, EmitResolver, EmitResolverError, EmitResolverNode, EmitSource,
     EmitTypeReferenceSerializationKind, InternalEmitFlags, JavaScriptNumber, JavaScriptString,
-    NewLineKind, PrintRequest, PrinterOptions, SourceFileTextMode, SourceRange, TransformArena,
-    TransformNode, TransformRoot, TransformSourceId, UnavailableEmitResolver,
+    NewLineKind, PrintRequest, PrinterOptions, SourceFileTextMode, TransformArena, TransformNode,
+    TransformRoot, TransformSourceId, UnavailableEmitResolver,
 };
 use tsc_program::SourceFileId;
 use tsc_syntax::{
@@ -449,44 +449,50 @@ fn invalid_react_namespace_option_value_is_retained_by_recovery_emit() {
 
 #[test]
 fn relocated_assignment_field_owns_its_leading_comment_once() {
-    let parsed = parse_source_file(
-        "assignment-field-comment.ts",
-        concat!(
-            "class C {\n",
-            "    // field comment\n",
-            "    field = 1;\n",
-            "}\n",
-        ),
-        ParseOptions::default(),
-        None,
-    );
-    let mut arena = TransformArena::new();
-    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
-    let options = CompilerOptions {
-        target: Some(ScriptTarget::ES2015.bits()),
-        module: Some(ModuleKind::PRESERVE.bits()),
-        use_define_for_class_fields: Some(false),
-        always_strict: Some(false),
-        ..CompilerOptions::default()
-    };
-    let mut result = transform_nodes(
-        arena,
-        vec![TransformRoot::SourceFile(source)],
-        get_script_transformers(&options, &NoConstantValueResolver).unwrap(),
-        false,
-    )
-    .expect("assignment-mode class field transform");
-    let text = create_printer(
-        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
-    )
-    .print(&mut result, PrintRequest::SourceFile(source), None)
-    .expect("print assignment-mode class field")
-    .text()
-    .to_owned();
+    for target in [
+        ScriptTarget::ES2015,
+        ScriptTarget::ES2022,
+        ScriptTarget::ES_NEXT,
+    ] {
+        let parsed = parse_source_file(
+            "assignment-field-comment.ts",
+            concat!(
+                "// class comment\n",
+                "class C {\n",
+                "    // field comment\n",
+                "    field = 1;\n",
+                "}\n",
+            ),
+            ParseOptions::default(),
+            None,
+        );
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+        let options = CompilerOptions {
+            target: Some(target.bits()),
+            module: Some(ModuleKind::PRESERVE.bits()),
+            use_define_for_class_fields: Some(false),
+            always_strict: Some(false),
+            ..CompilerOptions::default()
+        };
+        let mut result = transform_nodes(
+            arena,
+            vec![TransformRoot::SourceFile(source)],
+            get_script_transformers(&options, &NoConstantValueResolver).unwrap(),
+            false,
+        )
+        .expect("assignment-mode class field transform");
+        let text = create_printer(PrinterOptions::new(NewLineKind::LineFeed).with_target(target))
+            .print(&mut result, PrintRequest::SourceFile(source), None)
+            .expect("print assignment-mode class field")
+            .text()
+            .to_owned();
 
-    assert_eq!(text.matches("// field comment").count(), 1, "{text}");
-    assert!(text.contains("this.field = 1;"), "{text}");
-    assert!(!text.contains("this.\n"), "{text}");
+        assert_eq!(text.matches("// class comment").count(), 1, "{text}");
+        assert_eq!(text.matches("// field comment").count(), 1, "{text}");
+        assert!(text.contains("this.field = 1;"), "{text}");
+        assert!(!text.contains("this.\n"), "{text}");
+    }
 }
 
 fn transform_and_print_module(
@@ -5081,7 +5087,7 @@ fn empty_multiline_block_indents_its_node_array_comment() {
 #[test]
 fn empty_function_body_does_not_reown_the_open_brace_trailing_comment() {
     assert_eq!(
-        transform_and_print_at_target(
+        transform_and_print_canonical_at_target(
             concat!(
                 "function D7() {\n",
                 "    return class T {\n",
@@ -11776,7 +11782,7 @@ fn standard_decorator_named_declaration_has_one_outer_leading_comment_owner() {
                 .metadata(outer)
                 .and_then(|metadata| metadata.comment_range())
                 .map(|range| range.range()),
-            Some(SourceRange::Original(_))
+            Some(tsc_emitter::CommentSourceRange::Original(_))
         ));
 
         let NodeData::VariableStatement(variable_statement) = &outer_record.data else {
@@ -12046,37 +12052,55 @@ fn erased_source_leader_preserves_only_recognized_triple_slash_comments() {
 }
 
 #[test]
-fn esnext_assignment_mode_static_auto_accessor_keeps_dynamic_this_receiver() {
-    let parsed = parse_source_file(
-        "decorator-static-accessor.ts",
-        concat!(
-            "const dec = (_value, _context) => {};\n",
-            "class C { @dec static accessor value = 1; }\n",
-        ),
-        Default::default(),
-        None,
-    );
-    let mut arena = TransformArena::new();
-    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
-    let resolver = NoConstantValueResolver;
-    let mut options = bootstrap_options();
-    options.use_define_for_class_fields = Some(false);
-    options.always_strict = Some(false);
-    let mut result = transform_nodes(
-        arena,
-        vec![TransformRoot::SourceFile(source)],
-        get_script_transformers(&options, &resolver).unwrap(),
-        false,
-    )
-    .expect("ESNext assignment-mode decorated static auto-accessor");
-    let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
+fn decorated_static_auto_accessor_matches_typescript_target_routing() {
+    // TypeScript 6.0.3 retains the ESNext accessor in both field modes.
+    // ES2022 lowers it. Compare complete source-owned printed output for all
+    // four controls instead of assuming that every target emits a getter.
+    let fixture: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/decorator-static-accessor-routing.json"
+    ))
+    .unwrap();
+    assert_eq!(fixture["typescript"], "6.0.3");
+    assert_eq!(fixture["repetitions"], 2);
+    let cases = fixture["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 4);
+    for case in cases {
+        let parsed = parse_source_file(
+            fixture["file_name"].as_str().unwrap(),
+            fixture["source"].as_str().unwrap(),
+            Default::default(),
+            None,
+        );
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+        let resolver = NoConstantValueResolver;
+        let mut options = bootstrap_options();
+        options.target = Some(i32::try_from(case["target"].as_i64().unwrap()).unwrap());
+        options.use_define_for_class_fields =
+            Some(case["use_define_for_class_fields"].as_bool().unwrap());
+        options.always_strict = Some(false);
+        let mut result = transform_nodes(
+            arena,
+            vec![TransformRoot::SourceFile(source)],
+            get_script_transformers(&options, &resolver).unwrap(),
+            false,
+        )
+        .expect("decorated static auto-accessor routing");
+        // Match compiler emit and transpileModule, including the unchanged
+        // ESNext/define source that standalone printing otherwise preserves.
+        let printed = create_printer(
+            PrinterOptions::new(NewLineKind::LineFeed)
+                .with_source_file_text_mode(tsc_emitter::SourceFileTextMode::Canonical),
+        )
         .print(&mut result, PrintRequest::SourceFile(source), None)
-        .expect("print ESNext assignment-mode decorated static auto-accessor");
-    let text = printed.text();
-
-    assert!(text.contains("static get value() { return this.#value_accessor_storage; }"));
-    assert!(text.contains("static set value(value) { this.#value_accessor_storage = value; }"));
-    assert!(!text.contains("return C.#value_accessor_storage"));
+        .expect("print decorated static auto-accessor routing");
+        assert_eq!(
+            printed.text(),
+            case["expected"].as_str().unwrap(),
+            "{}",
+            case["case_id"]
+        );
+    }
 }
 
 #[test]
@@ -12183,7 +12207,10 @@ fn es2022_auto_accessor_lowers_while_native_fields_remain_owned() {
     );
     let mut arena = TransformArena::new();
     let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
-    let resolver = UnavailableEmitResolver;
+    // getClassFacts asks ContainsConstructorReference for #native even when
+    // the field remains native. The pinned resolver observation is false.
+    // ratchets/h2-8a-retained-accessor-contract-resolver.v1.json
+    let resolver = NoConstantValueResolver;
     let mut options = bootstrap_options();
     options.target = Some(ScriptTarget::ES2022.bits());
     options.always_strict = Some(false);

@@ -1,0 +1,131 @@
+From a2784933edd90f61f37753842de5f016d169439d Mon Sep 17 00:00:00 2001
+From: kazhiramatsu <kazutakehiramatsu@gmail.com>
+Date: Fri, 11 Sep 2026 00:29:53 +0900
+Subject: [PATCH] draft(A6-41 item 4): debug audit of the node-id memo across
+ receiver contexts
+
+standard_decorators.rs (debug builds only): the receiver context of the
+first visit of every node whose subtree contains lexical this/super is
+recorded; a later memo hit under a different (classThis, classSuper) context
+fails a debug assertion. Class element names are exempt: the name previsit
+under the name frame and the element visit's reuse of that result is the
+intended partialTransformClassElement order. The witness and 530 runs are
+debug binaries, so any violation surfaces as a failed command.
+---
+ .../src/builtins/standard_decorators.rs       | 67 +++++++++++++++++++
+ 1 file changed, 67 insertions(+)
+
+diff --git a/crates/emitter/src/builtins/standard_decorators.rs b/crates/emitter/src/builtins/standard_decorators.rs
+index fb6368bb8..afdc2fcf8 100644
+--- a/crates/emitter/src/builtins/standard_decorators.rs
++++ b/crates/emitter/src/builtins/standard_decorators.rs
+@@ -636,6 +636,16 @@ struct StandardDecoratorVisitor<'context> {
+     /// property initializer or static block of a decorated derived class
+     /// is visited.
+     receiver_class_super: Option<String>,
++    /// Debug audit of the global node-id memo: the receiver context under
++    /// which a node containing lexical `this`/`super` was first visited, so
++    /// a later memo hit under another context is reported instead of
++    /// silently reusing the wrong receiver. Class element names are exempt
++    /// (partialTransformClassElement visits them once, under the name
++    /// frame, and the element visit reuses that result by design).
++    #[cfg(debug_assertions)]
++    memo_receiver_audit: BTreeMap<NodeId, (Option<TransformNode>, Option<String>)>,
++    #[cfg(debug_assertions)]
++    memo_audit_exempt: BTreeSet<NodeId>,
+     /// tsc `pendingExpressions`: member decorator array assignments and
+     /// computed-name cache assignments waiting for the next non-inlineable
+     /// computed property name of the class; whatever remains after the
+@@ -708,6 +718,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
+             receiver_frames: Vec::new(),
+             receiver_class_this: None,
+             receiver_class_super: None,
++            #[cfg(debug_assertions)]
++            memo_receiver_audit: BTreeMap::new(),
++            #[cfg(debug_assertions)]
++            memo_audit_exempt: BTreeSet::new(),
+             pending_expressions: Vec::new(),
+             lexical_environments: Vec::new(),
+         }
+@@ -729,11 +743,13 @@ impl<'context> StandardDecoratorVisitor<'context> {
+         value_use: DecoratorValueUse,
+     ) -> Result<Option<NodeId>, TransformError> {
+         if let Some(mapped) = self.nodes.get(&id) {
++            self.audit_memo_hit(id)?;
+             return Ok(*mapped);
+         }
+         let original = self.node(id);
+         let record = self.context.arena().node(original)?.clone();
+         let kind = record.kind;
++        self.audit_memo_first_visit(original)?;
+         let transformed = match record.data {
+             // tsc-port: isNamedEvaluation(node, isAnonymousClassNeedingAssignedName)
+             // @6.0.3 — the visitor's named-evaluation sources record the
+@@ -6111,6 +6127,52 @@ impl NodeDataChildVisitor for DecoratorClassThisRewriter<'_, '_> {
+ }
+ 
+ impl StandardDecoratorVisitor<'_> {
++    /// Item 4 evidence: records the receiver context of the first visit of a
++    /// node whose subtree contains lexical `this` or `super`.
++    #[cfg(debug_assertions)]
++    fn audit_memo_first_visit(&mut self, node: TransformNode) -> Result<(), TransformError> {
++        let flags = self.context.arena().transform_flags(node);
++        if flags.bits()
++            & (TransformFlags::CONTAINS_LEXICAL_THIS.bits()
++                | TransformFlags::CONTAINS_LEXICAL_SUPER.bits())
++            != 0
++        {
++            self.memo_receiver_audit.insert(
++                node.node(),
++                (self.receiver_class_this, self.receiver_class_super.clone()),
++            );
++        }
++        Ok(())
++    }
++
++    #[cfg(not(debug_assertions))]
++    fn audit_memo_first_visit(&mut self, _node: TransformNode) -> Result<(), TransformError> {
++        Ok(())
++    }
++
++    /// A memo hit under a receiver context that differs from the first
++    /// visit's would reuse a `this`/`super` projection made for another
++    /// element; the deliberate name previsit is exempt.
++    #[cfg(debug_assertions)]
++    fn audit_memo_hit(&self, id: NodeId) -> Result<(), TransformError> {
++        if self.memo_audit_exempt.contains(&id) {
++            return Ok(());
++        }
++        if let Some((class_this, class_super)) = self.memo_receiver_audit.get(&id) {
++            debug_assert!(
++                *class_this == self.receiver_class_this
++                    && *class_super == self.receiver_class_super,
++                "standard-decorator memo reused node {id:?} under a different receiver context"
++            );
++        }
++        Ok(())
++    }
++
++    #[cfg(not(debug_assertions))]
++    fn audit_memo_hit(&self, _id: NodeId) -> Result<(), TransformError> {
++        Ok(())
++    }
++
+     /// tsc-port: transformESDecorators.updateState @6.0.3
+     fn update_receiver_state(&mut self) {
+         let frames = &self.receiver_frames;
+@@ -6444,6 +6506,11 @@ impl StandardDecoratorVisitor<'_> {
+         name: NodeId,
+         memo_key: NodeId,
+     ) -> Result<(), TransformError> {
++        #[cfg(debug_assertions)]
++        {
++            self.memo_audit_exempt.insert(name);
++            self.memo_audit_exempt.insert(memo_key);
++        }
+         let is_computed = matches!(
+             self.context.arena().node(self.node(name))?.data,
+             NodeData::ComputedPropertyName(_)
+-- 
+2.50.1 (Apple Git-155)
+

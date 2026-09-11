@@ -10,6 +10,189 @@ use crate::state::SignatureKind;
 use super::*;
 use crate::node_builder::with_context;
 
+#[test]
+fn binding_name_clone_mounts_its_origin_and_remaps_children_to_another_source() {
+    with_program_state(
+        &[
+            (
+                "/input.ts",
+                "function f({ value: [first = 1, ...rest] }) {}",
+            ),
+            ("/output.ts", "export {};"),
+        ],
+        &CompilerOptions::default(),
+        |checker| {
+            let input_root = checker.binder.source(0).root;
+            let f = checker.binder.locals_of(input_root).unwrap()["f"];
+            let declaration = checker.binder.symbol(f).value_declaration.unwrap();
+            let parameter = checker.parameters_of_function(declaration)[0];
+            let NodeData::Parameter(parameter) = checker.data_of(parameter) else {
+                unreachable!()
+            };
+            let original_name = parameter.name.unwrap();
+            let output_root = checker.binder.source(1).root;
+            let mut arena = TransformArena::new();
+            let target =
+                arena.add_source(checker.binder.source(1), Some(SourceFileId::from_raw(1)));
+            with_context(
+                checker,
+                &mut arena,
+                target,
+                Some(output_root),
+                None,
+                None,
+                None,
+                None,
+                None,
+                |checker, arena, target, context| {
+                    let name = elide_initializer_and_set_emit_flags(
+                        checker,
+                        arena,
+                        target,
+                        original_name,
+                        context,
+                    )?;
+                    assert_eq!(name.source(), target);
+                    assert_eq!(
+                        arena.node(name).unwrap().kind,
+                        SyntaxKind::ObjectBindingPattern
+                    );
+                    let mut pending = vec![name.node()];
+                    let mut count = 0;
+                    while let Some(id) = pending.pop() {
+                        let current = TransformNode::new(target, id);
+                        let record = arena.node(current).unwrap();
+                        assert_eq!((record.pos, record.end), (u32::MAX, u32::MAX));
+                        let origin = arena.parse_tree_resolver_node(current).unwrap().unwrap();
+                        assert_eq!(origin.source(), SourceFileId::from_raw(0));
+                        assert_eq!(
+                            arena.metadata(current).unwrap().flags(),
+                            EmitFlags::SINGLE_LINE | EmitFlags::NO_ASCII_ESCAPING
+                        );
+                        if let NodeData::BindingElement(data) = &record.data {
+                            assert!(data.initializer.is_none());
+                        }
+                        tsc_syntax::for_each_child(
+                            &arena.source(target).unwrap().syntax().arena,
+                            record,
+                            |child| {
+                                pending.push(child);
+                                false
+                            },
+                        );
+                        count += 1;
+                    }
+                    assert!(count > 6);
+                    Ok(())
+                },
+                None,
+            )
+            .unwrap();
+        },
+    );
+}
+
+#[test]
+fn binding_name_clone_propagates_an_unknown_target_as_a_factory_error() {
+    with_builder(
+        "function f({ value }) {}",
+        EmitNodeBuilderFlags::NONE,
+        |checker, arena, _, context| {
+            let root = checker.binder.source(0).root;
+            let f = checker.binder.locals_of(root).unwrap()["f"];
+            let declaration = checker.binder.symbol(f).value_declaration.unwrap();
+            let parameter = checker.parameters_of_function(declaration)[0];
+            let NodeData::Parameter(parameter) = checker.data_of(parameter) else {
+                unreachable!()
+            };
+            let mut other_arena = TransformArena::new();
+            other_arena.add_source(checker.binder.source(0), None);
+            let invalid = other_arena.add_source(checker.binder.source(0), None);
+            let result = elide_initializer_and_set_emit_flags(
+                checker,
+                arena,
+                invalid,
+                parameter.name.unwrap(),
+                context,
+            );
+            assert!(
+                matches!(result, Err(EmitResolverError::Factory { error, .. }) if matches!(*error, tsc_emitter::TransformError::UnknownSource(source) if source == invalid))
+            );
+            Ok(())
+        },
+    );
+}
+
+#[test]
+fn binding_name_clones_keep_origins_without_mapping_parsed_child_ranges() {
+    with_builder(
+        "function f({ value: [, first = 1, ...rest], [\"key\"]: renamed, 0: digit }) {}",
+        EmitNodeBuilderFlags::NONE,
+        |checker, arena, target, context| {
+            let root = checker.binder.source(0).root;
+            let f = checker.binder.locals_of(root).unwrap()["f"];
+            let declaration = checker.binder.symbol(f).value_declaration.unwrap();
+            let parameter = checker.parameters_of_function(declaration)[0];
+            let NodeData::Parameter(parameter) = checker.data_of(parameter) else {
+                unreachable!();
+            };
+            let original_name = parameter.name.unwrap();
+            let original_pos = checker.binder.source(0).arena.node(original_name).pos;
+            let name = elide_initializer_and_set_emit_flags(
+                checker,
+                arena,
+                target,
+                original_name,
+                context,
+            )?;
+            let mut pending = vec![name.node()];
+            let mut kinds = HashSet::new();
+            while let Some(id) = pending.pop() {
+                let current = TransformNode::new(target, id);
+                let record = arena.node(current).unwrap();
+                assert_eq!(
+                    (record.pos, record.end),
+                    (u32::MAX, u32::MAX),
+                    "{:?}",
+                    record.kind
+                );
+                assert_eq!(
+                    arena.metadata(current).unwrap().flags(),
+                    EmitFlags::SINGLE_LINE | EmitFlags::NO_ASCII_ESCAPING
+                );
+                assert!(arena.parse_tree_resolver_node(current).unwrap().is_some());
+                if let NodeData::BindingElement(data) = &record.data {
+                    assert!(data.initializer.is_none());
+                }
+                kinds.insert(record.kind);
+                let syntax = arena.source(target).unwrap().syntax();
+                tsc_syntax::for_each_child(&syntax.arena, record, |child| {
+                    pending.push(child);
+                    false
+                });
+            }
+            for kind in [
+                SyntaxKind::ObjectBindingPattern,
+                SyntaxKind::ArrayBindingPattern,
+                SyntaxKind::BindingElement,
+                SyntaxKind::OmittedExpression,
+                SyntaxKind::DotDotDotToken,
+                SyntaxKind::ComputedPropertyName,
+                SyntaxKind::StringLiteral,
+                SyntaxKind::NumericLiteral,
+            ] {
+                assert!(kinds.contains(&kind), "{kind:?}");
+            }
+            assert_eq!(
+                checker.binder.source(0).arena.node(original_name).pos,
+                original_pos
+            );
+            assert_ne!(original_pos, u32::MAX);
+            Ok(())
+        },
+    );
+}
+
 fn with_builder(
     source: &str,
     flags: EmitNodeBuilderFlags,

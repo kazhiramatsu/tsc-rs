@@ -33,7 +33,7 @@ pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
     check_result(std::panic::catch_unwind(|| {
         h2_7c_corpus::assert_corpus(&artifact)
     }))?;
-    println!("H2.7c corpus: 42 candidates, 31 exact, 11 deferred (1 typed refusal checked), repetitions=2");
+    println!("H2.7c corpus: 42 candidates, 32 exact (1 H2.8a rootDir migration), 10 deferred, repetitions=2");
     Ok(())
 }
 
@@ -74,7 +74,7 @@ pub fn run_owner_controls(workspace: &Path) -> Result<(), Box<dyn Error>> {
         }
     });
     check_result(compared)?;
-    println!("H2.7c focused: 244 cases, 241 exact, 3 later-slice typed refusals, repetitions=2; 37 ordinary API references remain H2.8d");
+    println!("H2.7c focused: 244 cases, 244 exact (3 H2.8a outDir migrations), repetitions=2; 37 ordinary API references remain H2.8d");
     Ok(())
 }
 

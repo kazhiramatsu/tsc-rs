@@ -1,4 +1,4 @@
-//! Original D283 + E-only8 whole-Program comparisons over one frozen TS join.
+//! Original D283 + E-only8 and the 23 H2.8a directory comparisons over one frozen TS join.
 //! Focused controls and the compiler test's CLI checks are not hosted entries.
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
@@ -35,12 +35,19 @@ pub fn run_h2_7de(workspace: &Path) -> Result<(), Box<dyn Error>> {
     let e = std::panic::catch_unwind(|| {
         h2_7e_original_corpus_shared::assert_original_corpus(workspace)
     });
+    let directories = std::panic::catch_unwind(|| {
+        h2_7d_original_corpus_shared::assert_output_directory_references(workspace)
+    });
     let d = checked(d, "D283")?;
     let e = checked(e, "E-only8")?;
+    let directories = checked(directories, "H2.8a directories")?;
     if d != expected_d || e != expected_e || !d.is_disjoint(&e) || d.union(&e).count() != 291 {
         return Err("H2.7d/e production coverage differs from the qualified original union".into());
     }
-    println!("H2.7d/e original corpus: D283 + E-only8 = 291 exact IDs, twice; 34 later references, including 2 unobserved transpile APIs; no inherited successes");
+    if directories.len() != 23 || !directories.is_disjoint(&d) || !directories.is_disjoint(&e) {
+        return Err("H2.8a directory supplement differs from its 23 original IDs".into());
+    }
+    println!("H2.7d/e original corpus with H2.8a: D283 + E-only8 + 23 directory migrations = 314 exact IDs, twice; 11 later references, including 2 unobserved transpile APIs; historical 291-row qualification unchanged; no inherited successes");
     Ok(())
 }
 

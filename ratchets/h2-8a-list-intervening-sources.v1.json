@@ -1,0 +1,535 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-40",
+  "status": "Source supplement; no whole A40 readiness or production activation",
+  "source": {
+    "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+    "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+  },
+  "observer": {
+    "path": "scripts/observe-list-intervening-sources.mjs",
+    "sha256": "9582e2490d76844a3f9b986d3bd36ba5455b73dfcc056dbcb8458387ba5268f3"
+  },
+  "owners": [
+    {
+      "name": "emitArrayLiteralExpression",
+      "start": 118203,
+      "end": 118207,
+      "sha256": "acdebb2035d5816950181b7d292f932bf80d3147305ff9818a21fb50b36711a2",
+      "body": "function emitArrayLiteralExpression(node) {\n    const elements = node.elements;\n    const preferNewLine = node.multiLine ? 65536 /* PreferNewLine */ : 0 /* None */;\n    emitExpressionList(node, elements, 8914 /* ArrayLiteralExpressionElements */ | preferNewLine, parenthesizer.parenthesizeExpressionForDisallowedComma);\n  }",
+      "calls": [
+        {
+          "start": 118206,
+          "end": 118206,
+          "sha256": "01812158ba9c01af207e1a5bb30e23d9e6591c878a49a87d8bb452635a469fb9",
+          "text": "emitExpressionList(node, elements, 8914 /* ArrayLiteralExpressionElements */ | preferNewLine, parenthesizer.parenthesizeExpressionForDisallowedComma)"
+        }
+      ],
+      "predicates": [
+        {
+          "start": 118205,
+          "end": 118205,
+          "sha256": "236967e6c745edfad435e7c429a133795ef97cdf4bb0c8562fd144b9a61f19f4",
+          "text": "node.multiLine"
+        }
+      ]
+    },
+    {
+      "name": "emitObjectLiteralExpression",
+      "start": 118208,
+      "end": 118222,
+      "sha256": "2ccae6f40edc87a0567dcba1bf979555fa73d5c69fb71154705362ffec0ce181",
+      "body": "function emitObjectLiteralExpression(node) {\n    pushNameGenerationScope(node);\n    forEach(node.properties, generateMemberNames);\n    const indentedFlag = getEmitFlags(node) & 131072 /* Indented */;\n    if (indentedFlag) {\n      increaseIndent();\n    }\n    const preferNewLine = node.multiLine ? 65536 /* PreferNewLine */ : 0 /* None */;\n    const allowTrailingComma = currentSourceFile && !isJsonSourceFile(currentSourceFile) ? 64 /* AllowTrailingComma */ : 0 /* None */;\n    emitList(node, node.properties, 526226 /* ObjectLiteralExpressionProperties */ | allowTrailingComma | preferNewLine);\n    if (indentedFlag) {\n      decreaseIndent();\n    }\n    popNameGenerationScope(node);\n  }",
+      "calls": [
+        {
+          "start": 118209,
+          "end": 118209,
+          "sha256": "f25599d96397d26560491401ee6761f017efdfb8aa35ef965ad76d5945939a8a",
+          "text": "pushNameGenerationScope(node)"
+        },
+        {
+          "start": 118210,
+          "end": 118210,
+          "sha256": "ae9335743722a515acfeac73626c235b32fabfb193e7aba796d99186bbb6bf21",
+          "text": "forEach(node.properties, generateMemberNames)"
+        },
+        {
+          "start": 118211,
+          "end": 118211,
+          "sha256": "cede4a03ee9e0116d77b3daaea9e2cacbde3e1dc1bca947fab1f09183c901ae6",
+          "text": "getEmitFlags(node)"
+        },
+        {
+          "start": 118213,
+          "end": 118213,
+          "sha256": "af65e4782534bc7d37c9a4a5719965b3ee06c1bdee58271a522b04688cc592fc",
+          "text": "increaseIndent()"
+        },
+        {
+          "start": 118216,
+          "end": 118216,
+          "sha256": "10ba9d1b75473c66a64810057bda9e709add6259ea6e32c2b3df1fa8302811ff",
+          "text": "isJsonSourceFile(currentSourceFile)"
+        },
+        {
+          "start": 118217,
+          "end": 118217,
+          "sha256": "714411974950b473f7f42f0d04c3ad4cefb7637cfaaa1b9c8fae704428a50010",
+          "text": "emitList(node, node.properties, 526226 /* ObjectLiteralExpressionProperties */ | allowTrailingComma | preferNewLine)"
+        },
+        {
+          "start": 118219,
+          "end": 118219,
+          "sha256": "360fda34f828beb6ae0d85f033c70063525e5944a1422174aaf5acf72255903d",
+          "text": "decreaseIndent()"
+        },
+        {
+          "start": 118221,
+          "end": 118221,
+          "sha256": "6cc34b8edf0675573b01aa37c2a7646df3af58730177014160717330cc674d6f",
+          "text": "popNameGenerationScope(node)"
+        }
+      ],
+      "predicates": [
+        {
+          "start": 118212,
+          "end": 118212,
+          "sha256": "08a8eb713d56435910d27c7fc05936cb36109e487f4005aa748e4a1fa5c4acf6",
+          "text": "indentedFlag"
+        },
+        {
+          "start": 118215,
+          "end": 118215,
+          "sha256": "236967e6c745edfad435e7c429a133795ef97cdf4bb0c8562fd144b9a61f19f4",
+          "text": "node.multiLine"
+        },
+        {
+          "start": 118216,
+          "end": 118216,
+          "sha256": "461bf049f1ccbda259589f587e60e2256f68112164e4960c9df78e399408aa5c",
+          "text": "currentSourceFile && !isJsonSourceFile(currentSourceFile)"
+        },
+        {
+          "start": 118218,
+          "end": 118218,
+          "sha256": "08a8eb713d56435910d27c7fc05936cb36109e487f4005aa748e4a1fa5c4acf6",
+          "text": "indentedFlag"
+        }
+      ]
+    },
+    {
+      "name": "emitCallExpression",
+      "start": 118275,
+      "end": 118290,
+      "sha256": "65a3b81e38a6ee133013f400dd33dc47e51f0018e5008c4574a4a4735a9ab68f",
+      "body": "function emitCallExpression(node) {\n    const indirectCall = getInternalEmitFlags(node) & 16 /* IndirectCall */;\n    if (indirectCall) {\n      writePunctuation(\"(\");\n      writeLiteral(\"0\");\n      writePunctuation(\",\");\n      writeSpace();\n    }\n    emitExpression(node.expression, parenthesizer.parenthesizeLeftSideOfAccess);\n    if (indirectCall) {\n      writePunctuation(\")\");\n    }\n    emit(node.questionDotToken);\n    emitTypeArguments(node, node.typeArguments);\n    emitExpressionList(node, node.arguments, 2576 /* CallExpressionArguments */, parenthesizer.parenthesizeExpressionForDisallowedComma);\n  }",
+      "calls": [
+        {
+          "start": 118276,
+          "end": 118276,
+          "sha256": "cb7e053fbb7ef979129e83e01bb0029e6cca02e64357a54393045c294dc4b138",
+          "text": "getInternalEmitFlags(node)"
+        },
+        {
+          "start": 118278,
+          "end": 118278,
+          "sha256": "32a415982d9ea4328c7c4fbaf2a600a545783d0a48e46ad838aad9f279b73e1f",
+          "text": "writePunctuation(\"(\")"
+        },
+        {
+          "start": 118279,
+          "end": 118279,
+          "sha256": "fc89b33b68e6451c98dd5ae75d4c28efcbc2178b3badb1f6a2b0cf8795b50e8c",
+          "text": "writeLiteral(\"0\")"
+        },
+        {
+          "start": 118280,
+          "end": 118280,
+          "sha256": "11c249d79837affaebd24e76dbeb5b3fd60fc1428f65dd19c259d746fe774bf5",
+          "text": "writePunctuation(\",\")"
+        },
+        {
+          "start": 118281,
+          "end": 118281,
+          "sha256": "a0082df0093a470b14ec5912183ebd82d528dc8e8d0d1a383a911ac136f191aa",
+          "text": "writeSpace()"
+        },
+        {
+          "start": 118283,
+          "end": 118283,
+          "sha256": "e23fe5eafe5c7d7cc76b7f0fa091d004d8e828dd4de170fb01403ab34c9c5264",
+          "text": "emitExpression(node.expression, parenthesizer.parenthesizeLeftSideOfAccess)"
+        },
+        {
+          "start": 118285,
+          "end": 118285,
+          "sha256": "8ecd840f55e25de47b765d5df92f7f68e0b6399cd5c4a85e2fc94cb872e6141a",
+          "text": "writePunctuation(\")\")"
+        },
+        {
+          "start": 118287,
+          "end": 118287,
+          "sha256": "938564e121d5093b8b43327fa0c53e0c14e7e8313bbe6247fe22af7775618bc6",
+          "text": "emit(node.questionDotToken)"
+        },
+        {
+          "start": 118288,
+          "end": 118288,
+          "sha256": "3d8f6a39a9c4944fd651c648a7e779c03d7b559a9c56b9997837a57cb7b48193",
+          "text": "emitTypeArguments(node, node.typeArguments)"
+        },
+        {
+          "start": 118289,
+          "end": 118289,
+          "sha256": "512960b9d068a4855d70c6b8ef1f7bc7f252fc192e5611387586d8c1c70518ae",
+          "text": "emitExpressionList(node, node.arguments, 2576 /* CallExpressionArguments */, parenthesizer.parenthesizeExpressionForDisallowedComma)"
+        }
+      ],
+      "predicates": [
+        {
+          "start": 118277,
+          "end": 118277,
+          "sha256": "2d861af3dcbdecd74506164c99d2017ba7f5872679cec68fe8f53d92a2f51dfe",
+          "text": "indirectCall"
+        },
+        {
+          "start": 118284,
+          "end": 118284,
+          "sha256": "2d861af3dcbdecd74506164c99d2017ba7f5872679cec68fe8f53d92a2f51dfe",
+          "text": "indirectCall"
+        }
+      ]
+    },
+    {
+      "name": "emitNewExpression",
+      "start": 118291,
+      "end": 118297,
+      "sha256": "50689c35b50095b7887fba7a30e9e0be8f1605a45f44df2c31ef55691bfbf56a",
+      "body": "function emitNewExpression(node) {\n    emitTokenWithComment(105 /* NewKeyword */, node.pos, writeKeyword, node);\n    writeSpace();\n    emitExpression(node.expression, parenthesizer.parenthesizeExpressionOfNew);\n    emitTypeArguments(node, node.typeArguments);\n    emitExpressionList(node, node.arguments, 18960 /* NewExpressionArguments */, parenthesizer.parenthesizeExpressionForDisallowedComma);\n  }",
+      "calls": [
+        {
+          "start": 118292,
+          "end": 118292,
+          "sha256": "bb79309fb82b9eab93f36ebb020ca12693f835d81df9db9f05e1c5db0d66f6f6",
+          "text": "emitTokenWithComment(105 /* NewKeyword */, node.pos, writeKeyword, node)"
+        },
+        {
+          "start": 118293,
+          "end": 118293,
+          "sha256": "a0082df0093a470b14ec5912183ebd82d528dc8e8d0d1a383a911ac136f191aa",
+          "text": "writeSpace()"
+        },
+        {
+          "start": 118294,
+          "end": 118294,
+          "sha256": "59e621b6c940b24966b7d7c5a290afdad7923638278d1f94b057003b64c6f8ad",
+          "text": "emitExpression(node.expression, parenthesizer.parenthesizeExpressionOfNew)"
+        },
+        {
+          "start": 118295,
+          "end": 118295,
+          "sha256": "3d8f6a39a9c4944fd651c648a7e779c03d7b559a9c56b9997837a57cb7b48193",
+          "text": "emitTypeArguments(node, node.typeArguments)"
+        },
+        {
+          "start": 118296,
+          "end": 118296,
+          "sha256": "163dfca175ce3971bea962d9903b65acad3dadee5715db027828e076d9c3d087",
+          "text": "emitExpressionList(node, node.arguments, 18960 /* NewExpressionArguments */, parenthesizer.parenthesizeExpressionForDisallowedComma)"
+        }
+      ],
+      "predicates": []
+    },
+    {
+      "name": "emitNamedImports",
+      "start": 119254,
+      "end": 119256,
+      "sha256": "197497d89da396751830e67c015ec080aa507bd18f5cdcc434a44b838d56be09",
+      "body": "function emitNamedImports(node) {\n    emitNamedImportsOrExports(node);\n  }",
+      "calls": [
+        {
+          "start": 119255,
+          "end": 119255,
+          "sha256": "10cab980918ac3d7388a87953492e2ca7eeea10ad484a9c998faddc16ef5736d",
+          "text": "emitNamedImportsOrExports(node)"
+        }
+      ],
+      "predicates": []
+    },
+    {
+      "name": "emitNamedExports",
+      "start": 119350,
+      "end": 119352,
+      "sha256": "02d25e1d3c954622bd0b1103b77856ee9b5dfb5e18bcbd1bd9cef0ed9f2cb158",
+      "body": "function emitNamedExports(node) {\n    emitNamedImportsOrExports(node);\n  }",
+      "calls": [
+        {
+          "start": 119351,
+          "end": 119351,
+          "sha256": "10cab980918ac3d7388a87953492e2ca7eeea10ad484a9c998faddc16ef5736d",
+          "text": "emitNamedImportsOrExports(node)"
+        }
+      ],
+      "predicates": []
+    },
+    {
+      "name": "emitNamedImportsOrExports",
+      "start": 119356,
+      "end": 119360,
+      "sha256": "fa0cc73760db6e0bdc91ead547be1a25ca9be0d7d60638b5b3bc03bbf68b56b3",
+      "body": "function emitNamedImportsOrExports(node) {\n    writePunctuation(\"{\");\n    emitList(node, node.elements, 525136 /* NamedImportsOrExportsElements */);\n    writePunctuation(\"}\");\n  }",
+      "calls": [
+        {
+          "start": 119357,
+          "end": 119357,
+          "sha256": "4b76b4d1c5b5edcc021bc42676357b57176441001d3a54fa7751f6ba17784759",
+          "text": "writePunctuation(\"{\")"
+        },
+        {
+          "start": 119358,
+          "end": 119358,
+          "sha256": "603b5d856fa37bc445c52baa1c8268851e221a68d53dda6657389ea62355edac",
+          "text": "emitList(node, node.elements, 525136 /* NamedImportsOrExportsElements */)"
+        },
+        {
+          "start": 119359,
+          "end": 119359,
+          "sha256": "bb8eb09b5b65dd69ce71de654bb823d72ab632124e5812b6368381bdb373b8f7",
+          "text": "writePunctuation(\"}\")"
+        }
+      ],
+      "predicates": []
+    },
+    {
+      "name": "emitParameters",
+      "start": 119976,
+      "end": 119978,
+      "sha256": "ec5e82f6c5db7d8f3be48fd319347e0afa52486f512a9386c8c0c73853169d1e",
+      "body": "function emitParameters(parentNode, parameters) {\n    emitList(parentNode, parameters, 2576 /* Parameters */);\n  }",
+      "calls": [
+        {
+          "start": 119977,
+          "end": 119977,
+          "sha256": "9ba60df01e8bdde72f9d1b86e8f1a6af60e1c5c5d951824805f35045a9f2be90",
+          "text": "emitList(parentNode, parameters, 2576 /* Parameters */)"
+        }
+      ],
+      "predicates": []
+    },
+    {
+      "name": "emitParametersForArrow",
+      "start": 119983,
+      "end": 119989,
+      "sha256": "5defa2865b66596114760529f7df0ae1b8c54ab92a012da39bef889e687fd7c3",
+      "body": "function emitParametersForArrow(parentNode, parameters) {\n    if (canEmitSimpleArrowHead(parentNode, parameters)) {\n      emitList(parentNode, parameters, 2576 /* Parameters */ & ~2048 /* Parenthesis */);\n    } else {\n      emitParameters(parentNode, parameters);\n    }\n  }",
+      "calls": [
+        {
+          "start": 119984,
+          "end": 119984,
+          "sha256": "b8cfea72b2af6ea0957ce272ad0a783aba561a40c62d151d9407d8df21b75fbd",
+          "text": "canEmitSimpleArrowHead(parentNode, parameters)"
+        },
+        {
+          "start": 119985,
+          "end": 119985,
+          "sha256": "67ee96ab82261dbdf03410e7bc65635b08dcb9c0b05833b2050c1c40a66d78b2",
+          "text": "emitList(parentNode, parameters, 2576 /* Parameters */ & ~2048 /* Parenthesis */)"
+        },
+        {
+          "start": 119987,
+          "end": 119987,
+          "sha256": "33255c50720e3993478e7a0ee47ee22bafb5d2d96757c367ccb3932777f4156c",
+          "text": "emitParameters(parentNode, parameters)"
+        }
+      ],
+      "predicates": [
+        {
+          "start": 119984,
+          "end": 119984,
+          "sha256": "b8cfea72b2af6ea0957ce272ad0a783aba561a40c62d151d9407d8df21b75fbd",
+          "text": "canEmitSimpleArrowHead(parentNode, parameters)"
+        }
+      ]
+    },
+    {
+      "name": "emitParametersForIndexSignature",
+      "start": 119990,
+      "end": 119992,
+      "sha256": "2e040fdf10d0e7e0936f057fcf40d52e63310439a6ab1a5fd50eaa4668c9572c",
+      "body": "function emitParametersForIndexSignature(parentNode, parameters) {\n    emitList(parentNode, parameters, 8848 /* IndexSignatureParameters */);\n  }",
+      "calls": [
+        {
+          "start": 119991,
+          "end": 119991,
+          "sha256": "aaa232795a7709af052800b85a839ebd947a00972e675fd82a811c4e2e5f8af2",
+          "text": "emitList(parentNode, parameters, 8848 /* IndexSignatureParameters */)"
+        }
+      ],
+      "predicates": []
+    },
+    {
+      "name": "emitTokenWithComment",
+      "start": 118731,
+      "end": 118764,
+      "sha256": "f9518511a5266007fd3920528e805f5f67e215249e63b85abe593d98cee4f2e7",
+      "body": "function emitTokenWithComment(token, pos, writer2, contextNode, indentLeading) {\n    const node = getParseTreeNode(contextNode);\n    const isSimilarNode = node && node.kind === contextNode.kind;\n    const startPos = pos;\n    if (isSimilarNode && currentSourceFile) {\n      pos = skipTrivia(currentSourceFile.text, pos);\n    }\n    if (isSimilarNode && contextNode.pos !== startPos) {\n      const needsIndent = indentLeading && currentSourceFile && !positionsAreOnSameLine(startPos, pos, currentSourceFile);\n      if (needsIndent) {\n        increaseIndent();\n      }\n      emitLeadingCommentsOfPosition(startPos);\n      if (needsIndent) {\n        decreaseIndent();\n      }\n    }\n    if (!omitBraceSourcePositions && (token === 19 /* OpenBraceToken */ || token === 20 /* CloseBraceToken */)) {\n      pos = writeToken(token, pos, writer2, contextNode);\n    } else {\n      pos = writeTokenText(token, writer2, pos);\n    }\n    if (isSimilarNode && contextNode.end !== pos) {\n      const isJsxExprContext = contextNode.kind === 295 /* JsxExpression */;\n      emitTrailingCommentsOfPosition(\n        pos,\n        /*prefixSpace*/\n        !isJsxExprContext,\n        /*forceNoNewline*/\n        isJsxExprContext\n      );\n    }\n    return pos;\n  }",
+      "calls": [
+        {
+          "start": 118732,
+          "end": 118732,
+          "sha256": "56b2f46c10e99bd38a9d8d50d6af5b8c6eab0ccc1ea8ea40cffcdf15b43d2a93",
+          "text": "getParseTreeNode(contextNode)"
+        },
+        {
+          "start": 118736,
+          "end": 118736,
+          "sha256": "6bac8c8cdfe3ee80a02bf208b2d85021f44f44ddf2d7a52432119b2d6e365186",
+          "text": "skipTrivia(currentSourceFile.text, pos)"
+        },
+        {
+          "start": 118739,
+          "end": 118739,
+          "sha256": "77c389607fcf99df363910177dfbff77d5dd124dc98ad7de394da57859eeefc4",
+          "text": "positionsAreOnSameLine(startPos, pos, currentSourceFile)"
+        },
+        {
+          "start": 118741,
+          "end": 118741,
+          "sha256": "af65e4782534bc7d37c9a4a5719965b3ee06c1bdee58271a522b04688cc592fc",
+          "text": "increaseIndent()"
+        },
+        {
+          "start": 118743,
+          "end": 118743,
+          "sha256": "f3fa3f44faf90a3d96a81a6a63a5c3b0549b590fcdfb0819b4f974bd9a52a869",
+          "text": "emitLeadingCommentsOfPosition(startPos)"
+        },
+        {
+          "start": 118745,
+          "end": 118745,
+          "sha256": "360fda34f828beb6ae0d85f033c70063525e5944a1422174aaf5acf72255903d",
+          "text": "decreaseIndent()"
+        },
+        {
+          "start": 118749,
+          "end": 118749,
+          "sha256": "b179df7fd38d7ec73983756ac621b15004f82d0d4b77e399d159e41bbd84b1b4",
+          "text": "writeToken(token, pos, writer2, contextNode)"
+        },
+        {
+          "start": 118751,
+          "end": 118751,
+          "sha256": "1fe56b2839d2be2c3e1249f8e515c0655fa7fca01b06816df16eed6ec96bd261",
+          "text": "writeTokenText(token, writer2, pos)"
+        },
+        {
+          "start": 118755,
+          "end": 118761,
+          "sha256": "806d1d9c59db1c20420db78ee94b812aac393fb0286510166e48d23a650092ef",
+          "text": "emitTrailingCommentsOfPosition(\n        pos,\n        /*prefixSpace*/\n        !isJsxExprContext,\n        /*forceNoNewline*/\n        isJsxExprContext\n      )"
+        }
+      ],
+      "predicates": [
+        {
+          "start": 118735,
+          "end": 118735,
+          "sha256": "aa52b4f0361c338343cb3362c67fd5142b41a174eca28fc888f9fe42407377fb",
+          "text": "isSimilarNode && currentSourceFile"
+        },
+        {
+          "start": 118738,
+          "end": 118738,
+          "sha256": "6f76a56f55d29ad7ad59fb1d366d00cd042f6a4e26a36890b39a8449157a76e7",
+          "text": "isSimilarNode && contextNode.pos !== startPos"
+        },
+        {
+          "start": 118740,
+          "end": 118740,
+          "sha256": "b3f0386c72c9950fa57ece72a5e1dd47d5f2e6d4fa0900e77e3cb9b5ec470d1f",
+          "text": "needsIndent"
+        },
+        {
+          "start": 118744,
+          "end": 118744,
+          "sha256": "b3f0386c72c9950fa57ece72a5e1dd47d5f2e6d4fa0900e77e3cb9b5ec470d1f",
+          "text": "needsIndent"
+        },
+        {
+          "start": 118748,
+          "end": 118748,
+          "sha256": "13945d8f39de98db92abe7417223f5ef5e2a78d61d6f5dc723f4c2db68952214",
+          "text": "!omitBraceSourcePositions && (token === 19 /* OpenBraceToken */ || token === 20 /* CloseBraceToken */)"
+        },
+        {
+          "start": 118753,
+          "end": 118753,
+          "sha256": "c9d065ec49bfe822076e023b0d7143218a41cd60e996bd108dc8dc8664fa3cc3",
+          "text": "isSimilarNode && contextNode.end !== pos"
+        }
+      ]
+    },
+    {
+      "name": "getParseTreeNode",
+      "start": 11426,
+      "end": 11437,
+      "sha256": "88060e5fdb8f12e4006af67b9b59673798554cdfd2ee15d8b777c362c7aec936",
+      "body": "function getParseTreeNode(node, nodeTest) {\n  if (node === void 0 || isParseTreeNode(node)) {\n    return node;\n  }\n  node = node.original;\n  while (node) {\n    if (isParseTreeNode(node)) {\n      return !nodeTest || nodeTest(node) ? node : void 0;\n    }\n    node = node.original;\n  }\n}",
+      "calls": [
+        {
+          "start": 11427,
+          "end": 11427,
+          "sha256": "357274e08d0ae9e2e742ed46f1df4b968c13b9fff299da4219eeed9708dffca3",
+          "text": "isParseTreeNode(node)"
+        },
+        {
+          "start": 11432,
+          "end": 11432,
+          "sha256": "357274e08d0ae9e2e742ed46f1df4b968c13b9fff299da4219eeed9708dffca3",
+          "text": "isParseTreeNode(node)"
+        },
+        {
+          "start": 11433,
+          "end": 11433,
+          "sha256": "1d550462ef5702607ec83936d77d2e6f653f58e39fd29df182af2e35f32f46e7",
+          "text": "nodeTest(node)"
+        }
+      ],
+      "predicates": [
+        {
+          "start": 11427,
+          "end": 11427,
+          "sha256": "27e6555e0bd4d7942432747ad97a64c8376bb79fa17fa3959cc9a9671e8d0214",
+          "text": "node === void 0 || isParseTreeNode(node)"
+        },
+        {
+          "start": 11432,
+          "end": 11432,
+          "sha256": "357274e08d0ae9e2e742ed46f1df4b968c13b9fff299da4219eeed9708dffca3",
+          "text": "isParseTreeNode(node)"
+        },
+        {
+          "start": 11433,
+          "end": 11433,
+          "sha256": "7e2930b9a3248bb0ae6e2cd01042b925e4d0de6c78420601d768aa59bcd31a8a",
+          "text": "!nodeTest || nodeTest(node)"
+        }
+      ]
+    },
+    {
+      "name": "getCommentRange",
+      "start": 25358,
+      "end": 25361,
+      "sha256": "726e145915fbbfde0aa8aefa6243cbc84a38c3e832d583ff284ed4831a4c3db6",
+      "body": "function getCommentRange(node) {\n  var _a;\n  return ((_a = node.emitNode) == null ? void 0 : _a.commentRange) ?? node;\n}",
+      "calls": [],
+      "predicates": [
+        {
+          "start": 25360,
+          "end": 25360,
+          "sha256": "8d3e4c48fcc0f0a37b9caa4f9ac99265ae78f27948ebb6968179bb5fe32abf22",
+          "text": "(_a = node.emitNode) == null"
+        }
+      ]
+    }
+  ]
+}

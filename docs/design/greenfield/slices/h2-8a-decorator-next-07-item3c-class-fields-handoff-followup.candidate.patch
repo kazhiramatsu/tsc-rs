@@ -1,0 +1,53 @@
+From 0e4ea3b7af2b60d0d9f4f81b6b3383536c30d0b5 Mon Sep 17 00:00:00 2001
+From: kazhiramatsu <kazutakehiramatsu@gmail.com>
+Date: Fri, 11 Sep 2026 00:29:53 +0900
+Subject: [PATCH] draft(A6-41 item 3c, follow-up): ClassWasDecorated on the
+ class-fields ES2015 class-expression path
+
+class_fields/downlevel.rs: a class expression carrying a standard-decorator
+classThis identity is ClassWasDecorated (getClassFacts:
+classOrConstructorParameterIsDecorated on the original class), so static
+lexical this/super no longer allocate the constructor/super references; the
+decorator transform already projected the class's own static super
+references, and only nested classes can still contain super (witness
+super-lexical-boundaries at ES2015 allocated a spurious (_a = _classSuper)).
+---
+ crates/emitter/src/builtins/class_fields/downlevel.rs | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/crates/emitter/src/builtins/class_fields/downlevel.rs b/crates/emitter/src/builtins/class_fields/downlevel.rs
+index 9700220b5..a7051bc31 100644
+--- a/crates/emitter/src/builtins/class_fields/downlevel.rs
++++ b/crates/emitter/src/builtins/class_fields/downlevel.rs
+@@ -1848,11 +1848,18 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
+         let heritage_semantics = self.class_heritage_semantics(data.heritage_clauses)?;
+         let private_plan = self.scan_private_environment(data.members)?;
+         let instance_brand = self.allocate_instance_brand(&private_plan, class_name.as_deref())?;
++        // getClassFacts: ClassWasDecorated (classOrConstructorParameterIsDecorated
++        // on the original class) suppresses the constructor/super references
++        // derived from static lexical this/super. A standard-decorator class
++        // expression carries the decorated class's classThis identity; the
++        // decorator transform already projected its own static super
++        // references, so only nested classes can still contain super here.
++        let class_was_decorated = preferred_class_this.is_some();
+         let reference_plan = ClassConstructorReferencePlan::from_class_facts(
+             &class_facts,
+             preferred_class_this.is_some()
+                 || self.class_has_named_evaluation_member(data.members)?,
+-            false,
++            class_was_decorated,
+         );
+         let class_alias = self.allocate_class_constructor_identity(
+             reference_plan,
+@@ -1865,7 +1872,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
+         data.modifiers = self.filter_modifier(data.modifiers, SyntaxKind::AccessorKeyword)?;
+         let super_alias = self.allocate_super_base_binding(
+             data.heritage_clauses,
+-            class_facts.static_facts.contains_super,
++            class_facts.static_facts.contains_super && !class_was_decorated,
+         )?;
+         data.heritage_clauses = self.visit_optional_nodes(data.heritage_clauses)?;
+         data.heritage_clauses =
+-- 
+2.50.1 (Apple Git-155)
+

@@ -2,20 +2,22 @@ use std::collections::{HashMap, HashSet};
 
 use tsc_binder::{node_util, SymbolId};
 use tsc_emitter::{
-    EmitFlags, EmitNodeBuilderFlags, EmitResolverError, EmitSymbolMeaning, SyntheticComment,
-    SyntheticCommentKind, TransformArena, TransformNode, TransformSourceId,
+    EmitFlags, EmitNodeBuilderFlags, EmitResolverError, EmitResolverMethod, EmitResolverNode,
+    EmitSymbolMeaning, SourceFileId, SyntheticComment, SyntheticCommentKind, TransformArena,
+    TransformError, TransformNode, TransformNodeArray, TransformSourceId,
 };
 use tsc_syntax::nodes::{
-    ArrayBindingPatternData, ArrowFunctionData, BindingElementData, BlockData, CallSignatureData,
-    ConstructSignatureData, ConstructorData, ConstructorTypeData, FunctionDeclarationData,
-    FunctionExpressionData, FunctionTypeData, GetAccessorData, IndexSignatureData,
-    JSDocFunctionTypeData, MethodDeclarationData, MethodSignatureData, ObjectBindingPatternData,
-    ParameterData, SetAccessorData, TypeParameterData, TypePredicateData,
+    ArrowFunctionData, BlockData, CallSignatureData, ConstructSignatureData, ConstructorData,
+    ConstructorTypeData, FunctionDeclarationData, FunctionExpressionData, FunctionTypeData,
+    GetAccessorData, IndexSignatureData, JSDocFunctionTypeData, MethodDeclarationData,
+    MethodSignatureData, ParameterData, SetAccessorData, TypeParameterData, TypePredicateData,
 };
-use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{
+    try_visit_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind,
+};
 use tsc_types::{
     CheckFlags, ElementFlags, MapperId, ModifierFlags, SignatureFlags, SymbolFlags, TypeData,
-    TypeId,
+    TypeFlags, TypeId,
 };
 
 use crate::narrow::{TypePredicate, TypePredicateKind};
@@ -23,8 +25,8 @@ use crate::state::{CheckerState, IndexInfo, SignatureId};
 
 use super::type_nodes::{
     add_approximate_length, checker_abort_error, clone_parameter_name_to_source, clone_parse_node,
-    clone_parse_node_to_source, create_identifier, create_node, create_node_array, create_token,
-    factory_error, range_synthesized_node_to_parse, set_no_ascii_escaping, set_single_line,
+    create_identifier, create_node, create_node_array, create_token, factory_error,
+    range_synthesized_node_to_parse, set_no_ascii_escaping, set_single_line, update_factory_node,
     BuildResult,
 };
 use super::{
@@ -1540,37 +1542,9 @@ fn clone_binding_name(
     elide_initializer_and_set_emit_flags(checker, arena, target, node, context)
 }
 
-fn update_binding_pattern_elements(
-    checker: &CheckerState<'_>,
-    arena: &mut TransformArena,
-    target: TransformSourceId,
-    node: NodeId,
-    elements: Vec<TransformNode>,
-) -> BuildResult<Option<tsc_syntax::NodeArrayId>> {
-    let Some(original) = clone_parse_node_to_source(checker, arena, target, node)? else {
-        return node_array(arena, target, elements);
-    };
-    let original_elements = match &arena.node(original).map_err(factory_error)?.data {
-        NodeData::ArrayBindingPattern(data) => data.elements,
-        NodeData::ObjectBindingPattern(data) => data.elements,
-        _ => None,
-    };
-    let Some(original_elements) =
-        original_elements.and_then(|array| arena.node_array_ref(original.source(), array))
-    else {
-        return node_array(arena, target, elements);
-    };
-    arena
-        .factory()
-        .update_node_array(original_elements, elements)
-        .map(|array| Some(array.array()))
-        .map_err(factory_error)
-}
-
 /// tsc-port: parameterToParameterDeclarationName.elideInitializerAndSetEmitFlags @6.0.3
 /// tsc-hash: f8bdbba84cdea52719e327d0bb00c48532bd6d5d35b61b62620ccddfc12a6099
 /// tsc-span: _tsc.js:52880-52907
-/// (h2-7a-m-3 widening: production syntacticBuilderResolver callback.)
 pub(super) fn elide_initializer_and_set_emit_flags(
     checker: &mut CheckerState<'_>,
     arena: &mut TransformArena,
@@ -1578,86 +1552,184 @@ pub(super) fn elide_initializer_and_set_emit_flags(
     node: NodeId,
     context: &mut NodeBuilderContext<'_>,
 ) -> BuildResult<TransformNode> {
-    let visited = match checker.data_of(node).clone() {
-        NodeData::ArrayBindingPattern(data) => {
-            let mut elements = Vec::new();
-            for element in checker.nodes_of(data.elements) {
-                if checker.kind_of(element) == SyntaxKind::OmittedExpression {
-                    if let Some(cloned) = clone_parse_node(checker, arena, element)? {
-                        elements.push(cloned);
-                    }
-                } else {
-                    elements.push(elide_initializer_and_set_emit_flags(
-                        checker, arena, target, element, context,
-                    )?);
-                }
-            }
-            let elements = update_binding_pattern_elements(checker, arena, target, node, elements)?;
-            create_node(
-                arena,
-                target,
-                NodeData::ArrayBindingPattern(ArrayBindingPatternData { elements }),
-            )?
+    arena.source(target).map_err(factory_error)?;
+    // Use the same mounting policy as the syntactic builder resolver. Child
+    // handles remain in the original source throughout the recursive visit.
+    let file_index = checker.binder.file_index_of_node(node);
+    let source = SourceFileId::from_raw(
+        u32::try_from(file_index).expect("checker source index exceeds u32"),
+    );
+    let resolver = EmitResolverNode::new(source, node);
+    if arena
+        .parse_tree_transform_node(resolver)
+        .map_err(factory_error)?
+        .is_none()
+    {
+        arena.add_source(checker.binder.source(file_index), Some(source));
+    }
+    let original = arena
+        .parse_tree_transform_node(resolver)
+        .map_err(factory_error)?
+        .ok_or(EmitResolverError::UnknownNode {
+            method: EmitResolverMethod::CreateTypeOfDeclaration,
+            node: resolver,
+        })?;
+    let visited = BindingNameVisitor {
+        checker,
+        arena,
+        source: original.source(),
+        context,
+    }
+    .visit(original)?;
+    if visited.source() == target {
+        Ok(visited)
+    } else {
+        arena
+            .factory()
+            .clone_node_to_source(visited, target)
+            .map_err(factory_error)
+    }
+}
+
+/// tsrs-native: source-scoped typed child traversal for the binding-name
+/// visitor. The generated mapper includes property names, tokens and
+/// initializers; source remapping happens only after the complete visit.
+struct BindingNameVisitor<'a, 'program, 'tracker> {
+    checker: &'a mut CheckerState<'program>,
+    arena: &'a mut TransformArena,
+    source: TransformSourceId,
+    context: &'a mut NodeBuilderContext<'tracker>,
+}
+
+impl BindingNameVisitor<'_, '_, '_> {
+    // isLateBindableName (_tsc.js:57616-57618) first tests the entity-name
+    // AST, then the computed property's type, before trackComputedName runs.
+    fn track_late_bindable_name(&mut self, original: TransformNode) -> BuildResult<()> {
+        let Some(parsed) = self
+            .arena
+            .parse_tree_resolver_node(original)
+            .map_err(factory_error)?
+        else {
+            return Ok(());
+        };
+        let NodeData::ComputedPropertyName(computed) = self.checker.data_of(parsed.node()) else {
+            return Ok(());
+        };
+        let Some(expression) = computed.expression else {
+            return Ok(());
+        };
+        if !self.checker.is_entity_name_expression(expression) {
+            return Ok(());
         }
-        NodeData::ObjectBindingPattern(data) => {
-            let mut elements = Vec::new();
-            for element in checker.nodes_of(data.elements) {
-                elements.push(elide_initializer_and_set_emit_flags(
-                    checker, arena, target, element, context,
-                )?);
-            }
-            let elements = update_binding_pattern_elements(checker, arena, target, node, elements)?;
-            create_node(
-                arena,
-                target,
-                NodeData::ObjectBindingPattern(ObjectBindingPatternData { elements }),
-            )?
+        let name_type = self
+            .checker
+            .check_computed_property_name(parsed.node())
+            .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?;
+        if self
+            .checker
+            .tables
+            .flags_of(name_type)
+            .intersects(TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE)
+        {
+            track_computed_name(self.checker, expression, self.context)?;
         }
-        NodeData::BindingElement(data) => {
-            if let Some(property_name) = data.property_name {
-                if checker.kind_of(property_name) == SyntaxKind::ComputedPropertyName {
-                    if let NodeData::ComputedPropertyName(computed) = checker.data_of(property_name)
-                    {
-                        if let Some(expression) = computed.expression {
-                            if checker.is_entity_name_expression(expression) {
-                                track_computed_name(checker, expression, context)?;
-                            }
-                        }
-                    }
-                }
-            }
-            let property_name = match data.property_name {
-                Some(property_name) => clone_parse_node(checker, arena, property_name)?,
-                None => None,
-            };
-            let name = match data.name {
-                Some(name) => Some(elide_initializer_and_set_emit_flags(
-                    checker, arena, target, name, context,
-                )?),
-                None => None,
-            };
-            let dot_dot_dot_token = match data.dot_dot_dot_token {
-                Some(token) => clone_parse_node(checker, arena, token)?,
-                None => None,
-            };
-            create_node(
-                arena,
-                target,
-                NodeData::BindingElement(BindingElementData {
-                    name: name.map(TransformNode::node),
-                    property_name: property_name.map(TransformNode::node),
-                    dot_dot_dot_token: dot_dot_dot_token.map(TransformNode::node),
-                    initializer: None,
-                }),
-            )?
+        Ok(())
+    }
+
+    fn visit(&mut self, original: TransformNode) -> BuildResult<TransformNode> {
+        let mut data = self
+            .arena
+            .node(original)
+            .map_err(factory_error)?
+            .data
+            .clone();
+        if self.context.tracker.can_track_symbol
+            && matches!(data, NodeData::ComputedPropertyName(_))
+        {
+            self.track_late_bindable_name(original)?;
         }
-        _ => {
-            clone_parse_node(checker, arena, node)?.unwrap_or(create_identifier(arena, target, "")?)
+        try_visit_each_child(&mut data, self)?;
+        let mut visited = match data {
+            NodeData::ArrayBindingPattern(ref pattern) if pattern.elements.is_some() => self
+                .arena
+                .factory()
+                .update_array_binding_pattern(
+                    original,
+                    TransformNodeArray::new(self.source, pattern.elements.unwrap()),
+                )
+                .map_err(factory_error)?,
+            NodeData::ObjectBindingPattern(ref pattern) if pattern.elements.is_some() => self
+                .arena
+                .factory()
+                .update_object_binding_pattern(
+                    original,
+                    TransformNodeArray::new(self.source, pattern.elements.unwrap()),
+                )
+                .map_err(factory_error)?,
+            other => update_factory_node(self.arena, original, other)?,
+        };
+        // TypeScript visits the initializer before eliding it.
+        if let NodeData::BindingElement(mut binding) = self
+            .arena
+            .node(visited)
+            .map_err(factory_error)?
+            .data
+            .clone()
+        {
+            binding.initializer = None;
+            visited = update_factory_node(self.arena, visited, NodeData::BindingElement(binding))?;
         }
-    };
-    let visited = range_synthesized_node_to_parse(checker, arena, visited, node)?;
-    let visited = set_single_line(arena, visited);
-    Ok(set_no_ascii_escaping(arena, visited))
+        let record = self.arena.node(visited).map_err(factory_error)?;
+        if record.pos != u32::MAX && record.end != u32::MAX {
+            visited = self
+                .arena
+                .factory()
+                .clone_node(visited)
+                .map_err(factory_error)?;
+        }
+        self.arena
+            .metadata_mut(visited)
+            .set_flags(EmitFlags::SINGLE_LINE | EmitFlags::NO_ASCII_ESCAPING);
+        Ok(visited)
+    }
+}
+
+impl NodeDataChildVisitor for BindingNameVisitor<'_, '_, '_> {
+    type Error = EmitResolverError;
+
+    fn node_kind(&self, id: NodeId) -> SyntaxKind {
+        self.arena
+            .node(TransformNode::new(self.source, id))
+            .map_or(SyntaxKind::Unknown, |node| node.kind)
+    }
+
+    fn visit_node(&mut self, id: NodeId) -> BuildResult<Option<NodeId>> {
+        self.visit(TransformNode::new(self.source, id))
+            .map(|node| Some(node.node()))
+    }
+
+    fn visit_nodes(&mut self, id: NodeArrayId) -> BuildResult<Option<NodeArrayId>> {
+        let original = TransformNodeArray::new(self.source, id);
+        let ids = self
+            .arena
+            .node_array(original)
+            .map_err(factory_error)?
+            .nodes
+            .clone();
+        let mut nodes = Vec::with_capacity(ids.len());
+        for id in ids {
+            nodes.push(self.visit(TransformNode::new(self.source, id))?);
+        }
+        self.arena
+            .factory()
+            .update_node_array(original, nodes)
+            .map(|array| Some(array.array()))
+            .map_err(factory_error)
+    }
+
+    fn required_child_removed(&mut self, parent: SyntaxKind, field: &'static str) -> Self::Error {
+        factory_error(TransformError::RequiredChildRemoved { parent, field })
+    }
 }
 
 /// tsc-port: trackComputedName @6.0.3

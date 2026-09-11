@@ -1,0 +1,71 @@
+{
+  "source_head": "2953ecb8a8817c623a361a73c8db24780f7945ca",
+  "kind": "current H2.5h known-divergence shrink; normal hosted acceptance pending",
+  "audit": {
+    "old_rows": 50,
+    "observed_divergences": 28,
+    "exact_promotions": [
+      "typescript-6.0.3/compiler/blockScopedVariablesUseBeforeDef.ts#target%3Des5",
+      "typescript-6.0.3/compiler/classInConvertedLoopES5.ts#target%3Des5",
+      "typescript-6.0.3/compiler/nestedLoops.ts#target%3Des5",
+      "typescript-6.0.3/compiler/newLexicalEnvironmentForConvertedLoop.ts#target%3Des5",
+      "typescript-6.0.3/conformance/classes/classStaticBlock/classStaticBlock5.ts#target%3Des5",
+      "typescript-6.0.3/conformance/classes/classStaticBlock/classStaticBlock9.ts#target%3Des5",
+      "typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers3.ts#target%3Des5",
+      "typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers4.ts#target%3Des5",
+      "typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers7.ts#target%3Des5",
+      "typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers8.ts#target%3Des5",
+      "typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers9.ts#target%3Des5",
+      "typescript-6.0.3/conformance/classes/propertyMemberDeclarations/staticPropertyNameConflicts.ts#target%3Des5%2Cusedefineforclassfields%3Dfalse",
+      "typescript-6.0.3/conformance/classes/propertyMemberDeclarations/staticPropertyNameConflicts.ts#target%3Des5%2Cusedefineforclassfields%3Dtrue",
+      "typescript-6.0.3/conformance/es6/computedProperties/computedPropertyNames12_ES5.ts#target%3Des5",
+      "typescript-6.0.3/conformance/es6/newTarget/invalidNewTarget.es5.ts#target%3Des5",
+      "typescript-6.0.3/conformance/es6/newTarget/newTarget.es5.ts#target%3Des5",
+      "typescript-6.0.3/conformance/externalModules/es6/es6modulekindWithES5Target.ts#target%3Des5",
+      "typescript-6.0.3/conformance/externalModules/es6/es6modulekindWithES5Target2.ts#target%3Des5",
+      "typescript-6.0.3/conformance/externalModules/esnext/esnextmodulekindWithES5Target.ts#target%3Des5",
+      "typescript-6.0.3/conformance/externalModules/esnext/esnextmodulekindWithES5Target2.ts#target%3Des5",
+      "typescript-6.0.3/project/rootDirectoryWithoutOutDir.json#module%3Damd",
+      "typescript-6.0.3/project/rootDirectoryWithoutOutDir.json#module%3Dcommonjs"
+    ],
+    "new_divergences": [],
+    "changed_surviving_facets": [],
+    "original_manifest_sha256": "6266da78c2ec1869c5dac263a47527fc3c519d083640c597873f460d103898ff",
+    "observed_manifest_sha256": "268b588854be15822799dad8ed7355cf9ba00a4ebda5f00d30767aae240dd858",
+    "observation_receipt_sha256": "2e1e458dda319b4817aafaa8d5584715feef3324a5e1fdffd5ade40a8f5768d5",
+    "candidate_manifest_sha256": "c76f400fb70f7918e9e5df33ceb88bc6790d25d3f12310fb66f254ac35fb9ceb"
+  },
+  "observation": {
+    "head": "2953ecb8a8817c623a361a73c8db24780f7945ca",
+    "mode": "actual-workspace observation with snapshot/restore; not normal acceptance",
+    "command": [
+      "taskpolicy",
+      "-b",
+      "nice",
+      "-n",
+      "19",
+      "/Users/hiramatsu/dev/tsc-rs-dec-next/target/dec-next-runs/pr-h2-5g-remainders-r1/binaries-4/xtask",
+      "h2-5h-acceptance"
+    ],
+    "cwd": "/Users/hiramatsu/dev/tsc-rs-dec-next",
+    "actual_exit": 0,
+    "executed_binary_sha256": "0404c2498be073a8feb762a88927fab4c78130e75c9e28bb5f96f273f08167a1",
+    "log_sha256": "165329b5dd9e692fc70c159d8281faebd867e4a10c587602c62484c76b8215b2",
+    "original_candidate_manifest_unchanged": true,
+    "qualification_unchanged": true,
+    "production_unchanged": true,
+    "finished_at": "2026-09-11T06:32:50.628309+00:00"
+  },
+  "production_inputs": {
+    "crates/emitter/src/builtins/class_fields.rs": "11417d65891a77644bea11f88fe08c8ae1e6256796a2cb6ec1f1285262255de4",
+    "crates/emitter/src/builtins/class_fields/downlevel.rs": "26e754aef2c85a73e5851a93b045ecfc49d0399cdeceedb4b1050338d019bbc5",
+    "crates/emitter/src/builtins/es2018.rs": "8af9383eae9996b0a26da549257f0cbaf4108a78377595bb4e3b0bb6d59027cc",
+    "crates/emitter/src/builtins/generated_bindings.rs": "510a111813e241c2f7a8df3b54399a0449929d67781b7da483a31065236b43a7",
+    "crates/emitter/src/builtins/standard_decorators.rs": "c0486540d7786cf6948635b9672d8a13c7740eb4b23d343cb9cd3329ed40b386",
+    "crates/emitter/src/builtins/target_bindings.rs": "613e81d2cd6f09744266ef7126b4eaeb4d555f9ad75cbd57111c3f038c51c23e",
+    "crates/emitter/src/execute.rs": "6f4007e668fb2e3e2bd9ee9782bb87925f08779ca2b623b438aadf14e71b5ab1",
+    "crates/emitter/src/printer.rs": "cd0ba7f9e7c2ff899dbe85ee69939404f4b9b75b18f9414237203389b2db9834",
+    "crates/emitter/src/builtins/jsx.rs": "0fdc90efc326ba25e6b5f2fe0c2f98f4478ed5422b151a689ed078d8a9664300"
+  },
+  "qualification_sha256": "488e9940fcb8b6b359bad5fc9fa822eeae46af59b9aefd2bd5e3a20c37c396a3"
+}

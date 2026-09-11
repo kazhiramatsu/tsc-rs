@@ -1,0 +1,1643 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "route": "direct-printer-metadata",
+  "repetitions": 2,
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "f2f330f2701214500a7b5b67687e7e9c8c9da78dd795d5a0b25611cc28b2cd6b",
+  "cases": [
+    {
+      "case_id": "token-comment-phase-printer-metadata/export-class/none/retain",
+      "text": "export /* export */ class /* keyword */ Named {}\n",
+      "selection_kind": "ClassDeclaration",
+      "emit_flags": 0,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "export /* export */ class /* keyword */ Named {\r\n}\r\n",
+        "utf8_base64": "ZXhwb3J0IC8qIGV4cG9ydCAqLyBjbGFzcyAvKiBrZXl3b3JkICovIE5hbWVkIHsNCn0NCg==",
+        "utf8_bytes": 52,
+        "end_utf16": {
+          "position": 52,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/export-class/none/remove",
+      "text": "export /* export */ class /* keyword */ Named {}\n",
+      "selection_kind": "ClassDeclaration",
+      "emit_flags": 0,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "export class Named {\r\n}\r\n",
+        "utf8_base64": "ZXhwb3J0IGNsYXNzIE5hbWVkIHsNCn0NCg==",
+        "utf8_bytes": 25,
+        "end_utf16": {
+          "position": 25,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/export-class/no-leading/retain",
+      "text": "export /* export */ class /* keyword */ Named {}\n",
+      "selection_kind": "ClassDeclaration",
+      "emit_flags": 1024,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "export /* export */ class /* keyword */ Named {\r\n}\r\n",
+        "utf8_base64": "ZXhwb3J0IC8qIGV4cG9ydCAqLyBjbGFzcyAvKiBrZXl3b3JkICovIE5hbWVkIHsNCn0NCg==",
+        "utf8_bytes": 52,
+        "end_utf16": {
+          "position": 52,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/export-class/no-leading/remove",
+      "text": "export /* export */ class /* keyword */ Named {}\n",
+      "selection_kind": "ClassDeclaration",
+      "emit_flags": 1024,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "export class Named {\r\n}\r\n",
+        "utf8_base64": "ZXhwb3J0IGNsYXNzIE5hbWVkIHsNCn0NCg==",
+        "utf8_bytes": 25,
+        "end_utf16": {
+          "position": 25,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/export-class/no-trailing/retain",
+      "text": "export /* export */ class /* keyword */ Named {}\n",
+      "selection_kind": "ClassDeclaration",
+      "emit_flags": 2048,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "export /* export */ class /* keyword */ Named {\r\n}\r\n",
+        "utf8_base64": "ZXhwb3J0IC8qIGV4cG9ydCAqLyBjbGFzcyAvKiBrZXl3b3JkICovIE5hbWVkIHsNCn0NCg==",
+        "utf8_bytes": 52,
+        "end_utf16": {
+          "position": 52,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/export-class/no-trailing/remove",
+      "text": "export /* export */ class /* keyword */ Named {}\n",
+      "selection_kind": "ClassDeclaration",
+      "emit_flags": 2048,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "export class Named {\r\n}\r\n",
+        "utf8_base64": "ZXhwb3J0IGNsYXNzIE5hbWVkIHsNCn0NCg==",
+        "utf8_bytes": 25,
+        "end_utf16": {
+          "position": 25,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/export-class/no-nested/retain",
+      "text": "export /* export */ class /* keyword */ Named {}\n",
+      "selection_kind": "ClassDeclaration",
+      "emit_flags": 4096,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "export class Named {\r\n}\r\n",
+        "utf8_base64": "ZXhwb3J0IGNsYXNzIE5hbWVkIHsNCn0NCg==",
+        "utf8_bytes": 25,
+        "end_utf16": {
+          "position": 25,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/export-class/no-nested/remove",
+      "text": "export /* export */ class /* keyword */ Named {}\n",
+      "selection_kind": "ClassDeclaration",
+      "emit_flags": 4096,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "export class Named {\r\n}\r\n",
+        "utf8_base64": "ZXhwb3J0IGNsYXNzIE5hbWVkIHsNCn0NCg==",
+        "utf8_bytes": 25,
+        "end_utf16": {
+          "position": 25,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/export-class/no-own/retain",
+      "text": "export /* export */ class /* keyword */ Named {}\n",
+      "selection_kind": "ClassDeclaration",
+      "emit_flags": 3072,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "export /* export */ class /* keyword */ Named {\r\n}\r\n",
+        "utf8_base64": "ZXhwb3J0IC8qIGV4cG9ydCAqLyBjbGFzcyAvKiBrZXl3b3JkICovIE5hbWVkIHsNCn0NCg==",
+        "utf8_bytes": 52,
+        "end_utf16": {
+          "position": 52,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/export-class/no-own/remove",
+      "text": "export /* export */ class /* keyword */ Named {}\n",
+      "selection_kind": "ClassDeclaration",
+      "emit_flags": 3072,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "export class Named {\r\n}\r\n",
+        "utf8_base64": "ZXhwb3J0IGNsYXNzIE5hbWVkIHsNCn0NCg==",
+        "utf8_bytes": 25,
+        "end_utf16": {
+          "position": 25,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/export-class/no-own-or-nested/retain",
+      "text": "export /* export */ class /* keyword */ Named {}\n",
+      "selection_kind": "ClassDeclaration",
+      "emit_flags": 7168,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "export class Named {\r\n}\r\n",
+        "utf8_base64": "ZXhwb3J0IGNsYXNzIE5hbWVkIHsNCn0NCg==",
+        "utf8_bytes": 25,
+        "end_utf16": {
+          "position": 25,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/export-class/no-own-or-nested/remove",
+      "text": "export /* export */ class /* keyword */ Named {}\n",
+      "selection_kind": "ClassDeclaration",
+      "emit_flags": 7168,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "export class Named {\r\n}\r\n",
+        "utf8_base64": "ZXhwb3J0IGNsYXNzIE5hbWVkIHsNCn0NCg==",
+        "utf8_bytes": 25,
+        "end_utf16": {
+          "position": 25,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/export-modifier/none/retain",
+      "text": "export /* export */ class /* keyword */ Named {}\n",
+      "selection_kind": "ExportKeyword",
+      "emit_flags": 0,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "export /* export */ class /* keyword */ Named {\r\n}\r\n",
+        "utf8_base64": "ZXhwb3J0IC8qIGV4cG9ydCAqLyBjbGFzcyAvKiBrZXl3b3JkICovIE5hbWVkIHsNCn0NCg==",
+        "utf8_bytes": 52,
+        "end_utf16": {
+          "position": 52,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/export-modifier/none/remove",
+      "text": "export /* export */ class /* keyword */ Named {}\n",
+      "selection_kind": "ExportKeyword",
+      "emit_flags": 0,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "export class Named {\r\n}\r\n",
+        "utf8_base64": "ZXhwb3J0IGNsYXNzIE5hbWVkIHsNCn0NCg==",
+        "utf8_bytes": 25,
+        "end_utf16": {
+          "position": 25,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/export-modifier/no-leading/retain",
+      "text": "export /* export */ class /* keyword */ Named {}\n",
+      "selection_kind": "ExportKeyword",
+      "emit_flags": 1024,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "export /* export */ class /* keyword */ Named {\r\n}\r\n",
+        "utf8_base64": "ZXhwb3J0IC8qIGV4cG9ydCAqLyBjbGFzcyAvKiBrZXl3b3JkICovIE5hbWVkIHsNCn0NCg==",
+        "utf8_bytes": 52,
+        "end_utf16": {
+          "position": 52,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/export-modifier/no-leading/remove",
+      "text": "export /* export */ class /* keyword */ Named {}\n",
+      "selection_kind": "ExportKeyword",
+      "emit_flags": 1024,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "export class Named {\r\n}\r\n",
+        "utf8_base64": "ZXhwb3J0IGNsYXNzIE5hbWVkIHsNCn0NCg==",
+        "utf8_bytes": 25,
+        "end_utf16": {
+          "position": 25,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/export-modifier/no-trailing/retain",
+      "text": "export /* export */ class /* keyword */ Named {}\n",
+      "selection_kind": "ExportKeyword",
+      "emit_flags": 2048,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "export class /* keyword */ Named {\r\n}\r\n",
+        "utf8_base64": "ZXhwb3J0IGNsYXNzIC8qIGtleXdvcmQgKi8gTmFtZWQgew0KfQ0K",
+        "utf8_bytes": 39,
+        "end_utf16": {
+          "position": 39,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/export-modifier/no-trailing/remove",
+      "text": "export /* export */ class /* keyword */ Named {}\n",
+      "selection_kind": "ExportKeyword",
+      "emit_flags": 2048,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "export class Named {\r\n}\r\n",
+        "utf8_base64": "ZXhwb3J0IGNsYXNzIE5hbWVkIHsNCn0NCg==",
+        "utf8_bytes": 25,
+        "end_utf16": {
+          "position": 25,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/export-modifier/no-nested/retain",
+      "text": "export /* export */ class /* keyword */ Named {}\n",
+      "selection_kind": "ExportKeyword",
+      "emit_flags": 4096,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "export /* export */ class /* keyword */ Named {\r\n}\r\n",
+        "utf8_base64": "ZXhwb3J0IC8qIGV4cG9ydCAqLyBjbGFzcyAvKiBrZXl3b3JkICovIE5hbWVkIHsNCn0NCg==",
+        "utf8_bytes": 52,
+        "end_utf16": {
+          "position": 52,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/export-modifier/no-nested/remove",
+      "text": "export /* export */ class /* keyword */ Named {}\n",
+      "selection_kind": "ExportKeyword",
+      "emit_flags": 4096,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "export class Named {\r\n}\r\n",
+        "utf8_base64": "ZXhwb3J0IGNsYXNzIE5hbWVkIHsNCn0NCg==",
+        "utf8_bytes": 25,
+        "end_utf16": {
+          "position": 25,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/export-modifier/no-own/retain",
+      "text": "export /* export */ class /* keyword */ Named {}\n",
+      "selection_kind": "ExportKeyword",
+      "emit_flags": 3072,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "export class /* keyword */ Named {\r\n}\r\n",
+        "utf8_base64": "ZXhwb3J0IGNsYXNzIC8qIGtleXdvcmQgKi8gTmFtZWQgew0KfQ0K",
+        "utf8_bytes": 39,
+        "end_utf16": {
+          "position": 39,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/export-modifier/no-own/remove",
+      "text": "export /* export */ class /* keyword */ Named {}\n",
+      "selection_kind": "ExportKeyword",
+      "emit_flags": 3072,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "export class Named {\r\n}\r\n",
+        "utf8_base64": "ZXhwb3J0IGNsYXNzIE5hbWVkIHsNCn0NCg==",
+        "utf8_bytes": 25,
+        "end_utf16": {
+          "position": 25,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/export-modifier/no-own-or-nested/retain",
+      "text": "export /* export */ class /* keyword */ Named {}\n",
+      "selection_kind": "ExportKeyword",
+      "emit_flags": 7168,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "export class /* keyword */ Named {\r\n}\r\n",
+        "utf8_base64": "ZXhwb3J0IGNsYXNzIC8qIGtleXdvcmQgKi8gTmFtZWQgew0KfQ0K",
+        "utf8_bytes": 39,
+        "end_utf16": {
+          "position": 39,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/export-modifier/no-own-or-nested/remove",
+      "text": "export /* export */ class /* keyword */ Named {}\n",
+      "selection_kind": "ExportKeyword",
+      "emit_flags": 7168,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "export class Named {\r\n}\r\n",
+        "utf8_base64": "ZXhwb3J0IGNsYXNzIE5hbWVkIHsNCn0NCg==",
+        "utf8_bytes": 25,
+        "end_utf16": {
+          "position": 25,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/static-parent/none/retain",
+      "text": "class Box { static /* static */ read() {} }\n",
+      "selection_kind": "ClassDeclaration",
+      "emit_flags": 0,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static /* static */ read() { }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgLyogc3RhdGljICovIHJlYWQoKSB7IH0NCn0NCg==",
+        "utf8_bytes": 52,
+        "end_utf16": {
+          "position": 52,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/static-parent/none/remove",
+      "text": "class Box { static /* static */ read() {} }\n",
+      "selection_kind": "ClassDeclaration",
+      "emit_flags": 0,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static read() { }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgcmVhZCgpIHsgfQ0KfQ0K",
+        "utf8_bytes": 39,
+        "end_utf16": {
+          "position": 39,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/static-parent/no-leading/retain",
+      "text": "class Box { static /* static */ read() {} }\n",
+      "selection_kind": "ClassDeclaration",
+      "emit_flags": 1024,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static /* static */ read() { }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgLyogc3RhdGljICovIHJlYWQoKSB7IH0NCn0NCg==",
+        "utf8_bytes": 52,
+        "end_utf16": {
+          "position": 52,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/static-parent/no-leading/remove",
+      "text": "class Box { static /* static */ read() {} }\n",
+      "selection_kind": "ClassDeclaration",
+      "emit_flags": 1024,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static read() { }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgcmVhZCgpIHsgfQ0KfQ0K",
+        "utf8_bytes": 39,
+        "end_utf16": {
+          "position": 39,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/static-parent/no-trailing/retain",
+      "text": "class Box { static /* static */ read() {} }\n",
+      "selection_kind": "ClassDeclaration",
+      "emit_flags": 2048,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static /* static */ read() { }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgLyogc3RhdGljICovIHJlYWQoKSB7IH0NCn0NCg==",
+        "utf8_bytes": 52,
+        "end_utf16": {
+          "position": 52,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/static-parent/no-trailing/remove",
+      "text": "class Box { static /* static */ read() {} }\n",
+      "selection_kind": "ClassDeclaration",
+      "emit_flags": 2048,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static read() { }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgcmVhZCgpIHsgfQ0KfQ0K",
+        "utf8_bytes": 39,
+        "end_utf16": {
+          "position": 39,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/static-parent/no-nested/retain",
+      "text": "class Box { static /* static */ read() {} }\n",
+      "selection_kind": "ClassDeclaration",
+      "emit_flags": 4096,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static read() { }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgcmVhZCgpIHsgfQ0KfQ0K",
+        "utf8_bytes": 39,
+        "end_utf16": {
+          "position": 39,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/static-parent/no-nested/remove",
+      "text": "class Box { static /* static */ read() {} }\n",
+      "selection_kind": "ClassDeclaration",
+      "emit_flags": 4096,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static read() { }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgcmVhZCgpIHsgfQ0KfQ0K",
+        "utf8_bytes": 39,
+        "end_utf16": {
+          "position": 39,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/static-parent/no-own/retain",
+      "text": "class Box { static /* static */ read() {} }\n",
+      "selection_kind": "ClassDeclaration",
+      "emit_flags": 3072,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static /* static */ read() { }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgLyogc3RhdGljICovIHJlYWQoKSB7IH0NCn0NCg==",
+        "utf8_bytes": 52,
+        "end_utf16": {
+          "position": 52,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/static-parent/no-own/remove",
+      "text": "class Box { static /* static */ read() {} }\n",
+      "selection_kind": "ClassDeclaration",
+      "emit_flags": 3072,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static read() { }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgcmVhZCgpIHsgfQ0KfQ0K",
+        "utf8_bytes": 39,
+        "end_utf16": {
+          "position": 39,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/static-parent/no-own-or-nested/retain",
+      "text": "class Box { static /* static */ read() {} }\n",
+      "selection_kind": "ClassDeclaration",
+      "emit_flags": 7168,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static read() { }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgcmVhZCgpIHsgfQ0KfQ0K",
+        "utf8_bytes": 39,
+        "end_utf16": {
+          "position": 39,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/static-parent/no-own-or-nested/remove",
+      "text": "class Box { static /* static */ read() {} }\n",
+      "selection_kind": "ClassDeclaration",
+      "emit_flags": 7168,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static read() { }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgcmVhZCgpIHsgfQ0KfQ0K",
+        "utf8_bytes": 39,
+        "end_utf16": {
+          "position": 39,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/static-modifier/none/retain",
+      "text": "class Box { static /* static */ read() {} }\n",
+      "selection_kind": "StaticKeyword",
+      "emit_flags": 0,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static /* static */ read() { }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgLyogc3RhdGljICovIHJlYWQoKSB7IH0NCn0NCg==",
+        "utf8_bytes": 52,
+        "end_utf16": {
+          "position": 52,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/static-modifier/none/remove",
+      "text": "class Box { static /* static */ read() {} }\n",
+      "selection_kind": "StaticKeyword",
+      "emit_flags": 0,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static read() { }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgcmVhZCgpIHsgfQ0KfQ0K",
+        "utf8_bytes": 39,
+        "end_utf16": {
+          "position": 39,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/static-modifier/no-leading/retain",
+      "text": "class Box { static /* static */ read() {} }\n",
+      "selection_kind": "StaticKeyword",
+      "emit_flags": 1024,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static /* static */ read() { }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgLyogc3RhdGljICovIHJlYWQoKSB7IH0NCn0NCg==",
+        "utf8_bytes": 52,
+        "end_utf16": {
+          "position": 52,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/static-modifier/no-leading/remove",
+      "text": "class Box { static /* static */ read() {} }\n",
+      "selection_kind": "StaticKeyword",
+      "emit_flags": 1024,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static read() { }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgcmVhZCgpIHsgfQ0KfQ0K",
+        "utf8_bytes": 39,
+        "end_utf16": {
+          "position": 39,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/static-modifier/no-trailing/retain",
+      "text": "class Box { static /* static */ read() {} }\n",
+      "selection_kind": "StaticKeyword",
+      "emit_flags": 2048,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static read() { }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgcmVhZCgpIHsgfQ0KfQ0K",
+        "utf8_bytes": 39,
+        "end_utf16": {
+          "position": 39,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/static-modifier/no-trailing/remove",
+      "text": "class Box { static /* static */ read() {} }\n",
+      "selection_kind": "StaticKeyword",
+      "emit_flags": 2048,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static read() { }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgcmVhZCgpIHsgfQ0KfQ0K",
+        "utf8_bytes": 39,
+        "end_utf16": {
+          "position": 39,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/static-modifier/no-nested/retain",
+      "text": "class Box { static /* static */ read() {} }\n",
+      "selection_kind": "StaticKeyword",
+      "emit_flags": 4096,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static /* static */ read() { }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgLyogc3RhdGljICovIHJlYWQoKSB7IH0NCn0NCg==",
+        "utf8_bytes": 52,
+        "end_utf16": {
+          "position": 52,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/static-modifier/no-nested/remove",
+      "text": "class Box { static /* static */ read() {} }\n",
+      "selection_kind": "StaticKeyword",
+      "emit_flags": 4096,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static read() { }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgcmVhZCgpIHsgfQ0KfQ0K",
+        "utf8_bytes": 39,
+        "end_utf16": {
+          "position": 39,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/static-modifier/no-own/retain",
+      "text": "class Box { static /* static */ read() {} }\n",
+      "selection_kind": "StaticKeyword",
+      "emit_flags": 3072,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static read() { }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgcmVhZCgpIHsgfQ0KfQ0K",
+        "utf8_bytes": 39,
+        "end_utf16": {
+          "position": 39,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/static-modifier/no-own/remove",
+      "text": "class Box { static /* static */ read() {} }\n",
+      "selection_kind": "StaticKeyword",
+      "emit_flags": 3072,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static read() { }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgcmVhZCgpIHsgfQ0KfQ0K",
+        "utf8_bytes": 39,
+        "end_utf16": {
+          "position": 39,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/static-modifier/no-own-or-nested/retain",
+      "text": "class Box { static /* static */ read() {} }\n",
+      "selection_kind": "StaticKeyword",
+      "emit_flags": 7168,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static read() { }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgcmVhZCgpIHsgfQ0KfQ0K",
+        "utf8_bytes": 39,
+        "end_utf16": {
+          "position": 39,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/static-modifier/no-own-or-nested/remove",
+      "text": "class Box { static /* static */ read() {} }\n",
+      "selection_kind": "StaticKeyword",
+      "emit_flags": 7168,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static read() { }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgcmVhZCgpIHsgfQ0KfQ0K",
+        "utf8_bytes": 39,
+        "end_utf16": {
+          "position": 39,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/array-spread/none/retain",
+      "text": "const copy = [... /* spread */ values /* tail */];\n",
+      "selection_kind": "SpreadElement",
+      "emit_flags": 0,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "const copy = [... /* spread */values /* tail */];\r\n",
+        "utf8_base64": "Y29uc3QgY29weSA9IFsuLi4gLyogc3ByZWFkICovdmFsdWVzIC8qIHRhaWwgKi9dOw0K",
+        "utf8_bytes": 51,
+        "end_utf16": {
+          "position": 51,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/array-spread/none/remove",
+      "text": "const copy = [... /* spread */ values /* tail */];\n",
+      "selection_kind": "SpreadElement",
+      "emit_flags": 0,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "const copy = [...values];\r\n",
+        "utf8_base64": "Y29uc3QgY29weSA9IFsuLi52YWx1ZXNdOw0K",
+        "utf8_bytes": 27,
+        "end_utf16": {
+          "position": 27,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/array-spread/no-leading/retain",
+      "text": "const copy = [... /* spread */ values /* tail */];\n",
+      "selection_kind": "SpreadElement",
+      "emit_flags": 1024,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "const copy = [... /* spread */values /* tail */];\r\n",
+        "utf8_base64": "Y29uc3QgY29weSA9IFsuLi4gLyogc3ByZWFkICovdmFsdWVzIC8qIHRhaWwgKi9dOw0K",
+        "utf8_bytes": 51,
+        "end_utf16": {
+          "position": 51,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/array-spread/no-leading/remove",
+      "text": "const copy = [... /* spread */ values /* tail */];\n",
+      "selection_kind": "SpreadElement",
+      "emit_flags": 1024,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "const copy = [...values];\r\n",
+        "utf8_base64": "Y29uc3QgY29weSA9IFsuLi52YWx1ZXNdOw0K",
+        "utf8_bytes": 27,
+        "end_utf16": {
+          "position": 27,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/array-spread/no-trailing/retain",
+      "text": "const copy = [... /* spread */ values /* tail */];\n",
+      "selection_kind": "SpreadElement",
+      "emit_flags": 2048,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "const copy = [... /* spread */values];\r\n",
+        "utf8_base64": "Y29uc3QgY29weSA9IFsuLi4gLyogc3ByZWFkICovdmFsdWVzXTsNCg==",
+        "utf8_bytes": 40,
+        "end_utf16": {
+          "position": 40,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/array-spread/no-trailing/remove",
+      "text": "const copy = [... /* spread */ values /* tail */];\n",
+      "selection_kind": "SpreadElement",
+      "emit_flags": 2048,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "const copy = [...values];\r\n",
+        "utf8_base64": "Y29uc3QgY29weSA9IFsuLi52YWx1ZXNdOw0K",
+        "utf8_bytes": 27,
+        "end_utf16": {
+          "position": 27,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/array-spread/no-nested/retain",
+      "text": "const copy = [... /* spread */ values /* tail */];\n",
+      "selection_kind": "SpreadElement",
+      "emit_flags": 4096,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "const copy = [...values /* tail */];\r\n",
+        "utf8_base64": "Y29uc3QgY29weSA9IFsuLi52YWx1ZXMgLyogdGFpbCAqL107DQo=",
+        "utf8_bytes": 38,
+        "end_utf16": {
+          "position": 38,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/array-spread/no-nested/remove",
+      "text": "const copy = [... /* spread */ values /* tail */];\n",
+      "selection_kind": "SpreadElement",
+      "emit_flags": 4096,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "const copy = [...values];\r\n",
+        "utf8_base64": "Y29uc3QgY29weSA9IFsuLi52YWx1ZXNdOw0K",
+        "utf8_bytes": 27,
+        "end_utf16": {
+          "position": 27,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/array-spread/no-own/retain",
+      "text": "const copy = [... /* spread */ values /* tail */];\n",
+      "selection_kind": "SpreadElement",
+      "emit_flags": 3072,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "const copy = [... /* spread */values];\r\n",
+        "utf8_base64": "Y29uc3QgY29weSA9IFsuLi4gLyogc3ByZWFkICovdmFsdWVzXTsNCg==",
+        "utf8_bytes": 40,
+        "end_utf16": {
+          "position": 40,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/array-spread/no-own/remove",
+      "text": "const copy = [... /* spread */ values /* tail */];\n",
+      "selection_kind": "SpreadElement",
+      "emit_flags": 3072,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "const copy = [...values];\r\n",
+        "utf8_base64": "Y29uc3QgY29weSA9IFsuLi52YWx1ZXNdOw0K",
+        "utf8_bytes": 27,
+        "end_utf16": {
+          "position": 27,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/array-spread/no-own-or-nested/retain",
+      "text": "const copy = [... /* spread */ values /* tail */];\n",
+      "selection_kind": "SpreadElement",
+      "emit_flags": 7168,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "const copy = [...values];\r\n",
+        "utf8_base64": "Y29uc3QgY29weSA9IFsuLi52YWx1ZXNdOw0K",
+        "utf8_bytes": 27,
+        "end_utf16": {
+          "position": 27,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/array-spread/no-own-or-nested/remove",
+      "text": "const copy = [... /* spread */ values /* tail */];\n",
+      "selection_kind": "SpreadElement",
+      "emit_flags": 7168,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "const copy = [...values];\r\n",
+        "utf8_base64": "Y29uc3QgY29weSA9IFsuLi52YWx1ZXNdOw0K",
+        "utf8_bytes": 27,
+        "end_utf16": {
+          "position": 27,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/object-spread/none/retain",
+      "text": "const copy = { ... /* spread */ value /* tail */ };\n",
+      "selection_kind": "SpreadAssignment",
+      "emit_flags": 0,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "const copy = { ... /* spread */value /* tail */ };\r\n",
+        "utf8_base64": "Y29uc3QgY29weSA9IHsgLi4uIC8qIHNwcmVhZCAqL3ZhbHVlIC8qIHRhaWwgKi8gfTsNCg==",
+        "utf8_bytes": 52,
+        "end_utf16": {
+          "position": 52,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/object-spread/none/remove",
+      "text": "const copy = { ... /* spread */ value /* tail */ };\n",
+      "selection_kind": "SpreadAssignment",
+      "emit_flags": 0,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "const copy = { ...value };\r\n",
+        "utf8_base64": "Y29uc3QgY29weSA9IHsgLi4udmFsdWUgfTsNCg==",
+        "utf8_bytes": 28,
+        "end_utf16": {
+          "position": 28,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/object-spread/no-leading/retain",
+      "text": "const copy = { ... /* spread */ value /* tail */ };\n",
+      "selection_kind": "SpreadAssignment",
+      "emit_flags": 1024,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "const copy = { ... /* spread */value /* tail */ };\r\n",
+        "utf8_base64": "Y29uc3QgY29weSA9IHsgLi4uIC8qIHNwcmVhZCAqL3ZhbHVlIC8qIHRhaWwgKi8gfTsNCg==",
+        "utf8_bytes": 52,
+        "end_utf16": {
+          "position": 52,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/object-spread/no-leading/remove",
+      "text": "const copy = { ... /* spread */ value /* tail */ };\n",
+      "selection_kind": "SpreadAssignment",
+      "emit_flags": 1024,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "const copy = { ...value };\r\n",
+        "utf8_base64": "Y29uc3QgY29weSA9IHsgLi4udmFsdWUgfTsNCg==",
+        "utf8_bytes": 28,
+        "end_utf16": {
+          "position": 28,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/object-spread/no-trailing/retain",
+      "text": "const copy = { ... /* spread */ value /* tail */ };\n",
+      "selection_kind": "SpreadAssignment",
+      "emit_flags": 2048,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "const copy = { ... /* spread */value };\r\n",
+        "utf8_base64": "Y29uc3QgY29weSA9IHsgLi4uIC8qIHNwcmVhZCAqL3ZhbHVlIH07DQo=",
+        "utf8_bytes": 41,
+        "end_utf16": {
+          "position": 41,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/object-spread/no-trailing/remove",
+      "text": "const copy = { ... /* spread */ value /* tail */ };\n",
+      "selection_kind": "SpreadAssignment",
+      "emit_flags": 2048,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "const copy = { ...value };\r\n",
+        "utf8_base64": "Y29uc3QgY29weSA9IHsgLi4udmFsdWUgfTsNCg==",
+        "utf8_bytes": 28,
+        "end_utf16": {
+          "position": 28,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/object-spread/no-nested/retain",
+      "text": "const copy = { ... /* spread */ value /* tail */ };\n",
+      "selection_kind": "SpreadAssignment",
+      "emit_flags": 4096,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "const copy = { ...value /* tail */ };\r\n",
+        "utf8_base64": "Y29uc3QgY29weSA9IHsgLi4udmFsdWUgLyogdGFpbCAqLyB9Ow0K",
+        "utf8_bytes": 39,
+        "end_utf16": {
+          "position": 39,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/object-spread/no-nested/remove",
+      "text": "const copy = { ... /* spread */ value /* tail */ };\n",
+      "selection_kind": "SpreadAssignment",
+      "emit_flags": 4096,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "const copy = { ...value };\r\n",
+        "utf8_base64": "Y29uc3QgY29weSA9IHsgLi4udmFsdWUgfTsNCg==",
+        "utf8_bytes": 28,
+        "end_utf16": {
+          "position": 28,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/object-spread/no-own/retain",
+      "text": "const copy = { ... /* spread */ value /* tail */ };\n",
+      "selection_kind": "SpreadAssignment",
+      "emit_flags": 3072,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "const copy = { ... /* spread */value };\r\n",
+        "utf8_base64": "Y29uc3QgY29weSA9IHsgLi4uIC8qIHNwcmVhZCAqL3ZhbHVlIH07DQo=",
+        "utf8_bytes": 41,
+        "end_utf16": {
+          "position": 41,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/object-spread/no-own/remove",
+      "text": "const copy = { ... /* spread */ value /* tail */ };\n",
+      "selection_kind": "SpreadAssignment",
+      "emit_flags": 3072,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "const copy = { ...value };\r\n",
+        "utf8_base64": "Y29uc3QgY29weSA9IHsgLi4udmFsdWUgfTsNCg==",
+        "utf8_bytes": 28,
+        "end_utf16": {
+          "position": 28,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/object-spread/no-own-or-nested/retain",
+      "text": "const copy = { ... /* spread */ value /* tail */ };\n",
+      "selection_kind": "SpreadAssignment",
+      "emit_flags": 7168,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "const copy = { ...value };\r\n",
+        "utf8_base64": "Y29uc3QgY29weSA9IHsgLi4udmFsdWUgfTsNCg==",
+        "utf8_bytes": 28,
+        "end_utf16": {
+          "position": 28,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/object-spread/no-own-or-nested/remove",
+      "text": "const copy = { ... /* spread */ value /* tail */ };\n",
+      "selection_kind": "SpreadAssignment",
+      "emit_flags": 7168,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "const copy = { ...value };\r\n",
+        "utf8_base64": "Y29uc3QgY29weSA9IHsgLi4udmFsdWUgfTsNCg==",
+        "utf8_bytes": 28,
+        "end_utf16": {
+          "position": 28,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/class-expression/none/retain",
+      "text": "const Box = class /* keyword */ { static /* static */ read() {} };\n",
+      "selection_kind": "ClassExpression",
+      "emit_flags": 0,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "const Box = class /* keyword */ {\r\n    static /* static */ read() { }\r\n};\r\n",
+        "utf8_base64": "Y29uc3QgQm94ID0gY2xhc3MgLyoga2V5d29yZCAqLyB7DQogICAgc3RhdGljIC8qIHN0YXRpYyAqLyByZWFkKCkgeyB9DQp9Ow0K",
+        "utf8_bytes": 75,
+        "end_utf16": {
+          "position": 75,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/class-expression/none/remove",
+      "text": "const Box = class /* keyword */ { static /* static */ read() {} };\n",
+      "selection_kind": "ClassExpression",
+      "emit_flags": 0,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "const Box = class {\r\n    static read() { }\r\n};\r\n",
+        "utf8_base64": "Y29uc3QgQm94ID0gY2xhc3Mgew0KICAgIHN0YXRpYyByZWFkKCkgeyB9DQp9Ow0K",
+        "utf8_bytes": 48,
+        "end_utf16": {
+          "position": 48,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/class-expression/no-leading/retain",
+      "text": "const Box = class /* keyword */ { static /* static */ read() {} };\n",
+      "selection_kind": "ClassExpression",
+      "emit_flags": 1024,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "const Box = class /* keyword */ {\r\n    static /* static */ read() { }\r\n};\r\n",
+        "utf8_base64": "Y29uc3QgQm94ID0gY2xhc3MgLyoga2V5d29yZCAqLyB7DQogICAgc3RhdGljIC8qIHN0YXRpYyAqLyByZWFkKCkgeyB9DQp9Ow0K",
+        "utf8_bytes": 75,
+        "end_utf16": {
+          "position": 75,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/class-expression/no-leading/remove",
+      "text": "const Box = class /* keyword */ { static /* static */ read() {} };\n",
+      "selection_kind": "ClassExpression",
+      "emit_flags": 1024,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "const Box = class {\r\n    static read() { }\r\n};\r\n",
+        "utf8_base64": "Y29uc3QgQm94ID0gY2xhc3Mgew0KICAgIHN0YXRpYyByZWFkKCkgeyB9DQp9Ow0K",
+        "utf8_bytes": 48,
+        "end_utf16": {
+          "position": 48,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/class-expression/no-trailing/retain",
+      "text": "const Box = class /* keyword */ { static /* static */ read() {} };\n",
+      "selection_kind": "ClassExpression",
+      "emit_flags": 2048,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "const Box = class /* keyword */ {\r\n    static /* static */ read() { }\r\n};\r\n",
+        "utf8_base64": "Y29uc3QgQm94ID0gY2xhc3MgLyoga2V5d29yZCAqLyB7DQogICAgc3RhdGljIC8qIHN0YXRpYyAqLyByZWFkKCkgeyB9DQp9Ow0K",
+        "utf8_bytes": 75,
+        "end_utf16": {
+          "position": 75,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/class-expression/no-trailing/remove",
+      "text": "const Box = class /* keyword */ { static /* static */ read() {} };\n",
+      "selection_kind": "ClassExpression",
+      "emit_flags": 2048,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "const Box = class {\r\n    static read() { }\r\n};\r\n",
+        "utf8_base64": "Y29uc3QgQm94ID0gY2xhc3Mgew0KICAgIHN0YXRpYyByZWFkKCkgeyB9DQp9Ow0K",
+        "utf8_bytes": 48,
+        "end_utf16": {
+          "position": 48,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/class-expression/no-nested/retain",
+      "text": "const Box = class /* keyword */ { static /* static */ read() {} };\n",
+      "selection_kind": "ClassExpression",
+      "emit_flags": 4096,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "const Box = class {\r\n    static read() { }\r\n};\r\n",
+        "utf8_base64": "Y29uc3QgQm94ID0gY2xhc3Mgew0KICAgIHN0YXRpYyByZWFkKCkgeyB9DQp9Ow0K",
+        "utf8_bytes": 48,
+        "end_utf16": {
+          "position": 48,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/class-expression/no-nested/remove",
+      "text": "const Box = class /* keyword */ { static /* static */ read() {} };\n",
+      "selection_kind": "ClassExpression",
+      "emit_flags": 4096,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "const Box = class {\r\n    static read() { }\r\n};\r\n",
+        "utf8_base64": "Y29uc3QgQm94ID0gY2xhc3Mgew0KICAgIHN0YXRpYyByZWFkKCkgeyB9DQp9Ow0K",
+        "utf8_bytes": 48,
+        "end_utf16": {
+          "position": 48,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/class-expression/no-own/retain",
+      "text": "const Box = class /* keyword */ { static /* static */ read() {} };\n",
+      "selection_kind": "ClassExpression",
+      "emit_flags": 3072,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "const Box = class /* keyword */ {\r\n    static /* static */ read() { }\r\n};\r\n",
+        "utf8_base64": "Y29uc3QgQm94ID0gY2xhc3MgLyoga2V5d29yZCAqLyB7DQogICAgc3RhdGljIC8qIHN0YXRpYyAqLyByZWFkKCkgeyB9DQp9Ow0K",
+        "utf8_bytes": 75,
+        "end_utf16": {
+          "position": 75,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/class-expression/no-own/remove",
+      "text": "const Box = class /* keyword */ { static /* static */ read() {} };\n",
+      "selection_kind": "ClassExpression",
+      "emit_flags": 3072,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "const Box = class {\r\n    static read() { }\r\n};\r\n",
+        "utf8_base64": "Y29uc3QgQm94ID0gY2xhc3Mgew0KICAgIHN0YXRpYyByZWFkKCkgeyB9DQp9Ow0K",
+        "utf8_bytes": 48,
+        "end_utf16": {
+          "position": 48,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/class-expression/no-own-or-nested/retain",
+      "text": "const Box = class /* keyword */ { static /* static */ read() {} };\n",
+      "selection_kind": "ClassExpression",
+      "emit_flags": 7168,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "const Box = class {\r\n    static read() { }\r\n};\r\n",
+        "utf8_base64": "Y29uc3QgQm94ID0gY2xhc3Mgew0KICAgIHN0YXRpYyByZWFkKCkgeyB9DQp9Ow0K",
+        "utf8_bytes": 48,
+        "end_utf16": {
+          "position": 48,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/class-expression/no-own-or-nested/remove",
+      "text": "const Box = class /* keyword */ { static /* static */ read() {} };\n",
+      "selection_kind": "ClassExpression",
+      "emit_flags": 7168,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "const Box = class {\r\n    static read() { }\r\n};\r\n",
+        "utf8_base64": "Y29uc3QgQm94ID0gY2xhc3Mgew0KICAgIHN0YXRpYyByZWFkKCkgeyB9DQp9Ow0K",
+        "utf8_bytes": 48,
+        "end_utf16": {
+          "position": 48,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/getter-modifier/none/retain",
+      "text": "class Box { static /* static */ get value() { return 1; } }\n",
+      "selection_kind": "StaticKeyword",
+      "emit_flags": 0,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static /* static */ get value() { return 1; }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgLyogc3RhdGljICovIGdldCB2YWx1ZSgpIHsgcmV0dXJuIDE7IH0NCn0NCg==",
+        "utf8_bytes": 67,
+        "end_utf16": {
+          "position": 67,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/getter-modifier/none/remove",
+      "text": "class Box { static /* static */ get value() { return 1; } }\n",
+      "selection_kind": "StaticKeyword",
+      "emit_flags": 0,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static get value() { return 1; }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgZ2V0IHZhbHVlKCkgeyByZXR1cm4gMTsgfQ0KfQ0K",
+        "utf8_bytes": 54,
+        "end_utf16": {
+          "position": 54,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/getter-modifier/no-leading/retain",
+      "text": "class Box { static /* static */ get value() { return 1; } }\n",
+      "selection_kind": "StaticKeyword",
+      "emit_flags": 1024,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static /* static */ get value() { return 1; }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgLyogc3RhdGljICovIGdldCB2YWx1ZSgpIHsgcmV0dXJuIDE7IH0NCn0NCg==",
+        "utf8_bytes": 67,
+        "end_utf16": {
+          "position": 67,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/getter-modifier/no-leading/remove",
+      "text": "class Box { static /* static */ get value() { return 1; } }\n",
+      "selection_kind": "StaticKeyword",
+      "emit_flags": 1024,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static get value() { return 1; }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgZ2V0IHZhbHVlKCkgeyByZXR1cm4gMTsgfQ0KfQ0K",
+        "utf8_bytes": 54,
+        "end_utf16": {
+          "position": 54,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/getter-modifier/no-trailing/retain",
+      "text": "class Box { static /* static */ get value() { return 1; } }\n",
+      "selection_kind": "StaticKeyword",
+      "emit_flags": 2048,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static get value() { return 1; }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgZ2V0IHZhbHVlKCkgeyByZXR1cm4gMTsgfQ0KfQ0K",
+        "utf8_bytes": 54,
+        "end_utf16": {
+          "position": 54,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/getter-modifier/no-trailing/remove",
+      "text": "class Box { static /* static */ get value() { return 1; } }\n",
+      "selection_kind": "StaticKeyword",
+      "emit_flags": 2048,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static get value() { return 1; }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgZ2V0IHZhbHVlKCkgeyByZXR1cm4gMTsgfQ0KfQ0K",
+        "utf8_bytes": 54,
+        "end_utf16": {
+          "position": 54,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/getter-modifier/no-nested/retain",
+      "text": "class Box { static /* static */ get value() { return 1; } }\n",
+      "selection_kind": "StaticKeyword",
+      "emit_flags": 4096,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static /* static */ get value() { return 1; }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgLyogc3RhdGljICovIGdldCB2YWx1ZSgpIHsgcmV0dXJuIDE7IH0NCn0NCg==",
+        "utf8_bytes": 67,
+        "end_utf16": {
+          "position": 67,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/getter-modifier/no-nested/remove",
+      "text": "class Box { static /* static */ get value() { return 1; } }\n",
+      "selection_kind": "StaticKeyword",
+      "emit_flags": 4096,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static get value() { return 1; }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgZ2V0IHZhbHVlKCkgeyByZXR1cm4gMTsgfQ0KfQ0K",
+        "utf8_bytes": 54,
+        "end_utf16": {
+          "position": 54,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/getter-modifier/no-own/retain",
+      "text": "class Box { static /* static */ get value() { return 1; } }\n",
+      "selection_kind": "StaticKeyword",
+      "emit_flags": 3072,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static get value() { return 1; }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgZ2V0IHZhbHVlKCkgeyByZXR1cm4gMTsgfQ0KfQ0K",
+        "utf8_bytes": 54,
+        "end_utf16": {
+          "position": 54,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/getter-modifier/no-own/remove",
+      "text": "class Box { static /* static */ get value() { return 1; } }\n",
+      "selection_kind": "StaticKeyword",
+      "emit_flags": 3072,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static get value() { return 1; }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgZ2V0IHZhbHVlKCkgeyByZXR1cm4gMTsgfQ0KfQ0K",
+        "utf8_bytes": 54,
+        "end_utf16": {
+          "position": 54,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/getter-modifier/no-own-or-nested/retain",
+      "text": "class Box { static /* static */ get value() { return 1; } }\n",
+      "selection_kind": "StaticKeyword",
+      "emit_flags": 7168,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static get value() { return 1; }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgZ2V0IHZhbHVlKCkgeyByZXR1cm4gMTsgfQ0KfQ0K",
+        "utf8_bytes": 54,
+        "end_utf16": {
+          "position": 54,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "token-comment-phase-printer-metadata/getter-modifier/no-own-or-nested/remove",
+      "text": "class Box { static /* static */ get value() { return 1; } }\n",
+      "selection_kind": "StaticKeyword",
+      "emit_flags": 7168,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "class Box {\r\n    static get value() { return 1; }\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgQm94IHsNCiAgICBzdGF0aWMgZ2V0IHZhbHVlKCkgeyByZXR1cm4gMTsgfQ0KfQ0K",
+        "utf8_bytes": 54,
+        "end_utf16": {
+          "position": 54,
+          "line": 3,
+          "column": 0
+        }
+      }
+    }
+  ]
+}

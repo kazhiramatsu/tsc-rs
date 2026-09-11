@@ -1,0 +1,3220 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "b056c291910ad38d60c81c34e1383d0a70614fdb7b08e4275c8d6479632f88e3",
+  "repetitions": 2,
+  "cases": [
+    {
+      "case_id": "extension/ts/module",
+      "files": [
+        {
+          "path": "/project/external/value.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"module\"}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/external/value.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 25,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 25,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.ts' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation\n  File is ECMAScript module because '/project/package.json' has field \"type\" with value \"module\"",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "extension/ts/commonjs",
+      "files": [
+        {
+          "path": "/project/external/value.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"commonjs\"}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/external/value.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.ts' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation\n  File is CommonJS module because '/project/package.json' has field \"type\" whose value is not \"module\"",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "extension/ts/other",
+      "files": [
+        {
+          "path": "/project/external/value.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"other\"}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/external/value.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.ts' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation\n  File is CommonJS module because '/project/package.json' has field \"type\" whose value is not \"module\"",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "extension/ts/empty",
+      "files": [
+        {
+          "path": "/project/external/value.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"\"}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/external/value.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.ts' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation\n  File is CommonJS module because '/project/package.json' does not have field \"type\"",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "extension/ts/false",
+      "files": [
+        {
+          "path": "/project/external/value.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":false}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/external/value.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.ts' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation\n  File is CommonJS module because '/project/package.json' does not have field \"type\"",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "extension/ts/object",
+      "files": [
+        {
+          "path": "/project/external/value.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":{}}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/external/value.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.ts' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation\n  File is CommonJS module because '/project/package.json' has field \"type\" whose value is not \"module\"",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "extension/ts/absent",
+      "files": [
+        {
+          "path": "/project/external/value.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/external/value.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.ts' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation\n  File is CommonJS module because '/project/package.json' does not have field \"type\"",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "extension/ts/missing",
+      "files": [
+        {
+          "path": "/project/external/value.ts",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/external/value.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/external/value.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.ts' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation\n  File is CommonJS module because 'package.json' was not found",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "extension/js/module",
+      "files": [
+        {
+          "path": "/project/external/value.js",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"module\"}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.js"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5055,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Cannot write file '/project/external/value.js' because it would overwrite input file.\n  Adding a tsconfig.json file will help organize projects that contain both TypeScript and JavaScript files. Learn more at https://aka.ms/tsconfig.",
+            "related_information": null
+          },
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.js' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation\n  File is ECMAScript module because '/project/package.json' has field \"type\" with value \"module\"",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "extension/js/commonjs",
+      "files": [
+        {
+          "path": "/project/external/value.js",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"commonjs\"}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.js"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5055,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Cannot write file '/project/external/value.js' because it would overwrite input file.\n  Adding a tsconfig.json file will help organize projects that contain both TypeScript and JavaScript files. Learn more at https://aka.ms/tsconfig.",
+            "related_information": null
+          },
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.js' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation\n  File is CommonJS module because '/project/package.json' has field \"type\" whose value is not \"module\"",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "extension/js/other",
+      "files": [
+        {
+          "path": "/project/external/value.js",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"other\"}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.js"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5055,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Cannot write file '/project/external/value.js' because it would overwrite input file.\n  Adding a tsconfig.json file will help organize projects that contain both TypeScript and JavaScript files. Learn more at https://aka.ms/tsconfig.",
+            "related_information": null
+          },
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.js' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation\n  File is CommonJS module because '/project/package.json' has field \"type\" whose value is not \"module\"",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "extension/js/empty",
+      "files": [
+        {
+          "path": "/project/external/value.js",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"\"}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.js"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5055,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Cannot write file '/project/external/value.js' because it would overwrite input file.\n  Adding a tsconfig.json file will help organize projects that contain both TypeScript and JavaScript files. Learn more at https://aka.ms/tsconfig.",
+            "related_information": null
+          },
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.js' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation\n  File is CommonJS module because '/project/package.json' does not have field \"type\"",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "extension/js/false",
+      "files": [
+        {
+          "path": "/project/external/value.js",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":false}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.js"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5055,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Cannot write file '/project/external/value.js' because it would overwrite input file.\n  Adding a tsconfig.json file will help organize projects that contain both TypeScript and JavaScript files. Learn more at https://aka.ms/tsconfig.",
+            "related_information": null
+          },
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.js' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation\n  File is CommonJS module because '/project/package.json' does not have field \"type\"",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "extension/js/object",
+      "files": [
+        {
+          "path": "/project/external/value.js",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":{}}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.js"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5055,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Cannot write file '/project/external/value.js' because it would overwrite input file.\n  Adding a tsconfig.json file will help organize projects that contain both TypeScript and JavaScript files. Learn more at https://aka.ms/tsconfig.",
+            "related_information": null
+          },
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.js' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation\n  File is CommonJS module because '/project/package.json' has field \"type\" whose value is not \"module\"",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "extension/js/absent",
+      "files": [
+        {
+          "path": "/project/external/value.js",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.js"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5055,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Cannot write file '/project/external/value.js' because it would overwrite input file.\n  Adding a tsconfig.json file will help organize projects that contain both TypeScript and JavaScript files. Learn more at https://aka.ms/tsconfig.",
+            "related_information": null
+          },
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.js' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation\n  File is CommonJS module because '/project/package.json' does not have field \"type\"",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "extension/js/missing",
+      "files": [
+        {
+          "path": "/project/external/value.js",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/external/value.js"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5055,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Cannot write file '/project/external/value.js' because it would overwrite input file.\n  Adding a tsconfig.json file will help organize projects that contain both TypeScript and JavaScript files. Learn more at https://aka.ms/tsconfig.",
+            "related_information": null
+          },
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.js' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation\n  File is CommonJS module because 'package.json' was not found",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "extension/mts/module",
+      "files": [
+        {
+          "path": "/project/external/value.mts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"module\"}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.mts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/external/value.mjs",
+            "kind": "mjs",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 25,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 25,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external/value.mts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.mts' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "extension/mts/commonjs",
+      "files": [
+        {
+          "path": "/project/external/value.mts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"commonjs\"}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.mts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/external/value.mjs",
+            "kind": "mjs",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 25,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 25,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external/value.mts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.mts' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "extension/mts/other",
+      "files": [
+        {
+          "path": "/project/external/value.mts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"other\"}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.mts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/external/value.mjs",
+            "kind": "mjs",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 25,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 25,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external/value.mts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.mts' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "extension/mts/empty",
+      "files": [
+        {
+          "path": "/project/external/value.mts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"\"}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.mts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/external/value.mjs",
+            "kind": "mjs",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 25,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 25,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external/value.mts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.mts' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "extension/mts/false",
+      "files": [
+        {
+          "path": "/project/external/value.mts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":false}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.mts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/external/value.mjs",
+            "kind": "mjs",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 25,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 25,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external/value.mts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.mts' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "extension/mts/object",
+      "files": [
+        {
+          "path": "/project/external/value.mts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":{}}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.mts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/external/value.mjs",
+            "kind": "mjs",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 25,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 25,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external/value.mts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.mts' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "extension/mts/absent",
+      "files": [
+        {
+          "path": "/project/external/value.mts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.mts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/external/value.mjs",
+            "kind": "mjs",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 25,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 25,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external/value.mts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.mts' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "extension/mts/missing",
+      "files": [
+        {
+          "path": "/project/external/value.mts",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/external/value.mts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/external/value.mjs",
+            "kind": "mjs",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 25,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 25,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external/value.mts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.mts' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "extension/cts/module",
+      "files": [
+        {
+          "path": "/project/external/value.cts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"module\"}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.cts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/external/value.cjs",
+            "kind": "cjs",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external/value.cts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.cts' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "extension/cts/commonjs",
+      "files": [
+        {
+          "path": "/project/external/value.cts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"commonjs\"}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.cts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/external/value.cjs",
+            "kind": "cjs",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external/value.cts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.cts' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "extension/cts/other",
+      "files": [
+        {
+          "path": "/project/external/value.cts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"other\"}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.cts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/external/value.cjs",
+            "kind": "cjs",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external/value.cts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.cts' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "extension/cts/empty",
+      "files": [
+        {
+          "path": "/project/external/value.cts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"\"}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.cts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/external/value.cjs",
+            "kind": "cjs",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external/value.cts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.cts' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "extension/cts/false",
+      "files": [
+        {
+          "path": "/project/external/value.cts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":false}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.cts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/external/value.cjs",
+            "kind": "cjs",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external/value.cts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.cts' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "extension/cts/object",
+      "files": [
+        {
+          "path": "/project/external/value.cts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":{}}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.cts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/external/value.cjs",
+            "kind": "cjs",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external/value.cts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.cts' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "extension/cts/absent",
+      "files": [
+        {
+          "path": "/project/external/value.cts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.cts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/external/value.cjs",
+            "kind": "cjs",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external/value.cts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.cts' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "extension/cts/missing",
+      "files": [
+        {
+          "path": "/project/external/value.cts",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/external/value.cts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/external/value.cjs",
+            "kind": "cjs",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external/value.cts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.cts' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "detection/script/module/1",
+      "files": [
+        {
+          "path": "/project/external/value.js",
+          "text": "var value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"module\"}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.js"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out",
+        "moduleDetection": 1
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5055,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Cannot write file '/project/external/value.js' because it would overwrite input file.\n  Adding a tsconfig.json file will help organize projects that contain both TypeScript and JavaScript files. Learn more at https://aka.ms/tsconfig.",
+            "related_information": null
+          },
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.js' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "detection/script/module/3",
+      "files": [
+        {
+          "path": "/project/external/value.js",
+          "text": "var value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"module\"}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.js"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out",
+        "moduleDetection": 3
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5055,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Cannot write file '/project/external/value.js' because it would overwrite input file.\n  Adding a tsconfig.json file will help organize projects that contain both TypeScript and JavaScript files. Learn more at https://aka.ms/tsconfig.",
+            "related_information": null
+          },
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.js' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation\n  File is ECMAScript module because '/project/package.json' has field \"type\" with value \"module\"",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "detection/script/commonjs/1",
+      "files": [
+        {
+          "path": "/project/external/value.js",
+          "text": "var value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"commonjs\"}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.js"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out",
+        "moduleDetection": 1
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5055,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Cannot write file '/project/external/value.js' because it would overwrite input file.\n  Adding a tsconfig.json file will help organize projects that contain both TypeScript and JavaScript files. Learn more at https://aka.ms/tsconfig.",
+            "related_information": null
+          },
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.js' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "detection/script/commonjs/3",
+      "files": [
+        {
+          "path": "/project/external/value.js",
+          "text": "var value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"commonjs\"}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.js"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out",
+        "moduleDetection": 3
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5055,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Cannot write file '/project/external/value.js' because it would overwrite input file.\n  Adding a tsconfig.json file will help organize projects that contain both TypeScript and JavaScript files. Learn more at https://aka.ms/tsconfig.",
+            "related_information": null
+          },
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.js' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation\n  File is CommonJS module because '/project/package.json' has field \"type\" whose value is not \"module\"",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "detection/script/absent/1",
+      "files": [
+        {
+          "path": "/project/external/value.js",
+          "text": "var value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.js"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out",
+        "moduleDetection": 1
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5055,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Cannot write file '/project/external/value.js' because it would overwrite input file.\n  Adding a tsconfig.json file will help organize projects that contain both TypeScript and JavaScript files. Learn more at https://aka.ms/tsconfig.",
+            "related_information": null
+          },
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.js' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "detection/script/absent/3",
+      "files": [
+        {
+          "path": "/project/external/value.js",
+          "text": "var value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.js"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out",
+        "moduleDetection": 3
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5055,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Cannot write file '/project/external/value.js' because it would overwrite input file.\n  Adding a tsconfig.json file will help organize projects that contain both TypeScript and JavaScript files. Learn more at https://aka.ms/tsconfig.",
+            "related_information": null
+          },
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.js' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation\n  File is CommonJS module because '/project/package.json' does not have field \"type\"",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "detection/script/missing/1",
+      "files": [
+        {
+          "path": "/project/external/value.js",
+          "text": "var value = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/external/value.js"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out",
+        "moduleDetection": 1
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5055,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Cannot write file '/project/external/value.js' because it would overwrite input file.\n  Adding a tsconfig.json file will help organize projects that contain both TypeScript and JavaScript files. Learn more at https://aka.ms/tsconfig.",
+            "related_information": null
+          },
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.js' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "detection/script/missing/3",
+      "files": [
+        {
+          "path": "/project/external/value.js",
+          "text": "var value = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/external/value.js"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out",
+        "moduleDetection": 3
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5055,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Cannot write file '/project/external/value.js' because it would overwrite input file.\n  Adding a tsconfig.json file will help organize projects that contain both TypeScript and JavaScript files. Learn more at https://aka.ms/tsconfig.",
+            "related_information": null
+          },
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.js' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation\n  File is CommonJS module because 'package.json' was not found",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "detection/commonjs/module/1",
+      "files": [
+        {
+          "path": "/project/external/value.js",
+          "text": "exports.value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"module\"}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.js"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out",
+        "moduleDetection": 1
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5055,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Cannot write file '/project/external/value.js' because it would overwrite input file.\n  Adding a tsconfig.json file will help organize projects that contain both TypeScript and JavaScript files. Learn more at https://aka.ms/tsconfig.",
+            "related_information": null
+          },
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.js' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "detection/commonjs/module/3",
+      "files": [
+        {
+          "path": "/project/external/value.js",
+          "text": "exports.value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"module\"}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.js"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out",
+        "moduleDetection": 3
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5055,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Cannot write file '/project/external/value.js' because it would overwrite input file.\n  Adding a tsconfig.json file will help organize projects that contain both TypeScript and JavaScript files. Learn more at https://aka.ms/tsconfig.",
+            "related_information": null
+          },
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.js' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation\n  File is ECMAScript module because '/project/package.json' has field \"type\" with value \"module\"",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "detection/commonjs/commonjs/1",
+      "files": [
+        {
+          "path": "/project/external/value.js",
+          "text": "exports.value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"commonjs\"}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.js"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out",
+        "moduleDetection": 1
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5055,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Cannot write file '/project/external/value.js' because it would overwrite input file.\n  Adding a tsconfig.json file will help organize projects that contain both TypeScript and JavaScript files. Learn more at https://aka.ms/tsconfig.",
+            "related_information": null
+          },
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.js' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "detection/commonjs/commonjs/3",
+      "files": [
+        {
+          "path": "/project/external/value.js",
+          "text": "exports.value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"commonjs\"}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.js"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out",
+        "moduleDetection": 3
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5055,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Cannot write file '/project/external/value.js' because it would overwrite input file.\n  Adding a tsconfig.json file will help organize projects that contain both TypeScript and JavaScript files. Learn more at https://aka.ms/tsconfig.",
+            "related_information": null
+          },
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.js' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation\n  File is CommonJS module because '/project/package.json' has field \"type\" whose value is not \"module\"",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "detection/commonjs/absent/1",
+      "files": [
+        {
+          "path": "/project/external/value.js",
+          "text": "exports.value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.js"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out",
+        "moduleDetection": 1
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5055,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Cannot write file '/project/external/value.js' because it would overwrite input file.\n  Adding a tsconfig.json file will help organize projects that contain both TypeScript and JavaScript files. Learn more at https://aka.ms/tsconfig.",
+            "related_information": null
+          },
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.js' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "detection/commonjs/absent/3",
+      "files": [
+        {
+          "path": "/project/external/value.js",
+          "text": "exports.value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{}"
+        }
+      ],
+      "roots": [
+        "/project/external/value.js"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out",
+        "moduleDetection": 3
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5055,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Cannot write file '/project/external/value.js' because it would overwrite input file.\n  Adding a tsconfig.json file will help organize projects that contain both TypeScript and JavaScript files. Learn more at https://aka.ms/tsconfig.",
+            "related_information": null
+          },
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.js' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation\n  File is CommonJS module because '/project/package.json' does not have field \"type\"",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "detection/commonjs/missing/1",
+      "files": [
+        {
+          "path": "/project/external/value.js",
+          "text": "exports.value = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/external/value.js"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out",
+        "moduleDetection": 1
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5055,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Cannot write file '/project/external/value.js' because it would overwrite input file.\n  Adding a tsconfig.json file will help organize projects that contain both TypeScript and JavaScript files. Learn more at https://aka.ms/tsconfig.",
+            "related_information": null
+          },
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.js' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "detection/commonjs/missing/3",
+      "files": [
+        {
+          "path": "/project/external/value.js",
+          "text": "exports.value = 1;\n"
+        }
+      ],
+      "roots": [
+        "/project/external/value.js"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out",
+        "moduleDetection": 3
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5055,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Cannot write file '/project/external/value.js' because it would overwrite input file.\n  Adding a tsconfig.json file will help organize projects that contain both TypeScript and JavaScript files. Learn more at https://aka.ms/tsconfig.",
+            "related_information": null
+          },
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "File '/project/external/value.js' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation\n  File is CommonJS module because 'package.json' was not found",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "located/module",
+      "files": [
+        {
+          "path": "/project/external/value.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"module\"}"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "import { value } from '../external/value.js'; export const main = value;\n"
+        }
+      ],
+      "roots": [
+        "/project/src/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/external/value.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 25,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 25,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "aW1wb3J0IHsgdmFsdWUgfSBmcm9tICcuLi9leHRlcm5hbC92YWx1ZS5qcyc7DQpleHBvcnQgY29uc3QgbWFpbiA9IHZhbHVlOw0K",
+            "callback_utf8_bytes": 75,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "aW1wb3J0IHsgdmFsdWUgfSBmcm9tICcuLi9leHRlcm5hbC92YWx1ZS5qcyc7DQpleHBvcnQgY29uc3QgbWFpbiA9IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 75,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": "/project/src/main.ts",
+            "start": 22,
+            "length": 22,
+            "message": "File '/project/external/value.ts' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  File is ECMAScript module because '/project/package.json' has field \"type\" with value \"module\"",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "located/commonjs",
+      "files": [
+        {
+          "path": "/project/external/value.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"type\":\"commonjs\"}"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "import { value } from '../external/value.js'; export const main = value;\n"
+        }
+      ],
+      "roots": [
+        "/project/src/main.ts"
+      ],
+      "options": {
+        "target": 99,
+        "module": 199,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "allowJs": true,
+        "rootDir": "/project/src",
+        "outDir": "out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/external/value.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/external/value.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMubWFpbiA9IHZvaWQgMDsNCmNvbnN0IHZhbHVlX2pzXzEgPSByZXF1aXJlKCIuLi9leHRlcm5hbC92YWx1ZS5qcyIpOw0KZXhwb3J0cy5tYWluID0gdmFsdWVfanNfMS52YWx1ZTsNCg==",
+            "callback_utf8_bytes": 190,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMubWFpbiA9IHZvaWQgMDsNCmNvbnN0IHZhbHVlX2pzXzEgPSByZXF1aXJlKCIuLi9leHRlcm5hbC92YWx1ZS5qcyIpOw0KZXhwb3J0cy5tYWluID0gdmFsdWVfanNfMS52YWx1ZTsNCg==",
+            "materialized_utf8_bytes": 190,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 6059,
+            "category": "Error",
+            "file": "/project/src/main.ts",
+            "start": 22,
+            "length": 22,
+            "message": "File '/project/external/value.ts' is not under 'rootDir' '/project/src'. 'rootDir' is expected to contain all source files.\n  File is CommonJS module because '/project/package.json' has field \"type\" whose value is not \"module\"",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    }
+  ]
+}

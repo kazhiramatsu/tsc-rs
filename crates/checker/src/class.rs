@@ -824,7 +824,11 @@ impl<'a> CheckerState<'a> {
             }
         }
         self.check_members_for_override_modifier(node, ty, type_with_this, static_type)?;
-        for type_ref_node in self.get_effective_implements_type_nodes(node) {
+        for type_ref_node in self
+            .get_effective_implements_type_nodes(node)
+            .into_iter()
+            .flatten()
+        {
             let NodeData::ExpressionWithTypeArguments(ref_data) = self.data_of(type_ref_node)
             else {
                 unreachable!("implements heritage elements are ExpressionWithTypeArguments");
@@ -913,16 +917,17 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getEffectiveImplementsTypeNodes @6.0.3
     /// tsc-hash: 7b48d400da24af97592c82568fc79e75d199be120737ae53e40c96d40fe74d3c
     /// tsc-span: _tsc.js:15756-15763
-    fn get_effective_implements_type_nodes(&self, node: NodeId) -> Vec<NodeId> {
+    pub(crate) fn get_effective_implements_type_nodes(&self, node: NodeId) -> Option<Vec<NodeId>> {
         if self.is_in_js_file(node) {
-            return self
-                .all_jsdoc_tags(node, SyntaxKind::JSDocImplementsTag)
-                .into_iter()
-                .filter_map(|tag| match self.data_of(tag) {
-                    NodeData::JSDocImplementsTag(data) => data.class,
-                    _ => None,
-                })
-                .collect();
+            return Some(
+                self.all_jsdoc_tags(node, SyntaxKind::JSDocImplementsTag)
+                    .into_iter()
+                    .filter_map(|tag| match self.data_of(tag) {
+                        NodeData::JSDocImplementsTag(data) => data.class,
+                        _ => None,
+                    })
+                    .collect(),
+            );
         }
         let heritage = match self.data_of(node) {
             NodeData::ClassDeclaration(data) => data.heritage_clauses,
@@ -930,13 +935,36 @@ impl<'a> CheckerState<'a> {
             _ => None,
         };
         for clause in self.nodes_of(heritage) {
-            if !self.heritage_clause_is_extends(clause) {
-                if let NodeData::HeritageClause(data) = self.data_of(clause) {
-                    return self.nodes_of(data.types);
+            if let NodeData::HeritageClause(data) = self.data_of(clause) {
+                if data.token == SyntaxKind::ImplementsKeyword {
+                    return Some(self.nodes_of(data.types));
                 }
             }
         }
-        Vec::new()
+        None
+    }
+
+    /// tsc-port: getImplementsTypes @6.0.3
+    /// tsc-hash: 5c4e8fadb855ac7137714a0347323f8f47f2b9ac5bd2ebe7e5837ae3e0c52dfa
+    /// tsc-span: _tsc.js:57190-57209
+    pub(crate) fn get_implements_types(&mut self, ty: TypeId) -> CheckResult<Vec<TypeId>> {
+        let Some(symbol) = self.tables.type_of(ty).symbol else {
+            return Ok(Vec::new());
+        };
+        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let mut types = Vec::new();
+        for declaration in declarations {
+            let Some(nodes) = self.get_effective_implements_type_nodes(declaration) else {
+                continue;
+            };
+            for node in nodes {
+                let implemented = self.get_type_from_type_node(node)?;
+                if !self.tables.is_error_type(implemented) {
+                    types.push(implemented);
+                }
+            }
+        }
+        Ok(types)
     }
 
     /// tsrs-native: tsc reads `type.thisType` off the InterfaceType

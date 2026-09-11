@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "status": "complete-before",
+  "checkpoint": "aff01a2a68ca884ae0a2299d9e423c431e6a40db",
+  "eligible": 48,
+  "exact": [
+    "js/es5/class-same-renamed",
+    "js/es5/class-reverse-bindings",
+    "js/es5/class-two-renames",
+    "js/es5/function-same-renamed",
+    "ts/es5/class-same-renamed",
+    "ts/es5/class-reverse-bindings",
+    "ts/es5/class-two-renames",
+    "ts/es5/function-same-renamed",
+    "js/es2015/class-same-renamed",
+    "js/es2015/class-reverse-bindings",
+    "js/es2015/class-two-renames",
+    "js/es2015/function-same-renamed",
+    "ts/es2015/class-same-renamed",
+    "ts/es2015/class-reverse-bindings",
+    "ts/es2015/class-two-renames",
+    "ts/es2015/function-same-renamed",
+    "default/js/es5/class-same-renamed",
+    "default/js/es5/class-reverse-bindings",
+    "default/js/es5/class-two-renames",
+    "default/js/es5/function-same-renamed",
+    "default/ts/es5/class-same-renamed",
+    "esmodule/ts/es5/class-same-renamed",
+    "default/ts/es5/class-reverse-bindings",
+    "esmodule/ts/es5/class-reverse-bindings",
+    "default/ts/es5/class-two-renames",
+    "esmodule/ts/es5/class-two-renames",
+    "default/ts/es5/function-same-renamed",
+    "esmodule/ts/es5/function-same-renamed",
+    "default/ts/es2015/class-same-renamed",
+    "esmodule/ts/es2015/class-same-renamed",
+    "default/ts/es2015/class-reverse-bindings",
+    "esmodule/ts/es2015/class-reverse-bindings",
+    "default/ts/es2015/class-two-renames",
+    "esmodule/ts/es2015/class-two-renames",
+    "default/ts/es2015/function-same-renamed",
+    "esmodule/ts/es2015/function-same-renamed"
+  ],
+  "failed": [
+    "esmodule/js/es5/class-same-renamed",
+    "esmodule/js/es5/class-reverse-bindings",
+    "esmodule/js/es5/class-two-renames",
+    "esmodule/js/es5/function-same-renamed",
+    "default/js/es2015/class-same-renamed",
+    "esmodule/js/es2015/class-same-renamed",
+    "default/js/es2015/class-reverse-bindings",
+    "esmodule/js/es2015/class-reverse-bindings",
+    "default/js/es2015/class-two-renames",
+    "esmodule/js/es2015/class-two-renames",
+    "default/js/es2015/function-same-renamed",
+    "esmodule/js/es2015/function-same-renamed"
+  ],
+  "run_seconds": 56.19,
+  "log_sha256": "450e6c76ad4b9e9d73700ffe01c7ae673247a5fbe8253b22d09ba88d884ac4f2",
+  "working_source_files": [
+    {
+      "path": "crates/compiler/tests/fixtures/repeated-target-declaration-aliases.json",
+      "sha256": "7c8127c402a3fbeb50c9c144a1fc59d6db3009ffb0bab41ef921cdc250dace28"
+    },
+    {
+      "path": "scripts/observe-repeated-target-declaration-aliases.mjs",
+      "sha256": "a1add1061ecc4a5769beabde5b1d96c1cbdb7d11ca4fe93d61461c892098935c"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_repeated_target_aliases.rs",
+      "sha256": "86a74ca0aec409ea43132fee809aef7213e47f5d07c45fec46f8a1ff84fc29bf"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "fc32b5ae4e08458c7796ac8591252c47bb78e6cbf8ce41ea153820d8d3e80564"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+      "sha256": "2d0013253a7760575057e22b6f9c489c34dee63fa92bc3c469852f36647a4639"
+    },
+    {
+      "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
+      "sha256": "5d6ec863a3622d423b5d5396bfbb3f01f12d0c597ae08ff59557f4bcdc0e25b2"
+    },
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "48a305d62abb1208657779648c805df89a4090969d815cb796b5dd154a435542"
+    },
+    {
+      "path": "crates/checker/src/modules.rs",
+      "sha256": "3e4845ca707c2869da9fc3969040350d8b44a4751170af7e09dfbd451b4bcdf1"
+    },
+    {
+      "path": "target/h2-8a-repeated-alias-before.log",
+      "sha256": "450e6c76ad4b9e9d73700ffe01c7ae673247a5fbe8253b22d09ba88d884ac4f2"
+    }
+  ]
+}

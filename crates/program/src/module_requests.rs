@@ -518,20 +518,20 @@ fn plan_module_requests_worker(
                         .arguments
                         .map(|arguments| parsed.arena.node_array(arguments).nodes.as_slice())
                         .unwrap_or_default();
-                    // TypeScript's collector records the first string-literal
+                    // TypeScript's collector records the first string-literal-like
                     // argument whenever at least one argument exists. The
                     // optional second argument carries import attributes and
                     // does not suppress the host resolution request.
                     if !arguments.is_empty() {
                         let argument = parsed.arena.node(arguments[0]);
-                        if let NodeData::StringLiteral(literal) = &argument.data {
+                        if let Some(specifier) = string_literal_like_text(&parsed, arguments[0]) {
                             dynamic_occurrences.push(ModuleRequestOccurrence {
                                 pos: argument.pos,
                                 end: argument.end,
                                 loads_source: true,
                                 key: ResolutionKey::new(
                                     source.path().canonical().clone(),
-                                    literal.text.clone(),
+                                    specifier.to_owned(),
                                     dynamic_mode,
                                 ),
                             });

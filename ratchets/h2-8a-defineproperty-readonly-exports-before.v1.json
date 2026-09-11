@@ -1,0 +1,583 @@
+{
+  "version": 1,
+  "status": "frozen-before-all-eight-owned-readonly-diagnostics",
+  "base": "b89c73fe675da10934c8be78580545c23c383fa2",
+  "eligible": 16,
+  "exact_twice": [
+    "defineproperty-readonly-exports/es5/commonjs/exports-shorthand-false",
+    "defineproperty-readonly-exports/es5/commonjs/exports-quoted-set",
+    "defineproperty-readonly-exports/es5/commonjs/module-exports-variable-false",
+    "defineproperty-readonly-exports/es5/commonjs/module-exports-computed-set",
+    "defineproperty-readonly-exports/es5/esnext/exports-shorthand-false",
+    "defineproperty-readonly-exports/es5/esnext/exports-quoted-set",
+    "defineproperty-readonly-exports/es5/esnext/module-exports-variable-false",
+    "defineproperty-readonly-exports/es5/esnext/module-exports-computed-set"
+  ],
+  "failed_twice": [
+    "defineproperty-readonly-exports/es2015/commonjs/exports-shorthand-false",
+    "defineproperty-readonly-exports/es2015/commonjs/exports-quoted-set",
+    "defineproperty-readonly-exports/es2015/commonjs/module-exports-variable-false",
+    "defineproperty-readonly-exports/es2015/commonjs/module-exports-computed-set",
+    "defineproperty-readonly-exports/es2015/esnext/exports-shorthand-false",
+    "defineproperty-readonly-exports/es2015/esnext/exports-quoted-set",
+    "defineproperty-readonly-exports/es2015/esnext/module-exports-variable-false",
+    "defineproperty-readonly-exports/es2015/esnext/module-exports-computed-set"
+  ],
+  "primary_comparison_jobs": 2,
+  "positive_primary_executions_per_case": 4,
+  "failed_primary_executions_per_case": 2,
+  "supplemental_executions": 24,
+  "fresh_complete_comparison_and_supplemental_executions": 72,
+  "capture_is_full_actual_tuple": false,
+  "components": [
+    {
+      "case_id": "defineproperty-readonly-exports/es2015/commonjs/exports-quoted-set",
+      "complete_exact_twice": false,
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": []
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es2015/commonjs/exports-shorthand-false",
+      "complete_exact_twice": false,
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": []
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es2015/commonjs/module-exports-computed-set",
+      "complete_exact_twice": false,
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": []
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es2015/commonjs/module-exports-variable-false",
+      "complete_exact_twice": false,
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": []
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es2015/esnext/exports-quoted-set",
+      "complete_exact_twice": false,
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": []
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es2015/esnext/exports-shorthand-false",
+      "complete_exact_twice": false,
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": []
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es2015/esnext/module-exports-computed-set",
+      "complete_exact_twice": false,
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": []
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es2015/esnext/module-exports-variable-false",
+      "complete_exact_twice": false,
+      "supplemental_executions": 1,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": []
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es5/commonjs/exports-quoted-set",
+      "complete_exact_twice": true,
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": []
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es5/commonjs/exports-shorthand-false",
+      "complete_exact_twice": true,
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": []
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es5/commonjs/module-exports-computed-set",
+      "complete_exact_twice": true,
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": []
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es5/commonjs/module-exports-variable-false",
+      "complete_exact_twice": true,
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": []
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es5/esnext/exports-quoted-set",
+      "complete_exact_twice": true,
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": []
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es5/esnext/exports-shorthand-false",
+      "complete_exact_twice": true,
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": []
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es5/esnext/module-exports-computed-set",
+      "complete_exact_twice": true,
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": []
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es5/esnext/module-exports-variable-false",
+      "complete_exact_twice": true,
+      "supplemental_executions": 2,
+      "supplemental_error": null,
+      "exit_code": 2,
+      "differences": []
+    }
+  ],
+  "first_failure_comparisons": [
+    {
+      "case_id": "defineproperty-readonly-exports/es2015/commonjs/exports-shorthand-false",
+      "boundary": "exact ordered reported diagnostics",
+      "actual_sha256": "f0a7b8d2ddc172009bd09346b3992156ce3ada82abebd03f8030b4782479d4f2",
+      "expected_sha256": "e5a8c848b61a82e9156339e1378ab7112518a93084c92fed8b06a8efcaf99b94",
+      "actual_debug": "[(2323, \"Error\", Some(\"/project/main.js\"), Some(24), Some(57), \"Cannot redeclare exported variable 'x'.\"), (2323, \"Error\", Some(\"/project/main.js\"), Some(83), Some(9), \"Cannot redeclare exported variable 'x'.\")]",
+      "expected_debug": "[(2323, \"Error\", Some(\"/project/main.js\"), Some(24), Some(57), \"Cannot redeclare exported variable 'x'.\"), (2323, \"Error\", Some(\"/project/main.js\"), Some(83), Some(9), \"Cannot redeclare exported variable 'x'.\"), (2540, \"Error\", Some(\"/project/main.js\"), Some(91), Some(1), \"Cannot assign to 'x' because it is a read-only property.\")]"
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es2015/commonjs/exports-quoted-set",
+      "boundary": "exact ordered reported diagnostics",
+      "actual_sha256": "d38b87fc1eac057991f1927011c40a045f0a13aa960abe4460ca9f7abc9eb7f0",
+      "expected_sha256": "56ca0c8c06278bbd7ec956f5e6d8adb0c02d6ca085064fa5e822d5f76f496be6",
+      "actual_debug": "[(2323, \"Error\", Some(\"/project/main.js\"), Some(0), Some(57), \"Cannot redeclare exported variable 'x'.\"), (2323, \"Error\", Some(\"/project/main.js\"), Some(59), Some(9), \"Cannot redeclare exported variable 'x'.\"), (2540, \"Error\", Some(\"/project/main.js\"), Some(67), Some(1), \"Cannot assign to 'x' because it is a read-only property.\")]",
+      "expected_debug": "[(2323, \"Error\", Some(\"/project/main.js\"), Some(0), Some(57), \"Cannot redeclare exported variable 'x'.\"), (2323, \"Error\", Some(\"/project/main.js\"), Some(59), Some(9), \"Cannot redeclare exported variable 'x'.\")]"
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es2015/commonjs/module-exports-variable-false",
+      "boundary": "exact ordered reported diagnostics",
+      "actual_sha256": "6ca480d1fa60ca3bd5bf2ff65fb0ae980fc0e86ded5ec64e5e3a6a1207e14125",
+      "expected_sha256": "badfa153e11a5542cb716e6294a2abd04628d6d62481a138372a2b26fc48304e",
+      "actual_debug": "[(2323, \"Error\", Some(\"/project/main.js\"), Some(48), Some(54), \"Cannot redeclare exported variable 'x'.\"), (2323, \"Error\", Some(\"/project/main.js\"), Some(104), Some(16), \"Cannot redeclare exported variable 'x'.\")]",
+      "expected_debug": "[(2323, \"Error\", Some(\"/project/main.js\"), Some(48), Some(54), \"Cannot redeclare exported variable 'x'.\"), (2323, \"Error\", Some(\"/project/main.js\"), Some(104), Some(16), \"Cannot redeclare exported variable 'x'.\"), (2540, \"Error\", Some(\"/project/main.js\"), Some(119), Some(1), \"Cannot assign to 'x' because it is a read-only property.\")]"
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es2015/commonjs/module-exports-computed-set",
+      "boundary": "exact ordered reported diagnostics",
+      "actual_sha256": "2e01ea081e3c413e72e27f59a8fcbe3403ff66020d76613f12560e56acdc31d8",
+      "expected_sha256": "ca44244364cb3ef42cea9e7f1dfdb3244a109b3ad34fed62d44e403dde47af6c",
+      "actual_debug": "[(2323, \"Error\", Some(\"/project/main.js\"), Some(0), Some(66), \"Cannot redeclare exported variable 'x'.\"), (2323, \"Error\", Some(\"/project/main.js\"), Some(68), Some(16), \"Cannot redeclare exported variable 'x'.\"), (2540, \"Error\", Some(\"/project/main.js\"), Some(83), Some(1), \"Cannot assign to 'x' because it is a read-only property.\")]",
+      "expected_debug": "[(2323, \"Error\", Some(\"/project/main.js\"), Some(0), Some(66), \"Cannot redeclare exported variable 'x'.\"), (2323, \"Error\", Some(\"/project/main.js\"), Some(68), Some(16), \"Cannot redeclare exported variable 'x'.\")]"
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es2015/esnext/exports-shorthand-false",
+      "boundary": "exact ordered reported diagnostics",
+      "actual_sha256": "f0a7b8d2ddc172009bd09346b3992156ce3ada82abebd03f8030b4782479d4f2",
+      "expected_sha256": "e5a8c848b61a82e9156339e1378ab7112518a93084c92fed8b06a8efcaf99b94",
+      "actual_debug": "[(2323, \"Error\", Some(\"/project/main.js\"), Some(24), Some(57), \"Cannot redeclare exported variable 'x'.\"), (2323, \"Error\", Some(\"/project/main.js\"), Some(83), Some(9), \"Cannot redeclare exported variable 'x'.\")]",
+      "expected_debug": "[(2323, \"Error\", Some(\"/project/main.js\"), Some(24), Some(57), \"Cannot redeclare exported variable 'x'.\"), (2323, \"Error\", Some(\"/project/main.js\"), Some(83), Some(9), \"Cannot redeclare exported variable 'x'.\"), (2540, \"Error\", Some(\"/project/main.js\"), Some(91), Some(1), \"Cannot assign to 'x' because it is a read-only property.\")]"
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es2015/esnext/exports-quoted-set",
+      "boundary": "exact ordered reported diagnostics",
+      "actual_sha256": "d38b87fc1eac057991f1927011c40a045f0a13aa960abe4460ca9f7abc9eb7f0",
+      "expected_sha256": "56ca0c8c06278bbd7ec956f5e6d8adb0c02d6ca085064fa5e822d5f76f496be6",
+      "actual_debug": "[(2323, \"Error\", Some(\"/project/main.js\"), Some(0), Some(57), \"Cannot redeclare exported variable 'x'.\"), (2323, \"Error\", Some(\"/project/main.js\"), Some(59), Some(9), \"Cannot redeclare exported variable 'x'.\"), (2540, \"Error\", Some(\"/project/main.js\"), Some(67), Some(1), \"Cannot assign to 'x' because it is a read-only property.\")]",
+      "expected_debug": "[(2323, \"Error\", Some(\"/project/main.js\"), Some(0), Some(57), \"Cannot redeclare exported variable 'x'.\"), (2323, \"Error\", Some(\"/project/main.js\"), Some(59), Some(9), \"Cannot redeclare exported variable 'x'.\")]"
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es2015/esnext/module-exports-variable-false",
+      "boundary": "exact ordered reported diagnostics",
+      "actual_sha256": "6ca480d1fa60ca3bd5bf2ff65fb0ae980fc0e86ded5ec64e5e3a6a1207e14125",
+      "expected_sha256": "badfa153e11a5542cb716e6294a2abd04628d6d62481a138372a2b26fc48304e",
+      "actual_debug": "[(2323, \"Error\", Some(\"/project/main.js\"), Some(48), Some(54), \"Cannot redeclare exported variable 'x'.\"), (2323, \"Error\", Some(\"/project/main.js\"), Some(104), Some(16), \"Cannot redeclare exported variable 'x'.\")]",
+      "expected_debug": "[(2323, \"Error\", Some(\"/project/main.js\"), Some(48), Some(54), \"Cannot redeclare exported variable 'x'.\"), (2323, \"Error\", Some(\"/project/main.js\"), Some(104), Some(16), \"Cannot redeclare exported variable 'x'.\"), (2540, \"Error\", Some(\"/project/main.js\"), Some(119), Some(1), \"Cannot assign to 'x' because it is a read-only property.\")]"
+    },
+    {
+      "case_id": "defineproperty-readonly-exports/es2015/esnext/module-exports-computed-set",
+      "boundary": "exact ordered reported diagnostics",
+      "actual_sha256": "2e01ea081e3c413e72e27f59a8fcbe3403ff66020d76613f12560e56acdc31d8",
+      "expected_sha256": "ca44244364cb3ef42cea9e7f1dfdb3244a109b3ad34fed62d44e403dde47af6c",
+      "actual_debug": "[(2323, \"Error\", Some(\"/project/main.js\"), Some(0), Some(66), \"Cannot redeclare exported variable 'x'.\"), (2323, \"Error\", Some(\"/project/main.js\"), Some(68), Some(16), \"Cannot redeclare exported variable 'x'.\"), (2540, \"Error\", Some(\"/project/main.js\"), Some(83), Some(1), \"Cannot assign to 'x' because it is a read-only property.\")]",
+      "expected_debug": "[(2323, \"Error\", Some(\"/project/main.js\"), Some(0), Some(66), \"Cannot redeclare exported variable 'x'.\"), (2323, \"Error\", Some(\"/project/main.js\"), Some(68), Some(16), \"Cannot redeclare exported variable 'x'.\")]"
+    }
+  ],
+  "exits": [
+    {
+      "manifest": "target/h2-8a-defineproperty-readonly-exports-before-prelaunch.json",
+      "manifest_sha256": "f88358518259aba6bf528d66cdc0ef411872e9ce71b471b19bc55cafab0cd614",
+      "argv": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "-p",
+        "tsc-rs-compiler",
+        "--test",
+        "contracts",
+        "--",
+        "defineproperty_readonly_exports_matches_complete_typescript_observations",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit_code": 101,
+      "wall_seconds": 73.26745308400132,
+      "log": "target/h2-8a-defineproperty-readonly-exports-before.log",
+      "log_sha256": "a961e4961943b486d0b915c688254c607812191d1466fcef750da972a2783d30"
+    },
+    {
+      "manifest": "target/h2-8a-defineproperty-readonly-exports-before-repeat-prelaunch.json",
+      "manifest_sha256": "d7fe35ff35d21eef250e962340d6e6742628e00a948f951670341f556cd4f3b6",
+      "argv": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "-p",
+        "tsc-rs-compiler",
+        "--test",
+        "contracts",
+        "--",
+        "defineproperty_readonly_exports_matches_complete_typescript_observations",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit_code": 101,
+      "wall_seconds": 10.850838583952282,
+      "log": "target/h2-8a-defineproperty-readonly-exports-before-repeat.log",
+      "log_sha256": "6dc4ba463ecb8f3b46d29ad768a8ac3c7973ff5c3eed6c2ce3d1870868fe18ff"
+    }
+  ],
+  "working_files": [
+    {
+      "path": "crates/binder/src/assignment.rs",
+      "sha256": "3589abfd9c9de29468e06d3582419e34c01f1ec58c0b88b62ebd350918a3afcc"
+    },
+    {
+      "path": "crates/binder/src/bind.rs",
+      "sha256": "5252a966639e5e4dcdee538ff1f1594f04bb25d1d20cb9316f8a5a6a14a2d396"
+    },
+    {
+      "path": "crates/binder/src/node_util.rs",
+      "sha256": "5d3eea9d3dc9a23a6cb4240aaa01cc85f41c1e5b39e0d074f43e36a101f7d551"
+    },
+    {
+      "path": "crates/checker/src/access.rs",
+      "sha256": "317fb130f96c1a5f2d55d00de119b5cb719494edda8ca9c8d6ba5aa5070bfd5e"
+    },
+    {
+      "path": "crates/checker/src/annotate.rs",
+      "sha256": "20eb0dcaaab36deaef67cd36207cf0cf40f7ac55b9f6c306fecd8697698fca6c"
+    },
+    {
+      "path": "crates/checker/src/check.rs",
+      "sha256": "ee7aea6a75fcab25644c0b49f3357d9f77cb2467bb4ae5da052b7f69f68b6f24"
+    },
+    {
+      "path": "crates/checker/src/engine.rs",
+      "sha256": "9715ad017afd9b9f79ae725b1ed09ff6f52f77f765244edd1eabccd89c66253e"
+    },
+    {
+      "path": "crates/checker/src/expr.rs",
+      "sha256": "3c4501f03c97c22f02de58b7f7802ed18cd64ba0cd06f2a6a975890ef49f744c"
+    },
+    {
+      "path": "crates/checker/src/functions.rs",
+      "sha256": "2512b1419ac689d761a71731d41ce9b870b7810a267023720907316c1dcc6406"
+    },
+    {
+      "path": "crates/checker/src/links.rs",
+      "sha256": "07a50c8976a559103cfc9f686e1e1db2dac4dc11176c556bca3779acbfce5a5a"
+    },
+    {
+      "path": "crates/checker/src/literals.rs",
+      "sha256": "1e7ec2bf7c4cfe1a9182150e825d67068e5827490be48b89bf1a389772d0f8b0"
+    },
+    {
+      "path": "crates/checker/src/mapped.rs",
+      "sha256": "199e222546267ad6f1a98d2edc86f9106a7ff1822f7aa8ce4147ecafba24e56c"
+    },
+    {
+      "path": "crates/checker/src/node_builder/serialize.rs",
+      "sha256": "0ab71141dac64fdf557c93d30a1a8ed2ce9ccf6c2f10daa5cbba5ea19f053330"
+    },
+    {
+      "path": "crates/checker/src/node_builder/signatures.rs",
+      "sha256": "0209074e09bbaf56eb92ca5805ac099592eef764cc4d87a9d090700bd5ce8b03"
+    },
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "1f5025d1d60c9c87d0e2e8bfba0f4b614da4b245c696c2f9cb80e11c2ec3bbfb"
+    },
+    {
+      "path": "crates/checker/src/node_builder/type_nodes.rs",
+      "sha256": "751892a7a600c2df5642035d4f62d8c2350586b22fc0b5b9f3fe639a8657ba22"
+    },
+    {
+      "path": "crates/checker/src/structural.rs",
+      "sha256": "7a77541359c03bb6c0f7a9578b4638c52177cfe1b8078142ff51daa24fa32b73"
+    },
+    {
+      "path": "crates/checker/tests/unit/structural/tests.rs",
+      "sha256": "66484e6f2192fcd1ac33b5d1cc539ab8706c0e3b8adb69d4499f9a062bd74fb1"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "a4609f5d4621f42083b6ffeabf508a7551213b5ad85e2c445628f9431a0e2b06"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/defineproperty-readonly-exports.json",
+      "sha256": "f7e18b168d4127d4a6bd2dbffa2889dd39a9188d36dd1001d02f29330305823a"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/defineproperty-readonly.json",
+      "sha256": "114ef087a19f5e1f4f1fa27dc828b17a240a6776ad0b49455616d68dc2584a35"
+    },
+    {
+      "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
+      "sha256": "986dfd167f2ca9a49498e56e2fa749e6c55c02fc6e551214ce910ce8f5dd7b6d"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+      "sha256": "7b14d30e473948b7a7878c20ed9feb528a629f8d26db042306ba6574a6edde81"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "54d5849d2db6baf84152e6505add6e01906e6740cb21285f8b62631e538599ad"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+      "sha256": "90aff72e27fac502da3ff3f06980c55c4923e35554c3e64800a60213cb1b04ba"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_defineproperty_readonly.rs",
+      "sha256": "afd5b18d70e2fe3ad41ae5efed8148ecd6a0240aaa5e7744f88acf8692a5fbd0"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_defineproperty_readonly_exports.rs",
+      "sha256": "f0939792ba728b540fb73734010ce636a6199d190896e9ec0bedea51cf4c3c59"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "5ffd982b2fb2057fa7c082400f502e755f0acaf663245a9898bb48c0820d57b6"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-readonly-before.v1.json",
+      "sha256": "421c4f47a5df74e56e89a9612005dfa4c70b60f4652aaa01652ac09e26499e0c"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-readonly-checker-before.v1.json",
+      "sha256": "b69d52272ef9617cb97192b88ac85ad9a57b63f6fe9e7cfd96ec23bb526dfe25"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-readonly-first-build.v1.json",
+      "sha256": "cd75a1f14e2c3463a64449dcd7c1c9b75c5a41d63a7b66e4c0b85b64e78db081"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-setter-names-after.v1.json",
+      "sha256": "89e59a3babfc3e2b39868f9f3d87efe45a1dd736b8e14b53a0e439581008228d"
+    },
+    {
+      "path": "scripts/observe-defineproperty-readonly-exports.mjs",
+      "sha256": "82eaeff9740581870b49774e951f25de66b4c9032e06cda99b8038ab49aa3da2"
+    },
+    {
+      "path": "scripts/observe-defineproperty-readonly.mjs",
+      "sha256": "eae7c9c632e75973855c615cb47990df74a18b6948aaace6b7e06090ce25647d"
+    },
+    {
+      "path": "target/analyze-defineproperty-readonly-exports-before.py",
+      "sha256": "6c73687bd65be7d92125b05ca38052993511a4216742e0dd1daceb300e1dec6a"
+    },
+    {
+      "path": "target/freeze-defineproperty-readonly-exports-before.py",
+      "sha256": "db7d3d699f732140182345f7e4a731991464b5d107b3f0931c9d92906eff2672"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-before-analysis.json",
+      "sha256": "c392e92e893edde028a7fc473e3b17eec88a578587a3d80420782c13dfa176f4"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-before-artifacts/0b2dcb2461c59ee2b79d42ffe2ad5b83d3b07df03a7177c2c06d9d092f0568b8-0.json",
+      "sha256": "efdde3e3ca9fc85de04f6f47527d19b1d11a0143c4411c6f2a7116305868ba83"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-before-artifacts/0b2dcb2461c59ee2b79d42ffe2ad5b83d3b07df03a7177c2c06d9d092f0568b8-1.json",
+      "sha256": "389e0604d92259ec94778afb08d4a18b16f87f490b5386729e87ca2446eff6b2"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-before-artifacts/153ed0cf4236abfec1f87689361ce56ae10d96a8bda278c804f9684b393bad6a-0.json",
+      "sha256": "3ce45738fcd50346f18b0938920ac079f7b60747146415159ce0af261ed7affc"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-before-artifacts/27d1f2d77531c2c1e2498e1817523f55cb6eadc1c7c42f3accd13fb2c50401a9-0.json",
+      "sha256": "e3d0f842428f92d663abf499b743b6f69ec64852369c72ff2d0e355789b9a814"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-before-artifacts/27d1f2d77531c2c1e2498e1817523f55cb6eadc1c7c42f3accd13fb2c50401a9-1.json",
+      "sha256": "b408f89ccd9f194908a75e9cd14fe2cea7355ae650d37af05eac4ffb19f1e22d"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-before-artifacts/2b46116fefd6211e60c9dddfa31d0bc32cd0be3cb0d3295334a3acf4a32c71e6-0.json",
+      "sha256": "73e38cfe2005442a046d2e04d79a02a0beb731ae2e73db89656d13084cbc54e7"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-before-artifacts/2b46116fefd6211e60c9dddfa31d0bc32cd0be3cb0d3295334a3acf4a32c71e6-1.json",
+      "sha256": "8280bab15e83236a14332580c07e94b513701ffeacec641e5806dc67986144de"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-before-artifacts/39488d08b692ff90c73ae745d957c684b6d44fb00a6f437e50eead399157123d-0.json",
+      "sha256": "b278ff045c76528efb99f25e6d9d5c8a3ceadde46711450b3c50080b66fc018c"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-before-artifacts/66aaa8bde83c7bb97a2521a703c8c43a87d5a64e95e53caed00e700c9c2f319c-0.json",
+      "sha256": "5a9acf63e60a3187f737a2e36878fc14fa0d41abf268865fc12c0dcd9a9c61de"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-before-artifacts/73754312c2aaf00bce51366dad4d62181e504fcce0c9bbc02981db7a110742bd-0.json",
+      "sha256": "0b213500a09d5a05baae3a3aad54f0ad112b57a9e3dc8e6804f6611856746303"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-before-artifacts/73754312c2aaf00bce51366dad4d62181e504fcce0c9bbc02981db7a110742bd-1.json",
+      "sha256": "cae90bf3bb7abd175a9d8d461e92a1dc80b2ec5cd00054ae831edfd0af15767b"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-before-artifacts/7eb4657c93423d2f1ebd30f30584cb3a503cb0df4423c05b1d5262b8ecbd4ec6-0.json",
+      "sha256": "2c4ace3ab8953f669b4b51e13f640755567d111a474f4410ef45aead525c7d56"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-before-artifacts/8c6cecea127610e527eb6b14044bf51b75f7028eb061242131ac8a97aa6df8e8-0.json",
+      "sha256": "c0eec1516fb732f0272de3db98c4d3bf30fa4a520a1a443dbd96d2764912e7de"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-before-artifacts/8c6cecea127610e527eb6b14044bf51b75f7028eb061242131ac8a97aa6df8e8-1.json",
+      "sha256": "470736ebd6273b12d925ae416c93342c62a1d727e53ce5c6e708b256518cfe48"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-before-artifacts/95736d8eb2c49876f055058fbf44ffb73b3f3334d896604a1e608c7ae1c014ba-0.json",
+      "sha256": "ac2346fcde40afb38d8ed68d423b747553fefcc1304d65d617e9da19d6b305f8"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-before-artifacts/9d3a4f4a2f484f7dc913aaad6baf3532fbb712cabbc27f4b1777239466e45652-0.json",
+      "sha256": "880ca2343690edbdf46933c9aac21b170112bb436f5b03447e1ef6fa0477c328"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-before-artifacts/a9e89fd65cba98a9687aaeb107cec4ec5aa7091e03b4a45ad99868b06e144f7e-0.json",
+      "sha256": "64ba3b96469dae80a8d412ecf10bfd1b2a428dab57c75fe0be0abcc3bd3a419a"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-before-artifacts/c8e75be985824d97d872c6f26221c82f2e1626ec378dccf4284e68433bf868b3-0.json",
+      "sha256": "23ef4d628da28adbc268dc161826ceaba049ad06d58bbda12e8034faa4bcb4a5"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-before-artifacts/c8e75be985824d97d872c6f26221c82f2e1626ec378dccf4284e68433bf868b3-1.json",
+      "sha256": "a11a6cc0127347f1bc18a7c6a6112f16d835053a16442cff259a8e2731ccb407"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-before-artifacts/cd0e0292d44609a74770a5f4ffab193b043d5c5370fdbefd6809230e22e58008-0.json",
+      "sha256": "76b6dfe6a713f749a928bc51fbcb1de7eee11a95d208cb18acc6e16a0f85d0cb"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-before-artifacts/cd0e0292d44609a74770a5f4ffab193b043d5c5370fdbefd6809230e22e58008-1.json",
+      "sha256": "01df8fb4d3302d7d5b9f319ece8290823bfc914d56179a4fb26edd32c582596d"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-before-artifacts/d72c1d67586ebb8d21d34277fe5da3c4044bec3fc4a0e5a44740c31aa1c465fe-0.json",
+      "sha256": "6806c1b1afe5f4e68b45c9a7d047ee349452e8117fef1bc913ce5f2171aaaf00"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-before-artifacts/d72c1d67586ebb8d21d34277fe5da3c4044bec3fc4a0e5a44740c31aa1c465fe-1.json",
+      "sha256": "00fc2a4db8657dca53b0e329085c9b0ce60b492dd9e33922e5ffbc76149244d3"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-before-artifacts/e8f494e6047e4dcfb821002661e8102b571f97b4684437b28ee94c1287ee2042-0.json",
+      "sha256": "db15c2938b3f65b73dd8a174fd4c8be47a0ea2377c3fc75d3d66bfeaad2de3e8"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-before-exit.json",
+      "sha256": "acc7e2456ee75d04c87ce01ac0c98b88cf923a8c366a7fc6f1a571a761c6392a"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-before-prelaunch.json",
+      "sha256": "f88358518259aba6bf528d66cdc0ef411872e9ce71b471b19bc55cafab0cd614"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-before-repeat-exit.json",
+      "sha256": "0f381f26a755f563c38c6eee6b5e7c7585318ee1b7200a49ecd0e03e9aca3412"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-before-repeat-prelaunch.json",
+      "sha256": "d7fe35ff35d21eef250e962340d6e6742628e00a948f951670341f556cd4f3b6"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-before-repeat.log",
+      "sha256": "6dc4ba463ecb8f3b46d29ad768a8ac3c7973ff5c3eed6c2ce3d1870868fe18ff"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-before.log",
+      "sha256": "a961e4961943b486d0b915c688254c607812191d1466fcef750da972a2783d30"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-ts-before-exit.json",
+      "sha256": "93db070d2b24963e564038d43c34c8c90ea3ceedba8a3a08d9a0dfe4bd8ea4e0"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-ts-before-prelaunch.json",
+      "sha256": "76d568a0e6b7a6701ea9649a8b40fc8e3763896f500442dcbcadd6e44e874c3f"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-ts-before.log",
+      "sha256": "55cd4259d1b0fc7b42b47e8f980176f5eafb76dbbfcabfe999c5a24081a3a0de"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-ts-check-exit.json",
+      "sha256": "6a4b3ae753e5bb4d869a4393977d4975635073edfd544b6c1a972f99639bdaa7"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-ts-check-prelaunch.json",
+      "sha256": "7b386ff476085139e3da2aed19172660f263b6e05d47ac192073fd7a59625df2"
+    },
+    {
+      "path": "target/h2-8a-defineproperty-readonly-exports-ts-check.log",
+      "sha256": "55cd4259d1b0fc7b42b47e8f980176f5eafb76dbbfcabfe999c5a24081a3a0de"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    }
+  ],
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-readonly-exports-before-f6hff2zh"
+}

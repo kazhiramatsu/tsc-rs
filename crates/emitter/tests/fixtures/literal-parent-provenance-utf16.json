@@ -1,0 +1,7709 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "repetitions": 2,
+  "route": "direct-factory-and-printer",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "2114bebec8f911033e815f304b5523bd2aee393e634780217da94291088b636b",
+  "setup_failure_observations": [
+    {
+      "route": "typescript",
+      "flags": 0,
+      "error": {
+        "name": "Error",
+        "message": "Debug Failure. Could not determine parsed source file."
+      }
+    },
+    {
+      "route": "typescript",
+      "flags": 16777216,
+      "error": {
+        "name": "Error",
+        "message": "Debug Failure. Could not determine parsed source file."
+      }
+    },
+    {
+      "route": "json",
+      "flags": 0,
+      "error": {
+        "name": "Error",
+        "message": "Debug Failure. Could not determine parsed source file."
+      }
+    },
+    {
+      "route": "json",
+      "flags": 16777216,
+      "error": {
+        "name": "Error",
+        "message": "Debug Failure. Could not determine parsed source file."
+      }
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "literal-parent/typescript/false/0/parsed/false",
+      "route": "typescript",
+      "parents": false,
+      "token": "\"\\u0061\"",
+      "operation": "parsed",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "ImEi",
+        "utf8_bytes": 3,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          97,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/false/0/parsed/true",
+      "route": "typescript",
+      "parents": false,
+      "token": "\"\\u0061\"",
+      "operation": "parsed",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "ImEi",
+        "utf8_bytes": 3,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          97,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/false/0/parsed-synthesized-flag/false",
+      "route": "typescript",
+      "parents": false,
+      "token": "\"\\u0061\"",
+      "operation": "parsed-synthesized-flag",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "ImEi",
+        "utf8_bytes": 3,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          97,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/false/0/parsed-synthesized-flag/true",
+      "route": "typescript",
+      "parents": false,
+      "token": "\"\\u0061\"",
+      "operation": "parsed-synthesized-flag",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "ImEi",
+        "utf8_bytes": 3,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          97,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/false/0/clone/false",
+      "route": "typescript",
+      "parents": false,
+      "token": "\"\\u0061\"",
+      "operation": "clone",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "ImEi",
+        "utf8_bytes": 3,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          97,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/false/0/clone/true",
+      "route": "typescript",
+      "parents": false,
+      "token": "\"\\u0061\"",
+      "operation": "clone",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "ImEi",
+        "utf8_bytes": 3,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          97,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/false/0/clone-ranged/false",
+      "route": "typescript",
+      "parents": false,
+      "token": "\"\\u0061\"",
+      "operation": "clone-ranged",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "ImEi",
+        "utf8_bytes": 3,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          97,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/false/0/clone-ranged/true",
+      "route": "typescript",
+      "parents": false,
+      "token": "\"\\u0061\"",
+      "operation": "clone-ranged",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "ImEi",
+        "utf8_bytes": 3,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          97,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/false/1/parsed/false",
+      "route": "typescript",
+      "parents": false,
+      "token": "\"é😀\"",
+      "operation": "parsed",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1MDBFOVx1RDgzRFx1REUwMCI=",
+        "utf8_bytes": 20,
+        "end_utf16": {
+          "position": 20,
+          "line": 0,
+          "column": 20
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          69,
+          57,
+          92,
+          117,
+          68,
+          56,
+          51,
+          68,
+          92,
+          117,
+          68,
+          69,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/false/1/parsed/true",
+      "route": "typescript",
+      "parents": false,
+      "token": "\"é😀\"",
+      "operation": "parsed",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "IsOp8J+YgCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 5,
+          "line": 0,
+          "column": 5
+        },
+        "text_utf16": [
+          34,
+          233,
+          55357,
+          56832,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/false/1/parsed-synthesized-flag/false",
+      "route": "typescript",
+      "parents": false,
+      "token": "\"é😀\"",
+      "operation": "parsed-synthesized-flag",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1MDBFOVx1RDgzRFx1REUwMCI=",
+        "utf8_bytes": 20,
+        "end_utf16": {
+          "position": 20,
+          "line": 0,
+          "column": 20
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          69,
+          57,
+          92,
+          117,
+          68,
+          56,
+          51,
+          68,
+          92,
+          117,
+          68,
+          69,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/false/1/parsed-synthesized-flag/true",
+      "route": "typescript",
+      "parents": false,
+      "token": "\"é😀\"",
+      "operation": "parsed-synthesized-flag",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "IsOp8J+YgCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 5,
+          "line": 0,
+          "column": 5
+        },
+        "text_utf16": [
+          34,
+          233,
+          55357,
+          56832,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/false/1/clone/false",
+      "route": "typescript",
+      "parents": false,
+      "token": "\"é😀\"",
+      "operation": "clone",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "Ilx1MDBFOVx1RDgzRFx1REUwMCI=",
+        "utf8_bytes": 20,
+        "end_utf16": {
+          "position": 20,
+          "line": 0,
+          "column": 20
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          69,
+          57,
+          92,
+          117,
+          68,
+          56,
+          51,
+          68,
+          92,
+          117,
+          68,
+          69,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/false/1/clone/true",
+      "route": "typescript",
+      "parents": false,
+      "token": "\"é😀\"",
+      "operation": "clone",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "IsOp8J+YgCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 5,
+          "line": 0,
+          "column": 5
+        },
+        "text_utf16": [
+          34,
+          233,
+          55357,
+          56832,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/false/1/clone-ranged/false",
+      "route": "typescript",
+      "parents": false,
+      "token": "\"é😀\"",
+      "operation": "clone-ranged",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "Ilx1MDBFOVx1RDgzRFx1REUwMCI=",
+        "utf8_bytes": 20,
+        "end_utf16": {
+          "position": 20,
+          "line": 0,
+          "column": 20
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          69,
+          57,
+          92,
+          117,
+          68,
+          56,
+          51,
+          68,
+          92,
+          117,
+          68,
+          69,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/false/1/clone-ranged/true",
+      "route": "typescript",
+      "parents": false,
+      "token": "\"é😀\"",
+      "operation": "clone-ranged",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "IsOp8J+YgCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 5,
+          "line": 0,
+          "column": 5
+        },
+        "text_utf16": [
+          34,
+          233,
+          55357,
+          56832,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/false/2/parsed/false",
+      "route": "typescript",
+      "parents": false,
+      "token": "\"\\u00e9\\uD83D\\uDE00\"",
+      "operation": "parsed",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1MDBFOVx1RDgzRFx1REUwMCI=",
+        "utf8_bytes": 20,
+        "end_utf16": {
+          "position": 20,
+          "line": 0,
+          "column": 20
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          69,
+          57,
+          92,
+          117,
+          68,
+          56,
+          51,
+          68,
+          92,
+          117,
+          68,
+          69,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/false/2/parsed/true",
+      "route": "typescript",
+      "parents": false,
+      "token": "\"\\u00e9\\uD83D\\uDE00\"",
+      "operation": "parsed",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "IsOp8J+YgCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 5,
+          "line": 0,
+          "column": 5
+        },
+        "text_utf16": [
+          34,
+          233,
+          55357,
+          56832,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/false/2/parsed-synthesized-flag/false",
+      "route": "typescript",
+      "parents": false,
+      "token": "\"\\u00e9\\uD83D\\uDE00\"",
+      "operation": "parsed-synthesized-flag",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1MDBFOVx1RDgzRFx1REUwMCI=",
+        "utf8_bytes": 20,
+        "end_utf16": {
+          "position": 20,
+          "line": 0,
+          "column": 20
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          69,
+          57,
+          92,
+          117,
+          68,
+          56,
+          51,
+          68,
+          92,
+          117,
+          68,
+          69,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/false/2/parsed-synthesized-flag/true",
+      "route": "typescript",
+      "parents": false,
+      "token": "\"\\u00e9\\uD83D\\uDE00\"",
+      "operation": "parsed-synthesized-flag",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "IsOp8J+YgCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 5,
+          "line": 0,
+          "column": 5
+        },
+        "text_utf16": [
+          34,
+          233,
+          55357,
+          56832,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/false/2/clone/false",
+      "route": "typescript",
+      "parents": false,
+      "token": "\"\\u00e9\\uD83D\\uDE00\"",
+      "operation": "clone",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "Ilx1MDBFOVx1RDgzRFx1REUwMCI=",
+        "utf8_bytes": 20,
+        "end_utf16": {
+          "position": 20,
+          "line": 0,
+          "column": 20
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          69,
+          57,
+          92,
+          117,
+          68,
+          56,
+          51,
+          68,
+          92,
+          117,
+          68,
+          69,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/false/2/clone/true",
+      "route": "typescript",
+      "parents": false,
+      "token": "\"\\u00e9\\uD83D\\uDE00\"",
+      "operation": "clone",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "IsOp8J+YgCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 5,
+          "line": 0,
+          "column": 5
+        },
+        "text_utf16": [
+          34,
+          233,
+          55357,
+          56832,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/false/2/clone-ranged/false",
+      "route": "typescript",
+      "parents": false,
+      "token": "\"\\u00e9\\uD83D\\uDE00\"",
+      "operation": "clone-ranged",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "Ilx1MDBFOVx1RDgzRFx1REUwMCI=",
+        "utf8_bytes": 20,
+        "end_utf16": {
+          "position": 20,
+          "line": 0,
+          "column": 20
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          69,
+          57,
+          92,
+          117,
+          68,
+          56,
+          51,
+          68,
+          92,
+          117,
+          68,
+          69,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/false/2/clone-ranged/true",
+      "route": "typescript",
+      "parents": false,
+      "token": "\"\\u00e9\\uD83D\\uDE00\"",
+      "operation": "clone-ranged",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "IsOp8J+YgCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 5,
+          "line": 0,
+          "column": 5
+        },
+        "text_utf16": [
+          34,
+          233,
+          55357,
+          56832,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/false/3/parsed/false",
+      "route": "typescript",
+      "parents": false,
+      "token": "\"\\uD800\"",
+      "operation": "parsed",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 8,
+          "line": 0,
+          "column": 8
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/false/3/parsed/true",
+      "route": "typescript",
+      "parents": false,
+      "token": "\"\\uD800\"",
+      "operation": "parsed",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Iu+/vSI=",
+        "utf8_bytes": 5,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          55296,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/false/3/parsed-synthesized-flag/false",
+      "route": "typescript",
+      "parents": false,
+      "token": "\"\\uD800\"",
+      "operation": "parsed-synthesized-flag",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 8,
+          "line": 0,
+          "column": 8
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/false/3/parsed-synthesized-flag/true",
+      "route": "typescript",
+      "parents": false,
+      "token": "\"\\uD800\"",
+      "operation": "parsed-synthesized-flag",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Iu+/vSI=",
+        "utf8_bytes": 5,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          55296,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/false/3/clone/false",
+      "route": "typescript",
+      "parents": false,
+      "token": "\"\\uD800\"",
+      "operation": "clone",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 8,
+          "line": 0,
+          "column": 8
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/false/3/clone/true",
+      "route": "typescript",
+      "parents": false,
+      "token": "\"\\uD800\"",
+      "operation": "clone",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "Iu+/vSI=",
+        "utf8_bytes": 5,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          55296,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/false/3/clone-ranged/false",
+      "route": "typescript",
+      "parents": false,
+      "token": "\"\\uD800\"",
+      "operation": "clone-ranged",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 8,
+          "line": 0,
+          "column": 8
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/false/3/clone-ranged/true",
+      "route": "typescript",
+      "parents": false,
+      "token": "\"\\uD800\"",
+      "operation": "clone-ranged",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "Iu+/vSI=",
+        "utf8_bytes": 5,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          55296,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/true/0/parsed/false",
+      "route": "typescript",
+      "parents": true,
+      "token": "\"\\u0061\"",
+      "operation": "parsed",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 9
+            },
+            "value_utf16": [
+              97
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 9
+            },
+            "value_utf16": [
+              97
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1MDA2MSI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 8,
+          "line": 0,
+          "column": 8
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          54,
+          49,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/true/0/parsed/true",
+      "route": "typescript",
+      "parents": true,
+      "token": "\"\\u0061\"",
+      "operation": "parsed",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 9
+            },
+            "value_utf16": [
+              97
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 9
+            },
+            "value_utf16": [
+              97
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1MDA2MSI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 8,
+          "line": 0,
+          "column": 8
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          54,
+          49,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/true/0/parsed-synthesized-flag/false",
+      "route": "typescript",
+      "parents": true,
+      "token": "\"\\u0061\"",
+      "operation": "parsed-synthesized-flag",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 9
+            },
+            "value_utf16": [
+              97
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 9
+            },
+            "value_utf16": [
+              97
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1MDA2MSI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 8,
+          "line": 0,
+          "column": 8
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          54,
+          49,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/true/0/parsed-synthesized-flag/true",
+      "route": "typescript",
+      "parents": true,
+      "token": "\"\\u0061\"",
+      "operation": "parsed-synthesized-flag",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 9
+            },
+            "value_utf16": [
+              97
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 9
+            },
+            "value_utf16": [
+              97
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1MDA2MSI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 8,
+          "line": 0,
+          "column": 8
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          54,
+          49,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/true/0/clone/false",
+      "route": "typescript",
+      "parents": true,
+      "token": "\"\\u0061\"",
+      "operation": "clone",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 9
+            },
+            "value_utf16": [
+              97
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "ImEi",
+        "utf8_bytes": 3,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          97,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/true/0/clone/true",
+      "route": "typescript",
+      "parents": true,
+      "token": "\"\\u0061\"",
+      "operation": "clone",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 9
+            },
+            "value_utf16": [
+              97
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "ImEi",
+        "utf8_bytes": 3,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          97,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/true/0/clone-ranged/false",
+      "route": "typescript",
+      "parents": true,
+      "token": "\"\\u0061\"",
+      "operation": "clone-ranged",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 9
+            },
+            "value_utf16": [
+              97
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "ImEi",
+        "utf8_bytes": 3,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          97,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/true/0/clone-ranged/true",
+      "route": "typescript",
+      "parents": true,
+      "token": "\"\\u0061\"",
+      "operation": "clone-ranged",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 9
+            },
+            "value_utf16": [
+              97
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "ImEi",
+        "utf8_bytes": 3,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          97,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/true/1/parsed/false",
+      "route": "typescript",
+      "parents": true,
+      "token": "\"é😀\"",
+      "operation": "parsed",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 6
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 6
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "IsOp8J+YgCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 5,
+          "line": 0,
+          "column": 5
+        },
+        "text_utf16": [
+          34,
+          233,
+          55357,
+          56832,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/true/1/parsed/true",
+      "route": "typescript",
+      "parents": true,
+      "token": "\"é😀\"",
+      "operation": "parsed",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 6
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 6
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "IsOp8J+YgCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 5,
+          "line": 0,
+          "column": 5
+        },
+        "text_utf16": [
+          34,
+          233,
+          55357,
+          56832,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/true/1/parsed-synthesized-flag/false",
+      "route": "typescript",
+      "parents": true,
+      "token": "\"é😀\"",
+      "operation": "parsed-synthesized-flag",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 6
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 6
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "IsOp8J+YgCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 5,
+          "line": 0,
+          "column": 5
+        },
+        "text_utf16": [
+          34,
+          233,
+          55357,
+          56832,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/true/1/parsed-synthesized-flag/true",
+      "route": "typescript",
+      "parents": true,
+      "token": "\"é😀\"",
+      "operation": "parsed-synthesized-flag",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 6
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 6
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "IsOp8J+YgCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 5,
+          "line": 0,
+          "column": 5
+        },
+        "text_utf16": [
+          34,
+          233,
+          55357,
+          56832,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/true/1/clone/false",
+      "route": "typescript",
+      "parents": true,
+      "token": "\"é😀\"",
+      "operation": "clone",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 6
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "Ilx1MDBFOVx1RDgzRFx1REUwMCI=",
+        "utf8_bytes": 20,
+        "end_utf16": {
+          "position": 20,
+          "line": 0,
+          "column": 20
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          69,
+          57,
+          92,
+          117,
+          68,
+          56,
+          51,
+          68,
+          92,
+          117,
+          68,
+          69,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/true/1/clone/true",
+      "route": "typescript",
+      "parents": true,
+      "token": "\"é😀\"",
+      "operation": "clone",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 6
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "IsOp8J+YgCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 5,
+          "line": 0,
+          "column": 5
+        },
+        "text_utf16": [
+          34,
+          233,
+          55357,
+          56832,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/true/1/clone-ranged/false",
+      "route": "typescript",
+      "parents": true,
+      "token": "\"é😀\"",
+      "operation": "clone-ranged",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 6
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "Ilx1MDBFOVx1RDgzRFx1REUwMCI=",
+        "utf8_bytes": 20,
+        "end_utf16": {
+          "position": 20,
+          "line": 0,
+          "column": 20
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          69,
+          57,
+          92,
+          117,
+          68,
+          56,
+          51,
+          68,
+          92,
+          117,
+          68,
+          69,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/true/1/clone-ranged/true",
+      "route": "typescript",
+      "parents": true,
+      "token": "\"é😀\"",
+      "operation": "clone-ranged",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 6
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "IsOp8J+YgCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 5,
+          "line": 0,
+          "column": 5
+        },
+        "text_utf16": [
+          34,
+          233,
+          55357,
+          56832,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/true/2/parsed/false",
+      "route": "typescript",
+      "parents": true,
+      "token": "\"\\u00e9\\uD83D\\uDE00\"",
+      "operation": "parsed",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 21
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 21
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1MDBlOVx1RDgzRFx1REUwMCI=",
+        "utf8_bytes": 20,
+        "end_utf16": {
+          "position": 20,
+          "line": 0,
+          "column": 20
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          101,
+          57,
+          92,
+          117,
+          68,
+          56,
+          51,
+          68,
+          92,
+          117,
+          68,
+          69,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/true/2/parsed/true",
+      "route": "typescript",
+      "parents": true,
+      "token": "\"\\u00e9\\uD83D\\uDE00\"",
+      "operation": "parsed",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 21
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 21
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1MDBlOVx1RDgzRFx1REUwMCI=",
+        "utf8_bytes": 20,
+        "end_utf16": {
+          "position": 20,
+          "line": 0,
+          "column": 20
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          101,
+          57,
+          92,
+          117,
+          68,
+          56,
+          51,
+          68,
+          92,
+          117,
+          68,
+          69,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/true/2/parsed-synthesized-flag/false",
+      "route": "typescript",
+      "parents": true,
+      "token": "\"\\u00e9\\uD83D\\uDE00\"",
+      "operation": "parsed-synthesized-flag",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 21
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 21
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1MDBlOVx1RDgzRFx1REUwMCI=",
+        "utf8_bytes": 20,
+        "end_utf16": {
+          "position": 20,
+          "line": 0,
+          "column": 20
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          101,
+          57,
+          92,
+          117,
+          68,
+          56,
+          51,
+          68,
+          92,
+          117,
+          68,
+          69,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/true/2/parsed-synthesized-flag/true",
+      "route": "typescript",
+      "parents": true,
+      "token": "\"\\u00e9\\uD83D\\uDE00\"",
+      "operation": "parsed-synthesized-flag",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 21
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 21
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1MDBlOVx1RDgzRFx1REUwMCI=",
+        "utf8_bytes": 20,
+        "end_utf16": {
+          "position": 20,
+          "line": 0,
+          "column": 20
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          101,
+          57,
+          92,
+          117,
+          68,
+          56,
+          51,
+          68,
+          92,
+          117,
+          68,
+          69,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/true/2/clone/false",
+      "route": "typescript",
+      "parents": true,
+      "token": "\"\\u00e9\\uD83D\\uDE00\"",
+      "operation": "clone",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 21
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "Ilx1MDBFOVx1RDgzRFx1REUwMCI=",
+        "utf8_bytes": 20,
+        "end_utf16": {
+          "position": 20,
+          "line": 0,
+          "column": 20
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          69,
+          57,
+          92,
+          117,
+          68,
+          56,
+          51,
+          68,
+          92,
+          117,
+          68,
+          69,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/true/2/clone/true",
+      "route": "typescript",
+      "parents": true,
+      "token": "\"\\u00e9\\uD83D\\uDE00\"",
+      "operation": "clone",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 21
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "IsOp8J+YgCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 5,
+          "line": 0,
+          "column": 5
+        },
+        "text_utf16": [
+          34,
+          233,
+          55357,
+          56832,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/true/2/clone-ranged/false",
+      "route": "typescript",
+      "parents": true,
+      "token": "\"\\u00e9\\uD83D\\uDE00\"",
+      "operation": "clone-ranged",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 21
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "Ilx1MDBFOVx1RDgzRFx1REUwMCI=",
+        "utf8_bytes": 20,
+        "end_utf16": {
+          "position": 20,
+          "line": 0,
+          "column": 20
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          69,
+          57,
+          92,
+          117,
+          68,
+          56,
+          51,
+          68,
+          92,
+          117,
+          68,
+          69,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/true/2/clone-ranged/true",
+      "route": "typescript",
+      "parents": true,
+      "token": "\"\\u00e9\\uD83D\\uDE00\"",
+      "operation": "clone-ranged",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 21
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "IsOp8J+YgCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 5,
+          "line": 0,
+          "column": 5
+        },
+        "text_utf16": [
+          34,
+          233,
+          55357,
+          56832,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/true/3/parsed/false",
+      "route": "typescript",
+      "parents": true,
+      "token": "\"\\uD800\"",
+      "operation": "parsed",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 9
+            },
+            "value_utf16": [
+              55296
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 9
+            },
+            "value_utf16": [
+              55296
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 8,
+          "line": 0,
+          "column": 8
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/true/3/parsed/true",
+      "route": "typescript",
+      "parents": true,
+      "token": "\"\\uD800\"",
+      "operation": "parsed",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 9
+            },
+            "value_utf16": [
+              55296
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 9
+            },
+            "value_utf16": [
+              55296
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 8,
+          "line": 0,
+          "column": 8
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/true/3/parsed-synthesized-flag/false",
+      "route": "typescript",
+      "parents": true,
+      "token": "\"\\uD800\"",
+      "operation": "parsed-synthesized-flag",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 9
+            },
+            "value_utf16": [
+              55296
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 9
+            },
+            "value_utf16": [
+              55296
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 8,
+          "line": 0,
+          "column": 8
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/true/3/parsed-synthesized-flag/true",
+      "route": "typescript",
+      "parents": true,
+      "token": "\"\\uD800\"",
+      "operation": "parsed-synthesized-flag",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 9
+            },
+            "value_utf16": [
+              55296
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 9
+            },
+            "value_utf16": [
+              55296
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 8,
+          "line": 0,
+          "column": 8
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/true/3/clone/false",
+      "route": "typescript",
+      "parents": true,
+      "token": "\"\\uD800\"",
+      "operation": "clone",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 9
+            },
+            "value_utf16": [
+              55296
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 8,
+          "line": 0,
+          "column": 8
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/true/3/clone/true",
+      "route": "typescript",
+      "parents": true,
+      "token": "\"\\uD800\"",
+      "operation": "clone",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 9
+            },
+            "value_utf16": [
+              55296
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "Iu+/vSI=",
+        "utf8_bytes": 5,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          55296,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/true/3/clone-ranged/false",
+      "route": "typescript",
+      "parents": true,
+      "token": "\"\\uD800\"",
+      "operation": "clone-ranged",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 9
+            },
+            "value_utf16": [
+              55296
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 8,
+          "line": 0,
+          "column": 8
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/typescript/true/3/clone-ranged/true",
+      "route": "typescript",
+      "parents": true,
+      "token": "\"\\uD800\"",
+      "operation": "clone-ranged",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 0,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 9
+            },
+            "value_utf16": [
+              55296
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 16,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "Iu+/vSI=",
+        "utf8_bytes": 5,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          55296,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/false/0/parsed/false",
+      "route": "json",
+      "parents": false,
+      "token": "\"\\u0061\"",
+      "operation": "parsed",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "ImEi",
+        "utf8_bytes": 3,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          97,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/false/0/parsed/true",
+      "route": "json",
+      "parents": false,
+      "token": "\"\\u0061\"",
+      "operation": "parsed",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "ImEi",
+        "utf8_bytes": 3,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          97,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/false/0/parsed-synthesized-flag/false",
+      "route": "json",
+      "parents": false,
+      "token": "\"\\u0061\"",
+      "operation": "parsed-synthesized-flag",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "ImEi",
+        "utf8_bytes": 3,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          97,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/false/0/parsed-synthesized-flag/true",
+      "route": "json",
+      "parents": false,
+      "token": "\"\\u0061\"",
+      "operation": "parsed-synthesized-flag",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "ImEi",
+        "utf8_bytes": 3,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          97,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/false/0/clone/false",
+      "route": "json",
+      "parents": false,
+      "token": "\"\\u0061\"",
+      "operation": "clone",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "ImEi",
+        "utf8_bytes": 3,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          97,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/false/0/clone/true",
+      "route": "json",
+      "parents": false,
+      "token": "\"\\u0061\"",
+      "operation": "clone",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "ImEi",
+        "utf8_bytes": 3,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          97,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/false/0/clone-ranged/false",
+      "route": "json",
+      "parents": false,
+      "token": "\"\\u0061\"",
+      "operation": "clone-ranged",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "ImEi",
+        "utf8_bytes": 3,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          97,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/false/0/clone-ranged/true",
+      "route": "json",
+      "parents": false,
+      "token": "\"\\u0061\"",
+      "operation": "clone-ranged",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "ImEi",
+        "utf8_bytes": 3,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          97,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/false/1/parsed/false",
+      "route": "json",
+      "parents": false,
+      "token": "\"é😀\"",
+      "operation": "parsed",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1MDBFOVx1RDgzRFx1REUwMCI=",
+        "utf8_bytes": 20,
+        "end_utf16": {
+          "position": 20,
+          "line": 0,
+          "column": 20
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          69,
+          57,
+          92,
+          117,
+          68,
+          56,
+          51,
+          68,
+          92,
+          117,
+          68,
+          69,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/false/1/parsed/true",
+      "route": "json",
+      "parents": false,
+      "token": "\"é😀\"",
+      "operation": "parsed",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "IsOp8J+YgCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 5,
+          "line": 0,
+          "column": 5
+        },
+        "text_utf16": [
+          34,
+          233,
+          55357,
+          56832,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/false/1/parsed-synthesized-flag/false",
+      "route": "json",
+      "parents": false,
+      "token": "\"é😀\"",
+      "operation": "parsed-synthesized-flag",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1MDBFOVx1RDgzRFx1REUwMCI=",
+        "utf8_bytes": 20,
+        "end_utf16": {
+          "position": 20,
+          "line": 0,
+          "column": 20
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          69,
+          57,
+          92,
+          117,
+          68,
+          56,
+          51,
+          68,
+          92,
+          117,
+          68,
+          69,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/false/1/parsed-synthesized-flag/true",
+      "route": "json",
+      "parents": false,
+      "token": "\"é😀\"",
+      "operation": "parsed-synthesized-flag",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "IsOp8J+YgCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 5,
+          "line": 0,
+          "column": 5
+        },
+        "text_utf16": [
+          34,
+          233,
+          55357,
+          56832,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/false/1/clone/false",
+      "route": "json",
+      "parents": false,
+      "token": "\"é😀\"",
+      "operation": "clone",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "Ilx1MDBFOVx1RDgzRFx1REUwMCI=",
+        "utf8_bytes": 20,
+        "end_utf16": {
+          "position": 20,
+          "line": 0,
+          "column": 20
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          69,
+          57,
+          92,
+          117,
+          68,
+          56,
+          51,
+          68,
+          92,
+          117,
+          68,
+          69,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/false/1/clone/true",
+      "route": "json",
+      "parents": false,
+      "token": "\"é😀\"",
+      "operation": "clone",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "IsOp8J+YgCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 5,
+          "line": 0,
+          "column": 5
+        },
+        "text_utf16": [
+          34,
+          233,
+          55357,
+          56832,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/false/1/clone-ranged/false",
+      "route": "json",
+      "parents": false,
+      "token": "\"é😀\"",
+      "operation": "clone-ranged",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "Ilx1MDBFOVx1RDgzRFx1REUwMCI=",
+        "utf8_bytes": 20,
+        "end_utf16": {
+          "position": 20,
+          "line": 0,
+          "column": 20
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          69,
+          57,
+          92,
+          117,
+          68,
+          56,
+          51,
+          68,
+          92,
+          117,
+          68,
+          69,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/false/1/clone-ranged/true",
+      "route": "json",
+      "parents": false,
+      "token": "\"é😀\"",
+      "operation": "clone-ranged",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "IsOp8J+YgCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 5,
+          "line": 0,
+          "column": 5
+        },
+        "text_utf16": [
+          34,
+          233,
+          55357,
+          56832,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/false/2/parsed/false",
+      "route": "json",
+      "parents": false,
+      "token": "\"\\u00e9\\uD83D\\uDE00\"",
+      "operation": "parsed",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1MDBFOVx1RDgzRFx1REUwMCI=",
+        "utf8_bytes": 20,
+        "end_utf16": {
+          "position": 20,
+          "line": 0,
+          "column": 20
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          69,
+          57,
+          92,
+          117,
+          68,
+          56,
+          51,
+          68,
+          92,
+          117,
+          68,
+          69,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/false/2/parsed/true",
+      "route": "json",
+      "parents": false,
+      "token": "\"\\u00e9\\uD83D\\uDE00\"",
+      "operation": "parsed",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "IsOp8J+YgCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 5,
+          "line": 0,
+          "column": 5
+        },
+        "text_utf16": [
+          34,
+          233,
+          55357,
+          56832,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/false/2/parsed-synthesized-flag/false",
+      "route": "json",
+      "parents": false,
+      "token": "\"\\u00e9\\uD83D\\uDE00\"",
+      "operation": "parsed-synthesized-flag",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1MDBFOVx1RDgzRFx1REUwMCI=",
+        "utf8_bytes": 20,
+        "end_utf16": {
+          "position": 20,
+          "line": 0,
+          "column": 20
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          69,
+          57,
+          92,
+          117,
+          68,
+          56,
+          51,
+          68,
+          92,
+          117,
+          68,
+          69,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/false/2/parsed-synthesized-flag/true",
+      "route": "json",
+      "parents": false,
+      "token": "\"\\u00e9\\uD83D\\uDE00\"",
+      "operation": "parsed-synthesized-flag",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "IsOp8J+YgCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 5,
+          "line": 0,
+          "column": 5
+        },
+        "text_utf16": [
+          34,
+          233,
+          55357,
+          56832,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/false/2/clone/false",
+      "route": "json",
+      "parents": false,
+      "token": "\"\\u00e9\\uD83D\\uDE00\"",
+      "operation": "clone",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "Ilx1MDBFOVx1RDgzRFx1REUwMCI=",
+        "utf8_bytes": 20,
+        "end_utf16": {
+          "position": 20,
+          "line": 0,
+          "column": 20
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          69,
+          57,
+          92,
+          117,
+          68,
+          56,
+          51,
+          68,
+          92,
+          117,
+          68,
+          69,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/false/2/clone/true",
+      "route": "json",
+      "parents": false,
+      "token": "\"\\u00e9\\uD83D\\uDE00\"",
+      "operation": "clone",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "IsOp8J+YgCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 5,
+          "line": 0,
+          "column": 5
+        },
+        "text_utf16": [
+          34,
+          233,
+          55357,
+          56832,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/false/2/clone-ranged/false",
+      "route": "json",
+      "parents": false,
+      "token": "\"\\u00e9\\uD83D\\uDE00\"",
+      "operation": "clone-ranged",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "Ilx1MDBFOVx1RDgzRFx1REUwMCI=",
+        "utf8_bytes": 20,
+        "end_utf16": {
+          "position": 20,
+          "line": 0,
+          "column": 20
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          69,
+          57,
+          92,
+          117,
+          68,
+          56,
+          51,
+          68,
+          92,
+          117,
+          68,
+          69,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/false/2/clone-ranged/true",
+      "route": "json",
+      "parents": false,
+      "token": "\"\\u00e9\\uD83D\\uDE00\"",
+      "operation": "clone-ranged",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "IsOp8J+YgCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 5,
+          "line": 0,
+          "column": 5
+        },
+        "text_utf16": [
+          34,
+          233,
+          55357,
+          56832,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/false/3/parsed/false",
+      "route": "json",
+      "parents": false,
+      "token": "\"\\uD800\"",
+      "operation": "parsed",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 8,
+          "line": 0,
+          "column": 8
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/false/3/parsed/true",
+      "route": "json",
+      "parents": false,
+      "token": "\"\\uD800\"",
+      "operation": "parsed",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Iu+/vSI=",
+        "utf8_bytes": 5,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          55296,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/false/3/parsed-synthesized-flag/false",
+      "route": "json",
+      "parents": false,
+      "token": "\"\\uD800\"",
+      "operation": "parsed-synthesized-flag",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 8,
+          "line": 0,
+          "column": 8
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/false/3/parsed-synthesized-flag/true",
+      "route": "json",
+      "parents": false,
+      "token": "\"\\uD800\"",
+      "operation": "parsed-synthesized-flag",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Iu+/vSI=",
+        "utf8_bytes": 5,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          55296,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/false/3/clone/false",
+      "route": "json",
+      "parents": false,
+      "token": "\"\\uD800\"",
+      "operation": "clone",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 8,
+          "line": 0,
+          "column": 8
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/false/3/clone/true",
+      "route": "json",
+      "parents": false,
+      "token": "\"\\uD800\"",
+      "operation": "clone",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "Iu+/vSI=",
+        "utf8_bytes": 5,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          55296,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/false/3/clone-ranged/false",
+      "route": "json",
+      "parents": false,
+      "token": "\"\\uD800\"",
+      "operation": "clone-ranged",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 8,
+          "line": 0,
+          "column": 8
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/false/3/clone-ranged/true",
+      "route": "json",
+      "parents": false,
+      "token": "\"\\uD800\"",
+      "operation": "clone-ranged",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "Iu+/vSI=",
+        "utf8_bytes": 5,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          55296,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/true/0/parsed/false",
+      "route": "json",
+      "parents": true,
+      "token": "\"\\u0061\"",
+      "operation": "parsed",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 8
+            },
+            "value_utf16": [
+              97
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 8
+            },
+            "value_utf16": [
+              97
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1MDA2MSI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 8,
+          "line": 0,
+          "column": 8
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          54,
+          49,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/true/0/parsed/true",
+      "route": "json",
+      "parents": true,
+      "token": "\"\\u0061\"",
+      "operation": "parsed",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 8
+            },
+            "value_utf16": [
+              97
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 8
+            },
+            "value_utf16": [
+              97
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1MDA2MSI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 8,
+          "line": 0,
+          "column": 8
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          54,
+          49,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/true/0/parsed-synthesized-flag/false",
+      "route": "json",
+      "parents": true,
+      "token": "\"\\u0061\"",
+      "operation": "parsed-synthesized-flag",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 8
+            },
+            "value_utf16": [
+              97
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 8
+            },
+            "value_utf16": [
+              97
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1MDA2MSI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 8,
+          "line": 0,
+          "column": 8
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          54,
+          49,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/true/0/parsed-synthesized-flag/true",
+      "route": "json",
+      "parents": true,
+      "token": "\"\\u0061\"",
+      "operation": "parsed-synthesized-flag",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 8
+            },
+            "value_utf16": [
+              97
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 8
+            },
+            "value_utf16": [
+              97
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1MDA2MSI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 8,
+          "line": 0,
+          "column": 8
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          54,
+          49,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/true/0/clone/false",
+      "route": "json",
+      "parents": true,
+      "token": "\"\\u0061\"",
+      "operation": "clone",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 8
+            },
+            "value_utf16": [
+              97
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "ImEi",
+        "utf8_bytes": 3,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          97,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/true/0/clone/true",
+      "route": "json",
+      "parents": true,
+      "token": "\"\\u0061\"",
+      "operation": "clone",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 8
+            },
+            "value_utf16": [
+              97
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "ImEi",
+        "utf8_bytes": 3,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          97,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/true/0/clone-ranged/false",
+      "route": "json",
+      "parents": true,
+      "token": "\"\\u0061\"",
+      "operation": "clone-ranged",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 8
+            },
+            "value_utf16": [
+              97
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "ImEi",
+        "utf8_bytes": 3,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          97,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/true/0/clone-ranged/true",
+      "route": "json",
+      "parents": true,
+      "token": "\"\\u0061\"",
+      "operation": "clone-ranged",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 8
+            },
+            "value_utf16": [
+              97
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              97
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "ImEi",
+        "utf8_bytes": 3,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          97,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/true/1/parsed/false",
+      "route": "json",
+      "parents": true,
+      "token": "\"é😀\"",
+      "operation": "parsed",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 5
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 5
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "IsOp8J+YgCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 5,
+          "line": 0,
+          "column": 5
+        },
+        "text_utf16": [
+          34,
+          233,
+          55357,
+          56832,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/true/1/parsed/true",
+      "route": "json",
+      "parents": true,
+      "token": "\"é😀\"",
+      "operation": "parsed",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 5
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 5
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "IsOp8J+YgCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 5,
+          "line": 0,
+          "column": 5
+        },
+        "text_utf16": [
+          34,
+          233,
+          55357,
+          56832,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/true/1/parsed-synthesized-flag/false",
+      "route": "json",
+      "parents": true,
+      "token": "\"é😀\"",
+      "operation": "parsed-synthesized-flag",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 5
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 5
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "IsOp8J+YgCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 5,
+          "line": 0,
+          "column": 5
+        },
+        "text_utf16": [
+          34,
+          233,
+          55357,
+          56832,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/true/1/parsed-synthesized-flag/true",
+      "route": "json",
+      "parents": true,
+      "token": "\"é😀\"",
+      "operation": "parsed-synthesized-flag",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 5
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 5
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "IsOp8J+YgCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 5,
+          "line": 0,
+          "column": 5
+        },
+        "text_utf16": [
+          34,
+          233,
+          55357,
+          56832,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/true/1/clone/false",
+      "route": "json",
+      "parents": true,
+      "token": "\"é😀\"",
+      "operation": "clone",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 5
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "Ilx1MDBFOVx1RDgzRFx1REUwMCI=",
+        "utf8_bytes": 20,
+        "end_utf16": {
+          "position": 20,
+          "line": 0,
+          "column": 20
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          69,
+          57,
+          92,
+          117,
+          68,
+          56,
+          51,
+          68,
+          92,
+          117,
+          68,
+          69,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/true/1/clone/true",
+      "route": "json",
+      "parents": true,
+      "token": "\"é😀\"",
+      "operation": "clone",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 5
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "IsOp8J+YgCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 5,
+          "line": 0,
+          "column": 5
+        },
+        "text_utf16": [
+          34,
+          233,
+          55357,
+          56832,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/true/1/clone-ranged/false",
+      "route": "json",
+      "parents": true,
+      "token": "\"é😀\"",
+      "operation": "clone-ranged",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 5
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "Ilx1MDBFOVx1RDgzRFx1REUwMCI=",
+        "utf8_bytes": 20,
+        "end_utf16": {
+          "position": 20,
+          "line": 0,
+          "column": 20
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          69,
+          57,
+          92,
+          117,
+          68,
+          56,
+          51,
+          68,
+          92,
+          117,
+          68,
+          69,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/true/1/clone-ranged/true",
+      "route": "json",
+      "parents": true,
+      "token": "\"é😀\"",
+      "operation": "clone-ranged",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 5
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 5,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "IsOp8J+YgCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 5,
+          "line": 0,
+          "column": 5
+        },
+        "text_utf16": [
+          34,
+          233,
+          55357,
+          56832,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/true/2/parsed/false",
+      "route": "json",
+      "parents": true,
+      "token": "\"\\u00e9\\uD83D\\uDE00\"",
+      "operation": "parsed",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 20
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 20
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1MDBlOVx1RDgzRFx1REUwMCI=",
+        "utf8_bytes": 20,
+        "end_utf16": {
+          "position": 20,
+          "line": 0,
+          "column": 20
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          101,
+          57,
+          92,
+          117,
+          68,
+          56,
+          51,
+          68,
+          92,
+          117,
+          68,
+          69,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/true/2/parsed/true",
+      "route": "json",
+      "parents": true,
+      "token": "\"\\u00e9\\uD83D\\uDE00\"",
+      "operation": "parsed",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 20
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 20
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1MDBlOVx1RDgzRFx1REUwMCI=",
+        "utf8_bytes": 20,
+        "end_utf16": {
+          "position": 20,
+          "line": 0,
+          "column": 20
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          101,
+          57,
+          92,
+          117,
+          68,
+          56,
+          51,
+          68,
+          92,
+          117,
+          68,
+          69,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/true/2/parsed-synthesized-flag/false",
+      "route": "json",
+      "parents": true,
+      "token": "\"\\u00e9\\uD83D\\uDE00\"",
+      "operation": "parsed-synthesized-flag",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 20
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 20
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1MDBlOVx1RDgzRFx1REUwMCI=",
+        "utf8_bytes": 20,
+        "end_utf16": {
+          "position": 20,
+          "line": 0,
+          "column": 20
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          101,
+          57,
+          92,
+          117,
+          68,
+          56,
+          51,
+          68,
+          92,
+          117,
+          68,
+          69,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/true/2/parsed-synthesized-flag/true",
+      "route": "json",
+      "parents": true,
+      "token": "\"\\u00e9\\uD83D\\uDE00\"",
+      "operation": "parsed-synthesized-flag",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 20
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 20
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1MDBlOVx1RDgzRFx1REUwMCI=",
+        "utf8_bytes": 20,
+        "end_utf16": {
+          "position": 20,
+          "line": 0,
+          "column": 20
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          101,
+          57,
+          92,
+          117,
+          68,
+          56,
+          51,
+          68,
+          92,
+          117,
+          68,
+          69,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/true/2/clone/false",
+      "route": "json",
+      "parents": true,
+      "token": "\"\\u00e9\\uD83D\\uDE00\"",
+      "operation": "clone",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 20
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "Ilx1MDBFOVx1RDgzRFx1REUwMCI=",
+        "utf8_bytes": 20,
+        "end_utf16": {
+          "position": 20,
+          "line": 0,
+          "column": 20
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          69,
+          57,
+          92,
+          117,
+          68,
+          56,
+          51,
+          68,
+          92,
+          117,
+          68,
+          69,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/true/2/clone/true",
+      "route": "json",
+      "parents": true,
+      "token": "\"\\u00e9\\uD83D\\uDE00\"",
+      "operation": "clone",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 20
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "IsOp8J+YgCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 5,
+          "line": 0,
+          "column": 5
+        },
+        "text_utf16": [
+          34,
+          233,
+          55357,
+          56832,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/true/2/clone-ranged/false",
+      "route": "json",
+      "parents": true,
+      "token": "\"\\u00e9\\uD83D\\uDE00\"",
+      "operation": "clone-ranged",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 20
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "Ilx1MDBFOVx1RDgzRFx1REUwMCI=",
+        "utf8_bytes": 20,
+        "end_utf16": {
+          "position": 20,
+          "line": 0,
+          "column": 20
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          48,
+          48,
+          69,
+          57,
+          92,
+          117,
+          68,
+          56,
+          51,
+          68,
+          92,
+          117,
+          68,
+          69,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/true/2/clone-ranged/true",
+      "route": "json",
+      "parents": true,
+      "token": "\"\\u00e9\\uD83D\\uDE00\"",
+      "operation": "clone-ranged",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 20
+            },
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 20,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              233,
+              55357,
+              56832
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "IsOp8J+YgCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 5,
+          "line": 0,
+          "column": 5
+        },
+        "text_utf16": [
+          34,
+          233,
+          55357,
+          56832,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/true/3/parsed/false",
+      "route": "json",
+      "parents": true,
+      "token": "\"\\uD800\"",
+      "operation": "parsed",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 8
+            },
+            "value_utf16": [
+              55296
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 8
+            },
+            "value_utf16": [
+              55296
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 8,
+          "line": 0,
+          "column": 8
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/true/3/parsed/true",
+      "route": "json",
+      "parents": true,
+      "token": "\"\\uD800\"",
+      "operation": "parsed",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 8
+            },
+            "value_utf16": [
+              55296
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 8
+            },
+            "value_utf16": [
+              55296
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 8,
+          "line": 0,
+          "column": 8
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/true/3/parsed-synthesized-flag/false",
+      "route": "json",
+      "parents": true,
+      "token": "\"\\uD800\"",
+      "operation": "parsed-synthesized-flag",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 8
+            },
+            "value_utf16": [
+              55296
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 8
+            },
+            "value_utf16": [
+              55296
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 8,
+          "line": 0,
+          "column": 8
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/true/3/parsed-synthesized-flag/true",
+      "route": "json",
+      "parents": true,
+      "token": "\"\\uD800\"",
+      "operation": "parsed-synthesized-flag",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 8
+            },
+            "value_utf16": [
+              55296
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 8
+            },
+            "value_utf16": [
+              55296
+            ]
+          },
+          "same_parsed": true
+        },
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 8,
+          "line": 0,
+          "column": 8
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/true/3/clone/false",
+      "route": "json",
+      "parents": true,
+      "token": "\"\\uD800\"",
+      "operation": "clone",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 8
+            },
+            "value_utf16": [
+              55296
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 8,
+          "line": 0,
+          "column": 8
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/true/3/clone/true",
+      "route": "json",
+      "parents": true,
+      "token": "\"\\uD800\"",
+      "operation": "clone",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 8
+            },
+            "value_utf16": [
+              55296
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": -1,
+            "end": -1,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "Iu+/vSI=",
+        "utf8_bytes": 5,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          55296,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/true/3/clone-ranged/false",
+      "route": "json",
+      "parents": true,
+      "token": "\"\\uD800\"",
+      "operation": "clone-ranged",
+      "never_ascii_escape": false,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 8
+            },
+            "value_utf16": [
+              55296
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "Ilx1RDgwMCI=",
+        "utf8_bytes": 8,
+        "end_utf16": {
+          "position": 8,
+          "line": 0,
+          "column": 8
+        },
+        "text_utf16": [
+          34,
+          92,
+          117,
+          68,
+          56,
+          48,
+          48,
+          34
+        ]
+      }
+    },
+    {
+      "case_id": "literal-parent/json/true/3/clone-ranged/true",
+      "route": "json",
+      "parents": true,
+      "token": "\"\\uD800\"",
+      "operation": "clone-ranged",
+      "never_ascii_escape": true,
+      "typescript_observation": {
+        "tree_state": {
+          "parsed": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742016,
+            "emit_flags": 0,
+            "original_present": false,
+            "parent": {
+              "kind": 245,
+              "pos": 0,
+              "end": 8
+            },
+            "value_utf16": [
+              55296
+            ]
+          },
+          "node": {
+            "kind": 11,
+            "pos": 0,
+            "end": 8,
+            "flags": 134742032,
+            "emit_flags": 0,
+            "original_present": true,
+            "parent": null,
+            "value_utf16": [
+              55296
+            ]
+          },
+          "same_parsed": false
+        },
+        "utf8_base64": "Iu+/vSI=",
+        "utf8_bytes": 5,
+        "end_utf16": {
+          "position": 3,
+          "line": 0,
+          "column": 3
+        },
+        "text_utf16": [
+          34,
+          55296,
+          34
+        ]
+      }
+    }
+  ],
+  "source_observations": {
+    "path": "crates/emitter/tests/fixtures/literal-parent-provenance.json",
+    "sha256": "1f667aa43870ac0e813ebc9a071e3ead997665386d7f6897ccd4bccfd92098a4",
+    "observer_sha256": "1bab91ac56c99d1e73ea2944825db41d5c68f3ce4327d57478bb8bc1596b96ec"
+  }
+}

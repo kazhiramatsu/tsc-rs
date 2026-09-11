@@ -1,0 +1,2131 @@
+{
+  "version": 1,
+  "status": "complete-global-checkpoint-with-remaining-failures",
+  "revision": "6689382a56f3397573bf17120252dd71ddc5a87a",
+  "eligible": 769,
+  "later_references": 40,
+  "exact": 706,
+  "failed": 63,
+  "exact_twice": [
+    "typescript-6.0.3/compiler/allowJscheckJsTypeParameterNoCrash.ts#default",
+    "typescript-6.0.3/compiler/ambientRequireFunction.ts#module%3Dcommonjs",
+    "typescript-6.0.3/compiler/ambientRequireFunction.ts#module%3Dpreserve",
+    "typescript-6.0.3/compiler/argumentsPropertyNameInJsMode1.ts#default",
+    "typescript-6.0.3/compiler/argumentsPropertyNameInJsMode2.ts#default",
+    "typescript-6.0.3/compiler/argumentsReferenceInObjectLiteral_Js.ts#alwaysstrict%3Dfalse",
+    "typescript-6.0.3/compiler/argumentsReferenceInObjectLiteral_Js.ts#alwaysstrict%3Dtrue",
+    "typescript-6.0.3/compiler/checkJsObjectLiteralHasCheckedKeyof.ts#default",
+    "typescript-6.0.3/compiler/checkJsObjectLiteralIndexSignatures.ts#default",
+    "typescript-6.0.3/compiler/checkJsdocTypeTagOnExportAssignment1.ts#default",
+    "typescript-6.0.3/compiler/checkJsdocTypeTagOnExportAssignment2.ts#default",
+    "typescript-6.0.3/compiler/checkJsdocTypeTagOnExportAssignment3.ts#default",
+    "typescript-6.0.3/compiler/checkJsdocTypeTagOnExportAssignment4.ts#default",
+    "typescript-6.0.3/compiler/checkJsdocTypeTagOnExportAssignment5.ts#default",
+    "typescript-6.0.3/compiler/checkJsdocTypeTagOnExportAssignment6.ts#default",
+    "typescript-6.0.3/compiler/checkJsdocTypeTagOnExportAssignment7.ts#default",
+    "typescript-6.0.3/compiler/checkJsdocTypeTagOnExportAssignment8.ts#default",
+    "typescript-6.0.3/compiler/commonSourceDir1.ts#default",
+    "typescript-6.0.3/compiler/commonSourceDir2.ts#default",
+    "typescript-6.0.3/compiler/commonSourceDir3.ts#default",
+    "typescript-6.0.3/compiler/commonSourceDir4.ts#default",
+    "typescript-6.0.3/compiler/commonSourceDir6.ts#default",
+    "typescript-6.0.3/compiler/commonSourceDirectory.ts#default",
+    "typescript-6.0.3/compiler/commonSourceDirectory_dts.ts#default",
+    "typescript-6.0.3/compiler/declarationEmitMonorepoBaseUrl.ts#default",
+    "typescript-6.0.3/compiler/declarationEmitPathMappingMonorepo.ts#default",
+    "typescript-6.0.3/compiler/declarationEmitPrefersPathKindBasedOnBundling.ts#target%3Des2015",
+    "typescript-6.0.3/compiler/declarationEmitPrefersPathKindBasedOnBundling.ts#target%3Des5",
+    "typescript-6.0.3/compiler/declarationEmitPrefersPathKindBasedOnBundling2.ts#target%3Des2015",
+    "typescript-6.0.3/compiler/declarationEmitPrefersPathKindBasedOnBundling2.ts#target%3Des5",
+    "typescript-6.0.3/compiler/declarationEmitReexportedSymlinkReference.ts#default",
+    "typescript-6.0.3/compiler/declarationEmitReexportedSymlinkReference2.ts#default",
+    "typescript-6.0.3/compiler/declarationEmitReexportedSymlinkReference3.ts#default",
+    "typescript-6.0.3/compiler/declarationEmitSymlinkPaths.ts#target%3Des2015",
+    "typescript-6.0.3/compiler/declarationEmitSymlinkPaths.ts#target%3Des5",
+    "typescript-6.0.3/compiler/defaultPropsEmptyCurlyBecomesAnyForJs.ts#default",
+    "typescript-6.0.3/compiler/elidedJSImport1.ts#default",
+    "typescript-6.0.3/compiler/expandoFunctionSymbolPropertyJs.ts#default",
+    "typescript-6.0.3/compiler/exportDefaultMarksIdentifierAsUsed.ts#default",
+    "typescript-6.0.3/compiler/extendedUnicodePlaneIdentifiersJSDoc.ts#default",
+    "typescript-6.0.3/compiler/extendsJavaScript.ts#default",
+    "typescript-6.0.3/compiler/impliedNodeFormatEmit1.ts#module%3Dcommonjs",
+    "typescript-6.0.3/compiler/impliedNodeFormatEmit1.ts#module%3Desnext",
+    "typescript-6.0.3/compiler/impliedNodeFormatEmit1.ts#module%3Dpreserve",
+    "typescript-6.0.3/compiler/impliedNodeFormatEmit1.ts#module%3Dsystem",
+    "typescript-6.0.3/compiler/impliedNodeFormatEmit2.ts#module%3Dcommonjs",
+    "typescript-6.0.3/compiler/impliedNodeFormatEmit2.ts#module%3Desnext",
+    "typescript-6.0.3/compiler/impliedNodeFormatEmit2.ts#module%3Dpreserve",
+    "typescript-6.0.3/compiler/impliedNodeFormatEmit3.ts#module%3Dcommonjs",
+    "typescript-6.0.3/compiler/impliedNodeFormatEmit3.ts#module%3Desnext",
+    "typescript-6.0.3/compiler/impliedNodeFormatEmit3.ts#module%3Dpreserve",
+    "typescript-6.0.3/compiler/impliedNodeFormatEmit4.ts#module%3Dcommonjs",
+    "typescript-6.0.3/compiler/impliedNodeFormatEmit4.ts#module%3Desnext",
+    "typescript-6.0.3/compiler/impliedNodeFormatEmit4.ts#module%3Dpreserve",
+    "typescript-6.0.3/compiler/importDeclFromTypeNodeInJsSource.ts#default",
+    "typescript-6.0.3/compiler/importHelpersCommonJSJavaScript.ts#verbatimmodulesyntax%3Dfalse",
+    "typescript-6.0.3/compiler/javascriptCommonjsModule.ts#default",
+    "typescript-6.0.3/compiler/javascriptThisAssignmentInStaticBlock.ts#default",
+    "typescript-6.0.3/compiler/jsDeclarationEmitExportedClassWithExtends.ts#default",
+    "typescript-6.0.3/compiler/jsDeclarationsInheritedTypes.ts#default",
+    "typescript-6.0.3/compiler/jsDocDeclarationEmitDoesNotUseNodeModulesPathWithoutError.ts#default",
+    "typescript-6.0.3/compiler/jsFileCompilationAwaitModifier.ts#default",
+    "typescript-6.0.3/compiler/jsFileCompilationErrorOnDeclarationsWithJsFileReferenceWithOutDir.ts#default",
+    "typescript-6.0.3/compiler/jsFileCompilationWithMapFileAsJsWithOutDir.ts#default",
+    "typescript-6.0.3/compiler/jsFileImportPreservedWhenUsed.ts#default",
+    "typescript-6.0.3/compiler/jsFileMethodOverloads.ts#default",
+    "typescript-6.0.3/compiler/jsFileMethodOverloads2.ts#default",
+    "typescript-6.0.3/compiler/jsFunctionWithPrototypeNoErrorTruncationNoCrash.ts#default",
+    "typescript-6.0.3/compiler/jsNoImplicitAnyNoCascadingReferenceErrors.ts#default",
+    "typescript-6.0.3/compiler/jsdocFunctionClassPropertiesDeclaration.ts#default",
+    "typescript-6.0.3/compiler/jsdocTypecastNoTypeNoCrash.ts#default",
+    "typescript-6.0.3/compiler/jsdocTypedefNoCrash.ts#default",
+    "typescript-6.0.3/compiler/jsdocTypedefNoCrash2.ts#default",
+    "typescript-6.0.3/compiler/jsonFileImportChecksCallCorrectlyTwice.ts#default",
+    "typescript-6.0.3/compiler/jsxPreserveWithJsInput.ts#default",
+    "typescript-6.0.3/compiler/lateBoundAssignmentCandidateJS1.ts#default",
+    "typescript-6.0.3/compiler/lateBoundAssignmentCandidateJS2.ts#default",
+    "typescript-6.0.3/compiler/lateBoundAssignmentCandidateJS3.ts#default",
+    "typescript-6.0.3/compiler/localRequireFunction.ts#default",
+    "typescript-6.0.3/compiler/moduleResolutionWithExtensions_withPaths.ts#default",
+    "typescript-6.0.3/compiler/moduleResolutionWithSuffixes_one_externalModule.ts#default",
+    "typescript-6.0.3/compiler/moduleResolutionWithSuffixes_one_externalModulePath.ts#default",
+    "typescript-6.0.3/compiler/moduleResolutionWithSuffixes_one_externalModule_withPaths.ts#default",
+    "typescript-6.0.3/compiler/moduleResolutionWithSuffixes_one_externalTSModule.ts#default",
+    "typescript-6.0.3/compiler/moduleResolutionWithSuffixes_one_jsModule.ts#default",
+    "typescript-6.0.3/compiler/moduleResolutionWithSuffixes_one_jsonModule.ts#default",
+    "typescript-6.0.3/compiler/moduleResolutionWithSymlinks_notInNodeModules.ts#default",
+    "typescript-6.0.3/compiler/moduleResolutionWithSymlinks_withOutDir.ts#default",
+    "typescript-6.0.3/compiler/narrowingPlainJsNoCrash1.ts#default",
+    "typescript-6.0.3/compiler/noCrashOnParameterNamedRequire.ts#default",
+    "typescript-6.0.3/compiler/nodeNextCjsNamespaceImportDefault1.ts#default",
+    "typescript-6.0.3/compiler/nodeNextCjsNamespaceImportDefault2.ts#default",
+    "typescript-6.0.3/compiler/nodeNextEsmImportsOfPackagesWithExtensionlessMains.ts#default",
+    "typescript-6.0.3/compiler/nodeNextPackageImportMapRootDir.ts#default",
+    "typescript-6.0.3/compiler/nodeNextPackageSelfNameWithOutDir.ts#default",
+    "typescript-6.0.3/compiler/nodeNextPackageSelfNameWithOutDirDeclDir.ts#default",
+    "typescript-6.0.3/compiler/nodeNextPackageSelfNameWithOutDirDeclDirNestedDirs.ts#default",
+    "typescript-6.0.3/compiler/nodeNextPackageSelfNameWithOutDirDeclDirRootDir.ts#default",
+    "typescript-6.0.3/compiler/nodeNextPackageSelfNameWithOutDirRootDir.ts#default",
+    "typescript-6.0.3/compiler/pathMappingBasedModuleResolution_rootImport_aliasWithRoot.ts#default",
+    "typescript-6.0.3/compiler/pathMappingBasedModuleResolution_rootImport_aliasWithRoot_differentRootTypes.ts#default",
+    "typescript-6.0.3/compiler/pathMappingBasedModuleResolution_rootImport_aliasWithRoot_multipleAliases.ts#default",
+    "typescript-6.0.3/compiler/pathMappingBasedModuleResolution_rootImport_aliasWithRoot_realRootFile.ts#default",
+    "typescript-6.0.3/compiler/pathMappingBasedModuleResolution_rootImport_noAliasWithRoot.ts#default",
+    "typescript-6.0.3/compiler/pathMappingBasedModuleResolution_rootImport_noAliasWithRoot_realRootFile.ts#default",
+    "typescript-6.0.3/compiler/pathMappingBasedModuleResolution_withExtension.ts#default",
+    "typescript-6.0.3/compiler/pathMappingBasedModuleResolution_withExtension_MapedToNodeModules.ts#default",
+    "typescript-6.0.3/compiler/requireAsFunctionInExternalModule.ts#default",
+    "typescript-6.0.3/compiler/requireOfJsonFile.ts#default",
+    "typescript-6.0.3/compiler/requireOfJsonFileNonRelative.ts#default",
+    "typescript-6.0.3/compiler/requireOfJsonFileNonRelativeWithoutExtension.ts#default",
+    "typescript-6.0.3/compiler/requireOfJsonFileNonRelativeWithoutExtensionResolvesToTs.ts#default",
+    "typescript-6.0.3/compiler/requireOfJsonFileTypes.ts#default",
+    "typescript-6.0.3/compiler/requireOfJsonFileWithAlwaysStrictWithoutErrors.ts#default",
+    "typescript-6.0.3/compiler/requireOfJsonFileWithAmd.ts#default",
+    "typescript-6.0.3/compiler/requireOfJsonFileWithDeclaration.ts#default",
+    "typescript-6.0.3/compiler/requireOfJsonFileWithEmptyObject.ts#default",
+    "typescript-6.0.3/compiler/requireOfJsonFileWithEmptyObjectWithErrors.ts#default",
+    "typescript-6.0.3/compiler/requireOfJsonFileWithModuleEmitNone.ts#target%3Des2015",
+    "typescript-6.0.3/compiler/requireOfJsonFileWithModuleEmitNone.ts#target%3Des5",
+    "typescript-6.0.3/compiler/requireOfJsonFileWithModuleEmitUndefined.ts#default",
+    "typescript-6.0.3/compiler/requireOfJsonFileWithModuleNodeResolutionEmitAmd.ts#default",
+    "typescript-6.0.3/compiler/requireOfJsonFileWithModuleNodeResolutionEmitEs2015.ts#default",
+    "typescript-6.0.3/compiler/requireOfJsonFileWithModuleNodeResolutionEmitEsNext.ts#default",
+    "typescript-6.0.3/compiler/requireOfJsonFileWithModuleNodeResolutionEmitNone.ts#target%3Des2015",
+    "typescript-6.0.3/compiler/requireOfJsonFileWithModuleNodeResolutionEmitNone.ts#target%3Des5",
+    "typescript-6.0.3/compiler/requireOfJsonFileWithModuleNodeResolutionEmitSystem.ts#default",
+    "typescript-6.0.3/compiler/requireOfJsonFileWithModuleNodeResolutionEmitUmd.ts#default",
+    "typescript-6.0.3/compiler/requireOfJsonFileWithModuleNodeResolutionEmitUndefined.ts#default",
+    "typescript-6.0.3/compiler/requireOfJsonFileWithNoContent.ts#default",
+    "typescript-6.0.3/compiler/requireOfJsonFileWithSourceMap.ts#default",
+    "typescript-6.0.3/compiler/requireOfJsonFileWithTraillingComma.ts#default",
+    "typescript-6.0.3/compiler/requireOfJsonFileWithoutAllowJs.ts#default",
+    "typescript-6.0.3/compiler/requireOfJsonFileWithoutEsModuleInterop.ts#default",
+    "typescript-6.0.3/compiler/requireOfJsonFileWithoutExtension.ts#default",
+    "typescript-6.0.3/compiler/requireOfJsonFileWithoutExtensionResolvesToTs.ts#default",
+    "typescript-6.0.3/compiler/requireOfJsonFileWithoutResolveJsonModuleAndPathMapping.ts#default",
+    "typescript-6.0.3/compiler/requireOfJsonFile_PathMapping.ts#default",
+    "typescript-6.0.3/compiler/resolveNameWithNamspace.ts#default",
+    "typescript-6.0.3/compiler/selfNameAndImportsEmitInclusion.ts#default",
+    "typescript-6.0.3/compiler/selfReferentialDefaultNoStackOverflow.ts#default",
+    "typescript-6.0.3/compiler/sourceMapWithCaseSensitiveFileNamesAndOutDir.ts#default",
+    "typescript-6.0.3/compiler/sourceMapWithNonCaseSensitiveFileNamesAndOutDir.ts#default",
+    "typescript-6.0.3/compiler/subclassThisTypeAssignable01.ts#default",
+    "typescript-6.0.3/compiler/subclassThisTypeAssignable02.ts#default",
+    "typescript-6.0.3/compiler/superNoModifiersCrash.ts#default",
+    "typescript-6.0.3/compiler/symbolLinkDeclarationEmitModuleNamesRootDir.ts#default",
+    "typescript-6.0.3/compiler/thisAssignmentInNamespaceDeclaration1.ts#default",
+    "typescript-6.0.3/compiler/thisInObjectJs.ts#default",
+    "typescript-6.0.3/compiler/unicodeEscapesInJSDoc.ts#default",
+    "typescript-6.0.3/compiler/uniqueSymbolJs2.ts#default",
+    "typescript-6.0.3/compiler/unreachableJavascriptChecked.ts#default",
+    "typescript-6.0.3/compiler/unreachableJavascriptUnchecked.ts#default",
+    "typescript-6.0.3/compiler/usedImportNotElidedInJs.ts#default",
+    "typescript-6.0.3/conformance/classes/members/privateNames/privateNamesIncompatibleModifiersJs.ts#default",
+    "typescript-6.0.3/conformance/classes/members/privateNames/typeFromPrivatePropertyAssignmentJs.ts#default",
+    "typescript-6.0.3/conformance/controlFlow/assertionTypePredicates2.ts#default",
+    "typescript-6.0.3/conformance/declarationEmit/leaveOptionalParameterAsWritten.ts#default",
+    "typescript-6.0.3/conformance/es6/moduleExportsAmd/outFilerootDirModuleNamesAmd.ts#default",
+    "typescript-6.0.3/conformance/es6/moduleExportsSystem/outFilerootDirModuleNamesSystem.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/callbackTagVariadicType.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/checkJsdocSatisfiesTag15.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassAccessor.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassExtendsVisibility.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassExtendsVisibility.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassLeadingOptional.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassLeadingOptional.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassLikeHeuristic.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassLikeHeuristic.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassStatic.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassStatic.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassStatic2.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassStaticMethodAugmentation.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassStaticMethodAugmentation.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClasses.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClasses.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassesErr.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassesErr.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsComputedNames.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsComputedNames.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsConstsAsNamespacesWithReferences.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsCrossfileMerge.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsCrossfileMerge.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsDefault.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsDefault.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsDefaultsErr.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsDefaultsErr.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsDocCommentsOnConsts.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsDocCommentsOnConsts.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsEnumTag.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsEnumTag.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsEnums.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsEnums.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassExpression.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassExpression.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassExpressionAnonymous.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassExpressionAnonymous.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassExpressionShadowing.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassExpressionShadowing.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance1.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance1.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance3.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance3.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedConstructorFunction.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedConstructorFunction.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedConstructorFunctionWithSub.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedConstructorFunctionWithSub.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedVisibility.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedVisibility.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignmentExpressionPlusSecondary.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignmentExpressionPlusSecondary.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignmentWithKeywordName.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignmentWithKeywordName.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportDefinePropertyEmit.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportDoubleAssignmentInClosure.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportForms.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportForms.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportFormsErr.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportFormsErr.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportSpecifierNonlocal.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportSpecifierNonlocal.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportSubAssignments.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportSubAssignments.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportedClassAliases.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionClassesCjsExportAssignment.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionClassesCjsExportAssignment.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionJSDoc.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionJSDoc.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionKeywordProp.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionKeywordProp.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionLikeClasses.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionLikeClasses.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionLikeClasses2.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionLikeClasses2.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionPrototypeStatic.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionPrototypeStatic.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionWithDefaultAssignedMember.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctions.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsInterfaces.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsInterfaces.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsJSDocRedirectedLookups.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsJson.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsJson.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsMissingGenerics.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsMissingGenerics.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsMissingTypeParameters.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsMissingTypeParameters.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsModuleReferenceHasEmit.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsModuleReferenceHasEmit.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsMultipleExportFromMerge.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsMultipleExportFromMerge.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsNestedParams.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsNonIdentifierInferredNames.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsOptionalTypeLiteralProps1.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsOptionalTypeLiteralProps2.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsPackageJson.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsPackageJson.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReactComponents.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReactComponents.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReexportAliases.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReexportAliases.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReexportedCjsAlias.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReexportedCjsAlias.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsRestArgsWithThisTypeInJSDocFunction.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsRestArgsWithThisTypeInJSDocFunction.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReusesExistingNodesMappingJSDocTypes.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReusesExistingTypeAnnotations.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsSubclassWithExplicitNoArgumentConstructor.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsThisTypes.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypeAliases.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypeReassignmentFromDeclaration.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypeReassignmentFromDeclaration2.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypeReferences.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypeReferences.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypeReferences2.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypeReferences2.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypeReferences3.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypeReferences3.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypeReferences4.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypeReferences4.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypedefAndImportTypes.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypedefDescriptionsPreserved.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypedefFunction.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsTypedefPropertyAndExportAssignment.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/extendsTag2.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/extendsTag3.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/extendsTag4.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/extendsTagEmit.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/jsdocCatchClauseWithTypeAnnotation.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/jsdocImplements_missingType.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/jsdocSignatureOnReturnedFunction.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/jsdocTemplateTagDefault.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/jsdocTemplateTagNameResolution.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/jsdocVariableDeclarationWithTypeAnnotation.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/overloadTag1.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/overloadTag2.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/seeTag3.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/seeTag4.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/typeTagNoErasure.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/typedefOnStatements.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/typedefScope1.ts#default",
+    "typescript-6.0.3/conformance/moduleResolution/bundler/bundlerImportTsExtensions.ts#allowimportingtsextensions%3Dfalse%2Cnoemit%3Dfalse",
+    "typescript-6.0.3/conformance/moduleResolution/bundler/bundlerSyntaxRestrictions.ts#module%3Desnext",
+    "typescript-6.0.3/conformance/moduleResolution/bundler/bundlerSyntaxRestrictions.ts#module%3Dpreserve",
+    "typescript-6.0.3/conformance/node/allowJs/nodeAllowJsPackageSelfName.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/allowJs/nodeAllowJsPackageSelfName.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/allowJs/nodeAllowJsPackageSelfName.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/allowJs/nodeAllowJsPackageSelfName.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/allowJs/nodeAllowJsPackageSelfName2.ts#default",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJs1.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJs1.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJs1.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJs1.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsConditionalPackageExports.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsConditionalPackageExports.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsConditionalPackageExports.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsConditionalPackageExports.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsDynamicImport.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsDynamicImport.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsDynamicImport.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsDynamicImport.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsExportlessJsModuleDetectionAuto.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsExportlessJsModuleDetectionAuto.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsExportlessJsModuleDetectionAuto.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsExportlessJsModuleDetectionAuto.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsGeneratedNameCollisions.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsGeneratedNameCollisions.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsGeneratedNameCollisions.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsGeneratedNameCollisions.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportAssignment.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportAssignment.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportAssignment.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportAssignment.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportMeta.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportMeta.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportMeta.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportMeta.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsPackageExports.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsPackageExports.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsPackageExports.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsPackageExports.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsPackageImports.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsPackageImports.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsPackageImports.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsPackageImports.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsPackagePatternExports.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsPackagePatternExports.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsPackagePatternExports.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsPackagePatternExports.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsPackagePatternExportsExclude.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsPackagePatternExportsExclude.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsPackagePatternExportsExclude.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsPackagePatternExportsExclude.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsPackagePatternExportsTrailers.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsPackagePatternExportsTrailers.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsPackagePatternExportsTrailers.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsPackagePatternExportsTrailers.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsSynchronousCallErrors.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsSynchronousCallErrors.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsSynchronousCallErrors.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsSynchronousCallErrors.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsTopLevelAwait.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsTopLevelAwait.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsTopLevelAwait.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsTopLevelAwait.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/nodeModulesConditionalPackageExports.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/nodeModulesConditionalPackageExports.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/nodeModulesConditionalPackageExports.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/nodeModulesConditionalPackageExports.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/nodeModulesDeclarationEmitWithPackageExports.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/nodeModulesDeclarationEmitWithPackageExports.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/nodeModulesDeclarationEmitWithPackageExports.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/nodeModulesDeclarationEmitWithPackageExports.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/nodeModulesImportAttributesModeDeclarationEmit1.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/nodeModulesImportAttributesModeDeclarationEmit1.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/nodeModulesImportAttributesModeDeclarationEmit1.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/nodeModulesImportAttributesModeDeclarationEmit1.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/nodeModulesImportAttributesModeDeclarationEmit2.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/nodeModulesImportAttributesModeDeclarationEmit2.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/nodeModulesImportAttributesModeDeclarationEmit2.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/nodeModulesImportAttributesModeDeclarationEmit2.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/nodeModulesImportAttributesModeDeclarationEmitErrors.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/nodeModulesImportAttributesModeDeclarationEmitErrors.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/nodeModulesImportAttributesModeDeclarationEmitErrors.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/nodeModulesImportAttributesModeDeclarationEmitErrors.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/nodeModulesImportAttributesTypeModeDeclarationEmit.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/nodeModulesImportAttributesTypeModeDeclarationEmit.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/nodeModulesImportAttributesTypeModeDeclarationEmit.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/nodeModulesImportAttributesTypeModeDeclarationEmit.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/nodeModulesImportModeDeclarationEmit1.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/nodeModulesImportModeDeclarationEmit1.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/nodeModulesImportModeDeclarationEmit1.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/nodeModulesImportModeDeclarationEmit1.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/nodeModulesImportModeDeclarationEmit2.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/nodeModulesImportModeDeclarationEmit2.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/nodeModulesImportModeDeclarationEmit2.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/nodeModulesImportModeDeclarationEmit2.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/nodeModulesImportModeDeclarationEmitErrors1.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/nodeModulesImportModeDeclarationEmitErrors1.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/nodeModulesImportModeDeclarationEmitErrors1.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/nodeModulesImportModeDeclarationEmitErrors1.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/nodeModulesImportTypeModeDeclarationEmit1.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/nodeModulesImportTypeModeDeclarationEmit1.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/nodeModulesImportTypeModeDeclarationEmit1.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/nodeModulesImportTypeModeDeclarationEmit1.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/nodeModulesPackageExports.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/nodeModulesPackageExports.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/nodeModulesPackageExports.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/nodeModulesPackageExports.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/nodeModulesPackagePatternExports.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/nodeModulesPackagePatternExports.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/nodeModulesPackagePatternExports.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/nodeModulesPackagePatternExports.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/nodeModulesPackagePatternExportsExclude.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/nodeModulesPackagePatternExportsExclude.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/nodeModulesPackagePatternExportsExclude.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/nodeModulesPackagePatternExportsExclude.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/nodeModulesPackagePatternExportsTrailers.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/nodeModulesPackagePatternExportsTrailers.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/nodeModulesPackagePatternExportsTrailers.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/nodeModulesPackagePatternExportsTrailers.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/nodeModulesResolveJsonModule.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/nodeModulesResolveJsonModule.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/nodeModulesResolveJsonModule.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/nodeModulesResolveJsonModule.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeDeclarationEmit1.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeDeclarationEmit1.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeDeclarationEmit1.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeDeclarationEmit1.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeDeclarationEmit2.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeDeclarationEmit2.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeDeclarationEmit2.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeDeclarationEmit2.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeDeclarationEmit3.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeDeclarationEmit3.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeDeclarationEmit3.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeDeclarationEmit3.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeDeclarationEmit4.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeDeclarationEmit4.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeDeclarationEmit4.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeDeclarationEmit4.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeDeclarationEmit5.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeDeclarationEmit5.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeDeclarationEmit5.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeDeclarationEmit5.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeDeclarationEmit6.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeDeclarationEmit6.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeDeclarationEmit6.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeDeclarationEmit6.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeDeclarationEmit7.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeDeclarationEmit7.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeDeclarationEmit7.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeDeclarationEmit7.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeOverride1.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeOverride1.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeOverride1.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeOverride1.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeOverride2.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeOverride2.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeOverride2.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeOverride2.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeOverride3.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeOverride3.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeOverride3.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeOverride3.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeOverride4.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeOverride4.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeOverride4.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeOverride4.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeOverride5.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeOverride5.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeOverride5.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeOverride5.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/node/nodeModulesTripleSlashReferenceModeOverrideOldResolutionError.ts#default",
+    "typescript-6.0.3/conformance/node/nodeModulesTypesVersionPackageExports.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/nodeModulesTypesVersionPackageExports.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/nodeModulesTypesVersionPackageExports.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/nodeModulesTypesVersionPackageExports.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/parser/ecmascript5/ArrowFunctionExpressions/parserArrowFunctionExpression10.ts#default",
+    "typescript-6.0.3/conformance/parser/ecmascript5/ArrowFunctionExpressions/parserArrowFunctionExpression11.ts#default",
+    "typescript-6.0.3/conformance/parser/ecmascript5/ArrowFunctionExpressions/parserArrowFunctionExpression12.ts#default",
+    "typescript-6.0.3/conformance/parser/ecmascript5/ArrowFunctionExpressions/parserArrowFunctionExpression13.ts#default",
+    "typescript-6.0.3/conformance/parser/ecmascript5/ArrowFunctionExpressions/parserArrowFunctionExpression14.ts#default",
+    "typescript-6.0.3/conformance/parser/ecmascript5/ArrowFunctionExpressions/parserArrowFunctionExpression15.ts#default",
+    "typescript-6.0.3/conformance/parser/ecmascript5/ArrowFunctionExpressions/parserArrowFunctionExpression16.ts#default",
+    "typescript-6.0.3/conformance/parser/ecmascript5/ArrowFunctionExpressions/parserArrowFunctionExpression17.ts#default",
+    "typescript-6.0.3/conformance/parser/ecmascript5/ArrowFunctionExpressions/parserArrowFunctionExpression8.ts#default",
+    "typescript-6.0.3/conformance/parser/ecmascript5/ArrowFunctionExpressions/parserArrowFunctionExpression9.ts#default",
+    "typescript-6.0.3/conformance/salsa/assignmentToVoidZero1.ts#default",
+    "typescript-6.0.3/conformance/salsa/assignmentToVoidZero2.ts#default",
+    "typescript-6.0.3/conformance/salsa/commonJSAliasedExport.ts#default",
+    "typescript-6.0.3/conformance/salsa/commonJSImportClassTypeReference.ts#default",
+    "typescript-6.0.3/conformance/salsa/commonJSImportExportedClassExpression.ts#default",
+    "typescript-6.0.3/conformance/salsa/commonJSImportNestedClassTypeReference.ts#default",
+    "typescript-6.0.3/conformance/salsa/moduleExportAliasElementAccessExpression.ts#default",
+    "typescript-6.0.3/conformance/salsa/moduleExportDuplicateAlias.ts#default",
+    "typescript-6.0.3/conformance/salsa/moduleExportDuplicateAlias2.ts#default",
+    "typescript-6.0.3/conformance/salsa/moduleExportDuplicateAlias3.ts#default",
+    "typescript-6.0.3/conformance/salsa/namespaceAssignmentToRequireAlias.ts#default",
+    "typescript-6.0.3/conformance/salsa/nestedDestructuringOfRequire.ts#default",
+    "typescript-6.0.3/conformance/salsa/plainJSBinderErrors.ts#default",
+    "typescript-6.0.3/conformance/salsa/plainJSGrammarErrors2.ts#default",
+    "typescript-6.0.3/conformance/salsa/plainJSGrammarErrors3.ts#default",
+    "typescript-6.0.3/conformance/salsa/plainJSGrammarErrors4.ts#default",
+    "typescript-6.0.3/conformance/salsa/plainJSRedeclare.ts#default",
+    "typescript-6.0.3/conformance/salsa/plainJSRedeclare2.ts#default",
+    "typescript-6.0.3/conformance/salsa/plainJSRedeclare3.ts#default",
+    "typescript-6.0.3/conformance/salsa/plainJSReservedStrict.ts#default",
+    "typescript-6.0.3/conformance/salsa/plainJSTypeErrors.ts#default",
+    "typescript-6.0.3/conformance/salsa/privateConstructorFunction.ts#default",
+    "typescript-6.0.3/conformance/salsa/reExportJsFromTs.ts#default",
+    "typescript-6.0.3/conformance/salsa/requireOfESWithPropertyAccess.ts#default",
+    "typescript-6.0.3/conformance/salsa/requireTwoPropertyAccesses.ts#default",
+    "typescript-6.0.3/conformance/salsa/typeFromPropertyAssignmentWithExport.ts#default",
+    "typescript-6.0.3/conformance/salsa/typeFromPrototypeAssignment4.ts#default",
+    "typescript-6.0.3/conformance/salsa/typeTagOnFunctionReferencesGeneric.ts#default",
+    "typescript-6.0.3/conformance/types/import/importTypeInJSDoc.ts#default",
+    "typescript-6.0.3/conformance/types/typeRelationships/recursiveTypes/recursiveTypeReferences2.ts#default",
+    "typescript-6.0.3/project/declarationDir2.json#module%3Damd",
+    "typescript-6.0.3/project/declarationDir2.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/defaultExcludeNodeModulesAndOutDir.json#module%3Damd",
+    "typescript-6.0.3/project/defaultExcludeNodeModulesAndOutDir.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/defaultExcludeNodeModulesAndOutDirWithAllowJS.json#module%3Damd",
+    "typescript-6.0.3/project/defaultExcludeNodeModulesAndOutDirWithAllowJS.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/defaultExcludeNodeModulesAndRelativePathOutDir.json#module%3Damd",
+    "typescript-6.0.3/project/defaultExcludeNodeModulesAndRelativePathOutDir.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/defaultExcludeNodeModulesAndRelativePathOutDirWithAllowJS.json#module%3Damd",
+    "typescript-6.0.3/project/defaultExcludeNodeModulesAndRelativePathOutDirWithAllowJS.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/mapRootAbsolutePathModuleMultifolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/mapRootAbsolutePathModuleMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/mapRootAbsolutePathModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/mapRootAbsolutePathModuleSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/mapRootAbsolutePathModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/mapRootAbsolutePathModuleSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/mapRootAbsolutePathMultifolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/mapRootAbsolutePathMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/mapRootAbsolutePathSimpleSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/mapRootAbsolutePathSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/mapRootAbsolutePathSingleFileSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/mapRootAbsolutePathSingleFileSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/mapRootAbsolutePathSubfolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/mapRootAbsolutePathSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/mapRootRelativePathMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/mapRootRelativePathMixedSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/mapRootRelativePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/mapRootRelativePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/mapRootRelativePathModuleMultifolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/mapRootRelativePathModuleMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/mapRootRelativePathModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/mapRootRelativePathModuleSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/mapRootRelativePathModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/mapRootRelativePathModuleSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/mapRootRelativePathMultifolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/mapRootRelativePathMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/mapRootRelativePathSimpleSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/mapRootRelativePathSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/mapRootRelativePathSingleFileSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/mapRootRelativePathSingleFileSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/mapRootRelativePathSubfolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/mapRootRelativePathSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/maprootUrlMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/maprootUrlMixedSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/maprootUrlMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/maprootUrlMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/maprootUrlModuleMultifolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/maprootUrlModuleMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/maprootUrlModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/maprootUrlModuleSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/maprootUrlModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/maprootUrlModuleSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/maprootUrlMultifolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/maprootUrlMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/maprootUrlSimpleSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/maprootUrlSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/maprootUrlSingleFileSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/maprootUrlSingleFileSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/maprootUrlSubfolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/maprootUrlSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/maprootUrlsourcerootUrlMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/maprootUrlsourcerootUrlMixedSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/maprootUrlsourcerootUrlMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/maprootUrlsourcerootUrlMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleMultifolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/maprootUrlsourcerootUrlMultifolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/maprootUrlsourcerootUrlMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/maprootUrlsourcerootUrlSimpleSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/maprootUrlsourcerootUrlSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/maprootUrlsourcerootUrlSingleFileSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/maprootUrlsourcerootUrlSingleFileSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/maprootUrlsourcerootUrlSubfolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/maprootUrlsourcerootUrlSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/nodeModulesMaxDepthExceeded.json#module%3Damd",
+    "typescript-6.0.3/project/nodeModulesMaxDepthExceeded.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/outMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/outMixedSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/outMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/outMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/outModuleMultifolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/outModuleMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/outModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/outModuleSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/outModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/outModuleSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/outMultifolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/outMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/outSimpleSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/outSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/outSingleFileSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/outSingleFileSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/outSubfolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/outSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/rootDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/rootDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/rootDirectoryErrors.json#module%3Damd",
+    "typescript-6.0.3/project/rootDirectoryErrors.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/rootDirectoryWithSourceRoot.json#module%3Damd",
+    "typescript-6.0.3/project/rootDirectoryWithSourceRoot.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourceRootAbsolutePathModuleMultifolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourceRootAbsolutePathModuleMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourceRootAbsolutePathModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourceRootAbsolutePathModuleSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourceRootAbsolutePathModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourceRootAbsolutePathModuleSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourceRootAbsolutePathMultifolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourceRootAbsolutePathMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourceRootAbsolutePathSimpleSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourceRootAbsolutePathSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourceRootAbsolutePathSingleFileSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourceRootAbsolutePathSingleFileSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourceRootAbsolutePathSubfolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourceRootAbsolutePathSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourceRootRelativePathMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourceRootRelativePathMixedSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourceRootRelativePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourceRootRelativePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourceRootRelativePathModuleMultifolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourceRootRelativePathModuleMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourceRootRelativePathModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourceRootRelativePathModuleSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourceRootRelativePathModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourceRootRelativePathModuleSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourceRootRelativePathMultifolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourceRootRelativePathMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourceRootRelativePathSimpleSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourceRootRelativePathSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourceRootRelativePathSingleFileSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourceRootRelativePathSingleFileSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourceRootRelativePathSubfolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourceRootRelativePathSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourcemapMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourcemapMixedSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourcemapMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourcemapMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourcemapModuleMultifolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourcemapModuleMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourcemapModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourcemapModuleSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourcemapModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourcemapModuleSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourcemapMultifolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourcemapMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourcemapSimpleSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourcemapSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourcemapSingleFileSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourcemapSingleFileSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourcemapSubfolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourcemapSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourcerootUrlMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourcerootUrlMixedSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourcerootUrlMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourcerootUrlMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourcerootUrlModuleMultifolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourcerootUrlModuleMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourcerootUrlModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourcerootUrlModuleSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourcerootUrlModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourcerootUrlModuleSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourcerootUrlMultifolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourcerootUrlMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourcerootUrlSimpleSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourcerootUrlSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourcerootUrlSingleFileSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourcerootUrlSingleFileSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/sourcerootUrlSubfolderSpecifyOutputDirectory.json#module%3Damd",
+    "typescript-6.0.3/project/sourcerootUrlSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/specifyExcludeUsingRelativepath.json#module%3Damd",
+    "typescript-6.0.3/project/specifyExcludeUsingRelativepath.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/specifyExcludeUsingRelativepathWithAllowJS.json#module%3Damd",
+    "typescript-6.0.3/project/specifyExcludeUsingRelativepathWithAllowJS.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/specifyExcludeWithOutUsingRelativePath.json#module%3Damd",
+    "typescript-6.0.3/project/specifyExcludeWithOutUsingRelativePath.json#module%3Dcommonjs",
+    "typescript-6.0.3/project/specifyExcludeWithOutUsingRelativePathWithAllowJS.json#module%3Damd",
+    "typescript-6.0.3/project/specifyExcludeWithOutUsingRelativePathWithAllowJS.json#module%3Dcommonjs"
+  ],
+  "failures": [
+    {
+      "case_id": "typescript-6.0.3/compiler/checkingObjectDefinePropertyOnFunctionNonexistentPropertyNoCrash1.ts#default",
+      "repetition": 0,
+      "error": "reported_diagnostics[0].message: actual \"Property 'fn' does not exist on type '{ (...args: any[]): void; readonly name: any; }'.\" != expected \"Property 'fn' does not exist on type '{ (...args: any[]): void; readonly name: string; }'.\""
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/checkingObjectDefinePropertyOnFunctionNonexistentPropertyNoCrash1.ts#default",
+      "repetition": 1,
+      "error": "reported_diagnostics[0].message: actual \"Property 'fn' does not exist on type '{ (...args: any[]): void; readonly name: any; }'.\" != expected \"Property 'fn' does not exist on type '{ (...args: any[]): void; readonly name: string; }'.\""
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitPathMappingMonorepo2.ts#default",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 32, actual length 99, expected length 97"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitPathMappingMonorepo2.ts#default",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 32, actual length 99, expected length 97"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/impliedNodeFormatEmit1.ts#module%3Damd",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 0, actual length 36, expected length 199"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/impliedNodeFormatEmit1.ts#module%3Damd",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 0, actual length 36, expected length 199"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/impliedNodeFormatEmit1.ts#module%3Dumd",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 0, actual length 36, expected length 489"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/impliedNodeFormatEmit1.ts#module%3Dumd",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 0, actual length 36, expected length 489"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsDeclarationEmitExportAssignedFunctionWithExtraTypedefsMembers.ts#default",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 58, actual length 267, expected length 170"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsDeclarationEmitExportAssignedFunctionWithExtraTypedefsMembers.ts#default",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 58, actual length 267, expected length 170"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsFileAlternativeUseOfOverloadTag.ts#default",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 765, actual length 2210, expected length 2224"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsFileAlternativeUseOfOverloadTag.ts#default",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 765, actual length 2210, expected length 2224"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsFileFunctionOverloads.ts#default",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 922, actual length 976, expected length 1001"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsFileFunctionOverloads.ts#default",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 922, actual length 976, expected length 1001"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsFileFunctionOverloads2.ts#default",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 942, actual length 996, expected length 1021"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsFileFunctionOverloads2.ts#default",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 942, actual length 996, expected length 1021"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsdocTypeCast.ts#default",
+      "repetition": 0,
+      "error": "reported_diagnostics: length 0 != 2; exit_code: actual 0 != expected 2"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsdocTypeCast.ts#default",
+      "repetition": 1,
+      "error": "reported_diagnostics: length 0 != 2; exit_code: actual 0 != expected 2"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/reactImportDropped.ts#default",
+      "repetition": 0,
+      "error": "ordinary Program/command: Emit(Transform(UnknownNode(TransformNode { source: TransformSourceId(0), node: NodeId(140856) }))); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/reactImportDropped.ts#default",
+      "repetition": 1,
+      "error": "ordinary Program/command: Emit(Transform(UnknownNode(TransformNode { source: TransformSourceId(0), node: NodeId(140856) }))); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/externalModules/rewriteRelativeImportExtensions/emitModuleCommonJS.ts#module%3Dcommonjs",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 1886, actual length 2118, expected length 2152"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/externalModules/rewriteRelativeImportExtensions/emitModuleCommonJS.ts#module%3Dcommonjs",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 1886, actual length 2118, expected length 2152"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/externalModules/rewriteRelativeImportExtensions/emitModuleCommonJS.ts#module%3Dnodenext",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 479, actual length 695, expected length 665"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/externalModules/rewriteRelativeImportExtensions/emitModuleCommonJS.ts#module%3Dnodenext",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 479, actual length 695, expected length 665"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/externalModules/typeOnly/exportNamespace_js.ts#default",
+      "repetition": 0,
+      "error": "writes[3].callback_utf8_base64: UTF-8 byte 19, actual length 27, expected length 27"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/externalModules/typeOnly/exportNamespace_js.ts#default",
+      "repetition": 1,
+      "error": "writes[3].callback_utf8_base64: UTF-8 byte 19, actual length 27, expected length 27"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/callbackOnConstructor.ts#default",
+      "repetition": 0,
+      "error": "reported_diagnostics: length 2 != 0; exit_code: actual 2 != expected 0"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/callbackOnConstructor.ts#default",
+      "repetition": 1,
+      "error": "reported_diagnostics: length 2 != 0; exit_code: actual 2 != expected 0"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassImplementsGenericsSerialization.ts#target%3Des2015",
+      "repetition": 0,
+      "error": "writes[3].callback_utf8_base64: UTF-8 byte 80, actual length 238, expected length 261"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassImplementsGenericsSerialization.ts#target%3Des2015",
+      "repetition": 1,
+      "error": "writes[3].callback_utf8_base64: UTF-8 byte 80, actual length 238, expected length 261"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassImplementsGenericsSerialization.ts#target%3Des5",
+      "repetition": 0,
+      "error": "writes[3].callback_utf8_base64: UTF-8 byte 80, actual length 238, expected length 261"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassImplementsGenericsSerialization.ts#target%3Des5",
+      "repetition": 1,
+      "error": "writes[3].callback_utf8_base64: UTF-8 byte 80, actual length 238, expected length 261"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassMethod.ts#default",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 218, actual length 909, expected length 1152"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassMethod.ts#default",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 218, actual length 909, expected length 1152"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassExpressionAnonymousWithSub.ts#target%3Des2015",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 224, actual length 237, expected length 241"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassExpressionAnonymousWithSub.ts#target%3Des2015",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 224, actual length 237, expected length 241"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassExpressionAnonymousWithSub.ts#target%3Des5",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 224, actual length 237, expected length 241"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassExpressionAnonymousWithSub.ts#target%3Des5",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 224, actual length 237, expected length 241"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance2.ts#target%3Des2015",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 0, actual length 28, expected length 121"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance2.ts#target%3Des2015",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 0, actual length 28, expected length 121"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance2.ts#target%3Des5",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 0, actual length 28, expected length 121"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance2.ts#target%3Des5",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 0, actual length 28, expected length 121"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionKeywordPropExhaustive.ts#target%3Des2015",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 60, actual length 3528, expected length 3759"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionKeywordPropExhaustive.ts#target%3Des2015",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 60, actual length 3528, expected length 3759"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionKeywordPropExhaustive.ts#target%3Des5",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 60, actual length 3528, expected length 3759"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionKeywordPropExhaustive.ts#target%3Des5",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 60, actual length 3528, expected length 3759"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionsCjs.ts#default",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 177, actual length 1099, expected length 904"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionsCjs.ts#default",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 177, actual length 1099, expected length 904"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsGetterSetter.ts#default",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 277, actual length 694, expected length 691"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsGetterSetter.ts#default",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 277, actual length 694, expected length 691"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsParameterTagReusesInputNodeInEmit1.ts#default",
+      "repetition": 0,
+      "error": "writes[3].callback_utf8_base64: UTF-8 byte 430, actual length 627, expected length 689"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsParameterTagReusesInputNodeInEmit1.ts#default",
+      "repetition": 1,
+      "error": "writes[3].callback_utf8_base64: UTF-8 byte 430, actual length 627, expected length 689"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsParameterTagReusesInputNodeInEmit2.ts#default",
+      "repetition": 0,
+      "error": "writes[3].callback_utf8_base64: UTF-8 byte 198, actual length 253, expected length 315"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsParameterTagReusesInputNodeInEmit2.ts#default",
+      "repetition": 1,
+      "error": "writes[3].callback_utf8_base64: UTF-8 byte 198, actual length 253, expected length 315"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReexportAliasesEsModuleInterop.ts#target%3Des2015",
+      "repetition": 0,
+      "error": "writes[3].callback_utf8_base64: UTF-8 byte 74, actual length 107, expected length 107"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReexportAliasesEsModuleInterop.ts#target%3Des2015",
+      "repetition": 1,
+      "error": "writes[3].callback_utf8_base64: UTF-8 byte 74, actual length 107, expected length 107"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReexportAliasesEsModuleInterop.ts#target%3Des5",
+      "repetition": 0,
+      "error": "writes[3].callback_utf8_base64: UTF-8 byte 74, actual length 107, expected length 107"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReexportAliasesEsModuleInterop.ts#target%3Des5",
+      "repetition": 1,
+      "error": "writes[3].callback_utf8_base64: UTF-8 byte 74, actual length 107, expected length 107"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_class.ts#default",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 114, actual length 808, expected length 880"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_class.ts#default",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 114, actual length 808, expected length 880"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_interface.ts#default",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 38, actual length 184, expected length 223"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_interface.ts#default",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 38, actual length 184, expected length 223"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_interface_multiple.ts#default",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 83, actual length 244, expected length 302"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_interface_multiple.ts#default",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 83, actual length 244, expected length 302"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_namespacedInterface.ts#default",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 40, actual length 149, expected length 188"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_namespacedInterface.ts#default",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 40, actual length 149, expected length 188"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_properties.ts#default",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 75, actual length 203, expected length 242"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_properties.ts#default",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 75, actual length 203, expected length 242"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_signatures.ts#default",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 42, actual length 48, expected length 63"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_signatures.ts#default",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 42, actual length 48, expected length 63"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/linkTagEmit1.ts#default",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 476, actual length 713, expected length 743"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/linkTagEmit1.ts#default",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 476, actual length 713, expected length 743"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/templateInsideCallback.ts#default",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 887, actual length 941, expected length 966"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/templateInsideCallback.ts#default",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 887, actual length 941, expected length 966"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/typedefOnSemicolonClassElement.ts#default",
+      "repetition": 0,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 57, actual length 64, expected length 69; reported_diagnostics: length 1 != 0; exit_code: actual 2 != expected 0"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/typedefOnSemicolonClassElement.ts#default",
+      "repetition": 1,
+      "error": "writes[1].callback_utf8_base64: UTF-8 byte 57, actual length 64, expected length 69; reported_diagnostics: length 1 != 0; exit_code: actual 2 != expected 0"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/moduleResolution/bundler/bundlerImportTsExtensions.ts#allowimportingtsextensions%3Dtrue%2Cnoemit%3Dfalse",
+      "repetition": 0,
+      "error": "ordinary Program/command: Emit(UnsupportedCompilerOption { option: \"allowImportingTsExtensions\" }); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/moduleResolution/bundler/bundlerImportTsExtensions.ts#allowimportingtsextensions%3Dtrue%2Cnoemit%3Dfalse",
+      "repetition": 1,
+      "error": "ordinary Program/command: Emit(UnsupportedCompilerOption { option: \"allowImportingTsExtensions\" }); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsExportAssignment.ts#module%3Dnode16",
+      "repetition": 0,
+      "error": "writes[2].callback_utf8_base64: UTF-8 byte 15, actual length 135, expected length 71"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsExportAssignment.ts#module%3Dnode16",
+      "repetition": 1,
+      "error": "writes[2].callback_utf8_base64: UTF-8 byte 15, actual length 135, expected length 71"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsExportAssignment.ts#module%3Dnode18",
+      "repetition": 0,
+      "error": "writes[2].callback_utf8_base64: UTF-8 byte 15, actual length 135, expected length 71"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsExportAssignment.ts#module%3Dnode18",
+      "repetition": 1,
+      "error": "writes[2].callback_utf8_base64: UTF-8 byte 15, actual length 135, expected length 71"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsExportAssignment.ts#module%3Dnode20",
+      "repetition": 0,
+      "error": "writes[2].callback_utf8_base64: UTF-8 byte 15, actual length 135, expected length 71"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsExportAssignment.ts#module%3Dnode20",
+      "repetition": 1,
+      "error": "writes[2].callback_utf8_base64: UTF-8 byte 15, actual length 135, expected length 71"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsExportAssignment.ts#module%3Dnodenext",
+      "repetition": 0,
+      "error": "writes[2].callback_utf8_base64: UTF-8 byte 15, actual length 135, expected length 71"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsExportAssignment.ts#module%3Dnodenext",
+      "repetition": 1,
+      "error": "writes[2].callback_utf8_base64: UTF-8 byte 15, actual length 135, expected length 71"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions1.ts#module%3Dnode16",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 79, actual length 224, expected length 275"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions1.ts#module%3Dnode16",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 79, actual length 224, expected length 275"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions1.ts#module%3Dnode18",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 79, actual length 224, expected length 275"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions1.ts#module%3Dnode18",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 79, actual length 224, expected length 275"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions1.ts#module%3Dnode20",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 79, actual length 224, expected length 275"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions1.ts#module%3Dnode20",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 79, actual length 224, expected length 275"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions1.ts#module%3Dnodenext",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 79, actual length 224, expected length 275"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions1.ts#module%3Dnodenext",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 79, actual length 224, expected length 275"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions2.ts#module%3Dnode16",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 101, actual length 203, expected length 254"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions2.ts#module%3Dnode16",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 101, actual length 203, expected length 254"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions2.ts#module%3Dnode18",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 101, actual length 203, expected length 254"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions2.ts#module%3Dnode18",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 101, actual length 203, expected length 254"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions2.ts#module%3Dnode20",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 101, actual length 203, expected length 254"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions2.ts#module%3Dnode20",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 101, actual length 203, expected length 254"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions2.ts#module%3Dnodenext",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 101, actual length 203, expected length 254"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions2.ts#module%3Dnodenext",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 101, actual length 203, expected length 254"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode16%2Ctarget%3Des2015",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 134, actual length 584, expected length 635"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode16%2Ctarget%3Des2015",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 134, actual length 584, expected length 635"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode16%2Ctarget%3Des5",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 134, actual length 584, expected length 633"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode16%2Ctarget%3Des5",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 134, actual length 584, expected length 633"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode18%2Ctarget%3Des2015",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 134, actual length 584, expected length 635"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode18%2Ctarget%3Des2015",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 134, actual length 584, expected length 635"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode18%2Ctarget%3Des5",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 134, actual length 584, expected length 633"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode18%2Ctarget%3Des5",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 134, actual length 584, expected length 633"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode20%2Ctarget%3Des2015",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 134, actual length 584, expected length 635"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode20%2Ctarget%3Des2015",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 134, actual length 584, expected length 635"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode20%2Ctarget%3Des5",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 134, actual length 584, expected length 633"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode20%2Ctarget%3Des5",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 134, actual length 584, expected length 633"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnodenext%2Ctarget%3Des2015",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 134, actual length 584, expected length 635"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnodenext%2Ctarget%3Des2015",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 134, actual length 584, expected length 635"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnodenext%2Ctarget%3Des5",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 134, actual length 584, expected length 633"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnodenext%2Ctarget%3Des5",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 134, actual length 584, expected length 633"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/nodeModulesCJSEmit1.ts#module%3Dnode18",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 15, actual length 101, expected length 37"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/nodeModulesCJSEmit1.ts#module%3Dnode18",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 15, actual length 101, expected length 37"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/nodeModulesCJSEmit1.ts#module%3Dnode20",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 15, actual length 101, expected length 37"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/nodeModulesCJSEmit1.ts#module%3Dnode20",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 15, actual length 101, expected length 37"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/nodeModulesCJSEmit1.ts#module%3Dnodenext",
+      "repetition": 0,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 15, actual length 101, expected length 37"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/nodeModulesCJSEmit1.ts#module%3Dnodenext",
+      "repetition": 1,
+      "error": "writes[0].callback_utf8_base64: UTF-8 byte 15, actual length 101, expected length 37"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/salsa/plainJSGrammarErrors.ts#default",
+      "repetition": 0,
+      "error": "ordinary Program/command: Emit(Printer(MissingTransformedChild { parent: ClassDeclaration, field: \"name\" })); partial callback paths/SHA256: []"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/salsa/plainJSGrammarErrors.ts#default",
+      "repetition": 1,
+      "error": "ordinary Program/command: Emit(Printer(MissingTransformedChild { parent: ClassDeclaration, field: \"name\" })); partial callback paths/SHA256: []"
+    }
+  ],
+  "newly_exact": [
+    "typescript-6.0.3/compiler/checkJsdocTypeTagOnExportAssignment1.ts#default",
+    "typescript-6.0.3/compiler/checkJsdocTypeTagOnExportAssignment2.ts#default",
+    "typescript-6.0.3/compiler/checkJsdocTypeTagOnExportAssignment3.ts#default",
+    "typescript-6.0.3/compiler/checkJsdocTypeTagOnExportAssignment4.ts#default",
+    "typescript-6.0.3/compiler/checkJsdocTypeTagOnExportAssignment6.ts#default",
+    "typescript-6.0.3/compiler/elidedJSImport1.ts#default",
+    "typescript-6.0.3/compiler/pathMappingBasedModuleResolution_rootImport_aliasWithRoot_realRootFile.ts#default",
+    "typescript-6.0.3/compiler/pathMappingBasedModuleResolution_rootImport_noAliasWithRoot_realRootFile.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassExtendsVisibility.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassExtendsVisibility.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClasses.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsComputedNames.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsConstsAsNamespacesWithReferences.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsCrossfileMerge.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsCrossfileMerge.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsDefaultsErr.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsDefaultsErr.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassExpressionShadowing.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassExpressionShadowing.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance3.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedVisibility.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedVisibility.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportDoubleAssignmentInClosure.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportForms.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportForms.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportSpecifierNonlocal.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportSpecifierNonlocal.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportedClassAliases.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionLikeClasses.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionLikeClasses.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsJson.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsJson.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsPackageJson.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsPackageJson.ts#target%3Des5",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsSynchronousCallErrors.ts#module%3Dnode16",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsSynchronousCallErrors.ts#module%3Dnode18",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsSynchronousCallErrors.ts#module%3Dnode20",
+    "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsSynchronousCallErrors.ts#module%3Dnodenext",
+    "typescript-6.0.3/conformance/salsa/moduleExportAliasElementAccessExpression.ts#default",
+    "typescript-6.0.3/conformance/salsa/moduleExportDuplicateAlias.ts#default",
+    "typescript-6.0.3/conformance/salsa/moduleExportDuplicateAlias2.ts#default",
+    "typescript-6.0.3/conformance/salsa/moduleExportDuplicateAlias3.ts#default"
+  ],
+  "regressions": [
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReexportAliasesEsModuleInterop.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReexportAliasesEsModuleInterop.ts#target%3Des5"
+  ],
+  "project_before_exact": 188,
+  "project_retained_exact": 188,
+  "remaining_failures_by_suite": {
+    "compiler": 10,
+    "conformance": 53,
+    "project": 0
+  },
+  "run_seconds": 1145.77,
+  "exit_code": 101,
+  "log_sha256": "b312976629ee0e836e48aaff194c69c8d29ce25652688ec6f976b667c17d0050",
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-global-after-1h5i7wbz",
+  "prelaunch_sha256": "00bd6ba109adf13f40cac1f59d8703e55c761f1891b991dcb269625c09f9c1e1",
+  "saved_tuples": [
+    {
+      "file": "01eef4308477e94e686cd7089c0af153c5058fdf77e37eea59126d6f302b8643-0.json",
+      "case_id": "typescript-6.0.3/conformance/externalModules/rewriteRelativeImportExtensions/emitModuleCommonJS.ts#module%3Dcommonjs",
+      "repetition": 0,
+      "sha256": "2ad4a85afe34cd7f33c1c916805faf363bbc2aca277bc89891020ff672409d7f"
+    },
+    {
+      "file": "01eef4308477e94e686cd7089c0af153c5058fdf77e37eea59126d6f302b8643-1.json",
+      "case_id": "typescript-6.0.3/conformance/externalModules/rewriteRelativeImportExtensions/emitModuleCommonJS.ts#module%3Dcommonjs",
+      "repetition": 1,
+      "sha256": "4ba62e92de6edaeebc4cfdbc77ba5750b57252ff790fe8cf45aecd8fc9b07aa1"
+    },
+    {
+      "file": "04d8d85442958de0096a132768cc977e9a3bb05bbaa1b0c8ac898794e86dce07-0.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions1.ts#module%3Dnode20",
+      "repetition": 0,
+      "sha256": "c1db6c77a1d584d52cef0f2aee0828e68d0fe62ef951f28d12ace6eeafd101ce"
+    },
+    {
+      "file": "04d8d85442958de0096a132768cc977e9a3bb05bbaa1b0c8ac898794e86dce07-1.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions1.ts#module%3Dnode20",
+      "repetition": 1,
+      "sha256": "3c30d8c8f54bbf6141aab0ec5f18f98f676ee95ea72cc8cd9417c4fa0ebee35a"
+    },
+    {
+      "file": "1e1e84414140fe3c9a237aeb8594168dff1b9bf9ea1b1fb904ac0d92d922bc98-0.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/callbackOnConstructor.ts#default",
+      "repetition": 0,
+      "sha256": "a20d84e8e11cd06ec457eb25fdfb38daa2ffe59b2e3580efd6dc98ae092a39af"
+    },
+    {
+      "file": "1e1e84414140fe3c9a237aeb8594168dff1b9bf9ea1b1fb904ac0d92d922bc98-1.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/callbackOnConstructor.ts#default",
+      "repetition": 1,
+      "sha256": "05faca71e8e3d101818d2b5236def2a78a8a5ac3f20fe3e69996e3de28500e30"
+    },
+    {
+      "file": "1e4c7de081bd09b490fc5bc160fa2e75e722d046b8392878de255cc330876a1f-0.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode16%2Ctarget%3Des2015",
+      "repetition": 0,
+      "sha256": "f14dc31268eba37c8d9e983175550b5b84213fa62f321b20be2b042c14079d8b"
+    },
+    {
+      "file": "1e4c7de081bd09b490fc5bc160fa2e75e722d046b8392878de255cc330876a1f-1.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode16%2Ctarget%3Des2015",
+      "repetition": 1,
+      "sha256": "7fde17423c3c5989f876cc43081f414ecea5679db09cd2e2e5f2626cc7a771ec"
+    },
+    {
+      "file": "219264842ce0f5268f33c949e2dfda9fd8f148dad95f66af8915b139ebd7ab28-0.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassMethod.ts#default",
+      "repetition": 0,
+      "sha256": "c26e28a5cff15bfe951c70563e0dfa18f4763e344a99b865900b9059a0ff6fed"
+    },
+    {
+      "file": "219264842ce0f5268f33c949e2dfda9fd8f148dad95f66af8915b139ebd7ab28-1.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassMethod.ts#default",
+      "repetition": 1,
+      "sha256": "186c2d31af5e42bfe311934aecf1f3bb55ad70a261ccd0f6fdcac8bef038e019"
+    },
+    {
+      "file": "225fcd8bac5d6597f35e96e54f805b893f8885181431d98d8f929bda7f30bc1d-0.json",
+      "case_id": "typescript-6.0.3/compiler/declarationEmitPathMappingMonorepo2.ts#default",
+      "repetition": 0,
+      "sha256": "52e62ea2bfeef9f5ff050fa7213c0e1ac399060d923a6f70ae09d6fe2ee8d8a4"
+    },
+    {
+      "file": "225fcd8bac5d6597f35e96e54f805b893f8885181431d98d8f929bda7f30bc1d-1.json",
+      "case_id": "typescript-6.0.3/compiler/declarationEmitPathMappingMonorepo2.ts#default",
+      "repetition": 1,
+      "sha256": "1192c317fcc5edc90ba3ff15a09cfa35c130f78faa37ca025d229ef45298dac5"
+    },
+    {
+      "file": "25f61fba6559ab987e92263174f17445864b32551867ec8feb0bd6af75bb296c-0.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance2.ts#target%3Des5",
+      "repetition": 0,
+      "sha256": "28da0b8fd185d47b01df12102d4db56f95dc6164bddba216862e521d3f1e1ab6"
+    },
+    {
+      "file": "25f61fba6559ab987e92263174f17445864b32551867ec8feb0bd6af75bb296c-1.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance2.ts#target%3Des5",
+      "repetition": 1,
+      "sha256": "2f61b7bc668631a949cad03c1723a95a3dcae952602c2d91a7babe36d0ec8454"
+    },
+    {
+      "file": "2722aeae127f3f0db0f245d08ef272453d0d6cd9d25b95d468214e02ae898af2-0.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsParameterTagReusesInputNodeInEmit1.ts#default",
+      "repetition": 0,
+      "sha256": "b866ab4fc55b79cb5ce106545e82c5e7dc87613c187800f94668e48f94aae69a"
+    },
+    {
+      "file": "2722aeae127f3f0db0f245d08ef272453d0d6cd9d25b95d468214e02ae898af2-1.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsParameterTagReusesInputNodeInEmit1.ts#default",
+      "repetition": 1,
+      "sha256": "b5a3ba48e3cc5d1c0bce36afc64a932964e73426e20314bc6df68f671f3f4399"
+    },
+    {
+      "file": "38bd1d753dcffa45c39583954b326abf97a817be252a8c2c543c87d5a05168a9-0.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_properties.ts#default",
+      "repetition": 0,
+      "sha256": "5c017a8703ca08843cd37a194f905dcfaed55ac2e6a0f7f53e06a596a3f38a1e"
+    },
+    {
+      "file": "38bd1d753dcffa45c39583954b326abf97a817be252a8c2c543c87d5a05168a9-1.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_properties.ts#default",
+      "repetition": 1,
+      "sha256": "4d21b6052db63731f13d03ac18023ec51788e40d6906d8a449f1d60a5070b0a2"
+    },
+    {
+      "file": "3b5ea10fa9efa816c38a6e6d8d42a261a35b82d64b24fbffc67ae57fc9c30064-0.json",
+      "case_id": "typescript-6.0.3/compiler/jsdocTypeCast.ts#default",
+      "repetition": 0,
+      "sha256": "cd45aa2a80155e9b6684fe3fa74f9c8b8f08fe39e85a3e178bb52e6267cf77dc"
+    },
+    {
+      "file": "3b5ea10fa9efa816c38a6e6d8d42a261a35b82d64b24fbffc67ae57fc9c30064-1.json",
+      "case_id": "typescript-6.0.3/compiler/jsdocTypeCast.ts#default",
+      "repetition": 1,
+      "sha256": "ff3064d01e0246b12d6de397d61ed76f9168068f733f8fe76b55bcc03565d994"
+    },
+    {
+      "file": "3cc0f34d697a4efcb136fb86066e8923ed47404f877df21e0ea77d09abcb1d06-0.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsExportAssignment.ts#module%3Dnode20",
+      "repetition": 0,
+      "sha256": "6d54f7407117fa76f2a6d3ac45c887c13e2bbd0eb2625174c933c769a4ce5aad"
+    },
+    {
+      "file": "3cc0f34d697a4efcb136fb86066e8923ed47404f877df21e0ea77d09abcb1d06-1.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsExportAssignment.ts#module%3Dnode20",
+      "repetition": 1,
+      "sha256": "eb77c489d0a8114dd476745b21affae2aef5c5dbe053a12d640718c668dfee40"
+    },
+    {
+      "file": "3cd4d573f23224843f60df635ff8789895887a1422827af6a323dc5e2e182b35-0.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/templateInsideCallback.ts#default",
+      "repetition": 0,
+      "sha256": "99f8a2cf817705ec29602c039de749fa3d3d41816f863559da814fbc829de6e3"
+    },
+    {
+      "file": "3cd4d573f23224843f60df635ff8789895887a1422827af6a323dc5e2e182b35-1.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/templateInsideCallback.ts#default",
+      "repetition": 1,
+      "sha256": "1537f6b2730f083f3146780744082606666c88c7068668347cd1879b6e4a8a52"
+    },
+    {
+      "file": "4273766403a3194199301f88fd0b1ddb6cccb1a370a1bb281a727ee959cf2fc4-0.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsGetterSetter.ts#default",
+      "repetition": 0,
+      "sha256": "3beb13720d2ed5795c19d7eac1d5d2da6d992ca65edb6ac5f8afb232aecfa557"
+    },
+    {
+      "file": "4273766403a3194199301f88fd0b1ddb6cccb1a370a1bb281a727ee959cf2fc4-1.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsGetterSetter.ts#default",
+      "repetition": 1,
+      "sha256": "82d7a581cf26db75f11c8ba268fdd95cbb1fbbaa3ef0fbfda1949d67b77b6a75"
+    },
+    {
+      "file": "4dc07568b81515fc912d38d5f38fad8bd6e8fab5e285843000dd013f5eef06b9-0.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions1.ts#module%3Dnode18",
+      "repetition": 0,
+      "sha256": "da894f42832187841913590d338e41279061545c51d6fa48543ec62851ae7f14"
+    },
+    {
+      "file": "4dc07568b81515fc912d38d5f38fad8bd6e8fab5e285843000dd013f5eef06b9-1.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions1.ts#module%3Dnode18",
+      "repetition": 1,
+      "sha256": "4c3841b9e21156f282cae73ae5432f4a0c301a64d6a22beced7deadcd1f128b0"
+    },
+    {
+      "file": "5548dbb2f08e1387f1f63d1028cc9f11065368ab31024df4399f17a2a77a166f-0.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsParameterTagReusesInputNodeInEmit2.ts#default",
+      "repetition": 0,
+      "sha256": "0c15a257590ce7758f9b2f6bac1ceaa1a02d64291c01f279702bfc3557e483ac"
+    },
+    {
+      "file": "5548dbb2f08e1387f1f63d1028cc9f11065368ab31024df4399f17a2a77a166f-1.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsParameterTagReusesInputNodeInEmit2.ts#default",
+      "repetition": 1,
+      "sha256": "8031dad62f5004c98aeecf437dc56f41041d38c5b00ea461f56f653be50fbdd6"
+    },
+    {
+      "file": "59a1bf306ab764a1a9b901aa2b3a95f376edafb0f7d828affee0157ad4025389-0.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassImplementsGenericsSerialization.ts#target%3Des2015",
+      "repetition": 0,
+      "sha256": "daa704da4958b8d3b23f0673f01c60872244216c1ce0a163c8b8b3792dca12a4"
+    },
+    {
+      "file": "59a1bf306ab764a1a9b901aa2b3a95f376edafb0f7d828affee0157ad4025389-1.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassImplementsGenericsSerialization.ts#target%3Des2015",
+      "repetition": 1,
+      "sha256": "6937a703ae2074f5feba212757b14ffff487483ec966e78557b2e85a50e9b339"
+    },
+    {
+      "file": "61b23bf36143295286c076d1ba34d7e2b36463fce33ce8bc24cdccbfcfc65aaa-0.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReexportAliasesEsModuleInterop.ts#target%3Des5",
+      "repetition": 0,
+      "sha256": "f52fd3f9034b3e16c8ca03997572792d265220b71e482af3db97e57e007160c1"
+    },
+    {
+      "file": "61b23bf36143295286c076d1ba34d7e2b36463fce33ce8bc24cdccbfcfc65aaa-1.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReexportAliasesEsModuleInterop.ts#target%3Des5",
+      "repetition": 1,
+      "sha256": "f9dfba9e03a4baa75d27d8458b1f8e2535563f1e0b87ae4ae85601d86a6c6cf8"
+    },
+    {
+      "file": "64d0e19c48c3221795eda6ee4fb2211decb6ef953a579c661c44087259a723a3-0.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassImplementsGenericsSerialization.ts#target%3Des5",
+      "repetition": 0,
+      "sha256": "371b443dc314b71461a0f41214c5d82e8cf6b1ebbb931a0543adb6ed9e2c759a"
+    },
+    {
+      "file": "64d0e19c48c3221795eda6ee4fb2211decb6ef953a579c661c44087259a723a3-1.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassImplementsGenericsSerialization.ts#target%3Des5",
+      "repetition": 1,
+      "sha256": "06b9381e6a34f7bfad34ab03ef6adf19b6494e2d882884ed2005bd623dfbec0e"
+    },
+    {
+      "file": "66119cd191e1a0e99f3d4406b1c5dc52779ad2bfc471a4ca008448230a04e676-0.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode16%2Ctarget%3Des5",
+      "repetition": 0,
+      "sha256": "2aed5e4c78ba7296973d2d7951d04e13d33530ba477f601467b44281f680cea3"
+    },
+    {
+      "file": "66119cd191e1a0e99f3d4406b1c5dc52779ad2bfc471a4ca008448230a04e676-1.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode16%2Ctarget%3Des5",
+      "repetition": 1,
+      "sha256": "c7315e1bea2ed556eb20b96599482e1341ccab3e1699cb8ca79df66e40bc1a7d"
+    },
+    {
+      "file": "667e207cf3bb5ff0512fd9335e22d3260105b6c7d0883acf2612e7f26149b4c1-0.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionKeywordPropExhaustive.ts#target%3Des5",
+      "repetition": 0,
+      "sha256": "4efa8bb2019f4becd1bf23e00f39b19133ccc6df558f3deabf180b6c5ff379f7"
+    },
+    {
+      "file": "667e207cf3bb5ff0512fd9335e22d3260105b6c7d0883acf2612e7f26149b4c1-1.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionKeywordPropExhaustive.ts#target%3Des5",
+      "repetition": 1,
+      "sha256": "fdc9550b48d47eac51a10169edf1a1b21b8c87665bcc41b9a4ce94f887588197"
+    },
+    {
+      "file": "69e55fea6e4e279c619fcbc4bdcfb72e19fa962766874fb5173c3bbb6e7f6d64-0.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode20%2Ctarget%3Des5",
+      "repetition": 0,
+      "sha256": "e11f9bc00e8258737cc99b0151a135e8117300a8f178f46bccf75341fa33996c"
+    },
+    {
+      "file": "69e55fea6e4e279c619fcbc4bdcfb72e19fa962766874fb5173c3bbb6e7f6d64-1.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode20%2Ctarget%3Des5",
+      "repetition": 1,
+      "sha256": "470941ec59154cdf6ca80f2432e7a38c7a8733153513d4a4c52d7fe1bec9f14e"
+    },
+    {
+      "file": "6b1fd6e55be9c6f4b45e7a63e4d0d561607371a4ceb4ee783158054b0b9190ab-0.json",
+      "case_id": "typescript-6.0.3/conformance/node/nodeModulesCJSEmit1.ts#module%3Dnodenext",
+      "repetition": 0,
+      "sha256": "a342e86ce9a05fc6821ab85132ff8cfcff7818f4874e11fde40215322c280ee8"
+    },
+    {
+      "file": "6b1fd6e55be9c6f4b45e7a63e4d0d561607371a4ceb4ee783158054b0b9190ab-1.json",
+      "case_id": "typescript-6.0.3/conformance/node/nodeModulesCJSEmit1.ts#module%3Dnodenext",
+      "repetition": 1,
+      "sha256": "956860167d769fe9b91f7c8b21fbb974eea58dde6a458b03ffa5ed4a0f0cd26f"
+    },
+    {
+      "file": "6e440d8a0d53097ee55c2729990c997bb0ddc7a667d4e55caffa99a0491e9e1c-0.json",
+      "case_id": "typescript-6.0.3/conformance/externalModules/rewriteRelativeImportExtensions/emitModuleCommonJS.ts#module%3Dnodenext",
+      "repetition": 0,
+      "sha256": "1e515c23270242cf13edfb385df675ed1ececc0b192e1f8f4360cfdb4dac7f32"
+    },
+    {
+      "file": "6e440d8a0d53097ee55c2729990c997bb0ddc7a667d4e55caffa99a0491e9e1c-1.json",
+      "case_id": "typescript-6.0.3/conformance/externalModules/rewriteRelativeImportExtensions/emitModuleCommonJS.ts#module%3Dnodenext",
+      "repetition": 1,
+      "sha256": "7acca5d7273b2ee4d8775ea374eb29c235847ab1c8f848c3963c12d1a9f27266"
+    },
+    {
+      "file": "7162e924a1c7d20fb9c858757345ef1df0881e75fa5001d74761fc685c9771eb-0.json",
+      "case_id": "typescript-6.0.3/conformance/node/nodeModulesCJSEmit1.ts#module%3Dnode18",
+      "repetition": 0,
+      "sha256": "d8ab0f7ede1602b1f5a6aebad4bc629f2c1105e7289f443e5306c2d5f4149ee8"
+    },
+    {
+      "file": "7162e924a1c7d20fb9c858757345ef1df0881e75fa5001d74761fc685c9771eb-1.json",
+      "case_id": "typescript-6.0.3/conformance/node/nodeModulesCJSEmit1.ts#module%3Dnode18",
+      "repetition": 1,
+      "sha256": "a4217472ee34edf3f2872f3c095078031036498ef41e53ed25d1defcc52a719c"
+    },
+    {
+      "file": "7a926ee639c8e41750e1cece24ff09c94955aeb3b4f1e4902c4c5a3f7bf0ae79-0.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions1.ts#module%3Dnodenext",
+      "repetition": 0,
+      "sha256": "8e56f3ebf62431138b96caa47eef54ad8de08792dfb46922c1c94bba9cfca372"
+    },
+    {
+      "file": "7a926ee639c8e41750e1cece24ff09c94955aeb3b4f1e4902c4c5a3f7bf0ae79-1.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions1.ts#module%3Dnodenext",
+      "repetition": 1,
+      "sha256": "e47253e1ee2bbf295dff34543eaa567968a96c4c6988a102b05e06cd2673fb0a"
+    },
+    {
+      "file": "7b541ad7205d2b760e5c9c05d0ab67d6f0299901ca2d2bfa548e3473d9bb8ea0-0.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_namespacedInterface.ts#default",
+      "repetition": 0,
+      "sha256": "b4d57946eac412183a6d7ee9643d99df31f77621c0c54a6077fa5da650a3d545"
+    },
+    {
+      "file": "7b541ad7205d2b760e5c9c05d0ab67d6f0299901ca2d2bfa548e3473d9bb8ea0-1.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_namespacedInterface.ts#default",
+      "repetition": 1,
+      "sha256": "2d0706baada72293c3269a62e490f4a9901ef91eba174c8326b1fef39b0e5452"
+    },
+    {
+      "file": "82da00e7de8d5077dfd016b8bc261eb141d1e9b52c82d7f592cf0ab9ca15f401-0.json",
+      "case_id": "typescript-6.0.3/compiler/checkingObjectDefinePropertyOnFunctionNonexistentPropertyNoCrash1.ts#default",
+      "repetition": 0,
+      "sha256": "8cff8ea471a12793500c49cb52c0515b2d7eb421881e20fd32e6b2dba29e67b8"
+    },
+    {
+      "file": "82da00e7de8d5077dfd016b8bc261eb141d1e9b52c82d7f592cf0ab9ca15f401-1.json",
+      "case_id": "typescript-6.0.3/compiler/checkingObjectDefinePropertyOnFunctionNonexistentPropertyNoCrash1.ts#default",
+      "repetition": 1,
+      "sha256": "ee561ba27c50f9206f8fa6e724c873051498adad3ea26af1b99abcd799a8dc2d"
+    },
+    {
+      "file": "8916ea9aabc2e2bce66fc71b2ef83929a56d2d73cdbb5c064ca381027466111a-0.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions2.ts#module%3Dnode20",
+      "repetition": 0,
+      "sha256": "3e78b0c0506ac182ebac0f31ded0a2ce8afe3755bf6fedf9231395c99fd47b05"
+    },
+    {
+      "file": "8916ea9aabc2e2bce66fc71b2ef83929a56d2d73cdbb5c064ca381027466111a-1.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions2.ts#module%3Dnode20",
+      "repetition": 1,
+      "sha256": "0d86273341dd6869ec04495bd63c756fad9fdf252f89fdfad61eea188b0f22e9"
+    },
+    {
+      "file": "8b63a088e9782ee9590522800fd258da7fb33f99abec5f9c2015663c0ad8960d-0.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnodenext%2Ctarget%3Des5",
+      "repetition": 0,
+      "sha256": "d4cff3fac779a94ea5893147b19cec9806ba86e6c633057343b31fe17dd1194c"
+    },
+    {
+      "file": "8b63a088e9782ee9590522800fd258da7fb33f99abec5f9c2015663c0ad8960d-1.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnodenext%2Ctarget%3Des5",
+      "repetition": 1,
+      "sha256": "58639004cc2da62a01c029d8a41bf5af4902ba0d5e690a1f0a17f75f2f8a5acb"
+    },
+    {
+      "file": "8cab9f65c400000f68048dd40effb769c3d946665b1c707df27c80bb18555ff2-0.json",
+      "case_id": "typescript-6.0.3/compiler/jsDeclarationEmitExportAssignedFunctionWithExtraTypedefsMembers.ts#default",
+      "repetition": 0,
+      "sha256": "a339ecbe033d993b920ecd55c75a58965b72788b686bff6a9c83e3b752e9b202"
+    },
+    {
+      "file": "8cab9f65c400000f68048dd40effb769c3d946665b1c707df27c80bb18555ff2-1.json",
+      "case_id": "typescript-6.0.3/compiler/jsDeclarationEmitExportAssignedFunctionWithExtraTypedefsMembers.ts#default",
+      "repetition": 1,
+      "sha256": "5ef9f1dde34de5d70ac55c9ffd85e43841f7eb37e24b336a3bac8c53d454c9b6"
+    },
+    {
+      "file": "8f3508635cde189f60b0261cffd4cb88b549aea7503114bd0bf0584327c75420-0.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode18%2Ctarget%3Des5",
+      "repetition": 0,
+      "sha256": "c88d4e311d64e5f09bafcc9b70bb48b0c92985d16b45ea8e55377a184bae3423"
+    },
+    {
+      "file": "8f3508635cde189f60b0261cffd4cb88b549aea7503114bd0bf0584327c75420-1.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode18%2Ctarget%3Des5",
+      "repetition": 1,
+      "sha256": "2bc44136f940fdd83b475c41814fdce0d0f3fe081c9e25f7cebe0dc97dbb8f08"
+    },
+    {
+      "file": "9334be6228a52470dc745b93869d271a77aa0af7eb77ec23b7390b352a367ce2-0.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionsCjs.ts#default",
+      "repetition": 0,
+      "sha256": "dabd86676eb46c340552d128c9e5ea8e031dc0d6e82c7adcabaddda76d5a17fc"
+    },
+    {
+      "file": "9334be6228a52470dc745b93869d271a77aa0af7eb77ec23b7390b352a367ce2-1.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionsCjs.ts#default",
+      "repetition": 1,
+      "sha256": "83ced91e5ef1349a274cdee889cc27e5e5e7ebc394f38710cb814df7bbd24d01"
+    },
+    {
+      "file": "96a31329ee379c94c6a155a919c44881a927e83ff087d521c30e2e9b2183a019-0.json",
+      "case_id": "typescript-6.0.3/conformance/node/nodeModulesCJSEmit1.ts#module%3Dnode20",
+      "repetition": 0,
+      "sha256": "9b62d777ec80d5327093bb613f9d44d1df79a1e798e00a9fad8980f1877fbe2c"
+    },
+    {
+      "file": "96a31329ee379c94c6a155a919c44881a927e83ff087d521c30e2e9b2183a019-1.json",
+      "case_id": "typescript-6.0.3/conformance/node/nodeModulesCJSEmit1.ts#module%3Dnode20",
+      "repetition": 1,
+      "sha256": "a4e1668edc69069f72ecf9c1d53695e469ab9a470f8b8552986ac5dce6fac383"
+    },
+    {
+      "file": "99b9b14c5465e708bd262441b707abddf9132bb2eb626d958169aad7fd12618b-0.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance2.ts#target%3Des2015",
+      "repetition": 0,
+      "sha256": "6d497c32aa2cc7e03d831348bcc5b525eda96b2f9119a79525f17cafbcff050b"
+    },
+    {
+      "file": "99b9b14c5465e708bd262441b707abddf9132bb2eb626d958169aad7fd12618b-1.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance2.ts#target%3Des2015",
+      "repetition": 1,
+      "sha256": "cdc530538e536b4c517870cdf23ad92fd56fbf5a3794675540da34081246ec47"
+    },
+    {
+      "file": "99f1dbc5b20ce9baa2e4a4fce07d36add22bab01192084a0b20a9b91bbf0dff6-0.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReexportAliasesEsModuleInterop.ts#target%3Des2015",
+      "repetition": 0,
+      "sha256": "b49ebffdfcebcf09961dc2a5d8cc50cb38cf18d4576f3a0e40a44c581010962c"
+    },
+    {
+      "file": "99f1dbc5b20ce9baa2e4a4fce07d36add22bab01192084a0b20a9b91bbf0dff6-1.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReexportAliasesEsModuleInterop.ts#target%3Des2015",
+      "repetition": 1,
+      "sha256": "84fcc0e8ea3570e1d56266e54cae8b518a9e469851da26f1544de84a53c57da4"
+    },
+    {
+      "file": "9b36fa9fe3a89ba435cd67500310183f7e31f95d830e5b2bc379610874e90f93-0.json",
+      "case_id": "typescript-6.0.3/compiler/jsFileAlternativeUseOfOverloadTag.ts#default",
+      "repetition": 0,
+      "sha256": "be802ded3d44dec1549bfeb7baf39a204ceaefce5b83ae5f7060fcc3e0045889"
+    },
+    {
+      "file": "9b36fa9fe3a89ba435cd67500310183f7e31f95d830e5b2bc379610874e90f93-1.json",
+      "case_id": "typescript-6.0.3/compiler/jsFileAlternativeUseOfOverloadTag.ts#default",
+      "repetition": 1,
+      "sha256": "adc512b0718aff3ee8365b1a01a1fed76febb8ec4a8d6521416b02f67f96f361"
+    },
+    {
+      "file": "9c679e4e04ef8d511f78c8328a244ec5bfc784521c8f524770daf1f8d5dedf56-0.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassExpressionAnonymousWithSub.ts#target%3Des2015",
+      "repetition": 0,
+      "sha256": "d69477a04d88c64dd009b2ac5fbee5616b1c28f3d705f455dbb037e9f8ac8590"
+    },
+    {
+      "file": "9c679e4e04ef8d511f78c8328a244ec5bfc784521c8f524770daf1f8d5dedf56-1.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassExpressionAnonymousWithSub.ts#target%3Des2015",
+      "repetition": 1,
+      "sha256": "cfde4c4010bdff8bf7950ff863f810e5016459c80d1ab8c21b09410d5b23c6ce"
+    },
+    {
+      "file": "a3986928d20a525e51b2011e986f0009f58b80db1e9d2e7a2112aa2d0ac674a4-0.json",
+      "case_id": "typescript-6.0.3/compiler/jsFileFunctionOverloads2.ts#default",
+      "repetition": 0,
+      "sha256": "b5d0c45ec968f44a5537471da738828ee37f9697b49a40de68e2ab936bd77e54"
+    },
+    {
+      "file": "a3986928d20a525e51b2011e986f0009f58b80db1e9d2e7a2112aa2d0ac674a4-1.json",
+      "case_id": "typescript-6.0.3/compiler/jsFileFunctionOverloads2.ts#default",
+      "repetition": 1,
+      "sha256": "e0e99bc7eeda29c5bdef53e425f702db7c7620fb2fab4e446bfd7d3eb44c12f0"
+    },
+    {
+      "file": "a60f1334aea84d313062301c869fdca673a371b9089aabcca6b75e87ba7bf810-0.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode18%2Ctarget%3Des2015",
+      "repetition": 0,
+      "sha256": "2b7969b261f5c4ec1ab10c671410a3a3fe46940b25cf27a29573bc6a150c2ce6"
+    },
+    {
+      "file": "a60f1334aea84d313062301c869fdca673a371b9089aabcca6b75e87ba7bf810-1.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode18%2Ctarget%3Des2015",
+      "repetition": 1,
+      "sha256": "2f0e455b6bb47bf9ffa56f06ac3805ee4ab5a425e06281a556bf72c568491052"
+    },
+    {
+      "file": "a97fbccacd28fcec8dafc839459c3958970611048947c1b1e8ee2f667aea748b-0.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionKeywordPropExhaustive.ts#target%3Des2015",
+      "repetition": 0,
+      "sha256": "a3b8261159205711839664e5a13f5c55315724510fa0efe5c08ebc8649f7042d"
+    },
+    {
+      "file": "a97fbccacd28fcec8dafc839459c3958970611048947c1b1e8ee2f667aea748b-1.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionKeywordPropExhaustive.ts#target%3Des2015",
+      "repetition": 1,
+      "sha256": "834bd8fa8ef318da03fd379381b63657dd1a1150499ad93153a0135d3a31c20f"
+    },
+    {
+      "file": "ab70afe0adce8e123c239391418134fab7e55c9607b5bfcbc842dda0652f8c57-0.json",
+      "case_id": "typescript-6.0.3/conformance/externalModules/typeOnly/exportNamespace_js.ts#default",
+      "repetition": 0,
+      "sha256": "da353eb2f28bfb9b4a1a54a9b78064692b5d5e6e299314d93616eadfe262e570"
+    },
+    {
+      "file": "ab70afe0adce8e123c239391418134fab7e55c9607b5bfcbc842dda0652f8c57-1.json",
+      "case_id": "typescript-6.0.3/conformance/externalModules/typeOnly/exportNamespace_js.ts#default",
+      "repetition": 1,
+      "sha256": "7ca9eec064bbacf8d94bdec82a43077a27c0ac7b62efffa9c51d39ea5efd942d"
+    },
+    {
+      "file": "b036cf01fedacbdc5d7b0417596136d22352621d1976ed7bee09592c369dab61-0.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnodenext%2Ctarget%3Des2015",
+      "repetition": 0,
+      "sha256": "7941f4a9db4e09f59a9628f272b55ab714806fa8885ff0afbe205b5919c81a02"
+    },
+    {
+      "file": "b036cf01fedacbdc5d7b0417596136d22352621d1976ed7bee09592c369dab61-1.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnodenext%2Ctarget%3Des2015",
+      "repetition": 1,
+      "sha256": "4f8cc1256106ee745207f92b77e0af642ac29d8a2ac6f7133b9657fc52a89ba2"
+    },
+    {
+      "file": "b83c3c6200125d04c7fe5205aa680d65fd43134b99c0e0c87a8f2520e289bcb8-0.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_signatures.ts#default",
+      "repetition": 0,
+      "sha256": "08422ab14b143b9445fa862d0315837ab146d95a3b93cbc58b7002e76345f756"
+    },
+    {
+      "file": "b83c3c6200125d04c7fe5205aa680d65fd43134b99c0e0c87a8f2520e289bcb8-1.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_signatures.ts#default",
+      "repetition": 1,
+      "sha256": "8c76282e530e24e093623efa2f2c3af929c4bb31babaafdc023a25245e414b9e"
+    },
+    {
+      "file": "b916a817eec10295223889243eeaa5d511b189dcd07644f80f495c5d8f661cbd-0.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions2.ts#module%3Dnodenext",
+      "repetition": 0,
+      "sha256": "b86ee856bec047f32f1d7e6fbc15e9a97bf243ee80d5584c0d4a7c8e7d4f46c6"
+    },
+    {
+      "file": "b916a817eec10295223889243eeaa5d511b189dcd07644f80f495c5d8f661cbd-1.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions2.ts#module%3Dnodenext",
+      "repetition": 1,
+      "sha256": "bf6b072965564413e3f1672b426b68d40a866bffd748bcac788b631606e9ef3a"
+    },
+    {
+      "file": "b972dd345f8e353c0cbf156efd5838fb5cebe6503c41d0f172cad7862cab7b86-0.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode20%2Ctarget%3Des2015",
+      "repetition": 0,
+      "sha256": "ab2add2c8e0e830a347d48cf748b792f4be464a368aad3f94523570d44a2be0f"
+    },
+    {
+      "file": "b972dd345f8e353c0cbf156efd5838fb5cebe6503c41d0f172cad7862cab7b86-1.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode20%2Ctarget%3Des2015",
+      "repetition": 1,
+      "sha256": "e547da14af7620cc7b8054098e6f8c7b02db24bd7edffafcebca921b9dae97b7"
+    },
+    {
+      "file": "b99c8624e0f2d27c3e6e85e197c7464366e7e571a3fe4b6ec53263045abced46-0.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsExportAssignment.ts#module%3Dnode18",
+      "repetition": 0,
+      "sha256": "d4c03de7da01fb8f066ee477d95cc21f3e3dd15e29aad8aaff17a70b65ce0acd"
+    },
+    {
+      "file": "b99c8624e0f2d27c3e6e85e197c7464366e7e571a3fe4b6ec53263045abced46-1.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsExportAssignment.ts#module%3Dnode18",
+      "repetition": 1,
+      "sha256": "12dbbb204421d7580c6d8bf17fd4d7f76410c3347aa5e280e5a179b23ab02b6a"
+    },
+    {
+      "file": "c21de4f759b49a7c1ffd066f6b9770daa23552966a4f463878c728357634a79b-0.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions2.ts#module%3Dnode18",
+      "repetition": 0,
+      "sha256": "5db48f45566e53d95cb84386c082495e96df2c5d28225e0e05e34d371d338773"
+    },
+    {
+      "file": "c21de4f759b49a7c1ffd066f6b9770daa23552966a4f463878c728357634a79b-1.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions2.ts#module%3Dnode18",
+      "repetition": 1,
+      "sha256": "941985711c52287f7981c48afa8b1ed60b59e4e9e9e9c58bb9847efe3e2b9867"
+    },
+    {
+      "file": "d10cb5e124af3117c135968e77084dce717b5980cff1d1fac9670c5ba34e4f77-0.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsExportAssignment.ts#module%3Dnodenext",
+      "repetition": 0,
+      "sha256": "1fbc5de3cd0e3c7fccc146160ace43f529cbf65b5c2c6f24c31c61a731025705"
+    },
+    {
+      "file": "d10cb5e124af3117c135968e77084dce717b5980cff1d1fac9670c5ba34e4f77-1.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsExportAssignment.ts#module%3Dnodenext",
+      "repetition": 1,
+      "sha256": "20c4e2dbbd8c31628c38b6dddbb1e7a29e867e6a1967dc67828eae62d26e1641"
+    },
+    {
+      "file": "d19776b3a9ca788c2be2d61b9ce36cb21257eda27ddd8e6b9b0493937075ac81-0.json",
+      "case_id": "typescript-6.0.3/compiler/impliedNodeFormatEmit1.ts#module%3Damd",
+      "repetition": 0,
+      "sha256": "38dacb49cc4f09eaa0f2c7a8248fdfea82e59ef674e06f0d793d4431fb094ca2"
+    },
+    {
+      "file": "d19776b3a9ca788c2be2d61b9ce36cb21257eda27ddd8e6b9b0493937075ac81-1.json",
+      "case_id": "typescript-6.0.3/compiler/impliedNodeFormatEmit1.ts#module%3Damd",
+      "repetition": 1,
+      "sha256": "60f2efb432b646b3939663d239d6ebce76678f7b8a427d6aa70eed846ac73b97"
+    },
+    {
+      "file": "d2194634182dd9225f333bafc549e0c7e07c9d34c0f8dd127b4a9d66c2449c0c-0.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions1.ts#module%3Dnode16",
+      "repetition": 0,
+      "sha256": "e38dd16ab784f066e00fb96614c3b81ed31e0f5663224b93448a844f952f9395"
+    },
+    {
+      "file": "d2194634182dd9225f333bafc549e0c7e07c9d34c0f8dd127b4a9d66c2449c0c-1.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions1.ts#module%3Dnode16",
+      "repetition": 1,
+      "sha256": "ffd3f75ea803e9873b3c3147cc0ac6a95837cea7ce388fced50469d03e9b4fb3"
+    },
+    {
+      "file": "d33488cd0baf0bb86816198a16ca94160626cf1f3a7afadd524b313cbf90d554-0.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_interface.ts#default",
+      "repetition": 0,
+      "sha256": "d95bc67f65532bbff07143f3ab5888382c75eaec682e9e36db9a1fd0ee3ce83d"
+    },
+    {
+      "file": "d33488cd0baf0bb86816198a16ca94160626cf1f3a7afadd524b313cbf90d554-1.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_interface.ts#default",
+      "repetition": 1,
+      "sha256": "e7646ae579994ffdf9611dd6fc5dc17fb22229126b45f947b035daeb23b52b8a"
+    },
+    {
+      "file": "d705bcfa1c3e1bb13f9c6b3ad8770b27df18ee553295816c235d1b8050e55d51-0.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsExportAssignment.ts#module%3Dnode16",
+      "repetition": 0,
+      "sha256": "f00e7088c85c5784db31b8e70d58d80535c741ec4ad90255989f10830e923643"
+    },
+    {
+      "file": "d705bcfa1c3e1bb13f9c6b3ad8770b27df18ee553295816c235d1b8050e55d51-1.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsExportAssignment.ts#module%3Dnode16",
+      "repetition": 1,
+      "sha256": "f37069c942bc8dd4d82bde9009befefee5894e9cf5d825fc1d48e7261cc6e152"
+    },
+    {
+      "file": "de386f23a4749d7bdb98d20d3f2b7408a2a2921dd34de718cf0fc530e4851083-0.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_class.ts#default",
+      "repetition": 0,
+      "sha256": "82e4e4b6f6b6aa2b5dc96afe4f97018e9a1dde895bc969ccd81a5868bc39b8ae"
+    },
+    {
+      "file": "de386f23a4749d7bdb98d20d3f2b7408a2a2921dd34de718cf0fc530e4851083-1.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_class.ts#default",
+      "repetition": 1,
+      "sha256": "ad148c1af63e9a4f7e3192855f309593ca6e577ec684c9bc2a64bd611fd64f97"
+    },
+    {
+      "file": "dfcca88df0a5bdcc0059a5ccc708b5960d66c074556ecb99e2ff06eb724016e9-0.json",
+      "case_id": "typescript-6.0.3/compiler/jsFileFunctionOverloads.ts#default",
+      "repetition": 0,
+      "sha256": "aa08cf6727d2675eb27e26e4ac29bb4a0a9403032312b5dcc14e8906f9977d77"
+    },
+    {
+      "file": "dfcca88df0a5bdcc0059a5ccc708b5960d66c074556ecb99e2ff06eb724016e9-1.json",
+      "case_id": "typescript-6.0.3/compiler/jsFileFunctionOverloads.ts#default",
+      "repetition": 1,
+      "sha256": "4ab2ed72299f913ff4bc723f992372a1384a6a90e87708c56fcd831dc2499003"
+    },
+    {
+      "file": "e1c0d615d6610b4033e451f10d6c80c3b6616367216b4e0bf306d88046b85aad-0.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/typedefOnSemicolonClassElement.ts#default",
+      "repetition": 0,
+      "sha256": "754a6c8ca1aa83d5f3ccf995e01b0ce1670ab4091c7324891916c257b9735c64"
+    },
+    {
+      "file": "e1c0d615d6610b4033e451f10d6c80c3b6616367216b4e0bf306d88046b85aad-1.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/typedefOnSemicolonClassElement.ts#default",
+      "repetition": 1,
+      "sha256": "70fb0db8519d83e04e5bdca3df6b2382591cb93870790b4fb44b2a9e6ef3ba4c"
+    },
+    {
+      "file": "eb26d9015e3d864c07479df270650523dd6acace7d708e8a1a4386db943f220a-0.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/linkTagEmit1.ts#default",
+      "repetition": 0,
+      "sha256": "97259f7230914a02ce916aafb5c11f396a05316f01ca73969c058c56af7e059c"
+    },
+    {
+      "file": "eb26d9015e3d864c07479df270650523dd6acace7d708e8a1a4386db943f220a-1.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/linkTagEmit1.ts#default",
+      "repetition": 1,
+      "sha256": "606b688da936adbbe0da1a0e23009d1f026b05f8fe4a1ed8e5c46daf041bb806"
+    },
+    {
+      "file": "ef3e461a9d6afa19dfc7f196afb059d21e618c3601943ad980caf01f4f24d6e4-0.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions2.ts#module%3Dnode16",
+      "repetition": 0,
+      "sha256": "563ad65dd35f8e056ba6f40d58de3cba979b02354b00bfc65c77921ee28fd4aa"
+    },
+    {
+      "file": "ef3e461a9d6afa19dfc7f196afb059d21e618c3601943ad980caf01f4f24d6e4-1.json",
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions2.ts#module%3Dnode16",
+      "repetition": 1,
+      "sha256": "f657ed87a3cb2765cd1bab14dca62d2b7612692b039e74f487e16b9443c81a11"
+    },
+    {
+      "file": "f1e557892e9b6042a7c22966bd0dcf217cf04a5d702626eed01113c228e9607c-0.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_interface_multiple.ts#default",
+      "repetition": 0,
+      "sha256": "eeb1d088293a3d19c1f9e335f90a975aec5b8a81211826cb07952f186694050c"
+    },
+    {
+      "file": "f1e557892e9b6042a7c22966bd0dcf217cf04a5d702626eed01113c228e9607c-1.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/jsdocImplements_interface_multiple.ts#default",
+      "repetition": 1,
+      "sha256": "2fe9f82cfbba33f025b8459704775132f6c4fa53caf38451db57360f33f02fce"
+    },
+    {
+      "file": "fa77d39253b93212a65e652f1188a58cc3045ee26fbad19ba6e7b749429acbda-0.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassExpressionAnonymousWithSub.ts#target%3Des5",
+      "repetition": 0,
+      "sha256": "42f288a8780520a5a4043c9d1e3ad8ffe0dc79b5f20b647c4be37064595e435c"
+    },
+    {
+      "file": "fa77d39253b93212a65e652f1188a58cc3045ee26fbad19ba6e7b749429acbda-1.json",
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassExpressionAnonymousWithSub.ts#target%3Des5",
+      "repetition": 1,
+      "sha256": "66629456f520692f739b3cf90eeacc02dc3a7224ea82544c16abf258f2981de6"
+    },
+    {
+      "file": "fd5949aa83d71a087d61f16df2e2c6d4cd70678cc00b3e88e5676710575d2e11-0.json",
+      "case_id": "typescript-6.0.3/compiler/impliedNodeFormatEmit1.ts#module%3Dumd",
+      "repetition": 0,
+      "sha256": "3604db184b3e3db744574e20c33ff6125992cda527e994237731c3b214dba834"
+    },
+    {
+      "file": "fd5949aa83d71a087d61f16df2e2c6d4cd70678cc00b3e88e5676710575d2e11-1.json",
+      "case_id": "typescript-6.0.3/compiler/impliedNodeFormatEmit1.ts#module%3Dumd",
+      "repetition": 1,
+      "sha256": "97eda1d46600397633af2501d385dd79577fb29847fbe2bbddd12bece31e3b57"
+    }
+  ]
+}

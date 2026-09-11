@@ -679,6 +679,9 @@ impl<'a> BinderWorker<'a> {
     /// tsc-port: bindBlockScopedDeclaration @6.0.3
     /// tsc-hash: 3d334e9a90d6bdfdb3b7d79213ed700060d8357423cf382de8dede406b119b7f
     /// tsc-span: _tsc.js:43972-43998
+    /// tsc-port: isExternalOrCommonJsModule @6.0.3
+    /// tsc-hash: e395fd4c4d5df1373eb3cc17bc653dfcd8f2e41b9e32d949b3063633dc02c07d
+    /// tsc-span: _tsc.js:14119-14121
     fn bind_block_scoped_declaration(
         &mut self,
         node: NodeId,
@@ -693,8 +696,9 @@ impl<'a> BinderWorker<'a> {
                 self.declare_module_member(node, symbol_flags, symbol_excludes);
             }
             SyntaxKind::SourceFile
-                if self.source.external_module_indicator.is_some()
-                    || self.common_js_module_indicator.is_some() =>
+                if self.container == Some(self.source.root)
+                    && (self.source.external_module_indicator.is_some()
+                        || self.common_js_module_indicator.is_some()) =>
             {
                 self.declare_module_member(node, symbol_flags, symbol_excludes);
             }

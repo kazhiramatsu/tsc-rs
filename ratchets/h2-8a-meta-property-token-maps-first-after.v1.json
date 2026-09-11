@@ -1,0 +1,700 @@
+{
+  "version": 1,
+  "status": "initial-repair-qualified-with-required-System-range-prerequisite-open",
+  "base": "1f66c93e5c46b66278a8372899e5d498a1005942",
+  "eligible": 228,
+  "exact_twice": 208,
+  "failed_once": [
+    "meta-property-token-maps/es5/system/import-meta-value",
+    "meta-property-token-maps/es5/system/import-meta-property",
+    "meta-property-token-maps/es5/system/import-meta-element",
+    "meta-property-token-maps/es5/system/import-meta-typeof",
+    "meta-property-token-maps/es5/system/import-meta-binding-collision",
+    "meta-property-token-maps/es5/system/import-meta-keyword-gap-comment",
+    "meta-property-token-maps/es5/system/import-meta-name-gap-comment",
+    "meta-property-token-maps/es5/system/import-meta-imported-binding",
+    "meta-property-token-maps/es2015/system/import-meta-value",
+    "meta-property-token-maps/es2015/system/import-meta-property",
+    "meta-property-token-maps/es2015/system/import-meta-element",
+    "meta-property-token-maps/es2015/system/import-meta-typeof",
+    "meta-property-token-maps/es2015/system/import-meta-binding-collision",
+    "meta-property-token-maps/es2015/system/import-meta-keyword-gap-comment",
+    "meta-property-token-maps/es2015/system/import-meta-name-gap-comment",
+    "meta-property-token-maps/es2015/system/import-meta-imported-binding",
+    "class-assigned-name/es5/commonjs/class-fields-alias",
+    "class-assigned-name/es5/esnext/class-fields-alias",
+    "class-assigned-name/es2015/commonjs/class-fields-alias",
+    "class-assigned-name/es2015/esnext/class-fields-alias"
+  ],
+  "repaired_case_ids": [
+    "meta-property-token-maps/es5/commonjs/import-meta-value",
+    "meta-property-token-maps/es5/commonjs/import-meta-property",
+    "meta-property-token-maps/es5/commonjs/import-meta-element",
+    "meta-property-token-maps/es5/commonjs/import-meta-typeof",
+    "meta-property-token-maps/es5/commonjs/import-meta-binding-collision",
+    "meta-property-token-maps/es5/commonjs/import-meta-keyword-gap-comment",
+    "meta-property-token-maps/es5/commonjs/import-meta-name-gap-comment",
+    "meta-property-token-maps/es5/commonjs/import-meta-imported-binding",
+    "meta-property-token-maps/es5/esnext/import-meta-value",
+    "meta-property-token-maps/es5/esnext/import-meta-property",
+    "meta-property-token-maps/es5/esnext/import-meta-element",
+    "meta-property-token-maps/es5/esnext/import-meta-typeof",
+    "meta-property-token-maps/es5/esnext/import-meta-binding-collision",
+    "meta-property-token-maps/es5/esnext/import-meta-keyword-gap-comment",
+    "meta-property-token-maps/es5/esnext/import-meta-name-gap-comment",
+    "meta-property-token-maps/es5/esnext/import-meta-imported-binding",
+    "meta-property-token-maps/es2015/commonjs/new-target-function",
+    "meta-property-token-maps/es2015/commonjs/new-target-typed-function",
+    "meta-property-token-maps/es2015/commonjs/new-target-constructor",
+    "meta-property-token-maps/es2015/commonjs/new-target-arrow",
+    "meta-property-token-maps/es2015/commonjs/new-target-binding-collision",
+    "meta-property-token-maps/es2015/commonjs/new-target-escaped-name",
+    "meta-property-token-maps/es2015/commonjs/new-target-keyword-gap-comment",
+    "meta-property-token-maps/es2015/commonjs/new-target-name-gap-comment",
+    "meta-property-token-maps/es2015/commonjs/new-target-multiline",
+    "meta-property-token-maps/es2015/commonjs/import-meta-value",
+    "meta-property-token-maps/es2015/commonjs/import-meta-property",
+    "meta-property-token-maps/es2015/commonjs/import-meta-element",
+    "meta-property-token-maps/es2015/commonjs/import-meta-typeof",
+    "meta-property-token-maps/es2015/commonjs/import-meta-binding-collision",
+    "meta-property-token-maps/es2015/commonjs/import-meta-keyword-gap-comment",
+    "meta-property-token-maps/es2015/commonjs/import-meta-name-gap-comment",
+    "meta-property-token-maps/es2015/commonjs/new-target-imported-binding",
+    "meta-property-token-maps/es2015/commonjs/import-meta-imported-binding",
+    "meta-property-token-maps/es2015/esnext/new-target-function",
+    "meta-property-token-maps/es2015/esnext/new-target-typed-function",
+    "meta-property-token-maps/es2015/esnext/new-target-constructor",
+    "meta-property-token-maps/es2015/esnext/new-target-arrow",
+    "meta-property-token-maps/es2015/esnext/new-target-binding-collision",
+    "meta-property-token-maps/es2015/esnext/new-target-escaped-name",
+    "meta-property-token-maps/es2015/esnext/new-target-keyword-gap-comment",
+    "meta-property-token-maps/es2015/esnext/new-target-name-gap-comment",
+    "meta-property-token-maps/es2015/esnext/new-target-multiline",
+    "meta-property-token-maps/es2015/esnext/import-meta-value",
+    "meta-property-token-maps/es2015/esnext/import-meta-property",
+    "meta-property-token-maps/es2015/esnext/import-meta-element",
+    "meta-property-token-maps/es2015/esnext/import-meta-typeof",
+    "meta-property-token-maps/es2015/esnext/import-meta-binding-collision",
+    "meta-property-token-maps/es2015/esnext/import-meta-keyword-gap-comment",
+    "meta-property-token-maps/es2015/esnext/import-meta-name-gap-comment",
+    "meta-property-token-maps/es2015/esnext/new-target-imported-binding",
+    "meta-property-token-maps/es2015/esnext/import-meta-imported-binding",
+    "meta-property-token-maps/es2015/system/new-target-function",
+    "meta-property-token-maps/es2015/system/new-target-typed-function",
+    "meta-property-token-maps/es2015/system/new-target-constructor",
+    "meta-property-token-maps/es2015/system/new-target-arrow",
+    "meta-property-token-maps/es2015/system/new-target-binding-collision",
+    "meta-property-token-maps/es2015/system/new-target-escaped-name",
+    "meta-property-token-maps/es2015/system/new-target-keyword-gap-comment",
+    "meta-property-token-maps/es2015/system/new-target-name-gap-comment",
+    "meta-property-token-maps/es2015/system/new-target-multiline",
+    "meta-property-token-maps/es2015/system/new-target-imported-binding",
+    "class-assigned-name/es2015/commonjs/plain-function-new-target",
+    "class-assigned-name/es2015/commonjs/typed-function-new-target",
+    "class-assigned-name/es2015/esnext/plain-function-new-target",
+    "class-assigned-name/es2015/esnext/typed-function-new-target"
+  ],
+  "native_complete_command_executions": 436,
+  "supplemental_executions": 0,
+  "first_failure_comparisons": [
+    {
+      "case_id": "meta-property-token-maps/es5/system/import-meta-value",
+      "boundary": "exact source-map result",
+      "actual_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;YAAA,iBAAa,GAAG,GAAG,cAAW,EAAC\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AAAA,eAAO,MAAM,GAAG,YAAc,CAAC\\\"}\")}]",
+      "expected_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;YAAA,iBAAa,GAAG,mBAAe\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AAAA,eAAO,MAAM,GAAG,YAAc,CAAC\\\"}\")}]",
+      "actual_sha256": "470415312dd0e5d48e9dabe00557a786c358f0350745d51b11725855949a3161",
+      "expected_sha256": "f20f6e8325f2e0f62a65d0c0ca6b61fe63713071a126d25b59cb98963b5dfc8a"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/system/import-meta-property",
+      "boundary": "exact source-map result",
+      "actual_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;YAAA,iBAAa,GAAG,GAAG,cAAW,CAAC,GAAG,EAAC\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AAAA,eAAO,MAAM,GAAG,QAAkB,CAAC\\\"}\")}]",
+      "expected_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;YAAA,iBAAa,GAAG,GAAG,eAAY,GAAG,EAAC\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AAAA,eAAO,MAAM,GAAG,QAAkB,CAAC\\\"}\")}]",
+      "actual_sha256": "fc70158147c3d73099a06e03bb5a8d56385802c4b5eeb8890eb4c48d35efe14c",
+      "expected_sha256": "f6c62e1db1627f36fe255e5289973f4da29ec366cff99deac18542c2b6ec3492"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/system/import-meta-element",
+      "boundary": "exact source-map result",
+      "actual_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;YAAA,iBAAa,GAAG,GAAG,cAAW,CAAC,KAAK,CAAC,EAAC\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AAAA,eAAO,MAAM,GAAG,QAAqB,CAAC\\\"}\")}]",
+      "expected_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;YAAA,iBAAa,GAAG,GAAG,eAAY,KAAK,CAAC,EAAC\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AAAA,eAAO,MAAM,GAAG,QAAqB,CAAC\\\"}\")}]",
+      "actual_sha256": "3fb5ac2a9dad454ecb8cbe0e40a730b2d14c9543c933aa1f20702d6f8eca68ae",
+      "expected_sha256": "e1f06f5dfb429f1d931bdcf628b7b75a3c834f292e26c18d603f2878f1b4b424"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/system/import-meta-typeof",
+      "boundary": "exact source-map result",
+      "actual_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;YAAA,iBAAa,GAAG,GAAG,OAAO,cAAW,EAAC\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AAAA,eAAO,MAAM,GAAG,6FAAqB,CAAC\\\"}\")}]",
+      "expected_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;YAAA,iBAAa,GAAG,GAAG,qBAAkB,EAAC\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AAAA,eAAO,MAAM,GAAG,6FAAqB,CAAC\\\"}\")}]",
+      "actual_sha256": "64d3a47137b7a27c86014a30e31ef6ec3b35580576e444094a3966b78bef05f2",
+      "expected_sha256": "93e6284996eee2c9ac3d1be728d4bc9d539e67fc78663dd077e56446c3c292f4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/system/import-meta-binding-collision",
+      "boundary": "exact source-map result",
+      "actual_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;YAAA,kBAAa,IAAI,GAAG,CAAC,EAAC;YACtB,iBAAa,GAAG,GAAG,cAAW,EAAC\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AAAA,eAAO,MAAM,IAAI,IAAI,CAAC;AACtB,eAAO,MAAM,GAAG,YAAc,CAAC\\\"}\")}]",
+      "expected_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;YAAA,kBAAa,IAAI,GAAG,CAAC,EAAC;YACtB,iBAAa,GAAG,mBAAe\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AAAA,eAAO,MAAM,IAAI,IAAI,CAAC;AACtB,eAAO,MAAM,GAAG,YAAc,CAAC\\\"}\")}]",
+      "actual_sha256": "332eb1f72e50c8a4d153eaf58de415c867b4df1c5327ce121143130daf6a5369",
+      "expected_sha256": "9a6e8f75c6d4afc526017163abada68fc44abe546aa31d3536a7022e631d8d7c"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/system/import-meta-keyword-gap-comment",
+      "boundary": "exact source-map result",
+      "actual_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;YAAA,iBAAa,GAAG,GAAG,cAAsB,EAAC\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AAAA,eAAO,MAAM,GAAG,YAAyB,CAAC\\\"}\")}]",
+      "expected_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;YAAA,iBAAa,GAAG,mBAA0B\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AAAA,eAAO,MAAM,GAAG,YAAyB,CAAC\\\"}\")}]",
+      "actual_sha256": "b779e705ce3b2d0a71b2dbdc012954819f7ccfbfb2a3000252ecd742e3ee37c3",
+      "expected_sha256": "b1ebcabb5576b25b523258e4feecd9c9df8c7b566d1d83dd35080f6c88f0c1b5"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/system/import-meta-name-gap-comment",
+      "boundary": "exact source-map result",
+      "actual_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;YAAA,iBAAa,GAAG,GAAG,cAAsB,EAAC\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AAAA,eAAO,MAAM,GAAG,YAAyB,CAAC\\\"}\")}]",
+      "expected_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;YAAA,iBAAa,GAAG,mBAA0B\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AAAA,eAAO,MAAM,GAAG,YAAyB,CAAC\\\"}\")}]",
+      "actual_sha256": "b779e705ce3b2d0a71b2dbdc012954819f7ccfbfb2a3000252ecd742e3ee37c3",
+      "expected_sha256": "b1ebcabb5576b25b523258e4feecd9c9df8c7b566d1d83dd35080f6c88f0c1b5"
+    },
+    {
+      "case_id": "meta-property-token-maps/es5/system/import-meta-imported-binding",
+      "boundary": "exact source-map result",
+      "actual_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/dep.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"dep.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../dep.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;YAAA,oBAAa,MAAM,GAAG,CAAC,EAAC;YAAC,kBAAa,IAAI,GAAG,CAAC,EAAC\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/dep.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"dep.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../dep.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AAAA,eAAO,MAAM,MAAM,IAAI,CAAC;AAAC,eAAO,MAAM,IAAI,IAAI,CAAC\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;;;;;YACA,iBAAa,GAAG,GAAG,CAAC,UAAI,EAAE,cAAW,CAAC,EAAC\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AACA,eAAO,MAAM,GAAG,yBAAsB,CAAC\\\"}\")}]",
+      "expected_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/dep.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"dep.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../dep.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;YAAA,oBAAa,MAAM,GAAG,CAAC,EAAC;YAAC,kBAAa,IAAI,GAAG,CAAC,EAAC\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/dep.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"dep.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../dep.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AAAA,eAAO,MAAM,MAAM,IAAI,CAAC;AAAC,eAAO,MAAM,IAAI,IAAI,CAAC\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;;;;;YACA,iBAAa,GAAG,GAAG,CAAC,UAAI,iBAAc,EAAC\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AACA,eAAO,MAAM,GAAG,yBAAsB,CAAC\\\"}\")}]",
+      "actual_sha256": "f007edd0691b69542d3a4d661fe29d414ad0d2cf830fa52e8aa209ea85dccb44",
+      "expected_sha256": "ea5a086bb19b15e15d571226a54f489ab49fa2bba214cee34f07f867a69dc833"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/system/import-meta-value",
+      "boundary": "exact source-map result",
+      "actual_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;YAAA,iBAAa,GAAG,GAAG,cAAW,EAAC\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AAAA,eAAO,MAAM,GAAG,YAAc,CAAC\\\"}\")}]",
+      "expected_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;YAAA,iBAAa,GAAG,mBAAe\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AAAA,eAAO,MAAM,GAAG,YAAc,CAAC\\\"}\")}]",
+      "actual_sha256": "470415312dd0e5d48e9dabe00557a786c358f0350745d51b11725855949a3161",
+      "expected_sha256": "f20f6e8325f2e0f62a65d0c0ca6b61fe63713071a126d25b59cb98963b5dfc8a"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/system/import-meta-property",
+      "boundary": "exact source-map result",
+      "actual_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;YAAA,iBAAa,GAAG,GAAG,cAAW,CAAC,GAAG,EAAC\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AAAA,eAAO,MAAM,GAAG,QAAkB,CAAC\\\"}\")}]",
+      "expected_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;YAAA,iBAAa,GAAG,GAAG,eAAY,GAAG,EAAC\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AAAA,eAAO,MAAM,GAAG,QAAkB,CAAC\\\"}\")}]",
+      "actual_sha256": "fc70158147c3d73099a06e03bb5a8d56385802c4b5eeb8890eb4c48d35efe14c",
+      "expected_sha256": "f6c62e1db1627f36fe255e5289973f4da29ec366cff99deac18542c2b6ec3492"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/system/import-meta-element",
+      "boundary": "exact source-map result",
+      "actual_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;YAAA,iBAAa,GAAG,GAAG,cAAW,CAAC,KAAK,CAAC,EAAC\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AAAA,eAAO,MAAM,GAAG,QAAqB,CAAC\\\"}\")}]",
+      "expected_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;YAAA,iBAAa,GAAG,GAAG,eAAY,KAAK,CAAC,EAAC\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AAAA,eAAO,MAAM,GAAG,QAAqB,CAAC\\\"}\")}]",
+      "actual_sha256": "3fb5ac2a9dad454ecb8cbe0e40a730b2d14c9543c933aa1f20702d6f8eca68ae",
+      "expected_sha256": "e1f06f5dfb429f1d931bdcf628b7b75a3c834f292e26c18d603f2878f1b4b424"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/system/import-meta-typeof",
+      "boundary": "exact source-map result",
+      "actual_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;YAAA,iBAAa,GAAG,GAAG,OAAO,cAAW,EAAC\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AAAA,eAAO,MAAM,GAAG,6FAAqB,CAAC\\\"}\")}]",
+      "expected_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;YAAA,iBAAa,GAAG,GAAG,qBAAkB,EAAC\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AAAA,eAAO,MAAM,GAAG,6FAAqB,CAAC\\\"}\")}]",
+      "actual_sha256": "64d3a47137b7a27c86014a30e31ef6ec3b35580576e444094a3966b78bef05f2",
+      "expected_sha256": "93e6284996eee2c9ac3d1be728d4bc9d539e67fc78663dd077e56446c3c292f4"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/system/import-meta-binding-collision",
+      "boundary": "exact source-map result",
+      "actual_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;YAAA,kBAAa,IAAI,GAAG,CAAC,EAAC;YACtB,iBAAa,GAAG,GAAG,cAAW,EAAC\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AAAA,eAAO,MAAM,IAAI,IAAI,CAAC;AACtB,eAAO,MAAM,GAAG,YAAc,CAAC\\\"}\")}]",
+      "expected_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;YAAA,kBAAa,IAAI,GAAG,CAAC,EAAC;YACtB,iBAAa,GAAG,mBAAe\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AAAA,eAAO,MAAM,IAAI,IAAI,CAAC;AACtB,eAAO,MAAM,GAAG,YAAc,CAAC\\\"}\")}]",
+      "actual_sha256": "332eb1f72e50c8a4d153eaf58de415c867b4df1c5327ce121143130daf6a5369",
+      "expected_sha256": "9a6e8f75c6d4afc526017163abada68fc44abe546aa31d3536a7022e631d8d7c"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/system/import-meta-keyword-gap-comment",
+      "boundary": "exact source-map result",
+      "actual_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;YAAA,iBAAa,GAAG,GAAG,cAAsB,EAAC\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AAAA,eAAO,MAAM,GAAG,YAAyB,CAAC\\\"}\")}]",
+      "expected_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;YAAA,iBAAa,GAAG,mBAA0B\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AAAA,eAAO,MAAM,GAAG,YAAyB,CAAC\\\"}\")}]",
+      "actual_sha256": "b779e705ce3b2d0a71b2dbdc012954819f7ccfbfb2a3000252ecd742e3ee37c3",
+      "expected_sha256": "b1ebcabb5576b25b523258e4feecd9c9df8c7b566d1d83dd35080f6c88f0c1b5"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/system/import-meta-name-gap-comment",
+      "boundary": "exact source-map result",
+      "actual_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;YAAA,iBAAa,GAAG,GAAG,cAAsB,EAAC\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AAAA,eAAO,MAAM,GAAG,YAAyB,CAAC\\\"}\")}]",
+      "expected_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;YAAA,iBAAa,GAAG,mBAA0B\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AAAA,eAAO,MAAM,GAAG,YAAyB,CAAC\\\"}\")}]",
+      "actual_sha256": "b779e705ce3b2d0a71b2dbdc012954819f7ccfbfb2a3000252ecd742e3ee37c3",
+      "expected_sha256": "b1ebcabb5576b25b523258e4feecd9c9df8c7b566d1d83dd35080f6c88f0c1b5"
+    },
+    {
+      "case_id": "meta-property-token-maps/es2015/system/import-meta-imported-binding",
+      "boundary": "exact source-map result",
+      "actual_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/dep.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"dep.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../dep.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;YAAA,oBAAa,MAAM,GAAG,CAAC,EAAC;YAAC,kBAAa,IAAI,GAAG,CAAC,EAAC\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/dep.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"dep.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../dep.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AAAA,eAAO,MAAM,MAAM,IAAI,CAAC;AAAC,eAAO,MAAM,IAAI,IAAI,CAAC\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;;;;;YACA,iBAAa,GAAG,GAAG,CAAC,UAAI,EAAE,cAAW,CAAC,EAAC\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AACA,eAAO,MAAM,GAAG,yBAAsB,CAAC\\\"}\")}]",
+      "expected_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/dep.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"dep.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../dep.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;YAAA,oBAAa,MAAM,GAAG,CAAC,EAAC;YAAC,kBAAa,IAAI,GAAG,CAAC,EAAC\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/dep.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"dep.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../dep.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AAAA,eAAO,MAAM,MAAM,IAAI,CAAC;AAAC,eAAO,MAAM,IAAI,IAAI,CAAC\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;;;;;YACA,iBAAa,GAAG,GAAG,CAAC,UAAI,iBAAc,EAAC\\\"}\")}, Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.d.ts\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\"AACA,eAAO,MAAM,GAAG,yBAAsB,CAAC\\\"}\")}]",
+      "actual_sha256": "f007edd0691b69542d3a4d661fe29d414ad0d2cf830fa52e8aa209ea85dccb44",
+      "expected_sha256": "ea5a086bb19b15e15d571226a54f489ab49fa2bba214cee34f07f867a69dc833"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/class-fields-alias",
+      "boundary": "exact source-map result",
+      "actual_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;;AACA,IAAM,GAAG,GAAG;QAAA;QAA4B,CAAC;QAAD,cAAC;IAAD,CAAC,AAA7B;;IAAe,OAAI,KAAQ;OAAE,CAAC;AACjC,kBAAG;AACC,QAAA,IAAI,GAAG,CAAC,CAAC\\\"}\")}]",
+      "expected_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;;AACA,IAAM,GAAG;QAAG;QAA4B,CAAC;QAAD,cAAC;IAAD,CAAC,AAA7B;;IAAe,OAAI,GAAG,EAAK;OAAE,CAAC;AACjC,kBAAG;AACC,QAAA,IAAI,GAAG,CAAC,CAAC\\\"}\")}]",
+      "actual_sha256": "5702103111b0cd9249b849525d5739242d628fd6c5a7a2754d3a1a4bddedab43",
+      "expected_sha256": "97772df0c87284442107bba850264cea6a586588ad359f15820613f4ca397cb6"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/class-fields-alias",
+      "boundary": "exact source-map result",
+      "actual_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;AACA,IAAM,GAAG,GAAG;QAAA;QAA4B,CAAC;QAAD,cAAC;IAAD,CAAC,AAA7B;;IAAe,OAAI,KAAQ;OAAE,CAAC;AAC1C,OAAO,EAAE,GAAG,EAAE,CAAC;AACf,MAAM,CAAC,IAAM,IAAI,GAAG,CAAC,CAAC\\\"}\")}]",
+      "expected_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;AACA,IAAM,GAAG;QAAG;QAA4B,CAAC;QAAD,cAAC;IAAD,CAAC,AAA7B;;IAAe,OAAI,GAAG,EAAK;OAAE,CAAC;AAC1C,OAAO,EAAE,GAAG,EAAE,CAAC;AACf,MAAM,CAAC,IAAM,IAAI,GAAG,CAAC,CAAC\\\"}\")}]",
+      "actual_sha256": "810be1fbfa749264828c5d2e89d6be14764fa4f44073f4461b24920b304d51f4",
+      "expected_sha256": "1b9833918366eeeb5f52ab51e3ba788c3eafacfcc00023f99fb6a5f6a19fc75b"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/class-fields-alias",
+      "boundary": "exact source-map result",
+      "actual_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;;AACA,MAAM,GAAG,GAAG,MAAA;KAA6B;;IAAd,OAAI,KAAQ;OAAE,CAAC;AACjC,kBAAG;AACC,QAAA,IAAI,GAAG,CAAC,CAAC\\\"}\")}]",
+      "expected_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;;;;AACA,MAAM,GAAG,SAAG;KAA6B;;IAAd,OAAI,GAAG,EAAK;OAAE,CAAC;AACjC,kBAAG;AACC,QAAA,IAAI,GAAG,CAAC,CAAC\\\"}\")}]",
+      "actual_sha256": "595c26cad2669a994630bea3bae73d28bd5c2ae05035b25781674bd3b3af9b5f",
+      "expected_sha256": "aab19fa409ebed89b6596bbcc79d52d25bb8dc9b5eafc2795e439f91c34c4939"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/class-fields-alias",
+      "boundary": "exact source-map result",
+      "actual_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;AACA,MAAM,GAAG,GAAG,MAAA;KAA6B;;IAAd,OAAI,KAAQ;OAAE,CAAC;AAC1C,OAAO,EAAE,GAAG,EAAE,CAAC;AACf,MAAM,CAAC,MAAM,IAAI,GAAG,CAAC,CAAC\\\"}\")}]",
+      "expected_debug": "Array [Object {\"input_source_file_names\": Array [String(\"/project/main.ts\")], \"source_map_json\": String(\"{\\\"version\\\":3,\\\"file\\\":\\\"main.js\\\",\\\"sourceRoot\\\":\\\"\\\",\\\"sources\\\":[\\\"../main.ts\\\"],\\\"names\\\":[],\\\"mappings\\\":\\\";;;;;AACA,MAAM,GAAG,SAAG;KAA6B;;IAAd,OAAI,GAAG,EAAK;OAAE,CAAC;AAC1C,OAAO,EAAE,GAAG,EAAE,CAAC;AACf,MAAM,CAAC,MAAM,IAAI,GAAG,CAAC,CAAC\\\"}\")}]",
+      "actual_sha256": "43abc4e25f1bad146c652fa6ccb7600bd227728b0ee81999e8916f2ceae5d998",
+      "expected_sha256": "de0fd8def999808f5ee93d7c4df1763c653aeb5e696b1c7f187ef457acc8fead"
+    }
+  ],
+  "all_remaining_first_vectors_identical_to_before": true,
+  "selected_native_tests_passed": 2,
+  "native_invariant_exact_repetitions": 16,
+  "native_query_cases_passed": 6,
+  "full_emitter_suites_run": false,
+  "classification_correction": {
+    "case_ids": [
+      "meta-property-token-maps/es5/system/import-meta-value",
+      "meta-property-token-maps/es5/system/import-meta-property",
+      "meta-property-token-maps/es5/system/import-meta-element",
+      "meta-property-token-maps/es5/system/import-meta-typeof",
+      "meta-property-token-maps/es5/system/import-meta-binding-collision",
+      "meta-property-token-maps/es5/system/import-meta-keyword-gap-comment",
+      "meta-property-token-maps/es5/system/import-meta-name-gap-comment",
+      "meta-property-token-maps/es5/system/import-meta-imported-binding",
+      "meta-property-token-maps/es2015/system/import-meta-value",
+      "meta-property-token-maps/es2015/system/import-meta-property",
+      "meta-property-token-maps/es2015/system/import-meta-element",
+      "meta-property-token-maps/es2015/system/import-meta-typeof",
+      "meta-property-token-maps/es2015/system/import-meta-binding-collision",
+      "meta-property-token-maps/es2015/system/import-meta-keyword-gap-comment",
+      "meta-property-token-maps/es2015/system/import-meta-name-gap-comment",
+      "meta-property-token-maps/es2015/system/import-meta-imported-binding"
+    ],
+    "previous_status": "owned-printer-meta-property",
+    "corrected_status": "owned-system-import-meta-synthetic-range",
+    "reason": "System substitutes MetaProperty before the printer; native set_original_and_range introduced mappings absent from the wholly synthetic TypeScript substitute. These 16 failures predate the repair and are unchanged, not regressions.",
+    "original_before_classifications_preserved": true,
+    "corrected_owner_counts": {
+      "owned-printer-meta-property": 59,
+      "module-name-context-and-printer-required": 7,
+      "owned-system-import-meta-synthetic-range": 16,
+      "outside-class-field-alias-maps": 4,
+      "adjacent-exact": 142
+    }
+  },
+  "exit": {
+    "manifest": "target/h2-8a-meta-property-token-maps-after-prelaunch.json",
+    "manifest_sha256": "9a98b27ce52e1ee1dc72f46f1869ec6bb31be8e9a3aa71c305a7cac4e2c651e8",
+    "argv": [
+      "taskpolicy",
+      "-b",
+      "nice",
+      "-n",
+      "15",
+      "cargo",
+      "test",
+      "-p",
+      "tsc-rs-compiler",
+      "-p",
+      "tsc-rs-emitter",
+      "--lib",
+      "--test",
+      "contracts",
+      "--no-fail-fast",
+      "--",
+      "meta_property_token_maps",
+      "transformed_class_assigned_names",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "exit_code": 101,
+    "wall_seconds": 688.1827638749965,
+    "log": "target/h2-8a-meta-property-token-maps-after.log",
+    "log_sha256": "7016930bbb8724e7aca171f8507bb7a329b8e4d9c68a75dc865ec768f77a9e63"
+  },
+  "initial_runtime_snapshot": [
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "93fcaa0204594938de92296c9a47517e657e13cce09ba6ab2e710d674146a428"
+    },
+    {
+      "path": "crates/emitter/src/builtins/system.rs",
+      "sha256": "41099aa5007e89c186dc8ac08ce7a3b5649b4b014b9bc80c77da4fd37eb52e12"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "764965519a4b8f2114c8c11e5089890c75cd4b19e3183c24a2b301e045bd4848"
+    }
+  ],
+  "inputs": [
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "c8c52e3c3c0613dfffe0ff1455596f83603ac46269d53b7f0897f5c6f63322fd"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/meta-property-token-maps.json",
+      "sha256": "479fbf2a808be871af49be7ecf382116422f0dfc1c708e8fea7ebe9caadd1bdb"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/transformed-class-assigned-names.json",
+      "sha256": "f04166260e4005fa6bd5df31ef98ef6d7d8cd79b0054e137f5c52e806d906ffb"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+      "sha256": "7b14d30e473948b7a7878c20ed9feb528a629f8d26db042306ba6574a6edde81"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "54d5849d2db6baf84152e6505add6e01906e6740cb21285f8b62631e538599ad"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_meta_property_token_maps.rs",
+      "sha256": "3a641ca42f38e3a843607677f51aa30aba1fa274eb9f828796ddffe4e58e5408"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_transformed_class_assigned_names.rs",
+      "sha256": "103cba6f7064c3fca0891ab7598930fbabb17f319bab8303349ad6a9028f7a81"
+    },
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "93fcaa0204594938de92296c9a47517e657e13cce09ba6ab2e710d674146a428"
+    },
+    {
+      "path": "crates/emitter/src/builtins/es2015.rs",
+      "sha256": "0427b99e1c10d41c9670ec173625b5f1407e5c1d7223a09abf6374ad09ab4c54"
+    },
+    {
+      "path": "crates/emitter/src/builtins/system.rs",
+      "sha256": "41099aa5007e89c186dc8ac08ce7a3b5649b4b014b9bc80c77da4fd37eb52e12"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/emitter/src/metadata.rs",
+      "sha256": "c9eaf94391d3eb0893a1d1e7d4c65ff9d876f8b3772634505325a72cf7430e23"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "764965519a4b8f2114c8c11e5089890c75cd4b19e3183c24a2b301e045bd4848"
+    },
+    {
+      "path": "crates/emitter/src/source_map.rs",
+      "sha256": "175b9b1cb1a8de357476d59098ada4c42e2473feb6dfe3e734177d17f652ffb9"
+    },
+    {
+      "path": "crates/emitter/src/transform.rs",
+      "sha256": "374ed96dc09f518a8f137cf7400e4cc6e634d3427b0b20346698e4b31a11011c"
+    },
+    {
+      "path": "crates/emitter/src/writer.rs",
+      "sha256": "0e3c1168e6251a7c42a5d9a811c0e4debfaa85398cafb9c512116a85f6bcecb6"
+    },
+    {
+      "path": "crates/emitter/tests/fixtures/meta-property-token-map-invariants.json",
+      "sha256": "118cf5d784867704712f8c5246805e609224ab4854de7b06413f926954f665e1"
+    },
+    {
+      "path": "crates/emitter/tests/unit/builtins/tests.rs",
+      "sha256": "0c7c9dabcf832e318d41df314b62a14b35fb52f4e80a1374640a7046bfdfb8bd"
+    },
+    {
+      "path": "crates/oracle/vfs-directory-overlay.mjs",
+      "sha256": "2868391e75941127f8eb3a352232190fd98c6d794235913e288432e5626aab76"
+    },
+    {
+      "path": "crates/syntax/src/for_each_child.rs",
+      "sha256": "20fd808bde00d377865d8a14f924fb23fbb82a8182708218581b20338c7bd8ce"
+    },
+    {
+      "path": "crates/syntax/src/nodes.rs",
+      "sha256": "3f7dda1c3f16bb9115bc8c509d38ecf506ac5efea80a2a229fcb931425552940"
+    },
+    {
+      "path": "crates/syntax/src/tokens.rs",
+      "sha256": "054ace65fc6e936276dfd39b7055f3795920fa39b9fce79c60d7a0d99000f673"
+    },
+    {
+      "path": "docs/design/README.md",
+      "sha256": "c2843bea19df08c887bd6461f10b7daf4ea2c86c32ca9ecc908008316a3497e0"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    },
+    {
+      "path": "docs/design/greenfield/post-h1-completion-slices.md",
+      "sha256": "df4e630f4fe348119e43714261d1193a880453fa6847b42c7bf52d086bd840fb"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-meta-property-token-maps.md",
+      "sha256": "2ce1fb016a313b2062fd251377fc48f7bfa2c37a731d6dfef9ad6f5c1efc1000"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-readonly-after.v1.json",
+      "sha256": "d720a432a2a085618535381a565e065791d21acd85572d1992620d58c5fd6f0c"
+    },
+    {
+      "path": "ratchets/h2-8a-meta-property-token-maps-before.v1.json",
+      "sha256": "6eadff8e9154e1cde5e30e8473a9a752affbda636b38ef9701ee63e12d1c7d3d"
+    },
+    {
+      "path": "ratchets/h2-8a-meta-property-token-maps-first-before.v1.json",
+      "sha256": "d9a1253d41cdc8ed5269846281375e172daaa56eaf4b676719279a2f70069886"
+    },
+    {
+      "path": "ratchets/h2-8a-meta-property-token-maps-readiness.v1.json",
+      "sha256": "94f138d63a85e9d25e7f96085a563277f90c08df6fffaa4d7230ed710b4f21cf"
+    },
+    {
+      "path": "ratchets/h2-8a-transformed-class-assigned-names-after.v1.json",
+      "sha256": "61ad5b1149cea97be64926326a532d92f241ca3360ac4412566c63d1ad55e416"
+    },
+    {
+      "path": "scripts/check-meta-property-token-maps-readiness.py",
+      "sha256": "1950f24b2c86592d9edb43b2d787fbd464670ac18d5d15bdd9875c8d21b43730"
+    },
+    {
+      "path": "scripts/observe-meta-property-token-map-invariants.mjs",
+      "sha256": "de6c9f6cdb66b631f32cabcacb426790e38a07b626b98b7a42349a8990300d2f"
+    },
+    {
+      "path": "scripts/observe-meta-property-token-maps.mjs",
+      "sha256": "f03a663be5db6bf8c9b3e99408f0c40ccec22021d9635d207fb93de5216fb52b"
+    },
+    {
+      "path": "target/analyze-meta-property-token-maps-after.py",
+      "sha256": "af68b0bcc6f9947264cbe6c522651d4e33c418a9ef75c7140d27132e5e645fd4"
+    },
+    {
+      "path": "target/analyze-meta-property-token-maps-before-repeat.py",
+      "sha256": "2b002d16ee7f2644fa1560d6984c8c081b69328205b6eb264164429409a89fec"
+    },
+    {
+      "path": "target/analyze-meta-property-token-maps-first-components.py",
+      "sha256": "3797743d00d052cc0713e443b7f37885985d327e4e7e2a12d4d2773239358616"
+    },
+    {
+      "path": "target/freeze-meta-property-token-maps-before.py",
+      "sha256": "ae08ce9ff7e46aba7a5c0d33687dbef2b6122d0c2ddbc4189aaedf259ec797cc"
+    },
+    {
+      "path": "target/freeze-meta-property-token-maps-first-after.py",
+      "sha256": "82123447426dea06a9d33b65295754faf31631e39f61623abcc1c6f5d8ca0eb9"
+    },
+    {
+      "path": "target/h2-8a-meta-property-system-range-prerequisite-plan.md",
+      "sha256": "6c77f9e0f0e811782ef64b1279a265206f2f84a81c8380e5a21efdfc74e49c0b"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-after-analysis.json",
+      "sha256": "128e3d6aa8a2585d9af46d8685e399058e25af74722a048866e437581a22fb2e"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-after-exit.json",
+      "sha256": "66af395e3a5a2259d702b949cd89ae11b7e696377e6accc153d5cf63576848f2"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-after-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-after-prelaunch.json",
+      "sha256": "9a98b27ce52e1ee1dc72f46f1869ec6bb31be8e9a3aa71c305a7cac4e2c651e8"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-after-readiness.log",
+      "sha256": "48788f8a48dd1c2b9a16b53c868ee863dc821c6d51f3d1dc9004836a4d9d12eb"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-after.log",
+      "sha256": "7016930bbb8724e7aca171f8507bb7a329b8e4d9c68a75dc865ec768f77a9e63"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-before-amended-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-before-exit.json",
+      "sha256": "662c72b320d6626f83922023dc41632aa4ef1ef15e27940b905906bc8849cbb8"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-before-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-before-prelaunch.json",
+      "sha256": "9c51e2540cf402b8e7caef2256bd78ba43313269148e8154f46cabf5eafdd84e"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-before-repeat-analysis.json",
+      "sha256": "1684739444c55f457328507b3edb1505f166af913f6af0f7af5625e03b6c7d2d"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-before-repeat-exit.json",
+      "sha256": "a2652d1c978ed5ed2d359b908553db88deb396356b8d8f17bcbaf0c723eedbe6"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-before-repeat-prelaunch.json",
+      "sha256": "e8f37542e47a10ab0669e2ccf2535036c4a6ad36e74901e0f58a04f3b8659f8e"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-before-repeat.log",
+      "sha256": "e8ff4cc4722127c1e63066e28ac844630d521671e0b5106becbb3d26db0f5b5d"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-before.log",
+      "sha256": "8d86340dbe84b0d94e770bff88a1424b891bb158e3ad9e6e700793c682e41285"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-emitter-library-before-exit.json",
+      "sha256": "7fa301a5618a68a528045041744ece594206d9bec29a82d2e35d190f57ec5cd4"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-emitter-library-before-prelaunch.json",
+      "sha256": "ebc7997d7ddd43396c82ff63b8a3dc217707e639b0e93e49174910fee0884fe2"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-emitter-library-before.log",
+      "sha256": "b357ecf679cf67db9026607a46a0f8eb8fc01fd05d2de249d7c7163acc6af7af"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-first-components.json",
+      "sha256": "00fad5d954488d206c72426ee955947d31238ceff05cb345f2aa85df7c10a7d6"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-integration-before-fmt.rs",
+      "sha256": "fd28d3e09464d9638cf8975005d5d35e4bf2d46977ed500da7fc5502b7325051"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-invariants-ts-before-exit.json",
+      "sha256": "cdeda73572696bb406d62ad693bd8cb8bb4570c29bbe90e9cd02c54abc76c440"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-invariants-ts-before-prelaunch.json",
+      "sha256": "753e299fb51660016100d0b9cc647088111f8dcbf8d3cdb56e7ecacac63ff6d8"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-invariants-ts-before.log",
+      "sha256": "c1c491c4e6a53d428d03e8b23d227f7e3431005eedb65b2e15d5dd5a47815452"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-invariants-ts-check-exit.json",
+      "sha256": "a49a104ba423ea10c805f6f35906697200f09444b5a9e013a90330e8575bf264"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-invariants-ts-check-prelaunch.json",
+      "sha256": "8ff20c1dd29026551074f904cfc5da4ce9e164b49aea26a41e86acc97f21b911"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-invariants-ts-check.log",
+      "sha256": "c1c491c4e6a53d428d03e8b23d227f7e3431005eedb65b2e15d5dd5a47815452"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-plan.md",
+      "sha256": "df968c001448b1f1c03b45c9c2a7cf5a8417a52a8e971c10d58047bb53d43a7b"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-source-audit-v2.json",
+      "sha256": "8ccfb6907f17f9e50d771dd5d806e027867a62c3499f905f124923580c93a355"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-source-audit-v3.json",
+      "sha256": "d433e4ae9dee176b2bfd6d82cf9288bc9a3ba9669cdd760698873bd7e7f69380"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-source-audit.json",
+      "sha256": "83136f6e2748e258afff05cdfe68d0af9f39f6ad4dd9ad80669a3f1a1655622a"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-ts-before-exit.json",
+      "sha256": "87c24cd5d065cc5bfa74b56985d408d2b832424c36fb4e07aee8f6881c6fd868"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-ts-before-prelaunch.json",
+      "sha256": "5abe3a6e6231d4487dfadb0ccd8668f691dcd7b1eb143990c075b5345c50cb95"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-ts-before.log",
+      "sha256": "2bceeec46ff9ebb900647d30f456afcdd9341b6fde0364b67c81a0325f9ca6b8"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-ts-branch-audit.json",
+      "sha256": "0ed253dd342e79055dee6ff9bb8c9a2a9a2f71ccbd89bb7de8eb0bbf74f95043"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-ts-check-exit.json",
+      "sha256": "f7bf5dc990af72e393551637322a650269294c8cd691112a84f436c96d34895e"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-ts-check-prelaunch.json",
+      "sha256": "5ff297aa4443e3836ae283e181341d6c0f28b904354b225bc151505fc33fb7d7"
+    },
+    {
+      "path": "target/h2-8a-meta-property-token-maps-ts-check.log",
+      "sha256": "2bceeec46ff9ebb900647d30f456afcdd9341b6fde0364b67c81a0325f9ca6b8"
+    },
+    {
+      "path": "target/implement-meta-property-token-maps.py",
+      "sha256": "7b1faebe6e5b475ae143030896458bb031bdc8f96bc4cf05ce5dfe603acc5894"
+    },
+    {
+      "path": "target/meta-property-module-name-context-native.draft.rs",
+      "sha256": "3ffb9e9397c6cc1e23851dfa72f82c23fd6f9762f28ea5384d0c1a40053ef2f7"
+    },
+    {
+      "path": "target/meta-property-token-map-invariants-native.draft.rs",
+      "sha256": "a1aa29873961bdf34f0d4c6566b53cfca42dd2fbba5cbdbb7b46956af7154e0a"
+    },
+    {
+      "path": "target/prepare-meta-property-token-maps-after.py",
+      "sha256": "2fc8c4305eba21b0d66dd5921fbfdc0494991f7cbfc4b400bcd5cf32df125ccf"
+    },
+    {
+      "path": "target/prepare-meta-property-token-maps-before.py",
+      "sha256": "11255b15941bba624656f41fbef81e4d2d0aa5ed21c5cbcc211b010cead6afca"
+    },
+    {
+      "path": "target/prepare-meta-property-token-maps-emitter-before.py",
+      "sha256": "059898b33a4cb7c8669d584cc888b46f298d6c639f9827d17bc98f084717a0fe"
+    },
+    {
+      "path": "target/prepare-meta-property-token-maps-readiness.py",
+      "sha256": "d68f24bb41a136f42a25d8c50f0a6520b2b3030e072506fad7023619ec59f40a"
+    },
+    {
+      "path": "target/research-meta-property-token-maps-owners-v2.mjs",
+      "sha256": "43a4406fccf313c2752d162e66e5cc4b390e8c3b31512d64411ee89b7b213e7b"
+    },
+    {
+      "path": "target/research-meta-property-token-maps-owners-v3.mjs",
+      "sha256": "ebd5cf92c9c916b464cf78ece2e5e0957ae9c73a8725e4506c459583b2aa9f22"
+    },
+    {
+      "path": "target/research-meta-property-token-maps-owners.mjs",
+      "sha256": "6046a055ab85a2efa7f1518bff8cdecc0525e361e2faedcfff7c8eacee6b58c4"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    }
+  ],
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-meta-property-first-after-abf_3mae"
+}

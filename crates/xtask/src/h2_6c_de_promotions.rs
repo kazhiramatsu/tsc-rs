@@ -1779,8 +1779,193 @@ static CURRENT: &[Promotion] = &[
     },
 ];
 
+// H2.8a unchanged legacy16 measurement: 3e1186d4b7b9712c77ba619042a7b992997df4ec3059b020d20ee8d9319a92a3
+// Each original tuple is exact twice; these are different inputs from the new D/E band.
+static OUTPUT_DIRECTORIES: &[Promotion] = &[
+    Promotion {
+        case_id: "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
+        old_case_sha256: "b67d3eed1b4e168500c2eea7d91616d576a4b9e7a322cfea9d1e33e983c48bec",
+        old_input_sha256: "ae407ad2e6d790e387863a2f0e04776e0c58d07db4d73a867f28b576bd9e8b5f",
+        new_input_sha256: "24e12aafd23a23a4c1a01ac27da71fef128c98b9010c01655c7421cb54d02e23",
+        old_refused_option: "outFile",
+        declaration_members: 3,
+        c_requests: 0,
+        d_requests: 1,
+        e_requests: 0,
+    },
+    Promotion {
+        case_id: "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Dcommonjs",
+        old_case_sha256: "fd6e5948cedac86d176e9567572cc1d0dffb2dc26c4bdcd29577057d9422e8de",
+        old_input_sha256: "c587408c5c3245bb60bce8e6b05d2284264fdee36efb2e4edf478b59a2846c2c",
+        new_input_sha256: "0c26c593d05283c812f2125d7c6904d199e576890b4d46293a558ca938b98f37",
+        old_refused_option: "outFile",
+        declaration_members: 2,
+        c_requests: 0,
+        d_requests: 1,
+        e_requests: 0,
+    },
+    Promotion {
+        case_id: "typescript-6.0.3/project/mapRootRelativePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
+        old_case_sha256: "caa5d367219a56fd7c6dac8e859c31192080e8627761c4bcf6131c9d4721750d",
+        old_input_sha256: "e24cdf4534f687b5d8fd5d42494eb60ca994c08b136ccefe7cdd78e28de0ec65",
+        new_input_sha256: "097e83eb9e6bd3ebd15da7f48ba2fbd8d47d1347ed2beda2618a6d35c1d5395e",
+        old_refused_option: "outFile",
+        declaration_members: 3,
+        c_requests: 0,
+        d_requests: 1,
+        e_requests: 0,
+    },
+    Promotion {
+        case_id: "typescript-6.0.3/project/mapRootRelativePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Dcommonjs",
+        old_case_sha256: "caa2d6957a7ee9aee8bb812c0068a5f2cd31e59075257f5c475fdf6c97e83c55",
+        old_input_sha256: "7c41fbf13e486799fea755eb7a041287b3bfd6a4e980f0f7a0502d4406aeedee",
+        new_input_sha256: "f0858a12e8970e6e66a83f62c1a3f450c2143f709a538fb2750485941e2158f2",
+        old_refused_option: "outFile",
+        declaration_members: 2,
+        c_requests: 0,
+        d_requests: 1,
+        e_requests: 0,
+    },
+    Promotion {
+        case_id: "typescript-6.0.3/project/maprootUrlMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
+        old_case_sha256: "1a01acfefd7b3f9230833db8cdf196df250f9cbecd1358b7c09d3aef3b1a2403",
+        old_input_sha256: "128c6856db6d99ba5ef76e104b32e51110d35ca3af6243b820ec9cc5b44b7574",
+        new_input_sha256: "f03f69cb7c673279fe084985d15d23e8e95ac94ecb7ab07ff09428c7c02f47a0",
+        old_refused_option: "outFile",
+        declaration_members: 3,
+        c_requests: 0,
+        d_requests: 1,
+        e_requests: 0,
+    },
+    Promotion {
+        case_id: "typescript-6.0.3/project/maprootUrlMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Dcommonjs",
+        old_case_sha256: "6b7c8501294492ff0663f553def470be7f4f3f9fad541b29bf3cb795db4b4205",
+        old_input_sha256: "48a033a297492e9f404c96cd4782a4b87e85a409c18de87e2b8bb113ca0088fa",
+        new_input_sha256: "5f16cbe80787af7e191201ef6ebcc5ae70cb06b56af0588e9b4a84cc6a415724",
+        old_refused_option: "outFile",
+        declaration_members: 2,
+        c_requests: 0,
+        d_requests: 1,
+        e_requests: 0,
+    },
+    Promotion {
+        case_id: "typescript-6.0.3/project/maprootUrlsourcerootUrlMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
+        old_case_sha256: "59832cf02a9fa8ed62f0531a6ad7b339b2860b7ffffd588e2834275893e2e8df",
+        old_input_sha256: "5d2727d7baec726923760f2aa56a226ba455f506f8a04b4227660f2d3e183b4c",
+        new_input_sha256: "82d09c5acee613b7f4ada5825be6efde895efb5aa4d62c2ecc9a907105159a13",
+        old_refused_option: "outFile",
+        declaration_members: 3,
+        c_requests: 0,
+        d_requests: 1,
+        e_requests: 0,
+    },
+    Promotion {
+        case_id: "typescript-6.0.3/project/maprootUrlsourcerootUrlMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Dcommonjs",
+        old_case_sha256: "400ec0e61e542dbd43720e224e3aac4d4ab97761dcf44bf5e528dd37d7659c67",
+        old_input_sha256: "bd997812104d87825696906a2d5f1fd753030b78776b8412300f1bd345a9dc75",
+        new_input_sha256: "56ac064dd882e531630a9359af8b50be6e4f2a4690986cdc6922f9430eeb6d27",
+        old_refused_option: "outFile",
+        declaration_members: 2,
+        c_requests: 0,
+        d_requests: 1,
+        e_requests: 0,
+    },
+    Promotion {
+        case_id: "typescript-6.0.3/project/sourcemapMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
+        old_case_sha256: "f80cac2c58ce576fe4509d7aefc073fe7a35291567ca84a8439268531a9ec33f",
+        old_input_sha256: "f8968c452e23793d3b09b9046f822f4fd32dd203f08b54a8502e67bf81bd87c8",
+        new_input_sha256: "a96d71324e426011e792bbd1a1db698735922d599f624c2221a1a09800d55063",
+        old_refused_option: "outFile",
+        declaration_members: 3,
+        c_requests: 0,
+        d_requests: 1,
+        e_requests: 0,
+    },
+    Promotion {
+        case_id: "typescript-6.0.3/project/sourcemapMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Dcommonjs",
+        old_case_sha256: "da2009ff70a0e770d984280a932dd45c2abc5b0341131edd5b8568ae98647229",
+        old_input_sha256: "6540a34ee2e0c54ee31800a5a28822920a04a706447512cf6a3d3d80c044ddaf",
+        new_input_sha256: "aea63998030963622d7c8ab1385ab2c0e24daecb56cdee3e887b3400d3b597ac",
+        old_refused_option: "outFile",
+        declaration_members: 2,
+        c_requests: 0,
+        d_requests: 1,
+        e_requests: 0,
+    },
+    Promotion {
+        case_id: "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
+        old_case_sha256: "7ef25330ff4c35665cdffb733264c7ca7d7f698b5914da12a14d54de07bc6e37",
+        old_input_sha256: "c7823d9e7dc50ff0adfdc2ae37c83d890fbd72b691f078bcb74e98b97d942f2c",
+        new_input_sha256: "3782cd77ce086262e87549fe44690b2dfba37e66a000b2b57ee27f077b278b5e",
+        old_refused_option: "outFile",
+        declaration_members: 3,
+        c_requests: 0,
+        d_requests: 1,
+        e_requests: 0,
+    },
+    Promotion {
+        case_id: "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Dcommonjs",
+        old_case_sha256: "9dcc2f4e146b4306284f8e75f543d647e1f0b8c887ff9f7b2e2db0416ee6cd00",
+        old_input_sha256: "54cfd378991680d0684e700b441fa4269a194f9ec5f94593c85b48b9c9ddbb35",
+        new_input_sha256: "0047640e838ab1edc1a80ddecdd698a11b2bd8b8b122b1d61a7fb289f924d440",
+        old_refused_option: "outFile",
+        declaration_members: 2,
+        c_requests: 0,
+        d_requests: 1,
+        e_requests: 0,
+    },
+    Promotion {
+        case_id: "typescript-6.0.3/project/sourceRootRelativePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
+        old_case_sha256: "32607d6776f2360bb6bbbf0f17708ae5bcb96c355002a112fe9e5012270e73e0",
+        old_input_sha256: "e73453f215449bd9eef3807d8ff54241fd83d9d21d3666c85bb846df64645e0c",
+        new_input_sha256: "b64e45068659655e501bf13fe870f152ecb0286fa04174bc1d3541c706926902",
+        old_refused_option: "outFile",
+        declaration_members: 3,
+        c_requests: 0,
+        d_requests: 1,
+        e_requests: 0,
+    },
+    Promotion {
+        case_id: "typescript-6.0.3/project/sourceRootRelativePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Dcommonjs",
+        old_case_sha256: "5f7de5544ecbe0c5ab2d119942b39aca06959a38bb50f67a70a8fb53a676639b",
+        old_input_sha256: "c22beaddc5b8adb11d08e5492c2e134c80fc9c226186bd428ab95f365dacc13c",
+        new_input_sha256: "0f27f360ec00af4f1496c37d6963cdba30bfcf0144d0f2abd649542bf3c826d7",
+        old_refused_option: "outFile",
+        declaration_members: 2,
+        c_requests: 0,
+        d_requests: 1,
+        e_requests: 0,
+    },
+    Promotion {
+        case_id: "typescript-6.0.3/project/sourcerootUrlMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
+        old_case_sha256: "6649ad91507f69d6a1c5f9a9ac76d869c6792e8a3c75903c0c6e5ee27bd096f8",
+        old_input_sha256: "38dfdb5ce312d105afa1d5711fb32232a46b59618bf3250aa96171ca07bdfa31",
+        new_input_sha256: "dda1a8c50f7d4a996939ccaeff6d8d401f4613009dfb1bc25cf831d2f4f38e0f",
+        old_refused_option: "outFile",
+        declaration_members: 3,
+        c_requests: 0,
+        d_requests: 1,
+        e_requests: 0,
+    },
+    Promotion {
+        case_id: "typescript-6.0.3/project/sourcerootUrlMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Dcommonjs",
+        old_case_sha256: "fe1cdffb97d39411f121459ac16f831555d2f7de7d1e9ff49f7e738e6d5e3758",
+        old_input_sha256: "c5d9b762a43aae5fdd27df3411ee4ced62c891cd7dd3032eb1b0c6a4f2dea95c",
+        new_input_sha256: "a4eb7c6d590db9eec82539520d6836753a86af7d7048f19ed34565bd61618233",
+        old_refused_option: "outFile",
+        declaration_members: 2,
+        c_requests: 0,
+        d_requests: 1,
+        e_requests: 0,
+    },
+];
+
+fn all_promotions() -> impl Iterator<Item = &'static Promotion> {
+    CURRENT.iter().chain(OUTPUT_DIRECTORIES)
+}
+
 pub(super) fn find(case_id: &str) -> Option<&'static Promotion> {
-    CURRENT.iter().find(|row| row.case_id == case_id)
+    all_promotions().find(|row| row.case_id == case_id)
 }
 
 fn frozen(workspace: &Path, path: &str, expected: &str) -> Result<Value, Box<dyn Error>> {
@@ -1796,7 +1981,7 @@ pub(super) fn validate(
     old_cases: &[Value],
     old_members: &HashMap<String, u64>,
 ) -> Result<(), Box<dyn Error>> {
-    if CURRENT.is_empty() {
+    if promoted_count() == 0 {
         return Ok(());
     }
     let census = frozen(
@@ -1815,7 +2000,7 @@ pub(super) fn validate(
         "1a1681b2375d27d9012b06e29808aca72aa3e39d1dbc1536b80ba2aadf9e8ce2",
     )?;
     let mut ids = BTreeSet::new();
-    for row in CURRENT {
+    for row in all_promotions() {
         let old = old_cases.iter().find(|case| case["case_id"] == row.case_id);
         let new = array(&census, "cases")?
             .iter()
@@ -1835,12 +2020,21 @@ pub(super) fn validate(
         };
         let d = row.d_requests == 1;
         let e = row.e_requests == 1;
-        let owners = match (d, e) {
+        let mut owners = match (d, e) {
             (true, false) => json!(["H2.7d"]),
             (false, true) => json!(["H2.7e"]),
             (true, true) => json!(["H2.7d", "H2.7e"]),
             _ => return Err(failure("promotion must request D or E")),
         };
+        if OUTPUT_DIRECTORIES
+            .iter()
+            .any(|directory| directory.case_id == row.case_id)
+        {
+            owners
+                .as_array_mut()
+                .expect("owner array")
+                .push(json!("H2.8a"));
+        }
         if !ids.insert(row.case_id)
             || row.d_requests > 1
             || row.e_requests > 1
@@ -1896,20 +2090,19 @@ pub(super) fn validate_activity(
 }
 
 pub(super) fn declaration_members_total() -> u64 {
-    293 + CURRENT
-        .iter()
+    293 + all_promotions()
         .map(|row| row.declaration_members)
         .sum::<u64>()
 }
 
 pub(super) fn promoted_count() -> usize {
-    CURRENT.len()
+    CURRENT.len() + OUTPUT_DIRECTORIES.len()
 }
 
 pub(super) fn adjusted_refusals(
     mut projected: BTreeMap<String, u64>,
 ) -> Result<BTreeMap<String, u64>, Box<dyn Error>> {
-    for row in CURRENT {
+    for row in all_promotions() {
         let count = projected
             .get_mut(row.old_refused_option)
             .ok_or_else(|| failure("missing historical refusal bucket"))?;
@@ -1927,7 +2120,7 @@ pub(super) fn validate_results(
     results: &[Result<H2VectorCaseOutcome, String>],
     listed: &HashMap<String, H2VectorDivergence>,
 ) -> Result<(), Box<dyn Error>> {
-    if CURRENT.is_empty() {
+    if promoted_count() == 0 {
         return Ok(());
     }
     let mut seen = BTreeSet::new();
@@ -1963,7 +2156,7 @@ pub(super) fn validate_results(
             )));
         }
     }
-    if seen.len() != CURRENT.len() {
+    if seen.len() != promoted_count() {
         return Err(failure("promotion row was not executed"));
     }
     Ok(())

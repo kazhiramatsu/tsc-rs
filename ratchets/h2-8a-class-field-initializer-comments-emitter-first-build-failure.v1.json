@@ -1,0 +1,522 @@
+{
+  "version": 1,
+  "status": "first-emitter-no-run-build-failed-before-any-suite-execution",
+  "base": "dc868373612af16ad299ed08bdec4ece437325dc",
+  "exit": {
+    "manifest": "target/h2-8a-class-field-initializer-comments-emitter-build-prelaunch.json",
+    "manifest_sha256": "84b8b7404d1a97e23bde03d5045aac5cbdec01d707c72e8165c83c77abdf6689",
+    "argv": [
+      "taskpolicy",
+      "-b",
+      "nice",
+      "-n",
+      "15",
+      "cargo",
+      "test",
+      "-p",
+      "tsc-rs-emitter",
+      "--lib",
+      "--test",
+      "contracts",
+      "--no-run"
+    ],
+    "exit_code": 101,
+    "wall_seconds": 172.70936837501358,
+    "log": "target/h2-8a-class-field-initializer-comments-emitter-build.log",
+    "log_sha256": "058eccddf819259eeb9b56813e4f9219f4b488ed6fcd01a80828c0a3d7c1deb4"
+  },
+  "errors": 2,
+  "error_code": "E0560",
+  "test_path": "crates/emitter/tests/unit/comment_scope_predicate/tests.rs",
+  "test_sha256": "91dc0c4ff62a5dad53c237941fb4ae10c41d8520f50d30e031974540f46dccb7",
+  "cause": "Two cfg(test) comment-scope fixture struct initializers still name removed field relocated_trailing; missed by src-only producer audit",
+  "production_observations_unchanged": "ratchets/h2-8a-class-field-initializer-comments-shared-after.v1.json",
+  "next_correction": "Delete only the two false field initializers; preserve every test id and assertion, runtime bytes and already frozen556 comparisons",
+  "inputs": [
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "d99747869ff51342a069b6410fe9bb1f67ce4318f1af5b11fefde18bffe738d0"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/class-field-alias-map-positions.json",
+      "sha256": "5d6857331fe90d1559adcb6d4afea4040218738255f09a08f8906069e2356207"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/class-field-initializer-comments.json",
+      "sha256": "21b016586cce29537e88e6e8efc9880ca64c5944cde75f14bc34df465641aaba"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/transformed-class-assigned-names.json",
+      "sha256": "f04166260e4005fa6bd5df31ef98ef6d7d8cd79b0054e137f5c52e806d906ffb"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+      "sha256": "7b14d30e473948b7a7878c20ed9feb528a629f8d26db042306ba6574a6edde81"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "cfcfed0823c78c6c7593661e4152b49d4569a5ee1d9a0246eda74f92979813d5"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_class_field_alias_map_positions.rs",
+      "sha256": "a3b26f42503b655c7ce3af9b7a7fb23d0533c20e5b6ec1e1e43fe30e1e83ef9e"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_class_field_initializer_comments.rs",
+      "sha256": "bebefd062e96bb14de8639adc0de4f540341340df90f890316fc65260a314d57"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_transformed_class_assigned_names.rs",
+      "sha256": "103cba6f7064c3fca0891ab7598930fbabb17f319bab8303349ad6a9028f7a81"
+    },
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "93fcaa0204594938de92296c9a47517e657e13cce09ba6ab2e710d674146a428"
+    },
+    {
+      "path": "crates/emitter/src/builtins/class_fields.rs",
+      "sha256": "c9c05e4e2f91df1a926af8e6170c0ceb97b8e8ff7d8f0b13d2f75935054a8da0"
+    },
+    {
+      "path": "crates/emitter/src/builtins/class_fields/downlevel.rs",
+      "sha256": "bf8ccef2001064ad0710c84d44fb87a00a69ba906772f20a5501fe2eea80c9e9"
+    },
+    {
+      "path": "crates/emitter/src/builtins/es2015.rs",
+      "sha256": "0427b99e1c10d41c9670ec173625b5f1407e5c1d7223a09abf6374ad09ab4c54"
+    },
+    {
+      "path": "crates/emitter/src/builtins/target_bindings.rs",
+      "sha256": "0034f463ff6f1323753377f7c2fa2760b894ba37b59eeb81ec0980e4a6c45338"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/emitter/src/factory/parsed_metadata.rs",
+      "sha256": "2e9f0a3588adf1e80f451b1b99acbe59469d532c754ef071ffd98d2675f2b6b9"
+    },
+    {
+      "path": "crates/emitter/src/metadata.rs",
+      "sha256": "3bea9bc23ffdfc369c75cebf6f13560df00beb25c40f59a52050dfe5ad395e5e"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "d97207cbee1e0cf82bba46831a295fd26d43a80d248aa74c08d6df01c6418d95"
+    },
+    {
+      "path": "crates/emitter/src/source_map.rs",
+      "sha256": "175b9b1cb1a8de357476d59098ada4c42e2473feb6dfe3e734177d17f652ffb9"
+    },
+    {
+      "path": "crates/emitter/src/transform.rs",
+      "sha256": "374ed96dc09f518a8f137cf7400e4cc6e634d3427b0b20346698e4b31a11011c"
+    },
+    {
+      "path": "crates/emitter/src/writer.rs",
+      "sha256": "0e3c1168e6251a7c42a5d9a811c0e4debfaa85398cafb9c512116a85f6bcecb6"
+    },
+    {
+      "path": "crates/emitter/tests/unit/builtins/tests.rs",
+      "sha256": "0c7c9dabcf832e318d41df314b62a14b35fb52f4e80a1374640a7046bfdfb8bd"
+    },
+    {
+      "path": "crates/emitter/tests/unit/comment_scope_predicate/tests.rs",
+      "sha256": "91dc0c4ff62a5dad53c237941fb4ae10c41d8520f50d30e031974540f46dccb7"
+    },
+    {
+      "path": "crates/oracle/vfs-directory-overlay.mjs",
+      "sha256": "2868391e75941127f8eb3a352232190fd98c6d794235913e288432e5626aab76"
+    },
+    {
+      "path": "crates/syntax/src/for_each_child.rs",
+      "sha256": "20fd808bde00d377865d8a14f924fb23fbb82a8182708218581b20338c7bd8ce"
+    },
+    {
+      "path": "crates/syntax/src/nodes.rs",
+      "sha256": "3f7dda1c3f16bb9115bc8c509d38ecf506ac5efea80a2a229fcb931425552940"
+    },
+    {
+      "path": "crates/syntax/src/tokens.rs",
+      "sha256": "054ace65fc6e936276dfd39b7055f3795920fa39b9fce79c60d7a0d99000f673"
+    },
+    {
+      "path": "crates/types/src/options.rs",
+      "sha256": "125de828b477a5c141a411855d4f885bd36b71f3f6d1c0dc6be640a54d3bf4c0"
+    },
+    {
+      "path": "docs/design/README.md",
+      "sha256": "c2843bea19df08c887bd6461f10b7daf4ea2c86c32ca9ecc908008316a3497e0"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "ec6352d538b8eada6f65acede494336c80114c4e3cea0cd3b56825fb907c618c"
+    },
+    {
+      "path": "docs/design/greenfield/post-h1-completion-slices.md",
+      "sha256": "df4e630f4fe348119e43714261d1193a880453fa6847b42c7bf52d086bd840fb"
+    },
+    {
+      "path": "docs/design/greenfield/slices/README.md",
+      "sha256": "ef24b90effc5762ba2fe449e143fa9b041b6e28822efc4aff4b500ca7bccfb60"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-class-field-alias-map-positions.md",
+      "sha256": "440032b168308ef60a23dc80a5216f653c37889eb5a79ef1937e3529637bbbbc"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-class-field-initializer-comments.md",
+      "sha256": "b7ab3ba99c200e91f958495197119fd715676fab8d5c98f6d2d61a92acdaf726"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-alias-map-positions-amended-before.v1.json",
+      "sha256": "41c37b08bcf13c37fe28080bc3325e0e39a39befdaf0009e73d7411152bf4bb2"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-alias-map-positions-before.v1.json",
+      "sha256": "a97d895abac02a94f1868539582ad14fd6190aeccbe2547658e12027de3319b9"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-alias-map-positions-first-after.v1.json",
+      "sha256": "6084cbfb3498bddaaabf91cb4911222ca476d41ec90427d9ef226768defa1f51"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-alias-map-positions-first-before.v1.json",
+      "sha256": "eb88c8a84adfd2795f26b8e9f55172ddd65ad2ba76d27e8eaa2e0cc9e96acd33"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-alias-map-positions-first-regressions.v1.json",
+      "sha256": "80b1da356bef5cad20eb1ccd3b152a1d178b9a16483c1dd7c54d16344b4b3d50"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-alias-map-positions-readiness.v1.json",
+      "sha256": "277c057812005a858f367388a411bdc4965eb85059548e55ab4a630b16332dd1"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-initializer-comments-before.v1.json",
+      "sha256": "4dbb5056a45c34cd83fe5c9057f9af77be050f0df5aff6c349c1b7e0551c68a9"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-initializer-comments-first-before.v1.json",
+      "sha256": "84d4020acfc6d1ac0098d57c240128b620e36b84647316491c8df7a659a4c2cd"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-initializer-comments-readiness.v1.json",
+      "sha256": "9df7ff80c59fe50b971c9e53fdeafc6c5488a995c4ebe48c558fe8fe0a04aef7"
+    },
+    {
+      "path": "ratchets/h2-8a-class-field-initializer-comments-shared-after.v1.json",
+      "sha256": "b3bd2bd3df162bee37a28c26ad03beb4791ba27e868e967b0b197559c12f3813"
+    },
+    {
+      "path": "ratchets/h2-8a-directory-readiness.v1.json",
+      "sha256": "767b0504607f182f5830b458680704418c61e7fc2fca207e1ef1bdced697f2f6"
+    },
+    {
+      "path": "ratchets/h2-8a-meta-property-token-maps-after.v1.json",
+      "sha256": "180834ca76543245948a282e7729e5eefb991bccb3069e1a1d938411036749fe"
+    },
+    {
+      "path": "ratchets/h2-8a-transformed-class-assigned-names-after.v1.json",
+      "sha256": "61ad5b1149cea97be64926326a532d92f241ca3360ac4412566c63d1ad55e416"
+    },
+    {
+      "path": "scripts/check-class-field-alias-map-positions-readiness.py",
+      "sha256": "b0cae767a4d519e2fdafec75ea34798932ad4da6499cb7f752b14f33c707c65b"
+    },
+    {
+      "path": "scripts/check-class-field-initializer-comments-readiness.py",
+      "sha256": "43f7293792ebb0de4fd57ec28ed511deb8227ff3c72d954007282309082e5f87"
+    },
+    {
+      "path": "scripts/observe-class-field-alias-map-positions.mjs",
+      "sha256": "cecb2aef351d5a9e6705e8523d314e12305ba93db457b6841486b5c5f4a9fa4a"
+    },
+    {
+      "path": "scripts/observe-class-field-initializer-comments.mjs",
+      "sha256": "706d4b11475409c10239769ba6fe33bb0a2d35e3eb836d343058d107bc83e95d"
+    },
+    {
+      "path": "target/analyze-class-field-alias-map-positions-amended-before.py",
+      "sha256": "a668daac8d8d59bb235ba6fca935b2a19910071908105753f7a1e57dd1057674"
+    },
+    {
+      "path": "target/analyze-class-field-alias-map-positions-first-before-v2.py",
+      "sha256": "6a714266912e55acf42644c76f57310a4f9c7c63369316bc445e62dd68909abf"
+    },
+    {
+      "path": "target/freeze-class-field-alias-map-positions-first-before-v2.py",
+      "sha256": "f53879b0b82888488abb346e5d3de7dc86b039534bd74fcad748c2a3e27627d0"
+    },
+    {
+      "path": "target/freeze-class-field-initializer-comments-emitter-build-failure.py",
+      "sha256": "5be74ef7d6083df5962eac30e96be3cbefc52ceed89e1483e06427423a63cb0e"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-first-after-owner-findings.md",
+      "sha256": "a54c2f21e2a89a35d01318889e2a71e7c3c7249b44b4335c3607aaf2ba48185a"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-es2015-phase-scope-correction.md",
+      "sha256": "2d9270578590849c0358600ecdd5cd5b98ee9b674cf67d291b22a05d1de799ec"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-inflight-findings.md",
+      "sha256": "4cc3746f857b3b528894dcc933cfe60083413213cfb813bdaf4510b2527362ee"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-amended-adapter-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-amended-before-analysis.json",
+      "sha256": "be39660ac446a04c005d5281bc9cab8c067b34fd271ac7015b188e41f8c36c8c"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-amended-before-exit.json",
+      "sha256": "0ebbf67d79601b0419ace250175c0fb00cf457299c06256197401fd7b7a08911"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-amended-before-prelaunch.json",
+      "sha256": "bdaa92d37df51d9811999cf6a0cf73ec93bbde4487ffa374d98eb98f578182cd"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-amended-before-repeat-exit.json",
+      "sha256": "65f4c5f5f7b941f4f1afc6fc2e94da204388cef3f977ced7bb3999144a239dff"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-amended-before-repeat-prelaunch.json",
+      "sha256": "9684bda7362ad9246118b5e62099b158484c3e0666108220056b781a1e8c1b05"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-amended-before-repeat.log",
+      "sha256": "0a8ff926492938f2da796850308f7f512f8b916badb6f7bc632e4d7e1cd83758"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-amended-before.log",
+      "sha256": "87a0d04d74bbb60c2700eb2941d03a4f4f0b1ff0c4d2a741384f8fd9150154e9"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-before-exit.json",
+      "sha256": "4869d2cf23ccbfca83ad251098a0ecb6704ec68b838a91756790b4d448ddf689"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-before-prelaunch.json",
+      "sha256": "965d966400a4a4e88154bc30679bb93d32cb9009b2c0a89599a4622754527c7e"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-before.log",
+      "sha256": "2918a4d1c3d3d0eb9eed059fcf81affbb26b52c8919ef76373997ffa8e3a0a9b"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-first-after-prelaunch.json",
+      "sha256": "2e0fb83cf8f592817437890e0a5dd55724e87e0fd66207b20af6cb76fe0d36f5"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-first-before-analysis-v2.json",
+      "sha256": "89ec2bf3539739309c25557a9f934c430dae1ae44d7d4650f9a5597d1ba59f32"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-first-runtime-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-packet.draft.md",
+      "sha256": "6e429c9f3751e1605d5dc72db8ed8e7375789cbee31f2d86756f569a79883d54"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-plan-v2.md",
+      "sha256": "0def61c9e970e236e4e1434c967bace0f6b0c3203e7b7245252f2e67662c7c5d"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-test-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-ts-before-exit.json",
+      "sha256": "e955df960279f89ea5acd03dfa2f61675d7506132da4cd54a8882b38afb4d8bf"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-ts-before-prelaunch.json",
+      "sha256": "78fcaf886b31d31d13f0cba527ce553cd4f9bdc3cbbb09e7346067ac41ba3b5f"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-ts-before.log",
+      "sha256": "3273c6b2cb156536101d349413c2435d67ce16ca2b9a9c0146627920f377022a"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-ts-branch-audit.json",
+      "sha256": "e6760af627546be550597486fe12f55441168fe36b8d2a084af94f90de56ef06"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-ts-check-exit.json",
+      "sha256": "6d37ecdafff046770b2cb27895238f422d4efd6698adfbd4061b3f80392df788"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-ts-check-prelaunch.json",
+      "sha256": "27c828dabd0350f0f7070266701db68c6cbbea0df6afb212896d841a3cf18b61"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-positions-ts-check.log",
+      "sha256": "3273c6b2cb156536101d349413c2435d67ce16ca2b9a9c0146627920f377022a"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-shapes.draft.json",
+      "sha256": "c0d906e0613b53fc43addf2e0ed024d6a937ac395e8243589ba327d3054d5e95"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-source-audit-v2.json",
+      "sha256": "70abddbccb652966980cf84053723100e0e4ddbf7ad947dd41a612050f1b5bab"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-source-audit-v3.json",
+      "sha256": "420e3d261fd717d8c17182e6f4813e09473098a0feeae579600b034c057a7d99"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-source-audit-v5.json",
+      "sha256": "7938ecb6b0c744dc0fc1c09125e5751361f839e27c185e6094769f8921809d99"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-map-source-audit.json",
+      "sha256": "d504cddc177a4fa89ceb4d80c8eca9890d2085f9d02a636c547096289789ae0f"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-ranges-ts-research.json",
+      "sha256": "65e8a76978f33424e5051240ccc5d978180b4892a8c1a52585dbc6137937c48b"
+    },
+    {
+      "path": "target/h2-8a-class-field-alias-ranges-ts-research.log",
+      "sha256": "2182bbd30e5ec095d331261439c6cb4f65d17ec8cee16140b9f89c8b57dfe55a"
+    },
+    {
+      "path": "target/h2-8a-class-field-initializer-comment-source-audit.json",
+      "sha256": "ae6b07cd04e1fd9a5cffe3703e574afb292e6f47c23d0e2873f163e829f31f7e"
+    },
+    {
+      "path": "target/h2-8a-class-field-initializer-comments-architecture-refresh-selector-correction.md",
+      "sha256": "9d22749c0ca19e71d82df5072db8598d8a0221b8eef531d948ed8bc48eb4801e"
+    },
+    {
+      "path": "target/h2-8a-class-field-initializer-comments-architecture-refresh.json",
+      "sha256": "d64df01d5700d1aa41cb74b8fb5afedd483f6943f5bbe71e0f1e7fc8937034cd"
+    },
+    {
+      "path": "target/h2-8a-class-field-initializer-comments-emitter-build-exit.json",
+      "sha256": "eb871320fcece87868eeee71583f4b396c2ef5cca61044b94ad83996f4e1abb6"
+    },
+    {
+      "path": "target/h2-8a-class-field-initializer-comments-emitter-build-prelaunch.json",
+      "sha256": "84b8b7404d1a97e23bde03d5045aac5cbdec01d707c72e8165c83c77abdf6689"
+    },
+    {
+      "path": "target/h2-8a-class-field-initializer-comments-emitter-build.log",
+      "sha256": "058eccddf819259eeb9b56813e4f9219f4b488ed6fcd01a80828c0a3d7c1deb4"
+    },
+    {
+      "path": "target/h2-8a-class-field-initializer-comments-pre-edit-freeze.json",
+      "sha256": "45eed952a62b2e8fc4b8c83c6a67924724dc9441c9d9a103bb1843b9b60e95f3"
+    },
+    {
+      "path": "target/h2-8a-class-field-initializer-comments-runtime-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "target/h2-8a-class-field-initializer-comments-shared-after-analysis.json",
+      "sha256": "efd5257b79a15f403160f3b8ec3795cbad6c259d80297e5c77fa007e515c874c"
+    },
+    {
+      "path": "target/h2-8a-class-field-initializer-comments-shared-after-exit.json",
+      "sha256": "e562d245e447eec613931eb8cd14e539207749ed0d6ca5ac24d3cf8d5ef41e04"
+    },
+    {
+      "path": "target/h2-8a-class-field-initializer-comments-shared-after-prelaunch.json",
+      "sha256": "0b9fcdee0ef6ae5ff6d039e82cb1599584fb322020ed95f2714435eac88ef231"
+    },
+    {
+      "path": "target/h2-8a-class-field-initializer-comments-shared-after.log",
+      "sha256": "29120c72af6d3c6fdd8ff705de15cbc2e3af99d137c37a4114a7d80e3b01a9d4"
+    },
+    {
+      "path": "target/h2-8a-class-field-initializer-comments-source-plan.md",
+      "sha256": "76af2b31bf38a20632c674f93705c972605c31eb9a749f9457448b7859769f04"
+    },
+    {
+      "path": "target/prepare-class-field-alias-map-positions-amended-before-repeat.py",
+      "sha256": "b0e61d101a7dff07d2a9bd8cb87817839d9996308cdf66c66c4a8e8b79a35637"
+    },
+    {
+      "path": "target/prepare-class-field-alias-map-positions-amended-before.py",
+      "sha256": "5c772550f9c97c1d78bf68d68a7798495a81ad8c73303851957e3f4b44ea3447"
+    },
+    {
+      "path": "target/prepare-class-field-alias-map-positions-before.py",
+      "sha256": "0a44251aee97afddc8fc1c266a48815eca1edcfaef440a72ad10be6923dc9d77"
+    },
+    {
+      "path": "target/prepare-class-field-alias-map-positions-first-after.py",
+      "sha256": "443bcd1149244c912c2e85fe15b739431409c90912eb44a06f8cab395e5790e7"
+    },
+    {
+      "path": "target/prepare-class-field-alias-map-positions-readiness.py",
+      "sha256": "dca51987441a98e87ebd968431502eec80b2e8901eede95c135eaf2e88eef118"
+    },
+    {
+      "path": "target/prepare-class-field-alias-map-positions-ts-check.py",
+      "sha256": "44e047057f95fd4abeb1e9208ea580c7aad6845ecff877e390d1d3f7f3891a26"
+    },
+    {
+      "path": "target/prepare-class-field-alias-map-positions-ts.py",
+      "sha256": "31216b47c1134ccf7703e57409f0369ded27c5668b0c6bf5e853c78ba53ea01c"
+    },
+    {
+      "path": "target/prepare-class-field-initializer-comments-emitter-build.py",
+      "sha256": "fb40f629f146cb46a0ab20c807ab437be1476103e33ac7e08192b4c5fa06f4aa"
+    },
+    {
+      "path": "target/prepare-class-field-initializer-comments-readiness.py",
+      "sha256": "0cc40f99fdd9716bae8f7fda91a65171f9274acc540c810c2cdb2055949a680a"
+    },
+    {
+      "path": "target/prepare-class-field-initializer-comments-shared-after.py",
+      "sha256": "b03c7b58f800da3f702ad99cc450e0827f5d26a60d4622373361e72f561019a2"
+    },
+    {
+      "path": "target/refresh-class-field-initializer-comment-architecture.py",
+      "sha256": "de0a825027c3550e51000d7f52280503e3eeae89536e0bf63178a50f8793f27a"
+    },
+    {
+      "path": "target/research-class-field-alias-map-owners-v2.mjs",
+      "sha256": "98bc71105e32ce0839ebc3d92168586bf1eaa6b2e93598859f2b747a9a885552"
+    },
+    {
+      "path": "target/research-class-field-alias-map-owners-v3.mjs",
+      "sha256": "7574320c0becf6707a8806f5089045d20654001a675de67a8ad6c0e1a97e9bd1"
+    },
+    {
+      "path": "target/research-class-field-alias-map-owners-v5.mjs",
+      "sha256": "cab6f8c043bad8b7395778a3f5d93d0e25393a75b155d8331bf3bfe502839a08"
+    },
+    {
+      "path": "target/research-class-field-alias-map-owners.mjs",
+      "sha256": "b60c351f6b3dc42e38be7a41c73f11ace433c8ba76ac1725f409aad305bc06f2"
+    },
+    {
+      "path": "target/research-class-field-alias-ranges.mjs",
+      "sha256": "af522d89af77b41fd973706a61c95e9aa78a1d95837e2a1479cf9d1d822bb948"
+    },
+    {
+      "path": "target/run-module-transformer-selection-job.py",
+      "sha256": "11551f38fe41fed5f993f671e02e6c7cc695eaa6395bba0fc0537ebd8841af8c"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    }
+  ],
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-initializer-comment-emitter-build-failure-bd6cbxln"
+}

@@ -1,0 +1,347 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "repetitions": 2,
+  "scope": "internal printer metadata and optional-child invariants; not complete compiler commands or source admissions",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "de6c9f6cdb66b631f32cabcacb426790e38a07b626b98b7a42349a8990300d2f",
+  "rows": [
+    {
+      "case_id": "new-target/baseline",
+      "shape": "new-target",
+      "mode": "baseline",
+      "source_text": "function Foo() { return 1_0, new.target; }\n",
+      "observation": {
+        "touched": 1,
+        "emit_skipped": false,
+        "writes": [
+          {
+            "path": "/main.js.map",
+            "callback_text": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"main.ts\"],\"names\":[],\"mappings\":\";AAAA,SAAS,GAAG,KAAK,OAAO,EAAG,EAAE,GAAG,CAAC,MAAM,CAAC,CAAC,CAAC\"}",
+            "write_byte_order_mark": false,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null
+          },
+          {
+            "path": "/main.js",
+            "callback_text": "\"use strict\";\r\nfunction Foo() { return 10, new.target; }\r\n//# sourceMappingURL=main.js.map",
+            "write_byte_order_mark": false,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 58
+          }
+        ],
+        "source_maps": [
+          {
+            "input_source_file_names": [
+              "/main.ts"
+            ],
+            "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"main.ts\"],\"names\":[],\"mappings\":\";AAAA,SAAS,GAAG,KAAK,OAAO,EAAG,EAAE,GAAG,CAAC,MAAM,CAAC,CAAC,CAAC\"}"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "new-target/no-token-maps",
+      "shape": "new-target",
+      "mode": "no-token-maps",
+      "source_text": "function Foo() { return 1_0, new.target; }\n",
+      "observation": {
+        "touched": 1,
+        "emit_skipped": false,
+        "writes": [
+          {
+            "path": "/main.js.map",
+            "callback_text": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"main.ts\"],\"names\":[],\"mappings\":\";AAAA,SAAS,GAAG,KAAK,OAAO,EAAG,EAAE,GAAG,CAAC,MAAM,CAAC,CAAC,CAAC\"}",
+            "write_byte_order_mark": false,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null
+          },
+          {
+            "path": "/main.js",
+            "callback_text": "\"use strict\";\r\nfunction Foo() { return 10, new.target; }\r\n//# sourceMappingURL=main.js.map",
+            "write_byte_order_mark": false,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 58
+          }
+        ],
+        "source_maps": [
+          {
+            "input_source_file_names": [
+              "/main.ts"
+            ],
+            "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"main.ts\"],\"names\":[],\"mappings\":\";AAAA,SAAS,GAAG,KAAK,OAAO,EAAG,EAAE,GAAG,CAAC,MAAM,CAAC,CAAC,CAAC\"}"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "new-target/token-override",
+      "shape": "new-target",
+      "mode": "token-override",
+      "source_text": "function Foo() { return 1_0, new.target; }\n",
+      "observation": {
+        "touched": 1,
+        "emit_skipped": false,
+        "writes": [
+          {
+            "path": "/main.js.map",
+            "callback_text": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"main.ts\"],\"names\":[],\"mappings\":\";AAAA,SAAS,GAAG,KAAK,OAAO,EAAG,EAAE,GAAG,CAAC,MAAM,CAAC,CAAC,CAAC\"}",
+            "write_byte_order_mark": false,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null
+          },
+          {
+            "path": "/main.js",
+            "callback_text": "\"use strict\";\r\nfunction Foo() { return 10, new.target; }\r\n//# sourceMappingURL=main.js.map",
+            "write_byte_order_mark": false,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 58
+          }
+        ],
+        "source_maps": [
+          {
+            "input_source_file_names": [
+              "/main.ts"
+            ],
+            "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"main.ts\"],\"names\":[],\"mappings\":\";AAAA,SAAS,GAAG,KAAK,OAAO,EAAG,EAAE,GAAG,CAAC,MAAM,CAAC,CAAC,CAAC\"}"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "new-target/absent-name",
+      "shape": "new-target",
+      "mode": "absent-name",
+      "source_text": "function Foo() { return 1_0, new.target; }\n",
+      "observation": {
+        "touched": 1,
+        "emit_skipped": false,
+        "writes": [
+          {
+            "path": "/main.js.map",
+            "callback_text": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"main.ts\"],\"names\":[],\"mappings\":\";AAAA,SAAS,GAAG,KAAK,OAAO,EAAG,EAAE,GAAG,CAAO,CAAC,CAAC,CAAC\"}",
+            "write_byte_order_mark": false,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null
+          },
+          {
+            "path": "/main.js",
+            "callback_text": "\"use strict\";\r\nfunction Foo() { return 10, new.; }\r\n//# sourceMappingURL=main.js.map",
+            "write_byte_order_mark": false,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 52
+          }
+        ],
+        "source_maps": [
+          {
+            "input_source_file_names": [
+              "/main.ts"
+            ],
+            "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"main.ts\"],\"names\":[],\"mappings\":\";AAAA,SAAS,GAAG,KAAK,OAAO,EAAG,EAAE,GAAG,CAAO,CAAC,CAAC,CAAC\"}"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "import-meta/baseline",
+      "shape": "import-meta",
+      "mode": "baseline",
+      "source_text": "const Foo = [1_0, import.meta];\n",
+      "observation": {
+        "touched": 1,
+        "emit_skipped": false,
+        "writes": [
+          {
+            "path": "/main.js.map",
+            "callback_text": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"main.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,GAAG,GAAG,CAAC,EAAG,EAAE,MAAM,CAAC,IAAI,CAAC,CAAC\"}",
+            "write_byte_order_mark": false,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null
+          },
+          {
+            "path": "/main.js",
+            "callback_text": "const Foo = [10, import.meta];\r\nexport {};\r\n//# sourceMappingURL=main.js.map",
+            "write_byte_order_mark": false,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 44
+          }
+        ],
+        "source_maps": [
+          {
+            "input_source_file_names": [
+              "/main.ts"
+            ],
+            "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"main.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,GAAG,GAAG,CAAC,EAAG,EAAE,MAAM,CAAC,IAAI,CAAC,CAAC\"}"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "import-meta/no-token-maps",
+      "shape": "import-meta",
+      "mode": "no-token-maps",
+      "source_text": "const Foo = [1_0, import.meta];\n",
+      "observation": {
+        "touched": 1,
+        "emit_skipped": false,
+        "writes": [
+          {
+            "path": "/main.js.map",
+            "callback_text": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"main.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,GAAG,GAAG,CAAC,EAAG,EAAE,MAAM,CAAC,IAAI,CAAC,CAAC\"}",
+            "write_byte_order_mark": false,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null
+          },
+          {
+            "path": "/main.js",
+            "callback_text": "const Foo = [10, import.meta];\r\nexport {};\r\n//# sourceMappingURL=main.js.map",
+            "write_byte_order_mark": false,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 44
+          }
+        ],
+        "source_maps": [
+          {
+            "input_source_file_names": [
+              "/main.ts"
+            ],
+            "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"main.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,GAAG,GAAG,CAAC,EAAG,EAAE,MAAM,CAAC,IAAI,CAAC,CAAC\"}"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "import-meta/token-override",
+      "shape": "import-meta",
+      "mode": "token-override",
+      "source_text": "const Foo = [1_0, import.meta];\n",
+      "observation": {
+        "touched": 1,
+        "emit_skipped": false,
+        "writes": [
+          {
+            "path": "/main.js.map",
+            "callback_text": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"main.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,GAAG,GAAG,CAAC,EAAG,EAAE,MAAM,CAAC,IAAI,CAAC,CAAC\"}",
+            "write_byte_order_mark": false,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null
+          },
+          {
+            "path": "/main.js",
+            "callback_text": "const Foo = [10, import.meta];\r\nexport {};\r\n//# sourceMappingURL=main.js.map",
+            "write_byte_order_mark": false,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 44
+          }
+        ],
+        "source_maps": [
+          {
+            "input_source_file_names": [
+              "/main.ts"
+            ],
+            "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"main.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,GAAG,GAAG,CAAC,EAAG,EAAE,MAAM,CAAC,IAAI,CAAC,CAAC\"}"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "import-meta/absent-name",
+      "shape": "import-meta",
+      "mode": "absent-name",
+      "source_text": "const Foo = [1_0, import.meta];\n",
+      "observation": {
+        "touched": 1,
+        "emit_skipped": false,
+        "writes": [
+          {
+            "path": "/main.js.map",
+            "callback_text": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"main.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,GAAG,GAAG,CAAC,EAAG,EAAE,MAAM,CAAK,CAAC,CAAC\"}",
+            "write_byte_order_mark": false,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null
+          },
+          {
+            "path": "/main.js",
+            "callback_text": "const Foo = [10, import.];\r\nexport {};\r\n//# sourceMappingURL=main.js.map",
+            "write_byte_order_mark": false,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 40
+          }
+        ],
+        "source_maps": [
+          {
+            "input_source_file_names": [
+              "/main.ts"
+            ],
+            "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"main.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,GAAG,GAAG,CAAC,EAAG,EAAE,MAAM,CAAK,CAAC,CAAC\"}"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,274 @@
+{
+  "version": 1,
+  "status": "complete-focused-after-two-unchanged-map-residues",
+  "base": "2c040c23338f7fc17aaa4dc4d5c83d6638208ec1",
+  "production_paths": [
+    "crates/checker/src/class.rs",
+    "crates/checker/src/node_builder/mod.rs",
+    "crates/checker/src/node_builder/serialize.rs",
+    "crates/checker/src/node_builder/statements.rs"
+  ],
+  "complete_commands_eligible": 344,
+  "complete_commands_exact_twice": 342,
+  "analysis": {
+    "complete_commands": 344,
+    "exact_twice": 342,
+    "fresh": {
+      "eligible": 96,
+      "exact_twice": 94,
+      "failed_once": 2,
+      "newly_exact_twice": [
+        "jsdoc-implements/es2015/commonjs/class",
+        "jsdoc-implements/es2015/commonjs/exports-entity",
+        "jsdoc-implements/es2015/commonjs/generic",
+        "jsdoc-implements/es2015/commonjs/imported-generic",
+        "jsdoc-implements/es2015/commonjs/imported-simple",
+        "jsdoc-implements/es2015/commonjs/multiple",
+        "jsdoc-implements/es2015/commonjs/parenthesized-generic",
+        "jsdoc-implements/es2015/commonjs/partial-unknown",
+        "jsdoc-implements/es2015/commonjs/qualified",
+        "jsdoc-implements/es2015/commonjs/typedef",
+        "jsdoc-implements/es2015/commonjs/unknown",
+        "jsdoc-implements/es2015/esm/class",
+        "jsdoc-implements/es2015/esm/generic",
+        "jsdoc-implements/es2015/esm/imported-generic",
+        "jsdoc-implements/es2015/esm/imported-simple",
+        "jsdoc-implements/es2015/esm/multiple",
+        "jsdoc-implements/es2015/esm/parenthesized-generic",
+        "jsdoc-implements/es2015/esm/partial-unknown",
+        "jsdoc-implements/es2015/esm/qualified",
+        "jsdoc-implements/es2015/esm/typedef",
+        "jsdoc-implements/es2015/esm/unknown",
+        "jsdoc-implements/es2015/script/class",
+        "jsdoc-implements/es2015/script/generic",
+        "jsdoc-implements/es2015/script/multiple",
+        "jsdoc-implements/es2015/script/parenthesized-generic",
+        "jsdoc-implements/es2015/script/partial-unknown",
+        "jsdoc-implements/es2015/script/qualified",
+        "jsdoc-implements/es2015/script/typedef",
+        "jsdoc-implements/es2015/script/unknown",
+        "jsdoc-implements/es5/commonjs/class",
+        "jsdoc-implements/es5/commonjs/exports-entity",
+        "jsdoc-implements/es5/commonjs/generic",
+        "jsdoc-implements/es5/commonjs/imported-generic",
+        "jsdoc-implements/es5/commonjs/imported-simple",
+        "jsdoc-implements/es5/commonjs/multiple",
+        "jsdoc-implements/es5/commonjs/parenthesized-generic",
+        "jsdoc-implements/es5/commonjs/partial-unknown",
+        "jsdoc-implements/es5/commonjs/qualified",
+        "jsdoc-implements/es5/commonjs/typedef",
+        "jsdoc-implements/es5/commonjs/unknown",
+        "jsdoc-implements/es5/esm/class",
+        "jsdoc-implements/es5/esm/generic",
+        "jsdoc-implements/es5/esm/imported-generic",
+        "jsdoc-implements/es5/esm/imported-simple",
+        "jsdoc-implements/es5/esm/multiple",
+        "jsdoc-implements/es5/esm/parenthesized-generic",
+        "jsdoc-implements/es5/esm/partial-unknown",
+        "jsdoc-implements/es5/esm/qualified",
+        "jsdoc-implements/es5/esm/typedef",
+        "jsdoc-implements/es5/esm/unknown",
+        "jsdoc-implements/es5/script/class",
+        "jsdoc-implements/es5/script/generic",
+        "jsdoc-implements/es5/script/multiple",
+        "jsdoc-implements/es5/script/parenthesized-generic",
+        "jsdoc-implements/es5/script/partial-unknown",
+        "jsdoc-implements/es5/script/qualified",
+        "jsdoc-implements/es5/script/typedef",
+        "jsdoc-implements/es5/script/unknown"
+      ]
+    },
+    "adjacent_exact_twice": 240,
+    "original_exact_twice": 8,
+    "retained": [
+      {
+        "case_id": "jsdoc-implements/es5/script/typed-class-expression",
+        "boundary": "exact source-map result",
+        "actual_sha256": "e5296993b936bf19050ece805f396d5db4c1a307e7c7d7401bb4c2ed88b6f1c3",
+        "expected_sha256": "241f5603268c53b0b3b30bbc386d3b359010f277f48ecec86487ea736d9e2667",
+        "native_executions": 1,
+        "disposition": "unchanged-before-source-map-result"
+      },
+      {
+        "case_id": "jsdoc-implements/es5/esm/typed-class-expression",
+        "boundary": "exact source-map result",
+        "actual_sha256": "9ac6b7f88405f36338d18d0c79119bd4d5311869c1420978d12037dcadfe1606",
+        "expected_sha256": "92281dc0cdaf1d4bc41bf803de5b81906b1230b4cf3ba3335757e6c7cb7ebe2b",
+        "native_executions": 1,
+        "disposition": "unchanged-before-source-map-result"
+      }
+    ],
+    "test_seconds": [
+      485.48,
+      41.66
+    ]
+  },
+  "native_jobs": 1,
+  "positive_executions_per_case": 2,
+  "retained_fresh_executions": 1,
+  "checker_unit_tests": 31,
+  "seconds": [
+    485.48,
+    41.66,
+    0.02
+  ],
+  "exit_codes": [
+    101,
+    0
+  ],
+  "working_files": [
+    {
+      "path": "crates/checker/src/class.rs",
+      "sha256": "0cac7e0564ba2c2eeaee5cd7fd41c90abf10d5b21e6ca385d15d8e794aa71856"
+    },
+    {
+      "path": "crates/checker/src/node_builder/mod.rs",
+      "sha256": "526ef82cbe944cbd119d786a9c2db217497ed3f05cb5607d7ba42422d6c1a0fe"
+    },
+    {
+      "path": "crates/checker/src/node_builder/serialize.rs",
+      "sha256": "0ab71141dac64fdf557c93d30a1a8ed2ce9ccf6c2f10daa5cbba5ea19f053330"
+    },
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "71853704eadfbdfe31f25171c2241b3a76db192671a0cec0d8c2cdd884081b55"
+    },
+    {
+      "path": "crates/checker/tests/unit/node_builder_statements/tests.rs",
+      "sha256": "07324667126783b48dd284ea7cb79530c8ab633380a1341127b74757373bbddd"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "492f3ae7beb828595c6093f107f6b1f099f9f990efb4166cd6684e40ac48bdd9"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/jsdoc-implements-serialization.json",
+      "sha256": "46f1ad3ebb5480c9d697fca9c6adf3c95dd3fed2f60e8f37210dd1e1733cc057"
+    },
+    {
+      "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
+      "sha256": "c9872fc3a509326dd3757a9d4cc5f586766fc04284fae5e293c170da72011c18"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_jsdoc_implements_serialization.rs",
+      "sha256": "2c035245d37a82d01b4e3ff15f0f5a05740b11d7b256be02a95c7d1fdd0a24eb"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8.md",
+      "sha256": "59eecc050d7ea28eaf24ef4db22ad27510e54649d6e6f48ebf7944de6a32dd0f"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-jsdoc-implements-serialization.md",
+      "sha256": "3477829173e293be11f4fdcab5c5b2739a40aeb657ed4a6bfac606003477ceb8"
+    },
+    {
+      "path": "ratchets/h2-8a-directory-readiness.v1.json",
+      "sha256": "3a1ae081d36aed79b0a7fbc72a5dfc470f2f9d4d171ed7df07ffab9a7ec0ff1a"
+    },
+    {
+      "path": "ratchets/h2-8a-jsdoc-implements-serialization-before.v1.json",
+      "sha256": "979ab13e75105ffcd1ba891b5ede8ea008916490a5c676e3397291e0d897bfbe"
+    },
+    {
+      "path": "ratchets/h2-8a-jsdoc-implements-serialization-readiness.v1.json",
+      "sha256": "a802f3624d25b371439d989fd05778faaf2a5a78383caf6146a395fcd90ade6b"
+    },
+    {
+      "path": "scripts/check-jsdoc-implements-serialization-readiness.py",
+      "sha256": "47ea66a9d4f24c1a0ce2d1ab23aeb3ae35fe80537f9b28dd07eb4b81f10e56d8"
+    },
+    {
+      "path": "scripts/observe-jsdoc-implements-serialization.mjs",
+      "sha256": "8f408f62162626dda590e3b7cb32464f00744f13e7851c9222f330446c0400ba"
+    },
+    {
+      "path": "target/analyze-jsdoc-implements-serialization-after.py",
+      "sha256": "02d92b26362934171762ca7d6d860aa2b1c92aefa0dfd6de5e5f1b3c98f8550a"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-implements-serialization-after-analysis.json",
+      "sha256": "b1e0fd6fb04bc369408f43098f16e746819e03a3ee7c575743bf6140d78aabd8"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-implements-serialization-after-prelaunch.json",
+      "sha256": "e1b7a791c681e3453091af1e225c289aaf270a61406373c919195bef6e80759b"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-implements-serialization-after.log",
+      "sha256": "435f090ad5ea95046f48461da6614063710068e5e83aff35ce64a157bb3d80f0"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-implements-serialization-checker-after.log",
+      "sha256": "ba9f44f59359b646063edac72b4a4dae50f79c9346f1e2ceb60110edf28a9200"
+    }
+  ],
+  "prelaunch_snapshot_files": [
+    {
+      "path": "crates/checker/src/class.rs",
+      "sha256": "0cac7e0564ba2c2eeaee5cd7fd41c90abf10d5b21e6ca385d15d8e794aa71856"
+    },
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "71853704eadfbdfe31f25171c2241b3a76db192671a0cec0d8c2cdd884081b55"
+    },
+    {
+      "path": "crates/checker/src/node_builder/serialize.rs",
+      "sha256": "0ab71141dac64fdf557c93d30a1a8ed2ce9ccf6c2f10daa5cbba5ea19f053330"
+    },
+    {
+      "path": "crates/checker/src/node_builder/mod.rs",
+      "sha256": "526ef82cbe944cbd119d786a9c2db217497ed3f05cb5607d7ba42422d6c1a0fe"
+    },
+    {
+      "path": "crates/checker/tests/unit/node_builder_statements/tests.rs",
+      "sha256": "07324667126783b48dd284ea7cb79530c8ab633380a1341127b74757373bbddd"
+    },
+    {
+      "path": "ratchets/h2-8a-jsdoc-implements-serialization-before.v1.json",
+      "sha256": "979ab13e75105ffcd1ba891b5ede8ea008916490a5c676e3397291e0d897bfbe"
+    },
+    {
+      "path": "ratchets/h2-8a-jsdoc-implements-serialization-readiness.v1.json",
+      "sha256": "278dc75aeadc0bcae74bbe241c33e595bfa704d1e57e60a53461b8208d9b6e96"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-jsdoc-implements-serialization.md",
+      "sha256": "dd7ac9d9e08e9b0e9ca4f8ec85e6a61ba099d320cea600db20462787b766b0f9"
+    },
+    {
+      "path": "scripts/check-jsdoc-implements-serialization-readiness.py",
+      "sha256": "47ea66a9d4f24c1a0ce2d1ab23aeb3ae35fe80537f9b28dd07eb4b81f10e56d8"
+    },
+    {
+      "path": "scripts/observe-jsdoc-implements-serialization.mjs",
+      "sha256": "8f408f62162626dda590e3b7cb32464f00744f13e7851c9222f330446c0400ba"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/jsdoc-implements-serialization.json",
+      "sha256": "46f1ad3ebb5480c9d697fca9c6adf3c95dd3fed2f60e8f37210dd1e1733cc057"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_jsdoc_implements_serialization.rs",
+      "sha256": "2c035245d37a82d01b4e3ff15f0f5a05740b11d7b256be02a95c7d1fdd0a24eb"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "492f3ae7beb828595c6093f107f6b1f099f9f990efb4166cd6684e40ac48bdd9"
+    },
+    {
+      "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
+      "sha256": "c9872fc3a509326dd3757a9d4cc5f586766fc04284fae5e293c170da72011c18"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "726a6d93a6f97ec8e9509772260c71bd05326ae3addb56b90ee17d910e92e695"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+      "sha256": "90aff72e27fac502da3ff3f06980c55c4923e35554c3e64800a60213cb1b04ba"
+    }
+  ],
+  "prelaunch_snapshot_subdirectory": "prelaunch",
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-jsdoc-implements-after-vyxhbcjc",
+  "global_checkpoint_unchanged": "ratchets/h2-8a-global-after-a6-14.v1.json"
+}

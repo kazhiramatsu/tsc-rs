@@ -17,11 +17,10 @@ use tsc_syntax::{
 use tsc_types::{NodeCheckFlags, NodeFlags, ScriptTarget};
 
 use crate::{
-    factory::EmitHelperName,
-    metadata::{ClassExpressionDeclarationOrigin, RelocatedTrailingCommentOwner},
-    CommentRange, EmitFlags, EmitHelper, EmitResolver, EmitResolverNode, InternalEmitFlags,
-    LexicalEnvironmentFlags, SourceMapRange, SourceRange, TransformArena, TransformError,
-    TransformFlags, TransformNode, TransformNodeArray, TransformSourceId, TransformationContext,
+    factory::EmitHelperName, metadata::ClassExpressionDeclarationOrigin, CommentRange, EmitFlags,
+    EmitHelper, EmitResolver, EmitResolverNode, InternalEmitFlags, LexicalEnvironmentFlags,
+    SourceMapRange, SourceRange, TransformArena, TransformError, TransformFlags, TransformNode,
+    TransformNodeArray, TransformSourceId, TransformationContext,
 };
 
 use super::super::{
@@ -299,6 +298,8 @@ struct PrivateEnvironment {
     static_super_policy: StaticSuperPolicy,
     super_alias: Option<ClassBinding>,
     is_legacy_decorated: bool,
+    /// Captured before any later class-expression sequencing fallback temp.
+    has_class_facts: bool,
 }
 
 #[derive(Clone)]
@@ -324,8 +325,19 @@ impl PrivateEnvironment {
 #[derive(Clone)]
 struct StaticBindings {
     receiver: StaticReceiver,
+    this_substitution: StaticThisSubstitution,
     super_alias: Option<ClassBinding>,
     super_policy: StaticSuperPolicy,
+}
+
+/// Class-fields substitutes bound block receivers while visiting, but field
+/// receivers during emission. Only the latter clones the actual `this`
+/// location. This carries that position policy; ES5 lexical-capture phase
+/// composition remains owned by its separate transform boundary.
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum StaticThisSubstitution {
+    Early,
+    Emit,
 }
 
 /// One resolved `super.name`/`super[key]` evaluation in a relocated static
@@ -605,6 +617,7 @@ struct ClassFactsPlan {
     static_facts: StaticLexicalFacts,
     has_static_private_or_auto_accessor: bool,
     has_instance_constructor_reference: bool,
+    will_hoist_initializers_to_constructor: bool,
 }
 
 /// Declaration owner selected once from the original class-expression
@@ -1092,9 +1105,16 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 if let Some(bindings) = self.static_binding_frames.active() {
                     Some(match bindings.receiver {
                         StaticReceiver::Bound(binding) => {
-                            self.create_binding_identifier(&binding)?.node()
+                            let identifier = self.create_binding_identifier(&binding)?;
+                            if bindings.this_substitution == StaticThisSubstitution::Emit {
+                                self.set_original_and_range(identifier, original)?;
+                            }
+                            identifier.node()
                         }
-                        StaticReceiver::InvalidLegacyDecorated => self.create_void_zero()?.node(),
+                        StaticReceiver::InvalidLegacyDecorated => {
+                            let value = self.create_void_zero()?;
+                            self.create_parenthesized(value)?.node()
+                        }
                     })
                 } else {
                     Some(id)
@@ -1763,14 +1783,14 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         self.context.factory()?.update_node(function, data, flags)
     }
 
-    /// Rebuild a class-member list while preserving the two states consumed
-    /// by the printer.
+    /// Preserve an unchanged member list so updating the class also retains
+    /// its identity and current parent. Compiler printing selects canonical
+    /// AST emission independently of whether this transformer cloned a node.
+    /// Changed lists retain their source range through update_node_array.
     ///
-    /// A changed membership retains the parsed list range so comments beside
-    /// an erased member remain owned by that source gap. An unchanged list is
-    /// deliberately synthetic: this transformer still owns canonical
-    /// re-emission of the class, and returning the parsed array would let the
-    /// source-file fast path copy the entire class verbatim.
+    /// tsc-port: transformClassMembers @6.0.3
+    /// tsc-hash: 8f02dc71f423a197caae79451edbed69e643ef5b909248bf13a649c2c2491071
+    /// tsc-span: _tsc.js:97143-97237
     fn rebuild_class_member_array(
         &mut self,
         original: Option<NodeArrayId>,
@@ -1783,21 +1803,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 .create_node_array(self.source, members);
         };
         let original = self.array(original);
-        let membership_is_unchanged = {
-            let original_nodes = &self.context.arena().node_array(original)?.nodes;
-            original_nodes.len() == members.len()
-                && original_nodes
-                    .iter()
-                    .zip(&members)
-                    .all(|(original, member)| *original == member.node())
-        };
-        if membership_is_unchanged {
-            self.context
-                .factory()?
-                .create_node_array(self.source, members)
-        } else {
-            self.context.factory()?.update_node_array(original, members)
-        }
+        self.context.factory()?.update_node_array(original, members)
     }
 
     /// tsc-port: visitClassDeclarationInNewClassLexicalEnvironment @6.0.3
@@ -1808,11 +1814,22 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         original: TransformNode,
         mut data: tsc_syntax::nodes::ClassDeclarationData,
     ) -> Result<NodeId, TransformError> {
+        // Earlier passes can name an anonymous default class. Preserve that
+        // generated fallback separately from an explicit input identifier.
+        let original_class = self.context.arena().get_original_node(original);
+        let export_name = match &self.context.arena().node(original_class)?.data {
+            NodeData::ClassDeclaration(source) if source.name.is_some() => {
+                data.name.map(|name| self.node(name))
+            }
+            _ => None,
+        };
         let _static_binding_scope = self
             .static_binding_frames
             .enter(StaticBindingFrame::ClassBoundary);
         let class_facts = self.scan_class_facts(data.members)?;
-        data.members = self.expand_auto_accessors(data.members)?;
+        if self.should_transform_auto_accessors_in_class(&class_facts) {
+            data.members = self.expand_auto_accessors(data.members)?;
+        }
         let is_export_default = self.has_modifier(data.modifiers, SyntaxKind::ExportKeyword)?
             && self.has_modifier(data.modifiers, SyntaxKind::DefaultKeyword)?;
         if data.name.is_none()
@@ -1825,17 +1842,18 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let class_name = data
             .name
             .and_then(|name| self.identifier_text(self.node(name)).map(str::to_owned));
-        let preferred_class_this = self
-            .class_this_binding(original)
-            .map(ClassBinding::existing);
+        let preferred_class_this = self.class_this_binding(original);
         let heritage_semantics = self.class_heritage_semantics(data.heritage_clauses)?;
         let private_plan = self.scan_private_environment(data.members)?;
         let instance_brand = self.allocate_instance_brand(&private_plan, class_name.as_deref())?;
+        // ClassWasDecorated suppresses constructor/super references derived
+        // from static lexical this/super when classThis is already supplied.
+        let class_was_decorated = preferred_class_this.is_some();
         let reference_plan = ClassConstructorReferencePlan::from_class_facts(
             &class_facts,
             preferred_class_this.is_some()
                 || self.class_has_named_evaluation_member(data.members)?,
-            false,
+            class_was_decorated,
         );
         let class_alias = self.allocate_class_constructor_identity(
             reference_plan,
@@ -1848,12 +1866,12 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         data.modifiers = self.filter_modifier(data.modifiers, SyntaxKind::AccessorKeyword)?;
         let super_alias = self.allocate_super_base_binding(
             data.heritage_clauses,
-            class_facts.static_facts.contains_super,
+            class_facts.static_facts.contains_super && !class_was_decorated,
         )?;
         data.heritage_clauses = self.visit_optional_nodes(data.heritage_clauses)?;
         data.heritage_clauses =
             self.capture_super_base(data.heritage_clauses, super_alias.as_ref())?;
-        let private_environment = self.materialize_private_environment(
+        let mut private_environment = self.materialize_private_environment(
             private_plan,
             class_name.as_deref(),
             class_alias,
@@ -1862,6 +1880,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             false,
             class_facts.static_facts,
         )?;
+        private_environment.has_class_facts = private_environment.is_legacy_decorated
+            || reference_plan.needs_identity()
+            || class_facts.will_hoist_initializers_to_constructor;
         data.members = self.stabilize_auto_accessor_names(data.members)?;
         if !self.selectively_transforms_private_static_elements() {
             if let Some(alias) = private_environment.class_alias.as_ref() {
@@ -1895,6 +1916,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             )?;
         }
         self.install_private_static_pending_block(&mut retained, &mut operations.pending)?;
+        self.visit_static_operations(&mut operations.static_)?;
         let members = self.rebuild_class_member_array(data.members, retained)?;
         data.members = Some(members.array());
         let flags = flags_after_update(
@@ -1935,7 +1957,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                             parent: SyntaxKind::ClassDeclaration,
                             field: "default-export class local name",
                         })?;
-                trailing.push(self.create_export_default(local_name)?);
+                trailing.push(self.create_export_default(local_name, export_name)?);
             }
             self.expanded_statements.insert(
                 class.node(),
@@ -1978,9 +2000,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         } else {
             None
         };
-        let preferred_class_this = self
-            .class_this_binding(original)
-            .map(ClassBinding::existing);
+        let preferred_class_this = self.class_this_binding(original);
         let has_transformable_static_member =
             self.class_has_transformable_static_member(data.members)?;
         let already_has_named_evaluation = self.class_has_named_evaluation_member(data.members)?;
@@ -1988,6 +2008,13 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             && assigned_class_name.is_some()
             && has_transformable_static_member
             && !already_has_named_evaluation;
+        if needs_named_evaluation {
+            // Named evaluation requests this helper before visiting the class
+            // heritage and members. Keep AST/name allocation at the later call
+            // producer; the context deduplicates its repeated request.
+            self.context
+                .request_emit_helper(super::super::helpers::set_function_name())?;
+        }
         // tsc injects a named-evaluation block before entering the private
         // environment. This pass emits that helper directly below, so its
         // pending assigned name represents the same cloned-class metadata.
@@ -2003,18 +2030,26 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         } else {
             self.private_environment_class_name(original)?
         };
-        data.members = self.expand_auto_accessors(data.members)?;
+        if self.should_transform_auto_accessors_in_class(&class_facts) {
+            data.members = self.expand_auto_accessors(data.members)?;
+        }
         let heritage_semantics = self.class_heritage_semantics(data.heritage_clauses)?;
         let private_plan = self.scan_private_environment(data.members)?;
         // tsc's private lexical environment owns this allocation before
         // getClassFacts creates a constructor identity.
         let instance_brand = self.allocate_instance_brand(&private_plan, class_name.as_deref())?;
+        // Standard decorators transport classThis on the emitted class
+        // expression. Legacy decorated declarations use the expansion plan.
+        // Both are ClassWasDecorated: their own static super references have
+        // already been projected, so nested classes must not allocate a
+        // redundant super alias for the enclosing class.
+        let class_was_decorated = preferred_class_this.is_some() || decorated_declaration.is_some();
         let reference_plan = ClassConstructorReferencePlan::from_class_facts(
             &class_facts,
             preferred_class_this.is_some()
                 || needs_named_evaluation
                 || already_has_named_evaluation,
-            decorated_declaration.is_some(),
+            class_was_decorated,
         );
         let class_definition_binding = self.allocate_class_constructor_identity(
             reference_plan,
@@ -2023,8 +2058,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         )?;
         // ClassWasDecorated suppresses NeedsClassSuperReference even when a
         // different fact allocated a usable constructor identity.
-        let needs_super_reference =
-            class_facts.static_facts.contains_super && decorated_declaration.is_none();
+        let needs_super_reference = class_facts.static_facts.contains_super && !class_was_decorated;
         data.name = self.visit_optional_node(data.name)?;
         data.type_parameters = self.visit_optional_nodes(data.type_parameters)?;
         data.modifiers = self.visit_optional_nodes(data.modifiers)?;
@@ -2034,7 +2068,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         data.heritage_clauses = self.visit_optional_nodes(data.heritage_clauses)?;
         data.heritage_clauses =
             self.capture_super_base(data.heritage_clauses, super_alias.as_ref())?;
-        let private_environment = self.materialize_private_environment(
+        let mut private_environment = self.materialize_private_environment(
             private_plan,
             class_name.as_deref(),
             class_definition_binding.clone(),
@@ -2043,6 +2077,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             decorated_declaration.is_some(),
             class_facts.static_facts,
         )?;
+        private_environment.has_class_facts = private_environment.is_legacy_decorated
+            || reference_plan.needs_identity()
+            || class_facts.will_hoist_initializers_to_constructor;
         data.members = self.stabilize_auto_accessor_names(data.members)?;
         let private_expression_binding = private_environment.class_alias.clone();
         self.private_environments.push(private_environment);
@@ -2085,6 +2122,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             )?;
         }
         self.install_private_static_pending_block(&mut retained, &mut operations.pending)?;
+        self.visit_static_operations(&mut operations.static_)?;
         let members = self.rebuild_class_member_array(data.members, retained)?;
         data.members = Some(members.array());
         let flags = flags_after_update(
@@ -2233,6 +2271,14 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                     // so move the same ownership onto the expression exactly
                     // as tsc's generateInitializedPropertyExpressions does.
                     let expression = self.set_original_and_range(expression, original)?;
+                    // Inline placement replaces transformProperty's name
+                    // range with the complete property range after modifiers.
+                    if let Some(range) = self.property_source_map_range(original)? {
+                        self.context
+                            .arena_mut()?
+                            .metadata_mut(expression)
+                            .set_source_map_range(range);
+                    }
                     // A comma-expression child does not pass through the
                     // statement/list leading-comment phase. This typed source
                     // anchor is the transform/printer equivalent of tsc's
@@ -2396,8 +2442,8 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             return Ok(None);
         };
         if let Some(name) = arena
-            .metadata(assigned_name)
-            .and_then(|data| data.string_literal_text_source)
+            .literal_properties(assigned_name)
+            .and_then(|data| data.string_literal_text_source())
             .and_then(|source| self.identifier_text(source))
         {
             return Ok(Some(name.to_owned()));
@@ -2585,13 +2631,29 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         }
     }
 
-    fn class_this_binding(&self, class: TransformNode) -> Option<String> {
+    fn class_this_binding(&self, class: TransformNode) -> Option<ClassBinding> {
         let class_this = self
             .context
             .arena()
             .metadata(class)
             .and_then(|metadata| metadata.class_this)?;
-        self.identifier_text(class_this).map(str::to_owned)
+        let text = self.identifier_text(class_this)?.to_owned();
+        let metadata = self.context.arena().metadata(class_this)?;
+        Some(match metadata.generated_binding_id() {
+            Some(id) => ClassBinding::Generated(TargetBinding::from_existing(
+                id,
+                text,
+                metadata.generated_binding_base().map(str::to_owned),
+                metadata
+                    .generated_binding_preferred_base()
+                    .map(str::to_owned),
+                metadata.generated_binding_role_suffix().map(str::to_owned),
+                metadata.generated_binding_is_file_level_optimistic(),
+                metadata.generated_binding_planned_name_is_authoritative(),
+                metadata.generated_binding_reserved_in_nested_scopes(),
+            )),
+            None => ClassBinding::Existing(text),
+        })
     }
 
     fn variable_statement_expansion_owner(
@@ -2741,6 +2803,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         Ok(None)
     }
 
+    /// tsc-port: visitClassExpressionInNewClassLexicalEnvironment @6.0.3
+    /// tsc-hash: 5885e805a286e1451a1c60771127ff84a6c108f88522eb2f90901c2703763319
+    /// tsc-span: _tsc.js:97049-97129
     fn inline_class_expression(
         &mut self,
         expressions: Vec<TransformNode>,
@@ -2760,10 +2825,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let expression = self.inline_expressions(expressions)?;
         if self.inline_sequence_placement(original)? == InlineSequencePlacement::ExistingListContext
         {
-            self.set_original_and_range(expression, original)
+            Ok(expression)
         } else {
-            let parenthesized = self.create_parenthesized(expression)?;
-            self.set_original_and_range(parenthesized, original)
+            self.create_parenthesized(expression)
         }
     }
 
@@ -2805,6 +2869,15 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             }
         }
         Ok(InlineSequencePlacement::RequiresParentheses)
+    }
+
+    /// tsc-port: shouldTransformAutoAccessorsInCurrentClass @6.0.3 —
+    /// `True` below ESNext; at ESNext only `Maybe` (set semantics) resolves to
+    /// true when the class hoists its initializers to the constructor.
+    fn should_transform_auto_accessors_in_class(&self, facts: &ClassFactsPlan) -> bool {
+        self.target < ScriptTarget::ES_NEXT
+            || self.mode == PublicFieldMode::Assignment
+                && facts.will_hoist_initializers_to_constructor
     }
 
     fn expand_auto_accessors(
@@ -2890,7 +2963,15 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             )?;
             self.generated_auto_accessor_backings.insert(backing.node());
             let getter = self.create_auto_accessor_getter(name, storage.node(), modifiers)?;
-            let setter = self.create_auto_accessor_setter(name, storage.node(), modifiers)?;
+            let modifier_array = modifiers.map(|modifiers| self.array(modifiers));
+            let modifier_flags = self.context.factory()?.modifier_flags(modifier_array)?;
+            let setter_modifiers = self
+                .context
+                .factory()?
+                .create_modifiers_from_modifier_flags(self.source, modifier_flags)?
+                .map(|modifiers| modifiers.array());
+            let setter =
+                self.create_auto_accessor_setter(name, storage.node(), setter_modifiers)?;
             self.generated_auto_accessor_pairs
                 .insert(getter.node(), setter.node());
             // transformAutoAccessor keeps all three nodes synthetic. Original
@@ -3349,6 +3430,10 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let mut has_static_private_or_auto_accessor =
             self.class_has_named_evaluation_member(members)?;
         let mut has_instance_constructor_reference = false;
+        let mut contains_public_instance_fields = false;
+        let mut contains_initialized_public_instance_fields = false;
+        let mut contains_instance_private_elements = false;
+        let mut contains_instance_auto_accessors = false;
 
         for member in self.array_nodes(members)? {
             let record = self.context.arena().node(member)?;
@@ -3373,22 +3458,45 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                     && self.should_transform_private_class_element(member, modifiers)?;
                 continue;
             }
-            if is_auto_accessor
-                || !name_is_private
-                || self.has_modifier(modifiers, SyntaxKind::AbstractKeyword)?
-            {
+            let original = self.context.arena().get_original_node(member);
+            let original_modifiers = match &self.context.arena().node(original)?.data {
+                NodeData::PropertyDeclaration(data) => data.modifiers,
+                NodeData::MethodDeclaration(data) => data.modifiers,
+                NodeData::GetAccessor(data) => data.modifiers,
+                NodeData::SetAccessor(data) => data.modifiers,
+                _ => None,
+            };
+            if self.has_modifier(original_modifiers, SyntaxKind::AbstractKeyword)? {
                 continue;
             }
-            has_instance_constructor_reference |= self.resolver.has_node_check_flag(
-                self.resolver_node(member)?,
-                NodeCheckFlags::CONTAINS_CONSTRUCTOR_REFERENCE.bits() as u32,
-            )?;
+            if is_auto_accessor {
+                contains_instance_auto_accessors = true;
+                contains_instance_private_elements |= name_is_private;
+            } else if name_is_private {
+                contains_instance_private_elements = true;
+                has_instance_constructor_reference |= self.resolver.has_node_check_flag(
+                    self.resolver_node(member)?,
+                    NodeCheckFlags::CONTAINS_CONSTRUCTOR_REFERENCE.bits() as u32,
+                )?;
+            } else if let NodeData::PropertyDeclaration(data) = &record.data {
+                contains_public_instance_fields = true;
+                contains_initialized_public_instance_fields |= data.initializer.is_some();
+            }
         }
 
         Ok(ClassFactsPlan {
             static_facts,
             has_static_private_or_auto_accessor,
             has_instance_constructor_reference,
+            will_hoist_initializers_to_constructor: (self.mode == PublicFieldMode::DefineProperty
+                && self.target < ScriptTarget::ES2022
+                && contains_public_instance_fields)
+                || (self.mode == PublicFieldMode::Assignment
+                    && contains_initialized_public_instance_fields)
+                || (self.target < ScriptTarget::ES2022 && contains_instance_private_elements)
+                || (self.target < ScriptTarget::ES2022
+                    && contains_instance_auto_accessors
+                    && self.target < ScriptTarget::ES_NEXT),
         })
     }
 
@@ -3573,6 +3681,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             static_super_policy,
             super_alias,
             is_legacy_decorated,
+            has_class_facts: false,
         };
         for declaration in declarations {
             let PrivateDeclaration {
@@ -3749,11 +3858,17 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         Ok(environment)
     }
 
+    /// tsc-port: getClassFacts @6.0.3
+    /// tsc-hash: 18ea59522a3e87f378c8b5682c5eb2172be55cba02380fc3b240acbf0f4dd388
+    /// tsc-span: _tsc.js:96844-96898
     fn static_lexical_facts(
         &self,
         members: Option<NodeArrayId>,
     ) -> Result<StaticLexicalFacts, TransformError> {
         let mut facts = StaticLexicalFacts::default();
+        if self.target >= ScriptTarget::ES2022 {
+            return Ok(facts);
+        }
         for member in self.array_nodes(members)? {
             let record = self.context.arena().node(member)?;
             let is_static_property_or_block = match &record.data {
@@ -3775,15 +3890,17 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             // member traversal allocates computed-name caches.
             let member_flags = self.context.arena().transform_flags(member);
             facts.contains_this |= member_flags.contains(TransformFlags::CONTAINS_LEXICAL_THIS);
-            facts.contains_super |= member_flags.contains(TransformFlags::CONTAINS_LEXICAL_SUPER);
+            facts.contains_super |= self.target >= ScriptTarget::ES2015
+                && member_flags.contains(TransformFlags::CONTAINS_LEXICAL_SUPER);
         }
         Ok(facts)
     }
 
-    fn static_bindings(&self) -> Option<StaticBindings> {
+    fn static_bindings(&self, this_substitution: StaticThisSubstitution) -> Option<StaticBindings> {
         let environment = self.private_environments.last()?;
         Some(StaticBindings {
             receiver: environment.static_receiver.clone()?,
+            this_substitution,
             super_alias: environment.super_alias.clone(),
             super_policy: environment.static_super_policy,
         })
@@ -3810,6 +3927,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             .expect("downlevel static auto-accessor owns a class constructor binding");
         StaticBindings {
             receiver: StaticReceiver::Bound(class_alias),
+            this_substitution: StaticThisSubstitution::Early,
             super_alias: environment.super_alias.clone(),
             super_policy: environment.static_super_policy,
         }
@@ -3939,7 +4057,8 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             match access {
                 StaticSuperAccessResolution::Bound(access) => {
                     let expression = self.create_static_super_get(&access)?;
-                    self.set_original_and_range(expression, original)?;
+                    let receiver = self.node(data.expression.expect("super property receiver"));
+                    self.set_original_and_range(expression, receiver)?;
                     return Ok(expression.node());
                 }
                 StaticSuperAccessResolution::InvalidLegacyDecorated { .. } => {
@@ -3977,7 +4096,8 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             match access {
                 StaticSuperAccessResolution::Bound(access) => {
                     let expression = self.create_static_super_get(&access)?;
-                    self.set_original_and_range(expression, original)?;
+                    let receiver = self.node(data.expression.expect("super element receiver"));
+                    self.set_original_and_range(expression, receiver)?;
                     return Ok(expression.node());
                 }
                 StaticSuperAccessResolution::InvalidLegacyDecorated { .. } => {
@@ -4770,8 +4890,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         &mut self,
         access: &StaticSuperAccess,
     ) -> Result<TransformNode, TransformError> {
-        let key = self.context.factory()?.clone_node(access.key)?;
-        self.create_reflect_get(&access.super_alias, key, &access.class_receiver)
+        // This key was visited once by static_super_access. Cloning it drops
+        // the range of an element-key call, including its closing delimiter.
+        self.create_reflect_get(&access.super_alias, access.key, &access.class_receiver)
     }
 
     fn create_static_super_set(
@@ -4779,8 +4900,12 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         access: &StaticSuperAccess,
         value: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let key = self.context.factory()?.clone_node(access.key)?;
-        self.create_reflect_set(&access.super_alias, key, value, &access.class_receiver)
+        self.create_reflect_set(
+            &access.super_alias,
+            access.key,
+            value,
+            &access.class_receiver,
+        )
     }
 
     /// A key used for both `Reflect.get` and `Reflect.set` must be stabilized
@@ -4826,7 +4951,11 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             )?;
             let binary_operator = Self::non_assignment_operator(operator);
             let right = self.parenthesize_right_binary_operand(binary_operator, right)?;
-            self.create_binary(current, binary_operator, right)?
+            let expression = self.create_binary(current, binary_operator, right)?;
+            self.context
+                .factory()?
+                .set_text_range(expression, original)?;
+            expression
         } else {
             right
         };
@@ -4835,6 +4964,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             .transpose()?;
         if let Some(binding) = &result_binding {
             let result_target = self.create_binding_identifier(binding)?;
+            self.context
+                .factory()?
+                .set_text_range(result_target, original)?;
             value = self.create_assignment(result_target, value)?;
         }
         let mut expression = self.create_reflect_set(
@@ -4846,6 +4978,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         expression = self.set_original_and_range(expression, original)?;
         if let Some(binding) = &result_binding {
             let result = self.create_binding_identifier(binding)?;
+            self.context.factory()?.set_text_range(result, original)?;
             expression = self.inline_expressions(vec![expression, result])?;
             self.context
                 .factory()?
@@ -4865,12 +4998,27 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let (getter_key, setter_key) = self.split_static_super_key_for_read_write(access.key)?;
         let current =
             self.create_reflect_get(&access.super_alias, getter_key, &access.class_receiver)?;
+        let operand = match &self.context.arena().node(original)?.data {
+            NodeData::PrefixUnaryExpression(data) => data.operand,
+            NodeData::PostfixUnaryExpression(data) => data.operand,
+            _ => None,
+        }
+        .ok_or(TransformError::RequiredChildRemoved {
+            parent: self.context.arena().node(original)?.kind,
+            field: "update operand",
+        })?;
+        let operand = self.node(operand);
+        let unwrapped_operand = self.skip_runtime_transparent_outer_expressions(operand)?;
+        self.context
+            .factory()?
+            .set_text_range(current, unwrapped_operand)?;
         let result_binding = (value_use == ExpressionValueUse::Required)
             .then(|| self.allocate_shadowable_temp_name())
             .transpose()?;
         let update_binding = self.allocate_shadowable_temp_name()?;
         let update_target = self.create_binding_identifier(&update_binding)?;
         let mut value = self.create_assignment(update_target, current)?;
+        self.context.factory()?.set_text_range(value, operand)?;
 
         let update_operand = self.create_binding_identifier(&update_binding)?;
         let mut operation = if is_prefix {
@@ -4898,13 +5046,17 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         if let Some(binding) = &result_binding {
             let result_target = self.create_binding_identifier(binding)?;
             operation = self.create_assignment(result_target, operation)?;
+            self.context
+                .factory()?
+                .set_text_range(operation, original)?;
         }
         value = self.inline_expressions(vec![value, operation])?;
+        self.context.factory()?.set_text_range(value, original)?;
         if !is_prefix {
             let updated_value = self.create_binding_identifier(&update_binding)?;
             value = self.inline_expressions(vec![value, updated_value])?;
+            self.context.factory()?.set_text_range(value, original)?;
         }
-        let value = self.create_parenthesized(value)?;
         let mut expression = self.create_reflect_set(
             &access.super_alias,
             setter_key,
@@ -5193,7 +5345,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                     // nested generated names must therefore be allocated in
                     // the constructor scope when the operation is
                     // materialized, not while the class-level plan is built.
-                    if is_static_member {
+                    if is_static_member && self.selectively_transforms_private_static_elements() {
                         data.initializer = self.visit_optional_static_node(data.initializer)?;
                     }
                     let operation = PrivateFieldOperation {
@@ -5383,7 +5535,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                             .pending
                             .append_public_field_key_operands(evaluations);
                     }
-                    if receiver == FieldReceiver::Static {
+                    if receiver == FieldReceiver::Static
+                        && self.selectively_transforms_private_static_elements()
+                    {
                         data.initializer = self.visit_optional_static_node(data.initializer)?;
                     }
                     let parameter_property_local = if receiver == FieldReceiver::Instance {
@@ -5414,7 +5568,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                             && self
                                 .private_environments
                                 .last()
-                                .is_some_and(|environment| environment.is_legacy_decorated),
+                                .is_some_and(|environment| environment.has_class_facts),
                     };
                     match receiver {
                         FieldReceiver::Instance => {
@@ -5432,7 +5586,13 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                             // define modes. Instance define-mode fields remain
                             // observable own properties and are handled above.
                             if operation.value.has_runtime_value() {
-                                operations.static_.push(StaticOperation::Field(operation));
+                                if self.selectively_transforms_private_static_elements() {
+                                    let block =
+                                        self.materialize_public_static_field_block(&operation)?;
+                                    operations.retained_members.push(block);
+                                } else {
+                                    operations.static_.push(StaticOperation::Field(operation));
+                                }
                             }
                         }
                     }
@@ -5495,31 +5655,15 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                                 field: "named-evaluation expression",
                             },
                         )?;
-                        let expression = self.visit_static_node(expression)?.ok_or(
-                            TransformError::RequiredChildRemoved {
-                                parent: SyntaxKind::ExpressionStatement,
-                                field: "visited named-evaluation expression",
-                            },
-                        )?;
                         operations.static_.push(StaticOperation::NamedEvaluation {
                             original: Some(member),
-                            expression,
+                            expression: self.node(expression),
                         });
                         continue;
                     }
-                    let (visited, bindings) = self.with_new_generated_scope(
-                        GeneratedBindingOwner::StaticEvaluation,
-                        |visitor| visitor.visit_static_node(body.node()),
-                    )?;
-                    let visited = visited.ok_or(TransformError::RequiredChildRemoved {
-                        parent: SyntaxKind::ClassStaticBlockDeclaration,
-                        field: "body",
-                    })?;
-                    let visited =
-                        self.prepend_generated_declarations_to_block(visited, bindings)?;
                     operations.static_.push(StaticOperation::Block {
                         original: member,
-                        body: visited,
+                        body,
                     });
                 }
                 data => {
@@ -5998,6 +6142,58 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         Ok(())
     }
 
+    /// Downlevel static operands are visited after the retained members and
+    /// constructor, with the class private environment still active. The
+    /// selective native-block route already visits its in-class operands.
+    ///
+    /// tsc-port: transformClassMembers/visitClassExpressionInNewClassLexicalEnvironment @6.0.3
+    /// tsc-span: _tsc.js:97049-97129,97143-97240
+    fn visit_static_operations(
+        &mut self,
+        operations: &mut [StaticOperation],
+    ) -> Result<(), TransformError> {
+        for operation in operations {
+            match operation {
+                StaticOperation::Field(operation) => match &mut operation.value {
+                    FieldValuePlan::Declared { initializer }
+                    | FieldValuePlan::ParameterProperty {
+                        prefix: initializer,
+                        ..
+                    } => {
+                        *initializer = self.visit_optional_static_node(*initializer)?;
+                    }
+                },
+                StaticOperation::PrivateField(operation) => {
+                    operation.initializer =
+                        self.visit_optional_static_node(operation.initializer)?;
+                }
+                StaticOperation::NamedEvaluation { expression, .. } => {
+                    *expression = self
+                        .visit_static_node(expression.node(), StaticThisSubstitution::Early)?
+                        .ok_or(TransformError::RequiredChildRemoved {
+                            parent: SyntaxKind::ExpressionStatement,
+                            field: "visited named-evaluation expression",
+                        })?;
+                }
+                StaticOperation::Block { body, .. } => {
+                    let body_node = body.node();
+                    let (visited, bindings) = self.with_new_generated_scope(
+                        GeneratedBindingOwner::StaticEvaluation,
+                        |visitor| {
+                            visitor.visit_static_node(body_node, StaticThisSubstitution::Early)
+                        },
+                    )?;
+                    let visited = visited.ok_or(TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::ClassStaticBlockDeclaration,
+                        field: "body",
+                    })?;
+                    *body = self.prepend_generated_declarations_to_block(visited, bindings)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// Materializes only the post-pending static phase. The absence of a
     /// pending-plan parameter makes reordering setup/key effects here
     /// impossible by construction.
@@ -6014,7 +6210,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 }
                 StaticOperation::PrivateField(operation) => {
                     if operation.slot.is_static() {
-                        self.materialize_private_static_field(&operation)?
+                        self.materialize_private_static_field(&operation, false)?
                     } else {
                         // A duplicate private declaration replaces the
                         // name-table entry even when its staticness differs
@@ -6039,8 +6235,19 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 StaticOperation::Block { original, body } => {
                     let body = self.context.factory()?.set_multi_line(body, true)?;
                     let arrow = self.create_arrow_function(Vec::new(), body)?;
+                    // tsc-port: transformClassStaticBlockDeclaration @6.0.3
+                    // tsc-hash: 4b66f4eb4ef89a401f6a18d7e3e86ea9eae2f9521b1200735b6253d1b6db7240
+                    // tsc-span: _tsc.js:96649-96682
+                    self.context
+                        .arena_mut()?
+                        .set_original_node(arrow, Some(original))?;
+                    self.context
+                        .arena_mut()?
+                        .metadata_mut(arrow)
+                        .add_flags(EmitFlags::ADVISE_ON_EMIT_NODE);
                     let arrow = self.create_parenthesized(arrow)?;
                     let call = self.create_call(arrow, Vec::new())?;
+                    self.set_original_and_range(call, original)?;
                     let statement = self.create_expression_statement(call)?;
                     self.set_original_and_range(statement, original)?;
                     statement
@@ -6345,24 +6552,10 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             // plain generated read. The former still belongs to the class's
             // ordered key-evaluation plan, while the field operation must use
             // only the cached read so constructors never repeat the key.
-            let assignment_left = match &self.context.arena().node(expression)?.data {
-                NodeData::BinaryExpression(binary)
-                    if binary
-                        .operator_token
-                        .and_then(|operator| self.context.arena().node_ref(self.source, operator))
-                        .is_some_and(|operator| {
-                            self.context
-                                .arena()
-                                .node(operator)
-                                .is_ok_and(|operator| operator.kind == SyntaxKind::EqualsToken)
-                        }) =>
-                {
-                    binary
-                        .left
-                        .and_then(|left| self.context.arena().node_ref(self.source, left))
-                }
-                _ => None,
-            };
+            // findComputedPropertyNameCacheAssignment: the cache assignment
+            // may be the last element of the pending-expression comma list
+            // the standard-decorator transform injected around it.
+            let assignment_left = self.find_computed_property_name_cache(expression)?;
             let (key_expression, evaluation) = if let Some(left) = assignment_left {
                 (self.context.factory()?.clone_node(left)?, Some(expression))
             } else {
@@ -6567,6 +6760,13 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 SyntaxKind::ThisKeyword,
                 TransformFlags::CONTAINS_LEXICAL_THIS,
             )?,
+            FieldReceiver::Static if self.selectively_transforms_private_static_elements() => {
+                self.context.factory()?.create_token(
+                    self.source,
+                    SyntaxKind::ThisKeyword,
+                    TransformFlags::CONTAINS_LEXICAL_THIS,
+                )?
+            }
             FieldReceiver::Static => self.create_binding_identifier(class_name.ok_or(
                 TransformError::RequiredChildRemoved {
                     parent: SyntaxKind::ClassDeclaration,
@@ -6575,13 +6775,6 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             )?)?,
         };
         let initializer = self.materialize_field_value(&operation.value)?;
-        if operation.value.has_runtime_value() {
-            self.context
-                .arena_mut()?
-                .metadata_mut(initializer)
-                .relocated_trailing_comment_owner =
-                Some(RelocatedTrailingCommentOwner::ClassFieldOperation);
-        }
         let expression = match self.mode {
             PublicFieldMode::Assignment => {
                 let target = self.create_member_access(receiver, operation.name)?;
@@ -6601,6 +6794,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             }
         };
         if operation.range_static_expression_to_name {
+            self.context
+                .arena_mut()?
+                .set_original_node(expression, Some(operation.original))?;
             let name = self.node(operation.name);
             let source_map_range = self
                 .context
@@ -6640,11 +6836,21 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 .arena_mut()?
                 .metadata_mut(statement)
                 .set_source_map_range(source_map_range);
+        } else if let Some(source_map_range) = self.property_source_map_range(operation.original)? {
+            self.context
+                .arena_mut()?
+                .metadata_mut(statement)
+                .set_source_map_range(source_map_range);
         }
-        self.context
-            .arena_mut()?
-            .metadata_mut(statement)
-            .set_starts_on_new_line(true);
+        // transformPropertyOrClassStaticBlock gives synthetic comments to
+        // the statement after the expression inherits the property metadata.
+        let expression_metadata = self.context.arena_mut()?.metadata_mut(expression);
+        expression_metadata.leading_comments.clear();
+        expression_metadata.trailing_comments.clear();
+        // transformPropertyOrClassStaticBlock leaves the statement's
+        // startsOnNewLine unset (_tsc.js:97444-97466). The separate inline
+        // expression sequence owns that marker; constructor bodies already
+        // carry their own multiline decision.
         Ok(statement)
     }
 
@@ -6765,7 +6971,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         operation: &PrivateFieldOperation,
     ) -> Result<TransformNode, TransformError> {
         if operation.slot.is_static() {
-            let statement = self.materialize_private_static_field(operation)?;
+            let statement = self.materialize_private_static_field(operation, false)?;
             self.context
                 .arena_mut()?
                 .metadata_mut(statement)
@@ -6802,9 +7008,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let call = self.create_call(set, vec![receiver, initializer])?;
         let statement = self.create_expression_statement(call)?;
         self.set_original_and_range(statement, operation.original)?;
-        if let Some(source_map_range) =
-            self.private_property_source_map_range(operation.original)?
-        {
+        if let Some(source_map_range) = self.property_source_map_range(operation.original)? {
             self.context
                 .arena_mut()?
                 .metadata_mut(statement)
@@ -6836,7 +7040,20 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
     fn materialize_private_static_field(
         &mut self,
         operation: &PrivateFieldOperation,
+        in_static_block: bool,
     ) -> Result<TransformNode, TransformError> {
+        // tsc-port: transformPrivateFieldInitializer @6.0.3 (ES2022+ static
+        // block path). The statement's range is `moveRangePastModifiers` of
+        // the property that reaches transformPropertyOrClassStaticBlock: for
+        // an auto-accessor backing field that is the generated storage name,
+        // so the statement starts at a synthesized position (no leading
+        // source map) and the bare createPrivateStaticFieldInitializer
+        // assignment carries no range. Below ES2022 the original accessor
+        // property itself is transformed and keeps its name-based ranges.
+        let generated_backing_in_static_block = in_static_block
+            && self
+                .generated_auto_accessor_backings
+                .contains(&operation.original.node());
         let storage_name =
             operation
                 .slot
@@ -6865,31 +7082,76 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 .metadata_mut(assignment)
                 .class_field_initializer_comment_source = Some(comment_source);
         }
-        if let Some(source_map_range) =
-            self.private_property_name_source_map_range(operation.original)?
-        {
-            let metadata = self.context.arena_mut()?.metadata_mut(assignment);
-            metadata.add_flags(EmitFlags::ADVISE_ON_EMIT_NODE);
-            metadata.set_source_map_range(source_map_range);
+        if !generated_backing_in_static_block {
+            if let Some(source_map_range) =
+                self.private_property_name_source_map_range(operation.original)?
+            {
+                let metadata = self.context.arena_mut()?.metadata_mut(assignment);
+                metadata.add_flags(EmitFlags::ADVISE_ON_EMIT_NODE);
+                metadata.set_source_map_range(source_map_range);
+            }
         }
         let statement = self.create_expression_statement(assignment)?;
         self.set_original_and_range(statement, operation.original)?;
-        if let Some(source_map_range) =
-            self.private_property_source_map_range(operation.original)?
-        {
-            self.context
-                .arena_mut()?
-                .metadata_mut(statement)
-                .set_source_map_range(source_map_range);
+        if let Some(source_map_range) = self.property_source_map_range(operation.original)? {
+            let metadata = self.context.arena_mut()?.metadata_mut(statement);
+            metadata.set_source_map_range(source_map_range);
+            if generated_backing_in_static_block {
+                metadata.add_flags(EmitFlags::NO_LEADING_SOURCE_MAP);
+            }
         }
         Ok(statement)
+    }
+
+    /// tsc transformPublicFieldInitializer: at ES2022+ assignment-mode
+    /// public fields become static blocks even when private static members
+    /// caused this class to enter the selective downlevel visitor.
+    fn materialize_public_static_field_block(
+        &mut self,
+        operation: &FieldOperation,
+    ) -> Result<TransformNode, TransformError> {
+        let statement = self.materialize_field_operation(operation, None)?;
+        let body = self.create_block(vec![statement], false)?;
+        let block = self.context.factory()?.create_node(
+            self.source,
+            NodeData::ClassStaticBlockDeclaration(
+                tsc_syntax::nodes::ClassStaticBlockDeclarationData {
+                    body: Some(body.node()),
+                    modifiers: None,
+                },
+            ),
+            TransformFlags::NONE,
+        )?;
+        let record = self.context.arena().node(operation.original)?;
+        let positions = self
+            .context
+            .arena()
+            .source(self.source)?
+            .syntax()
+            .positions();
+        let range = SourceRange::from_raw(record.pos, record.end, positions).map_err(|error| {
+            TransformError::InvalidSourceRange {
+                node: operation.original,
+                error,
+            }
+        })?;
+        let arena = self.context.arena_mut()?;
+        arena.set_original_node(block, Some(operation.original))?;
+        arena
+            .metadata_mut(block)
+            .set_comment_range(CommentRange::new(self.source, range));
+        let metadata = arena.metadata_mut(statement);
+        metadata.set_comment_range(CommentRange::new(self.source, SourceRange::Synthesized));
+        metadata.leading_comments.clear();
+        metadata.trailing_comments.clear();
+        Ok(block)
     }
 
     fn materialize_private_static_field_block(
         &mut self,
         operation: &PrivateFieldOperation,
     ) -> Result<TransformNode, TransformError> {
-        let statement = self.materialize_private_static_field(operation)?;
+        let statement = self.materialize_private_static_field(operation, true)?;
         self.context
             .arena_mut()?
             .metadata_mut(statement)
@@ -6937,9 +7199,12 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
     /// generated backing field of an auto-accessor.
     ///
     /// tsc-port: generateInitializedPropertyExpressionsOrClassStaticBlock @6.0.3
-    /// tsc-hash: 8e776d62fb988da8525039a9b7246226f4a003e34a285cec156b79e7f02a09a3
-    /// tsc-span: _tsc.js:97460-97487
-    fn private_property_source_map_range(
+    /// tsc-hash: 51a63f66258bcc0bd61a995b8952a78602998b82f909f47f8d12c24fc75761cb
+    /// tsc-span: _tsc.js:97467-97487
+    /// tsc-port: moveRangePastModifiers @6.0.3
+    /// tsc-hash: 9d43119a4e2ea51f3f5a151f00816f7985c1781c9dc80cfd8e44f40807d3db9d
+    /// tsc-span: _tsc.js:17311-17317
+    fn property_source_map_range(
         &self,
         property: TransformNode,
     ) -> Result<Option<SourceMapRange>, TransformError> {
@@ -6987,6 +7252,31 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         Ok(Some(SourceMapRange::new(original.source(), range)))
     }
 
+    fn set_private_receiver_comment_range(
+        &mut self,
+        receiver: TransformNode,
+    ) -> Result<(), TransformError> {
+        // setCommentRange(receiver, moveRangePos(receiver, -1)): the helper
+        // argument retains ending ownership without donating a list-leading
+        // position. An emit flag cannot represent that one-sided boundary.
+        let arena = self.context.arena();
+        let range = CommentRange::from_raw(
+            receiver.source(),
+            u32::MAX,
+            arena.node(receiver)?.end,
+            arena.source(receiver.source())?.syntax().positions(),
+        )
+        .map_err(|error| TransformError::InvalidSourceRange {
+            node: receiver,
+            error,
+        })?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(receiver)
+            .set_comment_range(range);
+        Ok(())
+    }
+
     fn create_private_get(
         &mut self,
         receiver: TransformNode,
@@ -6999,15 +7289,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             None,
             Vec::new(),
         ))?;
-        // tsc moves the receiver's comment range start to the synthetic
-        // sentinel before placing it in the helper argument list. Rust's
-        // range type intentionally rejects mixed synthetic/original ranges,
-        // so encode the same ownership directly: the containing access owns
-        // leading trivia, while the receiver retains its source range.
-        self.context
-            .arena_mut()?
-            .metadata_mut(receiver)
-            .add_flags(EmitFlags::NO_LEADING_COMMENTS);
+        self.set_private_receiver_comment_range(receiver)?;
         let helper = self
             .context
             .factory()?
@@ -7034,10 +7316,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             None,
             Vec::new(),
         ))?;
-        self.context
-            .arena_mut()?
-            .metadata_mut(receiver)
-            .add_flags(EmitFlags::NO_LEADING_COMMENTS);
+        self.set_private_receiver_comment_range(receiver)?;
         // The source assignment/update owns trivia at the end of the right
         // operand. Without this boundary, a retained trailing comment is
         // emitted inside the synthesized helper's argument list and then a
@@ -7143,6 +7422,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         self.create_call(define_property, vec![receiver, key, descriptor])
     }
 
+    /// tsc-port: transformPropertyWorker @6.0.3
+    /// tsc-hash: fb5e7b8fdfc4fab54f8fdd4ea6f48902c80207af52647e23cb47491f0ce46edd
+    /// tsc-span: _tsc.js:97501-97575
     fn property_key_expression(&mut self, name: NodeId) -> Result<TransformNode, TransformError> {
         let name = self.node(name);
         match self.context.arena().node(name)?.data.clone() {
@@ -7150,9 +7432,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             NodeData::PrivateIdentifier(data) => {
                 self.create_string_literal(data.text.trim_start_matches('#'))
             }
-            NodeData::StringLiteral(_) | NodeData::NumericLiteral(_) => {
-                self.context.factory()?.clone_node(name)
-            }
+            NodeData::StringLiteral(_) | NodeData::NumericLiteral(_) => Ok(name),
             NodeData::ComputedPropertyName(data) => data
                 .expression
                 .map(|expression| self.node(expression))
@@ -8397,8 +8677,29 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         )
     }
 
-    fn create_export_default(&mut self, local_name: &str) -> Result<TransformNode, TransformError> {
-        let name = self.create_identifier(local_name)?;
+    /// The split default export uses getLocalName(false, true).
+    ///
+    /// tsc-port: getName @6.0.3
+    /// tsc-hash: 9734f5576b1aa153598ff7ae70a2a2f994bb50d0370fbfc547c47952f72dea33
+    /// tsc-span: _tsc.js:24788-24799
+    fn create_export_default(
+        &mut self,
+        local_name: &str,
+        declaration_name: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let name = if let Some(declaration_name) = declaration_name {
+            let name = self.context.factory()?.clone_node(declaration_name)?;
+            self.context
+                .factory()?
+                .set_text_range(name, declaration_name)?;
+            self.context
+                .arena_mut()?
+                .metadata_mut(name)
+                .add_flags(EmitFlags::NO_COMMENTS | EmitFlags::LOCAL_NAME);
+            name
+        } else {
+            self.create_identifier(local_name)?
+        };
         self.context.factory()?.create_node(
             self.source,
             NodeData::ExportAssignment(tsc_syntax::nodes::ExportAssignmentData {
@@ -8528,14 +8829,24 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         &mut self,
         node: Option<NodeId>,
     ) -> Result<Option<NodeId>, TransformError> {
-        node.map(|node| self.visit_static_node(node))
+        node.map(|node| self.visit_static_node(node, StaticThisSubstitution::Emit))
             .transpose()
             .map(Option::flatten)
             .map(|node| node.map(TransformNode::node))
     }
 
-    fn visit_static_node(&mut self, node: NodeId) -> Result<Option<TransformNode>, TransformError> {
-        let bindings = self.static_bindings();
+    /// tsc-port: visitThisExpression @6.0.3
+    /// tsc-hash: c6695f5f1c6414e8dbafb40ca6167e734b4989333e5f63f499c80b486f3d6447
+    /// tsc-span: _tsc.js:97136-97142
+    /// tsc-port: substituteThisExpression @6.0.3
+    /// tsc-hash: fe580d6ad40d937b029554021a83349f0de8c2320c6c1b061068e8e1aad1d78c
+    /// tsc-span: _tsc.js:97999-98017
+    fn visit_static_node(
+        &mut self,
+        node: NodeId,
+        this_substitution: StaticThisSubstitution,
+    ) -> Result<Option<TransformNode>, TransformError> {
+        let bindings = self.static_bindings(this_substitution);
         let _static_binding_scope = self
             .static_binding_frames
             .enter(StaticBindingFrame::StaticEvaluation(bindings));

@@ -1,0 +1,1309 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-24",
+  "base": "74447b72aa0e51826b6bc832580aa4780d9a1eca",
+  "unresolved": 0,
+  "undispositioned": 0,
+  "runtime_paths": [
+    "crates/emitter/src/builtins.rs"
+  ],
+  "unit_paths": [
+    "crates/emitter/tests/unit/builtins/tests.rs",
+    "crates/compiler/tests/integration/emit_session_contract.rs"
+  ],
+  "steps": [
+    "A6-24-1",
+    "A6-24-2",
+    "A6-24-3"
+  ],
+  "owners": [
+    {
+      "owner": "transformModule",
+      "declaration_name": "transformModule",
+      "start": 110090,
+      "end": 112041,
+      "sha256": "3d54d8672774bc47f161ad1b4747b2d39a9a04f3da0a7cdab4c8b5ea125ca3eb"
+    },
+    {
+      "owner": "getTransformModuleDelegate",
+      "declaration_name": "getTransformModuleDelegate",
+      "start": 110091,
+      "end": 110100,
+      "sha256": "247c10434f894b5cba93194f5408bc7917c3e8b2b0ec89eb4ca4c8aaf6ffcb41"
+    },
+    {
+      "owner": "module.transformSourceFile",
+      "declaration_name": "transformSourceFile",
+      "start": 110130,
+      "end": 110157,
+      "sha256": "b1a1419c70b033ad4e884d96dfc78c8ee746580e502895fc68d55091b68e1752"
+    },
+    {
+      "owner": "transformECMAScriptModule",
+      "declaration_name": "transformECMAScriptModule",
+      "start": 113369,
+      "end": 113727,
+      "sha256": "a4106ecc07d7c7b1d1caa38cb6ef962b9c244316d94f1f6acca0e3d497b28d22"
+    },
+    {
+      "owner": "transformImpliedNodeFormatDependentModule",
+      "declaration_name": "transformImpliedNodeFormatDependentModule",
+      "start": 113730,
+      "end": 113793,
+      "sha256": "1fa1716e96e65c34c4d0972d80814f9551d401359de602394255a5b312ebbe55"
+    },
+    {
+      "owner": "getModuleTransformer",
+      "declaration_name": "getModuleTransformer",
+      "start": 115876,
+      "end": 115895,
+      "sha256": "bbb6a0f805e34703e2cf88a3a7e6fe951a390a2b6da3899aab9c02584fff9174"
+    },
+    {
+      "owner": "getScriptTransformers",
+      "declaration_name": "getScriptTransformers",
+      "start": 115903,
+      "end": 115949,
+      "sha256": "69bdc65a0c428ad5819419fabd0ecd483bb661350434c5ad0ea0bdec15096fd0"
+    },
+    {
+      "owner": "getEmitModuleFormatOfFile",
+      "declaration_name": "getEmitModuleFormatOfFile",
+      "start": 125476,
+      "end": 125478,
+      "sha256": "57ecc4aaea00e6de3e097bd930633132f5a8ce33c01b727f79432d62dd6fc846"
+    },
+    {
+      "owner": "getEmitModuleFormatOfFileWorker",
+      "declaration_name": "getEmitModuleFormatOfFileWorker",
+      "start": 125493,
+      "end": 125495,
+      "sha256": "ffe7b58092e4af38c9484bef12201ef7524d2e3d26ba829ea59087f1a2c0d2a1"
+    },
+    {
+      "owner": "getImpliedNodeFormatForEmitWorker",
+      "declaration_name": "getImpliedNodeFormatForEmitWorker",
+      "start": 125496,
+      "end": 125509,
+      "sha256": "765b9d66f854668f6f9326de2a8e3659af532be224d3a2546fdec84855bbe69c"
+    }
+  ],
+  "architecture": [
+    {
+      "id": "E-ORDER-G",
+      "disposition": "modified-requalify"
+    },
+    {
+      "id": "E-ORDER-H",
+      "disposition": "modified-requalify"
+    },
+    {
+      "id": "E-PROTOCOL",
+      "disposition": "modified-requalify"
+    },
+    {
+      "id": "E-ARENA",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-CONTEXT",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-RESOLVER-BASE",
+      "disposition": "premise-unchanged"
+    }
+  ],
+  "authorities": [
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-module-transformer-selection.md",
+      "sha256": "7490bbfc0d5874f44cfa42574826fc11a8cb7f902c6340e0cddae791a4e5bd34"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    },
+    {
+      "path": "docs/design/greenfield/post-h1-completion-slices.md",
+      "sha256": "df4e630f4fe348119e43714261d1193a880453fa6847b42c7bf52d086bd840fb"
+    },
+    {
+      "path": "ratchets/h2-8a-module-transformer-selection-before.v1.json",
+      "sha256": "8a477cfe7e48ec5f241407251c4802de17561a53e520e512855c5d779f2e43f7"
+    },
+    {
+      "path": "ratchets/h2-8a-module-transformer-selection-first-build.v1.json",
+      "sha256": "3c3a150ce452ab5798ee651e97a43bbd47b9dbcdd00aa8fd3c68cb4f8da4c468"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/module-transformer-selection.json",
+      "sha256": "7a4b7bd3a6ddaf00fd3cacddaed1d3c3b782b58db96e58ab6b500d00ce5693d9"
+    },
+    {
+      "path": "scripts/observe-module-transformer-selection.mjs",
+      "sha256": "85d246467b93370084922b822de18a7782f80ddd8df2c41432afd39ede58f2d8"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "726a6d93a6f97ec8e9509772260c71bd05326ae3addb56b90ee17d910e92e695"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+      "sha256": "90aff72e27fac502da3ff3f06980c55c4923e35554c3e64800a60213cb1b04ba"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "3be53e2b5b6deadcd518a4279148ff8711a0792f78d59151d2f1eae68f904700"
+    },
+    {
+      "path": "crates/emitter/src/host.rs",
+      "sha256": "24935f213e955723e3beefb6054c52c37ca7a69203ac666a1d2490a88c4f0f7b"
+    },
+    {
+      "path": "crates/emitter/src/transform.rs",
+      "sha256": "374ed96dc09f518a8f137cf7400e4cc6e634d3427b0b20346698e4b31a11011c"
+    },
+    {
+      "path": "crates/checker/src/emit.rs",
+      "sha256": "ed7a09cb4ca7b57b839aa03186385142141911d2af117b611e55191ff9bda105"
+    },
+    {
+      "path": "crates/emitter/src/builtins/system.rs",
+      "sha256": "b01023d7854e56fb8134abd9e354aa678703ed164bc956e6647cac56332413ed"
+    },
+    {
+      "path": "crates/emitter/src/activity.rs",
+      "sha256": "f13e1d5c8cf91b502c64b24679605e3fe5f637b672ff6f2bae861f05d58713fd"
+    }
+  ],
+  "witnesses": [
+    {
+      "case_id": "module-factory/none/es5/ts",
+      "row_sha256": "db7cc25d5eced814d488817ee61b0ae499e209b819500ea625800f16f6c5326c",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/none/es5/mts",
+      "row_sha256": "6aec6709da4b7228d791635f5ee76f03c45ac847bb06f01dc703c92ed373afee",
+      "status": "owned-module-factory",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "module-factory/none/es5/cts",
+      "row_sha256": "0ed77f9f0aee01ebd5d6822a31d431ca8d32e7963710fc38fb0e361410a4d33c",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/none/es5/js",
+      "row_sha256": "5a965f04a98bf097527964e6eb356fad42ab6f90632831ecadd3a248b40960be",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/none/es5/mjs",
+      "row_sha256": "d24e27d1a33305c5df7ab96d722ccc9f0824a5512476b3c1ac2524c5ba2f7223",
+      "status": "owned-module-factory",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "module-factory/none/es5/cjs",
+      "row_sha256": "d8db84d52ba4da50271d8ec380d641908228b66a3156dde8408ae0d2b2032842",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/amd/es5/ts",
+      "row_sha256": "0e404c9eabb05513f489ffebe598587aed6ec5e9e121817c708f7f0b16b23117",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/amd/es5/mts",
+      "row_sha256": "43a09aa25abc3b5d1ed18b09b6e0ba9c9b17afc5e5aed22ed7c139ba738e3744",
+      "status": "owned-module-factory",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "module-factory/amd/es5/cts",
+      "row_sha256": "3e20a684b003da4414f00d2eb8e36d3d77bfe2081dd0b75549b07be310d0399a",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/amd/es5/js",
+      "row_sha256": "089783a857d94fbc36a5e99919e175b897636b6dd1ac9cd22ee5c13eee87690d",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/amd/es5/mjs",
+      "row_sha256": "0202266e466cffc0fbe628f4b7946fe3ac97e13643f6fbd6c0791802239cc3bc",
+      "status": "owned-module-factory",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "module-factory/amd/es5/cjs",
+      "row_sha256": "e082c9d3fcf5aed12c3807ebfd7489a1d6ab76cf4d2adbf44490526151cefed1",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/umd/es5/ts",
+      "row_sha256": "b823217b8d27ff8c66f7f9c446df23e5cc7090ef999f12099481c5c42500f203",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/umd/es5/mts",
+      "row_sha256": "ea00ddc5f899abef45d7fa9c4cfe406891166eeb3a60b530cf36ade019f54a86",
+      "status": "owned-module-factory",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "module-factory/umd/es5/cts",
+      "row_sha256": "48ca8beebc90163edae56790dba5e8ee80df969e59502fdd74bb7354da4276c8",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/umd/es5/js",
+      "row_sha256": "4fafb25621bd07034cf40ec9b8d1edfee98fe6ef7c5f7c1d06cfc59a771387f4",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/umd/es5/mjs",
+      "row_sha256": "a1615b55ddf4916016c7d29d1073c61c000b50c8d390db683dc312c12f7587c6",
+      "status": "owned-module-factory",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "module-factory/umd/es5/cjs",
+      "row_sha256": "288c9fb161a61e5e003b3cab1e786f43b3ace8345316fa7c6f54da7dfc31d73c",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/commonjs/es5/ts",
+      "row_sha256": "4e9a66b2c917bcd364e0c42f585c2b050a69d93e04850e0f8edbe3defe95a122",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/commonjs/es5/mts",
+      "row_sha256": "1a0e164327c48da8afd65dd886f06886722ec35bde669c902ab5b14f9bd3496a",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/commonjs/es5/cts",
+      "row_sha256": "92cec101c7f23d0d9cb4a7cd066297384c9285848b2df82562a07b2af98091fd",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/commonjs/es5/js",
+      "row_sha256": "7838a1b9987760136be014ee8afd0e3a4c60ae08cd9066c54799b7e4c52f4c17",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/commonjs/es5/mjs",
+      "row_sha256": "31a48925cc16ee8d18a90157677eec95b6c376dbad4fbedfd2f58f7b9d72d4d1",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/commonjs/es5/cjs",
+      "row_sha256": "f0df2b71a2e716d89939faee691b3e920a7b44092ccd19ea237e95120eb6fc3d",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2015/es5/ts",
+      "row_sha256": "2335691bfc6541a978e4542a1f5e08d97519a0fdad11b102e39c28bfc3880b5a",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2015/es5/mts",
+      "row_sha256": "ff10f1ad43550382dea95927286a0f875537318f7204f39dbb2aa9ce05497697",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2015/es5/cts",
+      "row_sha256": "a54ce1857c02f6c7ed162a2a4c2c2911f4120357c1b61f85d61ad6fca6f036ec",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2015/es5/js",
+      "row_sha256": "41d8bf693134cd6c2713e048d2c33208762551aed4bde0af7f882c9bfffeab8c",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2015/es5/mjs",
+      "row_sha256": "71139e4cce0f762e8006702285d566f4e4c1acfad332777c3cd564e55fc8b6e4",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2015/es5/cjs",
+      "row_sha256": "33fb80ed0e1afb414f7bed8f57908907912a03151ba9506c19b72ee208d13a97",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2020/es5/ts",
+      "row_sha256": "ced3be106ab24a9b231abfa8b4a17bcb9643df6b979bd90adda60fba9487559e",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2020/es5/mts",
+      "row_sha256": "bef0838b7cf2c330a471546ab4e8a9f0cc4ea6a07b71ea082289daabf846b331",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2020/es5/cts",
+      "row_sha256": "974250b33e77ff7ed137b856ff1425770390212cfab54c591026dca2ffabdffc",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2020/es5/js",
+      "row_sha256": "8ab6770ea5d2ba39cb93104c584c7330e01b980402ecb9554f06228a6a824e75",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2020/es5/mjs",
+      "row_sha256": "a7969698c01d2227dcef0fa228fa0836a4cbb1e8c8c6b13fdf7d7af8dd881e9c",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2020/es5/cjs",
+      "row_sha256": "49cf751f83bd9af199df4ab7cd3943e3e103e59d106abe88b892afdde529d08d",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2022/es5/ts",
+      "row_sha256": "7bd9ac30f65dcb7c43714cc263834733fa39253fa006cfea3a5f339ba3fdd84a",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2022/es5/mts",
+      "row_sha256": "60dd6657b813fc10bba0166603659a934d292657085e0c70eb5e97b3c6348907",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2022/es5/cts",
+      "row_sha256": "76909b551562b86421e3aeaba37f7cca6d902a4b0be58b423f3f54f05d842951",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2022/es5/js",
+      "row_sha256": "d3365fc5859c8ed2b446af1614ed589f9456ed1bc31d36de9791182663f8bc47",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2022/es5/mjs",
+      "row_sha256": "4495edc44d7f83b9e137ffcfe2aaa370ea053ad9d2505b0c2ca71f7a237946a9",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2022/es5/cjs",
+      "row_sha256": "c336f0cddeb1d9ba5f29e98405850fca205089a0d74c7984f1f85a2204afff31",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/esnext/es5/ts",
+      "row_sha256": "0778a129dc5fb001d7d4826d586e8b049a3aa484facb12a48d27b3f4e44256ee",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/esnext/es5/mts",
+      "row_sha256": "021dcdd70a732d1e3be434c10cb4c36362fe7b1f3a6608169d77cfbbc7ceb7d4",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/esnext/es5/cts",
+      "row_sha256": "3dba89a8f5a4cc571f7039750c8dcd7a5d4b502e51753d02683a084dea3936cd",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/esnext/es5/js",
+      "row_sha256": "2384d488561e4fbfad707e67ce333dfea130e90235e584783cba9a86c1f0a288",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/esnext/es5/mjs",
+      "row_sha256": "3a3d95e4b03358321e63d82768a3d6f4c525522f79efcac1b3a8d778ab474a99",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/esnext/es5/cjs",
+      "row_sha256": "ae07a2da05ce6ce866814c5c136bbc6b213e18cf3e05a9f8785f355764f2a014",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node16/es5/ts",
+      "row_sha256": "fbd825e33b800ead93a7725513ce004c540fcbedd998aa6307916e8c21646b2c",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node16/es5/mts",
+      "row_sha256": "d5929f86dfff88dc5479f5304129f0c01ff0be1d96c32d0579860231bacc181d",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node16/es5/cts",
+      "row_sha256": "2a20bf09816ead91bf958d6f054cd4b8661c5818e25f86903487795cc43bb43a",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node16/es5/js",
+      "row_sha256": "7ca7d4f5d47435c75514f13128955be5c5d662cb64950576de3a09f357e46d05",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node16/es5/mjs",
+      "row_sha256": "be1b5a3b8a0ff23cf45608d0efab3c077032f5884db131a2a02c1d520c3a82c2",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node16/es5/cjs",
+      "row_sha256": "6a9b49850ad625545d466ef8ea90d832a774530d7f32c1e6af7a5cc442ea01ca",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node18/es5/ts",
+      "row_sha256": "83fc2f07953a4b94cd771f43193f983a2a746264dcad94ab40721d6e6d8d2e05",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node18/es5/mts",
+      "row_sha256": "b80a0800559bee9523987b4b97b04cd999ac9064402221e14744a6e6447b5a53",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node18/es5/cts",
+      "row_sha256": "035dc05d2a0400171a4347c0ef7dad56b3a954237d8b329c58c293f5bf3f879e",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node18/es5/js",
+      "row_sha256": "cd2a30aa737c184a03ec1d204e56d17e1a7903d284cb62badd7d1ce869b161f4",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node18/es5/mjs",
+      "row_sha256": "c7b438e5a23d90315d98dbdfe58585429ddce2558e7b7ff438f7b9a1f5bf903d",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node18/es5/cjs",
+      "row_sha256": "bc8510fab93afa1544a7a5051334492c9d0358b188250824b515ed52dbed70b2",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node20/es5/ts",
+      "row_sha256": "1bb885b5722cd90873dd35f7e2ca1784e25efb2a6157ebc2561b3195b8532cda",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node20/es5/mts",
+      "row_sha256": "255a7e8d895097914388e8e6bb0563f134c40b5d6578cc2a0d20470d660e2bdc",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node20/es5/cts",
+      "row_sha256": "acaab920a2958d6f4c38e883b598dd9716334c7b0c6cdcda7cc5eb0825920430",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node20/es5/js",
+      "row_sha256": "734b0393d4d8a7a8134f65d9cfa6636e6612c06145119fd7136665a42bb9df13",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node20/es5/mjs",
+      "row_sha256": "d206cb363901e1dc5b867fe8b0a4cf528b62afb47ee9c66cb0327b3d747f8cbe",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node20/es5/cjs",
+      "row_sha256": "bd1067144a3ea9db3f1a725b638f772d3d346fa517e5a91bd2b89facc9143064",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/nodenext/es5/ts",
+      "row_sha256": "48f47cd831fa8cafdd3d783c8cb76f0f01e95bfbf6c2e06495cc88d11da3e530",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/nodenext/es5/mts",
+      "row_sha256": "0758a475a778cd9678ed10a1cbec085c6fd6e7f296aa5f967e3671b9c10503e7",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/nodenext/es5/cts",
+      "row_sha256": "2767b75ef3636fc3f923996d245fa4d7e6cf0be4cfb2f57672c0b4812480ae12",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/nodenext/es5/js",
+      "row_sha256": "66fb50a5cc02e93099b02d98a27ff36ebdd77d9b09ed3a5319aa578f6c5b82e6",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/nodenext/es5/mjs",
+      "row_sha256": "4812520bd8cfadbc5df8a6e7c6bd379310f363e24c5a51f2487551b261f9fa9e",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/nodenext/es5/cjs",
+      "row_sha256": "9ebb55ea87b438f1ae9f247f1ef91e567ea57bbd161bd89dcc4349e956fafed4",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/preserve/es5/ts",
+      "row_sha256": "08e39e812ca3f6e58460e5b94c332368926fb72879c8f6216acf473deb0a94c0",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/preserve/es5/mts",
+      "row_sha256": "6b377a704f2ae97acb044bacadb6fa3cc52242ab9162af9e1b1af7bcc6148b39",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/preserve/es5/cts",
+      "row_sha256": "3f6306e807a09343c64ccc224faf68b79851596d1b9c95c9da5a3e203cec83a8",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/preserve/es5/js",
+      "row_sha256": "a7967981b2841d21c509df2771c10fc2bff68e278c9b9346a9169423e7039069",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/preserve/es5/mjs",
+      "row_sha256": "e255ffa2677ed623db8f0c1241f8fbf09e2e08250450b035a76ed9d3df75c57d",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/preserve/es5/cjs",
+      "row_sha256": "69dc8b6ea1a4efa77567bc02243b342fa7fa4ec993ddd0ae146aeff4223013db",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/system/es5/ts",
+      "row_sha256": "6e8d496cc5e87c9c0823900561b22152f496b32dac63ca9c0adde696c308b930",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/system/es5/mts",
+      "row_sha256": "14975b8c01df27da1603b665ccc55ffb4fe4080c0cec9200bf938acd51dfd2c0",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/system/es5/cts",
+      "row_sha256": "30168569fc2cc517db23de465ea7bd7854119229017ce1a6e1a29129032c805f",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/system/es5/js",
+      "row_sha256": "d410e4eb71ce35bef02ceaa6e963d918b3079014b6741c227fa388a6f59b6070",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/system/es5/mjs",
+      "row_sha256": "63d62efb858805a400e88619d9b4bb0ad9f77303d3bf8d02333acd04975a461b",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/system/es5/cjs",
+      "row_sha256": "8fd4e5507479673989f0bf92e57ff8b9bed026f75bfb7a7f2dd16c0db326e76d",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/none/es2015/ts",
+      "row_sha256": "5dcd344a3b2a0be10f4ce05e4a0fff8cbac8443740d7248b3dc9ca3489d8b1df",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/none/es2015/mts",
+      "row_sha256": "84c895827365fe0f033483f4846036dd3deb69d83ea1b8a210b8d3ab8e5abf0d",
+      "status": "owned-module-factory",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "module-factory/none/es2015/cts",
+      "row_sha256": "e4a560b949ba8be939639ad2763c9f20c5b7e9c0f4dfa54bd96209e30688397c",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/none/es2015/js",
+      "row_sha256": "0d10d7cad1259f97e2c40a47d9212b4803f96ac0d349e6c929561c442500801c",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/none/es2015/mjs",
+      "row_sha256": "18608fc4d50d72a2ad42ad8f93e3ac498413b5de14e7406160719fb72ee143a1",
+      "status": "owned-module-factory",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "module-factory/none/es2015/cjs",
+      "row_sha256": "ee132eb99b17ace5a3f8425ffc3f9cb529e9d5ebf156132b55fd5efa595f1489",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/amd/es2015/ts",
+      "row_sha256": "1f0bb768907ccf2db133c682b384f9b46d6a6b0251736afd11f8d003352dbf5b",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/amd/es2015/mts",
+      "row_sha256": "c9ded8996814452c9d78010c3548c6a24eb8900ac7fc8575e37e98995de51866",
+      "status": "owned-module-factory",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "module-factory/amd/es2015/cts",
+      "row_sha256": "831103ab6d1faeea29f59db4bd0803cdc1a9ea91887360f13ccbf82944dd6a00",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/amd/es2015/js",
+      "row_sha256": "4736aecfe2aa1c0be47716da2da476325e789cdf58e7ac053ad0f30be75899d9",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/amd/es2015/mjs",
+      "row_sha256": "c85dfed0922a696ef960f39bede664c54b1f54944c804163df66997368d3e1a5",
+      "status": "owned-module-factory",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "module-factory/amd/es2015/cjs",
+      "row_sha256": "7cd09def4e378e708b4dcfdff3d8b4b152d6c881ca738762acf630489f9c376d",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/umd/es2015/ts",
+      "row_sha256": "31d2fbe62665d5e84d634bd2ac9841850c3dbdac58edbcab90a57d87de4b502e",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/umd/es2015/mts",
+      "row_sha256": "5f092cf224f713e48f6dc9d804b3b7d18aced320a1c2356b543ec2e9be875e5a",
+      "status": "owned-module-factory",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "module-factory/umd/es2015/cts",
+      "row_sha256": "62414c09cdcfd13b8c02c9157486001e40616588655bb77f125c853abfb80e29",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/umd/es2015/js",
+      "row_sha256": "3f2d701cfd24d1dcc08f2dd68caf616938d36584e163b6fb8e034f2a904b6e02",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/umd/es2015/mjs",
+      "row_sha256": "f2357c762984331dbe85443a4a36c31efe597751d756b1345b4409f8d9a76b5f",
+      "status": "owned-module-factory",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "module-factory/umd/es2015/cjs",
+      "row_sha256": "e49e4e943ed8a9632c69c00df47befcf8b6038ce33a9d7063197b97abb5a14de",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/commonjs/es2015/ts",
+      "row_sha256": "c2c8cdd58ceff544937823a05e0ccfe93c80cc880e6c9081948674a3dbc373af",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/commonjs/es2015/mts",
+      "row_sha256": "1ab77612d2be9aca27189a5ec9087e0baf3680c165ac03bea5971416a679bacd",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/commonjs/es2015/cts",
+      "row_sha256": "b6e57662371075d16045a68354e4ac35091566032ba992267d69b9dadc86a15f",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/commonjs/es2015/js",
+      "row_sha256": "c7e2905a01f02160eac37eb21b1b4d1ac1a31c806ad224f503d5ad23795b27a0",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/commonjs/es2015/mjs",
+      "row_sha256": "b549f2e27d781556f9904e52f0a61042e37a8eb5e153aeb0832e09ce894ef195",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/commonjs/es2015/cjs",
+      "row_sha256": "07915e5edd145faecdc56f58f11669e7570bf99393ade3d6d6484f4ea9d4a96f",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2015/es2015/ts",
+      "row_sha256": "50622f870c31f3b98b65803af98d2caf5d5f76c2d7267c845b558d56b8cec424",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2015/es2015/mts",
+      "row_sha256": "5bde2ae431a12987ec8393c29ad6fa6b8992a779db581b13cc7aeca800cfaefd",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2015/es2015/cts",
+      "row_sha256": "e2f309db1acc56de6a459c1d52efd9f55bf9f8962d52c4c577df3e29e81ad207",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2015/es2015/js",
+      "row_sha256": "393728407518a81737770287184b6678383c2336d874cd491cf8f7dab166eb80",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2015/es2015/mjs",
+      "row_sha256": "c19da1bb1cc855b6b376084f9ce8fd5cbac286d9d31165f4a6fa862e20d54c4a",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2015/es2015/cjs",
+      "row_sha256": "c17a57849421fdc86534e87f23e0e06517a0848a48cf6421a19ff1ef08962038",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2020/es2015/ts",
+      "row_sha256": "df610aa19f246e1805d1eda5da0e3667be86bb221239eb3e7300adcb914b72d5",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2020/es2015/mts",
+      "row_sha256": "ad54ac3aaa4f6fa2981defa092d3387afce7c15bf3c191ba3ee503fbbbfe3092",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2020/es2015/cts",
+      "row_sha256": "3a52f745ab71297f619005a27ba34bc96013ecbcebffc2487f12916191846f09",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2020/es2015/js",
+      "row_sha256": "807265bfe92e731789f678497deaa628c073d874e77338b8e6db7deafd5eda95",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2020/es2015/mjs",
+      "row_sha256": "b9be3fe4800f66055e09913181fb6b8c513fdf223185a8427054708ac8a9b2ae",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2020/es2015/cjs",
+      "row_sha256": "dfa1943a447bdf4228cc9ca09aa9186576ef98becb3cecba01c687161d165a4b",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2022/es2015/ts",
+      "row_sha256": "530e6d1a8d8d8c5affc3e4bac3193dc1215f4a95b023bbcd052eb60f29bfb15a",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2022/es2015/mts",
+      "row_sha256": "dfb1b397649248075e3b85e9476f7acad730940f7c0a9f04ced08810db7cb6ee",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2022/es2015/cts",
+      "row_sha256": "d172d5c942d2a0721167ec8e7de6baf7ac914ac2ae90a73f4665d30ba33d022d",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2022/es2015/js",
+      "row_sha256": "76edea28b19811c1629180dc5404d4080b004f672b35efeaf70bc202b8503883",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2022/es2015/mjs",
+      "row_sha256": "185bd2fdd070cef843c98c922d7ea9ec82278806db24127be72125ba85b62220",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/es2022/es2015/cjs",
+      "row_sha256": "2d58c99a1b0c98987f7c1bf5472c0a8822c3ec05a0617030aa4a7203f78d808f",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/esnext/es2015/ts",
+      "row_sha256": "dec612a3b25d7387a0e9dc47f6c81f3055530d9b1028e3b472453b547b26f8ef",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/esnext/es2015/mts",
+      "row_sha256": "c8b9f017532fa85958a9262f3c258eabd004fededd991d77b0ca1cf2228ac543",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/esnext/es2015/cts",
+      "row_sha256": "aa4e2abe2ac739620c896a726d81282824344457a1bc4b9bf418b18c826c2572",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/esnext/es2015/js",
+      "row_sha256": "761b32b8a0a8b008c6a0d8e972fa4a7ee73eabfc40665afd4118a485556e6a38",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/esnext/es2015/mjs",
+      "row_sha256": "4d0b0c6d3505d4c6ad8058ad44aa928e5ae88873624811ea03c169bac6b36ea0",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/esnext/es2015/cjs",
+      "row_sha256": "207e63325475ea897bfe00841986f5c0d676121252baea1eda1dcc95d27ec0a1",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node16/es2015/ts",
+      "row_sha256": "9a66d7062507a4f4692f645828842b1ed93316e4340aec3f5efdc699f8cf4451",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node16/es2015/mts",
+      "row_sha256": "72a7873fe2d7922612686a1c70be517791921e73c287a5f5b1d214e9eb260d77",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node16/es2015/cts",
+      "row_sha256": "89fca6781582988ed80b3356b74bd8d9d0f805ef167260b99ebc6307a867fd7b",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node16/es2015/js",
+      "row_sha256": "0a86584c078665425ad0d30e381588716e9ca970092f7d779e13ba7f2fd6dd5e",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node16/es2015/mjs",
+      "row_sha256": "c5412768ee105b1be97c6d7a6758dd3ffb1868173b293eb7eee56f36091a8fa7",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node16/es2015/cjs",
+      "row_sha256": "7e9a34b7090aea7d531759216d78d10d54de64918356f155b68200df1b39b21a",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node18/es2015/ts",
+      "row_sha256": "6f45b6483fd318414056da896f3bfae34c22c1cf4c1d6aa789a06054149fb6e4",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node18/es2015/mts",
+      "row_sha256": "55c8ef47150783b430d6d42de48f95c1dddb2c3c7d3af9c663ec761550f1eaa5",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node18/es2015/cts",
+      "row_sha256": "ba5297aa896f6b391ed773ebfd372f51d4659094c290b38d9a3e578b9dbbd827",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node18/es2015/js",
+      "row_sha256": "e34f5c636d8942115ba66e2aa5e95e54e0f8764cc24830baaacdcbb268a191c8",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node18/es2015/mjs",
+      "row_sha256": "27b1e610fd28b1b740f13a8d9defae87eb08762fd89abf3ffd9c7239c80524d3",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node18/es2015/cjs",
+      "row_sha256": "f808dec1e4a7df8029b6a1b31bcda9cde284cb586ce3ea2f572e2c2e9092e759",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node20/es2015/ts",
+      "row_sha256": "bec1d430276d462fd8eb5218626756cb33b51c7adeaae747a723f7666d658b61",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node20/es2015/mts",
+      "row_sha256": "d3ca778ba86467e14dcecc7e00e0ab12325ab28f56e0b008095873e0e4a0e30a",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node20/es2015/cts",
+      "row_sha256": "4bb134a1dafa64c9baf2a7433854131552278b3c9396396eed75a19c6dec4851",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node20/es2015/js",
+      "row_sha256": "74b08067112106f19ce7c101f92619143b73e1bf19885608dbdc57eb5f0a8191",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node20/es2015/mjs",
+      "row_sha256": "3aa79f1ca700a519f0a02316606aeb382a6083477206d9e423cee0bf10d3cdf2",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/node20/es2015/cjs",
+      "row_sha256": "275d42735a55caa41020dccceb853d5ec917603dd34af171d5617ee4db17a5a6",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/nodenext/es2015/ts",
+      "row_sha256": "8e079dec0ac5fd720e116004a32053053a409e835be892ecb87648024f1b27a6",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/nodenext/es2015/mts",
+      "row_sha256": "399ca4a66d0bcee36f55a62ed6f4c82c3b302b533854c4c889e36eb4ff06a232",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/nodenext/es2015/cts",
+      "row_sha256": "8e7991dfc4bbf960c916d322f9ec85aa6e403fca0588a7ec02218a5f1af1c379",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/nodenext/es2015/js",
+      "row_sha256": "a189215e5c8748c105c93a4c213a8a5d2132da333a01d80e6bc73bde3bea1079",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/nodenext/es2015/mjs",
+      "row_sha256": "f3e23c95e802049402bd72bf459ab97c9b6fff6466701e9542633e43f35cfc97",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/nodenext/es2015/cjs",
+      "row_sha256": "7d86df4e285e5e8ecf4663614970a72290089bfd9f8485633c18323d1dc41d4e",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/preserve/es2015/ts",
+      "row_sha256": "040745a9124016c0ca324af835215565e3f1ee2a689966e18f45f98de2ae1107",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/preserve/es2015/mts",
+      "row_sha256": "ecf840dc6b9c7cbd6c8e763283ea464063b2cc78b8f67bac636443e3bf9425cb",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/preserve/es2015/cts",
+      "row_sha256": "1fe3de340782c82c75aac0c60295d1f7ff332b2238fb3cae00f48b2ba0a1debe",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/preserve/es2015/js",
+      "row_sha256": "61f371eee6efa25a00fa8c56695d1c1fd1922204195d24b9b6c0c4df963888cb",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/preserve/es2015/mjs",
+      "row_sha256": "6997f45a0267d2bfcda511a5e911b5c1d99a59771d83c5cf8372d91861b54a6a",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/preserve/es2015/cjs",
+      "row_sha256": "fb88006b7b09dfc0c17f6043ba3bcf72887fdb1f1591e6e64bc4f1e886221651",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/system/es2015/ts",
+      "row_sha256": "00b20717d6337bb31580de96f19c952106998a6227940941f071ed5d7e73a1ef",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/system/es2015/mts",
+      "row_sha256": "56a111607cd6f46f016fb27578f36560a94af8c725bf591d6b72172dcf49d570",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/system/es2015/cts",
+      "row_sha256": "4b7a752a56a85bc07bd7cd2f2c595094cace48459ff0be882b2fc549e3369ddc",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/system/es2015/js",
+      "row_sha256": "78d10ff4b3c44b8030acbc8ab1517e276962de5b199fb845e00d993845b0b2c0",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/system/es2015/mjs",
+      "row_sha256": "c6d91bacc1a2f9a714a0b3738060fd8fa619ddec91a9d288988052d42236fea6",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/system/es2015/cjs",
+      "row_sha256": "3d5effc183ac9404a0a27a682506d4957e22d702451a50491284ddf0cf3263db",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/amd/package-commonjs/ts",
+      "row_sha256": "c0885b46a30e56e460c503602bea689d5a5a433c906af585d08376e31fe62b49",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/amd/package-commonjs/js",
+      "row_sha256": "c23a88fcec4ba2422c33699206a2f369cde9018cec415f3677731c60e8baa3fe",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/amd/package-module/ts",
+      "row_sha256": "da0b6bec8b10ff277ec65264f3b5431a23b4ed0abdf9299d6687a9c59494f309",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/amd/package-module/js",
+      "row_sha256": "f3b31173cf8d7a69299551ea84779dad16dd1dcb9f0a8af364f87601f8ecc771",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/umd/package-commonjs/ts",
+      "row_sha256": "bd4175eafab698591a38dbae58b1b4c787d2aa152bb97989d8f9a32a16ccd4ed",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/umd/package-commonjs/js",
+      "row_sha256": "e043ea91105def55d1acc0b28bb98daced44a188d341bde160d882b30f1b112e",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/umd/package-module/ts",
+      "row_sha256": "f4128d1af40be90a07b09368e5be2e3520fcf8cb8bafb3bcfad9ff3d6659d50d",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/umd/package-module/js",
+      "row_sha256": "e631b9108a2e9c8d2688e358558d8170318aa2208cb624eef2547c50ca2f0860",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/commonjs/package-commonjs/ts",
+      "row_sha256": "fc7190277c5ce66fbfde026968eea4fa4fc643a55cfaba1a0a2cb62df9aac513",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/commonjs/package-commonjs/js",
+      "row_sha256": "b0dcd339ab2adfd1f1ab60eeca6668394b2461e60955ef056d88746b312ff8c1",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/commonjs/package-module/ts",
+      "row_sha256": "ef63be9e771ec17a4cf7998e58229ac33c0bc046c520a11fa321bc07c3376957",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/commonjs/package-module/js",
+      "row_sha256": "543fdea879c1f7b6e9d4f86284e01a6ff0e85c7d34e343a7ffd881691b141652",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/esnext/package-commonjs/ts",
+      "row_sha256": "fb06fa02427a71a71a36f32b1b49c2087cd678721b6db89c21fb0b57b17badb6",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/esnext/package-commonjs/js",
+      "row_sha256": "e2ff5a907329c014d73003a14e68416e9a50d45a7b55f2294b7204b38db21e16",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/esnext/package-module/ts",
+      "row_sha256": "d798b4c6d94940611efe27966b9eb3f35653801bc4867b574962491f0393c5d3",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "module-factory/esnext/package-module/js",
+      "row_sha256": "8ee81b2ebf3ab28249e2738fbe28ec3f331364b85a3e6399dd65d8bdfa735023",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    }
+  ],
+  "after_required_complete_commands": 368,
+  "after_target_exact_twice": 368,
+  "after_outside_failure_case_ids": [],
+  "compiler_activity_controls_required": [
+    "emit_session_contract::deprecated_module_none_selects_transform_modules_commonjs_delegate",
+    "emit_session_contract::filesystem_failure_at_each_write_index_preserves_partial_set_and_continuation",
+    "emit_session_contract::h2_1a_filesystem_failure_preserves_partial_set_continuation_and_activity",
+    "emit_session_contract::h2_1b_commonjs_filesystem_failure_preserves_partial_set_continuation_and_activity",
+    "emit_session_contract::h2_1c_amd_and_umd_wrappers_match_the_pinned_transform",
+    "emit_session_contract::h2_1c_amd_umd_filesystem_failure_preserves_partial_set_continuation_and_activity",
+    "emit_session_contract::h2_1d_system_filesystem_failure_preserves_partial_set_continuation_and_activity",
+    "emit_session_contract::h2_1e_node_format_filesystem_failure_preserves_partial_set_continuation_and_activity"
+  ],
+  "new_native_controls_required": [
+    "builtins::tests::module_transformer_selection_absent_host_and_missing_format_keep_distinct_boundaries",
+    "builtins::tests::module_transformer_selection_factory_names_match_typescript_twice",
+    "builtins::tests::module_transformer_selection_host_calls_and_bundle_activity_follow_selected_factory"
+  ],
+  "emitter_unit_tests_required": {
+    "lib": 488,
+    "contracts": 451
+  }
+}

@@ -1,0 +1,161 @@
+#!/usr/bin/env python3
+"""Freeze full A40 design-experiment results, including every failed tuple."""
+from pathlib import Path
+import base64
+import collections
+import difflib
+import hashlib
+import json
+import re
+import shutil
+import sys
+
+ROOT = Path(__file__).resolve().parent.parent
+
+
+def sha(path):
+    with Path(path).open('rb') as stream:
+        return hashlib.file_digest(stream, 'sha256').hexdigest()
+
+
+def read(path):
+    return json.loads(Path(path).read_text())
+
+
+def main():
+    attempt = int(sys.argv[1])
+    prefix = ROOT / f'target/h2-8a-retained-lexical-design-experiment-{attempt}'
+    output = prefix.with_suffix('.analysis.json')
+    diff_path = prefix.with_suffix('.diff.txt')
+    assert not output.exists() and not diff_path.exists(), 'completed analyses are immutable'
+    pre_path = prefix.with_suffix('.pre.json')
+    pre, result = read(pre_path), read(prefix.with_suffix('.exit.json'))
+    log_path = prefix.with_suffix('.log')
+    assert result['manifest_sha256'] == sha(pre_path)
+    assert result['log_sha256'] == sha(log_path)
+    assert result['production_unchanged'] and result['copied_inputs_unchanged']
+    assert result['actual_exit'] in [0, 101]
+    assert len(result['binaries']) == 1
+    for binary in result['binaries']:
+        assert sha(binary['retained_path']) == binary['sha256']
+    archive = Path(pre['archive'])
+    assert sha(archive / 'source-and-inputs.tar.gz') == pre['source_archive_sha256']
+    baseline_path = ROOT / pre['baseline']['path']
+    assert sha(baseline_path) == pre['baseline']['sha256']
+    baseline = read(baseline_path)
+    cases = []
+    for name in ['retained-accessor-owners', 'class-helper-accessor-producers',
+                 'class-field-alias-map-positions', 'decorator-receiver-context',
+                 'retained-lexical-environments', 'retained-constructor-references',
+                 'retained-lexical-edges', 'retained-comma-factory']:
+        fixture = read(ROOT / f'crates/compiler/tests/fixtures/{name}.json')
+        cases.extend(c for c in fixture['cases'] if name != 'class-field-alias-map-positions' or c['options']['target'] == 9)
+    expected = {c['case_id']: c['typescript_observation'] for c in cases}
+    assert len(cases) == len(expected) == baseline['eligible'] == 530
+    previous = collections.defaultdict(list)
+    previous_receipts = []
+    for band in baseline['bands']:
+        native = band['native']
+        for receipt in native['capture_receipts']:
+            path = Path(native['archive']) / 'captures' / receipt['file']
+            assert sha(path) == receipt['sha256']
+            capture = read(path)
+            assert capture['case_id'] == receipt['case_id']
+            assert capture['capture_index'] == receipt['capture_index']
+            assert capture['expected'] == expected[capture['case_id']]
+            previous[capture['case_id']].append(capture)
+            previous_receipts.append({'path': str(path), 'sha256': receipt['sha256']})
+    assert len(previous_receipts) == 1060 and set(previous) == set(expected)
+    for case_id, captures in previous.items():
+        captures.sort(key=lambda c: c['capture_index'])
+        assert [c['capture_index'] for c in captures] == [0, 1]
+        assert {k: v for k, v in captures[0].items() if k != 'capture_index'} == {k: v for k, v in captures[1].items() if k != 'capture_index'}
+        assert captures[0]['actual'] is not None and captures[0]['error'] is None
+        assert (captures[0]['actual'] == expected[case_id]) == (case_id in baseline['exact_twice'])
+    log = log_path.read_text()
+    exact = re.findall(r'retained accessor owners EXACT x2 (\S+)', log)
+    failed = re.findall(r'retained accessor owners REPEATED FAILURE (\S+)', log)
+    assert len(exact) == len(set(exact)) and len(failed) == len(set(failed))
+    assert not set(exact) & set(failed) and set(exact + failed) == set(expected)
+    assert result['actual_exit'] == (101 if failed else 0)
+    attempts = collections.Counter(re.findall(r'retained accessor owners PRIMARY ATTEMPT (\S+)', log))
+    assert attempts == {c: 2 for c in expected}
+    groups, receipts = collections.defaultdict(list), []
+    for path in sorted((archive / 'captures').glob('*.json')):
+        capture = read(path)
+        case_id = capture['case_id']
+        assert capture['expected'] == expected[case_id]
+        assert capture['capture_kind'] == 'supplemental-complete-command'
+        groups[case_id].append(capture)
+        receipts.append({'file': path.name, 'case_id': case_id,
+                         'capture_index': capture['capture_index'], 'sha256': sha(path)})
+    assert len(receipts) == 1060 and set(groups) == set(expected)
+    rows, differences, typed, changed_from_before = [], [], [], []
+    for case_id in sorted(expected):
+        captures = sorted(groups[case_id], key=lambda c: c['capture_index'])
+        assert [c['capture_index'] for c in captures] == [0, 1]
+        assert {k: v for k, v in captures[0].items() if k != 'capture_index'} == {k: v for k, v in captures[1].items() if k != 'capture_index'}
+        actual, reference = captures[0]['actual'], expected[case_id]
+        same = actual is not None and actual == reference
+        assert same == (case_id in exact), case_id
+        row = {'case_id': case_id, 'exact_twice': same, 'error': captures[0]['error'],
+               'changed_top_level_fields': [], 'writes': []}
+        before_actual = previous[case_id][0]['actual']
+        row['actual_unchanged_from_before'] = actual == before_actual
+        row['changed_fields_from_before'] = sorted(k for k in actual.keys() | before_actual.keys() if actual.get(k) != before_actual.get(k)) if actual is not None else None
+        if not row['actual_unchanged_from_before']:
+            changed_from_before.append(case_id)
+        if actual is None:
+            typed.append(case_id)
+            differences.append(f'\n{case_id}\nTyped failure: {captures[0]["error"]}\n')
+        elif not same:
+            row['changed_top_level_fields'] = sorted(k for k in actual.keys() | reference.keys() if actual.get(k) != reference.get(k))
+            differences.append('\n' + case_id + '\nChanged: ' + ', '.join(row['changed_top_level_fields']) + '\n')
+            actual_writes, expected_writes = ({w['path']: w for w in value['writes']} for value in [actual, reference])
+            assert len(actual_writes) == len(actual['writes']) and len(expected_writes) == len(reference['writes'])
+            for path in sorted(actual_writes.keys() | expected_writes.keys()):
+                left, right = actual_writes.get(path), expected_writes.get(path)
+                if left == right:
+                    continue
+                item = {'path': path, 'actual_present': left is not None, 'expected_present': right is not None}
+                if left is not None and right is not None:
+                    item['changed_fields'] = sorted(k for k in left.keys() | right.keys() if left.get(k) != right.get(k))
+                a_text, e_text = (base64.b64decode(value['callback_utf8_base64'], validate=True).decode('utf8') if value else '' for value in [left, right])
+                if left is not None and right is not None and path.endswith('.map'):
+                    am, em = json.loads(a_text), json.loads(e_text)
+                    item['differing_map_keys'] = sorted(k for k in am.keys() | em.keys() if am.get(k) != em.get(k))
+                row['writes'].append(item)
+                differences.extend(difflib.unified_diff(a_text.splitlines(keepends=True), e_text.splitlines(keepends=True), fromfile='actual:' + path, tofile='expected:' + path))
+        rows.append(row)
+    required = set(baseline['required_repair_ids'])
+    prior_exact = set(baseline['exact_twice'])
+    successor_ids = set(baseline['failed_twice']) - required
+    summary = {'eligible': 530, 'exact_twice': len(exact), 'failed_twice': len(failed),
+               'required_repaired': len(required & set(exact)), 'required_remaining': len(required & set(failed)),
+               'prior_preserved': len(prior_exact & set(exact)), 'regressions': len(prior_exact & set(failed)),
+               'successor_exact': len(successor_ids & set(exact)), 'successor_failed': len(successor_ids & set(failed)),
+               'successor_changed_from_before': len(successor_ids & set(changed_from_before)),
+               'typed_failures': len(typed), 'actual_exit': result['actual_exit']}
+    record = {'version': 1, 'slice': 'H2.8a-A6-40', 'status': 'isolated design experiment; not a qualified after profile',
+              'summary': summary, 'exact_twice': sorted(exact), 'failed_twice': sorted(failed),
+              'required_repaired': sorted(required & set(exact)), 'required_remaining': sorted(required & set(failed)),
+              'regressions': sorted(prior_exact & set(failed)), 'successor_exact': sorted(successor_ids & set(exact)),
+              'successor_failed': sorted(successor_ids & set(failed)), 'typed_boundary_cases': typed,
+              'changed_from_before': sorted(changed_from_before),
+              'successor_changed_from_before': sorted(successor_ids & set(changed_from_before)),
+              'previous_capture_receipts': previous_receipts,
+              'primary_attempts': sum(attempts.values()), 'supplemental_executions': len(receipts),
+              'repetition_requirement_satisfied': True, 'rows': rows, 'capture_receipts': receipts,
+              'prelaunch': {'path': str(pre_path), 'sha256': sha(pre_path)}, 'exit': result,
+              'baseline': pre['baseline'], 'candidate_sha256': pre['candidate_sha256'], 'archive': str(archive),
+              'global_claim': 'The overlapping original769/class1228 populations were not rerun; H2.8a-e and A40 readiness remain open.'}
+    output.write_text(json.dumps(record, indent=2) + '\n')
+    diff_path.write_text(''.join(differences))
+    for source, name in [(output, 'analysis.json'), (diff_path, 'differences.txt'), (Path(__file__), 'analyze.py')]:
+        assert not (archive / name).exists()
+        shutil.copy2(source, archive / name)
+    print(json.dumps(summary))
+
+
+if __name__ == '__main__':
+    main()

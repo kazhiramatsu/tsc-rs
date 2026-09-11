@@ -1293,12 +1293,12 @@ function loadParentProfile(requireParent) {
       parent.status === "qualified" &&
       parent.phase === "H2.5g" &&
       parent.transition.completed_slice === "H2.5g" &&
-      // H2.7c ca advances the live parent; dormant controls stay unchanged.
-      parent.transition.next_slice === "H2.7d" &&
-      parent.transition.next_slice_scope === "bundles-and-outfile" &&
-      parent.transition.next_runtime_activation_slice === "H2.7d" &&
+      // H2.7d/e advances the live parent; dormant controls stay unchanged.
+      parent.transition.next_slice === "H2.8a" &&
+      parent.transition.next_slice_scope === "full-output-matrix" &&
+      parent.transition.next_runtime_activation_slice === "H2.8a" &&
       canonical(parent.transition.active_runtime_slices) ===
-        canonical([...CLOSED_THROUGH_H2_5G, "H2.5h", "H2.6a", "H2.6b", "H2.6c", "H2.7b", "H2.7c"]) &&
+        canonical([...CLOSED_THROUGH_H2_5G, "H2.5h", "H2.6a", "H2.6b", "H2.6c", "H2.7b", "H2.7c", "H2.7d", "H2.7e"]) &&
       parent.transition.target_es2015_transform_owner ===
         "complete-with-h2-5h-divergence-ratchet" &&
       parent.transition.target_generators_transform_owner ===
@@ -1318,15 +1318,16 @@ function loadParentProfile(requireParent) {
       parent.transition.h2_6c_exact_cases === 481 &&
       parent.transition.h2_6c_known_divergences === 158 &&
       parent.transition.h2_6c_source_deferred_cases === 4 &&
-      parent.summary.completed_runtime_slices === 27 &&
+      parent.summary.completed_runtime_slices === 29 &&
       parent.summary.next_slice_runtime_slice_delta === 0 &&
-      // Add 31 H2.7c and 1,557 H2.7b admissions to the 9,191 plus five H2.1a exact
+      // Add 291 joint H2.7d/e, 31 H2.7c and 1,557 H2.7b band admissions
+      // to the 9,191 plus five H2.1a exact
       // promotions recorded in the closed profile's
       // current_exact_promotions (arrayFromAsync, arrayIterationLibES5
       // TargetDifferent, mapGroupBy, objectGroupBy,
       // regularExpressionScanning).
-      parent.summary.runtime_admissions === 10_784 &&
-      parent.summary.executed_candidates === 11_303 &&
+      parent.summary.runtime_admissions === 11_075 &&
+      parent.summary.executed_candidates === 11_594 &&
       parent.summary.unexecuted_candidates === 0 &&
       parent.summary.undispositioned_candidates === 0,
     "H2.5g parent profile is not closed",

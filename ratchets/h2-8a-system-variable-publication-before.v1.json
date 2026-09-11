@@ -1,0 +1,376 @@
+{
+  "version": 1,
+  "status": "complete-before",
+  "checkpoint": "84bf461c3381fac483dc1ad0dbdeba5bec0ab9f6",
+  "eligible": 72,
+  "exact": [
+    "js/es5/plain/direct-plain",
+    "js/es5/plain/local-alias",
+    "js/es5/plain/default-reference",
+    "js/es5/plain/direct-uninitialized",
+    "js/es5/maps/direct-plain",
+    "js/es5/maps/local-alias",
+    "js/es5/maps/direct-uninitialized",
+    "ts/es5/plain/direct-plain",
+    "ts/es5/plain/local-alias",
+    "ts/es5/plain/default-reference",
+    "ts/es5/plain/direct-uninitialized",
+    "ts/es5/maps/direct-plain",
+    "ts/es5/maps/local-alias",
+    "ts/es5/maps/direct-uninitialized",
+    "js/es2015/plain/direct-plain",
+    "js/es2015/plain/local-alias",
+    "js/es2015/plain/default-reference",
+    "js/es2015/plain/direct-uninitialized",
+    "js/es2015/maps/direct-plain",
+    "js/es2015/maps/local-alias",
+    "js/es2015/maps/direct-uninitialized",
+    "ts/es2015/plain/direct-plain",
+    "ts/es2015/plain/local-alias",
+    "ts/es2015/plain/default-reference",
+    "ts/es2015/plain/direct-uninitialized",
+    "ts/es2015/maps/direct-plain",
+    "ts/es2015/maps/local-alias",
+    "ts/es2015/maps/direct-uninitialized"
+  ],
+  "failed": [
+    "js/es5/plain/direct-alias",
+    "js/es5/plain/direct-pattern-alias",
+    "js/es5/plain/default-comments",
+    "js/es5/plain/direct-multiple-alias",
+    "js/es5/plain/local-export-equals",
+    "js/es5/maps/direct-alias",
+    "js/es5/maps/direct-pattern-alias",
+    "js/es5/maps/default-reference",
+    "js/es5/maps/default-comments",
+    "js/es5/maps/direct-multiple-alias",
+    "js/es5/maps/local-export-equals",
+    "ts/es5/plain/direct-alias",
+    "ts/es5/plain/direct-pattern-alias",
+    "ts/es5/plain/default-comments",
+    "ts/es5/plain/direct-multiple-alias",
+    "ts/es5/plain/local-export-equals",
+    "ts/es5/maps/direct-alias",
+    "ts/es5/maps/direct-pattern-alias",
+    "ts/es5/maps/default-reference",
+    "ts/es5/maps/default-comments",
+    "ts/es5/maps/direct-multiple-alias",
+    "ts/es5/maps/local-export-equals",
+    "js/es2015/plain/direct-alias",
+    "js/es2015/plain/direct-pattern-alias",
+    "js/es2015/plain/default-comments",
+    "js/es2015/plain/direct-multiple-alias",
+    "js/es2015/plain/local-export-equals",
+    "js/es2015/maps/direct-alias",
+    "js/es2015/maps/direct-pattern-alias",
+    "js/es2015/maps/default-reference",
+    "js/es2015/maps/default-comments",
+    "js/es2015/maps/direct-multiple-alias",
+    "js/es2015/maps/local-export-equals",
+    "ts/es2015/plain/direct-alias",
+    "ts/es2015/plain/direct-pattern-alias",
+    "ts/es2015/plain/default-comments",
+    "ts/es2015/plain/direct-multiple-alias",
+    "ts/es2015/plain/local-export-equals",
+    "ts/es2015/maps/direct-alias",
+    "ts/es2015/maps/direct-pattern-alias",
+    "ts/es2015/maps/default-reference",
+    "ts/es2015/maps/default-comments",
+    "ts/es2015/maps/direct-multiple-alias",
+    "ts/es2015/maps/local-export-equals"
+  ],
+  "run_seconds": 73.03,
+  "exit_code": 101,
+  "source_map_result_failures": 20,
+  "javascript_byte_failures": 24,
+  "first_failure_comparisons": [
+    {
+      "label": "js/es5/plain/direct-alias: callback bytes for /project/out/main.js",
+      "repetitions": 2,
+      "sha256": "39edf02b896d0a38ae1b744e4a3d422860e12aa8f815ade5ba56a983ebccdffd"
+    },
+    {
+      "label": "js/es5/plain/direct-pattern-alias: callback bytes for /project/out/main.js",
+      "repetitions": 2,
+      "sha256": "0fe20b8d36a062fbdb5c614829d5762501f8a3bdcbae7edf347fb64450a2a28c"
+    },
+    {
+      "label": "js/es5/plain/default-comments: callback bytes for /project/out/main.js",
+      "repetitions": 2,
+      "sha256": "3d75de53f7ae02c4e55ed8768d37f76548a1ac0e25ff9fed3154cc97fadf8484"
+    },
+    {
+      "label": "js/es5/plain/direct-multiple-alias: callback bytes for /project/out/main.js",
+      "repetitions": 2,
+      "sha256": "ecb1d8f6c8cde7eb8aecf0f4ea7acbae7c63e3472adb4d64c0904ffbafd5a953"
+    },
+    {
+      "label": "js/es5/plain/local-export-equals: callback bytes for /project/out/main.js",
+      "repetitions": 2,
+      "sha256": "cd91ff38a31d404581805625909df015c54482c2744fec31df846b5405ec5057"
+    },
+    {
+      "label": "js/es5/maps/direct-alias: exact source-map result",
+      "repetitions": 2,
+      "sha256": "793e3e0c5d85eb29ee7ef9876c575e961da12b1e9613a085264e31b773526989"
+    },
+    {
+      "label": "js/es5/maps/direct-pattern-alias: exact source-map result",
+      "repetitions": 2,
+      "sha256": "06a4c9458b0dcef407b6e5ed53dd3e0a1b3f7e9a3c5767ebccc85f4957636924"
+    },
+    {
+      "label": "js/es5/maps/default-reference: exact source-map result",
+      "repetitions": 2,
+      "sha256": "83be00dab8508bf2b937b8e02742f308ab746d4c66717d23f7e7527fd0df9559"
+    },
+    {
+      "label": "js/es5/maps/default-comments: exact source-map result",
+      "repetitions": 2,
+      "sha256": "a3e8bd0ff0964700bd60c8ec90f86d5b289bc9af38305409722785cc9c79a643"
+    },
+    {
+      "label": "js/es5/maps/direct-multiple-alias: exact source-map result",
+      "repetitions": 2,
+      "sha256": "7da6480e20de91a9be387b975a022155310bed03c3e5f5d044fecf85fe8846a6"
+    },
+    {
+      "label": "js/es5/maps/local-export-equals: callback bytes for /project/out/main.js",
+      "repetitions": 2,
+      "sha256": "ab654e48db5399ec200d366f4493f9c42ece588497844d0a8cb3a39a13875947"
+    },
+    {
+      "label": "ts/es5/plain/direct-alias: callback bytes for /project/out/main.js",
+      "repetitions": 2,
+      "sha256": "39edf02b896d0a38ae1b744e4a3d422860e12aa8f815ade5ba56a983ebccdffd"
+    },
+    {
+      "label": "ts/es5/plain/direct-pattern-alias: callback bytes for /project/out/main.js",
+      "repetitions": 2,
+      "sha256": "0fe20b8d36a062fbdb5c614829d5762501f8a3bdcbae7edf347fb64450a2a28c"
+    },
+    {
+      "label": "ts/es5/plain/default-comments: callback bytes for /project/out/main.js",
+      "repetitions": 2,
+      "sha256": "3d75de53f7ae02c4e55ed8768d37f76548a1ac0e25ff9fed3154cc97fadf8484"
+    },
+    {
+      "label": "ts/es5/plain/direct-multiple-alias: callback bytes for /project/out/main.js",
+      "repetitions": 2,
+      "sha256": "ecb1d8f6c8cde7eb8aecf0f4ea7acbae7c63e3472adb4d64c0904ffbafd5a953"
+    },
+    {
+      "label": "ts/es5/plain/local-export-equals: callback bytes for /project/out/main.js",
+      "repetitions": 2,
+      "sha256": "cd91ff38a31d404581805625909df015c54482c2744fec31df846b5405ec5057"
+    },
+    {
+      "label": "ts/es5/maps/direct-alias: exact source-map result",
+      "repetitions": 2,
+      "sha256": "d9f7af4b79201c0758b004d2e988c97ef436a5d700fcb8b37dad9af013db8bd7"
+    },
+    {
+      "label": "ts/es5/maps/direct-pattern-alias: exact source-map result",
+      "repetitions": 2,
+      "sha256": "7500099106cd26a3a475e998d903d7b2f1fd59ab1dc2d0e6dfd79f3a0cb69b24"
+    },
+    {
+      "label": "ts/es5/maps/default-reference: exact source-map result",
+      "repetitions": 2,
+      "sha256": "4b2b80973fe1294fa3d09cc677359a55ce8cb83f579b8f26c3b7f61ea4710961"
+    },
+    {
+      "label": "ts/es5/maps/default-comments: exact source-map result",
+      "repetitions": 2,
+      "sha256": "482148090f12228e54d78355fa5909cf9a9046fa3f7d2c4a01c631f4c6b7ed3c"
+    },
+    {
+      "label": "ts/es5/maps/direct-multiple-alias: exact source-map result",
+      "repetitions": 2,
+      "sha256": "b1447379f5dae0213b7cac17fc806ac693ed6b2b087c48bd02fcc1bc5a4c4b25"
+    },
+    {
+      "label": "ts/es5/maps/local-export-equals: callback bytes for /project/out/main.js",
+      "repetitions": 2,
+      "sha256": "ab654e48db5399ec200d366f4493f9c42ece588497844d0a8cb3a39a13875947"
+    },
+    {
+      "label": "js/es2015/plain/direct-alias: callback bytes for /project/out/main.js",
+      "repetitions": 2,
+      "sha256": "39edf02b896d0a38ae1b744e4a3d422860e12aa8f815ade5ba56a983ebccdffd"
+    },
+    {
+      "label": "js/es2015/plain/direct-pattern-alias: callback bytes for /project/out/main.js",
+      "repetitions": 2,
+      "sha256": "0fe20b8d36a062fbdb5c614829d5762501f8a3bdcbae7edf347fb64450a2a28c"
+    },
+    {
+      "label": "js/es2015/plain/default-comments: callback bytes for /project/out/main.js",
+      "repetitions": 2,
+      "sha256": "3d75de53f7ae02c4e55ed8768d37f76548a1ac0e25ff9fed3154cc97fadf8484"
+    },
+    {
+      "label": "js/es2015/plain/direct-multiple-alias: callback bytes for /project/out/main.js",
+      "repetitions": 2,
+      "sha256": "ecb1d8f6c8cde7eb8aecf0f4ea7acbae7c63e3472adb4d64c0904ffbafd5a953"
+    },
+    {
+      "label": "js/es2015/plain/local-export-equals: callback bytes for /project/out/main.js",
+      "repetitions": 2,
+      "sha256": "cd91ff38a31d404581805625909df015c54482c2744fec31df846b5405ec5057"
+    },
+    {
+      "label": "js/es2015/maps/direct-alias: exact source-map result",
+      "repetitions": 2,
+      "sha256": "793e3e0c5d85eb29ee7ef9876c575e961da12b1e9613a085264e31b773526989"
+    },
+    {
+      "label": "js/es2015/maps/direct-pattern-alias: exact source-map result",
+      "repetitions": 2,
+      "sha256": "37dac9d704e7df74346d156b5f95e0e28b0d49b9890fbd94ab434b22dc55f6c9"
+    },
+    {
+      "label": "js/es2015/maps/default-reference: exact source-map result",
+      "repetitions": 2,
+      "sha256": "83be00dab8508bf2b937b8e02742f308ab746d4c66717d23f7e7527fd0df9559"
+    },
+    {
+      "label": "js/es2015/maps/default-comments: exact source-map result",
+      "repetitions": 2,
+      "sha256": "a3e8bd0ff0964700bd60c8ec90f86d5b289bc9af38305409722785cc9c79a643"
+    },
+    {
+      "label": "js/es2015/maps/direct-multiple-alias: exact source-map result",
+      "repetitions": 2,
+      "sha256": "7da6480e20de91a9be387b975a022155310bed03c3e5f5d044fecf85fe8846a6"
+    },
+    {
+      "label": "js/es2015/maps/local-export-equals: callback bytes for /project/out/main.js",
+      "repetitions": 2,
+      "sha256": "ab654e48db5399ec200d366f4493f9c42ece588497844d0a8cb3a39a13875947"
+    },
+    {
+      "label": "ts/es2015/plain/direct-alias: callback bytes for /project/out/main.js",
+      "repetitions": 2,
+      "sha256": "39edf02b896d0a38ae1b744e4a3d422860e12aa8f815ade5ba56a983ebccdffd"
+    },
+    {
+      "label": "ts/es2015/plain/direct-pattern-alias: callback bytes for /project/out/main.js",
+      "repetitions": 2,
+      "sha256": "0fe20b8d36a062fbdb5c614829d5762501f8a3bdcbae7edf347fb64450a2a28c"
+    },
+    {
+      "label": "ts/es2015/plain/default-comments: callback bytes for /project/out/main.js",
+      "repetitions": 2,
+      "sha256": "3d75de53f7ae02c4e55ed8768d37f76548a1ac0e25ff9fed3154cc97fadf8484"
+    },
+    {
+      "label": "ts/es2015/plain/direct-multiple-alias: callback bytes for /project/out/main.js",
+      "repetitions": 2,
+      "sha256": "ecb1d8f6c8cde7eb8aecf0f4ea7acbae7c63e3472adb4d64c0904ffbafd5a953"
+    },
+    {
+      "label": "ts/es2015/plain/local-export-equals: callback bytes for /project/out/main.js",
+      "repetitions": 2,
+      "sha256": "cd91ff38a31d404581805625909df015c54482c2744fec31df846b5405ec5057"
+    },
+    {
+      "label": "ts/es2015/maps/direct-alias: exact source-map result",
+      "repetitions": 2,
+      "sha256": "d9f7af4b79201c0758b004d2e988c97ef436a5d700fcb8b37dad9af013db8bd7"
+    },
+    {
+      "label": "ts/es2015/maps/direct-pattern-alias: exact source-map result",
+      "repetitions": 2,
+      "sha256": "72899b011e72bebf5b3cd2301fb22e33cd0af6b0c566c9c5b700856bb855480f"
+    },
+    {
+      "label": "ts/es2015/maps/default-reference: exact source-map result",
+      "repetitions": 2,
+      "sha256": "4b2b80973fe1294fa3d09cc677359a55ce8cb83f579b8f26c3b7f61ea4710961"
+    },
+    {
+      "label": "ts/es2015/maps/default-comments: exact source-map result",
+      "repetitions": 2,
+      "sha256": "482148090f12228e54d78355fa5909cf9a9046fa3f7d2c4a01c631f4c6b7ed3c"
+    },
+    {
+      "label": "ts/es2015/maps/direct-multiple-alias: exact source-map result",
+      "repetitions": 2,
+      "sha256": "b1447379f5dae0213b7cac17fc806ac693ed6b2b087c48bd02fcc1bc5a4c4b25"
+    },
+    {
+      "label": "ts/es2015/maps/local-export-equals: callback bytes for /project/out/main.js",
+      "repetitions": 2,
+      "sha256": "ab654e48db5399ec200d366f4493f9c42ece588497844d0a8cb3a39a13875947"
+    }
+  ],
+  "preliminary_run_qualified": false,
+  "preliminary_note": "Initial comparison overlapped formatter completion; retained only as a preliminary log. This authoritative before ran after formatting and all prior processes completed, with source/fixtures frozen. Its exact membership and first comparisons repeat the preliminary results.",
+  "working_source_files": [
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "e22ede64ca1e8de31830da985d4dff819b14515302bb07d52bcab66a7dd3900a"
+    },
+    {
+      "path": "crates/emitter/src/builtins/system.rs",
+      "sha256": "a99e9eceda307857065f6c670b4e8014e1f8340c5d7b030a2b7d17874b485f56"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/emitter/src/metadata.rs",
+      "sha256": "c9eaf94391d3eb0893a1d1e7d4c65ff9d876f8b3772634505325a72cf7430e23"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "e71ba67e26cee608add53946c882f7546c8630c1ff120d6a48d1a51c3f2877dc"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "416e5659a1fdefa553aaf3337291378f27cea4e686328727fda2209ad7b1e185"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_system_variable_publication.rs",
+      "sha256": "643840deed77e4e836e289292a16fd240fdc83d398e4fe98fb6bcbcc6e1f2056"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+      "sha256": "7b14d30e473948b7a7878c20ed9feb528a629f8d26db042306ba6574a6edde81"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "c0a3f18ada4e9465e407ad0cd9f74daac31c888c56737a7c0a5f10e705d6cfd8"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/system-variable-publication.json",
+      "sha256": "99fb90b738886bf6f3867eb827f1156c3d70a5ec2d7119fc2e1ef1077777c425"
+    },
+    {
+      "path": "scripts/observe-system-variable-publication.mjs",
+      "sha256": "a371893b4e718d7fca757b08be6fb41a82ffa49069049ac445fcbe579aa6eaf5"
+    },
+    {
+      "path": "target/h2-8a-system-variable-publication-before.log",
+      "sha256": "400f11264d338ec5255581eb7f39d460dc34713c8aac82a4a14c84827a4f0a94"
+    },
+    {
+      "path": "target/h2-8a-system-variable-publication-observations.log",
+      "sha256": "07a5ef446fd11a7d5f603fde49402cb48b22b9db5a10c030b08cbee754cd8a7a"
+    },
+    {
+      "path": "target/h2-8a-system-variable-publication-oracle-check.log",
+      "sha256": "07a5ef446fd11a7d5f603fde49402cb48b22b9db5a10c030b08cbee754cd8a7a"
+    },
+    {
+      "path": "target/h2-8a-system-variable-publication-preliminary.log",
+      "sha256": "8a5fee5dfb3399809bc72de65b2e2fa94ebd851ad2187ce9d2a43e9f58494f6b"
+    },
+    {
+      "path": "target/h2-8a-system-variable-publication-scheduling-note.txt",
+      "sha256": "baac3078262cbcf4251d18655794b8506de2929fdcfb2bab6ff2307c05cda09b"
+    }
+  ]
+}

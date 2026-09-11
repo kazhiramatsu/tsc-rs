@@ -1,0 +1,1182 @@
+{
+  "version": 1,
+  "description": "Decorated-class super read/call/tag/assignment/update/destructuring paths in static initializers and static blocks.",
+  "cases": [
+    {
+      "case_id": "decorator-super-paths/es2015/esnext/set/super-read-call-tag",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static k: any = \"k\"; static m(...args: any[]): any { return args; } static tag(s: TemplateStringsArray, ...v: any[]): any { return v; } static [k: string]: any; }\n@dec export class Box extends Base {\n    static read: any = [super.x, super[\"x\"], super[key()], super[this.k], super.m(1), super[key()](2), super.tag`t${3}`, super[key()]`u`];\n    static { super.x; super.m(super.x, super[key()]); }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/es2015/esnext/define/super-read-call-tag",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static k: any = \"k\"; static m(...args: any[]): any { return args; } static tag(s: TemplateStringsArray, ...v: any[]): any { return v; } static [k: string]: any; }\n@dec export class Box extends Base {\n    static read: any = [super.x, super[\"x\"], super[key()], super[this.k], super.m(1), super[key()](2), super.tag`t${3}`, super[key()]`u`];\n    static { super.x; super.m(super.x, super[key()]); }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/es2022/esnext/set/super-read-call-tag",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static k: any = \"k\"; static m(...args: any[]): any { return args; } static tag(s: TemplateStringsArray, ...v: any[]): any { return v; } static [k: string]: any; }\n@dec export class Box extends Base {\n    static read: any = [super.x, super[\"x\"], super[key()], super[this.k], super.m(1), super[key()](2), super.tag`t${3}`, super[key()]`u`];\n    static { super.x; super.m(super.x, super[key()]); }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/es2022/esnext/define/super-read-call-tag",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static k: any = \"k\"; static m(...args: any[]): any { return args; } static tag(s: TemplateStringsArray, ...v: any[]): any { return v; } static [k: string]: any; }\n@dec export class Box extends Base {\n    static read: any = [super.x, super[\"x\"], super[key()], super[this.k], super.m(1), super[key()](2), super.tag`t${3}`, super[key()]`u`];\n    static { super.x; super.m(super.x, super[key()]); }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/esnext/esnext/set/super-read-call-tag",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static k: any = \"k\"; static m(...args: any[]): any { return args; } static tag(s: TemplateStringsArray, ...v: any[]): any { return v; } static [k: string]: any; }\n@dec export class Box extends Base {\n    static read: any = [super.x, super[\"x\"], super[key()], super[this.k], super.m(1), super[key()](2), super.tag`t${3}`, super[key()]`u`];\n    static { super.x; super.m(super.x, super[key()]); }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/esnext/esnext/define/super-read-call-tag",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static k: any = \"k\"; static m(...args: any[]): any { return args; } static tag(s: TemplateStringsArray, ...v: any[]): any { return v; } static [k: string]: any; }\n@dec export class Box extends Base {\n    static read: any = [super.x, super[\"x\"], super[key()], super[this.k], super.m(1), super[key()](2), super.tag`t${3}`, super[key()]`u`];\n    static { super.x; super.m(super.x, super[key()]); }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/es2015/esnext/set/super-assignment-used",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static [k: string]: any; }\n@dec export class Box extends Base {\n    static assign: any = [super.x = 1, super[key()] = 2, super.x += 3, super[key()] ??= 4, super.x ||= 5, super.x++, ++super.x, super[key()]--, --super[key()]];\n    static used: any = { a: super.x = 6, b: super[key()] += 7 };\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/es2015/esnext/define/super-assignment-used",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static [k: string]: any; }\n@dec export class Box extends Base {\n    static assign: any = [super.x = 1, super[key()] = 2, super.x += 3, super[key()] ??= 4, super.x ||= 5, super.x++, ++super.x, super[key()]--, --super[key()]];\n    static used: any = { a: super.x = 6, b: super[key()] += 7 };\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/es2022/esnext/set/super-assignment-used",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static [k: string]: any; }\n@dec export class Box extends Base {\n    static assign: any = [super.x = 1, super[key()] = 2, super.x += 3, super[key()] ??= 4, super.x ||= 5, super.x++, ++super.x, super[key()]--, --super[key()]];\n    static used: any = { a: super.x = 6, b: super[key()] += 7 };\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/es2022/esnext/define/super-assignment-used",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static [k: string]: any; }\n@dec export class Box extends Base {\n    static assign: any = [super.x = 1, super[key()] = 2, super.x += 3, super[key()] ??= 4, super.x ||= 5, super.x++, ++super.x, super[key()]--, --super[key()]];\n    static used: any = { a: super.x = 6, b: super[key()] += 7 };\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/esnext/esnext/set/super-assignment-used",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static [k: string]: any; }\n@dec export class Box extends Base {\n    static assign: any = [super.x = 1, super[key()] = 2, super.x += 3, super[key()] ??= 4, super.x ||= 5, super.x++, ++super.x, super[key()]--, --super[key()]];\n    static used: any = { a: super.x = 6, b: super[key()] += 7 };\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/esnext/esnext/define/super-assignment-used",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static [k: string]: any; }\n@dec export class Box extends Base {\n    static assign: any = [super.x = 1, super[key()] = 2, super.x += 3, super[key()] ??= 4, super.x ||= 5, super.x++, ++super.x, super[key()]--, --super[key()]];\n    static used: any = { a: super.x = 6, b: super[key()] += 7 };\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/es2015/esnext/set/super-assignment-discarded",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static [k: string]: any; }\n@dec export class Box extends Base {\n    static { super.x = 5; super[key()] = 6; super.x += 7; super[key()] ||= 8; super.x &&= 9; super.x++; --super[key()]; super[key()]++; }\n    static { for (super.x = 0; super.x < 2; super.x++) { } for (super[key()] = 0; super[key()] < 1; super[key()]++) { } (super.x, super.x = 1); (super.x += 1); }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/es2015/esnext/define/super-assignment-discarded",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static [k: string]: any; }\n@dec export class Box extends Base {\n    static { super.x = 5; super[key()] = 6; super.x += 7; super[key()] ||= 8; super.x &&= 9; super.x++; --super[key()]; super[key()]++; }\n    static { for (super.x = 0; super.x < 2; super.x++) { } for (super[key()] = 0; super[key()] < 1; super[key()]++) { } (super.x, super.x = 1); (super.x += 1); }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/es2022/esnext/set/super-assignment-discarded",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static [k: string]: any; }\n@dec export class Box extends Base {\n    static { super.x = 5; super[key()] = 6; super.x += 7; super[key()] ||= 8; super.x &&= 9; super.x++; --super[key()]; super[key()]++; }\n    static { for (super.x = 0; super.x < 2; super.x++) { } for (super[key()] = 0; super[key()] < 1; super[key()]++) { } (super.x, super.x = 1); (super.x += 1); }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/es2022/esnext/define/super-assignment-discarded",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static [k: string]: any; }\n@dec export class Box extends Base {\n    static { super.x = 5; super[key()] = 6; super.x += 7; super[key()] ||= 8; super.x &&= 9; super.x++; --super[key()]; super[key()]++; }\n    static { for (super.x = 0; super.x < 2; super.x++) { } for (super[key()] = 0; super[key()] < 1; super[key()]++) { } (super.x, super.x = 1); (super.x += 1); }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/esnext/esnext/set/super-assignment-discarded",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static [k: string]: any; }\n@dec export class Box extends Base {\n    static { super.x = 5; super[key()] = 6; super.x += 7; super[key()] ||= 8; super.x &&= 9; super.x++; --super[key()]; super[key()]++; }\n    static { for (super.x = 0; super.x < 2; super.x++) { } for (super[key()] = 0; super[key()] < 1; super[key()]++) { } (super.x, super.x = 1); (super.x += 1); }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/esnext/esnext/define/super-assignment-discarded",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static [k: string]: any; }\n@dec export class Box extends Base {\n    static { super.x = 5; super[key()] = 6; super.x += 7; super[key()] ||= 8; super.x &&= 9; super.x++; --super[key()]; super[key()]++; }\n    static { for (super.x = 0; super.x < 2; super.x++) { } for (super[key()] = 0; super[key()] < 1; super[key()]++) { } (super.x, super.x = 1); (super.x += 1); }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/es2015/esnext/set/super-destructuring",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static rest: any; static [k: string]: any; }\n@dec export class Box extends Base {\n    static destructure: any = [[super.x, super[key()], ...super.rest] = [1, 2, 3], { a: super.x, b: super[key()] = 9, ...super.rest } = { a: 1 }];\n    static { [super.x, [super[key()]]] = [1, [2]]; ({ c: super.x, d: super[key()] } = { c: 1, d: 2 }); [super.x = 3, ...super.rest] = [undefined]; }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/es2015/esnext/define/super-destructuring",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static rest: any; static [k: string]: any; }\n@dec export class Box extends Base {\n    static destructure: any = [[super.x, super[key()], ...super.rest] = [1, 2, 3], { a: super.x, b: super[key()] = 9, ...super.rest } = { a: 1 }];\n    static { [super.x, [super[key()]]] = [1, [2]]; ({ c: super.x, d: super[key()] } = { c: 1, d: 2 }); [super.x = 3, ...super.rest] = [undefined]; }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/es2022/esnext/set/super-destructuring",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static rest: any; static [k: string]: any; }\n@dec export class Box extends Base {\n    static destructure: any = [[super.x, super[key()], ...super.rest] = [1, 2, 3], { a: super.x, b: super[key()] = 9, ...super.rest } = { a: 1 }];\n    static { [super.x, [super[key()]]] = [1, [2]]; ({ c: super.x, d: super[key()] } = { c: 1, d: 2 }); [super.x = 3, ...super.rest] = [undefined]; }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/es2022/esnext/define/super-destructuring",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static rest: any; static [k: string]: any; }\n@dec export class Box extends Base {\n    static destructure: any = [[super.x, super[key()], ...super.rest] = [1, 2, 3], { a: super.x, b: super[key()] = 9, ...super.rest } = { a: 1 }];\n    static { [super.x, [super[key()]]] = [1, [2]]; ({ c: super.x, d: super[key()] } = { c: 1, d: 2 }); [super.x = 3, ...super.rest] = [undefined]; }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/esnext/esnext/set/super-destructuring",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static rest: any; static [k: string]: any; }\n@dec export class Box extends Base {\n    static destructure: any = [[super.x, super[key()], ...super.rest] = [1, 2, 3], { a: super.x, b: super[key()] = 9, ...super.rest } = { a: 1 }];\n    static { [super.x, [super[key()]]] = [1, [2]]; ({ c: super.x, d: super[key()] } = { c: 1, d: 2 }); [super.x = 3, ...super.rest] = [undefined]; }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/esnext/esnext/define/super-destructuring",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static rest: any; static [k: string]: any; }\n@dec export class Box extends Base {\n    static destructure: any = [[super.x, super[key()], ...super.rest] = [1, 2, 3], { a: super.x, b: super[key()] = 9, ...super.rest } = { a: 1 }];\n    static { [super.x, [super[key()]]] = [1, [2]]; ({ c: super.x, d: super[key()] } = { c: 1, d: 2 }); [super.x = 3, ...super.rest] = [undefined]; }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/es2015/esnext/set/super-lexical-boundaries",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nclass Base { static x: any = 1; get x(): any { return 2; } }\n@dec export class Box extends Base {\n    static lexical: any = [() => super.x, class Inner extends Base { static { super.x; } static i = super.x; }, (() => { super.x = 2; return () => super.x; })()];\n    instance: any = super.x;\n    method() { return super.x; }\n    static method() { return super.x; }\n    constructor() { super(); super.x; }\n    static { (() => { super.x = 3; })(); }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/es2015/esnext/define/super-lexical-boundaries",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nclass Base { static x: any = 1; get x(): any { return 2; } }\n@dec export class Box extends Base {\n    static lexical: any = [() => super.x, class Inner extends Base { static { super.x; } static i = super.x; }, (() => { super.x = 2; return () => super.x; })()];\n    instance: any = super.x;\n    method() { return super.x; }\n    static method() { return super.x; }\n    constructor() { super(); super.x; }\n    static { (() => { super.x = 3; })(); }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/es2022/esnext/set/super-lexical-boundaries",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nclass Base { static x: any = 1; get x(): any { return 2; } }\n@dec export class Box extends Base {\n    static lexical: any = [() => super.x, class Inner extends Base { static { super.x; } static i = super.x; }, (() => { super.x = 2; return () => super.x; })()];\n    instance: any = super.x;\n    method() { return super.x; }\n    static method() { return super.x; }\n    constructor() { super(); super.x; }\n    static { (() => { super.x = 3; })(); }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/es2022/esnext/define/super-lexical-boundaries",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nclass Base { static x: any = 1; get x(): any { return 2; } }\n@dec export class Box extends Base {\n    static lexical: any = [() => super.x, class Inner extends Base { static { super.x; } static i = super.x; }, (() => { super.x = 2; return () => super.x; })()];\n    instance: any = super.x;\n    method() { return super.x; }\n    static method() { return super.x; }\n    constructor() { super(); super.x; }\n    static { (() => { super.x = 3; })(); }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/esnext/esnext/set/super-lexical-boundaries",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nclass Base { static x: any = 1; get x(): any { return 2; } }\n@dec export class Box extends Base {\n    static lexical: any = [() => super.x, class Inner extends Base { static { super.x; } static i = super.x; }, (() => { super.x = 2; return () => super.x; })()];\n    instance: any = super.x;\n    method() { return super.x; }\n    static method() { return super.x; }\n    constructor() { super(); super.x; }\n    static { (() => { super.x = 3; })(); }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/esnext/esnext/define/super-lexical-boundaries",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nclass Base { static x: any = 1; get x(): any { return 2; } }\n@dec export class Box extends Base {\n    static lexical: any = [() => super.x, class Inner extends Base { static { super.x; } static i = super.x; }, (() => { super.x = 2; return () => super.x; })()];\n    instance: any = super.x;\n    method() { return super.x; }\n    static method() { return super.x; }\n    constructor() { super(); super.x; }\n    static { (() => { super.x = 3; })(); }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/es2015/esnext/set/super-member-decorated-only",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static [k: string]: any; }\nexport class Box extends Base {\n    @dec m() {}\n    static read: any = [super.x, super[key()], super.x = 2, super.x++];\n    static { super.x = 3; super[key()]++; }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/es2015/esnext/define/super-member-decorated-only",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static [k: string]: any; }\nexport class Box extends Base {\n    @dec m() {}\n    static read: any = [super.x, super[key()], super.x = 2, super.x++];\n    static { super.x = 3; super[key()]++; }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/es2022/esnext/set/super-member-decorated-only",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static [k: string]: any; }\nexport class Box extends Base {\n    @dec m() {}\n    static read: any = [super.x, super[key()], super.x = 2, super.x++];\n    static { super.x = 3; super[key()]++; }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/es2022/esnext/define/super-member-decorated-only",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static [k: string]: any; }\nexport class Box extends Base {\n    @dec m() {}\n    static read: any = [super.x, super[key()], super.x = 2, super.x++];\n    static { super.x = 3; super[key()]++; }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/esnext/esnext/set/super-member-decorated-only",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static [k: string]: any; }\nexport class Box extends Base {\n    @dec m() {}\n    static read: any = [super.x, super[key()], super.x = 2, super.x++];\n    static { super.x = 3; super[key()]++; }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/esnext/esnext/define/super-member-decorated-only",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static [k: string]: any; }\nexport class Box extends Base {\n    @dec m() {}\n    static read: any = [super.x, super[key()], super.x = 2, super.x++];\n    static { super.x = 3; super[key()]++; }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/es2015/esnext/set/super-undecorated-control",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static [k: string]: any; }\nexport class Box extends Base {\n    static read: any = [super.x, super[key()], super.x = 2, super.x++];\n    static { super.x = 3; super[key()]++; }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/es2015/esnext/define/super-undecorated-control",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static [k: string]: any; }\nexport class Box extends Base {\n    static read: any = [super.x, super[key()], super.x = 2, super.x++];\n    static { super.x = 3; super[key()]++; }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/es2022/esnext/set/super-undecorated-control",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static [k: string]: any; }\nexport class Box extends Base {\n    static read: any = [super.x, super[key()], super.x = 2, super.x++];\n    static { super.x = 3; super[key()]++; }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/es2022/esnext/define/super-undecorated-control",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static [k: string]: any; }\nexport class Box extends Base {\n    static read: any = [super.x, super[key()], super.x = 2, super.x++];\n    static { super.x = 3; super[key()]++; }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/esnext/esnext/set/super-undecorated-control",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static [k: string]: any; }\nexport class Box extends Base {\n    static read: any = [super.x, super[key()], super.x = 2, super.x++];\n    static { super.x = 3; super[key()]++; }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-super-paths/esnext/esnext/define/super-undecorated-control",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function key(): \"k\" { return \"k\"; }\nclass Base { static x: any = 1; static [k: string]: any; }\nexport class Box extends Base {\n    static read: any = [super.x, super[key()], super.x = 2, super.x++];\n    static { super.x = 3; super[key()]++; }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    }
+  ]
+}

@@ -1,0 +1,139 @@
+{
+  "version": 1,
+  "status": "Fresh pinned TypeScript source checks; no native qualification",
+  "checks": [
+    {
+      "path": "scripts/observe-comma-list-printer.mjs",
+      "sha256": "501655bea2824e5223b74071afe164a535a622fa7b82f1397b2d72ac66840228",
+      "actual_exit": 0,
+      "stdout": "{\"cases\":50,\"repetitions\":2,\"native_executions\":0,\"sha256\":\"5fc4aaa95b65aa1d2135aaeb9e4d5a36c6ddae7ea18fe38533b3f8f654a5c33b\"}\n",
+      "stderr": ""
+    },
+    {
+      "path": "scripts/observe-comma-argument-factory.mjs",
+      "sha256": "21131b9213be4e87c3ac5efaa8e5f2f6b0fdc594d40ca88badeedc204a450324",
+      "actual_exit": 0,
+      "stdout": "{\"cases\":44,\"repetitions\":2,\"native_executions\":0,\"sha256\":\"c67a535942bc93068f552cf4127a0889b0a034266d5736d145f5619111fe5558\"}\n",
+      "stderr": ""
+    },
+    {
+      "path": "scripts/observe-list-intervening-owners.mjs",
+      "sha256": "df872e5bb80d4f56f3baa30aa0a731be3114552bf462a166a17278c89f369857",
+      "actual_exit": 0,
+      "stdout": "{\"cases\":96,\"repetitions\":2,\"native_executions\":0,\"sha256\":\"b61162675e0ad39faf87976bdb91b8b301a70e05140890b6722b337437f5d724\"}\n",
+      "stderr": ""
+    },
+    {
+      "path": "scripts/observe-list-trailing-token-owners.mjs",
+      "sha256": "b5b95e03617e790fd2d7552bb698059f8ff867d5d3e844d0af996f8a0aaa5b41",
+      "actual_exit": 0,
+      "stdout": "{\"cases\":104,\"repetitions\":2,\"native_executions\":0,\"sha256\":\"2ba0fb2141de6af3976672bddc88c3a59b03c0359268f4d52d5bb78b1e5db277\"}\n",
+      "stderr": ""
+    },
+    {
+      "path": "scripts/observe-list-boundary-lines.mjs",
+      "sha256": "0563ab8722c55baa7b00351df3498035f33500a6ecb53c7b57c73ac30effe44e",
+      "actual_exit": 0,
+      "stdout": "{\"output\":\"crates/emitter/tests/fixtures/list-boundary-lines.json\",\"cases\":264,\"sha256\":\"4ba02c6c81d23ead02871b365c538d8090cc95008b9729e12c39a32e08c70627\"}\n",
+      "stderr": ""
+    },
+    {
+      "path": "scripts/observe-list-cursor-lifecycle.mjs",
+      "sha256": "0b2b4fa49b7f5e2ea333f6744a8d781a7df9fa080194be9d0fa61a8fdc4f774b",
+      "actual_exit": 0,
+      "stdout": "{\"output\":\"ratchets/h2-8a-list-cursor-lifecycle.v1.json\",\"cases\":11,\"sha256\":\"cc58914952454983a30e4cc04174887005ab1708a3821fa9cb059e812f741a49\"}\n",
+      "stderr": ""
+    },
+    {
+      "path": "scripts/observe-mapped-type-members.mjs",
+      "sha256": "fe8536eba58e7094e2a0b3b9affcbd6c3d3a885a8405195355567e0b8893c9cf",
+      "actual_exit": 0,
+      "stdout": "{\"output\":\"crates/emitter/tests/fixtures/mapped-type-members.json\",\"cases\":328,\"sha256\":\"1aad1af30be5d18a4816ac8bb0b994124459b6829f8414b50c289593a8aed2d3\"}\n",
+      "stderr": ""
+    },
+    {
+      "path": "scripts/observe-list-format-flags.mjs",
+      "sha256": "bd46eeb46c361a970695db9fe604e8fb8a7d41a62cafd55674a6e8bcf416b0ce",
+      "actual_exit": 0,
+      "stdout": "{\"output\":\"crates/emitter/tests/fixtures/list-format-flags.json\",\"cases\":160,\"sha256\":\"3d7b7be6069f460f0a585893b280b843ef0a2dceb14d14203214ebd8203a90a8\"}\n",
+      "stderr": ""
+    },
+    {
+      "path": "scripts/observe-import-type-attributes.mjs",
+      "sha256": "64c5fec3f8d52d3126cc154ad72bede55e30e2b71e414ccbb66531dd05543e11",
+      "actual_exit": 0,
+      "stdout": "{\"output\":\"crates/emitter/tests/fixtures/import-type-attributes.json\",\"cases\":84,\"sha256\":\"56dbdad5fed18af927e304830d7238e593de9b99f673cf49b5541471d985b528\"}\n",
+      "stderr": ""
+    },
+    {
+      "path": "scripts/observe-emit-pipeline-phases.mjs",
+      "sha256": "64e4732a0e755fb523a9cf1a2d8d9ac98157f05df4fa794e6bb643469c562d09",
+      "actual_exit": 0,
+      "stdout": "{\"output\":\"crates/emitter/tests/fixtures/emit-pipeline-phases.json\",\"cases\":8,\"sha256\":\"ee930248d3000c051fd4dc146f338c2c0242fb6b3f8ec2337086d4b6be519ba9\"}\n",
+      "stderr": ""
+    },
+    {
+      "path": "scripts/observe-emit-pipeline-bundle.mjs",
+      "sha256": "834a4bfca930bbfa5f4c16a89a56a8344948c0464e0a910cbfe88d0015cfd4c2",
+      "actual_exit": 0,
+      "stdout": "{\"output\":\"crates/emitter/tests/fixtures/emit-pipeline-bundle.json\",\"cases\":2,\"sha256\":\"f9f5d2f37f7060ba36ab119991f86d9939af94c59fc6e9db7fc2ebf3d69e7c98\"}\n",
+      "stderr": ""
+    },
+    {
+      "path": "scripts/observe-literal-parent-provenance.mjs",
+      "sha256": "1bab91ac56c99d1e73ea2944825db41d5c68f3ce4327d57478bb8bc1596b96ec",
+      "actual_exit": 0,
+      "stdout": "{\"output\":\"crates/emitter/tests/fixtures/literal-parent-provenance.json\",\"cases\":128,\"sha256\":\"1f667aa43870ac0e813ebc9a071e3ead997665386d7f6897ccd4bccfd92098a4\"}\n",
+      "stderr": ""
+    },
+    {
+      "path": "scripts/observe-literal-parent-provenance-utf16.mjs",
+      "sha256": "2114bebec8f911033e815f304b5523bd2aee393e634780217da94291088b636b",
+      "actual_exit": 0,
+      "stdout": "{\"output\":\"crates/emitter/tests/fixtures/literal-parent-provenance-utf16.json\",\"cases\":128,\"sha256\":\"267371271768c6497d3076bcdeb91202fcd71221f94acfe0a589b4547681012f\"}\n",
+      "stderr": ""
+    },
+    {
+      "path": "scripts/observe-utf16-literal-escaping.mjs",
+      "sha256": "4e75b29cc92a6de258cadeccae9291b061305f07d725500c33a3cdfb988e7927",
+      "actual_exit": 0,
+      "stdout": "{\"output\":\"crates/emitter/tests/fixtures/utf16-literal-escaping.json\",\"cases\":288,\"sha256\":\"cbd9f34c0889a4c47ecf03b6a3717858895d9d45fc95c9315c4f11e8b5e41fed\"}\n",
+      "stderr": ""
+    },
+    {
+      "path": "scripts/observe-utf16-writer.mjs",
+      "sha256": "7becd970e175dd2753d7827dda2354c8cf5cd0934a93fa8c127ab220c8242402",
+      "actual_exit": 0,
+      "stdout": "{\"output\":\"crates/emitter/tests/fixtures/utf16-writer.json\",\"cases\":48,\"sha256\":\"787d8e76f56ec71aca18fb5b35da8362fafc922fb831ae2633ac53bc10cc770f\"}\n",
+      "stderr": ""
+    },
+    {
+      "path": "scripts/observe-template-fragment-provenance.mjs",
+      "sha256": "9ccfecf35528e3a57de53ae647a129dec630a4251bf55b42fed5819489122d60",
+      "actual_exit": 0,
+      "stdout": "{\"output\":\"crates/emitter/tests/fixtures/template-fragment-provenance.json\",\"cases\":8,\"sha256\":\"ff3d21c4bc12bb9b3ff39d2ec9e02015d712082550039185670705237a8300a3\",\"differing_parsed_and_synthetic\":4}\n",
+      "stderr": ""
+    },
+    {
+      "path": "scripts/observe-string-literal-identifier-source.mjs",
+      "sha256": "d6c990e2d9e9ab17719915afc62090011f2297fdf95f6d2e627b5786e46726c0",
+      "actual_exit": 0,
+      "stdout": "String literal identifier source: 72 printer outputs, each identical twice\n",
+      "stderr": ""
+    },
+    {
+      "path": "scripts/observe-template-raw-provenance.mjs",
+      "sha256": "0d264b24025c4cf0ae37a6ee0404438ba28aba9fba0cc456cfcc89c6272f779a",
+      "actual_exit": 0,
+      "stdout": "{\"output\":\"crates/emitter/tests/fixtures/template-raw-provenance.json\",\"cases\":480,\"sha256\":\"58570e115dad9b68761f94ed744d595387ce1222fb18b49ec6a6b4299820515d\"}\n",
+      "stderr": ""
+    },
+    {
+      "path": "scripts/observe-string-property-provenance.mjs",
+      "sha256": "89c6496be299d090cae1f47739a6a13d777f45c1012984b9f49a27918a0df6f3",
+      "actual_exit": 0,
+      "stdout": "{\"output\":\"crates/emitter/tests/fixtures/string-property-provenance.json\",\"cases\":60,\"sha256\":\"7484870d43fa7dd41aa84d7fce9d1a6c832813474bada1555b5ff288e0cc0925\"}\n",
+      "stderr": ""
+    }
+  ]
+}

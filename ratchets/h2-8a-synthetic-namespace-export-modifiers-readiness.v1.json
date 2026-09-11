@@ -1,0 +1,1070 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-20",
+  "base": "e6bebf7b76501984a7ebba9bc57e81e23e7b2429",
+  "unresolved": 0,
+  "undispositioned": 0,
+  "runtime_paths": [
+    "crates/checker/src/node_builder/statements.rs"
+  ],
+  "steps": [
+    "A6-20-1"
+  ],
+  "owners": [
+    {
+      "owner": "hasSyntacticModifier",
+      "start": 16931,
+      "end": 16933,
+      "sha256": "7dd8709f25333f4dd5745735d9a1e5b97b6b1a5b056f1f34bd9c06517a93112a"
+    },
+    {
+      "owner": "getSelectedSyntacticModifierFlags",
+      "start": 16961,
+      "end": 16963,
+      "sha256": "03a24a8e333e66a86da83dd24ae5467c721e1dd55d084f01e76db5fbffe44804"
+    },
+    {
+      "owner": "getModifierFlagsWorker",
+      "start": 16964,
+      "end": 16978,
+      "sha256": "3e5d410640829256c9969dbfc1763fbf3284c0f2830a2f8b500244b2c5e844bb"
+    },
+    {
+      "owner": "getEffectiveModifierFlags",
+      "start": 16979,
+      "end": 16985,
+      "sha256": "94efcdf1350af5231aa2a3d3d1d8ac176bdfc84611ae3bb4925e385ff65b5473"
+    },
+    {
+      "owner": "getSyntacticModifierFlags",
+      "start": 16986,
+      "end": 16992,
+      "sha256": "3dc5370fee5262fb6b722011459fd1526ca411f2434c0b24cc03a1d15e55d50c"
+    },
+    {
+      "owner": "selectSyntacticModifierFlags",
+      "start": 17007,
+      "end": 17009,
+      "sha256": "af764beec355a95bb36a3cf51e723d914a005bb8117ca6a0060170755cae9f0a"
+    },
+    {
+      "owner": "selectEffectiveModifierFlags",
+      "start": 17010,
+      "end": 17012,
+      "sha256": "6cf7eeb1c2e9ddfe1d26ab1afe12b12fefef6418e4edcc3a5fd5812884cf92ea"
+    },
+    {
+      "owner": "getSyntacticModifierFlagsNoCache",
+      "start": 17019,
+      "end": 17025,
+      "sha256": "1b7cb8845b02b8a88b15a70b861ff5cfa0e1959d0f056d0316c204da7dcf7644"
+    },
+    {
+      "owner": "canHaveExportModifier",
+      "start": 19283,
+      "end": 19285,
+      "sha256": "e9f9bfa860bfebc49cefd6207fbb6dde5b4e9b3d7436b0693bb4bd25e373e499"
+    },
+    {
+      "owner": "enterNewScope",
+      "start": 52692,
+      "end": 52801,
+      "sha256": "2e14fce8894e1878f50325ffceebc3976956fd557cb2637dbd951c73e33322bb"
+    },
+    {
+      "owner": "cloneNodeBuilderContext",
+      "start": 53444,
+      "end": 53461,
+      "sha256": "18ef4bc35335d2ff447f64ee1bffe8b29c89101b0b41a25825482c6ed2c1c24d"
+    },
+    {
+      "owner": "removeExportModifier",
+      "start": 53934,
+      "end": 53937,
+      "sha256": "061b1d8d4f6236c6aeed8c7f695a1bf9b9b4f325404dffb63f17f297d2f91bd3"
+    },
+    {
+      "owner": "visitSymbolTable",
+      "start": 53938,
+      "end": 53975,
+      "sha256": "6c24132a883411f0dd4cce6dfc03ad19ff6f3cdfeaede3e283f075c90e325235"
+    },
+    {
+      "owner": "serializeSymbol",
+      "start": 53976,
+      "end": 53991,
+      "sha256": "89a62d997aa6147fdb69cb375b6f5a5e4a24830189c28093f5d59dfefacc0647"
+    },
+    {
+      "owner": "serializeSymbolWorker",
+      "start": 53992,
+      "end": 54179,
+      "sha256": "dc9bf6e639d95e72cefd3e99de392150843321b4b1f785340d52751bbe4bbc38"
+    },
+    {
+      "owner": "isExportingScope",
+      "start": 54187,
+      "end": 54189,
+      "sha256": "c5e869e20b2780c6401b7722dde00d9f5cc14acde0ac87489d655ea0ff07e416"
+    },
+    {
+      "owner": "addResult",
+      "start": 54190,
+      "end": 54210,
+      "sha256": "1d5bbaa5bc6714a9dcb56eb0347501e0ebd1c79db08073b2b679e32987b7bee1"
+    },
+    {
+      "owner": "serializeAsFunctionNamespaceMerge",
+      "start": 54458,
+      "end": 54476,
+      "sha256": "31d4121617baea5146ed7516eaccff1fd2139d7f938bf5008f5b3516dfccd97e"
+    },
+    {
+      "owner": "serializeAsNamespaceDeclaration",
+      "start": 54494,
+      "end": 54561,
+      "sha256": "1911f6ac2b33198d3a9382ec2faf24b6cbf59aba22c50b2b5a2a41f607ec2cf9"
+    },
+    {
+      "owner": "isNamespaceMember",
+      "start": 54562,
+      "end": 54564,
+      "sha256": "c67f99f0f91940f9483d5817d5ff9657c73fed0db9ff8ce36994e4ff4e2b5dec"
+    },
+    {
+      "owner": "serializeMaybeAliasAssignment",
+      "start": 54966,
+      "end": 55082,
+      "sha256": "76bea3c93c2aab13e158de586792f0b9e24d6840feaaf5ff7151b7d97ef249c0"
+    }
+  ],
+  "architecture": [
+    {
+      "id": "E-CHECKER-FACTS-BASE",
+      "disposition": "modified-requalify"
+    },
+    {
+      "id": "E-PROTOCOL",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-RESOLVER-BASE",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-ARENA",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-METADATA-BASE",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-PRINTER-BASE",
+      "disposition": "premise-unchanged"
+    }
+  ],
+  "authorities": [
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-synthetic-namespace-export-modifiers.md",
+      "sha256": "a4a2e3708e23df577c88dcc50b1dfb5f838698359c82d7f2dcc03d2114aa7a3d"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    },
+    {
+      "path": "docs/design/greenfield/post-h1-completion-slices.md",
+      "sha256": "df4e630f4fe348119e43714261d1193a880453fa6847b42c7bf52d086bd840fb"
+    },
+    {
+      "path": "ratchets/h2-8a-synthetic-namespace-export-modifiers-before.v1.json",
+      "sha256": "cca339c5cb1a3506c8e3b2ed8fecbe626c523a4b7a66830b9f8443ce43b5b5fc"
+    },
+    {
+      "path": "ratchets/h2-8a-synthetic-namespace-export-modifiers-original-before.v1.json",
+      "sha256": "430b4a482aed3fd2820ee1b3a2e6cb61bd47e31ed78da8cf7a3beba0a3e94f49"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/synthetic-namespace-export-modifiers.json",
+      "sha256": "e561aa3f0a649ffb4c9bc399d3f32e7a3a53385d0c19702eb31d7d8562df54b1"
+    },
+    {
+      "path": "scripts/observe-synthetic-namespace-export-modifiers.mjs",
+      "sha256": "acb7c580709cf850215b046dceeda78f31e9c79923de92dfef53cfd199c61ddc"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "726a6d93a6f97ec8e9509772260c71bd05326ae3addb56b90ee17d910e92e695"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+      "sha256": "90aff72e27fac502da3ff3f06980c55c4923e35554c3e64800a60213cb1b04ba"
+    },
+    {
+      "path": "ratchets/h2-8a-hoisted-declaration-export-ranges-after.v1.json",
+      "sha256": "cd19a69245eded136ee019565b5a52b276ab435055d8e728eb59825b8433dd82"
+    },
+    {
+      "path": "ratchets/h2-8a-synthetic-default-alias-after.v1.json",
+      "sha256": "ddb42e863b2d1b9d24e70711d926505d7b439425c35ca6fa1f7ffbef4b7bbf73"
+    },
+    {
+      "path": "ratchets/h2-8a-commonjs-class-instance-after.v1.json",
+      "sha256": "2f8ab17bf3f070f777807a64a08305d2f0fda4600fd62a8b602b2c7a29a38a8f"
+    },
+    {
+      "path": "ratchets/h2-8a-jsdoc-parentheses-guard-after.v1.json",
+      "sha256": "14f55a8e0ee3b032a0f217ace309653c36d176d0d919611eac39e2c921770970"
+    },
+    {
+      "path": "ratchets/h2-8a-global-after-a6-14.v1.json",
+      "sha256": "2902e23044cb6d8d0d15d433a2ba51468ee72aeb628c486e511f525803bd7c8d"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "3689fe549b0b64dc85473471dccd4f5a19b5e1ab5484f5d23093e502abb2d514"
+    },
+    {
+      "path": "crates/checker/src/node_builder/mod.rs",
+      "sha256": "fd29baeb9104f3da2ea3db5fda94eafea7623ae3f4e103590d8732d48e703c1b"
+    },
+    {
+      "path": "crates/checker/src/node_builder/context.rs",
+      "sha256": "beba5a3add26b6e917101adfb73796b1370e1d47de501d2dd010c340297910c4"
+    },
+    {
+      "path": "crates/checker/src/node_builder/signatures.rs",
+      "sha256": "d46a6c370c777dc7f90624d8a7efcd7c277ba3350f84a8db5fbfa9bbb70c4a3a"
+    },
+    {
+      "path": "crates/checker/src/node_builder/type_nodes.rs",
+      "sha256": "751892a7a600c2df5642035d4f62d8c2350586b22fc0b5b9f3fe639a8657ba22"
+    },
+    {
+      "path": "crates/checker/src/emit.rs",
+      "sha256": "d43e9507e0f925b4e06ed4956a2bf2e436daf48c605b0876e4b5fc5b432e4dd6"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/emitter/src/metadata.rs",
+      "sha256": "c9eaf94391d3eb0893a1d1e7d4c65ff9d876f8b3772634505325a72cf7430e23"
+    }
+  ],
+  "witnesses": [
+    {
+      "case_id": "synthetic-namespace/es5/script/function-empty",
+      "row_sha256": "66bdcae3318491561ae18eed72df316b8f4f157ddfd4cf0a03284c9f144fa48b",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/script/function-normal",
+      "row_sha256": "1a6b97832059dc9751d5a641f3fe8662a85d2f097e178e6adccf471e3073c166",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/script/function-reserved",
+      "row_sha256": "485f36c5d1419f9cfff1f08f1f302d0beeb0d1d02304429e89ba682af1ac0032",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/script/function-mixed",
+      "row_sha256": "9e42ad93bcf0465967855805b9ff8b33a59197208e285557ca2f4ed0e26111de",
+      "status": "owned-export-modifier",
+      "before": "failed-twice",
+      "component_differences": [
+        {
+          "native": [
+            "    let normal: number;\r\n"
+          ],
+          "typescript": [
+            "    export let normal: number;\r\n"
+          ],
+          "only_adds_export_modifier": true
+        }
+      ],
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/script/function-methods",
+      "row_sha256": "1205849c16f581e6df8b00fde0080de1405ceb5cfc5d4ba6ed8079e239dfd99c",
+      "status": "owned-export-modifier",
+      "before": "failed-twice",
+      "component_differences": [
+        {
+          "native": [
+            "    function normal(): number;\r\n"
+          ],
+          "typescript": [
+            "    export function normal(): number;\r\n"
+          ],
+          "only_adds_export_modifier": true
+        }
+      ],
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/script/object-normal",
+      "row_sha256": "bd67a4f0b187383695bea4f677360be7b74a3bb72d97204eb43f9a2512c486a3",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/script/object-mixed",
+      "row_sha256": "9137628f9ef7ece8c6889e090f32ece9ae18dd4d74355ac02025e3a42aa5ce28",
+      "status": "owned-export-modifier",
+      "before": "failed-twice",
+      "component_differences": [
+        {
+          "native": [
+            "    function normal(): number;\r\n"
+          ],
+          "typescript": [
+            "    export function normal(): number;\r\n"
+          ],
+          "only_adds_export_modifier": true
+        }
+      ],
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/script/object-constructor",
+      "row_sha256": "4450c40681916e8bffb25f8c9e014a9aebd8cada3927c37437407d6ca62f5755",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/script/nested-function",
+      "row_sha256": "72969309e3fa7bbc8da34648a603492608fa3a941e31f9be657ca6bc5e4c9b13",
+      "status": "owned-export-modifier",
+      "before": "failed-twice",
+      "component_differences": [
+        {
+          "native": [
+            "    function nested(): void;\r\n",
+            "    namespace nested {\r\n",
+            "        let normal: number;\r\n"
+          ],
+          "typescript": [
+            "    export function nested(): void;\r\n",
+            "    export namespace nested {\r\n",
+            "        export let normal: number;\r\n"
+          ],
+          "only_adds_export_modifier": true
+        }
+      ],
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/script/typedef",
+      "row_sha256": "f1bfc9aa464833ecb4f7108f95e7a5259b7e7b9b4ff467cd5a4162bb51328011",
+      "status": "owned-export-modifier",
+      "before": "failed-twice",
+      "component_differences": [
+        {
+          "native": [
+            "    let normal: Value;\r\n"
+          ],
+          "typescript": [
+            "    export let normal: Value;\r\n"
+          ],
+          "only_adds_export_modifier": true
+        }
+      ],
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/script/overloaded-constructor",
+      "row_sha256": "d4dd5915fa3e0fb51656a52ef9a620698d22d4ad2026036ac5716780943c72a0",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/script/namespace-class-fallback",
+      "row_sha256": "66090445d94fa832240dcdc74ee96c83f46bd05bfab9ae2dd028245b80df3cc0",
+      "status": "owned-export-modifier",
+      "before": "failed-twice",
+      "component_differences": [
+        {
+          "native": [
+            "    let C5: {\r\n"
+          ],
+          "typescript": [
+            "    export let C5: {\r\n"
+          ],
+          "only_adds_export_modifier": true
+        }
+      ],
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/commonjs/function-empty",
+      "row_sha256": "c18593fddb443d60d599afa342d2b82f9b512275c37cd3627afcd253b72fa0f8",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/commonjs/function-normal",
+      "row_sha256": "a54b22582c6951a188bb2b65650822715a18bdf5c0c57d9020605febd680c7e9",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/commonjs/function-reserved",
+      "row_sha256": "775430070b8af9d13618b56bbe9e93a540d13f47af75fca641c662b04c97ac68",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/commonjs/function-mixed",
+      "row_sha256": "99f580f166b085c1e4a301808e07426d33c7a9c5c0550aeb710447949312005f",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/commonjs/function-methods",
+      "row_sha256": "b3a9aea3fe80aa7be065d09d18ec410abf7272cc81ebf97c17b7ebe19597cc90",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/commonjs/object-normal",
+      "row_sha256": "3798064d772b90f5317dd953d4813f3be09873a5c5bd119aab1b9b9565e7932e",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/commonjs/object-mixed",
+      "row_sha256": "b17612e921046425ae0e3a9d0a77a1bef889e76ca8015062622ac3a2ebd0533f",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/commonjs/object-constructor",
+      "row_sha256": "354ff19929bf3262e8d85ced196e9065ad2ee148f62f71e4a7a1bbbdbc716ce7",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/commonjs/nested-function",
+      "row_sha256": "013aa1d56eb3ab6c533f1909b14a469d51fb7153fd76fbe912188d8940da0e05",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/commonjs/typedef",
+      "row_sha256": "2095456a2d618ccaedae0b204f5db7ccd5ce55e4d5c722daa01895965d82facb",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/commonjs/overloaded-constructor",
+      "row_sha256": "035ff682fc481fe422401de1509b3fdeeb1c5f151614049839dd267d5a1a67f5",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/commonjs/namespace-class-fallback",
+      "row_sha256": "107f409b0a4d404c81b3fc60f8262a63c2072bcdf2f7743aef0954a101874579",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/esm/function-empty",
+      "row_sha256": "4e14d02e24dfd52c08a3ab680d2aa66629f7f8c201add85999de7824a8e0191b",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/esm/function-normal",
+      "row_sha256": "173740166c1c957df4c3849cc8ebde4a561dfb6e2993b572726b6f73fde21b2a",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/esm/function-reserved",
+      "row_sha256": "d7c3dbbec06a471100b0d8c6d2be9438e0d0d957173b99361db69e27bccdd4e4",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/esm/function-mixed",
+      "row_sha256": "9af24be0527f606f716c2c2247a1e665d009a93ddf879fcb45cf9965692ccd26",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/esm/function-methods",
+      "row_sha256": "e72faeae168dee2fe4183a6f56d404ed2c5376a735b603dfb0cc8104eab9196e",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/esm/object-normal",
+      "row_sha256": "647adf659cac5d7424523f30b9ba1588ae6299283545f090ced78e3af2583f26",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/esm/object-mixed",
+      "row_sha256": "a9b943a191bcc033adc10668979ffce56dddc3c8503aff25b243effb3eae2c29",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/esm/object-constructor",
+      "row_sha256": "79fdf94a030104818d0a70e8a60696fec2b6b962a4cf8b267d3c098176e3ec26",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/esm/nested-function",
+      "row_sha256": "458b08d2add1cfc15dc89ff4f186eef707ef4fe3d2e34045b1f58f0f35d3f85d",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/esm/typedef",
+      "row_sha256": "cf603483b6ebe49c950dfb81cc8e2d49ec5db0bb7d2b64322f828944e6a49b72",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/esm/overloaded-constructor",
+      "row_sha256": "1f79a75e33476797d0a3a82a8c65687b9eaf656a39bb7b157c87160c5047f0c9",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/esm/namespace-class-fallback",
+      "row_sha256": "e89dd3af7eeb6fec1221b42d6f164249e1bb698d0754bd321388a80200d2a3ed",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/script/function-empty",
+      "row_sha256": "61f6c8e5915c814b6f4dbab5fb29ad970da446a2e2002c5576b3e634b6e4ab64",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/script/function-normal",
+      "row_sha256": "6f212a6ee8d90ce47715a785c731f3fa97c535dc0db1cf77a33fe66913fb510c",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/script/function-reserved",
+      "row_sha256": "5bfefdda2259daa4b8cb12dd6ec68d4f322c943337fd98c6206e5e98b1b4f577",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/script/function-mixed",
+      "row_sha256": "c879a8ea04f074c5edef0a81069e6c84f2dee4dbc56ceab5e02081bd4fe26ea2",
+      "status": "owned-export-modifier",
+      "before": "failed-twice",
+      "component_differences": [
+        {
+          "native": [
+            "    let normal: number;\r\n"
+          ],
+          "typescript": [
+            "    export let normal: number;\r\n"
+          ],
+          "only_adds_export_modifier": true
+        }
+      ],
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/script/function-methods",
+      "row_sha256": "b7c443102050240a050c988f225a20654c25fa84166594a50d544b9eac16f6a7",
+      "status": "owned-export-modifier",
+      "before": "failed-twice",
+      "component_differences": [
+        {
+          "native": [
+            "    function normal(): number;\r\n"
+          ],
+          "typescript": [
+            "    export function normal(): number;\r\n"
+          ],
+          "only_adds_export_modifier": true
+        }
+      ],
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/script/object-normal",
+      "row_sha256": "634fd1f89ed2bf6eac6104e029928b517b7c55a7cbd8ebe94c2b38aefcd6845a",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/script/object-mixed",
+      "row_sha256": "c6bb516d1af2c11826c90a8e49517643e162b95514645ab5c3e41f86876180df",
+      "status": "owned-export-modifier",
+      "before": "failed-twice",
+      "component_differences": [
+        {
+          "native": [
+            "    function normal(): number;\r\n"
+          ],
+          "typescript": [
+            "    export function normal(): number;\r\n"
+          ],
+          "only_adds_export_modifier": true
+        }
+      ],
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/script/object-constructor",
+      "row_sha256": "dff29738f5abb4ef4cbcf600266d466e4636c8d9846d75e339e67b011dd7ddfb",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/script/nested-function",
+      "row_sha256": "e022971c47971fbad9fad61917abe1c6cbbaa9a1db7a8791bdcd666c04278610",
+      "status": "owned-export-modifier",
+      "before": "failed-twice",
+      "component_differences": [
+        {
+          "native": [
+            "    function nested(): void;\r\n",
+            "    namespace nested {\r\n",
+            "        let normal: number;\r\n"
+          ],
+          "typescript": [
+            "    export function nested(): void;\r\n",
+            "    export namespace nested {\r\n",
+            "        export let normal: number;\r\n"
+          ],
+          "only_adds_export_modifier": true
+        }
+      ],
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/script/typedef",
+      "row_sha256": "1bd2e918c879acf700342c56c9589e10b135002880993af574c008ee236a673c",
+      "status": "owned-export-modifier",
+      "before": "failed-twice",
+      "component_differences": [
+        {
+          "native": [
+            "    let normal: Value;\r\n"
+          ],
+          "typescript": [
+            "    export let normal: Value;\r\n"
+          ],
+          "only_adds_export_modifier": true
+        }
+      ],
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/script/overloaded-constructor",
+      "row_sha256": "7e312c05386bb1538d812986ef5808ee6d6f605859dd3f1cf4f897dae6b88bd5",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/script/namespace-class-fallback",
+      "row_sha256": "192819a1076dc8e1a14ab49d0743350680b1e748d096259c925b856c3c569529",
+      "status": "owned-export-modifier",
+      "before": "failed-twice",
+      "component_differences": [
+        {
+          "native": [
+            "    let C5: {\r\n"
+          ],
+          "typescript": [
+            "    export let C5: {\r\n"
+          ],
+          "only_adds_export_modifier": true
+        }
+      ],
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/commonjs/function-empty",
+      "row_sha256": "44fa6277edc896cb9efed1f35d5c4bc3a937aef435337bd9599e6f330f8df89a",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/commonjs/function-normal",
+      "row_sha256": "fa8a7429731a3678337d051669b0c1c825aaa7276ba94d4233fc12fffae154be",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/commonjs/function-reserved",
+      "row_sha256": "f47046c7689d0a7897d9984201fca6127d4221e96b2fe55a9ab536a8a673e1fd",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/commonjs/function-mixed",
+      "row_sha256": "7b363756573aae31029cc7a5968ca7e3df84150791b6222fcbd63877b282b696",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/commonjs/function-methods",
+      "row_sha256": "1783f617edb65d73d4aa7a9d53a6685092c672e8246c91cbc88036210834bb27",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/commonjs/object-normal",
+      "row_sha256": "1b6b605b01582ec460b44b2ef4c03f9fc44f37f7ff5e470c5945b8803d869879",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/commonjs/object-mixed",
+      "row_sha256": "b7823810b4055da4b930cd751111cc26629c7d8b7bf4a022b942f37556a2ec1f",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/commonjs/object-constructor",
+      "row_sha256": "f6b899fcc289759b6ca1380bc3c232c468f192cd30d01f019b04a330e204b286",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/commonjs/nested-function",
+      "row_sha256": "ff0bc35751426dfddd52bfca87497b4d0e0e715526a0e1bbe41619e9574e6651",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/commonjs/typedef",
+      "row_sha256": "c19208ead0d2f3ca6cffd6051cd814ed7599272565408ae38a144b534cd1b129",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/commonjs/overloaded-constructor",
+      "row_sha256": "4b4f39ce1f6702646ccd92e2ae2b7f1907369367405a8f446a5214d3dd34ce0f",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/commonjs/namespace-class-fallback",
+      "row_sha256": "8b11de9690b8404d5afc51b7633bba84b717bdaa8664d81c36f5dcf67fe8ef97",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/esm/function-empty",
+      "row_sha256": "e9027f9d0c4ce6c11ad3928fcdd0b17d481fb4ecdd3462adf3871b73c96f3c57",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/esm/function-normal",
+      "row_sha256": "fe260dc51b6efaa06ad00ee39eb73baf6728080657178cd012c3aa8a9fcb783b",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/esm/function-reserved",
+      "row_sha256": "07071bc4baa4cd8beddf33304f8f2d816a6a7a137741671e4be64b0761c2c9ec",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/esm/function-mixed",
+      "row_sha256": "ec9caef8a8b16351e0bf33ea17779bfd50485516eb61f7a890b310a2d5377e40",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/esm/function-methods",
+      "row_sha256": "99aedef473b986e16e483a54c6d5fb89de3b6a79164d148467b8674c019871f3",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/esm/object-normal",
+      "row_sha256": "25f9ab7ce19a0ef3b11d805dbaf11b9fad17e33edb1d6e5f9ca984bf98eddda3",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/esm/object-mixed",
+      "row_sha256": "3dd463dff1f9dc28ff2aee1cb6f95540f7ac28ecc925270ae80fdca50ccf1670",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/esm/object-constructor",
+      "row_sha256": "d86bafd49112e5c20d9a0fecde00672d5710ef17239d82934aba5edd4eb13398",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/esm/nested-function",
+      "row_sha256": "b3e6a336d4280b57c89a5f21bbca16cb6a0d00ba25d7caa995cfd42fabc3fbbb",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/esm/typedef",
+      "row_sha256": "ec5c599332b0fd846a92b8012f1212717ccda421e3ea3312677cbfa27e51d1e5",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/esm/overloaded-constructor",
+      "row_sha256": "8be8ab9aef46d1272ffae5760290dcd36f7f9fd343dd329fb0605ea547bff8ad",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/esm/namespace-class-fallback",
+      "row_sha256": "6468b8b66e5fb3f40f11e1d231c7a2b8efb801d38a92a3942b9fea8de6845274",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/script/parsed-namespace",
+      "row_sha256": "722854ab634174d9e3e8f0122a1e5ad3df9f3f59ceee18ff73495d4e4f66abf6",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/script/parsed-nested-namespace",
+      "row_sha256": "609cdefd5b96d83a8110c0cdaf4a085c6d0cb5c789d73a55007c8981cae689d6",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/script/parsed-ambient-namespace",
+      "row_sha256": "951ee378fba6df16caed395916059e5bce90f11e594d134c9cc0109fe62ae07f",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/esm/parsed-namespace",
+      "row_sha256": "2f25c87bd787991515e7d3fb4466217b0130759d4c686493c4741047bc74d6d7",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/esm/parsed-nested-namespace",
+      "row_sha256": "4d9c7636f5da0d256f6275553fc531e9f635544014141158e748421e84cee754",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es5/esm/parsed-ambient-namespace",
+      "row_sha256": "8919a3e9dd89552fb322ca02162f52798147f64818475aa9d86fdec34a89367c",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/script/parsed-namespace",
+      "row_sha256": "30d435e9b7ca49ad6f92ed9297b9219f031edfae1c3ae8b10d7f5894b074cbe5",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/script/parsed-nested-namespace",
+      "row_sha256": "0f950fe6ba3090be71f547a854f946586d02cbab06de3fdaefb44d646afd2844",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/script/parsed-ambient-namespace",
+      "row_sha256": "267f60dc35d556ffa6a8d4346ba4fc689db1cf653dcccdbccd7a170e1d743858",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/esm/parsed-namespace",
+      "row_sha256": "f1832418127030302d67aa98a8727b31d4ca36b7a0c2f33f4c64ec6038b37072",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/esm/parsed-nested-namespace",
+      "row_sha256": "50dbf2dd40108c56db3f8943c2354e6c450a86818e3205266ab7eacafb3fabdb",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "synthetic-namespace/es2015/esm/parsed-ambient-namespace",
+      "row_sha256": "3249e5cfb42a1e4f2b1f95667a74ae7fe5f0f07225807c156c01895a53f958f7",
+      "status": "adjacent-exact",
+      "before": "exact-twice",
+      "component_differences": [],
+      "later_complete_command_fields": "exact-twice-per-job"
+    }
+  ],
+  "before_counts": {
+    "eligible": 84,
+    "exact_per_job": 72,
+    "failed_per_job": 12,
+    "native_jobs": 2
+  },
+  "after_required_complete_commands": 244,
+  "after_target_exact_twice": 243,
+  "checker_unit_tests_required": 30
+}

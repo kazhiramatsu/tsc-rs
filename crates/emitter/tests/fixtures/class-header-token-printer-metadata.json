@@ -1,0 +1,523 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "route": "direct-printer-metadata",
+  "repetitions": 2,
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "e1d252c0388309936cd275979363dfa31c459d405c3209f0755a7b34811dee57",
+  "cases": [
+    {
+      "case_id": "class-header-token-printer-metadata/named/none/retain",
+      "text": "/* 😀 outer */ class /* keyword */ Named /* name end */ {}\n",
+      "emit_flags": 0,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "/* 😀 outer */ class /* keyword */ Named /* name end */ {\r\n}\r\n",
+        "utf8_base64": "Lyog8J+YgCBvdXRlciAqLyBjbGFzcyAvKiBrZXl3b3JkICovIE5hbWVkIC8qIG5hbWUgZW5kICovIHsNCn0NCg==",
+        "utf8_bytes": 64,
+        "end_utf16": {
+          "position": 62,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "class-header-token-printer-metadata/named/none/remove",
+      "text": "/* 😀 outer */ class /* keyword */ Named /* name end */ {}\n",
+      "emit_flags": 0,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "class Named {\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgTmFtZWQgew0KfQ0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "class-header-token-printer-metadata/named/no-nested/retain",
+      "text": "/* 😀 outer */ class /* keyword */ Named /* name end */ {}\n",
+      "emit_flags": 4096,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "/* 😀 outer */ class Named {\r\n}\r\n",
+        "utf8_base64": "Lyog8J+YgCBvdXRlciAqLyBjbGFzcyBOYW1lZCB7DQp9DQo=",
+        "utf8_bytes": 35,
+        "end_utf16": {
+          "position": 33,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "class-header-token-printer-metadata/named/no-nested/remove",
+      "text": "/* 😀 outer */ class /* keyword */ Named /* name end */ {}\n",
+      "emit_flags": 4096,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "class Named {\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgTmFtZWQgew0KfQ0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "class-header-token-printer-metadata/named/no-own/retain",
+      "text": "/* 😀 outer */ class /* keyword */ Named /* name end */ {}\n",
+      "emit_flags": 3072,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "class /* keyword */ Named /* name end */ {\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgLyoga2V5d29yZCAqLyBOYW1lZCAvKiBuYW1lIGVuZCAqLyB7DQp9DQo=",
+        "utf8_bytes": 47,
+        "end_utf16": {
+          "position": 47,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "class-header-token-printer-metadata/named/no-own/remove",
+      "text": "/* 😀 outer */ class /* keyword */ Named /* name end */ {}\n",
+      "emit_flags": 3072,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "class Named {\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgTmFtZWQgew0KfQ0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "class-header-token-printer-metadata/named/no-own-or-nested/retain",
+      "text": "/* 😀 outer */ class /* keyword */ Named /* name end */ {}\n",
+      "emit_flags": 7168,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "class Named {\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgTmFtZWQgew0KfQ0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "class-header-token-printer-metadata/named/no-own-or-nested/remove",
+      "text": "/* 😀 outer */ class /* keyword */ Named /* name end */ {}\n",
+      "emit_flags": 7168,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "class Named {\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgTmFtZWQgew0KfQ0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "class-header-token-printer-metadata/anonymous/none/retain",
+      "text": "/* outer */ class /* keyword */ {}\n",
+      "emit_flags": 0,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "/* outer */ class /* keyword */ {\r\n}\r\n",
+        "utf8_base64": "Lyogb3V0ZXIgKi8gY2xhc3MgLyoga2V5d29yZCAqLyB7DQp9DQo=",
+        "utf8_bytes": 38,
+        "end_utf16": {
+          "position": 38,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "class-header-token-printer-metadata/anonymous/none/remove",
+      "text": "/* outer */ class /* keyword */ {}\n",
+      "emit_flags": 0,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "class {\r\n}\r\n",
+        "utf8_base64": "Y2xhc3Mgew0KfQ0K",
+        "utf8_bytes": 12,
+        "end_utf16": {
+          "position": 12,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "class-header-token-printer-metadata/anonymous/no-nested/retain",
+      "text": "/* outer */ class /* keyword */ {}\n",
+      "emit_flags": 4096,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "/* outer */ class {\r\n}\r\n",
+        "utf8_base64": "Lyogb3V0ZXIgKi8gY2xhc3Mgew0KfQ0K",
+        "utf8_bytes": 24,
+        "end_utf16": {
+          "position": 24,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "class-header-token-printer-metadata/anonymous/no-nested/remove",
+      "text": "/* outer */ class /* keyword */ {}\n",
+      "emit_flags": 4096,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "class {\r\n}\r\n",
+        "utf8_base64": "Y2xhc3Mgew0KfQ0K",
+        "utf8_bytes": 12,
+        "end_utf16": {
+          "position": 12,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "class-header-token-printer-metadata/anonymous/no-own/retain",
+      "text": "/* outer */ class /* keyword */ {}\n",
+      "emit_flags": 3072,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "class /* keyword */ {\r\n}\r\n",
+        "utf8_base64": "Y2xhc3MgLyoga2V5d29yZCAqLyB7DQp9DQo=",
+        "utf8_bytes": 26,
+        "end_utf16": {
+          "position": 26,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "class-header-token-printer-metadata/anonymous/no-own/remove",
+      "text": "/* outer */ class /* keyword */ {}\n",
+      "emit_flags": 3072,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "class {\r\n}\r\n",
+        "utf8_base64": "Y2xhc3Mgew0KfQ0K",
+        "utf8_bytes": 12,
+        "end_utf16": {
+          "position": 12,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "class-header-token-printer-metadata/anonymous/no-own-or-nested/retain",
+      "text": "/* outer */ class /* keyword */ {}\n",
+      "emit_flags": 7168,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "class {\r\n}\r\n",
+        "utf8_base64": "Y2xhc3Mgew0KfQ0K",
+        "utf8_bytes": 12,
+        "end_utf16": {
+          "position": 12,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "class-header-token-printer-metadata/anonymous/no-own-or-nested/remove",
+      "text": "/* outer */ class /* keyword */ {}\n",
+      "emit_flags": 7168,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "class {\r\n}\r\n",
+        "utf8_base64": "Y2xhc3Mgew0KfQ0K",
+        "utf8_bytes": 12,
+        "end_utf16": {
+          "position": 12,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "class-header-token-printer-metadata/default/none/retain",
+      "text": "/* outer */ export default class /* keyword */ {}\n",
+      "emit_flags": 0,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "/* outer */ export default class /* keyword */ {\r\n}\r\n",
+        "utf8_base64": "Lyogb3V0ZXIgKi8gZXhwb3J0IGRlZmF1bHQgY2xhc3MgLyoga2V5d29yZCAqLyB7DQp9DQo=",
+        "utf8_bytes": 53,
+        "end_utf16": {
+          "position": 53,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "class-header-token-printer-metadata/default/none/remove",
+      "text": "/* outer */ export default class /* keyword */ {}\n",
+      "emit_flags": 0,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "export default class {\r\n}\r\n",
+        "utf8_base64": "ZXhwb3J0IGRlZmF1bHQgY2xhc3Mgew0KfQ0K",
+        "utf8_bytes": 27,
+        "end_utf16": {
+          "position": 27,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "class-header-token-printer-metadata/default/no-nested/retain",
+      "text": "/* outer */ export default class /* keyword */ {}\n",
+      "emit_flags": 4096,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "/* outer */ export default class {\r\n}\r\n",
+        "utf8_base64": "Lyogb3V0ZXIgKi8gZXhwb3J0IGRlZmF1bHQgY2xhc3Mgew0KfQ0K",
+        "utf8_bytes": 39,
+        "end_utf16": {
+          "position": 39,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "class-header-token-printer-metadata/default/no-nested/remove",
+      "text": "/* outer */ export default class /* keyword */ {}\n",
+      "emit_flags": 4096,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "export default class {\r\n}\r\n",
+        "utf8_base64": "ZXhwb3J0IGRlZmF1bHQgY2xhc3Mgew0KfQ0K",
+        "utf8_bytes": 27,
+        "end_utf16": {
+          "position": 27,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "class-header-token-printer-metadata/default/no-own/retain",
+      "text": "/* outer */ export default class /* keyword */ {}\n",
+      "emit_flags": 3072,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "export default class /* keyword */ {\r\n}\r\n",
+        "utf8_base64": "ZXhwb3J0IGRlZmF1bHQgY2xhc3MgLyoga2V5d29yZCAqLyB7DQp9DQo=",
+        "utf8_bytes": 41,
+        "end_utf16": {
+          "position": 41,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "class-header-token-printer-metadata/default/no-own/remove",
+      "text": "/* outer */ export default class /* keyword */ {}\n",
+      "emit_flags": 3072,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "export default class {\r\n}\r\n",
+        "utf8_base64": "ZXhwb3J0IGRlZmF1bHQgY2xhc3Mgew0KfQ0K",
+        "utf8_bytes": 27,
+        "end_utf16": {
+          "position": 27,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "class-header-token-printer-metadata/default/no-own-or-nested/retain",
+      "text": "/* outer */ export default class /* keyword */ {}\n",
+      "emit_flags": 7168,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "export default class {\r\n}\r\n",
+        "utf8_base64": "ZXhwb3J0IGRlZmF1bHQgY2xhc3Mgew0KfQ0K",
+        "utf8_bytes": 27,
+        "end_utf16": {
+          "position": 27,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "class-header-token-printer-metadata/default/no-own-or-nested/remove",
+      "text": "/* outer */ export default class /* keyword */ {}\n",
+      "emit_flags": 7168,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "export default class {\r\n}\r\n",
+        "utf8_base64": "ZXhwb3J0IGRlZmF1bHQgY2xhc3Mgew0KfQ0K",
+        "utf8_bytes": 27,
+        "end_utf16": {
+          "position": 27,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "class-header-token-printer-metadata/expression/none/retain",
+      "text": "const Value = /* outer */ class /* keyword */ Inner /* name end */ {};\n",
+      "emit_flags": 0,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "const Value = /* outer */ class /* keyword */ Inner /* name end */ {\r\n};\r\n",
+        "utf8_base64": "Y29uc3QgVmFsdWUgPSAvKiBvdXRlciAqLyBjbGFzcyAvKiBrZXl3b3JkICovIElubmVyIC8qIG5hbWUgZW5kICovIHsNCn07DQo=",
+        "utf8_bytes": 74,
+        "end_utf16": {
+          "position": 74,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "class-header-token-printer-metadata/expression/none/remove",
+      "text": "const Value = /* outer */ class /* keyword */ Inner /* name end */ {};\n",
+      "emit_flags": 0,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "const Value = class Inner {\r\n};\r\n",
+        "utf8_base64": "Y29uc3QgVmFsdWUgPSBjbGFzcyBJbm5lciB7DQp9Ow0K",
+        "utf8_bytes": 33,
+        "end_utf16": {
+          "position": 33,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "class-header-token-printer-metadata/expression/no-nested/retain",
+      "text": "const Value = /* outer */ class /* keyword */ Inner /* name end */ {};\n",
+      "emit_flags": 4096,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "const Value = /* outer */ class Inner {\r\n};\r\n",
+        "utf8_base64": "Y29uc3QgVmFsdWUgPSAvKiBvdXRlciAqLyBjbGFzcyBJbm5lciB7DQp9Ow0K",
+        "utf8_bytes": 45,
+        "end_utf16": {
+          "position": 45,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "class-header-token-printer-metadata/expression/no-nested/remove",
+      "text": "const Value = /* outer */ class /* keyword */ Inner /* name end */ {};\n",
+      "emit_flags": 4096,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "const Value = class Inner {\r\n};\r\n",
+        "utf8_base64": "Y29uc3QgVmFsdWUgPSBjbGFzcyBJbm5lciB7DQp9Ow0K",
+        "utf8_bytes": 33,
+        "end_utf16": {
+          "position": 33,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "class-header-token-printer-metadata/expression/no-own/retain",
+      "text": "const Value = /* outer */ class /* keyword */ Inner /* name end */ {};\n",
+      "emit_flags": 3072,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "const Value = /* outer */ class /* keyword */ Inner /* name end */ {\r\n};\r\n",
+        "utf8_base64": "Y29uc3QgVmFsdWUgPSAvKiBvdXRlciAqLyBjbGFzcyAvKiBrZXl3b3JkICovIElubmVyIC8qIG5hbWUgZW5kICovIHsNCn07DQo=",
+        "utf8_bytes": 74,
+        "end_utf16": {
+          "position": 74,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "class-header-token-printer-metadata/expression/no-own/remove",
+      "text": "const Value = /* outer */ class /* keyword */ Inner /* name end */ {};\n",
+      "emit_flags": 3072,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "const Value = class Inner {\r\n};\r\n",
+        "utf8_base64": "Y29uc3QgVmFsdWUgPSBjbGFzcyBJbm5lciB7DQp9Ow0K",
+        "utf8_bytes": 33,
+        "end_utf16": {
+          "position": 33,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "class-header-token-printer-metadata/expression/no-own-or-nested/retain",
+      "text": "const Value = /* outer */ class /* keyword */ Inner /* name end */ {};\n",
+      "emit_flags": 7168,
+      "remove_comments": false,
+      "typescript_observation": {
+        "text": "const Value = /* outer */ class Inner {\r\n};\r\n",
+        "utf8_base64": "Y29uc3QgVmFsdWUgPSAvKiBvdXRlciAqLyBjbGFzcyBJbm5lciB7DQp9Ow0K",
+        "utf8_bytes": 45,
+        "end_utf16": {
+          "position": 45,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "class-header-token-printer-metadata/expression/no-own-or-nested/remove",
+      "text": "const Value = /* outer */ class /* keyword */ Inner /* name end */ {};\n",
+      "emit_flags": 7168,
+      "remove_comments": true,
+      "typescript_observation": {
+        "text": "const Value = class Inner {\r\n};\r\n",
+        "utf8_base64": "Y29uc3QgVmFsdWUgPSBjbGFzcyBJbm5lciB7DQp9Ow0K",
+        "utf8_bytes": 33,
+        "end_utf16": {
+          "position": 33,
+          "line": 2,
+          "column": 0
+        }
+      }
+    }
+  ]
+}

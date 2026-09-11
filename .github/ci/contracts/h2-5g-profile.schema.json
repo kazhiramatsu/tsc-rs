@@ -225,9 +225,9 @@
     "transition": {
       "const": {
         "completed_slice": "H2.5g",
-        "next_slice": "H2.7d",
-        "next_slice_scope": "bundles-and-outfile",
-        "next_runtime_activation_slice": "H2.7d",
+        "next_slice": "H2.8a",
+        "next_slice_scope": "full-output-matrix",
+        "next_runtime_activation_slice": "H2.8a",
         "active_runtime_slices": [
           "H2.1a",
           "H2.1b",
@@ -256,9 +256,11 @@
           "H2.6b",
           "H2.6c",
           "H2.7b",
-          "H2.7c"
+          "H2.7c",
+          "H2.7d",
+          "H2.7e"
         ],
-        "inactive_runtime_slice_count": 9,
+        "inactive_runtime_slice_count": 7,
         "classic_jsx_tsx_owner": "complete",
         "automatic_jsx_runtime_owner": "complete",
         "json_output_owner": "complete",
@@ -308,7 +310,25 @@
         "h2_7c_admitted_cases": 31,
         "h2_7c_exact_cases": 31,
         "h2_7c_known_divergences": 0,
-        "h2_7c_source_deferred_cases": 11
+        "h2_7c_source_deferred_cases": 11,
+        "h2_7d_candidate_cases": 315,
+        "h2_7d_admitted_cases": 283,
+        "h2_7d_exact_cases": 283,
+        "h2_7d_known_divergences": 0,
+        "h2_7d_source_deferred_cases": 32,
+        "h2_7e_candidate_cases": 13,
+        "h2_7e_admitted_cases": 11,
+        "h2_7e_exact_cases": 11,
+        "h2_7e_known_divergences": 0,
+        "h2_7e_source_deferred_cases": 2,
+        "h2_7de_candidate_cases": 325,
+        "h2_7de_admitted_cases": 291,
+        "h2_7de_exact_cases": 291,
+        "h2_7de_known_divergences": 0,
+        "h2_7de_source_deferred_cases": 34,
+        "h2_7de_intersection_cases": 3,
+        "h2_7d_runtime_admissions_delta": 280,
+        "h2_7e_runtime_admissions_delta": 11
       }
     },
     "evidence": {
@@ -327,6 +347,7 @@
         "printer_control",
         "failure_control",
         "owner_controls",
+        "declaration_output_qualification",
         "qualification_vfs_overlay_test",
         "h0_authority",
         "h1_authority",
@@ -373,6 +394,9 @@
         "owner_controls": {
           "$ref": "#/$defs/owner_controls"
         },
+        "declaration_output_qualification": {
+          "$ref": "#/$defs/declaration_output_qualification"
+        },
         "qualification_vfs_overlay_test": {
           "$ref": "#/$defs/path_hash"
         },
@@ -401,10 +425,10 @@
     },
     "summary": {
       "const": {
-        "completed_runtime_slices": 27,
+        "completed_runtime_slices": 29,
         "next_slice_runtime_slice_delta": 0,
-        "runtime_admissions": 10784,
-        "executed_candidates": 11303,
+        "runtime_admissions": 11075,
+        "executed_candidates": 11594,
         "h2_5g_executed_candidates": 9027,
         "h2_5g_global_future_rows": 2883,
         "unexecuted_candidates": 0,
@@ -527,6 +551,69 @@
         },
         "contract": {
           "$ref": "#/$defs/path_hash"
+        }
+      }
+    },
+    "declaration_output_qualification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact",
+        "generator",
+        "contract",
+        "direct_inputs"
+      ],
+      "properties": {
+        "artifact": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/path_hash"
+            },
+            {
+              "properties": {
+                "path": {
+                  "const": "ratchets/h2-7de-qualification.v1.json"
+                }
+              }
+            }
+          ]
+        },
+        "generator": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/path_hash"
+            },
+            {
+              "properties": {
+                "path": {
+                  "const": "crates/oracle/h2-7de-qualification.mjs"
+                }
+              }
+            }
+          ]
+        },
+        "contract": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/path_hash"
+            },
+            {
+              "properties": {
+                "path": {
+                  "const": ".github/ci/contracts/h2-7de-qualification.schema.json"
+                }
+              }
+            }
+          ]
+        },
+        "direct_inputs": {
+          "type": "array",
+          "minItems": 9,
+          "maxItems": 9,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/path_hash"
+          }
         }
       }
     }

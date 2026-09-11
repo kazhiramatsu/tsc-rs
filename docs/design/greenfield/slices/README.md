@@ -17,6 +17,22 @@ invitation to fill in the answer during implementation.
 
 | Packet | Status | Authorized work |
 | --- | --- | --- |
+| [H2.8a retained field and accessor producers](h2-8a-retained-field-producers.md) | A6-39 focused producer prerequisite qualified; H2.8 remains open | 360/454 complete commands exact twice:132 repairs including all127 required,228 unchanged prior positives;94 successor failures retain actual exit101.494 units/451 contracts and1350 declaration reprints pass. |
+| [H2.8a object property output owners](h2-8a-object-property-owners.md) | A6-38 focused printer prerequisite qualified; H2.8 remains open | 128/128 complete commands exact twice: 32 repairs/96 prior positives. All 4 original grammar commands exact twice (1 repair/3 preserved);494 units/451 contracts and 1350 declaration reprints pass. Full global checkpoint remains A37. |
+| [H2.8a ellipsis comment owners](h2-8a-ellipsis-comment-owners.md) | A6-37 focused printer/admission prerequisite qualified; H2.8 remains open | 390/398 complete commands exact twice independently repeated:97 repairs/293 prior positives/8 unchanged outside failures. All144 new and96/32 prior metadata controls exact twice;494 units/451 contracts with1350 declaration reprints pass. |
+| [H2.8a modifier and spread comment phases](h2-8a-token-comment-phases.md) | A6-36 focused printer prerequisite qualified; H2.8 remains open | 270/293 complete commands exact twice independently repeated:55 repairs/215 prior positives/23 outside. All96 direct metadata cases,3 original commands and32 prior direct controls exact twice;494 units/451 contracts pass. |
+| [H2.8a CJS helper imports](h2-8a-import-helpers.md) | Focused profile qualified on the train; H2.8 remains open | Source-owned CJS/AMD/UMD helper imports:106/111 exact twice independently repeated (80 repairs/26 prior/5 outside);16 original exact twice;494 units/451 contracts. No global total inferred; System map-boundary change recorded. |
+| [H2.8a convergence checkpoint](h2-8.md#a6-37-original-matrix-checkpoint) | Original matrix measured at A6-37; H2.8 remains open | Original755/769 exact twice,14 failures,19 improvements,0 regressions; all188 projects exact. Separate class checkpoint remains A34:1100/1228 exact twice. Remaining owners and full closure stay open. |
+| [H2.8a Const modifier erasure](h2-8a-const-modifier-erasure.md) | A6-34 TypeScript modifier predicate qualified on the H2.8 train | 144/144 ordinary commands exact twice,28 repairs/116 prior positives;494 units/451 contracts pass. Original3/4exact, property export remains; H2.8 open. |
+| [H2.8a class header comments](h2-8a-class-header-token.md) | A6-33 class keyword and header suppression qualified on the H2.8 train | 144/152 ordinary commands exact twice, all64 repairs/80 prior positives;32/32 direct metadata and451 unchanged emitter contracts pass. Eight composition controls and original recovery remain open, as does H2.8. |
+| [H2.8a optional class name](h2-8a-class-optional-name.md) | A6-32 optional-name branch qualified on the H2.8 train | 58/64 fresh complete commands exact twice, all 18 repairs and 40 prior positives; 38 unchanged printer contracts pass. Remaining comments/recovery and H2.8 remain open. |
+| [H2.8a export-star declaration producer](h2-8a-export-star-declaration-producer.md) | A6-31 qualified on the H2.8 train | 60/60 complete commands exact twice, all 25 repairs and 35 prior positives; 28 unchanged checker units pass. H2.8 remains open. |
+| [H2.8a JSDoc declaration container](h2-8a-jsdoc-block-scope-container.md) | A6-30 qualified on the H2.8 train | 64/64 complete commands exact twice, all 30 repairs and 34 prior positives; 71 binder units and 108 checker JSDoc tests pass. H2.8 remains open. |
+| [H2.8a class helper and accessor producers](h2-8a-class-helper-accessor-producers.md) | A6-29 qualified on the H2.8 train | All 92 selected repairs; 1020/1140 exact twice, all 928 prior positives preserved and unchanged 494/451 emitter tests pass. 120 outside cases and H2.8 remain open. |
+| [H2.8a independent class comment endpoints](h2-8a-one-sided-class-comments.md) | A6-28-7 qualified on the H2.8 train | All 16 comment repairs; 896/996 exact twice, all 880 prior positives preserved and 494/451 emitter tests pass. All original A28 owners qualified; H2.8 remains open. |
+| [H2.8a promoted class/export maps](h2-8a-promoted-class-export-maps.md) | A6-28-6 qualified on the H2.8 train | All 100 selected map repairs plus six ES2022 cases; 764/868 exact twice, all 490/451 emitter tests pass. Subsequent endpoint qualification closes the final four original A28 comment targets. |
+| [H2.8a initializer comments](h2-8a-class-field-initializer-comments.md) | A6-28-5 qualified on the H2.8 train | Retired obsolete initializer suppression; all 64 new controls plus eight prior repairs exact twice, 434/556 total, all 490/451 emitter tests pass. Later map and endpoint qualifications close all original A28 owners. |
+| [H2.8a class-field alias positions](h2-8a-class-field-alias-map-positions.md) | A6-28 selected owners qualified; A6-29 follow-up qualified | 412/492 original complete commands exact twice; all 192 original owned repairs, 198 original positives, six ES2022 repairs and 16 subsequent helper/setter repairs; 494/451 tests pass. 80 original outside cases, other A owners and B–E remain open. |
 | [H2.5g legacy closure](#h25g-legacy-closure-route) | **Closed and qualified** (final validation ref `0653e10d`; delivery merge `507a96ac`; recorded in the post-H1 schedule §1.2) | No further edits; the closure route below is retained as the immutable record of its commands and required results. |
 | [Packet-control bootstrap](packet-control-bootstrap.md) | In progress; one-time bootstrap | Add and verify the versioned readiness schema/checker and bootstrap ratchet. It may authorize only the explicitly listed pre-closure FCI shadow packets; it cannot authorize H2.5g authority, FCI-6+, workflow, or provider changes. |
 | [FCI-0a framework boundary record](../functional-ci-evidence.md#14-migration-stages-and-packets) | Documentation record only; never a runtime-ready packet | Maintain the charter, package/trust boundary, v1 non-goals, qualification ladder, and navigation without changing H2.5g commands, counts, scope, or authority. |
@@ -93,6 +109,11 @@ invitation to fill in the answer during implementation.
 
 | [H2.7c declaration diagnostics and options](h2-7c.md) / [completion and transition](h2-7c-ca.md) | Complete in the local close update (2026-09-07); adopts merged PR #510 | Hosted acceptance passes all historical bands and H2.7c: 31 exact / 11 deferred; 244 focused windows checked twice, plus 56 preserved-reference API calls. Next H2.7d; completed runtime count 27. STAGE is unchanged. |
 
+| Slice | Adoption state | Coverage and transition |
+| --- | --- | --- |
+| [H2.7d bundle output](h2-7d.md) / [D/E completion and transition](h2-7de-ca.md) | Complete 2026-09-07; PR #511, merge `ad84a7e6e`; hosted run 34123778139 passed | JavaScript/declaration bundles and outFile: final D coverage 283 exact / 32 later. Ordered D admission delta 280; three shared map cases are counted with E. No independently passing D-only intermediate state is claimed. |
+| [H2.7e declaration maps](h2-7e-original-corpus.md) / [D/E completion and transition](h2-7de-ca.md) | Complete 2026-09-07 under the same D/E adoption; PR #511 | E coverage and delta 11 exact / 2 later, including the three shared D cases. Joint band 291 exact / 34 later; completed runtime count 29, inactive 7, next H2.8a. Historical H2.6c is 481 exact / 158 known / 4 deferred; STAGE is unchanged. |
+
 The packet-control bootstrap added the shared versioned packet schema/checker
 and completed its pre-closure purpose: FCI-1a through FCI-5b and the FCI-5c.1
 membership shadow are landed non-authoritative assets (FCI-3c and FCI-5b are
@@ -110,7 +131,10 @@ H2.6b closed on the h2/6b-ca train (PR #482, 2026-08-28), H2.6c closed on the
 h2/6c-close train (PR #495 @5b4c626a, 2026-08-31), and the H2.7a
 dormant-foundation era ran m-1 through m-4 (PRs #496-#500) and closes on
 the h2/7a-ca train under [h2-7a-ca.md](h2-7a-ca.md) — zero runtime
-admissions, `next_slice` → H2.7b; H2.7b is now complete under [h2-7b-ca.md](h2-7b-ca.md), H2.7c is complete under [h2-7c-ca.md](h2-7c-ca.md), and H2.7d is next. Read-only
+admissions, `next_slice` → H2.7b. H2.7b and H2.7c retain their close records
+under [h2-7b-ca.md](h2-7b-ca.md) and [h2-7c-ca.md](h2-7c-ca.md).
+H2.7d and H2.7e completed in dependency order under [h2-7de-ca.md](h2-7de-ca.md)
+on 2026-09-07 (PR #511, merge `ad84a7e6e`); H2.8a is next. Read-only
 work may overlap only under an indexed packet; no stage-table row authorizes
 production code.
 

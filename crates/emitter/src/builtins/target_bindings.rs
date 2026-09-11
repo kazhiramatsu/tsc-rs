@@ -91,6 +91,10 @@ impl ParsedSourceIdentifierNames {
         self.0.contains(name)
     }
 
+    pub(super) fn into_names(self) -> BTreeSet<String> {
+        self.0
+    }
+
     pub(super) fn optimistic_candidate(&self, preferred: &str) -> String {
         if !self.0.contains(preferred) {
             return preferred.to_owned();
@@ -314,6 +318,27 @@ impl TargetBinding {
         })
     }
 
+    /// tsc `createUniqueName(base, GeneratedIdentifierFlags.Optimistic)`
+    /// without `FileLevel`/`ReservedInNestedScopes`: named file-wide in print
+    /// order (`allocate_planned_file_wide_optimistic`).
+    pub(super) fn allocate_preferred_optimistic(
+        context: &mut TransformationContext,
+        preferred_base: String,
+        provisional_name: String,
+    ) -> Result<Self, TransformError> {
+        Ok(Self {
+            id: context.allocate_generated_binding_id()?,
+            provisional_name,
+            numbered_base: None,
+            preferred_base: Some(preferred_base),
+            preferred_role_suffix: None,
+            preferred_name_domain: Some(PreferredNameDomain::ScopedOptimistic),
+            ordinary_temp_name_policy: OrdinaryTempNamePolicy::FinalizerTraversal,
+            reserve_in_nested_scopes: false,
+            derived_from: None,
+        })
+    }
+
     pub(super) fn allocate_preferred_reserved_in_nested_scopes(
         context: &mut TransformationContext,
         preferred_base: String,
@@ -330,6 +355,22 @@ impl TargetBinding {
             reserve_in_nested_scopes: true,
             derived_from: None,
         })
+    }
+
+    /// `createUniqueName(base, Optimistic | FileLevel)`: independent
+    /// identities may share this name, including in nested scopes.
+    pub(super) fn allocate_file_level_optimistic(
+        context: &mut TransformationContext,
+        preferred_base: String,
+        provisional_name: String,
+    ) -> Result<Self, TransformError> {
+        let mut binding = Self::allocate_file_level_optimistic_reserved_in_nested_scopes(
+            context,
+            preferred_base,
+            provisional_name,
+        )?;
+        binding.reserve_in_nested_scopes = false;
+        Ok(binding)
     }
 
     pub(super) fn allocate_file_level_optimistic_reserved_in_nested_scopes(
@@ -696,61 +737,88 @@ fn finalize_generated_binding_names_with_policy(
                 let name = if let Some(name) = assigned.get(&binding) {
                     name.clone()
                 } else {
-                    let name = match (
-                        numbered_base,
-                        preferred_base,
-                        preferred_role_suffix,
-                        preferred_name_domain,
-                    ) {
-                        (
-                            None,
-                            Some(base),
-                            None,
-                            Some(PreferredNameDomain::FileLevelOptimistic),
-                        ) => {
-                            let planned_name = file_level_unique_name(
-                                &reserved,
+                    let name = loop {
+                        let planned_name = planned_name.clone();
+                        let candidate = match (
+                            numbered_base.clone(),
+                            preferred_base.clone(),
+                            preferred_role_suffix.clone(),
+                            preferred_name_domain,
+                        ) {
+                            (
+                                None,
+                                Some(base),
+                                None,
+                                Some(PreferredNameDomain::FileLevelOptimistic),
+                            ) => {
+                                let planned_name = file_level_unique_name(
+                                    &reserved,
+                                    &base,
+                                    planned_name,
+                                    global_name_oracle,
+                                )?;
+                                scopes.reserve_planned_file_level_optimistic_with_policy(
+                                    planned_name,
+                                    reserve_in_nested_scopes,
+                                )
+                            }
+                            (
+                                None,
+                                Some(base),
+                                Some(role_suffix),
+                                Some(PreferredNameDomain::ScopedOptimistic),
+                            ) => scopes.allocate_planned_preferred_with_role_suffix_with_policy(
                                 &base,
-                                planned_name,
-                                global_name_oracle,
-                            )?;
-                            scopes.reserve_planned_file_level_optimistic_with_policy(
+                                &role_suffix,
                                 planned_name,
                                 reserve_in_nested_scopes,
-                            )
-                        }
-                        (
-                            None,
-                            Some(base),
-                            Some(role_suffix),
-                            Some(PreferredNameDomain::ScopedOptimistic),
-                        ) => scopes.allocate_planned_preferred_with_role_suffix_with_policy(
-                            &base,
-                            &role_suffix,
-                            planned_name,
-                            reserve_in_nested_scopes,
-                        ),
-                        (None, Some(base), None, Some(PreferredNameDomain::ScopedOptimistic)) => {
-                            scopes.allocate_planned_preferred_with_policy(
-                                &base,
+                            ),
+                            (
+                                None,
+                                Some(base),
+                                None,
+                                Some(PreferredNameDomain::ScopedOptimistic),
+                            ) => {
+                                if reserve_in_nested_scopes {
+                                    scopes.allocate_planned_preferred_with_policy(
+                                        &base,
+                                        planned_name,
+                                        reserve_in_nested_scopes,
+                                    )
+                                } else {
+                                    // A non-reserved optimistic name is tsc's
+                                    // non-scoped makeUniqueName: file-wide.
+                                    scopes
+                                        .allocate_planned_file_wide_optimistic(&base, planned_name)
+                                }
+                            }
+                            (Some(base), None, None, None) => {
+                                // Pre-assigned in phase 2 (scope-pass
+                                // order); reaching this arm means the
+                                // binding escaped phase 1.
+                                let _ = (&base, &planned_name);
+                                unreachable!(
+                                    "source-numbered binding missed the scope-pass assignment"
+                                )
+                            }
+                            (None, None, None, None) => allocate_ordinary_temp_name(
+                                &mut scopes,
                                 planned_name,
                                 reserve_in_nested_scopes,
-                            )
+                                ordinary_temp_name_policy,
+                            ),
+                            _ => unreachable!("invalid target generated-name policy"),
+                        };
+                        if let Some(oracle) = global_name_oracle.filter(|_| {
+                            preferred_name_domain != Some(PreferredNameDomain::FileLevelOptimistic)
+                        }) {
+                            if oracle.has_global_name(&candidate)? {
+                                // Keep a rejected candidate reserved locally and
+                                // advance this binding's own name domain.
+                                continue;
+                            }
                         }
-                        (Some(base), None, None, None) => {
-                            // Pre-assigned in phase 2 (scope-pass
-                            // order); reaching this arm means the
-                            // binding escaped phase 1.
-                            let _ = (&base, &planned_name);
-                            unreachable!("source-numbered binding missed the scope-pass assignment")
-                        }
-                        (None, None, None, None) => allocate_ordinary_temp_name(
-                            &mut scopes,
-                            planned_name,
-                            reserve_in_nested_scopes,
-                            ordinary_temp_name_policy,
-                        ),
-                        _ => unreachable!("invalid target generated-name policy"),
+                        break candidate;
                     };
                     assigned.insert(binding, name.clone());
                     name
@@ -822,7 +890,7 @@ fn file_level_unique_name(
     global_name_oracle: Option<&dyn GlobalNameOracle>,
 ) -> Result<String, TransformError> {
     let Some(global_name_oracle) = global_name_oracle else {
-        // The JavaScript lane keeps its existing no-oracle `true` decision.
+        // Low-level callers without a resolver retain the planned spelling.
         return Ok(planned);
     };
     if !global_name_oracle.has_global_name(&planned)? && !reserved.contains(&planned) {
@@ -852,14 +920,17 @@ impl TransformationContext {
         let source = root.source();
         let mut events = Vec::new();
         collect_binding_name_events(self.arena(), source, root, true, &mut events)?;
-        let requires_print_finalization = events.iter().any(|event| {
-            matches!(
-                event,
-                BindingNameEvent::Identifier { binding, .. }
-                    if self.generated_binding_name(*binding).is_none()
-                        || self.generated_binding_was_finalized_for_print(*binding)
-            )
-        });
+        // Transformer-time finalization has no checker oracle. An actual
+        // print with an oracle must reconcile even eagerly named bindings.
+        let requires_print_finalization = global_name_oracle.is_some()
+            || events.iter().any(|event| {
+                matches!(
+                    event,
+                    BindingNameEvent::Identifier { binding, .. }
+                        if self.generated_binding_name(*binding).is_none()
+                            || self.generated_binding_was_finalized_for_print(*binding)
+                )
+            });
         if !requires_print_finalization {
             return Ok(());
         }
@@ -992,6 +1063,14 @@ fn collect_binding_name_events(
         }
         events.push(BindingNameEvent::EnterNamingMoment);
         for child in scoped {
+            if Some(child) == body {
+                collect_function_body_declaration_name_events(
+                    arena,
+                    source,
+                    TransformNode::new(source, child),
+                    events,
+                )?;
+            }
             collect_binding_name_events(
                 arena,
                 source,
@@ -1048,6 +1127,14 @@ fn collect_binding_name_events(
             GeneratedBindingOwner::FunctionBody,
         ));
         for child in scoped {
+            if Some(child) == body {
+                collect_function_body_declaration_name_events(
+                    arena,
+                    source,
+                    TransformNode::new(source, child),
+                    events,
+                )?;
+            }
             collect_binding_name_events(
                 arena,
                 source,
@@ -1204,6 +1291,138 @@ fn collect_binding_name_events(
             false,
             events,
         )?;
+    }
+    Ok(())
+}
+
+/// `emitBlockFunctionBody` calls `generateNames(body)` before emitting any
+/// nested function. Prepare declaration identities in that enclosing scope,
+/// so an earlier reference inside a constructor cannot allocate its hoisted
+/// computed-key name in the constructor's scope (_tsc.js:119021-119032,
+/// 120515-120599,120615-120632).
+fn collect_function_body_declaration_name_events(
+    arena: &TransformArena,
+    source: TransformSourceId,
+    node: TransformNode,
+    events: &mut Vec<BindingNameEvent>,
+) -> Result<(), TransformError> {
+    let record = arena.node(node)?;
+    let mut children = Vec::new();
+    let mut arrays = Vec::new();
+    match &record.data {
+        NodeData::Identifier(_) => {
+            if arena
+                .metadata(node)
+                .is_some_and(|metadata| metadata.generated_binding_id().is_some())
+            {
+                collect_binding_name_events(arena, source, node, false, events)?;
+            }
+        }
+        NodeData::Block(data) => arrays.extend(data.statements),
+        NodeData::LabeledStatement(data) => children.extend(data.statement),
+        NodeData::WithStatement(data) => children.extend(data.statement),
+        NodeData::DoStatement(data) => children.extend(data.statement),
+        NodeData::WhileStatement(data) => children.extend(data.statement),
+        NodeData::IfStatement(data) => {
+            children.extend(data.then_statement);
+            children.extend(data.else_statement);
+        }
+        NodeData::ForStatement(data) => {
+            children.extend(data.initializer);
+            children.extend(data.statement);
+        }
+        NodeData::ForInStatement(data) => {
+            children.extend(data.initializer);
+            children.extend(data.statement);
+        }
+        NodeData::ForOfStatement(data) => {
+            children.extend(data.initializer);
+            children.extend(data.statement);
+        }
+        NodeData::SwitchStatement(data) => children.extend(data.case_block),
+        NodeData::CaseBlock(data) => arrays.extend(data.clauses),
+        NodeData::CaseClause(data) => arrays.extend(data.statements),
+        NodeData::DefaultClause(data) => arrays.extend(data.statements),
+        NodeData::TryStatement(data) => {
+            children.extend(data.try_block);
+            children.extend(data.catch_clause);
+            children.extend(data.finally_block);
+        }
+        NodeData::CatchClause(data) => {
+            children.extend(data.variable_declaration);
+            children.extend(data.block);
+        }
+        NodeData::VariableStatement(data) => children.extend(data.declaration_list),
+        NodeData::VariableDeclarationList(data) => arrays.extend(data.declarations),
+        NodeData::VariableDeclaration(data) => children.extend(data.name),
+        NodeData::Parameter(data) => children.extend(data.name),
+        NodeData::BindingElement(data) => children.extend(data.name),
+        NodeData::ClassDeclaration(data) => children.extend(data.name),
+        NodeData::FunctionDeclaration(data) => {
+            // Only a reuse-flagged declaration's parameters/body participate
+            // in the enclosing generateNames walk.
+            if let Some(name) = data.name {
+                collect_function_body_declaration_name_events(
+                    arena,
+                    source,
+                    TransformNode::new(source, name),
+                    events,
+                )?;
+            }
+            if arena.metadata(node).is_some_and(|metadata| {
+                metadata
+                    .flags()
+                    .contains(EmitFlags::REUSE_TEMP_VARIABLE_SCOPE)
+            }) {
+                if let Some(parameters) = data.parameters {
+                    for parameter in &arena
+                        .node_array(crate::TransformNodeArray::new(source, parameters))?
+                        .nodes
+                    {
+                        collect_function_body_declaration_name_events(
+                            arena,
+                            source,
+                            TransformNode::new(source, *parameter),
+                            events,
+                        )?;
+                    }
+                }
+                children.extend(data.body);
+            }
+        }
+        NodeData::ObjectBindingPattern(data) => arrays.extend(data.elements),
+        NodeData::ArrayBindingPattern(data) => arrays.extend(data.elements),
+        NodeData::ImportDeclaration(data) => children.extend(data.import_clause),
+        NodeData::ImportClause(data) => {
+            children.extend(data.name);
+            children.extend(data.named_bindings);
+        }
+        NodeData::NamespaceImport(data) => children.extend(data.name),
+        NodeData::NamespaceExport(data) => children.extend(data.name),
+        NodeData::NamedImports(data) => arrays.extend(data.elements),
+        NodeData::ImportSpecifier(data) => children.extend(data.property_name.or(data.name)),
+        _ => {}
+    }
+    for child in children {
+        collect_function_body_declaration_name_events(
+            arena,
+            source,
+            TransformNode::new(source, child),
+            events,
+        )?;
+    }
+    for array in arrays {
+        for child in &arena
+            .node_array(crate::TransformNodeArray::new(source, array))?
+            .nodes
+        {
+            collect_function_body_declaration_name_events(
+                arena,
+                source,
+                TransformNode::new(source, *child),
+                events,
+            )?;
+        }
     }
     Ok(())
 }

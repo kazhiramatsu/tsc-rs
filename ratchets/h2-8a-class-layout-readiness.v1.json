@@ -1,0 +1,479 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-8-amendment",
+  "base": "f8ead8db9ce1f9f429d8c3bb5db36dea00cc2540",
+  "unresolved": 0,
+  "undispositioned": 0,
+  "authorities": [
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-class-statement-layout.md",
+      "sha256": "385d6342df69792b274ecbe825d96cede1b04d8ba4c88ca07f2c306b0f28ec3d"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/class-statement-layout.json",
+      "sha256": "9d166822e3d6129618d1c0334c04295bbe168a60d065073ad871cb288da309b7"
+    },
+    {
+      "path": "scripts/observe-class-statement-layout.mjs",
+      "sha256": "786df9d181a107dd551f919c71fbf6a03577765a40f94ab8b553e6f26652ed4d"
+    },
+    {
+      "path": "ratchets/h2-8a-class-layout-before.v1.json",
+      "sha256": "046ff398ad824c55d68bc971d9fc0a7456ac7ba0b40fc487d427a0b9e4c0be74"
+    },
+    {
+      "path": "ratchets/h2-8a-class-transform-first-after.v1.json",
+      "sha256": "624e7f602be75e4625e83035809f9e36f8db555fa32dac8078868ab9e935fb9b"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "28284433be8d380937401ad75775592553f0fe5c6f4c12f307ebd2ad3fa05160"
+    },
+    {
+      "path": "crates/emitter/src/builtins/class_fields/downlevel.rs",
+      "sha256": "8ca740bb1c137bc75b2a2fa64aef9da65daf92eef5bf3da221c8667a59d0b28e"
+    },
+    {
+      "path": "crates/emitter/src/builtins/target_bindings.rs",
+      "sha256": "47bbc4595d39460a085a86ac94e3b1fb95a1fb14b58e9a8cc1cb4eb406d91f3e"
+    }
+  ],
+  "prior_class_flags_sha256": "049188745987131ee9f95cab5d869eb916fc17b12dd9cabf5a870a0c5a502688",
+  "owners": [
+    {
+      "owner": "shouldEmitBlockFunctionBodyOnSingleLine",
+      "start": 118999,
+      "end": 119020,
+      "sha256": "f1644748bb2314796a601992b80c26925e740f7bd10b23e23300df3614367b1a"
+    },
+    {
+      "owner": "emitBlockFunctionBody/Worker",
+      "start": 119021,
+      "end": 119058,
+      "sha256": "f58d647154d3a61a8bf567fb20c623f25f12664143819599b6f660f275b47acb"
+    },
+    {
+      "owner": "getLeadingLineTerminatorCount",
+      "start": 120268,
+      "end": 120300,
+      "sha256": "893244ddd50971f9938c07f3bb0b10b520dfbf70880816b69aa4b00cc1384819"
+    },
+    {
+      "owner": "getSeparatingLineTerminatorCount",
+      "start": 120301,
+      "end": 120329,
+      "sha256": "78d63da04f114ae40f8ad9f012131e94a83000cf268d393c5608372aab734539"
+    },
+    {
+      "owner": "getClosingLineTerminatorCount",
+      "start": 120330,
+      "end": 120360,
+      "sha256": "30b0be7e1586d76d08caeaa3f4605323147137e9c73a0bd825dd3c92881635dc"
+    },
+    {
+      "owner": "synthesizedNodeStartsOnNewLine",
+      "start": 120398,
+      "end": 120407,
+      "sha256": "03f9387e93e3deb4d868a65c6cb8c1d181b323dd67ab2f80472953c0b462b427"
+    },
+    {
+      "owner": "nodeIsSynthesized",
+      "start": 16000,
+      "end": 16002,
+      "sha256": "d5eb53abaa73cfcae3a8c02425faff560733177bd619f5e0db719a6f9f603f4c"
+    },
+    {
+      "owner": "transformPropertyOrClassStaticBlock",
+      "start": 97444,
+      "end": 97466,
+      "sha256": "8135b6934f2b7c206c3f7558ad7e3907192380c5dc3236aeb83e1904f5252714"
+    },
+    {
+      "owner": "generateInitializedPropertyExpressionsOrClassStaticBlock",
+      "start": 97467,
+      "end": 97487,
+      "sha256": "51a63f66258bcc0bd61a995b8952a78602998b82f909f47f8d12c24fc75761cb"
+    },
+    {
+      "owner": "generateNames",
+      "start": 120515,
+      "end": 120599,
+      "sha256": "d8f85515528b33d4f544998d474f766975c709f643f6bdf73ca4af830e77a608"
+    },
+    {
+      "owner": "generateNameIfNeeded",
+      "start": 120615,
+      "end": 120623,
+      "sha256": "de8554d7896912a89a31819d777cf68c5e4f0ffa983f290b59ced9bfbe423340"
+    },
+    {
+      "owner": "generateName",
+      "start": 120624,
+      "end": 120632,
+      "sha256": "5418a174d1ef0e409435e86d45f5ce273fcf55d5a1ae8895463b7d5e56e14330"
+    },
+    {
+      "owner": "pushNameGenerationScope/popNameGenerationScope",
+      "start": 120480,
+      "end": 120502,
+      "sha256": "f033f6151e7c0c4e962e58904afbff8e09ec68dfbc2a48ed78bf1e8734fa7d0c"
+    },
+    {
+      "owner": "visitTypeScriptClassWrapper",
+      "start": 107687,
+      "end": 107783,
+      "sha256": "cd917e405f67b9f0859344acdb38cb908312e37cb2b1bb466bff69ffc3f3c19e"
+    }
+  ],
+  "steps": [
+    "A6-8-4",
+    "A6-8-5",
+    "A6-8-6"
+  ],
+  "architecture": [
+    {
+      "id": "E-NAMES-BASE",
+      "disposition": "modified-requalify"
+    },
+    {
+      "id": "E-METADATA-BASE",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-ORDER-H",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-PROTOCOL",
+      "disposition": "premise-unchanged"
+    }
+  ],
+  "witnesses": [
+    {
+      "case_id": "js/es5/static-first",
+      "row_sha256": "8915d402d126a82fd29560e6979ff0d1d1261d898e53e1c9c33edfa2b3166b82",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es5/static-middle",
+      "row_sha256": "e7873242475fcc40afb2c5a74343b3f2129a168836b3053c2e6561082ae86d69",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es5/static-last",
+      "row_sha256": "a5173ef535404bc0f7745ee21a8f135bf0641c416717207b4aaf237d0599b459",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es5/static-only",
+      "row_sha256": "1bebbe4252fce94149e964297af1c2eb4b7ebea66a762053286c69b2f53cb7e3",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es5/static-multiline",
+      "row_sha256": "1fea11ae93fe1d343f7c2c740ed70483ad1aeb4ee9716df579558f898157253f",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es5/static-arrow",
+      "row_sha256": "b9d69e9a654821c1583f368747d055f3b7f4ecf5add85eb51447aee589bebfc7",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es5/static-function-expression",
+      "row_sha256": "19eeea47246970319be36fac65ed937b2ed7fd98ffeaa9fb9aaafb68d455f018",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es5/static-method",
+      "row_sha256": "ff31705fded63c59830c5d1e3cea261059bad53b138f9c967e9accdfb1276eb3",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es5/instance-explicit-constructor",
+      "row_sha256": "bbc88937491a9579ba0e847f0082774addf98882e7af881dfb4e1a1d401ba9b8",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es5/instance-two-properties",
+      "row_sha256": "041c26ccf989d43484aa5cacf760b3cafdd81cf2265311624048e66472f91895",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es5/static-expression",
+      "row_sha256": "b37f549691734ff693d3a8506020cf1b2accd1a923ed2aff237d5b448902f6e2",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es5/plain-class",
+      "row_sha256": "73e07b51a20d331dd7d2727e4db29420917ec809003f7a816a3dc620a09307b6",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es5/computed-static-instance",
+      "row_sha256": "9451fec952c624389f0eafb0a3d4a7712d1e12c817c5b058626b9941bee728bb",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es5/computed-static-static",
+      "row_sha256": "2be337cf947e04425219b739fa12e68e5ccf2b90871d1f7aa464e49c493b772e",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es5/computed-instance-instance",
+      "row_sha256": "9ffe76d5c81588db9330632f72313a132b220f659c22fb64c9d44b1bd8d4ecac",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es5/computed-with-constructor-local",
+      "row_sha256": "fe8b2be43bd534bdc58aee5173e00358a1ce6a89f8ea62837b2b168702d3748d",
+      "before": "failed"
+    },
+    {
+      "case_id": "ts/es5/static-first",
+      "row_sha256": "7078b06d11dfc06facae68b3b1a0b877549f557e7ad95db8feedb7ee9a58bee5",
+      "before": "failed"
+    },
+    {
+      "case_id": "ts/es5/static-middle",
+      "row_sha256": "e2a0ad28678de63e0fe3bb3f2a133d858c8b6c09e25a6555273a086c506cfb22",
+      "before": "failed"
+    },
+    {
+      "case_id": "ts/es5/static-last",
+      "row_sha256": "535800f381bbef8a1044d752a184d2895f07ca376d989b64887efb68d899a7f3",
+      "before": "failed"
+    },
+    {
+      "case_id": "ts/es5/static-only",
+      "row_sha256": "7b85a99dff2ec136a8466f3460b893896ef8d58e83019bc44c6edf83a425d5ae",
+      "before": "failed"
+    },
+    {
+      "case_id": "ts/es5/static-multiline",
+      "row_sha256": "73880ec1078295b6dc7e25b139893724089d00eb18eef01939fff36717150149",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es5/static-arrow",
+      "row_sha256": "8d72134d6862d6903999e07690aee04a092a323fd59ad6d43401aeb3b7d11bef",
+      "before": "failed"
+    },
+    {
+      "case_id": "ts/es5/static-function-expression",
+      "row_sha256": "32d3d6367f987c037f7f0e6629f21de724032b1222da292d05d9154b38fcf350",
+      "before": "failed"
+    },
+    {
+      "case_id": "ts/es5/static-method",
+      "row_sha256": "b1d834a55199a4dc4c5af5849dbd8f7f091589c83fda1002782e58936014a012",
+      "before": "failed"
+    },
+    {
+      "case_id": "ts/es5/instance-explicit-constructor",
+      "row_sha256": "b28cf0920aea6449b90b754d2d14637fa1f61f687ba02c9e3b1e6c6caab7df94",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es5/instance-two-properties",
+      "row_sha256": "dffe78009019930df71ead99bb428041bb767247337f8234c440301e2b85bdb4",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es5/static-expression",
+      "row_sha256": "756d8baab43877841919068356b6725bcbd5c0043a0435ffdcb7e9600f0ef361",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es5/plain-class",
+      "row_sha256": "7875b4bbe706708e2973e430e99a17d28d64162151183a7598c596a51c88f92e",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es5/computed-static-instance",
+      "row_sha256": "3de24446ced4d9f3490b3f69af1e072e022fcd62b78e4239634bcb223525cf28",
+      "before": "failed"
+    },
+    {
+      "case_id": "ts/es5/computed-static-static",
+      "row_sha256": "4d1ce95fd1b92dcb3bffe34e999cbca02b009886614fe75ba5296bb78f124ef1",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es5/computed-instance-instance",
+      "row_sha256": "744452ddd3f2b6a6fa9ef99d554e4dababdedd82b13fff37f5dfcff48f290c16",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es5/computed-with-constructor-local",
+      "row_sha256": "fd13b546e7f82d33fba377ccba2bddb9fba9fa1cfd4bee44cf688f8a83def6f4",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es2015/static-first",
+      "row_sha256": "b67987c400ab182b6f304612765311365dcf7d0eee3154fdad153ed753a4c6d8",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es2015/static-middle",
+      "row_sha256": "8dda1fb5f6fc404fe9bb11272baec039edef0668efafdb06dd5903459c57245d",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es2015/static-last",
+      "row_sha256": "8bdbab6305772020497ec7cbda30b149fcd6aeb01af435ee5c0876d564049508",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es2015/static-only",
+      "row_sha256": "8b73480189c46bf3ec562ba1cedb357788a87ae13da9f1d11a6962dfcd325306",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es2015/static-multiline",
+      "row_sha256": "a29c2ce743a7a083ddffb712b81b19f3c130cd99b4900f8ae2509549c039398f",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es2015/static-arrow",
+      "row_sha256": "87086dd37088de369657c4666a312631c660916e3e516dd1de277bd4b27e64aa",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es2015/static-function-expression",
+      "row_sha256": "d9573473f3c3796ef42c386f82868bb2c68221d5ca40334e168b2c2166b925ab",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es2015/static-method",
+      "row_sha256": "9f8581f13c0060f7d690c697280bcb191cf84ba24f802fe069bcf439cc12f8c0",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/es2015/instance-explicit-constructor",
+      "row_sha256": "49b724135db4606b691ee69c1a89d94144640d5c1b1c1425e3b5a71460c484da",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es2015/instance-two-properties",
+      "row_sha256": "fdb50a08f2dfca9229bda55e5b8eb63a3a11756dbcc906d8bae4d249e973946d",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es2015/static-expression",
+      "row_sha256": "2d0dc54f9daa8a01ae26c3b55ed21ae3bc9bd37f07f6a47f71261a759146b777",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es2015/plain-class",
+      "row_sha256": "401d0df216a2107923badb931e1b82cea72c2db2db5704baa469795426745d43",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es2015/computed-static-instance",
+      "row_sha256": "9bdbba5add91f278543bfcd7f8aeabe7bd496d857580452f1f59c74429215f1d",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es2015/computed-static-static",
+      "row_sha256": "884c47d7d6f178506959c4dc0d3fe4ba03bc7099bff87ee3c683b47c4c786251",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es2015/computed-instance-instance",
+      "row_sha256": "f670602986490ea233c8f10eaa535e9e1a1aeb9671886681f1f03a6939b2349b",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/es2015/computed-with-constructor-local",
+      "row_sha256": "57b7ecd98ad32436ad8cfb51b157b4ad491eca3a9299bdab8425e72e1b376aa0",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es2015/static-first",
+      "row_sha256": "01c52d3bcd50c04be1649efe886b9cdfec0aa785aedaf2f1f6abfac905cb2dae",
+      "before": "failed"
+    },
+    {
+      "case_id": "ts/es2015/static-middle",
+      "row_sha256": "b34130093dad197dabe2c4094dc7d46809af4d3637a92352fea572eb6371a615",
+      "before": "failed"
+    },
+    {
+      "case_id": "ts/es2015/static-last",
+      "row_sha256": "673a2e88f0bd2c2e09a10dc2548dfc0005d8dba6d72dfde040f05506e6e13e36",
+      "before": "failed"
+    },
+    {
+      "case_id": "ts/es2015/static-only",
+      "row_sha256": "bd346a7f5290e9f322a4a1ee0d3fc7b2e0f69749cedcbb188b1989f06c4d0076",
+      "before": "failed"
+    },
+    {
+      "case_id": "ts/es2015/static-multiline",
+      "row_sha256": "c6949d3c155e159759a5499235fbe6c185f3a0b3b358a93c2f96275d9934ea72",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es2015/static-arrow",
+      "row_sha256": "c77dc41fd626a7176f78f84d5090cca61cfc30b4664061e69e84095b6bc61b8b",
+      "before": "failed"
+    },
+    {
+      "case_id": "ts/es2015/static-function-expression",
+      "row_sha256": "630d4679f345cbf2d29363dc3f7ca80fb8a4cbe3e5aac99494e0187337d0a11d",
+      "before": "failed"
+    },
+    {
+      "case_id": "ts/es2015/static-method",
+      "row_sha256": "5c54cec820ba2ca3883484b512d38105d65d442fe2d31dae741304eedcdc4718",
+      "before": "failed"
+    },
+    {
+      "case_id": "ts/es2015/instance-explicit-constructor",
+      "row_sha256": "46c5a28f7296c6284497edeb525bd0aee4d05cc93e6ae51f3e91da37bd111cb0",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es2015/instance-two-properties",
+      "row_sha256": "3bf3c1e2744b1ca3aea945ba7270734e1127cf124f466f87930b404483b40e0a",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es2015/static-expression",
+      "row_sha256": "7a47ad7d96399193057af7205c46a4f7a8317a8b602c4ffe2374113b027b055d",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es2015/plain-class",
+      "row_sha256": "d4858e455da6e4f10e7eda80112c50de374ef7eaf6cc44324d49be40dc404c59",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es2015/computed-static-instance",
+      "row_sha256": "3d5eee08888cb0741f555f7e22b84da27edef297b15826714d670a36bcc0a984",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es2015/computed-static-static",
+      "row_sha256": "c338de7a562d8a02724a7ed62a25a9f6e6a9239efb5eb77882ba50767580e5e6",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es2015/computed-instance-instance",
+      "row_sha256": "0aff840df18e25839d92c8ce6114bc34e9e3333e3024940804fa9d7c57376d23",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/es2015/computed-with-constructor-local",
+      "row_sha256": "b9e7046a411e94e36111b97937c6b3091fb2ed1750d8ca1483a944cdfbe4b604",
+      "before": "exact"
+    }
+  ]
+}

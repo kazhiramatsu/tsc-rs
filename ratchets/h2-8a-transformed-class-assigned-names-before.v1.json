@@ -1,0 +1,3764 @@
+{
+  "version": 1,
+  "status": "complete-before-two-primary-jobs-plus-separate-artifact-captures",
+  "base": "ea345da10f18cbb660cb51ea5d7b889f06831dd0",
+  "eligible": 108,
+  "exact_twice": [
+    "class-assigned-name/es5/commonjs/variable/plain",
+    "class-assigned-name/es5/commonjs/property/plain",
+    "class-assigned-name/es5/commonjs/assignment/plain",
+    "class-assigned-name/es5/commonjs/binding/plain",
+    "class-assigned-name/es5/commonjs/parenthesized/plain",
+    "class-assigned-name/es5/commonjs/parenthesized/implements",
+    "class-assigned-name/es5/commonjs/parenthesized/generic",
+    "class-assigned-name/es5/commonjs/parenthesized/annotated-member",
+    "class-assigned-name/es5/commonjs/plain-function",
+    "class-assigned-name/es5/commonjs/typed-function",
+    "class-assigned-name/es5/commonjs/plain-function-new-target",
+    "class-assigned-name/es5/commonjs/typed-arrow",
+    "class-assigned-name/es5/commonjs/named-class",
+    "class-assigned-name/es5/esnext/variable/plain",
+    "class-assigned-name/es5/esnext/property/plain",
+    "class-assigned-name/es5/esnext/assignment/plain",
+    "class-assigned-name/es5/esnext/binding/plain",
+    "class-assigned-name/es5/esnext/parenthesized/plain",
+    "class-assigned-name/es5/esnext/parenthesized/implements",
+    "class-assigned-name/es5/esnext/parenthesized/generic",
+    "class-assigned-name/es5/esnext/parenthesized/annotated-member",
+    "class-assigned-name/es5/esnext/plain-function",
+    "class-assigned-name/es5/esnext/typed-function",
+    "class-assigned-name/es5/esnext/plain-function-new-target",
+    "class-assigned-name/es5/esnext/typed-arrow",
+    "class-assigned-name/es5/esnext/named-class",
+    "class-assigned-name/es2015/commonjs/variable/plain",
+    "class-assigned-name/es2015/commonjs/property/plain",
+    "class-assigned-name/es2015/commonjs/assignment/plain",
+    "class-assigned-name/es2015/commonjs/binding/plain",
+    "class-assigned-name/es2015/commonjs/parenthesized/plain",
+    "class-assigned-name/es2015/commonjs/variable/implements",
+    "class-assigned-name/es2015/commonjs/property/implements",
+    "class-assigned-name/es2015/commonjs/assignment/implements",
+    "class-assigned-name/es2015/commonjs/binding/implements",
+    "class-assigned-name/es2015/commonjs/parenthesized/implements",
+    "class-assigned-name/es2015/commonjs/variable/generic",
+    "class-assigned-name/es2015/commonjs/property/generic",
+    "class-assigned-name/es2015/commonjs/assignment/generic",
+    "class-assigned-name/es2015/commonjs/binding/generic",
+    "class-assigned-name/es2015/commonjs/parenthesized/generic",
+    "class-assigned-name/es2015/commonjs/variable/annotated-member",
+    "class-assigned-name/es2015/commonjs/property/annotated-member",
+    "class-assigned-name/es2015/commonjs/assignment/annotated-member",
+    "class-assigned-name/es2015/commonjs/binding/annotated-member",
+    "class-assigned-name/es2015/commonjs/parenthesized/annotated-member",
+    "class-assigned-name/es2015/commonjs/plain-function",
+    "class-assigned-name/es2015/commonjs/typed-function",
+    "class-assigned-name/es2015/commonjs/typed-arrow",
+    "class-assigned-name/es2015/commonjs/named-class",
+    "class-assigned-name/es2015/esnext/variable/plain",
+    "class-assigned-name/es2015/esnext/property/plain",
+    "class-assigned-name/es2015/esnext/assignment/plain",
+    "class-assigned-name/es2015/esnext/binding/plain",
+    "class-assigned-name/es2015/esnext/parenthesized/plain",
+    "class-assigned-name/es2015/esnext/variable/implements",
+    "class-assigned-name/es2015/esnext/property/implements",
+    "class-assigned-name/es2015/esnext/assignment/implements",
+    "class-assigned-name/es2015/esnext/binding/implements",
+    "class-assigned-name/es2015/esnext/parenthesized/implements",
+    "class-assigned-name/es2015/esnext/variable/generic",
+    "class-assigned-name/es2015/esnext/property/generic",
+    "class-assigned-name/es2015/esnext/assignment/generic",
+    "class-assigned-name/es2015/esnext/binding/generic",
+    "class-assigned-name/es2015/esnext/parenthesized/generic",
+    "class-assigned-name/es2015/esnext/variable/annotated-member",
+    "class-assigned-name/es2015/esnext/property/annotated-member",
+    "class-assigned-name/es2015/esnext/assignment/annotated-member",
+    "class-assigned-name/es2015/esnext/binding/annotated-member",
+    "class-assigned-name/es2015/esnext/parenthesized/annotated-member",
+    "class-assigned-name/es2015/esnext/plain-function",
+    "class-assigned-name/es2015/esnext/typed-function",
+    "class-assigned-name/es2015/esnext/typed-arrow",
+    "class-assigned-name/es2015/esnext/named-class"
+  ],
+  "failed_twice": [
+    "class-assigned-name/es5/commonjs/variable/implements",
+    "class-assigned-name/es5/commonjs/property/implements",
+    "class-assigned-name/es5/commonjs/assignment/implements",
+    "class-assigned-name/es5/commonjs/binding/implements",
+    "class-assigned-name/es5/commonjs/variable/generic",
+    "class-assigned-name/es5/commonjs/property/generic",
+    "class-assigned-name/es5/commonjs/assignment/generic",
+    "class-assigned-name/es5/commonjs/binding/generic",
+    "class-assigned-name/es5/commonjs/variable/annotated-member",
+    "class-assigned-name/es5/commonjs/property/annotated-member",
+    "class-assigned-name/es5/commonjs/assignment/annotated-member",
+    "class-assigned-name/es5/commonjs/binding/annotated-member",
+    "class-assigned-name/es5/commonjs/typed-function-new-target",
+    "class-assigned-name/es5/commonjs/class-fields-alias",
+    "class-assigned-name/es5/esnext/variable/implements",
+    "class-assigned-name/es5/esnext/property/implements",
+    "class-assigned-name/es5/esnext/assignment/implements",
+    "class-assigned-name/es5/esnext/binding/implements",
+    "class-assigned-name/es5/esnext/variable/generic",
+    "class-assigned-name/es5/esnext/property/generic",
+    "class-assigned-name/es5/esnext/assignment/generic",
+    "class-assigned-name/es5/esnext/binding/generic",
+    "class-assigned-name/es5/esnext/variable/annotated-member",
+    "class-assigned-name/es5/esnext/property/annotated-member",
+    "class-assigned-name/es5/esnext/assignment/annotated-member",
+    "class-assigned-name/es5/esnext/binding/annotated-member",
+    "class-assigned-name/es5/esnext/typed-function-new-target",
+    "class-assigned-name/es5/esnext/class-fields-alias",
+    "class-assigned-name/es2015/commonjs/plain-function-new-target",
+    "class-assigned-name/es2015/commonjs/typed-function-new-target",
+    "class-assigned-name/es2015/commonjs/class-fields-alias",
+    "class-assigned-name/es2015/esnext/plain-function-new-target",
+    "class-assigned-name/es2015/esnext/typed-function-new-target",
+    "class-assigned-name/es2015/esnext/class-fields-alias"
+  ],
+  "primary_comparison_jobs": 2,
+  "positive_primary_executions_per_case": 4,
+  "failed_primary_executions_per_case": 2,
+  "supplemental_capture_jobs": 1,
+  "supplemental_capture_executions": 182,
+  "positive_supplemental_executions_per_case": 2,
+  "failed_supplemental_executions_per_case": 1,
+  "positive_total_native_executions_per_case": 6,
+  "failed_total_native_executions_per_case": 3,
+  "total_native_command_executions": 546,
+  "capture_is_full_actual_tuple": false,
+  "seconds": [
+    196.96,
+    128.61
+  ],
+  "exit_codes": [
+    101,
+    101
+  ],
+  "first_failure_comparisons": [
+    {
+      "case_id": "class-assigned-name/es5/commonjs/variable/implements",
+      "boundary": "exact source-map result",
+      "actual_sha256": "1e26d885c14b8cc56b8fc55b72478e380616f7f7545377a5aa7f95ce95b3becc",
+      "expected_sha256": "5e46865ded655fe6f4b21935433eb0053b6ab6f7cdae0bb9ab23cade12a86379"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/property/implements",
+      "boundary": "exact source-map result",
+      "actual_sha256": "ad668dbc19e7ff7e97dde41983e0a92b059f3177692372332e0b5d1f1d7431e7",
+      "expected_sha256": "a08a64dc511d6298ae8c42bb5ef696ba3a1c9418eb074ccc7537ab620628c6e3"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/assignment/implements",
+      "boundary": "exact source-map result",
+      "actual_sha256": "f021587c27616ad1c80915477e4456c0a30743e7ca37c154692cecb2a8090391",
+      "expected_sha256": "7cfd290249155c5d9f29c185ffab0185d9614abb3b1d641b49052ba6631b0ade"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/binding/implements",
+      "boundary": "exact source-map result",
+      "actual_sha256": "6fb4c66a4727d892685fb2c249510b374c1880b7d62d6eb9314de2039b577c89",
+      "expected_sha256": "0d6279c7fdfaaa55a6b7b45802d8a88d6b11e5b1c2b2c41643389a70187e9389"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/variable/generic",
+      "boundary": "exact source-map result",
+      "actual_sha256": "7dd6fbf35fbce5748a3c71c165c88ba3f71309b53376c6a684c466be99cc3393",
+      "expected_sha256": "f87226fe760a046d8eb689cfe28953b99f360fc889a8241e6cf0f7e017758572"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/property/generic",
+      "boundary": "exact source-map result",
+      "actual_sha256": "93aa02f6c71f8b131965f72bbc3fa0c44990a3bd1a2d546a7bf5c25bea037588",
+      "expected_sha256": "363fe4d638e00d25ba0489d679272af4b20a7b7338da079bd19dd972144a8af8"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/assignment/generic",
+      "boundary": "exact source-map result",
+      "actual_sha256": "2bde72c6b491854e713bdd5fcc584c76e3177ba37fd6fc580422687f90327cfd",
+      "expected_sha256": "ed175a99044924bdf85a3efcd4f666fe9261480f339659fb3879c37c01a54322"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/binding/generic",
+      "boundary": "exact source-map result",
+      "actual_sha256": "63ee48c9f1d42f2623d2687bb29c983288a75ebce717c02b9cda12dbb47b1227",
+      "expected_sha256": "212317248104d3f71e76f85363640ba34244e60811ed603de5cc80e89cf27f9a"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/variable/annotated-member",
+      "boundary": "exact source-map result",
+      "actual_sha256": "3fc98ad899b866bedaa82799fec3e190ba1eefb11f1a2417001d105a9ec96162",
+      "expected_sha256": "96d985520a0c59e10cc471ef3f1a8495e15287d591bdc8b0bcc30793059f0f3c"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/property/annotated-member",
+      "boundary": "exact source-map result",
+      "actual_sha256": "8d8bb2d4063f348a02a5cc4d8e04bab77fea24116f5c1c196f061849a31c28d2",
+      "expected_sha256": "f012423ff2a971424b6ef0f85d4f6c7e91fd5f0e55c7887d540121eea286d0fe"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/assignment/annotated-member",
+      "boundary": "exact source-map result",
+      "actual_sha256": "21d0e1f0b2d49e1284c8ad61cd5addd74a9f75a96193f69d731f6bac6fbc8193",
+      "expected_sha256": "37da002d915837630eafccfe1f5c20a633fbdeae88a296277796aa516be9d080"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/binding/annotated-member",
+      "boundary": "exact source-map result",
+      "actual_sha256": "4621c61e9bdf3900126c4317f76aea62ef234b60402bf508d28dcd7a27154d95",
+      "expected_sha256": "9f730c00632459815372bf86e435cf87bef5edf0fad99092e5da4e3bc05887eb"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/typed-function-new-target",
+      "boundary": "exact source-map result",
+      "actual_sha256": "3b1d61331b181bed05b95a5c8f1294acacfbbf16f44389e6371ca326126dc9bc",
+      "expected_sha256": "090be377ce6be3023dd32c74467ddb19f97a27dd238bb40e906a3efa58e08f32"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/class-fields-alias",
+      "boundary": "exact source-map result",
+      "actual_sha256": "5702103111b0cd9249b849525d5739242d628fd6c5a7a2754d3a1a4bddedab43",
+      "expected_sha256": "97772df0c87284442107bba850264cea6a586588ad359f15820613f4ca397cb6"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/variable/implements",
+      "boundary": "exact source-map result",
+      "actual_sha256": "653625074ecdbbbab51b56fbb6afab25d5d2e34dc50fa8645586d7136fbf1983",
+      "expected_sha256": "f8098de7d6aec5024e5f206612732269d8c23883408260fc0522a8296dc7ab5b"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/property/implements",
+      "boundary": "exact source-map result",
+      "actual_sha256": "32ce2181045af3750ce28ae35d6ea11514501af32debaf5553eaa1c4338f7e9d",
+      "expected_sha256": "4c76a0b7deacb8fca5df9620eb4b5bf695ff941d1195c95e6b90c4b58cfe0723"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/assignment/implements",
+      "boundary": "exact source-map result",
+      "actual_sha256": "07bb42aee374860c9565726b5adf8c9151e8d90aac9d9b8eddb489170f1e771e",
+      "expected_sha256": "755704444b0cfbed06230aec80a2d7fdf74b934ca63704d4c4b9c58d71a1f515"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/binding/implements",
+      "boundary": "exact source-map result",
+      "actual_sha256": "4ed9d477632d39c2c4a01e10448cb1b6074c6b0cbe06a2ac2b78cb0deca93664",
+      "expected_sha256": "6fd7449b4a431aad9473c8cfcf8fa3705d2ae302c916ec024b2f59f392cf1abe"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/variable/generic",
+      "boundary": "exact source-map result",
+      "actual_sha256": "fb6b4f131be21b85283af7697a6481890d4693302a9c9ae1b426cd5a31974c3e",
+      "expected_sha256": "8d2476289afd9002bef5d9384d0e270d8188b07c1c72ae9199201418ae5b1c9b"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/property/generic",
+      "boundary": "exact source-map result",
+      "actual_sha256": "e45bd212b6ac16adc1ccdd555dca6f591a94112ae435d9c44a39e3426b05a42c",
+      "expected_sha256": "a925681ee4bacf3b060fbc2fbdee14410c75bd3dd376f0604574618291d3b645"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/assignment/generic",
+      "boundary": "exact source-map result",
+      "actual_sha256": "9f7e1bb1e61b58ba18761ff90ba96093acb26184adc5f2477087ff0327ba694b",
+      "expected_sha256": "54dc7a0ee357e41312b0f195a1a398f50190bc6be3d992fae329207c03553849"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/binding/generic",
+      "boundary": "exact source-map result",
+      "actual_sha256": "c90f9439718e8b3b8a5561ac8672cc6bfc4be5f2260590e1164bf02c630d5e83",
+      "expected_sha256": "9d6b9e275055cded0313a06549532643412676b9a9ff57f95df0a19443384010"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/variable/annotated-member",
+      "boundary": "exact source-map result",
+      "actual_sha256": "3c22ddd3402236bdca65eaa35ea6855a5a0359ad79ce1476214ddb05d395582c",
+      "expected_sha256": "8acac9e3eca7ff5f1eb9ce8a88fe72d67f3def3302a3feb2c99b7470a5aa28b6"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/property/annotated-member",
+      "boundary": "exact source-map result",
+      "actual_sha256": "76be6e72af7761e411cfb2b7b6f50e99484ddf06567a053b8f0f6b3199baa31c",
+      "expected_sha256": "4baf9c413be40cdb099f9d7fae17abbd39ddce8e9271069ccfda66f2f2375d2f"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/assignment/annotated-member",
+      "boundary": "exact source-map result",
+      "actual_sha256": "e2f22c201cfddc5b6921ab25951edd50aedcd42d6b08e84fe36d7f3836e57243",
+      "expected_sha256": "9c9767e6b48d33f8d7f831390f0ff0711af2c63adeb5e6cd207c869f24beb0bf"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/binding/annotated-member",
+      "boundary": "exact source-map result",
+      "actual_sha256": "83846026e1988d36dee80494919fe0a3d2d6be4bfbcbdcb8f3f054c187aa80a4",
+      "expected_sha256": "831f300921ccd54b0d08f7e3440102214fd5aa1210b6fe707cc33fd6b5372cb5"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/typed-function-new-target",
+      "boundary": "exact source-map result",
+      "actual_sha256": "1a9d9d934e2f01d9842174b1b973a4f36bcb258162c801d007231b710df25406",
+      "expected_sha256": "9847c22fec85c94c335dfce29248179cd0a4256bb179f47027be97984796d1b8"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/class-fields-alias",
+      "boundary": "exact source-map result",
+      "actual_sha256": "810be1fbfa749264828c5d2e89d6be14764fa4f44073f4461b24920b304d51f4",
+      "expected_sha256": "1b9833918366eeeb5f52ab51e3ba788c3eafacfcc00023f99fb6a5f6a19fc75b"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/plain-function-new-target",
+      "boundary": "exact source-map result",
+      "actual_sha256": "c8e23a2b877f25852dd3bef2d7ffc466d83000edeaca6e137c1a63ca08a126c8",
+      "expected_sha256": "820a81607e724fff6e8fe5e0f458f802f860a8f711c08785ee3e03b7653c9f2b"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/typed-function-new-target",
+      "boundary": "exact source-map result",
+      "actual_sha256": "f0951b56403995948fa7d058ae2d5ae61c2a834af89debff5ef06a1d7e128393",
+      "expected_sha256": "e925ee998c8fb76a6c07bb713d80e79d95b5f3260ea26246ccc96d67b3eaa4a7"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/class-fields-alias",
+      "boundary": "exact source-map result",
+      "actual_sha256": "595c26cad2669a994630bea3bae73d28bd5c2ae05035b25781674bd3b3af9b5f",
+      "expected_sha256": "aab19fa409ebed89b6596bbcc79d52d25bb8dc9b5eafc2795e439f91c34c4939"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/plain-function-new-target",
+      "boundary": "exact source-map result",
+      "actual_sha256": "108581fb6a9f811134fb24ba95fb4e00fe4d1fd4416d8bfac0646d88aa0206bc",
+      "expected_sha256": "9b32612cec9896b4acbcfe150d4ba532b2f76830d7eca13f806dc6d99da56e76"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/typed-function-new-target",
+      "boundary": "exact source-map result",
+      "actual_sha256": "f9399cdd3e82a62817d6278c4ad7753f08baaedce7f9feb0395177128411a997",
+      "expected_sha256": "82d978b2b23801301ed83ec23ff522244218e9888f31c4cd6ce90d5868ba0e54"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/class-fields-alias",
+      "boundary": "exact source-map result",
+      "actual_sha256": "43abc4e25f1bad146c652fa6ccb7600bd227728b0ee81999e8916f2ceae5d998",
+      "expected_sha256": "de0fd8def999808f5ee93d7c4df1763c653aeb5e696b1c7f187ef457acc8fead"
+    }
+  ],
+  "components": [
+    {
+      "case_id": "class-assigned-name/es5/esnext/property/generic",
+      "status": "owned-current-parent-name",
+      "supplemental_capture_executions": 1,
+      "js_differences": [
+        {
+          "path": "/project/out/main.js",
+          "rename_only": true,
+          "operations": [
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            }
+          ]
+        }
+      ],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "12f1f9d5a74ef10d1238a0b53258ddbc5f06a9cb4719fd2e6c7e7e6bf1523fc1",
+          "expected_sha256": "00c42a323915cca91d6f0c70ddd838310120c699272ee810160195a2baf7b6d9"
+        }
+      ],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/05ed6bc973c64a8970ab69f8f2fe1f8cbea2081f6b81eb106a5a77c2ca78e3db-0.json",
+          "sha256": "fac7dadb8eb56577900afd341f3800f44ed7074525a352653fec1a27966c5066"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/assignment/implements",
+      "status": "owned-current-parent-name",
+      "supplemental_capture_executions": 1,
+      "js_differences": [
+        {
+          "path": "/project/out/main.js",
+          "rename_only": true,
+          "operations": [
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            }
+          ]
+        }
+      ],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "1cdf1a5484d5e992aa00dc637907e3a87a29a22aeaf0f98e2f8e3c1daa556cf2",
+          "expected_sha256": "0055530b35dd1fba30c84641decf3e9bd348bef96bccb3dc1565644e6f057daf"
+        }
+      ],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/0a157e2668b961ca96f499278d34746b6d731dfebcde3e0ed4bc6b1d980c2931-0.json",
+          "sha256": "4c65f93bc044f639df9edae216071685c2cae3ca7d815b21ae3b8f684437a4da"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/typed-function-new-target",
+      "status": "outside-map-only",
+      "supplemental_capture_executions": 1,
+      "js_differences": [],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "a303dd53b752b9c4539f76ad775491ebbdb0e135928ecc46a5e893c60579a56a",
+          "expected_sha256": "98850bda3e429de18ffbe14ef0df25e33583c6c590b38172e3d6ec2a074ff9d5"
+        }
+      ],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/0b65142f4da08e49edaf3c007c20e860596755c840057ed8498561faed80c215-0.json",
+          "sha256": "8930702e897dddbb3c3edce9f7764df0fef6454c863f6e89923c1ad7314ac8fc"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/variable/generic",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/0ee045fd78642e8d0dacf2bb2a592c41d0eff8a2461134b6135672a9dda20703-0.json",
+          "sha256": "78123c62e8a4a511cb9f0f840a23798315273c7987d3d5f0e06fce45a35391c0"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/0ee045fd78642e8d0dacf2bb2a592c41d0eff8a2461134b6135672a9dda20703-1.json",
+          "sha256": "14ae4d597aafe7ea52deecf3eb043e7fee788c288cc67fdaca85b148d3ccf754"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/property/annotated-member",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/168b7aef4eb1fe584444a96299e428b0e4015cf41b712465ed0d02482805e44b-0.json",
+          "sha256": "b1c9372181b1efb148047aed9e42cc8ae2db53173cd931d3af66d0e54d459607"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/168b7aef4eb1fe584444a96299e428b0e4015cf41b712465ed0d02482805e44b-1.json",
+          "sha256": "783a22182d06fc3662928f229130dc236afc58107ab034f7556a3f886c927945"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/parenthesized/implements",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/183a5514c7d3fbcde1f7ddcc0c90798d8b319d0077b017b4b92dcedfac07be35-0.json",
+          "sha256": "0d047428c9a116840d1cf7a7b067afece680b8f87c36b0f4ce662395306c53b8"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/183a5514c7d3fbcde1f7ddcc0c90798d8b319d0077b017b4b92dcedfac07be35-1.json",
+          "sha256": "36353a37eaa7a362ddcf845b98db82d90fa89b12e8f80edf192a3d85d0685580"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/named-class",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/1a0a974e31bac64333cc51235dc60415df49b0b3ed065e21bcc102d3b4a3c34b-0.json",
+          "sha256": "f3ccadce3a8e9d3ffd49ef9a6f5a05640a2e74a759d61cfab40a3496982f79fb"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/1a0a974e31bac64333cc51235dc60415df49b0b3ed065e21bcc102d3b4a3c34b-1.json",
+          "sha256": "8e8b71ef525116d345e9f62e856b68bd88abd9124843083346f8979b3e4617a2"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/plain-function-new-target",
+      "status": "outside-map-only",
+      "supplemental_capture_executions": 1,
+      "js_differences": [],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "a352c6af978144f91a00f930704714c27d311abf828bfabe223f51a30fe23264",
+          "expected_sha256": "d445ded81422c3c764d5542c14527edd4fc1be8d70c1b32a15eb66d603eeee4b"
+        }
+      ],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/254e7e403cc32b440f8dfe253f48837866ad8f7194779b2a76695095ddd4712b-0.json",
+          "sha256": "e55e7687fba230de052d3f5e73cdd9896c5a2eb651f34aa15be061b1419f882d"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/typed-function",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/257fdf852e253ecf2b0b1fe8657ee13c91850e06559c8fef6e406d8779a42798-0.json",
+          "sha256": "98f15707d5a322f8dea990e36806f3b1c1c95c7c523662fdb8f33db0bf425154"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/257fdf852e253ecf2b0b1fe8657ee13c91850e06559c8fef6e406d8779a42798-1.json",
+          "sha256": "826947f6a79e328f4ad8fa30bf555b9a0756607d61f0282e9a3e87ab906cd65e"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/typed-function",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/27821c37b073238f9265674be407ec091b1b6947f8eeec76da58c7a033ac06ec-0.json",
+          "sha256": "4f2af29ecb05d83a41dc9d577776136f4053e244a7f38245cc7b2cbd18f888e1"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/27821c37b073238f9265674be407ec091b1b6947f8eeec76da58c7a033ac06ec-1.json",
+          "sha256": "522476a910c9fb613adc7378625a6fd5883ccf867f910fd8c16f3d395ff4099f"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/parenthesized/generic",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/2a4408ad121f21fe0b068428b35ad64a9510b6a16bd8d2ead8691aad01db32b6-0.json",
+          "sha256": "055f24159d8c134679a8a6d354897260e8f38ca855deaa5c6441d8cfc04292be"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/2a4408ad121f21fe0b068428b35ad64a9510b6a16bd8d2ead8691aad01db32b6-1.json",
+          "sha256": "5978f284f16daf78f4273ae714ccfd1751b996342ff3bcbca8706a3060f7701f"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/binding/implements",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/2af9642d16fb34fae7eca59eefbab7008ed916026edf777d45b9b83d047075bf-0.json",
+          "sha256": "6be315abbf43513a1f89fcea674a23d880881f92b86ec22f0e64b0d48d533d23"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/2af9642d16fb34fae7eca59eefbab7008ed916026edf777d45b9b83d047075bf-1.json",
+          "sha256": "dcbf9af85a6faab10f0d86bbd3fc6bc9cc06629a216b73437b022c463396285f"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/property/implements",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/2b47bba7d75f3cc5f704a0991b1cf0e510b862369b94da353638d33e88b9217b-0.json",
+          "sha256": "3737b1de35c5f8bfd970c591c8b1d2bbedcb4138582ea4d7eff37d618383a239"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/2b47bba7d75f3cc5f704a0991b1cf0e510b862369b94da353638d33e88b9217b-1.json",
+          "sha256": "dd6d1af46d0701efec765480852ae8fe4f849f193dd2c04614523d923004f084"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/typed-arrow",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/2d67e0d84eac2cf6b6c64df3ca71c91b06270143cbcc46961229dc8eb32d57a4-0.json",
+          "sha256": "485394f2e3b1f8d63f7be8692ab35e405cd372fe6fe13d57ecd3b38e5deb72be"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/2d67e0d84eac2cf6b6c64df3ca71c91b06270143cbcc46961229dc8eb32d57a4-1.json",
+          "sha256": "e4a4c1887b8435586645c894f32c651834e1455a6f1ce22322555ac3de43b875"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/parenthesized/implements",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/2db2017e8d41f85494ee6792d089f64483ffbd791abeb311a14a0e95f5af3e91-0.json",
+          "sha256": "961490cbed0052f0321ce377d340e894273a2610ad395517f631b44d7e208c34"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/2db2017e8d41f85494ee6792d089f64483ffbd791abeb311a14a0e95f5af3e91-1.json",
+          "sha256": "0ec71f0823a7a4ca0a7af1c30a6737a556ed77afcc47c9fdc8a58e88f5814cd4"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/assignment/plain",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/326c2c9f873d94da2cdd4402598a93badcaa9106350cf5a0e3a88bff326d5187-0.json",
+          "sha256": "a598da3c1413a788b9891140e2f50ab2a517b2838fbb8c3955fc06a4c17a170f"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/326c2c9f873d94da2cdd4402598a93badcaa9106350cf5a0e3a88bff326d5187-1.json",
+          "sha256": "52b3b6b39e61dd89c4ce11df9720996cfaa5d8bc342cac892f85209e26bc7495"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/binding/generic",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/369c359b99c53c68beb6c4077c49ff81f820f050a192d56cc398b0b4f0cb3244-0.json",
+          "sha256": "523743da085472c079c8f22a29b5a4abc93f2edbc56f9c36add52df83048bdb6"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/369c359b99c53c68beb6c4077c49ff81f820f050a192d56cc398b0b4f0cb3244-1.json",
+          "sha256": "82ed5d5696c0c6d022d4c540d0c1baf7279edb8ec72e5e5d16534a7d99d087c4"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/assignment/generic",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/37123d8ee09a1ea6ef1c9428a65f949e4cdcdf9fa8d7239f1789b5d0c0e66fd4-0.json",
+          "sha256": "a5bce59bcdd6cf38eaeb9df7375af8498e0d363fb9882d19dd75b0ff8585769a"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/37123d8ee09a1ea6ef1c9428a65f949e4cdcdf9fa8d7239f1789b5d0c0e66fd4-1.json",
+          "sha256": "ec82d92d0d2e7d9b88ddf11dc5aafc60311a4ada7bac52025084e665c489baad"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/typed-function-new-target",
+      "status": "outside-map-only",
+      "supplemental_capture_executions": 1,
+      "js_differences": [],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "5c4ef531b9d0722a03bd82693bade11275aa9b7aa04e98d3103e8bb2603cb604",
+          "expected_sha256": "37bd8dc130dd9710b38fb0d1abfb1a0d51ec1716e9be340ea80b2015219552ca"
+        }
+      ],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/3854dfc542a28d4a392b5c80ac39093bfddabbaf6a323a45bbb4ace78a6e4ba4-0.json",
+          "sha256": "d28f595406cf866a0c7e6bc87c1ab33c231f795f9d2f028c3dd4d005505c8757"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/assignment/annotated-member",
+      "status": "owned-current-parent-name",
+      "supplemental_capture_executions": 1,
+      "js_differences": [
+        {
+          "path": "/project/out/main.js",
+          "rename_only": true,
+          "operations": [
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            }
+          ]
+        }
+      ],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "857bb86936ec8d0a22a6f2365a4aa2e0ca449872234d4f18b51c3ba54dbdfd8b",
+          "expected_sha256": "28ffd0a29dd4d10b5c3d2062e8a7077480a7c0870d94197d9acfb301346fc159"
+        }
+      ],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/3a6f5f9be4ef6131766b25543aa0e3b0346bd85c161830ed63576a8e113d633f-0.json",
+          "sha256": "d2a10e6caf97c3cddb9a1c20ec972ad0958f3865f83dc0153dd927a8087df98d"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/plain-function",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/3b01ed2ba518852bd024bbf3a5f6b14d0696315abb226f58f0d3593bc0addd80-0.json",
+          "sha256": "c53dc5d8b4b516adfac45d314b2435a27de9bf4a649d6019218f857c8da7c6e6"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/3b01ed2ba518852bd024bbf3a5f6b14d0696315abb226f58f0d3593bc0addd80-1.json",
+          "sha256": "550d5cc1e256ab28b5aad583fcff78e0813341789a9a92aa56fec0bea4672b13"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/named-class",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/3c163b4569cf2f52a27bc50e067527b40d98ce66791626e43bc8a70b254773ff-0.json",
+          "sha256": "e2587c99e8cc0a46e9bea95ecb1859aae111fc22db2afec08a8dbf0f060b7022"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/3c163b4569cf2f52a27bc50e067527b40d98ce66791626e43bc8a70b254773ff-1.json",
+          "sha256": "44a2251e921dcd884c636a9aef14b710875e9ff116301e48a92c14101c1ef226"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/property/generic",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/3d18eb3f6cb863b86e9e26b2c42fdc09b07283bc107d4b0eb131cdeac794cc95-0.json",
+          "sha256": "a37d4e5a8d3436febfd43ba336a707f705bae2c6c01bb7d7651a3bbd9bb6e47b"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/3d18eb3f6cb863b86e9e26b2c42fdc09b07283bc107d4b0eb131cdeac794cc95-1.json",
+          "sha256": "c3c76d6253f0b717511ccd3b75d4d6aefdb1b45ae431821aec714fc7b42410a5"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/assignment/annotated-member",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/41697ec33cec4434ec1c362d38e85a2dace495e44561ab06a4b295cbed93c020-0.json",
+          "sha256": "5bc55b664f6cbf64ad8a8386bd803540399a95d43c65ea4439ae292b1773b034"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/41697ec33cec4434ec1c362d38e85a2dace495e44561ab06a4b295cbed93c020-1.json",
+          "sha256": "1bc41593067c8f46939e9f5eda7e8f6b650819b87c38d117c30b823168950b56"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/assignment/implements",
+      "status": "owned-current-parent-name",
+      "supplemental_capture_executions": 1,
+      "js_differences": [
+        {
+          "path": "/project/out/main.js",
+          "rename_only": true,
+          "operations": [
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            }
+          ]
+        }
+      ],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "ad3d405fc701a96277ab2540ea7728dbbf5d47cd06bca4e66533ebc351927d45",
+          "expected_sha256": "b6213241d608e8141579b6d258b10e0c31a288e1ac482713a6bc79624bf5911a"
+        }
+      ],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/4a7d1a5f33f2f967e01193a12609a27f025bdb17f205c004873efd1f78f868bd-0.json",
+          "sha256": "fe548d236b84e02c0f4fc0058f090338d735a8a70abf088f9d99db0fe78364bf"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/property/generic",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/4b8eaf47eed8f950c89192b587dea1706f12aed794f13a27153c90472e386317-0.json",
+          "sha256": "d616ca2671b277f81d2b116faa93486cbdd507b71b79405d27157a3989866992"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/4b8eaf47eed8f950c89192b587dea1706f12aed794f13a27153c90472e386317-1.json",
+          "sha256": "f95bfc90efd045a8e42e35617b3a1f6a3af9070fe21135e03c0aacd6e6aeaf01"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/assignment/implements",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/4e37e7329c0c3df41bca572a86ce2795e42e709c358c4cead44d23aab0a240e3-0.json",
+          "sha256": "460736cc005569eb202826a62fb541fbc9de7701695885128f42dc9454d186e8"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/4e37e7329c0c3df41bca572a86ce2795e42e709c358c4cead44d23aab0a240e3-1.json",
+          "sha256": "ea2443e3bf126506c7d15605500ed0790aed27d2ecb7c4fcd3a7d9d00b54f682"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/parenthesized/plain",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/4e3dc823bd26ddeeaa44effb0706265e0b6547f0cadb9609f452fad8ee5ed7d4-0.json",
+          "sha256": "0430d3d8b2ea9f49851fcc06d7015ae52bef1eafab98a722a724da1e64386113"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/4e3dc823bd26ddeeaa44effb0706265e0b6547f0cadb9609f452fad8ee5ed7d4-1.json",
+          "sha256": "dcf58a82bbbeade004a9424e16e5a9511be64d264458eb21080b0b823ce94936"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/typed-arrow",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/4f7d3ccb6da390ae63cb6a00ae7024660d9af028fab00092f734389b4b3bd9de-0.json",
+          "sha256": "4bb7d918e0b7e6cb7e45a4e9869a680c1c8c3b8b719cd9d07ad4481f1ca7397c"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/4f7d3ccb6da390ae63cb6a00ae7024660d9af028fab00092f734389b4b3bd9de-1.json",
+          "sha256": "48ab5e95eb01ab751727201ef7435352d309284b8aa511a4102cfa031efb27a3"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/binding/implements",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/5021e8a69d2e6c3301548462f1291b205a99e76352aa5d6312d6141dff2e52b7-0.json",
+          "sha256": "1f8371e42d2eba36b0cf3c9c3875c9d56d4ac8e9a821beec54d5030b44b13d3f"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/5021e8a69d2e6c3301548462f1291b205a99e76352aa5d6312d6141dff2e52b7-1.json",
+          "sha256": "9ec8d890d121e27f60680c56f0414bb0cfe8b6d8cf88bf5670c1e0d63cb33518"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/binding/generic",
+      "status": "owned-current-parent-name",
+      "supplemental_capture_executions": 1,
+      "js_differences": [
+        {
+          "path": "/project/out/main.js",
+          "rename_only": true,
+          "operations": [
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            }
+          ]
+        }
+      ],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "390b9657271a64d90a9ab5e3740e6789a497111237302c628b9a652786f9793b",
+          "expected_sha256": "6df7bf45d763d7881bd6d316557b7b23fcb31a1bd4936c44c327f4dfe918a99f"
+        }
+      ],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/50e17bbaed86378276b37463686d9f016c32f90fe8b2eefde4bcdb78652675dc-0.json",
+          "sha256": "0c59e46800d10f29658ab428ef40087d1aac098158f662fb2df3d275dd46bcb5"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/binding/generic",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/5115237e22eb70c0d4fffb7cd64fc1851fafd96e6fc43694d608038d445d01ca-0.json",
+          "sha256": "4ef6f70eac273021cb483c3302ab16699c7a92d01fc566683d9c771edda4ce6f"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/5115237e22eb70c0d4fffb7cd64fc1851fafd96e6fc43694d608038d445d01ca-1.json",
+          "sha256": "327bd174a42193b44c00a69a89840174b7906e30aa668cfe0130052916a5c0db"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/typed-function-new-target",
+      "status": "owned-current-parent-name",
+      "supplemental_capture_executions": 1,
+      "js_differences": [
+        {
+          "path": "/project/out/main.js",
+          "rename_only": true,
+          "operations": [
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "_a"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "_a"
+            }
+          ]
+        }
+      ],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "607790b962d58ece6f66c3d87d653cf1546ebd7f522a0ac1daf3709848dec633",
+          "expected_sha256": "0673c96f7bb5b7c4c5933c3ac94c8973df34342b0ee2f42522a413f2d16c0992"
+        }
+      ],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/513decef77223deb4d3b88295bd541127a6e9ab2d96be6ad877912b02857300e-0.json",
+          "sha256": "c35dfba2b2c4bd86cee75e29da5ffe559d24ea8b1562d4c6ee3284c4c10a2b96"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/assignment/plain",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/54fd85bdd551758262ec078b03c5d3214e5a980c71a00e7c2b1036d366b152a6-0.json",
+          "sha256": "d9f244bd7959388f73f54998ffa6ce88f4671feeccf10f50dba1eddf43dfd3a8"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/54fd85bdd551758262ec078b03c5d3214e5a980c71a00e7c2b1036d366b152a6-1.json",
+          "sha256": "b82f654368f97d65bd7eadf6e4e19fd20a5f53fc5fa6bccce02504f01ccdf362"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/variable/plain",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/5838c1744564617d6a2448981af75c637cf32cf11db60ee5463b6a01b7120b25-0.json",
+          "sha256": "d06680ccbe326e67e8bf4b60bf9fb6c4d29ac44057ea7d8fa76f75646a23befd"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/5838c1744564617d6a2448981af75c637cf32cf11db60ee5463b6a01b7120b25-1.json",
+          "sha256": "17c4513e9356a67cd5e3e0170bfd1861ae089573587ecdb31e9c9db2dcbe239c"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/plain-function",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/599de36be34f9963968d5365153526cc4e52dc9f9b8accceb85b01df8874e2e8-0.json",
+          "sha256": "37c7f098ab733a2fa55e3bff8b3fd450aa9a58f9ce4b2e2185c2d3cc1e43f636"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/599de36be34f9963968d5365153526cc4e52dc9f9b8accceb85b01df8874e2e8-1.json",
+          "sha256": "6857f58ef93605e5125c0d93643f3810dbc33594749308d424005654ba19fc66"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/binding/plain",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/5ad071ddeb59c32e896ff134bf9136721f5b62ecf957df1821e6972cc4763adf-0.json",
+          "sha256": "3e538b050b09dc8468f6835f1080ccf320015702b49c2898c5421a94d6cab9fa"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/5ad071ddeb59c32e896ff134bf9136721f5b62ecf957df1821e6972cc4763adf-1.json",
+          "sha256": "555f3b40edccb0660557705179808ebac5f642f942ab478f9f7c38bbb3f3ebc2"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/property/plain",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/5c652b81036eb0ec637ecc2b4b09f3edc75270c60b756ea55f560b4b50126f92-0.json",
+          "sha256": "dcab005f0ad35112ee8dba5819effa454cc67e13bb4ad793ae61c895f2c606d8"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/5c652b81036eb0ec637ecc2b4b09f3edc75270c60b756ea55f560b4b50126f92-1.json",
+          "sha256": "abf2933e2a82052aa789598cf7639d8e8db252a4bba418ad32e26ae6978fb3b3"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/parenthesized/annotated-member",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/5e60394a4d39238afbdd4e0efd48739e0864555c9aea67bef6c3c2d063b0e8e2-0.json",
+          "sha256": "d57b161a63bd00b12206f7dedce2d22cc824eefcc7864de0dde7a63569d7d954"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/5e60394a4d39238afbdd4e0efd48739e0864555c9aea67bef6c3c2d063b0e8e2-1.json",
+          "sha256": "cbb13e3fd21f07b2c34fc4859318d5cf305330dc232db5dbc2fac7191cd2e863"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/assignment/generic",
+      "status": "owned-current-parent-name",
+      "supplemental_capture_executions": 1,
+      "js_differences": [
+        {
+          "path": "/project/out/main.js",
+          "rename_only": true,
+          "operations": [
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            }
+          ]
+        }
+      ],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "947362e6eaf268205eaa5fc554bdc1a35e4685976c19dd48f904fa588309e80b",
+          "expected_sha256": "de82a93f5522ed8b629e00d67d0bdc58ccd8c58d4465d247616136966fc15882"
+        }
+      ],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/6070f21a91ca43deae06aed3b2900ab52d90c30451703f04c1ab7f25890e796c-0.json",
+          "sha256": "87339c1c00478e3b20da45095a8613c8d0d6112401e0f931d6b55816400247e1"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/property/plain",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/62011327d3e87af2d7c4a2cb006022e091d795536da99a5c6933672def2cd0c9-0.json",
+          "sha256": "cc17e514fddf65ef05f19e6fbd94b1c369ea5dbc20725e4df2c01f3ad352ad93"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/62011327d3e87af2d7c4a2cb006022e091d795536da99a5c6933672def2cd0c9-1.json",
+          "sha256": "061c161b81088434a948087a87d8695b36dead7bf23502ab28e4c54549302a55"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/named-class",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/64a96b00df9e17ca43fed65876d313df1b2dd031c4079fe380b2a2c37b7ce017-0.json",
+          "sha256": "dc9286dc006b0031f272db904a6e1fd969057534169c9b24852411f909d488b7"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/64a96b00df9e17ca43fed65876d313df1b2dd031c4079fe380b2a2c37b7ce017-1.json",
+          "sha256": "7a5c00d5b9a9f4573b7851b006c7666c6bdecf967a7a1032672c74773a3b7ccd"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/parenthesized/annotated-member",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/651b29243a18656889b2b26ef7a0552e81aa20506e1d5d5823a90ef01f26e4fe-0.json",
+          "sha256": "62ed6a0889056cee3e16e80cf4fe27994081553312c45eb260c0859043b63c26"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/651b29243a18656889b2b26ef7a0552e81aa20506e1d5d5823a90ef01f26e4fe-1.json",
+          "sha256": "3ecaacd47f57d6f10e1b9d4b7615c3720ebc088e1b68e1bb3f5af0f5a84ebbc3"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/parenthesized/annotated-member",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/69ba005478b2e4df48e1aa9267d3b0e2a8d650694c7585da87fbc3dedaa9b3f2-0.json",
+          "sha256": "e5070c1a2b261808835f6e1dbb12c2076f68e72137d0121be16deaf14ad0c2cf"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/69ba005478b2e4df48e1aa9267d3b0e2a8d650694c7585da87fbc3dedaa9b3f2-1.json",
+          "sha256": "0feb830a5ce65a5ffca5971c59d92688f37932562bef759a9005fec5d174598b"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/parenthesized/generic",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/6b41cd84b8e9ca88329b567ef13082d425e5a7562a1191101639d4b2c357efb2-0.json",
+          "sha256": "84cbd9a4bf569b64bfd87c860ad1fd0dc3521722378b3392a94578e01ca2f9fb"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/6b41cd84b8e9ca88329b567ef13082d425e5a7562a1191101639d4b2c357efb2-1.json",
+          "sha256": "56d7704c69bf38901972a4f51ba9433852fd63fca4bf8af712ebe667fa877a82"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/property/implements",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/6ed916a21da9cd939564cd79e66e78699224bfa3fdb1d903470979b25e0494a9-0.json",
+          "sha256": "2bef4fc42af47b9820623fc863e38ef8d5d9798cc08017d4d6c84e320e02cc59"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/6ed916a21da9cd939564cd79e66e78699224bfa3fdb1d903470979b25e0494a9-1.json",
+          "sha256": "61bf25b40658d549feffd271a6dd9607372fae0d2f29f0ff330838a2e4087529"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/property/implements",
+      "status": "owned-current-parent-name",
+      "supplemental_capture_executions": 1,
+      "js_differences": [
+        {
+          "path": "/project/out/main.js",
+          "rename_only": true,
+          "operations": [
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            }
+          ]
+        }
+      ],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "cd69336b6838d82a9c7d27b5038530cf023c57cc162628d365a48f31cff7f23b",
+          "expected_sha256": "8e34764e09164b19d66448636f77f21a0cc5095585efdd84722dd5488c9818d9"
+        }
+      ],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/7135f5c7d611071ed9109b4d92066fe19c7f103414b735c232cb141636952043-0.json",
+          "sha256": "09034703829c50246881bbfeb4749a02bddee4a2c44c5ed119eecaa53d721971"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/binding/plain",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/7142e4d76bf67c07b62aec3a1a442a215e098a755896fed472bcf719356c3d9e-0.json",
+          "sha256": "63b2d9fd09526c3398758853197fca403cd6184bb1f1757b351b0ea412073520"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/7142e4d76bf67c07b62aec3a1a442a215e098a755896fed472bcf719356c3d9e-1.json",
+          "sha256": "3e54b471d6469682f598e55ac3fb4aba4bd39863de856c5db4c665ac2f89365f"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/class-fields-alias",
+      "status": "outside-map-only",
+      "supplemental_capture_executions": 1,
+      "js_differences": [],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "d304e6f097a23c52c014983d772248e8e46af5ccb3de2f0e8a3e8832b3e11c96",
+          "expected_sha256": "88ea01a3e026ba5a1da5b5e84e46716bf641e2e33e92fa690558527fc6530e84"
+        }
+      ],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/731e47eb630f2621a7906ac9a86a901af8c74b18ce46e6c84c1c9f25718d4cc5-0.json",
+          "sha256": "129cd06f54e2465984b60c7ad0c0816180c083451e6368831b0a3be5277e92e3"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/plain-function",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/73795f8026af1acad2be298497e9c4482b1bf484a6efdcd81521a47c0e13d283-0.json",
+          "sha256": "fcdcc14f03985fb9af37d29375c7963caa5a5019116f34d7d9f683047d933e36"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/73795f8026af1acad2be298497e9c4482b1bf484a6efdcd81521a47c0e13d283-1.json",
+          "sha256": "bfd1a802da6adaff3769aedbbd6478b22c5fd9bf3b9a4783ae3dec948b61146d"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/class-fields-alias",
+      "status": "outside-map-only",
+      "supplemental_capture_executions": 1,
+      "js_differences": [],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "a223d96b24778cbfaf23c6534419211b27fc0607921f601c60feaeba6d1f1572",
+          "expected_sha256": "cffa5a0376e8ace512c61e8f42de48b5566b78bffac8fdf48e2fa00374e30c06"
+        }
+      ],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/745909c490023431d8e071535af0798f4960aa7d0a763f0e660d991dd23ac50e-0.json",
+          "sha256": "6c71c30fa9cadecd0a99fcdcf049b2e09a92226e1c6b5a491d39700df89329eb"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/binding/plain",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/74ee25dba23d5a3b75f264e45c3b30cc4cb4da5a5cd31dc63dc8ddf45647efca-0.json",
+          "sha256": "8ad8ba76f416fd770cb136800206ec07ad39a026d1be096571af7267168c9e46"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/74ee25dba23d5a3b75f264e45c3b30cc4cb4da5a5cd31dc63dc8ddf45647efca-1.json",
+          "sha256": "5a0980d23cf6f50a94381c19b7e4eb511526ea28a4771008324bfcfa470d4bc8"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/typed-arrow",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/7f4b197e26e1e6e841befd6d4902b8c9e1b6f45770f88200600796d0d62df161-0.json",
+          "sha256": "985682ef30691364cf7ad195976188c939d94318eeda1a97899a0d06fd3adf50"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/7f4b197e26e1e6e841befd6d4902b8c9e1b6f45770f88200600796d0d62df161-1.json",
+          "sha256": "a59fb749cc79bada27666aecd448b43953894ce28cd1a07b158039eefe05b46d"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/assignment/generic",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/80a19ed3125fad2e13170a130f6c8cb239c5e110071fea08fc6a9814f50abd4f-0.json",
+          "sha256": "08dc1ee013aafd8b3e3079f6a71a053a4954bd6bc2887c227a4427216a9fbb48"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/80a19ed3125fad2e13170a130f6c8cb239c5e110071fea08fc6a9814f50abd4f-1.json",
+          "sha256": "31ca2eb575be8608f2a7424d35114bba9a5ba2368b0b7bdf69708aea4ee81f9a"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/parenthesized/plain",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/817784c73872ec24358f740a5c1c2d6ecf12367872d876bb1d705739ab6b6d13-0.json",
+          "sha256": "b85676c349fd46d336435ba428c2f7b83147262a294e28f81f6b73708e348a92"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/817784c73872ec24358f740a5c1c2d6ecf12367872d876bb1d705739ab6b6d13-1.json",
+          "sha256": "3773acf9e141d8f02271e92cc49892a02f17db674e4eb5b537784e4047e68951"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/variable/implements",
+      "status": "owned-current-parent-name",
+      "supplemental_capture_executions": 1,
+      "js_differences": [
+        {
+          "path": "/project/out/main.js",
+          "rename_only": true,
+          "operations": [
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            }
+          ]
+        }
+      ],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "1e370d44ce2c8ee3a86752040fbd7a3479462d5bc77326310a0d0633401061c1",
+          "expected_sha256": "59925d4f97860a8734afd74cfa7f621c8066125162b7e34ea6604b56b804fd11"
+        }
+      ],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/81e8c2da8239cfe2c3d6b1426734246d7c96df85eb49acee183b3164eba45b83-0.json",
+          "sha256": "7ec806734a344ea923ad659bfc6a1a11d2dbe5a11c33d455b03b1a0ec333278e"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/class-fields-alias",
+      "status": "outside-map-only",
+      "supplemental_capture_executions": 1,
+      "js_differences": [],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "0932b4b32d44ac5987670e6fef95b17344dced39ea726719193ed5278ce0af1a",
+          "expected_sha256": "53c748950a3ab6db3cf427c1484e1afe587e7d0c57589f91f386b5d94d7daf94"
+        }
+      ],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/839466b964c1cf0d5bbd9f4f080b8fa4fc7d9b4c32ba5fcfe843f47ffec66b88-0.json",
+          "sha256": "1b31d904d8a57646943f76d2a88b8dfa0a73c12d077225239cb60513be8ca56a"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/parenthesized/implements",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/90484dc9b2134b8adc3bec206a1cc290ecd269b2344ac4aa481278b7c613c34f-0.json",
+          "sha256": "d76b50e5a5429036abef881c4fc9c2e23351e4054d947649e70103905b54c412"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/90484dc9b2134b8adc3bec206a1cc290ecd269b2344ac4aa481278b7c613c34f-1.json",
+          "sha256": "28457bc59b0f7f80241a764b113d9fac75805f4440061455cbf7ab9107a02d4f"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/assignment/annotated-member",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/92685ed0c4737ca1b1c9407dd10e3bae1646dc729feba40397f08fbf24a68298-0.json",
+          "sha256": "7f62ca64230a3f9bd2d823d6cb7aa1ef21592c2046b994add6fa7124740bb111"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/92685ed0c4737ca1b1c9407dd10e3bae1646dc729feba40397f08fbf24a68298-1.json",
+          "sha256": "268956c50c68d179bc8807efffc4f487d1c2fb0d75ac3219dedf9144ccb85bb7"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/plain-function-new-target",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/92ede3c183042df49baf731301f1c04cf7650e3959107b3b249520258754eea0-0.json",
+          "sha256": "660e8610ba9cdb147412a2aa17bb4da4504135ffb0ba4f4a591c24a33b047e0c"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/92ede3c183042df49baf731301f1c04cf7650e3959107b3b249520258754eea0-1.json",
+          "sha256": "55534805e60218f9e0c475eb77bf43e0c9e9a5bb3414f459987cc3fab0f30116"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/binding/implements",
+      "status": "owned-current-parent-name",
+      "supplemental_capture_executions": 1,
+      "js_differences": [
+        {
+          "path": "/project/out/main.js",
+          "rename_only": true,
+          "operations": [
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            }
+          ]
+        }
+      ],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "3421a4e81527ed4614fc974f2fffc2a134c4a9ba43fe580b6cd1d505933f56d3",
+          "expected_sha256": "c1a194ab9bc16212f1e0d500fddbfcaeed597c07acba8f2322eca13342958979"
+        }
+      ],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/94853921a4c79f57b5f487d30fef59f408c11d449866ebc18b3f88e8f1b83bf7-0.json",
+          "sha256": "5d8319c2b9bc5c79de21102712ddcb7c9b3bdadc38cf662f23f0f85a160f703c"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/variable/implements",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/95150db1ffe281a8e1ee4b35564e7848763008bf75d1aad70d953baa82e4c417-0.json",
+          "sha256": "d1cf4132b0323a7201999dcad0d7b73f49ab8feb5e0d2f42253612c196bb425c"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/95150db1ffe281a8e1ee4b35564e7848763008bf75d1aad70d953baa82e4c417-1.json",
+          "sha256": "366f53094e64e3d7b16e08cb71507369ad8b2792ad565954eeb7850eaf274007"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/parenthesized/generic",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/95d1f68b77cc1307820d387bcbb774d818f992e93ca123dc35f05e02fee1bd15-0.json",
+          "sha256": "c18cdd9590139d36f9d51e7b9570adf247d582a7e2862612752473b57c7fca99"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/95d1f68b77cc1307820d387bcbb774d818f992e93ca123dc35f05e02fee1bd15-1.json",
+          "sha256": "821dcbd61e8ef12860140d975bae01e26298ff3602fe7c6bcb18ff462f928a0b"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/variable/annotated-member",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/96ff81bc272a5b98a7a5e7bf295ce2771df82ac5c86f4c012fc4675823d47675-0.json",
+          "sha256": "8f4d0c37e6f3483a00c2f745158a437c47bba3f782c9e9cb34d7b198daf614c7"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/96ff81bc272a5b98a7a5e7bf295ce2771df82ac5c86f4c012fc4675823d47675-1.json",
+          "sha256": "7fdee42fd91dc28bfe4e89325f982e2292817a2ab0aae9fe5d1a45d4202547b2"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/parenthesized/plain",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/98500e458b26e1bcee1290b58eb4389092f0c1ca9a28f63eff267651672fac4c-0.json",
+          "sha256": "ba20312fc08a7bee0931bae9bd6be7aef5ca4b8b3e8eae0c79d6f396c21ffa2d"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/98500e458b26e1bcee1290b58eb4389092f0c1ca9a28f63eff267651672fac4c-1.json",
+          "sha256": "c27d90b89835327c64fd18501075d94aa21e23750993727473401985cb17f617"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/property/annotated-member",
+      "status": "owned-current-parent-name",
+      "supplemental_capture_executions": 1,
+      "js_differences": [
+        {
+          "path": "/project/out/main.js",
+          "rename_only": true,
+          "operations": [
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            }
+          ]
+        }
+      ],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "50cd2e8a6a2126c01d7f32a44ffa8361d01a0d326c28a073635930949c9cb78c",
+          "expected_sha256": "2c3a8e3e387cfb6a66bfb8c5799de56cd0204e1a93d897992f3c567992df5f51"
+        }
+      ],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/9a07300dd364c22ce119646e682e4664ab54050d7f9c130d7b6a11dc3c15c413-0.json",
+          "sha256": "3b8cb8556bc7b302b900927299612efbbff91317b53f9854e3dc65f6c306e4f7"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/typed-arrow",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/9dca3b5dc5c952e018dfbb1747447a3dca7a596f0e152993bdc7d294cf978a8d-0.json",
+          "sha256": "d0875d38ca19a19ba6d088968254ce9a88a54ce3f354d4897f2f8777b8855530"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/9dca3b5dc5c952e018dfbb1747447a3dca7a596f0e152993bdc7d294cf978a8d-1.json",
+          "sha256": "895e3debc3ea7987d2183f12c2a416afb1a43d54ec7d9cce6f99e5a8eeef8019"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/variable/implements",
+      "status": "owned-current-parent-name",
+      "supplemental_capture_executions": 1,
+      "js_differences": [
+        {
+          "path": "/project/out/main.js",
+          "rename_only": true,
+          "operations": [
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            }
+          ]
+        }
+      ],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "2719de3552f3fdbe8776d00e11bdc850e0c7c995a6d68ab63438ecc3e8723dc2",
+          "expected_sha256": "759330fb8289379f61b7640cd33223cbc1a3ad8d5a39556b8b66c1fdd1109621"
+        }
+      ],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/9fec52ca9f63d8dd645ba133434d4cbc3685264db1c6d85f2fb8ff1e9c6ef587-0.json",
+          "sha256": "e90aac70a39406ff0d59d8f0f7cb276c2550f1e5a668d00f274ed6ba0a114df6"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/property/implements",
+      "status": "owned-current-parent-name",
+      "supplemental_capture_executions": 1,
+      "js_differences": [
+        {
+          "path": "/project/out/main.js",
+          "rename_only": true,
+          "operations": [
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            }
+          ]
+        }
+      ],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "8e2cef3aa7f4527bda9a36a668a9f760f4e54c1ecc02382a31d8d430ffe22ca1",
+          "expected_sha256": "b09843eb7b0da72c75c0ea9132ba2feefbcb64893b67a8748734b5b6c532aca7"
+        }
+      ],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/a0dcdf2e6b4901bd56d7bb3374e70e6355e101d0c2d48b10a16c372ce9ac6ad2-0.json",
+          "sha256": "e391ca18837d1b72e072498255297c981bb4fb244633604cb92aa3ba67fed3c3"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/typed-function-new-target",
+      "status": "owned-current-parent-name",
+      "supplemental_capture_executions": 1,
+      "js_differences": [
+        {
+          "path": "/project/out/main.js",
+          "rename_only": true,
+          "operations": [
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "_a"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "_a"
+            }
+          ]
+        }
+      ],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "afd2f5925c75213a081501ea009df24474744b868c37c95921e921f0c7edc358",
+          "expected_sha256": "315306b12520aa442c36d518d3c8e0a24ea8d204142ebaf779ed57c5262f8407"
+        }
+      ],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/a0dde0f7c453bc75b35fd7518694aa993c3c994b8eb85aaa7c8f66a396298a8b-0.json",
+          "sha256": "c7f57f160124f638aefc471a0ebe15d0815f5ead310c8595e1018f57ec8cfca8"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/binding/annotated-member",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/a594892d42d46d89f4411a36669b94f5a4d04bc18e477b8872ef41d99f0b992e-0.json",
+          "sha256": "c94deb82399b4cdf1a9313770a403c86eab2e28f9edf33d336ce2c692a1100ec"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/a594892d42d46d89f4411a36669b94f5a4d04bc18e477b8872ef41d99f0b992e-1.json",
+          "sha256": "3e1d094669155a818cbc5b6fa42b5c5c960491fef4b0821fa2d025943c0ac91b"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/assignment/annotated-member",
+      "status": "owned-current-parent-name",
+      "supplemental_capture_executions": 1,
+      "js_differences": [
+        {
+          "path": "/project/out/main.js",
+          "rename_only": true,
+          "operations": [
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            }
+          ]
+        }
+      ],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "9f909532db59be59c051ae6cd249e389310b93b6947d47e7a0ada103e4831b4b",
+          "expected_sha256": "e65424a57f28588862050bc8074ae5b887f6bb2669c084e46dde249991241f8e"
+        }
+      ],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/a61b354b069d604f5c5fc011e6961c22076c5a91c2c857df0278107f4c3c2291-0.json",
+          "sha256": "cddf333fd0fff16d4eab89d4c897e05e2496d6057f49eb3ab59cc164722e87e9"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/assignment/implements",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/a7699e803cb2b669f6a1fabe89965b4f02ac829ef52ea33f89ed2037cfcd7e46-0.json",
+          "sha256": "2e38902e583c68a322fbc1e067445be9813c620c2f522f49ef8d55b7ba12c2ec"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/a7699e803cb2b669f6a1fabe89965b4f02ac829ef52ea33f89ed2037cfcd7e46-1.json",
+          "sha256": "2a2423dfdb46a6213b2a823530d96605d6f3671bca5b81287f47b27dbb2f9dd1"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/property/annotated-member",
+      "status": "owned-current-parent-name",
+      "supplemental_capture_executions": 1,
+      "js_differences": [
+        {
+          "path": "/project/out/main.js",
+          "rename_only": true,
+          "operations": [
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            }
+          ]
+        }
+      ],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "40432794e7d49bb3b4af8459058e879273c770ecb42c2ec92a14f7c40311c828",
+          "expected_sha256": "ee77b9ef4800650bbeed9669bda937516c332ff23e32aaba8f40e7d0986248c1"
+        }
+      ],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/a77fb0a91ccf98971c2e2aec2f2d1958a13a8c34f483936dc020c66a7346fbf1-0.json",
+          "sha256": "0732edb4f86ad1ef2cc2f6be619d73badb29ef60506cd0fb93f84744d8fd552e"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/binding/generic",
+      "status": "owned-current-parent-name",
+      "supplemental_capture_executions": 1,
+      "js_differences": [
+        {
+          "path": "/project/out/main.js",
+          "rename_only": true,
+          "operations": [
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            }
+          ]
+        }
+      ],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "a86f13aace464ebe50e8c78e67a1a0df414edc91b3aad543d4d2895251502dc0",
+          "expected_sha256": "a4c69c0202990fd10f31c3384e2a5b40e3c8de23d5c2cb857651771f69e7922f"
+        }
+      ],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/a863dbb9f4bc99097a25b3e46eeb4ee6a386ebe817dec712cf1aaac2b4a61b5f-0.json",
+          "sha256": "792441e7601ec00012eb4d91558423c0a7bf5250bcf24e4b1071bd2c9343d1bd"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/parenthesized/implements",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/a9627d5fd25649e327cfdc419ced9b33d7079e2441e6d73185846fc5f712898d-0.json",
+          "sha256": "6c3a23d92daca07e834bc7572d0e3f953fb3e8d8e8b1a482396d2e1c39390985"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/a9627d5fd25649e327cfdc419ced9b33d7079e2441e6d73185846fc5f712898d-1.json",
+          "sha256": "5b3486e7ca6b5328ff6c024cc535fd2863976f7e3f58ee8f70da338054b2b097"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/variable/annotated-member",
+      "status": "owned-current-parent-name",
+      "supplemental_capture_executions": 1,
+      "js_differences": [
+        {
+          "path": "/project/out/main.js",
+          "rename_only": true,
+          "operations": [
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            }
+          ]
+        }
+      ],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "48a679fc167a691a4026df6e3a415d77851eb643a36f14858853177fa579dc4b",
+          "expected_sha256": "24659f1cd3277a505c2b8ab72bb12f426fec6c43ba0a50ebb9992a4de794da75"
+        }
+      ],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/aa91be9310dd9e902efc147951e55409ce86f119b92df95c99a17679856e72e1-0.json",
+          "sha256": "af181eedaa833ee31a4556329f756bedbf720c48cda2493481411fd74403ee4b"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/binding/annotated-member",
+      "status": "owned-current-parent-name",
+      "supplemental_capture_executions": 1,
+      "js_differences": [
+        {
+          "path": "/project/out/main.js",
+          "rename_only": true,
+          "operations": [
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            }
+          ]
+        }
+      ],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "c9b8587b27e703a64b71bf164434dc92c648d71b003bd99f9c1853d545dbdc22",
+          "expected_sha256": "fdd1eabf6f8255e2f5bd8df8f30a28af9851bd6c4a9d50cf071ad7204b71bc99"
+        }
+      ],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/ab6711095c863f064fffdcb33437cd50c947b84d5e6482d8fd2e1a9f7686fa5c-0.json",
+          "sha256": "6dc6e8f4f43effe08c5e5c0a4e4ae6de766b5cfd62811d6977699644622fc881"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/property/annotated-member",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/b159034b6798a546f288bf053ea28ba11400d8b9f89bfc6dd7381670bd11e24d-0.json",
+          "sha256": "e965d7c0d62839c0cabf6df69a07a3a031448999243062703ae2a8e518938a72"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/b159034b6798a546f288bf053ea28ba11400d8b9f89bfc6dd7381670bd11e24d-1.json",
+          "sha256": "e6a9a1b12dc4e2a9d39f88ddc1c0139826c60142e26e0e0a096d2b62852ad1ae"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/typed-function",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/b19e986f892a876dfe3de4814513a42ab6995893062dccd47a5f94af8dadd2d0-0.json",
+          "sha256": "a144cb1beb7877ff66ea4b737dca48c68a7a0a9a6fb7912678fe7be1e0488813"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/b19e986f892a876dfe3de4814513a42ab6995893062dccd47a5f94af8dadd2d0-1.json",
+          "sha256": "4175ba72d4edf4d0430809fbffa44a83661f0099a54c0ea75fe9a84389c62cc0"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/variable/generic",
+      "status": "owned-current-parent-name",
+      "supplemental_capture_executions": 1,
+      "js_differences": [
+        {
+          "path": "/project/out/main.js",
+          "rename_only": true,
+          "operations": [
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            }
+          ]
+        }
+      ],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "3f84c2152d7b30befaa923b5ad6aabe18c357e782cac20969ec4961021d9a247",
+          "expected_sha256": "7de68c7d0c995af61c330dc7e47ffca5d15353347929d7cb7c4c0903b72aef99"
+        }
+      ],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/b74d6c7c1c2eae15b88ecc14b1e9f03824100ab790f4bef1aca7023a006ed4a3-0.json",
+          "sha256": "ee06fe3213625843a85aaed33c5430a19bc5190c9a8437eaf6acc2f2d3b70133"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/named-class",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/b757829a2819e8afb27c5ad4785310e453d456d7f3b6ec9ae0379dc24f858b9d-0.json",
+          "sha256": "99a9795d6871ba1f14170bf5fd22bcb4b340b483b903bac69ecf1821fa26dae2"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/b757829a2819e8afb27c5ad4785310e453d456d7f3b6ec9ae0379dc24f858b9d-1.json",
+          "sha256": "d1f435a03fb51b5a203ef7e5f36f70c6a017073a94468cf602cd3b9e8c506524"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/assignment/plain",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/b7a8f35d8229919bfee88c5b302e1e98e2db0b60ffc3b577c9d71b39e6195f93-0.json",
+          "sha256": "617b20248e0245e9e186c7b0f95a20929325d0f42e879424f962bf327153b3f7"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/b7a8f35d8229919bfee88c5b302e1e98e2db0b60ffc3b577c9d71b39e6195f93-1.json",
+          "sha256": "604f97e83b8e743ef6f2555ea50ea3274a723919f2f7c4178ee9099dddbad2b5"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/variable/annotated-member",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/ba76129f8a1a6710e987553257cc86edb4616f2e6fde0dd66357d43b787bf7b1-0.json",
+          "sha256": "a0cd1d266504641d4e70fe6accbd8db459394dec8c3c77971a51e4bde08e2909"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/ba76129f8a1a6710e987553257cc86edb4616f2e6fde0dd66357d43b787bf7b1-1.json",
+          "sha256": "4def0a0dbd956c1f9ac4d3e2b1e8c47e68c389c8a59348bf38ab9d1c34172825"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/binding/annotated-member",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/bf17f5d1a32ecb328f4c9ea937183cb869d158c7af5775399d4278c7754c42e5-0.json",
+          "sha256": "52b905466fba2486499dfc29b31be980ba35769878e07e63ce4e07476b21d453"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/bf17f5d1a32ecb328f4c9ea937183cb869d158c7af5775399d4278c7754c42e5-1.json",
+          "sha256": "dd587f2a4bb3bfa524a046e61a3ad0f06c1c7f185885b6dfe7e772c7f064a9ff"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/plain-function-new-target",
+      "status": "outside-map-only",
+      "supplemental_capture_executions": 1,
+      "js_differences": [],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "0c1463394740c24c50d08f4cda5d840c2c5a5f526fca06e47905c86724856d4f",
+          "expected_sha256": "99e7be853a0f3535f5e3646e6df7b6e9876e38178018386bd01a45947d55a29f"
+        }
+      ],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/c4a7d4ca93b6405eb09a29ab7b43e8184cdf096f4a3691051888011d60efe5df-0.json",
+          "sha256": "a350c78a56b798f03816f1611cd72b4abc690c1197c298ff1920635bd83ad3e2"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/property/plain",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/c8185bcd63a2f14935dc3010b87ee9bf25ec7858a2e7c201511bfde7e5d9a62b-0.json",
+          "sha256": "8d8e4fe5892d6f5c80cc292d0cd633e214b5bc7ede942aa1bf7e59e19e63a7cf"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/c8185bcd63a2f14935dc3010b87ee9bf25ec7858a2e7c201511bfde7e5d9a62b-1.json",
+          "sha256": "b8f5efae2a85784012d2a0990fe7d68528f80e04545ad68f090cea15af6642fa"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/variable/implements",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/c9a735b5a618e0a2a737b8fed8f08e7a584c59ac2ef6642cee82601b0489039f-0.json",
+          "sha256": "a0bcb4f5fde2e87285f6d3344927c362972f31dfc66c9161c7ff1c4c657197be"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/c9a735b5a618e0a2a737b8fed8f08e7a584c59ac2ef6642cee82601b0489039f-1.json",
+          "sha256": "1bcb391edd4ec55e07f36a53c5c55b01392ba8084599ef2e615331c7c723e872"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/binding/annotated-member",
+      "status": "owned-current-parent-name",
+      "supplemental_capture_executions": 1,
+      "js_differences": [
+        {
+          "path": "/project/out/main.js",
+          "rename_only": true,
+          "operations": [
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            }
+          ]
+        }
+      ],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "622ea868e75b9a9edb07b6b272843bbdf250fb1123c23613b1a76adf14b760f1",
+          "expected_sha256": "db0e43086a1b1f2ed07d1a7386333894c21e89277df17f47b770aa880d643386"
+        }
+      ],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/cc302664448265f3af13872949eaee4d7d8004bfd74b2c1653958fa81137f3d9-0.json",
+          "sha256": "cc62fc3a3806d7f0e24d6b5615d8c7eefd1d650085033a82dd6ff73f3f2da875"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/variable/plain",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/cd1a376523b0ca7ea8e515a840a7ee276fc477ad340474546f23e4c9469ef20e-0.json",
+          "sha256": "f6c1b853460d244102f60b770e883407a7e66ec06bef314bf3fb6c26a235e97a"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/cd1a376523b0ca7ea8e515a840a7ee276fc477ad340474546f23e4c9469ef20e-1.json",
+          "sha256": "dcfc77f7e68c3ea7658d30e0e2aefda3975c828930ccaf1da54eb5b74f3fa9ba"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/plain-function-new-target",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/ce65b0e53ef84c2274f2b2d9bdf4e6471faf016004445fcb762bf1cc18b0e1bd-0.json",
+          "sha256": "03b5a5691c928b9cfa34c541034b569f3867a4e1e6d92e17f95da08e0b9573bf"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/ce65b0e53ef84c2274f2b2d9bdf4e6471faf016004445fcb762bf1cc18b0e1bd-1.json",
+          "sha256": "f878fc07906225e763cf1720d3823ad6724f322e2ebfc7b544c6ad1a6311fab8"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/assignment/plain",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/cfbc8ae7870e99e1ac7961300249ec7a68dee5fe2f85890ab2008154f7f7627d-0.json",
+          "sha256": "ea1c6e8185709aff95d8cd5728ab3a019dbbd422bae357004a35c6dbcc2a5541"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/cfbc8ae7870e99e1ac7961300249ec7a68dee5fe2f85890ab2008154f7f7627d-1.json",
+          "sha256": "ab4331e5da680eeea6d443730f9ba8ec6160e8bf8a53480e97e84baf17596ac6"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/variable/plain",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/d1fbb6c3475e43c5ce88ceaa1abbf8567533e18e919497703859a8f6d4577890-0.json",
+          "sha256": "99d3991fe5090b91401c468b170b7d978830a719e23e2176ddf2846e75d396c0"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/d1fbb6c3475e43c5ce88ceaa1abbf8567533e18e919497703859a8f6d4577890-1.json",
+          "sha256": "b9f4b99f573f8fd336312cc9415cb215fad9e4dbcfddbd2015a1ec617f98190b"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/parenthesized/generic",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/d23d1476067bc9938ed6dd087e6b41d8cb3c485a2c23700d976b2f2feb823b5b-0.json",
+          "sha256": "e1ad409dbe6fb0bc467497004f2b35113f5b5c504efcbfd7ff3c9192171702fb"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/d23d1476067bc9938ed6dd087e6b41d8cb3c485a2c23700d976b2f2feb823b5b-1.json",
+          "sha256": "f9aa04a62a7a4bd8b5d77ec89f2cc3e895a36dfd46364743d1fc29a2928a6126"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/typed-function",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/d48569bffdea905492eb8b1b72957141ba525a96d35a724eb6ae7d478811cb66-0.json",
+          "sha256": "c7405a8c3e1c897c19a1ae74c31500132a8f7e96ef76de53d6e1e24a5faf2aed"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/d48569bffdea905492eb8b1b72957141ba525a96d35a724eb6ae7d478811cb66-1.json",
+          "sha256": "5970543bf3cb2eeea1f4cf6d7ec70d0f7229833a7e602d53e0a17361befda73f"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/variable/generic",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/d6e3fa1546c9d3b3f6b0200f953813fafcaafc0eb0f7f204fe5e56c47da93d69-0.json",
+          "sha256": "6f814941afce419ca141373cad39496fd7db99420647b6e6ee402014a6ed3392"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/d6e3fa1546c9d3b3f6b0200f953813fafcaafc0eb0f7f204fe5e56c47da93d69-1.json",
+          "sha256": "9fe25918c7624d6df53a447c862acea2f6d58d3bd6d6c33e5c8681842daa7c93"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/parenthesized/annotated-member",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/d7c0716e4c7f47230d1d71369268c74a3fc2ac02780f77296d4204157a3d5fa1-0.json",
+          "sha256": "f7bf20c88d3ac5c98f8c246198872fa4a1e157c808d6b3ae6a55c28b093c2d94"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/d7c0716e4c7f47230d1d71369268c74a3fc2ac02780f77296d4204157a3d5fa1-1.json",
+          "sha256": "fa3c5222cf4182830106dfaa139fe8d68c765800faa581920cc87fafcb6ea9c4"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/plain-function",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/d9a98a948c0a4d588eaf2e13f820eaf75bb1015514bdc44fcd7515e3fe866915-0.json",
+          "sha256": "da95779422b71ba8997884c3f2ab3efdb3a5ac4ae044d1815c13926e53de8526"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/d9a98a948c0a4d588eaf2e13f820eaf75bb1015514bdc44fcd7515e3fe866915-1.json",
+          "sha256": "dd3c4c42ffaaf9c61dbd1e5d491ef0637678d7be1891ec3e2324e92bcf1f3401"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/binding/plain",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/e03062833da487dde48fef707ed2502e9b0123efaeb180d1f0cd9f3181e1f1d0-0.json",
+          "sha256": "8319a488fd0867a530509651b3c103da85b6b2fa34b92797812256b45e8ee18d"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/e03062833da487dde48fef707ed2502e9b0123efaeb180d1f0cd9f3181e1f1d0-1.json",
+          "sha256": "bb65fe510bb25ea0263a283a30d3f0b6d1071b8b702b72ee12654f6a6d145b5a"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/property/plain",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/e529d2ff734a9c2277abb55ce13c73585365da749184b9e257ba940f38546856-0.json",
+          "sha256": "94a6e2d5f0244806145e58089524a73931c032d5b0de7279695dfc14bf3ae27f"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/e529d2ff734a9c2277abb55ce13c73585365da749184b9e257ba940f38546856-1.json",
+          "sha256": "39e44872bbbcb68321882d2f37d5010a2086d13f065837c1d16644ef78098ee2"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/variable/plain",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/e7d5e2004a9532d19ea8ebbaf5596b4f5733af3c6a27cf44260fd0fdc3e1c2ec-0.json",
+          "sha256": "d9e97bf2ca64a47d20d62643ebc6c6cb3595115918696cae5b8a25c7ee77e04e"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/e7d5e2004a9532d19ea8ebbaf5596b4f5733af3c6a27cf44260fd0fdc3e1c2ec-1.json",
+          "sha256": "41116ebdc5570490c56530969b838da5672a20927c700920c4ab39d6c0940879"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/variable/generic",
+      "status": "owned-current-parent-name",
+      "supplemental_capture_executions": 1,
+      "js_differences": [
+        {
+          "path": "/project/out/main.js",
+          "rename_only": true,
+          "operations": [
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            }
+          ]
+        }
+      ],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "b6b27cf97dd101b2a0c3a485930fdc35a7546496f5efe84aab2c2f42e0c5e6ce",
+          "expected_sha256": "9cc167fa1ea85338852e9cc7dba1d670baa23249381ccdfb3c37686612ca9fb9"
+        }
+      ],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/ea8f7b1b32fd1b7c1d6ee661eed0e274b5e0250454dc8b4a0a3f9170dcc90124-0.json",
+          "sha256": "8baa0e2f75dd16498eec9cd1d4d5c00e571b58eab67614ae5d945ce6f1b349a0"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/parenthesized/plain",
+      "status": "adjacent-exact",
+      "supplemental_capture_executions": 2,
+      "js_differences": [],
+      "map_differences": [],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/eb4d22b384b893cde1064ca10febfa7168647c611bfccdb368ebae9cb1f1a084-0.json",
+          "sha256": "e4fff00d2d3762da8a05de9ac55b5daca863a7e95281c499b13c0acd1c20fe7a"
+        },
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/eb4d22b384b893cde1064ca10febfa7168647c611bfccdb368ebae9cb1f1a084-1.json",
+          "sha256": "7de2aa124bd9a6e831518ae3c4fcb819ebb7973d07bab644c41022e66c732c0d"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/assignment/generic",
+      "status": "owned-current-parent-name",
+      "supplemental_capture_executions": 1,
+      "js_differences": [
+        {
+          "path": "/project/out/main.js",
+          "rename_only": true,
+          "operations": [
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            }
+          ]
+        }
+      ],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "48da6f43f3ee8aa1e96c51f5c354d1f01afb1cafd0b37c2c8dc2089eb839ec8f",
+          "expected_sha256": "e07b9161c52f9826f5a65c58254356ee751106f269ef188a305fafee6d46713a"
+        }
+      ],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/f08dc58f9393279e335f539bf5b2cb9581ac3b1d4c49981f8af3715ca0ff7398-0.json",
+          "sha256": "6515d65ae49ebbde1f83ebb1bb0aec35beebdf1857d68c5a603d6baaff045679"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/binding/implements",
+      "status": "owned-current-parent-name",
+      "supplemental_capture_executions": 1,
+      "js_differences": [
+        {
+          "path": "/project/out/main.js",
+          "rename_only": true,
+          "operations": [
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            }
+          ]
+        }
+      ],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "69462b7290f0de8cff67c7a05223a267956b3adf70aac02e3ca370b047821067",
+          "expected_sha256": "da0aae4d0c56c4337f514dfda4a60e0d66d7986d3730788f28e0ffae0273b248"
+        }
+      ],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/f3013e1e21f046d0d1fdc54613c8fc7e309eeea8a07cb5054ed02485fe64f803-0.json",
+          "sha256": "6669d1a6c7fd98ba8d0e5d0e4a2e80c804c4da69d0d96faf86c4af559bf619fe"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/class-fields-alias",
+      "status": "outside-map-only",
+      "supplemental_capture_executions": 1,
+      "js_differences": [],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "db61dce66326ff8649ca35d4b82a0bcab5fd58adc93a2ef8966d7ebe82d4c2ba",
+          "expected_sha256": "3ae8853a4ee6cf731a3328efe0b0bf14a69ee77b286c90ac70d7cc91b74fb922"
+        }
+      ],
+      "supplemental_exit_code": 0,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/f38a569f6d74dcc17cc2b6db66949e1d8c2accc882505474721f4e9b77ebe760-0.json",
+          "sha256": "101480af3488d1949497852630c849367672ff7982dc1212553e7351710a94c1"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/variable/annotated-member",
+      "status": "owned-current-parent-name",
+      "supplemental_capture_executions": 1,
+      "js_differences": [
+        {
+          "path": "/project/out/main.js",
+          "rename_only": true,
+          "operations": [
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            }
+          ]
+        }
+      ],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "d9067b20a9f2c26a10394aa538e92a397cf7496b95b083c6a0d26bdb145034f8",
+          "expected_sha256": "522c5a582345935bad494cf11e3ce7474548b34f2183623a8ff5da4ae8dd7e39"
+        }
+      ],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/fd2310a609ddd2549463269ec0c918752522a0fb3884624a7afa2a351db696ca-0.json",
+          "sha256": "b3dead203e03057fbd77a6506d377172eac01b68c8945a2ca9c95869742f19bc"
+        }
+      ]
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/property/generic",
+      "status": "owned-current-parent-name",
+      "supplemental_capture_executions": 1,
+      "js_differences": [
+        {
+          "path": "/project/out/main.js",
+          "rename_only": true,
+          "operations": [
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            },
+            {
+              "kind": "replace",
+              "actual": "Foo",
+              "expected": "class_1"
+            }
+          ]
+        }
+      ],
+      "map_differences": [
+        {
+          "path": "/project/out/main.js.map",
+          "only_mappings_differ": true,
+          "actual_sha256": "38c34b6b8d9505d19a4085c06c399d3847dd0b4c6bf7f81ec8bc6eb5f2388a1b",
+          "expected_sha256": "0947c27fadc05e767c4e7a19d215abb81f4ac8128f3e630c5516a112b95dbbd1"
+        }
+      ],
+      "supplemental_exit_code": 2,
+      "capture_files": [
+        {
+          "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/ffacb3c492b43060a6658fae2cee54fe7e674fb8b383cfad2d09964bd9359e21-0.json",
+          "sha256": "4d8d5028a82dbe12cd295d55126c51edec33d410d4d0433b7ed000b30752680f"
+        }
+      ]
+    }
+  ],
+  "working_files": [
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "71853704eadfbdfe31f25171c2241b3a76db192671a0cec0d8c2cdd884081b55"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "88703daa270295a3e62c2befd67057b2b52cf09c81e3fcc4586224e2b2f2bb92"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/transformed-class-assigned-names.json",
+      "sha256": "f04166260e4005fa6bd5df31ef98ef6d7d8cd79b0054e137f5c52e806d906ffb"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+      "sha256": "7b14d30e473948b7a7878c20ed9feb528a629f8d26db042306ba6574a6edde81"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "726a6d93a6f97ec8e9509772260c71bd05326ae3addb56b90ee17d910e92e695"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_transformed_class_assigned_names.rs",
+      "sha256": "103cba6f7064c3fca0891ab7598930fbabb17f319bab8303349ad6a9028f7a81"
+    },
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "d2272c19c29172474bd67e67bbf8c1161d8016aec101ec396ff97f10d4777fb2"
+    },
+    {
+      "path": "crates/emitter/src/builtins/es2015.rs",
+      "sha256": "fcfdbb8bee41b28ed435843bdb2e9a370edda95c0b169b5bc173992eece130b7"
+    },
+    {
+      "path": "crates/emitter/src/builtins/target_bindings.rs",
+      "sha256": "0034f463ff6f1323753377f7c2fa2760b894ba37b59eeb81ec0980e4a6c45338"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/emitter/src/metadata.rs",
+      "sha256": "c9eaf94391d3eb0893a1d1e7d4c65ff9d876f8b3772634505325a72cf7430e23"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "5ffd982b2fb2057fa7c082400f502e755f0acaf663245a9898bb48c0820d57b6"
+    },
+    {
+      "path": "scripts/observe-transformed-class-assigned-names.mjs",
+      "sha256": "db166db51ecaf39f427363eb4833f63f2e5bfe6cb2fd0b7a7f2a4d2cc064df99"
+    },
+    {
+      "path": "target/analyze-transformed-class-assigned-names-before.py",
+      "sha256": "b3eb93de53be205e913c9c6127e152760fcbbb5b3b1d27ab3cbbc92df4ad469c"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/05ed6bc973c64a8970ab69f8f2fe1f8cbea2081f6b81eb106a5a77c2ca78e3db-0.json",
+      "sha256": "fac7dadb8eb56577900afd341f3800f44ed7074525a352653fec1a27966c5066"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/0a157e2668b961ca96f499278d34746b6d731dfebcde3e0ed4bc6b1d980c2931-0.json",
+      "sha256": "4c65f93bc044f639df9edae216071685c2cae3ca7d815b21ae3b8f684437a4da"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/0b65142f4da08e49edaf3c007c20e860596755c840057ed8498561faed80c215-0.json",
+      "sha256": "8930702e897dddbb3c3edce9f7764df0fef6454c863f6e89923c1ad7314ac8fc"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/0ee045fd78642e8d0dacf2bb2a592c41d0eff8a2461134b6135672a9dda20703-0.json",
+      "sha256": "78123c62e8a4a511cb9f0f840a23798315273c7987d3d5f0e06fce45a35391c0"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/0ee045fd78642e8d0dacf2bb2a592c41d0eff8a2461134b6135672a9dda20703-1.json",
+      "sha256": "14ae4d597aafe7ea52deecf3eb043e7fee788c288cc67fdaca85b148d3ccf754"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/168b7aef4eb1fe584444a96299e428b0e4015cf41b712465ed0d02482805e44b-0.json",
+      "sha256": "b1c9372181b1efb148047aed9e42cc8ae2db53173cd931d3af66d0e54d459607"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/168b7aef4eb1fe584444a96299e428b0e4015cf41b712465ed0d02482805e44b-1.json",
+      "sha256": "783a22182d06fc3662928f229130dc236afc58107ab034f7556a3f886c927945"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/183a5514c7d3fbcde1f7ddcc0c90798d8b319d0077b017b4b92dcedfac07be35-0.json",
+      "sha256": "0d047428c9a116840d1cf7a7b067afece680b8f87c36b0f4ce662395306c53b8"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/183a5514c7d3fbcde1f7ddcc0c90798d8b319d0077b017b4b92dcedfac07be35-1.json",
+      "sha256": "36353a37eaa7a362ddcf845b98db82d90fa89b12e8f80edf192a3d85d0685580"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/1a0a974e31bac64333cc51235dc60415df49b0b3ed065e21bcc102d3b4a3c34b-0.json",
+      "sha256": "f3ccadce3a8e9d3ffd49ef9a6f5a05640a2e74a759d61cfab40a3496982f79fb"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/1a0a974e31bac64333cc51235dc60415df49b0b3ed065e21bcc102d3b4a3c34b-1.json",
+      "sha256": "8e8b71ef525116d345e9f62e856b68bd88abd9124843083346f8979b3e4617a2"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/254e7e403cc32b440f8dfe253f48837866ad8f7194779b2a76695095ddd4712b-0.json",
+      "sha256": "e55e7687fba230de052d3f5e73cdd9896c5a2eb651f34aa15be061b1419f882d"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/257fdf852e253ecf2b0b1fe8657ee13c91850e06559c8fef6e406d8779a42798-0.json",
+      "sha256": "98f15707d5a322f8dea990e36806f3b1c1c95c7c523662fdb8f33db0bf425154"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/257fdf852e253ecf2b0b1fe8657ee13c91850e06559c8fef6e406d8779a42798-1.json",
+      "sha256": "826947f6a79e328f4ad8fa30bf555b9a0756607d61f0282e9a3e87ab906cd65e"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/27821c37b073238f9265674be407ec091b1b6947f8eeec76da58c7a033ac06ec-0.json",
+      "sha256": "4f2af29ecb05d83a41dc9d577776136f4053e244a7f38245cc7b2cbd18f888e1"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/27821c37b073238f9265674be407ec091b1b6947f8eeec76da58c7a033ac06ec-1.json",
+      "sha256": "522476a910c9fb613adc7378625a6fd5883ccf867f910fd8c16f3d395ff4099f"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/2a4408ad121f21fe0b068428b35ad64a9510b6a16bd8d2ead8691aad01db32b6-0.json",
+      "sha256": "055f24159d8c134679a8a6d354897260e8f38ca855deaa5c6441d8cfc04292be"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/2a4408ad121f21fe0b068428b35ad64a9510b6a16bd8d2ead8691aad01db32b6-1.json",
+      "sha256": "5978f284f16daf78f4273ae714ccfd1751b996342ff3bcbca8706a3060f7701f"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/2af9642d16fb34fae7eca59eefbab7008ed916026edf777d45b9b83d047075bf-0.json",
+      "sha256": "6be315abbf43513a1f89fcea674a23d880881f92b86ec22f0e64b0d48d533d23"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/2af9642d16fb34fae7eca59eefbab7008ed916026edf777d45b9b83d047075bf-1.json",
+      "sha256": "dcbf9af85a6faab10f0d86bbd3fc6bc9cc06629a216b73437b022c463396285f"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/2b47bba7d75f3cc5f704a0991b1cf0e510b862369b94da353638d33e88b9217b-0.json",
+      "sha256": "3737b1de35c5f8bfd970c591c8b1d2bbedcb4138582ea4d7eff37d618383a239"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/2b47bba7d75f3cc5f704a0991b1cf0e510b862369b94da353638d33e88b9217b-1.json",
+      "sha256": "dd6d1af46d0701efec765480852ae8fe4f849f193dd2c04614523d923004f084"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/2d67e0d84eac2cf6b6c64df3ca71c91b06270143cbcc46961229dc8eb32d57a4-0.json",
+      "sha256": "485394f2e3b1f8d63f7be8692ab35e405cd372fe6fe13d57ecd3b38e5deb72be"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/2d67e0d84eac2cf6b6c64df3ca71c91b06270143cbcc46961229dc8eb32d57a4-1.json",
+      "sha256": "e4a4c1887b8435586645c894f32c651834e1455a6f1ce22322555ac3de43b875"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/2db2017e8d41f85494ee6792d089f64483ffbd791abeb311a14a0e95f5af3e91-0.json",
+      "sha256": "961490cbed0052f0321ce377d340e894273a2610ad395517f631b44d7e208c34"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/2db2017e8d41f85494ee6792d089f64483ffbd791abeb311a14a0e95f5af3e91-1.json",
+      "sha256": "0ec71f0823a7a4ca0a7af1c30a6737a556ed77afcc47c9fdc8a58e88f5814cd4"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/326c2c9f873d94da2cdd4402598a93badcaa9106350cf5a0e3a88bff326d5187-0.json",
+      "sha256": "a598da3c1413a788b9891140e2f50ab2a517b2838fbb8c3955fc06a4c17a170f"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/326c2c9f873d94da2cdd4402598a93badcaa9106350cf5a0e3a88bff326d5187-1.json",
+      "sha256": "52b3b6b39e61dd89c4ce11df9720996cfaa5d8bc342cac892f85209e26bc7495"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/369c359b99c53c68beb6c4077c49ff81f820f050a192d56cc398b0b4f0cb3244-0.json",
+      "sha256": "523743da085472c079c8f22a29b5a4abc93f2edbc56f9c36add52df83048bdb6"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/369c359b99c53c68beb6c4077c49ff81f820f050a192d56cc398b0b4f0cb3244-1.json",
+      "sha256": "82ed5d5696c0c6d022d4c540d0c1baf7279edb8ec72e5e5d16534a7d99d087c4"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/37123d8ee09a1ea6ef1c9428a65f949e4cdcdf9fa8d7239f1789b5d0c0e66fd4-0.json",
+      "sha256": "a5bce59bcdd6cf38eaeb9df7375af8498e0d363fb9882d19dd75b0ff8585769a"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/37123d8ee09a1ea6ef1c9428a65f949e4cdcdf9fa8d7239f1789b5d0c0e66fd4-1.json",
+      "sha256": "ec82d92d0d2e7d9b88ddf11dc5aafc60311a4ada7bac52025084e665c489baad"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/3854dfc542a28d4a392b5c80ac39093bfddabbaf6a323a45bbb4ace78a6e4ba4-0.json",
+      "sha256": "d28f595406cf866a0c7e6bc87c1ab33c231f795f9d2f028c3dd4d005505c8757"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/3a6f5f9be4ef6131766b25543aa0e3b0346bd85c161830ed63576a8e113d633f-0.json",
+      "sha256": "d2a10e6caf97c3cddb9a1c20ec972ad0958f3865f83dc0153dd927a8087df98d"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/3b01ed2ba518852bd024bbf3a5f6b14d0696315abb226f58f0d3593bc0addd80-0.json",
+      "sha256": "c53dc5d8b4b516adfac45d314b2435a27de9bf4a649d6019218f857c8da7c6e6"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/3b01ed2ba518852bd024bbf3a5f6b14d0696315abb226f58f0d3593bc0addd80-1.json",
+      "sha256": "550d5cc1e256ab28b5aad583fcff78e0813341789a9a92aa56fec0bea4672b13"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/3c163b4569cf2f52a27bc50e067527b40d98ce66791626e43bc8a70b254773ff-0.json",
+      "sha256": "e2587c99e8cc0a46e9bea95ecb1859aae111fc22db2afec08a8dbf0f060b7022"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/3c163b4569cf2f52a27bc50e067527b40d98ce66791626e43bc8a70b254773ff-1.json",
+      "sha256": "44a2251e921dcd884c636a9aef14b710875e9ff116301e48a92c14101c1ef226"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/3d18eb3f6cb863b86e9e26b2c42fdc09b07283bc107d4b0eb131cdeac794cc95-0.json",
+      "sha256": "a37d4e5a8d3436febfd43ba336a707f705bae2c6c01bb7d7651a3bbd9bb6e47b"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/3d18eb3f6cb863b86e9e26b2c42fdc09b07283bc107d4b0eb131cdeac794cc95-1.json",
+      "sha256": "c3c76d6253f0b717511ccd3b75d4d6aefdb1b45ae431821aec714fc7b42410a5"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/41697ec33cec4434ec1c362d38e85a2dace495e44561ab06a4b295cbed93c020-0.json",
+      "sha256": "5bc55b664f6cbf64ad8a8386bd803540399a95d43c65ea4439ae292b1773b034"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/41697ec33cec4434ec1c362d38e85a2dace495e44561ab06a4b295cbed93c020-1.json",
+      "sha256": "1bc41593067c8f46939e9f5eda7e8f6b650819b87c38d117c30b823168950b56"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/4a7d1a5f33f2f967e01193a12609a27f025bdb17f205c004873efd1f78f868bd-0.json",
+      "sha256": "fe548d236b84e02c0f4fc0058f090338d735a8a70abf088f9d99db0fe78364bf"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/4b8eaf47eed8f950c89192b587dea1706f12aed794f13a27153c90472e386317-0.json",
+      "sha256": "d616ca2671b277f81d2b116faa93486cbdd507b71b79405d27157a3989866992"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/4b8eaf47eed8f950c89192b587dea1706f12aed794f13a27153c90472e386317-1.json",
+      "sha256": "f95bfc90efd045a8e42e35617b3a1f6a3af9070fe21135e03c0aacd6e6aeaf01"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/4e37e7329c0c3df41bca572a86ce2795e42e709c358c4cead44d23aab0a240e3-0.json",
+      "sha256": "460736cc005569eb202826a62fb541fbc9de7701695885128f42dc9454d186e8"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/4e37e7329c0c3df41bca572a86ce2795e42e709c358c4cead44d23aab0a240e3-1.json",
+      "sha256": "ea2443e3bf126506c7d15605500ed0790aed27d2ecb7c4fcd3a7d9d00b54f682"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/4e3dc823bd26ddeeaa44effb0706265e0b6547f0cadb9609f452fad8ee5ed7d4-0.json",
+      "sha256": "0430d3d8b2ea9f49851fcc06d7015ae52bef1eafab98a722a724da1e64386113"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/4e3dc823bd26ddeeaa44effb0706265e0b6547f0cadb9609f452fad8ee5ed7d4-1.json",
+      "sha256": "dcf58a82bbbeade004a9424e16e5a9511be64d264458eb21080b0b823ce94936"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/4f7d3ccb6da390ae63cb6a00ae7024660d9af028fab00092f734389b4b3bd9de-0.json",
+      "sha256": "4bb7d918e0b7e6cb7e45a4e9869a680c1c8c3b8b719cd9d07ad4481f1ca7397c"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/4f7d3ccb6da390ae63cb6a00ae7024660d9af028fab00092f734389b4b3bd9de-1.json",
+      "sha256": "48ab5e95eb01ab751727201ef7435352d309284b8aa511a4102cfa031efb27a3"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/5021e8a69d2e6c3301548462f1291b205a99e76352aa5d6312d6141dff2e52b7-0.json",
+      "sha256": "1f8371e42d2eba36b0cf3c9c3875c9d56d4ac8e9a821beec54d5030b44b13d3f"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/5021e8a69d2e6c3301548462f1291b205a99e76352aa5d6312d6141dff2e52b7-1.json",
+      "sha256": "9ec8d890d121e27f60680c56f0414bb0cfe8b6d8cf88bf5670c1e0d63cb33518"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/50e17bbaed86378276b37463686d9f016c32f90fe8b2eefde4bcdb78652675dc-0.json",
+      "sha256": "0c59e46800d10f29658ab428ef40087d1aac098158f662fb2df3d275dd46bcb5"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/5115237e22eb70c0d4fffb7cd64fc1851fafd96e6fc43694d608038d445d01ca-0.json",
+      "sha256": "4ef6f70eac273021cb483c3302ab16699c7a92d01fc566683d9c771edda4ce6f"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/5115237e22eb70c0d4fffb7cd64fc1851fafd96e6fc43694d608038d445d01ca-1.json",
+      "sha256": "327bd174a42193b44c00a69a89840174b7906e30aa668cfe0130052916a5c0db"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/513decef77223deb4d3b88295bd541127a6e9ab2d96be6ad877912b02857300e-0.json",
+      "sha256": "c35dfba2b2c4bd86cee75e29da5ffe559d24ea8b1562d4c6ee3284c4c10a2b96"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/54fd85bdd551758262ec078b03c5d3214e5a980c71a00e7c2b1036d366b152a6-0.json",
+      "sha256": "d9f244bd7959388f73f54998ffa6ce88f4671feeccf10f50dba1eddf43dfd3a8"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/54fd85bdd551758262ec078b03c5d3214e5a980c71a00e7c2b1036d366b152a6-1.json",
+      "sha256": "b82f654368f97d65bd7eadf6e4e19fd20a5f53fc5fa6bccce02504f01ccdf362"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/5838c1744564617d6a2448981af75c637cf32cf11db60ee5463b6a01b7120b25-0.json",
+      "sha256": "d06680ccbe326e67e8bf4b60bf9fb6c4d29ac44057ea7d8fa76f75646a23befd"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/5838c1744564617d6a2448981af75c637cf32cf11db60ee5463b6a01b7120b25-1.json",
+      "sha256": "17c4513e9356a67cd5e3e0170bfd1861ae089573587ecdb31e9c9db2dcbe239c"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/599de36be34f9963968d5365153526cc4e52dc9f9b8accceb85b01df8874e2e8-0.json",
+      "sha256": "37c7f098ab733a2fa55e3bff8b3fd450aa9a58f9ce4b2e2185c2d3cc1e43f636"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/599de36be34f9963968d5365153526cc4e52dc9f9b8accceb85b01df8874e2e8-1.json",
+      "sha256": "6857f58ef93605e5125c0d93643f3810dbc33594749308d424005654ba19fc66"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/5ad071ddeb59c32e896ff134bf9136721f5b62ecf957df1821e6972cc4763adf-0.json",
+      "sha256": "3e538b050b09dc8468f6835f1080ccf320015702b49c2898c5421a94d6cab9fa"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/5ad071ddeb59c32e896ff134bf9136721f5b62ecf957df1821e6972cc4763adf-1.json",
+      "sha256": "555f3b40edccb0660557705179808ebac5f642f942ab478f9f7c38bbb3f3ebc2"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/5c652b81036eb0ec637ecc2b4b09f3edc75270c60b756ea55f560b4b50126f92-0.json",
+      "sha256": "dcab005f0ad35112ee8dba5819effa454cc67e13bb4ad793ae61c895f2c606d8"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/5c652b81036eb0ec637ecc2b4b09f3edc75270c60b756ea55f560b4b50126f92-1.json",
+      "sha256": "abf2933e2a82052aa789598cf7639d8e8db252a4bba418ad32e26ae6978fb3b3"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/5e60394a4d39238afbdd4e0efd48739e0864555c9aea67bef6c3c2d063b0e8e2-0.json",
+      "sha256": "d57b161a63bd00b12206f7dedce2d22cc824eefcc7864de0dde7a63569d7d954"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/5e60394a4d39238afbdd4e0efd48739e0864555c9aea67bef6c3c2d063b0e8e2-1.json",
+      "sha256": "cbb13e3fd21f07b2c34fc4859318d5cf305330dc232db5dbc2fac7191cd2e863"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/6070f21a91ca43deae06aed3b2900ab52d90c30451703f04c1ab7f25890e796c-0.json",
+      "sha256": "87339c1c00478e3b20da45095a8613c8d0d6112401e0f931d6b55816400247e1"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/62011327d3e87af2d7c4a2cb006022e091d795536da99a5c6933672def2cd0c9-0.json",
+      "sha256": "cc17e514fddf65ef05f19e6fbd94b1c369ea5dbc20725e4df2c01f3ad352ad93"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/62011327d3e87af2d7c4a2cb006022e091d795536da99a5c6933672def2cd0c9-1.json",
+      "sha256": "061c161b81088434a948087a87d8695b36dead7bf23502ab28e4c54549302a55"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/64a96b00df9e17ca43fed65876d313df1b2dd031c4079fe380b2a2c37b7ce017-0.json",
+      "sha256": "dc9286dc006b0031f272db904a6e1fd969057534169c9b24852411f909d488b7"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/64a96b00df9e17ca43fed65876d313df1b2dd031c4079fe380b2a2c37b7ce017-1.json",
+      "sha256": "7a5c00d5b9a9f4573b7851b006c7666c6bdecf967a7a1032672c74773a3b7ccd"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/651b29243a18656889b2b26ef7a0552e81aa20506e1d5d5823a90ef01f26e4fe-0.json",
+      "sha256": "62ed6a0889056cee3e16e80cf4fe27994081553312c45eb260c0859043b63c26"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/651b29243a18656889b2b26ef7a0552e81aa20506e1d5d5823a90ef01f26e4fe-1.json",
+      "sha256": "3ecaacd47f57d6f10e1b9d4b7615c3720ebc088e1b68e1bb3f5af0f5a84ebbc3"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/69ba005478b2e4df48e1aa9267d3b0e2a8d650694c7585da87fbc3dedaa9b3f2-0.json",
+      "sha256": "e5070c1a2b261808835f6e1dbb12c2076f68e72137d0121be16deaf14ad0c2cf"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/69ba005478b2e4df48e1aa9267d3b0e2a8d650694c7585da87fbc3dedaa9b3f2-1.json",
+      "sha256": "0feb830a5ce65a5ffca5971c59d92688f37932562bef759a9005fec5d174598b"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/6b41cd84b8e9ca88329b567ef13082d425e5a7562a1191101639d4b2c357efb2-0.json",
+      "sha256": "84cbd9a4bf569b64bfd87c860ad1fd0dc3521722378b3392a94578e01ca2f9fb"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/6b41cd84b8e9ca88329b567ef13082d425e5a7562a1191101639d4b2c357efb2-1.json",
+      "sha256": "56d7704c69bf38901972a4f51ba9433852fd63fca4bf8af712ebe667fa877a82"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/6ed916a21da9cd939564cd79e66e78699224bfa3fdb1d903470979b25e0494a9-0.json",
+      "sha256": "2bef4fc42af47b9820623fc863e38ef8d5d9798cc08017d4d6c84e320e02cc59"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/6ed916a21da9cd939564cd79e66e78699224bfa3fdb1d903470979b25e0494a9-1.json",
+      "sha256": "61bf25b40658d549feffd271a6dd9607372fae0d2f29f0ff330838a2e4087529"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/7135f5c7d611071ed9109b4d92066fe19c7f103414b735c232cb141636952043-0.json",
+      "sha256": "09034703829c50246881bbfeb4749a02bddee4a2c44c5ed119eecaa53d721971"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/7142e4d76bf67c07b62aec3a1a442a215e098a755896fed472bcf719356c3d9e-0.json",
+      "sha256": "63b2d9fd09526c3398758853197fca403cd6184bb1f1757b351b0ea412073520"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/7142e4d76bf67c07b62aec3a1a442a215e098a755896fed472bcf719356c3d9e-1.json",
+      "sha256": "3e54b471d6469682f598e55ac3fb4aba4bd39863de856c5db4c665ac2f89365f"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/731e47eb630f2621a7906ac9a86a901af8c74b18ce46e6c84c1c9f25718d4cc5-0.json",
+      "sha256": "129cd06f54e2465984b60c7ad0c0816180c083451e6368831b0a3be5277e92e3"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/73795f8026af1acad2be298497e9c4482b1bf484a6efdcd81521a47c0e13d283-0.json",
+      "sha256": "fcdcc14f03985fb9af37d29375c7963caa5a5019116f34d7d9f683047d933e36"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/73795f8026af1acad2be298497e9c4482b1bf484a6efdcd81521a47c0e13d283-1.json",
+      "sha256": "bfd1a802da6adaff3769aedbbd6478b22c5fd9bf3b9a4783ae3dec948b61146d"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/745909c490023431d8e071535af0798f4960aa7d0a763f0e660d991dd23ac50e-0.json",
+      "sha256": "6c71c30fa9cadecd0a99fcdcf049b2e09a92226e1c6b5a491d39700df89329eb"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/74ee25dba23d5a3b75f264e45c3b30cc4cb4da5a5cd31dc63dc8ddf45647efca-0.json",
+      "sha256": "8ad8ba76f416fd770cb136800206ec07ad39a026d1be096571af7267168c9e46"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/74ee25dba23d5a3b75f264e45c3b30cc4cb4da5a5cd31dc63dc8ddf45647efca-1.json",
+      "sha256": "5a0980d23cf6f50a94381c19b7e4eb511526ea28a4771008324bfcfa470d4bc8"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/7f4b197e26e1e6e841befd6d4902b8c9e1b6f45770f88200600796d0d62df161-0.json",
+      "sha256": "985682ef30691364cf7ad195976188c939d94318eeda1a97899a0d06fd3adf50"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/7f4b197e26e1e6e841befd6d4902b8c9e1b6f45770f88200600796d0d62df161-1.json",
+      "sha256": "a59fb749cc79bada27666aecd448b43953894ce28cd1a07b158039eefe05b46d"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/80a19ed3125fad2e13170a130f6c8cb239c5e110071fea08fc6a9814f50abd4f-0.json",
+      "sha256": "08dc1ee013aafd8b3e3079f6a71a053a4954bd6bc2887c227a4427216a9fbb48"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/80a19ed3125fad2e13170a130f6c8cb239c5e110071fea08fc6a9814f50abd4f-1.json",
+      "sha256": "31ca2eb575be8608f2a7424d35114bba9a5ba2368b0b7bdf69708aea4ee81f9a"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/817784c73872ec24358f740a5c1c2d6ecf12367872d876bb1d705739ab6b6d13-0.json",
+      "sha256": "b85676c349fd46d336435ba428c2f7b83147262a294e28f81f6b73708e348a92"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/817784c73872ec24358f740a5c1c2d6ecf12367872d876bb1d705739ab6b6d13-1.json",
+      "sha256": "3773acf9e141d8f02271e92cc49892a02f17db674e4eb5b537784e4047e68951"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/81e8c2da8239cfe2c3d6b1426734246d7c96df85eb49acee183b3164eba45b83-0.json",
+      "sha256": "7ec806734a344ea923ad659bfc6a1a11d2dbe5a11c33d455b03b1a0ec333278e"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/839466b964c1cf0d5bbd9f4f080b8fa4fc7d9b4c32ba5fcfe843f47ffec66b88-0.json",
+      "sha256": "1b31d904d8a57646943f76d2a88b8dfa0a73c12d077225239cb60513be8ca56a"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/90484dc9b2134b8adc3bec206a1cc290ecd269b2344ac4aa481278b7c613c34f-0.json",
+      "sha256": "d76b50e5a5429036abef881c4fc9c2e23351e4054d947649e70103905b54c412"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/90484dc9b2134b8adc3bec206a1cc290ecd269b2344ac4aa481278b7c613c34f-1.json",
+      "sha256": "28457bc59b0f7f80241a764b113d9fac75805f4440061455cbf7ab9107a02d4f"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/92685ed0c4737ca1b1c9407dd10e3bae1646dc729feba40397f08fbf24a68298-0.json",
+      "sha256": "7f62ca64230a3f9bd2d823d6cb7aa1ef21592c2046b994add6fa7124740bb111"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/92685ed0c4737ca1b1c9407dd10e3bae1646dc729feba40397f08fbf24a68298-1.json",
+      "sha256": "268956c50c68d179bc8807efffc4f487d1c2fb0d75ac3219dedf9144ccb85bb7"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/92ede3c183042df49baf731301f1c04cf7650e3959107b3b249520258754eea0-0.json",
+      "sha256": "660e8610ba9cdb147412a2aa17bb4da4504135ffb0ba4f4a591c24a33b047e0c"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/92ede3c183042df49baf731301f1c04cf7650e3959107b3b249520258754eea0-1.json",
+      "sha256": "55534805e60218f9e0c475eb77bf43e0c9e9a5bb3414f459987cc3fab0f30116"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/94853921a4c79f57b5f487d30fef59f408c11d449866ebc18b3f88e8f1b83bf7-0.json",
+      "sha256": "5d8319c2b9bc5c79de21102712ddcb7c9b3bdadc38cf662f23f0f85a160f703c"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/95150db1ffe281a8e1ee4b35564e7848763008bf75d1aad70d953baa82e4c417-0.json",
+      "sha256": "d1cf4132b0323a7201999dcad0d7b73f49ab8feb5e0d2f42253612c196bb425c"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/95150db1ffe281a8e1ee4b35564e7848763008bf75d1aad70d953baa82e4c417-1.json",
+      "sha256": "366f53094e64e3d7b16e08cb71507369ad8b2792ad565954eeb7850eaf274007"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/95d1f68b77cc1307820d387bcbb774d818f992e93ca123dc35f05e02fee1bd15-0.json",
+      "sha256": "c18cdd9590139d36f9d51e7b9570adf247d582a7e2862612752473b57c7fca99"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/95d1f68b77cc1307820d387bcbb774d818f992e93ca123dc35f05e02fee1bd15-1.json",
+      "sha256": "821dcbd61e8ef12860140d975bae01e26298ff3602fe7c6bcb18ff462f928a0b"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/96ff81bc272a5b98a7a5e7bf295ce2771df82ac5c86f4c012fc4675823d47675-0.json",
+      "sha256": "8f4d0c37e6f3483a00c2f745158a437c47bba3f782c9e9cb34d7b198daf614c7"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/96ff81bc272a5b98a7a5e7bf295ce2771df82ac5c86f4c012fc4675823d47675-1.json",
+      "sha256": "7fdee42fd91dc28bfe4e89325f982e2292817a2ab0aae9fe5d1a45d4202547b2"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/98500e458b26e1bcee1290b58eb4389092f0c1ca9a28f63eff267651672fac4c-0.json",
+      "sha256": "ba20312fc08a7bee0931bae9bd6be7aef5ca4b8b3e8eae0c79d6f396c21ffa2d"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/98500e458b26e1bcee1290b58eb4389092f0c1ca9a28f63eff267651672fac4c-1.json",
+      "sha256": "c27d90b89835327c64fd18501075d94aa21e23750993727473401985cb17f617"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/9a07300dd364c22ce119646e682e4664ab54050d7f9c130d7b6a11dc3c15c413-0.json",
+      "sha256": "3b8cb8556bc7b302b900927299612efbbff91317b53f9854e3dc65f6c306e4f7"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/9dca3b5dc5c952e018dfbb1747447a3dca7a596f0e152993bdc7d294cf978a8d-0.json",
+      "sha256": "d0875d38ca19a19ba6d088968254ce9a88a54ce3f354d4897f2f8777b8855530"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/9dca3b5dc5c952e018dfbb1747447a3dca7a596f0e152993bdc7d294cf978a8d-1.json",
+      "sha256": "895e3debc3ea7987d2183f12c2a416afb1a43d54ec7d9cce6f99e5a8eeef8019"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/9fec52ca9f63d8dd645ba133434d4cbc3685264db1c6d85f2fb8ff1e9c6ef587-0.json",
+      "sha256": "e90aac70a39406ff0d59d8f0f7cb276c2550f1e5a668d00f274ed6ba0a114df6"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/a0dcdf2e6b4901bd56d7bb3374e70e6355e101d0c2d48b10a16c372ce9ac6ad2-0.json",
+      "sha256": "e391ca18837d1b72e072498255297c981bb4fb244633604cb92aa3ba67fed3c3"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/a0dde0f7c453bc75b35fd7518694aa993c3c994b8eb85aaa7c8f66a396298a8b-0.json",
+      "sha256": "c7f57f160124f638aefc471a0ebe15d0815f5ead310c8595e1018f57ec8cfca8"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/a594892d42d46d89f4411a36669b94f5a4d04bc18e477b8872ef41d99f0b992e-0.json",
+      "sha256": "c94deb82399b4cdf1a9313770a403c86eab2e28f9edf33d336ce2c692a1100ec"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/a594892d42d46d89f4411a36669b94f5a4d04bc18e477b8872ef41d99f0b992e-1.json",
+      "sha256": "3e1d094669155a818cbc5b6fa42b5c5c960491fef4b0821fa2d025943c0ac91b"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/a61b354b069d604f5c5fc011e6961c22076c5a91c2c857df0278107f4c3c2291-0.json",
+      "sha256": "cddf333fd0fff16d4eab89d4c897e05e2496d6057f49eb3ab59cc164722e87e9"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/a7699e803cb2b669f6a1fabe89965b4f02ac829ef52ea33f89ed2037cfcd7e46-0.json",
+      "sha256": "2e38902e583c68a322fbc1e067445be9813c620c2f522f49ef8d55b7ba12c2ec"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/a7699e803cb2b669f6a1fabe89965b4f02ac829ef52ea33f89ed2037cfcd7e46-1.json",
+      "sha256": "2a2423dfdb46a6213b2a823530d96605d6f3671bca5b81287f47b27dbb2f9dd1"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/a77fb0a91ccf98971c2e2aec2f2d1958a13a8c34f483936dc020c66a7346fbf1-0.json",
+      "sha256": "0732edb4f86ad1ef2cc2f6be619d73badb29ef60506cd0fb93f84744d8fd552e"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/a863dbb9f4bc99097a25b3e46eeb4ee6a386ebe817dec712cf1aaac2b4a61b5f-0.json",
+      "sha256": "792441e7601ec00012eb4d91558423c0a7bf5250bcf24e4b1071bd2c9343d1bd"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/a9627d5fd25649e327cfdc419ced9b33d7079e2441e6d73185846fc5f712898d-0.json",
+      "sha256": "6c3a23d92daca07e834bc7572d0e3f953fb3e8d8e8b1a482396d2e1c39390985"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/a9627d5fd25649e327cfdc419ced9b33d7079e2441e6d73185846fc5f712898d-1.json",
+      "sha256": "5b3486e7ca6b5328ff6c024cc535fd2863976f7e3f58ee8f70da338054b2b097"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/aa91be9310dd9e902efc147951e55409ce86f119b92df95c99a17679856e72e1-0.json",
+      "sha256": "af181eedaa833ee31a4556329f756bedbf720c48cda2493481411fd74403ee4b"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/ab6711095c863f064fffdcb33437cd50c947b84d5e6482d8fd2e1a9f7686fa5c-0.json",
+      "sha256": "6dc6e8f4f43effe08c5e5c0a4e4ae6de766b5cfd62811d6977699644622fc881"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/b159034b6798a546f288bf053ea28ba11400d8b9f89bfc6dd7381670bd11e24d-0.json",
+      "sha256": "e965d7c0d62839c0cabf6df69a07a3a031448999243062703ae2a8e518938a72"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/b159034b6798a546f288bf053ea28ba11400d8b9f89bfc6dd7381670bd11e24d-1.json",
+      "sha256": "e6a9a1b12dc4e2a9d39f88ddc1c0139826c60142e26e0e0a096d2b62852ad1ae"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/b19e986f892a876dfe3de4814513a42ab6995893062dccd47a5f94af8dadd2d0-0.json",
+      "sha256": "a144cb1beb7877ff66ea4b737dca48c68a7a0a9a6fb7912678fe7be1e0488813"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/b19e986f892a876dfe3de4814513a42ab6995893062dccd47a5f94af8dadd2d0-1.json",
+      "sha256": "4175ba72d4edf4d0430809fbffa44a83661f0099a54c0ea75fe9a84389c62cc0"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/b74d6c7c1c2eae15b88ecc14b1e9f03824100ab790f4bef1aca7023a006ed4a3-0.json",
+      "sha256": "ee06fe3213625843a85aaed33c5430a19bc5190c9a8437eaf6acc2f2d3b70133"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/b757829a2819e8afb27c5ad4785310e453d456d7f3b6ec9ae0379dc24f858b9d-0.json",
+      "sha256": "99a9795d6871ba1f14170bf5fd22bcb4b340b483b903bac69ecf1821fa26dae2"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/b757829a2819e8afb27c5ad4785310e453d456d7f3b6ec9ae0379dc24f858b9d-1.json",
+      "sha256": "d1f435a03fb51b5a203ef7e5f36f70c6a017073a94468cf602cd3b9e8c506524"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/b7a8f35d8229919bfee88c5b302e1e98e2db0b60ffc3b577c9d71b39e6195f93-0.json",
+      "sha256": "617b20248e0245e9e186c7b0f95a20929325d0f42e879424f962bf327153b3f7"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/b7a8f35d8229919bfee88c5b302e1e98e2db0b60ffc3b577c9d71b39e6195f93-1.json",
+      "sha256": "604f97e83b8e743ef6f2555ea50ea3274a723919f2f7c4178ee9099dddbad2b5"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/ba76129f8a1a6710e987553257cc86edb4616f2e6fde0dd66357d43b787bf7b1-0.json",
+      "sha256": "a0cd1d266504641d4e70fe6accbd8db459394dec8c3c77971a51e4bde08e2909"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/ba76129f8a1a6710e987553257cc86edb4616f2e6fde0dd66357d43b787bf7b1-1.json",
+      "sha256": "4def0a0dbd956c1f9ac4d3e2b1e8c47e68c389c8a59348bf38ab9d1c34172825"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/bf17f5d1a32ecb328f4c9ea937183cb869d158c7af5775399d4278c7754c42e5-0.json",
+      "sha256": "52b905466fba2486499dfc29b31be980ba35769878e07e63ce4e07476b21d453"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/bf17f5d1a32ecb328f4c9ea937183cb869d158c7af5775399d4278c7754c42e5-1.json",
+      "sha256": "dd587f2a4bb3bfa524a046e61a3ad0f06c1c7f185885b6dfe7e772c7f064a9ff"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/c4a7d4ca93b6405eb09a29ab7b43e8184cdf096f4a3691051888011d60efe5df-0.json",
+      "sha256": "a350c78a56b798f03816f1611cd72b4abc690c1197c298ff1920635bd83ad3e2"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/c8185bcd63a2f14935dc3010b87ee9bf25ec7858a2e7c201511bfde7e5d9a62b-0.json",
+      "sha256": "8d8e4fe5892d6f5c80cc292d0cd633e214b5bc7ede942aa1bf7e59e19e63a7cf"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/c8185bcd63a2f14935dc3010b87ee9bf25ec7858a2e7c201511bfde7e5d9a62b-1.json",
+      "sha256": "b8f5efae2a85784012d2a0990fe7d68528f80e04545ad68f090cea15af6642fa"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/c9a735b5a618e0a2a737b8fed8f08e7a584c59ac2ef6642cee82601b0489039f-0.json",
+      "sha256": "a0bcb4f5fde2e87285f6d3344927c362972f31dfc66c9161c7ff1c4c657197be"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/c9a735b5a618e0a2a737b8fed8f08e7a584c59ac2ef6642cee82601b0489039f-1.json",
+      "sha256": "1bcb391edd4ec55e07f36a53c5c55b01392ba8084599ef2e615331c7c723e872"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/cc302664448265f3af13872949eaee4d7d8004bfd74b2c1653958fa81137f3d9-0.json",
+      "sha256": "cc62fc3a3806d7f0e24d6b5615d8c7eefd1d650085033a82dd6ff73f3f2da875"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/cd1a376523b0ca7ea8e515a840a7ee276fc477ad340474546f23e4c9469ef20e-0.json",
+      "sha256": "f6c1b853460d244102f60b770e883407a7e66ec06bef314bf3fb6c26a235e97a"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/cd1a376523b0ca7ea8e515a840a7ee276fc477ad340474546f23e4c9469ef20e-1.json",
+      "sha256": "dcfc77f7e68c3ea7658d30e0e2aefda3975c828930ccaf1da54eb5b74f3fa9ba"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/ce65b0e53ef84c2274f2b2d9bdf4e6471faf016004445fcb762bf1cc18b0e1bd-0.json",
+      "sha256": "03b5a5691c928b9cfa34c541034b569f3867a4e1e6d92e17f95da08e0b9573bf"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/ce65b0e53ef84c2274f2b2d9bdf4e6471faf016004445fcb762bf1cc18b0e1bd-1.json",
+      "sha256": "f878fc07906225e763cf1720d3823ad6724f322e2ebfc7b544c6ad1a6311fab8"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/cfbc8ae7870e99e1ac7961300249ec7a68dee5fe2f85890ab2008154f7f7627d-0.json",
+      "sha256": "ea1c6e8185709aff95d8cd5728ab3a019dbbd422bae357004a35c6dbcc2a5541"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/cfbc8ae7870e99e1ac7961300249ec7a68dee5fe2f85890ab2008154f7f7627d-1.json",
+      "sha256": "ab4331e5da680eeea6d443730f9ba8ec6160e8bf8a53480e97e84baf17596ac6"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/d1fbb6c3475e43c5ce88ceaa1abbf8567533e18e919497703859a8f6d4577890-0.json",
+      "sha256": "99d3991fe5090b91401c468b170b7d978830a719e23e2176ddf2846e75d396c0"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/d1fbb6c3475e43c5ce88ceaa1abbf8567533e18e919497703859a8f6d4577890-1.json",
+      "sha256": "b9f4b99f573f8fd336312cc9415cb215fad9e4dbcfddbd2015a1ec617f98190b"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/d23d1476067bc9938ed6dd087e6b41d8cb3c485a2c23700d976b2f2feb823b5b-0.json",
+      "sha256": "e1ad409dbe6fb0bc467497004f2b35113f5b5c504efcbfd7ff3c9192171702fb"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/d23d1476067bc9938ed6dd087e6b41d8cb3c485a2c23700d976b2f2feb823b5b-1.json",
+      "sha256": "f9aa04a62a7a4bd8b5d77ec89f2cc3e895a36dfd46364743d1fc29a2928a6126"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/d48569bffdea905492eb8b1b72957141ba525a96d35a724eb6ae7d478811cb66-0.json",
+      "sha256": "c7405a8c3e1c897c19a1ae74c31500132a8f7e96ef76de53d6e1e24a5faf2aed"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/d48569bffdea905492eb8b1b72957141ba525a96d35a724eb6ae7d478811cb66-1.json",
+      "sha256": "5970543bf3cb2eeea1f4cf6d7ec70d0f7229833a7e602d53e0a17361befda73f"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/d6e3fa1546c9d3b3f6b0200f953813fafcaafc0eb0f7f204fe5e56c47da93d69-0.json",
+      "sha256": "6f814941afce419ca141373cad39496fd7db99420647b6e6ee402014a6ed3392"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/d6e3fa1546c9d3b3f6b0200f953813fafcaafc0eb0f7f204fe5e56c47da93d69-1.json",
+      "sha256": "9fe25918c7624d6df53a447c862acea2f6d58d3bd6d6c33e5c8681842daa7c93"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/d7c0716e4c7f47230d1d71369268c74a3fc2ac02780f77296d4204157a3d5fa1-0.json",
+      "sha256": "f7bf20c88d3ac5c98f8c246198872fa4a1e157c808d6b3ae6a55c28b093c2d94"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/d7c0716e4c7f47230d1d71369268c74a3fc2ac02780f77296d4204157a3d5fa1-1.json",
+      "sha256": "fa3c5222cf4182830106dfaa139fe8d68c765800faa581920cc87fafcb6ea9c4"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/d9a98a948c0a4d588eaf2e13f820eaf75bb1015514bdc44fcd7515e3fe866915-0.json",
+      "sha256": "da95779422b71ba8997884c3f2ab3efdb3a5ac4ae044d1815c13926e53de8526"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/d9a98a948c0a4d588eaf2e13f820eaf75bb1015514bdc44fcd7515e3fe866915-1.json",
+      "sha256": "dd3c4c42ffaaf9c61dbd1e5d491ef0637678d7be1891ec3e2324e92bcf1f3401"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/e03062833da487dde48fef707ed2502e9b0123efaeb180d1f0cd9f3181e1f1d0-0.json",
+      "sha256": "8319a488fd0867a530509651b3c103da85b6b2fa34b92797812256b45e8ee18d"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/e03062833da487dde48fef707ed2502e9b0123efaeb180d1f0cd9f3181e1f1d0-1.json",
+      "sha256": "bb65fe510bb25ea0263a283a30d3f0b6d1071b8b702b72ee12654f6a6d145b5a"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/e529d2ff734a9c2277abb55ce13c73585365da749184b9e257ba940f38546856-0.json",
+      "sha256": "94a6e2d5f0244806145e58089524a73931c032d5b0de7279695dfc14bf3ae27f"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/e529d2ff734a9c2277abb55ce13c73585365da749184b9e257ba940f38546856-1.json",
+      "sha256": "39e44872bbbcb68321882d2f37d5010a2086d13f065837c1d16644ef78098ee2"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/e7d5e2004a9532d19ea8ebbaf5596b4f5733af3c6a27cf44260fd0fdc3e1c2ec-0.json",
+      "sha256": "d9e97bf2ca64a47d20d62643ebc6c6cb3595115918696cae5b8a25c7ee77e04e"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/e7d5e2004a9532d19ea8ebbaf5596b4f5733af3c6a27cf44260fd0fdc3e1c2ec-1.json",
+      "sha256": "41116ebdc5570490c56530969b838da5672a20927c700920c4ab39d6c0940879"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/ea8f7b1b32fd1b7c1d6ee661eed0e274b5e0250454dc8b4a0a3f9170dcc90124-0.json",
+      "sha256": "8baa0e2f75dd16498eec9cd1d4d5c00e571b58eab67614ae5d945ce6f1b349a0"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/eb4d22b384b893cde1064ca10febfa7168647c611bfccdb368ebae9cb1f1a084-0.json",
+      "sha256": "e4fff00d2d3762da8a05de9ac55b5daca863a7e95281c499b13c0acd1c20fe7a"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/eb4d22b384b893cde1064ca10febfa7168647c611bfccdb368ebae9cb1f1a084-1.json",
+      "sha256": "7de2aa124bd9a6e831518ae3c4fcb819ebb7973d07bab644c41022e66c732c0d"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/f08dc58f9393279e335f539bf5b2cb9581ac3b1d4c49981f8af3715ca0ff7398-0.json",
+      "sha256": "6515d65ae49ebbde1f83ebb1bb0aec35beebdf1857d68c5a603d6baaff045679"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/f3013e1e21f046d0d1fdc54613c8fc7e309eeea8a07cb5054ed02485fe64f803-0.json",
+      "sha256": "6669d1a6c7fd98ba8d0e5d0e4a2e80c804c4da69d0d96faf86c4af559bf619fe"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/f38a569f6d74dcc17cc2b6db66949e1d8c2accc882505474721f4e9b77ebe760-0.json",
+      "sha256": "101480af3488d1949497852630c849367672ff7982dc1212553e7351710a94c1"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/fd2310a609ddd2549463269ec0c918752522a0fb3884624a7afa2a351db696ca-0.json",
+      "sha256": "b3dead203e03057fbd77a6506d377172eac01b68c8945a2ca9c95869742f19bc"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-artifacts/ffacb3c492b43060a6658fae2cee54fe7e674fb8b383cfad2d09964bd9359e21-0.json",
+      "sha256": "4d8d5028a82dbe12cd295d55126c51edec33d410d4d0433b7ed000b30752680f"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-components.draft.json",
+      "sha256": "8c58265d68d6f00e4cce5b2a1138612ffddab20ee3df84695a38760ce7107e86"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-prelaunch.json",
+      "sha256": "6ee3e1dd6b6012d3146b3738224e174bfbcc68c512cb1a158d2e49e870c1278f"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before-repeat.log",
+      "sha256": "61596d3f1a7e31f9413a32857dc23146a485c6b0fb6b0daacce1ed5c6d05cad6"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-before.log",
+      "sha256": "c6fe0cc7754840edd64f7e62322bbcc49a3e00179ff7790ea37a962b7244f8d4"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-ts-before.log",
+      "sha256": "607e02b0d8e28736f314fea6b52d61e5b647abfc59a77e8b9c3b737db0efeda8"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-ts-check.log",
+      "sha256": "607e02b0d8e28736f314fea6b52d61e5b647abfc59a77e8b9c3b737db0efeda8"
+    }
+  ],
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-assigned-name-before-4200529j"
+}

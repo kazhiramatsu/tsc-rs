@@ -2778,17 +2778,9 @@ fn create_anonymous_type_node(
     if let Some(symbol) = ty.symbol {
         let symbol_flags = checker.symbol_flags(symbol);
         let value_declaration = checker.binder.symbol(symbol).value_declaration;
-        let is_class_instance = if symbol_flags.intersects(SymbolFlags::CLASS) {
-            checker
-                .get_declared_type_of_class_or_interface(symbol)
-                .map_err(|abort| checker_abort_error(checker, context, abort))?
-                == r#type
-                || ty
-                    .object_flags
-                    .intersects(ObjectFlags::IS_CLASS_INSTANCE_CLONE)
-        } else {
-            false
-        };
+        let is_class_instance = checker
+            .is_class_instance_side(r#type)
+            .map_err(|abort| checker_abort_error(checker, context, abort))?;
         let symbol_meaning = if is_class_instance {
             EmitSymbolMeaning::TYPE
         } else {
@@ -4472,7 +4464,9 @@ fn add_property_to_element_list(
             .get_properties_of_type_full(property_type)
             .map_err(|abort| checker_abort_error(checker, context, abort))?
             .is_empty()
-        && !checker.is_readonly_symbol(property)
+        && !checker
+            .is_readonly_symbol(property)
+            .map_err(|abort| checker_abort_error(checker, context, abort))?
     {
         let callable_type = checker.tables.filter_type(property_type, |tables, ty| {
             !tables.flags_of(ty).intersects(TypeFlags::UNDEFINED)
@@ -4545,7 +4539,10 @@ fn add_property_to_element_list(
             SyntaxKind::AnyKeyword,
         )?)
     };
-    let modifiers = if checker.is_readonly_symbol(property) {
+    let modifiers = if checker
+        .is_readonly_symbol(property)
+        .map_err(|abort| checker_abort_error(checker, context, abort))?
+    {
         add_approximate_length(context, 9);
         Some(vec![create_token(
             arena,

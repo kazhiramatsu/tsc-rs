@@ -1,0 +1,1467 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-40",
+  "status": "Source census for list cursor ownership; not a readiness disposition or qualified runtime claim",
+  "source": {
+    "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+    "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+  },
+  "observer": {
+    "path": "scripts/observe-list-cursor-sources.mjs",
+    "sha256": "100d3542275857fdb3ab485ac183a1b2eab3be6ecce65a816e314122ef171fab"
+  },
+  "sites": [
+    {
+      "start": 117049,
+      "end": 117054,
+      "sha256": "b33b2ead4a7c0342e23cfd458136b8fe862ac75983ceea513cc34b91bbfa7e68",
+      "owner": "writeList",
+      "text": "emitList(\n      /*parentNode*/\n      void 0,\n      nodes,\n      format\n    )"
+    },
+    {
+      "start": 117813,
+      "end": 117813,
+      "sha256": "bfcd013048dc07fca239bc77fe08225e81f1455ce6a1b22680865bb1229e6728",
+      "owner": "emitIdentifier",
+      "text": "emitList(node, getIdentifierTypeArguments(node), 53776 /* TypeParameters */)"
+    },
+    {
+      "start": 118035,
+      "end": 118035,
+      "sha256": "8aba7b267f786f88248b17e9e361251fa2b2fff0663c4d5e241c3ddd98953c64",
+      "owner": "emitTypeLiteral",
+      "text": "emitList(node, node.members, flags | 524288 /* NoSpaceIfEmpty */)"
+    },
+    {
+      "start": 118051,
+      "end": 118051,
+      "sha256": "511c9abd45eb4742bd8795c133163f7ba5ee8a88aee29568c2c9c5198443ebc3",
+      "owner": "emitTupleType",
+      "text": "emitList(node, node.elements, flags | 524288 /* NoSpaceIfEmpty */, parenthesizer.parenthesizeElementTypeOfTupleType)"
+    },
+    {
+      "start": 118067,
+      "end": 118067,
+      "sha256": "7c3227ada93b6230e168c0aeaad70b33e6f022ba168ab654a6de3e1ff07ebdf8",
+      "owner": "emitUnionType",
+      "text": "emitList(node, node.types, 516 /* UnionTypeConstituents */, parenthesizer.parenthesizeConstituentTypeOfUnionType)"
+    },
+    {
+      "start": 118070,
+      "end": 118070,
+      "sha256": "9c9c458c12f902eb63b06c243d4ac86121bb29e69f2312d6c3762c1b2b0dd480",
+      "owner": "emitIntersectionType",
+      "text": "emitList(node, node.types, 520 /* IntersectionTypeConstituents */, parenthesizer.parenthesizeConstituentTypeOfIntersectionType)"
+    },
+    {
+      "start": 118153,
+      "end": 118153,
+      "sha256": "586005098afc1034dba7226cf8c3023d24e5c23bffe90a85d9c5c4dce9cbdfec",
+      "owner": "emitMappedType",
+      "text": "emitList(node, node.members, 2 /* PreserveLines */)"
+    },
+    {
+      "start": 118161,
+      "end": 118161,
+      "sha256": "d8d7973b6c3b0bd992dad825a9da5b42e6735c37f8e333847b4b2f6570122b76",
+      "owner": "emitTemplateType",
+      "text": "emitList(node, node.templateSpans, 262144 /* TemplateExpressionSpans */)"
+    },
+    {
+      "start": 118185,
+      "end": 118185,
+      "sha256": "b8e5a4e68e2d979b5c4a4f26c4245db32b3cd9ede075a5a3d4c86cda765bc110",
+      "owner": "emitObjectBindingPattern",
+      "text": "emitList(node, node.elements, 525136 /* ObjectBindingPatternElements */)"
+    },
+    {
+      "start": 118190,
+      "end": 118190,
+      "sha256": "3cc3a006983a2dbd257cfc6dcc90b381872a8e1f18d8242305cd4066a3f646b2",
+      "owner": "emitArrayBindingPattern",
+      "text": "emitList(node, node.elements, 524880 /* ArrayBindingPatternElements */)"
+    },
+    {
+      "start": 118206,
+      "end": 118206,
+      "sha256": "01812158ba9c01af207e1a5bb30e23d9e6591c878a49a87d8bb452635a469fb9",
+      "owner": "emitArrayLiteralExpression",
+      "text": "emitExpressionList(node, elements, 8914 /* ArrayLiteralExpressionElements */ | preferNewLine, parenthesizer.parenthesizeExpressionForDisallowedComma)"
+    },
+    {
+      "start": 118217,
+      "end": 118217,
+      "sha256": "714411974950b473f7f42f0d04c3ad4cefb7637cfaaa1b9c8fae704428a50010",
+      "owner": "emitObjectLiteralExpression",
+      "text": "emitList(node, node.properties, 526226 /* ObjectLiteralExpressionProperties */ | allowTrailingComma | preferNewLine)"
+    },
+    {
+      "start": 118289,
+      "end": 118289,
+      "sha256": "512960b9d068a4855d70c6b8ef1f7bc7f252fc192e5611387586d8c1c70518ae",
+      "owner": "emitCallExpression",
+      "text": "emitExpressionList(node, node.arguments, 2576 /* CallExpressionArguments */, parenthesizer.parenthesizeExpressionForDisallowedComma)"
+    },
+    {
+      "start": 118296,
+      "end": 118296,
+      "sha256": "163dfca175ce3971bea962d9903b65acad3dadee5715db027828e076d9c3d087",
+      "owner": "emitNewExpression",
+      "text": "emitExpressionList(node, node.arguments, 18960 /* NewExpressionArguments */, parenthesizer.parenthesizeExpressionForDisallowedComma)"
+    },
+    {
+      "start": 118521,
+      "end": 118521,
+      "sha256": "d8d7973b6c3b0bd992dad825a9da5b42e6735c37f8e333847b4b2f6570122b76",
+      "owner": "emitTemplateExpression",
+      "text": "emitList(node, node.templateSpans, 262144 /* TemplateExpressionSpans */)"
+    },
+    {
+      "start": 118595,
+      "end": 118595,
+      "sha256": "58324bd0749edd719952be58f794448ec6acb57d38fdfdd8b1f2ef7f2a976d81",
+      "owner": "emitBlockStatements",
+      "text": "emitList(node, node.statements, format)"
+    },
+    {
+      "start": 118951,
+      "end": 118951,
+      "sha256": "4eeb28f22756dea36b786b4692ebc95c9bfcdf3da8f8bd5da118c52659fa0e10",
+      "owner": "emitVariableDeclarationList",
+      "text": "emitList(node, node.declarations, 528 /* VariableDeclarationList */)"
+    },
+    {
+      "start": 119046,
+      "end": 119046,
+      "sha256": "c3b746119e954aa72c079b3e25f892822057f5919bad4344d32042c2f9fe0a13",
+      "owner": "emitBlockFunctionBodyWorker",
+      "text": "emitList(body, body.statements, 768 /* SingleLineFunctionBodyStatements */)"
+    },
+    {
+      "start": 119049,
+      "end": 119056,
+      "sha256": "26374f799fb8efb413790cd6a336c46c37b5bbd31a00e1fffedbb27f6b33b90c",
+      "owner": "emitBlockFunctionBodyWorker",
+      "text": "emitList(\n        body,\n        body.statements,\n        1 /* MultiLineFunctionBodyStatements */,\n        /*parenthesizerRule*/\n        void 0,\n        statementOffset\n      )"
+    },
+    {
+      "start": 119079,
+      "end": 119079,
+      "sha256": "ba64ff1b316c2024719145720772b3aadc1ebfef7deb1b9f33f2f6ed43c8b8ad",
+      "owner": "emitClassDeclarationOrExpression",
+      "text": "emitList(node, node.heritageClauses, 0 /* ClassHeritageClauses */)"
+    },
+    {
+      "start": 119084,
+      "end": 119084,
+      "sha256": "558bb74e13ab7ef3f0be99c3d5fec0df5329ac52ca967b0ff47b2126283e5664",
+      "owner": "emitClassDeclarationOrExpression",
+      "text": "emitList(node, node.members, 129 /* ClassMembers */)"
+    },
+    {
+      "start": 119102,
+      "end": 119102,
+      "sha256": "8e7311deebde4779651d2eca1e1ee0cd7a10c4cdf4b0780ef4d9086f1696a9f2",
+      "owner": "emitInterfaceDeclaration",
+      "text": "emitList(node, node.heritageClauses, 512 /* HeritageClauses */)"
+    },
+    {
+      "start": 119107,
+      "end": 119107,
+      "sha256": "4942199f0d90f31355010ca7e81d4a42313389ecb92abbecdb1a4753dc3b5521",
+      "owner": "emitInterfaceDeclaration",
+      "text": "emitList(node, node.members, 129 /* InterfaceMembers */)"
+    },
+    {
+      "start": 119140,
+      "end": 119140,
+      "sha256": "a2659e0aa27eb063a69d4145846c670492ed73a172318cef1a1c971da5270e5a",
+      "owner": "emitEnumDeclaration",
+      "text": "emitList(node, node.members, 145 /* EnumMembers */)"
+    },
+    {
+      "start": 119177,
+      "end": 119177,
+      "sha256": "cf92ab8c9c5253330bd6d7a522ad9bf33f2f6533262f02e239838958c2f7958c",
+      "owner": "emitCaseBlock",
+      "text": "emitList(node, node.clauses, 129 /* CaseBlockClauses */)"
+    },
+    {
+      "start": 119312,
+      "end": 119312,
+      "sha256": "a7c33879371f5492ac36e345d87b2edeaebaed0cb478bad1e7ba7413263d6ec2",
+      "owner": "emitImportTypeNodeAttributes",
+      "text": "emitList(node, elements, 526226 /* ImportAttributes */)"
+    },
+    {
+      "start": 119320,
+      "end": 119320,
+      "sha256": "a7c33879371f5492ac36e345d87b2edeaebaed0cb478bad1e7ba7413263d6ec2",
+      "owner": "emitImportAttributes",
+      "text": "emitList(node, elements, 526226 /* ImportAttributes */)"
+    },
+    {
+      "start": 119358,
+      "end": 119358,
+      "sha256": "603b5d856fa37bc445c52baa1c8268851e221a68d53dda6657389ea62355edac",
+      "owner": "emitNamedImportsOrExports",
+      "text": "emitList(node, node.elements, 525136 /* NamedImportsOrExportsElements */)"
+    },
+    {
+      "start": 119382,
+      "end": 119382,
+      "sha256": "3ea61b8deda1dec7a083ed9ed8dbef636d557ddf0da75636f87e470401328ef3",
+      "owner": "emitJsxElement",
+      "text": "emitList(node, node.children, 262144 /* JsxElementOrFragmentChildren */)"
+    },
+    {
+      "start": 119395,
+      "end": 119395,
+      "sha256": "3ea61b8deda1dec7a083ed9ed8dbef636d557ddf0da75636f87e470401328ef3",
+      "owner": "emitJsxFragment",
+      "text": "emitList(node, node.children, 262144 /* JsxElementOrFragmentChildren */)"
+    },
+    {
+      "start": 119424,
+      "end": 119424,
+      "sha256": "96bcfb2a3fa1292fe3bf8522e51739f1bee7a9e4edf3c9031f126bb88266fefc",
+      "owner": "emitJsxAttributes",
+      "text": "emitList(node, node.properties, 262656 /* JsxElementAttributes */)"
+    },
+    {
+      "start": 119497,
+      "end": 119497,
+      "sha256": "5312ace9a520ad7f6307b0c9629cd47c723a9b0b08111c63d7f40927877a4380",
+      "owner": "emitCaseOrDefaultClauseRest",
+      "text": "emitList(parentNode, statements, format)"
+    },
+    {
+      "start": 119503,
+      "end": 119503,
+      "sha256": "1d4fbe4a21bd7b3e0deb1e91f3813adfb067ec91a6976ef2ae3986f6489b2d2d",
+      "owner": "emitHeritageClause",
+      "text": "emitList(node, node.types, 528 /* HeritageClauseTypes */)"
+    },
+    {
+      "start": 119566,
+      "end": 119566,
+      "sha256": "fdac9887fc2b6f0c589ee0d486f23145be6625204f59756f3799e42d8253b831",
+      "owner": "emitJSDoc",
+      "text": "emitList(node, node.tags, 33 /* JSDocComment */)"
+    },
+    {
+      "start": 119615,
+      "end": 119615,
+      "sha256": "7bc56acf289f20c28d64bf79b05eeb752f2c9013fcb71d4af8d1fd65da427e75",
+      "owner": "emitJSDocTemplateTag",
+      "text": "emitList(tag, tag.typeParameters, 528 /* CommaListElements */)"
+    },
+    {
+      "start": 119661,
+      "end": 119661,
+      "sha256": "fbbd2cb0816ccd766e45eef665c063a174a62fddf696650da588fc3416c3ff20",
+      "owner": "emitJSDocTypeLiteral",
+      "text": "emitList(lit, factory.createNodeArray(lit.jsDocPropertyTags), 33 /* JSDocComment */)"
+    },
+    {
+      "start": 119665,
+      "end": 119665,
+      "sha256": "4214103f0098d6e6d1b95f12de415b5fd471561e28a6c76b5afe4444963504d9",
+      "owner": "emitJSDocSignature",
+      "text": "emitList(sig, factory.createNodeArray(sig.typeParameters), 33 /* JSDocComment */)"
+    },
+    {
+      "start": 119668,
+      "end": 119668,
+      "sha256": "54af11849ba85d6295e00c928fe2c179d2817cafb0a538984307b99e1affab6e",
+      "owner": "emitJSDocSignature",
+      "text": "emitList(sig, factory.createNodeArray(sig.parameters), 33 /* JSDocComment */)"
+    },
+    {
+      "start": 119760,
+      "end": 119767,
+      "sha256": "f175ca835a15754907de4bae488f7f75c60eb139390cf31a8e4c854a9a973188",
+      "owner": "emitSourceFileWorker",
+      "text": "emitList(\n      node,\n      statements,\n      1 /* MultiLine */,\n      /*parenthesizerRule*/\n      void 0,\n      index === -1 ? statements.length : index\n    )"
+    },
+    {
+      "start": 119781,
+      "end": 119787,
+      "sha256": "d05ce63c6b134da000a3475985e793e85506d8d473ef931f988135406eaacc60",
+      "owner": "emitCommaList",
+      "text": "emitExpressionList(\n      node,\n      node.elements,\n      528 /* CommaListElements */,\n      /*parenthesizerRule*/\n      void 0\n    )"
+    },
+    {
+      "start": 119878,
+      "end": 119890,
+      "sha256": "7cd0f7f82f99549889496ee4634a9a721f1492fff902fcdbfb0b102276353a15",
+      "owner": "emitDecoratorsAndModifiers",
+      "text": "emitNodeListItems(\n            emit,\n            node,\n            modifiers,\n            lastMode === \"modifiers\" ? 2359808 /* Modifiers */ : 2146305 /* Decorators */,\n            /*parenthesizerRule*/\n            void 0,\n            start,\n            pos - start,\n            /*hasTrailingComma*/\n            false,\n            textRange\n          )"
+    },
+    {
+      "start": 119904,
+      "end": 119904,
+      "sha256": "25fb1aa3aa1b48b6890dcd51c029da53bd96d3e1211b55a4411515fef6fe5874",
+      "owner": "emitModifierList",
+      "text": "emitList(node, modifiers, 2359808 /* Modifiers */)"
+    },
+    {
+      "start": 119963,
+      "end": 119963,
+      "sha256": "44f1fbe9bc3f5c9195f767ba4326c1ca3d83d7ff5c303059f6aa434b6acdf458",
+      "owner": "emitDecoratorList",
+      "text": "emitList(parentNode, decorators, 2146305 /* Decorators */)"
+    },
+    {
+      "start": 119968,
+      "end": 119968,
+      "sha256": "80b4af388a70beee1184250ee105fc3d9cfbc34413eda1a39a160ba4d60d1566",
+      "owner": "emitTypeArguments",
+      "text": "emitList(parentNode, typeArguments, 53776 /* TypeArguments */, typeArgumentParenthesizerRuleSelector)"
+    },
+    {
+      "start": 119974,
+      "end": 119974,
+      "sha256": "795658b903fbe2ab891fe1da09603da9e39cd4a276b030948d13607910784cae",
+      "owner": "emitTypeParameters",
+      "text": "emitList(parentNode, typeParameters, 53776 /* TypeParameters */ | (isArrowFunction(parentNode) ? 64 /* AllowTrailingComma */ : 0 /* None */))"
+    },
+    {
+      "start": 119977,
+      "end": 119977,
+      "sha256": "9ba60df01e8bdde72f9d1b86e8f1a6af60e1c5c5d951824805f35045a9f2be90",
+      "owner": "emitParameters",
+      "text": "emitList(parentNode, parameters, 2576 /* Parameters */)"
+    },
+    {
+      "start": 119985,
+      "end": 119985,
+      "sha256": "67ee96ab82261dbdf03410e7bc65635b08dcb9c0b05833b2050c1c40a66d78b2",
+      "owner": "emitParametersForArrow",
+      "text": "emitList(parentNode, parameters, 2576 /* Parameters */ & ~2048 /* Parenthesis */)"
+    },
+    {
+      "start": 119991,
+      "end": 119991,
+      "sha256": "aaa232795a7709af052800b85a839ebd947a00972e675fd82a811c4e2e5f8af2",
+      "owner": "emitParametersForIndexSignature",
+      "text": "emitList(parentNode, parameters, 8848 /* IndexSignatureParameters */)"
+    },
+    {
+      "start": 120016,
+      "end": 120024,
+      "sha256": "59488bc16ec8eef7e27abc721d5c5eaaba6404fde95a4c3b9ddfd8af9798a1fc",
+      "owner": "emitList",
+      "text": "emitNodeList(\n      emit,\n      parentNode,\n      children,\n      format | (parentNode && getEmitFlags(parentNode) & 2 /* MultiLine */ ? 65536 /* PreferNewLine */ : 0),\n      parenthesizerRule,\n      start,\n      count\n    )"
+    },
+    {
+      "start": 120027,
+      "end": 120027,
+      "sha256": "561e01db3f32de4597b1faebf830044dcd284de30087e1af17a9f84f995c0152",
+      "owner": "emitExpressionList",
+      "text": "emitNodeList(emitExpression, parentNode, children, format, parenthesizerRule, start, count)"
+    },
+    {
+      "start": 120058,
+      "end": 120058,
+      "sha256": "84a3f0fb861a99b1684ae7acffec5bc60b70685032d2eb239cd8cf54c1e5471b",
+      "owner": "emitNodeList",
+      "text": "emitNodeListItems(emit2, parentNode, children, format, parenthesizerRule, start, count, children.hasTrailingComma, children)"
+    }
+  ],
+  "owners": [
+    {
+      "name": "setIdentifierTypeArguments",
+      "start": 25455,
+      "end": 25458,
+      "sha256": "dab94f9dd7d1d80e4cf15fc77402bd7fc9adae3310bdb8d3915d07c4d0e4c7e0",
+      "body": "function setIdentifierTypeArguments(node, typeArguments) {\n  getOrCreateEmitNode(node).identifierTypeArguments = typeArguments;\n  return node;\n}",
+      "predicates": []
+    },
+    {
+      "name": "getIdentifierTypeArguments",
+      "start": 25459,
+      "end": 25462,
+      "sha256": "8e5543b827004c2a92cc2531252aad30460ea53a53286add415cd6a24a49089a",
+      "body": "function getIdentifierTypeArguments(node) {\n  var _a;\n  return (_a = node.emitNode) == null ? void 0 : _a.identifierTypeArguments;\n}",
+      "predicates": [
+        {
+          "start": 25461,
+          "end": 25461,
+          "sha256": "8d3e4c48fcc0f0a37b9caa4f9ac99265ae78f27948ebb6968179bb5fe32abf22",
+          "text": "(_a = node.emitNode) == null"
+        }
+      ]
+    },
+    {
+      "name": "writeNode",
+      "start": 117028,
+      "end": 117038,
+      "sha256": "f5bfed8d5c5a36f5026836cc1bb7ec1efa98145ca184a25b23c039d2e5ebd075",
+      "body": "function writeNode(hint, node, sourceFile, output) {\n    const previousWriter = writer;\n    setWriter(\n      output,\n      /*_sourceMapGenerator*/\n      void 0\n    );\n    print(hint, node, sourceFile);\n    reset();\n    writer = previousWriter;\n  }",
+      "predicates": []
+    },
+    {
+      "name": "writeList",
+      "start": 117039,
+      "end": 117057,
+      "sha256": "b43d9cbdf9c6fac486f255ba8463e750d7da59147f5b82fb6fc6007b7af07a5b",
+      "body": "function writeList(format, nodes, sourceFile, output) {\n    const previousWriter = writer;\n    setWriter(\n      output,\n      /*_sourceMapGenerator*/\n      void 0\n    );\n    if (sourceFile) {\n      setSourceFile(sourceFile);\n    }\n    emitList(\n      /*parentNode*/\n      void 0,\n      nodes,\n      format\n    );\n    reset();\n    writer = previousWriter;\n  }",
+      "predicates": [
+        {
+          "start": 117046,
+          "end": 117046,
+          "sha256": "d5b08256ab96a654ccf60756a7480bad4246cf4be25870148ef5a00e82f96f2b",
+          "text": "sourceFile"
+        }
+      ]
+    },
+    {
+      "name": "setSourceFile",
+      "start": 117101,
+      "end": 117108,
+      "sha256": "a87631723826e084ce20e2a07f5d36c3c218f5e83b6b4076789eed81c0a7263e",
+      "body": "function setSourceFile(sourceFile) {\n    currentSourceFile = sourceFile;\n    currentLineMap = void 0;\n    detachedCommentsInfo = void 0;\n    if (sourceFile) {\n      setSourceMapSource(sourceFile);\n    }\n  }",
+      "predicates": [
+        {
+          "start": 117105,
+          "end": 117105,
+          "sha256": "d5b08256ab96a654ccf60756a7480bad4246cf4be25870148ef5a00e82f96f2b",
+          "text": "sourceFile"
+        }
+      ]
+    },
+    {
+      "name": "reset",
+      "start": 117117,
+      "end": 117141,
+      "sha256": "6ccc1aa47ad6e16da3886435e945f5bc8eca206a64603e14a6d9d8aebcf6876b",
+      "body": "function reset() {\n    nodeIdToGeneratedName = [];\n    nodeIdToGeneratedPrivateName = [];\n    autoGeneratedIdToGeneratedName = [];\n    generatedNames = /* @__PURE__ */ new Set();\n    formattedNameTempFlagsStack = [];\n    formattedNameTempFlags = /* @__PURE__ */ new Map();\n    privateNameTempFlagsStack = [];\n    privateNameTempFlags = 0 /* Auto */;\n    tempFlagsStack = [];\n    tempFlags = 0 /* Auto */;\n    reservedNamesStack = [];\n    reservedNames = void 0;\n    reservedPrivateNamesStack = [];\n    reservedPrivateNames = void 0;\n    currentSourceFile = void 0;\n    currentLineMap = void 0;\n    detachedCommentsInfo = void 0;\n    setWriter(\n      /*output*/\n      void 0,\n      /*_sourceMapGenerator*/\n      void 0\n    );\n  }",
+      "predicates": []
+    },
+    {
+      "name": "emitIdentifier",
+      "start": 117806,
+      "end": 117814,
+      "sha256": "0db1b39e5becee3958a559a929dd96325f19176f0e1d8a57419217d0cd2d2c99",
+      "body": "function emitIdentifier(node) {\n    const writeText = node.symbol ? writeSymbol : write;\n    writeText(getTextOfNode2(\n      node,\n      /*includeTrivia*/\n      false\n    ), node.symbol);\n    emitList(node, getIdentifierTypeArguments(node), 53776 /* TypeParameters */);\n  }",
+      "predicates": [
+        {
+          "start": 117807,
+          "end": 117807,
+          "sha256": "ddc6797152ea5214ea9e55186239275068576897da05ad26e2c4275a9de9a9b6",
+          "text": "node.symbol"
+        }
+      ]
+    },
+    {
+      "name": "emitTypeLiteral",
+      "start": 118030,
+      "end": 118038,
+      "sha256": "55a2d7032b3e353dc0ab4086cd4eb6a3eaf1b40ea8353dfcfe07a66a337fd83a",
+      "body": "function emitTypeLiteral(node) {\n    pushNameGenerationScope(node);\n    forEach(node.members, generateMemberNames);\n    writePunctuation(\"{\");\n    const flags = getEmitFlags(node) & 1 /* SingleLine */ ? 768 /* SingleLineTypeLiteralMembers */ : 32897 /* MultiLineTypeLiteralMembers */;\n    emitList(node, node.members, flags | 524288 /* NoSpaceIfEmpty */);\n    writePunctuation(\"}\");\n    popNameGenerationScope(node);\n  }",
+      "predicates": [
+        {
+          "start": 118034,
+          "end": 118034,
+          "sha256": "16c9b4f94fc5f120acb903626a4882ad90930cfef336bc07a8c96442a1684152",
+          "text": "getEmitFlags(node) & 1"
+        }
+      ]
+    },
+    {
+      "name": "emitTupleType",
+      "start": 118048,
+      "end": 118053,
+      "sha256": "bcb2100115537f0e3d515590a883820d08eb184b70370b6d20919c227c5642ce",
+      "body": "function emitTupleType(node) {\n    emitTokenWithComment(23 /* OpenBracketToken */, node.pos, writePunctuation, node);\n    const flags = getEmitFlags(node) & 1 /* SingleLine */ ? 528 /* SingleLineTupleTypeElements */ : 657 /* MultiLineTupleTypeElements */;\n    emitList(node, node.elements, flags | 524288 /* NoSpaceIfEmpty */, parenthesizer.parenthesizeElementTypeOfTupleType);\n    emitTokenWithComment(24 /* CloseBracketToken */, node.elements.end, writePunctuation, node);\n  }",
+      "predicates": [
+        {
+          "start": 118050,
+          "end": 118050,
+          "sha256": "16c9b4f94fc5f120acb903626a4882ad90930cfef336bc07a8c96442a1684152",
+          "text": "getEmitFlags(node) & 1"
+        }
+      ]
+    },
+    {
+      "name": "emitUnionType",
+      "start": 118066,
+      "end": 118068,
+      "sha256": "5e7730f0782f8a71bc27f16aca98ecdfdc0e9d055512ee760c369b74541b7c11",
+      "body": "function emitUnionType(node) {\n    emitList(node, node.types, 516 /* UnionTypeConstituents */, parenthesizer.parenthesizeConstituentTypeOfUnionType);\n  }",
+      "predicates": []
+    },
+    {
+      "name": "emitIntersectionType",
+      "start": 118069,
+      "end": 118071,
+      "sha256": "69ff718fec29a6754904587b126da202363efc61a29085b562ef78f828d5d2c5",
+      "body": "function emitIntersectionType(node) {\n    emitList(node, node.types, 520 /* IntersectionTypeConstituents */, parenthesizer.parenthesizeConstituentTypeOfIntersectionType);\n  }",
+      "predicates": []
+    },
+    {
+      "name": "emitMappedType",
+      "start": 118112,
+      "end": 118155,
+      "sha256": "f6850c6bc985a8f57885a8248c82bb53b0907ffd3fb0dabb55eaf3fad4e7968b",
+      "body": "function emitMappedType(node) {\n    const emitFlags = getEmitFlags(node);\n    writePunctuation(\"{\");\n    if (emitFlags & 1 /* SingleLine */) {\n      writeSpace();\n    } else {\n      writeLine();\n      increaseIndent();\n    }\n    if (node.readonlyToken) {\n      emit(node.readonlyToken);\n      if (node.readonlyToken.kind !== 148 /* ReadonlyKeyword */) {\n        writeKeyword(\"readonly\");\n      }\n      writeSpace();\n    }\n    writePunctuation(\"[\");\n    pipelineEmit(3 /* MappedTypeParameter */, node.typeParameter);\n    if (node.nameType) {\n      writeSpace();\n      writeKeyword(\"as\");\n      writeSpace();\n      emit(node.nameType);\n    }\n    writePunctuation(\"]\");\n    if (node.questionToken) {\n      emit(node.questionToken);\n      if (node.questionToken.kind !== 58 /* QuestionToken */) {\n        writePunctuation(\"?\");\n      }\n    }\n    writePunctuation(\":\");\n    writeSpace();\n    emit(node.type);\n    writeTrailingSemicolon();\n    if (emitFlags & 1 /* SingleLine */) {\n      writeSpace();\n    } else {\n      writeLine();\n      decreaseIndent();\n    }\n    emitList(node, node.members, 2 /* PreserveLines */);\n    writePunctuation(\"}\");\n  }",
+      "predicates": [
+        {
+          "start": 118115,
+          "end": 118115,
+          "sha256": "f7aeb6d22cae92e24313532e10eaf66d819c9d7125fc0ceaa69ae33e962b6424",
+          "text": "emitFlags & 1"
+        },
+        {
+          "start": 118121,
+          "end": 118121,
+          "sha256": "d05d8fe328dcfe0ce894142631082e9cfb5b0da34e6980c8acc5d051fe5e736f",
+          "text": "node.readonlyToken"
+        },
+        {
+          "start": 118123,
+          "end": 118123,
+          "sha256": "458c7b48879005d265bc628aff624703f6451554a924b4ffe20bcd635841d1a0",
+          "text": "node.readonlyToken.kind !== 148"
+        },
+        {
+          "start": 118130,
+          "end": 118130,
+          "sha256": "7c9a206078a45be157732e10447e4664f10166e201e745551ebb5088ab0f08fd",
+          "text": "node.nameType"
+        },
+        {
+          "start": 118137,
+          "end": 118137,
+          "sha256": "83588e1cbe774f9307e79d864c0ba9ce030426a0f805e6862302585b71988f8d",
+          "text": "node.questionToken"
+        },
+        {
+          "start": 118139,
+          "end": 118139,
+          "sha256": "70033f0a8a9834976dabb601883130a817b32d205c451df0a31fe759f36ec9d1",
+          "text": "node.questionToken.kind !== 58"
+        },
+        {
+          "start": 118147,
+          "end": 118147,
+          "sha256": "f7aeb6d22cae92e24313532e10eaf66d819c9d7125fc0ceaa69ae33e962b6424",
+          "text": "emitFlags & 1"
+        }
+      ]
+    },
+    {
+      "name": "emitTemplateType",
+      "start": 118159,
+      "end": 118162,
+      "sha256": "486d71631d6618d34cc3c521636d70bfb730d68a02d48207a3ec9687d744d1d4",
+      "body": "function emitTemplateType(node) {\n    emit(node.head);\n    emitList(node, node.templateSpans, 262144 /* TemplateExpressionSpans */);\n  }",
+      "predicates": []
+    },
+    {
+      "name": "emitObjectBindingPattern",
+      "start": 118183,
+      "end": 118187,
+      "sha256": "cdddb64a9b52eedc8ac730ab41dcf2c711bc891c71826de175ba428cb2ce3fee",
+      "body": "function emitObjectBindingPattern(node) {\n    writePunctuation(\"{\");\n    emitList(node, node.elements, 525136 /* ObjectBindingPatternElements */);\n    writePunctuation(\"}\");\n  }",
+      "predicates": []
+    },
+    {
+      "name": "emitArrayBindingPattern",
+      "start": 118188,
+      "end": 118192,
+      "sha256": "5b729e8941af022de60bf7cb6043100f80a59921b471fa1f84e0cfedb979701c",
+      "body": "function emitArrayBindingPattern(node) {\n    writePunctuation(\"[\");\n    emitList(node, node.elements, 524880 /* ArrayBindingPatternElements */);\n    writePunctuation(\"]\");\n  }",
+      "predicates": []
+    },
+    {
+      "name": "emitArrayLiteralExpression",
+      "start": 118203,
+      "end": 118207,
+      "sha256": "acdebb2035d5816950181b7d292f932bf80d3147305ff9818a21fb50b36711a2",
+      "body": "function emitArrayLiteralExpression(node) {\n    const elements = node.elements;\n    const preferNewLine = node.multiLine ? 65536 /* PreferNewLine */ : 0 /* None */;\n    emitExpressionList(node, elements, 8914 /* ArrayLiteralExpressionElements */ | preferNewLine, parenthesizer.parenthesizeExpressionForDisallowedComma);\n  }",
+      "predicates": [
+        {
+          "start": 118205,
+          "end": 118205,
+          "sha256": "236967e6c745edfad435e7c429a133795ef97cdf4bb0c8562fd144b9a61f19f4",
+          "text": "node.multiLine"
+        }
+      ]
+    },
+    {
+      "name": "emitObjectLiteralExpression",
+      "start": 118208,
+      "end": 118222,
+      "sha256": "2ccae6f40edc87a0567dcba1bf979555fa73d5c69fb71154705362ffec0ce181",
+      "body": "function emitObjectLiteralExpression(node) {\n    pushNameGenerationScope(node);\n    forEach(node.properties, generateMemberNames);\n    const indentedFlag = getEmitFlags(node) & 131072 /* Indented */;\n    if (indentedFlag) {\n      increaseIndent();\n    }\n    const preferNewLine = node.multiLine ? 65536 /* PreferNewLine */ : 0 /* None */;\n    const allowTrailingComma = currentSourceFile && !isJsonSourceFile(currentSourceFile) ? 64 /* AllowTrailingComma */ : 0 /* None */;\n    emitList(node, node.properties, 526226 /* ObjectLiteralExpressionProperties */ | allowTrailingComma | preferNewLine);\n    if (indentedFlag) {\n      decreaseIndent();\n    }\n    popNameGenerationScope(node);\n  }",
+      "predicates": [
+        {
+          "start": 118212,
+          "end": 118212,
+          "sha256": "08a8eb713d56435910d27c7fc05936cb36109e487f4005aa748e4a1fa5c4acf6",
+          "text": "indentedFlag"
+        },
+        {
+          "start": 118215,
+          "end": 118215,
+          "sha256": "236967e6c745edfad435e7c429a133795ef97cdf4bb0c8562fd144b9a61f19f4",
+          "text": "node.multiLine"
+        },
+        {
+          "start": 118216,
+          "end": 118216,
+          "sha256": "461bf049f1ccbda259589f587e60e2256f68112164e4960c9df78e399408aa5c",
+          "text": "currentSourceFile && !isJsonSourceFile(currentSourceFile)"
+        },
+        {
+          "start": 118218,
+          "end": 118218,
+          "sha256": "08a8eb713d56435910d27c7fc05936cb36109e487f4005aa748e4a1fa5c4acf6",
+          "text": "indentedFlag"
+        }
+      ]
+    },
+    {
+      "name": "emitCallExpression",
+      "start": 118275,
+      "end": 118290,
+      "sha256": "65a3b81e38a6ee133013f400dd33dc47e51f0018e5008c4574a4a4735a9ab68f",
+      "body": "function emitCallExpression(node) {\n    const indirectCall = getInternalEmitFlags(node) & 16 /* IndirectCall */;\n    if (indirectCall) {\n      writePunctuation(\"(\");\n      writeLiteral(\"0\");\n      writePunctuation(\",\");\n      writeSpace();\n    }\n    emitExpression(node.expression, parenthesizer.parenthesizeLeftSideOfAccess);\n    if (indirectCall) {\n      writePunctuation(\")\");\n    }\n    emit(node.questionDotToken);\n    emitTypeArguments(node, node.typeArguments);\n    emitExpressionList(node, node.arguments, 2576 /* CallExpressionArguments */, parenthesizer.parenthesizeExpressionForDisallowedComma);\n  }",
+      "predicates": [
+        {
+          "start": 118277,
+          "end": 118277,
+          "sha256": "2d861af3dcbdecd74506164c99d2017ba7f5872679cec68fe8f53d92a2f51dfe",
+          "text": "indirectCall"
+        },
+        {
+          "start": 118284,
+          "end": 118284,
+          "sha256": "2d861af3dcbdecd74506164c99d2017ba7f5872679cec68fe8f53d92a2f51dfe",
+          "text": "indirectCall"
+        }
+      ]
+    },
+    {
+      "name": "emitNewExpression",
+      "start": 118291,
+      "end": 118297,
+      "sha256": "50689c35b50095b7887fba7a30e9e0be8f1605a45f44df2c31ef55691bfbf56a",
+      "body": "function emitNewExpression(node) {\n    emitTokenWithComment(105 /* NewKeyword */, node.pos, writeKeyword, node);\n    writeSpace();\n    emitExpression(node.expression, parenthesizer.parenthesizeExpressionOfNew);\n    emitTypeArguments(node, node.typeArguments);\n    emitExpressionList(node, node.arguments, 18960 /* NewExpressionArguments */, parenthesizer.parenthesizeExpressionForDisallowedComma);\n  }",
+      "predicates": []
+    },
+    {
+      "name": "emitTemplateExpression",
+      "start": 118519,
+      "end": 118522,
+      "sha256": "e98106f33077f9216b55e63cc1d53368e132ceb05922acbf62a0fc9cb922677e",
+      "body": "function emitTemplateExpression(node) {\n    emit(node.head);\n    emitList(node, node.templateSpans, 262144 /* TemplateExpressionSpans */);\n  }",
+      "predicates": []
+    },
+    {
+      "name": "emitBlockStatements",
+      "start": 118586,
+      "end": 118605,
+      "sha256": "4bed48c465f1ff5d7a0393533fec658e9bc2a552cb31e5a6c23c95f5ad283265",
+      "body": "function emitBlockStatements(node, forceSingleLine) {\n    emitTokenWithComment(\n      19 /* OpenBraceToken */,\n      node.pos,\n      writePunctuation,\n      /*contextNode*/\n      node\n    );\n    const format = forceSingleLine || getEmitFlags(node) & 1 /* SingleLine */ ? 768 /* SingleLineBlockStatements */ : 129 /* MultiLineBlockStatements */;\n    emitList(node, node.statements, format);\n    emitTokenWithComment(\n      20 /* CloseBraceToken */,\n      node.statements.end,\n      writePunctuation,\n      /*contextNode*/\n      node,\n      /*indentLeading*/\n      !!(format & 1 /* MultiLine */)\n    );\n  }",
+      "predicates": [
+        {
+          "start": 118594,
+          "end": 118594,
+          "sha256": "a016340e84b25c7addb776762cfde13b9c8a04575155bec446de3380dbfdc3c4",
+          "text": "forceSingleLine || getEmitFlags(node) & 1"
+        }
+      ]
+    },
+    {
+      "name": "emitVariableDeclarationList",
+      "start": 118941,
+      "end": 118952,
+      "sha256": "2714cdaf2f5941eccce966cb222be0b477bee38a177e52371f759eaa69390992",
+      "body": "function emitVariableDeclarationList(node) {\n    if (isVarAwaitUsing(node)) {\n      writeKeyword(\"await\");\n      writeSpace();\n      writeKeyword(\"using\");\n    } else {\n      const head = isLet(node) ? \"let\" : isVarConst(node) ? \"const\" : isVarUsing(node) ? \"using\" : \"var\";\n      writeKeyword(head);\n    }\n    writeSpace();\n    emitList(node, node.declarations, 528 /* VariableDeclarationList */);\n  }",
+      "predicates": [
+        {
+          "start": 118942,
+          "end": 118942,
+          "sha256": "f321479e7a75c41bab9f64e7064516ca385a685406cf81c8fa331cb09a70ad86",
+          "text": "isVarAwaitUsing(node)"
+        },
+        {
+          "start": 118947,
+          "end": 118947,
+          "sha256": "7832a5720cada05dc3ada4baeb151add65b501aa92d24d1fc19400273e7b5013",
+          "text": "isLet(node)"
+        },
+        {
+          "start": 118947,
+          "end": 118947,
+          "sha256": "b062569a08d745bc61dc8c1d83023eb98fac36c7263d12cd207c17780756ed7a",
+          "text": "isVarConst(node)"
+        },
+        {
+          "start": 118947,
+          "end": 118947,
+          "sha256": "9d15cb902055c57bacc70485bd4949c055a6aba8ee0eec91ab16f88ea39e33ab",
+          "text": "isVarUsing(node)"
+        }
+      ]
+    },
+    {
+      "name": "shouldEmitBlockFunctionBodyOnSingleLine",
+      "start": 118999,
+      "end": 119020,
+      "sha256": "ffb3e2a4581b1045c6dbf70ba75082c4feb6c979924dbc4684fbbe3bd9e2e078",
+      "body": "function shouldEmitBlockFunctionBodyOnSingleLine(body) {\n    if (getEmitFlags(body) & 1 /* SingleLine */) {\n      return true;\n    }\n    if (body.multiLine) {\n      return false;\n    }\n    if (!nodeIsSynthesized(body) && currentSourceFile && !rangeIsOnSingleLine(body, currentSourceFile)) {\n      return false;\n    }\n    if (getLeadingLineTerminatorCount(body, firstOrUndefined(body.statements), 2 /* PreserveLines */) || getClosingLineTerminatorCount(body, lastOrUndefined(body.statements), 2 /* PreserveLines */, body.statements)) {\n      return false;\n    }\n    let previousStatement;\n    for (const statement of body.statements) {\n      if (getSeparatingLineTerminatorCount(previousStatement, statement, 2 /* PreserveLines */) > 0) {\n        return false;\n      }\n      previousStatement = statement;\n    }\n    return true;\n  }",
+      "predicates": [
+        {
+          "start": 119000,
+          "end": 119000,
+          "sha256": "72523a88a713428d8df580d0620dc2d32f9ae6afd1dd9af1c146226fc8224102",
+          "text": "getEmitFlags(body) & 1"
+        },
+        {
+          "start": 119003,
+          "end": 119003,
+          "sha256": "efc24916016ae9b7780c40410d1ef1406c0fe574a36a675524176e844c192555",
+          "text": "body.multiLine"
+        },
+        {
+          "start": 119006,
+          "end": 119006,
+          "sha256": "72de185dc7bb130fcf9637cb987f911237580201600d439252b082fb62f357ca",
+          "text": "!nodeIsSynthesized(body) && currentSourceFile && !rangeIsOnSingleLine(body, currentSourceFile)"
+        },
+        {
+          "start": 119009,
+          "end": 119009,
+          "sha256": "82d0da11bdcb0d53817399ec966e03df81eabcf92b8ddaace46901e2e4f6ad3a",
+          "text": "getLeadingLineTerminatorCount(body, firstOrUndefined(body.statements), 2 /* PreserveLines */) || getClosingLineTerminatorCount(body, lastOrUndefined(body.statements), 2 /* PreserveLines */, body.statements)"
+        },
+        {
+          "start": 119014,
+          "end": 119014,
+          "sha256": "ec32cd08eb5ead7bf724dfb77d1e8aa192ac61ed6c83f09874910b17b005d150",
+          "text": "getSeparatingLineTerminatorCount(previousStatement, statement, 2 /* PreserveLines */) > 0"
+        }
+      ]
+    },
+    {
+      "name": "emitBlockFunctionBodyWorker",
+      "start": 119040,
+      "end": 119058,
+      "sha256": "dca3257a62499c04f159fa45d718e823c94a58dbb186d84373921422f1a9e63c",
+      "body": "function emitBlockFunctionBodyWorker(body, emitBlockFunctionBodyOnSingleLine2) {\n    const statementOffset = emitPrologueDirectives(body.statements);\n    const pos = writer.getTextPos();\n    emitHelpers(body);\n    if (statementOffset === 0 && pos === writer.getTextPos() && emitBlockFunctionBodyOnSingleLine2) {\n      decreaseIndent();\n      emitList(body, body.statements, 768 /* SingleLineFunctionBodyStatements */);\n      increaseIndent();\n    } else {\n      emitList(\n        body,\n        body.statements,\n        1 /* MultiLineFunctionBodyStatements */,\n        /*parenthesizerRule*/\n        void 0,\n        statementOffset\n      );\n    }\n  }",
+      "predicates": [
+        {
+          "start": 119044,
+          "end": 119044,
+          "sha256": "4dbfce0567df11848190ed6e35783ed484aa89e722c02a421dce8810c2482542",
+          "text": "statementOffset === 0 && pos === writer.getTextPos() && emitBlockFunctionBodyOnSingleLine2"
+        }
+      ]
+    },
+    {
+      "name": "emitClassDeclarationOrExpression",
+      "start": 119062,
+      "end": 119090,
+      "sha256": "c86f2d8dfc05c89564ace67a759953a0500cf21432b0d377934dd7b23f6d355d",
+      "body": "function emitClassDeclarationOrExpression(node) {\n    emitDecoratorsAndModifiers(\n      node,\n      node.modifiers,\n      /*allowDecorators*/\n      true\n    );\n    emitTokenWithComment(86 /* ClassKeyword */, moveRangePastModifiers(node).pos, writeKeyword, node);\n    if (node.name) {\n      writeSpace();\n      emitIdentifierName(node.name);\n    }\n    const indentedFlag = getEmitFlags(node) & 131072 /* Indented */;\n    if (indentedFlag) {\n      increaseIndent();\n    }\n    emitTypeParameters(node, node.typeParameters);\n    emitList(node, node.heritageClauses, 0 /* ClassHeritageClauses */);\n    writeSpace();\n    writePunctuation(\"{\");\n    pushNameGenerationScope(node);\n    forEach(node.members, generateMemberNames);\n    emitList(node, node.members, 129 /* ClassMembers */);\n    popNameGenerationScope(node);\n    writePunctuation(\"}\");\n    if (indentedFlag) {\n      decreaseIndent();\n    }\n  }",
+      "predicates": [
+        {
+          "start": 119070,
+          "end": 119070,
+          "sha256": "c0903a4721681fd5b820f9745fad9fced64c2c8df6a65049b0849759f4215b39",
+          "text": "node.name"
+        },
+        {
+          "start": 119075,
+          "end": 119075,
+          "sha256": "08a8eb713d56435910d27c7fc05936cb36109e487f4005aa748e4a1fa5c4acf6",
+          "text": "indentedFlag"
+        },
+        {
+          "start": 119087,
+          "end": 119087,
+          "sha256": "08a8eb713d56435910d27c7fc05936cb36109e487f4005aa748e4a1fa5c4acf6",
+          "text": "indentedFlag"
+        }
+      ]
+    },
+    {
+      "name": "emitInterfaceDeclaration",
+      "start": 119091,
+      "end": 119110,
+      "sha256": "89489c120fd8301e1a973ff2dd5c732d16d1c8e003579fb0a9ae3d238b0e7ee9",
+      "body": "function emitInterfaceDeclaration(node) {\n    emitDecoratorsAndModifiers(\n      node,\n      node.modifiers,\n      /*allowDecorators*/\n      false\n    );\n    writeKeyword(\"interface\");\n    writeSpace();\n    emit(node.name);\n    emitTypeParameters(node, node.typeParameters);\n    emitList(node, node.heritageClauses, 512 /* HeritageClauses */);\n    writeSpace();\n    writePunctuation(\"{\");\n    pushNameGenerationScope(node);\n    forEach(node.members, generateMemberNames);\n    emitList(node, node.members, 129 /* InterfaceMembers */);\n    popNameGenerationScope(node);\n    writePunctuation(\"}\");\n  }",
+      "predicates": []
+    },
+    {
+      "name": "emitEnumDeclaration",
+      "start": 119128,
+      "end": 119142,
+      "sha256": "0462ec6c8f6f2c2b9debdc183a72c7bbb2bccd9de65b1658cb63e4257e69bb43",
+      "body": "function emitEnumDeclaration(node) {\n    emitDecoratorsAndModifiers(\n      node,\n      node.modifiers,\n      /*allowDecorators*/\n      false\n    );\n    writeKeyword(\"enum\");\n    writeSpace();\n    emit(node.name);\n    writeSpace();\n    writePunctuation(\"{\");\n    emitList(node, node.members, 145 /* EnumMembers */);\n    writePunctuation(\"}\");\n  }",
+      "predicates": []
+    },
+    {
+      "name": "emitCaseBlock",
+      "start": 119175,
+      "end": 119186,
+      "sha256": "7b7dd35c21ec820c4a934ce514a8d454c655bc5284c6c24da716136ec72959a0",
+      "body": "function emitCaseBlock(node) {\n    emitTokenWithComment(19 /* OpenBraceToken */, node.pos, writePunctuation, node);\n    emitList(node, node.clauses, 129 /* CaseBlockClauses */);\n    emitTokenWithComment(\n      20 /* CloseBraceToken */,\n      node.clauses.end,\n      writePunctuation,\n      node,\n      /*indentLeading*/\n      true\n    );\n  }",
+      "predicates": []
+    },
+    {
+      "name": "emitImportTypeNodeAttributes",
+      "start": 119305,
+      "end": 119315,
+      "sha256": "f924973dc7fc7cad2c52d1a27a6d77dfb1c6c6a421e284aa202d21d9c85a9ef4",
+      "body": "function emitImportTypeNodeAttributes(node) {\n    writePunctuation(\"{\");\n    writeSpace();\n    writeKeyword(node.token === 132 /* AssertKeyword */ ? \"assert\" : \"with\");\n    writePunctuation(\":\");\n    writeSpace();\n    const elements = node.elements;\n    emitList(node, elements, 526226 /* ImportAttributes */);\n    writeSpace();\n    writePunctuation(\"}\");\n  }",
+      "predicates": [
+        {
+          "start": 119308,
+          "end": 119308,
+          "sha256": "76b0fd98d19a61e560de6fa314a2b117a2e491bc8d8eef06cb82f0f30fb4b62d",
+          "text": "node.token === 132"
+        }
+      ]
+    },
+    {
+      "name": "emitImportAttributes",
+      "start": 119316,
+      "end": 119321,
+      "sha256": "ae74f453530374a74b00d2ab63f628d892d98672b3b71a9ceecc7663207ce4f1",
+      "body": "function emitImportAttributes(node) {\n    emitTokenWithComment(node.token, node.pos, writeKeyword, node);\n    writeSpace();\n    const elements = node.elements;\n    emitList(node, elements, 526226 /* ImportAttributes */);\n  }",
+      "predicates": []
+    },
+    {
+      "name": "emitNamedImportsOrExports",
+      "start": 119356,
+      "end": 119360,
+      "sha256": "fa0cc73760db6e0bdc91ead547be1a25ca9be0d7d60638b5b3bc03bbf68b56b3",
+      "body": "function emitNamedImportsOrExports(node) {\n    writePunctuation(\"{\");\n    emitList(node, node.elements, 525136 /* NamedImportsOrExportsElements */);\n    writePunctuation(\"}\");\n  }",
+      "predicates": []
+    },
+    {
+      "name": "emitJsxElement",
+      "start": 119380,
+      "end": 119384,
+      "sha256": "d455f63a345919b72f6fa37fa71968b7807df352d5e2524c71e051205acb07a0",
+      "body": "function emitJsxElement(node) {\n    emit(node.openingElement);\n    emitList(node, node.children, 262144 /* JsxElementOrFragmentChildren */);\n    emit(node.closingElement);\n  }",
+      "predicates": []
+    },
+    {
+      "name": "emitJsxFragment",
+      "start": 119393,
+      "end": 119397,
+      "sha256": "ff907658612664aa66748a67f928de2127ebf00c3cc7ac713e5cedf278d50cc2",
+      "body": "function emitJsxFragment(node) {\n    emit(node.openingFragment);\n    emitList(node, node.children, 262144 /* JsxElementOrFragmentChildren */);\n    emit(node.closingFragment);\n  }",
+      "predicates": []
+    },
+    {
+      "name": "emitJsxAttributes",
+      "start": 119423,
+      "end": 119425,
+      "sha256": "41da0c30ccdc7c580cd282d5bcdfd247c87bf012175a63dd05cea8fb85512772",
+      "body": "function emitJsxAttributes(node) {\n    emitList(node, node.properties, 262656 /* JsxElementAttributes */);\n  }",
+      "predicates": []
+    },
+    {
+      "name": "emitCaseOrDefaultClauseRest",
+      "start": 119486,
+      "end": 119498,
+      "sha256": "bb14e1ea7bd36663d4287998454e47ecd29f685a5728e0d03ce11aba39bb812d",
+      "body": "function emitCaseOrDefaultClauseRest(parentNode, statements, colonPos) {\n    const emitAsSingleStatement = statements.length === 1 && // treat synthesized nodes as located on the same line for emit purposes\n    (!currentSourceFile || nodeIsSynthesized(parentNode) || nodeIsSynthesized(statements[0]) || rangeStartPositionsAreOnSameLine(parentNode, statements[0], currentSourceFile));\n    let format = 163969 /* CaseOrDefaultClauseStatements */;\n    if (emitAsSingleStatement) {\n      writeToken(59 /* ColonToken */, colonPos, writePunctuation, parentNode);\n      writeSpace();\n      format &= ~(1 /* MultiLine */ | 128 /* Indented */);\n    } else {\n      emitTokenWithComment(59 /* ColonToken */, colonPos, writePunctuation, parentNode);\n    }\n    emitList(parentNode, statements, format);\n  }",
+      "predicates": [
+        {
+          "start": 119490,
+          "end": 119490,
+          "sha256": "4f553242a8fefc44d0546521b25ed32ce814e20d679e6924ccb934c7a11861bc",
+          "text": "emitAsSingleStatement"
+        }
+      ]
+    },
+    {
+      "name": "emitHeritageClause",
+      "start": 119499,
+      "end": 119504,
+      "sha256": "7842689ccb550ab2b824362785708c3178816a624ff7711a4fbe4b8bfbaccf54",
+      "body": "function emitHeritageClause(node) {\n    writeSpace();\n    writeTokenText(node.token, writeKeyword);\n    writeSpace();\n    emitList(node, node.types, 528 /* HeritageClauseTypes */);\n  }",
+      "predicates": []
+    },
+    {
+      "name": "emitJSDoc",
+      "start": 119546,
+      "end": 119571,
+      "sha256": "44c0947ade3d94f2890a0e1f492a424f81294535e725e6e5c44e1ab41d2eadf0",
+      "body": "function emitJSDoc(node) {\n    write(\"/**\");\n    if (node.comment) {\n      const text = getTextOfJSDocComment(node.comment);\n      if (text) {\n        const lines = text.split(/\\r\\n?|\\n/);\n        for (const line of lines) {\n          writeLine();\n          writeSpace();\n          writePunctuation(\"*\");\n          writeSpace();\n          write(line);\n        }\n      }\n    }\n    if (node.tags) {\n      if (node.tags.length === 1 && node.tags[0].kind === 345 /* JSDocTypeTag */ && !node.comment) {\n        writeSpace();\n        emit(node.tags[0]);\n      } else {\n        emitList(node, node.tags, 33 /* JSDocComment */);\n      }\n    }\n    writeSpace();\n    write(\"*/\");\n  }",
+      "predicates": [
+        {
+          "start": 119548,
+          "end": 119548,
+          "sha256": "68bb902cd6f0399b2eba9c94511709f7895641dd092d659d2ac1ac69b401acb1",
+          "text": "node.comment"
+        },
+        {
+          "start": 119550,
+          "end": 119550,
+          "sha256": "982d9e3eb996f559e633f4d194def3761d909f5a3b647d1a851fead67c32c9d1",
+          "text": "text"
+        },
+        {
+          "start": 119561,
+          "end": 119561,
+          "sha256": "688bd9003bdd56ea076ba952150b799bc822d4e17930fc58822f0b881a0b8005",
+          "text": "node.tags"
+        },
+        {
+          "start": 119562,
+          "end": 119562,
+          "sha256": "54fb590552e6b6903708ffcf73088612d940182cc43c3c145c4cea65be8ceee2",
+          "text": "node.tags.length === 1 && node.tags[0].kind === 345 /* JSDocTypeTag */ && !node.comment"
+        }
+      ]
+    },
+    {
+      "name": "emitJSDocTemplateTag",
+      "start": 119611,
+      "end": 119617,
+      "sha256": "f1cee70736d87ae7470db958cd1cb76737e14d4df4bf79cdb9a5458b763da4a3",
+      "body": "function emitJSDocTemplateTag(tag) {\n    emitJSDocTagName(tag.tagName);\n    emitJSDocTypeExpression(tag.constraint);\n    writeSpace();\n    emitList(tag, tag.typeParameters, 528 /* CommaListElements */);\n    emitJSDocComment(tag.comment);\n  }",
+      "predicates": []
+    },
+    {
+      "name": "emitJSDocTypeLiteral",
+      "start": 119660,
+      "end": 119662,
+      "sha256": "ebb9cc02b07bcff7fa3ec0c7c2784227662a1e0cd1ab906405c887bc37a42572",
+      "body": "function emitJSDocTypeLiteral(lit) {\n    emitList(lit, factory.createNodeArray(lit.jsDocPropertyTags), 33 /* JSDocComment */);\n  }",
+      "predicates": []
+    },
+    {
+      "name": "emitJSDocSignature",
+      "start": 119663,
+      "end": 119677,
+      "sha256": "e2c5d007eef031076d5b16eef6e5cc784bbabfc343985a8ad4e03152ae91ba34",
+      "body": "function emitJSDocSignature(sig) {\n    if (sig.typeParameters) {\n      emitList(sig, factory.createNodeArray(sig.typeParameters), 33 /* JSDocComment */);\n    }\n    if (sig.parameters) {\n      emitList(sig, factory.createNodeArray(sig.parameters), 33 /* JSDocComment */);\n    }\n    if (sig.type) {\n      writeLine();\n      writeSpace();\n      writePunctuation(\"*\");\n      writeSpace();\n      emit(sig.type);\n    }\n  }",
+      "predicates": [
+        {
+          "start": 119664,
+          "end": 119664,
+          "sha256": "9d081275f82c018f9e48d2ea5b3524ffc81762e26390b32d1fc1e07e2181e993",
+          "text": "sig.typeParameters"
+        },
+        {
+          "start": 119667,
+          "end": 119667,
+          "sha256": "11b24e7fc95d0b3da1924730fd6119041d228bf2376cb5f625d2047433f0d558",
+          "text": "sig.parameters"
+        },
+        {
+          "start": 119670,
+          "end": 119670,
+          "sha256": "2294cf7556ad5050d04aac84da1047c97a03859998ad7c0113c70631250e2e39",
+          "text": "sig.type"
+        }
+      ]
+    },
+    {
+      "name": "emitSourceFileWorker",
+      "start": 119753,
+      "end": 119769,
+      "sha256": "4b0f0691cc1f0e2cbc0555fbc14c599b3eb76c37c3e554faf347a6ed11118835",
+      "body": "function emitSourceFileWorker(node) {\n    const statements = node.statements;\n    pushNameGenerationScope(node);\n    forEach(node.statements, generateNames);\n    emitHelpers(node);\n    const index = findIndex(statements, (statement) => !isPrologueDirective(statement));\n    emitTripleSlashDirectivesIfNeeded(node);\n    emitList(\n      node,\n      statements,\n      1 /* MultiLine */,\n      /*parenthesizerRule*/\n      void 0,\n      index === -1 ? statements.length : index\n    );\n    popNameGenerationScope(node);\n  }",
+      "predicates": [
+        {
+          "start": 119766,
+          "end": 119766,
+          "sha256": "3487803d1d3baa3e2a43a4d3d05806a1ec3eb93d318450aa9ca65e702b56d5ee",
+          "text": "index === -1"
+        }
+      ]
+    },
+    {
+      "name": "emitCommaList",
+      "start": 119780,
+      "end": 119788,
+      "sha256": "5b3ee12734c3fe0740f3b4c508e5dbfc80084112606524eef173e13dbed46bdd",
+      "body": "function emitCommaList(node) {\n    emitExpressionList(\n      node,\n      node.elements,\n      528 /* CommaListElements */,\n      /*parenthesizerRule*/\n      void 0\n    );\n  }",
+      "predicates": []
+    },
+    {
+      "name": "emitPrologueDirectives",
+      "start": 119789,
+      "end": 119811,
+      "sha256": "8a5bb35050ec4b6d2a6ecbc80b3ffe77f172dcf244584b78342f2db0b0eab5b4",
+      "body": "function emitPrologueDirectives(statements, sourceFile, seenPrologueDirectives) {\n    let needsToSetSourceFile = !!sourceFile;\n    for (let i = 0; i < statements.length; i++) {\n      const statement = statements[i];\n      if (isPrologueDirective(statement)) {\n        const shouldEmitPrologueDirective = seenPrologueDirectives ? !seenPrologueDirectives.has(statement.expression.text) : true;\n        if (shouldEmitPrologueDirective) {\n          if (needsToSetSourceFile) {\n            needsToSetSourceFile = false;\n            setSourceFile(sourceFile);\n          }\n          writeLine();\n          emit(statement);\n          if (seenPrologueDirectives) {\n            seenPrologueDirectives.add(statement.expression.text);\n          }\n        }\n      } else {\n        return i;\n      }\n    }\n    return statements.length;\n  }",
+      "predicates": [
+        {
+          "start": 119793,
+          "end": 119793,
+          "sha256": "2eb44b6c5356ed69c80bf145c54916553a8017f51cd9799d97160f553437f187",
+          "text": "isPrologueDirective(statement)"
+        },
+        {
+          "start": 119794,
+          "end": 119794,
+          "sha256": "de85f9aa2307dcf9686f78ff8e34e937d2b9037ab0e19fe41354b1317021c334",
+          "text": "seenPrologueDirectives"
+        },
+        {
+          "start": 119795,
+          "end": 119795,
+          "sha256": "3bd13c19ebdfaad67c032f4373f27730eeab29d12101a6176fbfaecdc75a38e5",
+          "text": "shouldEmitPrologueDirective"
+        },
+        {
+          "start": 119796,
+          "end": 119796,
+          "sha256": "aab2b272880f06a9cdd88b492487a1c0a2d58bf05762630cab47b567f664a49c",
+          "text": "needsToSetSourceFile"
+        },
+        {
+          "start": 119802,
+          "end": 119802,
+          "sha256": "de85f9aa2307dcf9686f78ff8e34e937d2b9037ab0e19fe41354b1317021c334",
+          "text": "seenPrologueDirectives"
+        }
+      ]
+    },
+    {
+      "name": "emitPrologueDirectivesIfNeeded",
+      "start": 119812,
+      "end": 119822,
+      "sha256": "2620e9ab9724ed003c486a652dd2194fdbbb4ed85fe55d7acd999ebf10635c8e",
+      "body": "function emitPrologueDirectivesIfNeeded(sourceFileOrBundle) {\n    if (isSourceFile(sourceFileOrBundle)) {\n      emitPrologueDirectives(sourceFileOrBundle.statements, sourceFileOrBundle);\n    } else {\n      const seenPrologueDirectives = /* @__PURE__ */ new Set();\n      for (const sourceFile of sourceFileOrBundle.sourceFiles) {\n        emitPrologueDirectives(sourceFile.statements, sourceFile, seenPrologueDirectives);\n      }\n      setSourceFile(void 0);\n    }\n  }",
+      "predicates": [
+        {
+          "start": 119813,
+          "end": 119813,
+          "sha256": "b94bc3813207779e77b6bc6fc204321a597d13fda56460c8a0eb0cb130db08c5",
+          "text": "isSourceFile(sourceFileOrBundle)"
+        }
+      ]
+    },
+    {
+      "name": "emitDecoratorsAndModifiers",
+      "start": 119846,
+      "end": 119902,
+      "sha256": "f4f46881ffa7b1e4c19a0e7fef1d6950c676dc9786722bfe0c4e886d70fde99b",
+      "body": "function emitDecoratorsAndModifiers(node, modifiers, allowDecorators) {\n    if (modifiers == null ? void 0 : modifiers.length) {\n      if (every(modifiers, isModifier)) {\n        return emitModifierList(node, modifiers);\n      }\n      if (every(modifiers, isDecorator)) {\n        if (allowDecorators) {\n          return emitDecoratorList(node, modifiers);\n        }\n        return node.pos;\n      }\n      onBeforeEmitNodeArray == null ? void 0 : onBeforeEmitNodeArray(modifiers);\n      let lastMode;\n      let mode;\n      let start = 0;\n      let pos = 0;\n      let lastModifier;\n      while (start < modifiers.length) {\n        while (pos < modifiers.length) {\n          lastModifier = modifiers[pos];\n          mode = isDecorator(lastModifier) ? \"decorators\" : \"modifiers\";\n          if (lastMode === void 0) {\n            lastMode = mode;\n          } else if (mode !== lastMode) {\n            break;\n          }\n          pos++;\n        }\n        const textRange = { pos: -1, end: -1 };\n        if (start === 0) textRange.pos = modifiers.pos;\n        if (pos === modifiers.length - 1) textRange.end = modifiers.end;\n        if (lastMode === \"modifiers\" || allowDecorators) {\n          emitNodeListItems(\n            emit,\n            node,\n            modifiers,\n            lastMode === \"modifiers\" ? 2359808 /* Modifiers */ : 2146305 /* Decorators */,\n            /*parenthesizerRule*/\n            void 0,\n            start,\n            pos - start,\n            /*hasTrailingComma*/\n            false,\n            textRange\n          );\n        }\n        start = pos;\n        lastMode = mode;\n        pos++;\n      }\n      onAfterEmitNodeArray == null ? void 0 : onAfterEmitNodeArray(modifiers);\n      if (lastModifier && !positionIsSynthesized(lastModifier.end)) {\n        return lastModifier.end;\n      }\n    }\n    return node.pos;\n  }",
+      "predicates": [
+        {
+          "start": 119847,
+          "end": 119847,
+          "sha256": "aee9013e411ed04a07a79b822b1c337c9b444214612e7beb9ac0bd8def9215c9",
+          "text": "modifiers == null ? void 0 : modifiers.length"
+        },
+        {
+          "start": 119847,
+          "end": 119847,
+          "sha256": "8e566a291d36e8bb97664ba1981eed51049d4c5b2c2654010f1ad0e6e148ae04",
+          "text": "modifiers == null"
+        },
+        {
+          "start": 119848,
+          "end": 119848,
+          "sha256": "2f2f469c003a92fb3d69159384150a7d88bc9e1eab28589e7eff60d535eb2945",
+          "text": "every(modifiers, isModifier)"
+        },
+        {
+          "start": 119851,
+          "end": 119851,
+          "sha256": "4c98605709665053e23c9e6a033adb49800a631fd8ea4410e0aa60371c2bfae8",
+          "text": "every(modifiers, isDecorator)"
+        },
+        {
+          "start": 119852,
+          "end": 119852,
+          "sha256": "f2e39ad331c8846ff27aefe5c8beed7628e5c49531d6c57f8660c7dba5cb8cc0",
+          "text": "allowDecorators"
+        },
+        {
+          "start": 119857,
+          "end": 119857,
+          "sha256": "4a6e3be9b80ab5a4eff38dd51f3cf893708d763973a7c46567c324b28d96a7d4",
+          "text": "onBeforeEmitNodeArray == null"
+        },
+        {
+          "start": 119866,
+          "end": 119866,
+          "sha256": "eed1041ae1fd3b28685b61f5d3cf8e01c788c46cf16f32d71113c2d2af93179c",
+          "text": "isDecorator(lastModifier)"
+        },
+        {
+          "start": 119867,
+          "end": 119867,
+          "sha256": "2725a65b0dccc3bdd793c214e646f73c7e7b6d79e2d0113c0e306fa70f55f35b",
+          "text": "lastMode === void 0"
+        },
+        {
+          "start": 119869,
+          "end": 119869,
+          "sha256": "40494483dc83e2de78346931ea7c0e1daa18e61d95972a7cf7351e17778c9ecd",
+          "text": "mode !== lastMode"
+        },
+        {
+          "start": 119875,
+          "end": 119875,
+          "sha256": "55849ad7e859f40c644dda8c8d47d62632d8c49a66102ffa4edcbaee4fbf129a",
+          "text": "start === 0"
+        },
+        {
+          "start": 119876,
+          "end": 119876,
+          "sha256": "600b81aac19ce1443ac2a38cebeebe0d74dda80a519b25a0723325b82ef505c7",
+          "text": "pos === modifiers.length - 1"
+        },
+        {
+          "start": 119877,
+          "end": 119877,
+          "sha256": "e2f8d2ad81d89104930209fd7ef9697a5cdcd874a656eb31f9b7a43653c27e80",
+          "text": "lastMode === \"modifiers\" || allowDecorators"
+        },
+        {
+          "start": 119882,
+          "end": 119882,
+          "sha256": "5f590422cdc3fb7843c972ba7aa3bf4bffd5e682be949342e5417dad66bf11ee",
+          "text": "lastMode === \"modifiers\""
+        },
+        {
+          "start": 119896,
+          "end": 119896,
+          "sha256": "52c1f25d0e69f93b900138a254ea69bb289f47642823576e167796756b046d36",
+          "text": "onAfterEmitNodeArray == null"
+        },
+        {
+          "start": 119897,
+          "end": 119897,
+          "sha256": "c2713ea54b3b30a82a7e66553dbbd4481f31f1bcd99473c8a825d52e92b4d610",
+          "text": "lastModifier && !positionIsSynthesized(lastModifier.end)"
+        }
+      ]
+    },
+    {
+      "name": "emitModifierList",
+      "start": 119903,
+      "end": 119907,
+      "sha256": "95609fe19794a1fdf3b04c65ee44c6d75a8eee9c0b7a348f48816863406043fd",
+      "body": "function emitModifierList(node, modifiers) {\n    emitList(node, modifiers, 2359808 /* Modifiers */);\n    const lastModifier = lastOrUndefined(modifiers);\n    return lastModifier && !positionIsSynthesized(lastModifier.end) ? lastModifier.end : node.pos;\n  }",
+      "predicates": [
+        {
+          "start": 119906,
+          "end": 119906,
+          "sha256": "c2713ea54b3b30a82a7e66553dbbd4481f31f1bcd99473c8a825d52e92b4d610",
+          "text": "lastModifier && !positionIsSynthesized(lastModifier.end)"
+        }
+      ]
+    },
+    {
+      "name": "emitDecoratorList",
+      "start": 119962,
+      "end": 119966,
+      "sha256": "ffd41764886aa468788c9bc1afba1bc319d0aea99421761ce8b15103378783c3",
+      "body": "function emitDecoratorList(parentNode, decorators) {\n    emitList(parentNode, decorators, 2146305 /* Decorators */);\n    const lastDecorator = lastOrUndefined(decorators);\n    return lastDecorator && !positionIsSynthesized(lastDecorator.end) ? lastDecorator.end : parentNode.pos;\n  }",
+      "predicates": [
+        {
+          "start": 119965,
+          "end": 119965,
+          "sha256": "2986422abd690eb27d5d2738b8de7141f81f5c87b833bce1714aa01ea5eac150",
+          "text": "lastDecorator && !positionIsSynthesized(lastDecorator.end)"
+        }
+      ]
+    },
+    {
+      "name": "emitTypeArguments",
+      "start": 119967,
+      "end": 119969,
+      "sha256": "bce14ed4b6d5f1cf54928eb0aec9c97bcc296aa665c915615f869ecf0df3bc69",
+      "body": "function emitTypeArguments(parentNode, typeArguments) {\n    emitList(parentNode, typeArguments, 53776 /* TypeArguments */, typeArgumentParenthesizerRuleSelector);\n  }",
+      "predicates": []
+    },
+    {
+      "name": "emitTypeParameters",
+      "start": 119970,
+      "end": 119975,
+      "sha256": "711b4c511a22d40f0e1ff242cff6f5f3a5ae6bb2972c868c9ed3c47ae3d6612b",
+      "body": "function emitTypeParameters(parentNode, typeParameters) {\n    if (isFunctionLike(parentNode) && parentNode.typeArguments) {\n      return emitTypeArguments(parentNode, parentNode.typeArguments);\n    }\n    emitList(parentNode, typeParameters, 53776 /* TypeParameters */ | (isArrowFunction(parentNode) ? 64 /* AllowTrailingComma */ : 0 /* None */));\n  }",
+      "predicates": [
+        {
+          "start": 119971,
+          "end": 119971,
+          "sha256": "234d5ea849bba03aa50bed4ea18687411298444a66edadebeaf42acdec5ff3d9",
+          "text": "isFunctionLike(parentNode) && parentNode.typeArguments"
+        },
+        {
+          "start": 119974,
+          "end": 119974,
+          "sha256": "98fb904346fe105475e5e5f8db88d2e2cb741bb0cc6df428091b75d6266e72a3",
+          "text": "isArrowFunction(parentNode)"
+        }
+      ]
+    },
+    {
+      "name": "emitParameters",
+      "start": 119976,
+      "end": 119978,
+      "sha256": "ec5e82f6c5db7d8f3be48fd319347e0afa52486f512a9386c8c0c73853169d1e",
+      "body": "function emitParameters(parentNode, parameters) {\n    emitList(parentNode, parameters, 2576 /* Parameters */);\n  }",
+      "predicates": []
+    },
+    {
+      "name": "emitParametersForArrow",
+      "start": 119983,
+      "end": 119989,
+      "sha256": "5defa2865b66596114760529f7df0ae1b8c54ab92a012da39bef889e687fd7c3",
+      "body": "function emitParametersForArrow(parentNode, parameters) {\n    if (canEmitSimpleArrowHead(parentNode, parameters)) {\n      emitList(parentNode, parameters, 2576 /* Parameters */ & ~2048 /* Parenthesis */);\n    } else {\n      emitParameters(parentNode, parameters);\n    }\n  }",
+      "predicates": [
+        {
+          "start": 119984,
+          "end": 119984,
+          "sha256": "b8cfea72b2af6ea0957ce272ad0a783aba561a40c62d151d9407d8df21b75fbd",
+          "text": "canEmitSimpleArrowHead(parentNode, parameters)"
+        }
+      ]
+    },
+    {
+      "name": "emitParametersForIndexSignature",
+      "start": 119990,
+      "end": 119992,
+      "sha256": "2e040fdf10d0e7e0936f057fcf40d52e63310439a6ab1a5fd50eaa4668c9572c",
+      "body": "function emitParametersForIndexSignature(parentNode, parameters) {\n    emitList(parentNode, parameters, 8848 /* IndexSignatureParameters */);\n  }",
+      "predicates": []
+    },
+    {
+      "name": "emitList",
+      "start": 120015,
+      "end": 120025,
+      "sha256": "0d68e9961d8c6715349294d32d76dae942bc39d2335daf8fb50d9052bb735b2c",
+      "body": "function emitList(parentNode, children, format, parenthesizerRule, start, count) {\n    emitNodeList(\n      emit,\n      parentNode,\n      children,\n      format | (parentNode && getEmitFlags(parentNode) & 2 /* MultiLine */ ? 65536 /* PreferNewLine */ : 0),\n      parenthesizerRule,\n      start,\n      count\n    );\n  }",
+      "predicates": [
+        {
+          "start": 120020,
+          "end": 120020,
+          "sha256": "5ebf69d138389f536db56c7fd2fd8a45fa745f16b707560609c71cddb06c7a76",
+          "text": "parentNode && getEmitFlags(parentNode) & 2"
+        }
+      ]
+    },
+    {
+      "name": "emitExpressionList",
+      "start": 120026,
+      "end": 120028,
+      "sha256": "ac975801491e1f2e3ff5271af73118bb072266ae50d586b151369b5cbbef2336",
+      "body": "function emitExpressionList(parentNode, children, format, parenthesizerRule, start, count) {\n    emitNodeList(emitExpression, parentNode, children, format, parenthesizerRule, start, count);\n  }",
+      "predicates": []
+    },
+    {
+      "name": "emitNodeList",
+      "start": 120029,
+      "end": 120067,
+      "sha256": "9a623f27ae34f2ad6e6afe87284561bd6c6ee6f15bb175472f3f28b7a9650663",
+      "body": "function emitNodeList(emit2, parentNode, children, format, parenthesizerRule, start = 0, count = children ? children.length - start : 0) {\n    const isUndefined = children === void 0;\n    if (isUndefined && format & 16384 /* OptionalIfUndefined */) {\n      return;\n    }\n    const isEmpty = children === void 0 || start >= children.length || count === 0;\n    if (isEmpty && format & 32768 /* OptionalIfEmpty */) {\n      onBeforeEmitNodeArray == null ? void 0 : onBeforeEmitNodeArray(children);\n      onAfterEmitNodeArray == null ? void 0 : onAfterEmitNodeArray(children);\n      return;\n    }\n    if (format & 15360 /* BracketsMask */) {\n      writePunctuation(getOpeningBracket(format));\n      if (isEmpty && children) {\n        emitTrailingCommentsOfPosition(\n          children.pos,\n          /*prefixSpace*/\n          true\n        );\n      }\n    }\n    onBeforeEmitNodeArray == null ? void 0 : onBeforeEmitNodeArray(children);\n    if (isEmpty) {\n      if (format & 1 /* MultiLine */ && !(preserveSourceNewlines && (!parentNode || currentSourceFile && rangeIsOnSingleLine(parentNode, currentSourceFile)))) {\n        writeLine();\n      } else if (format & 256 /* SpaceBetweenBraces */ && !(format & 524288 /* NoSpaceIfEmpty */)) {\n        writeSpace();\n      }\n    } else {\n      emitNodeListItems(emit2, parentNode, children, format, parenthesizerRule, start, count, children.hasTrailingComma, children);\n    }\n    onAfterEmitNodeArray == null ? void 0 : onAfterEmitNodeArray(children);\n    if (format & 15360 /* BracketsMask */) {\n      if (isEmpty && children) {\n        emitLeadingCommentsOfPosition(children.end);\n      }\n      writePunctuation(getClosingBracket(format));\n    }\n  }",
+      "predicates": [
+        {
+          "start": 120031,
+          "end": 120031,
+          "sha256": "3c716636d44cf64ed797b9932b5186dadcad07ba6bb951756554583d5735e7a4",
+          "text": "isUndefined && format & 16384"
+        },
+        {
+          "start": 120035,
+          "end": 120035,
+          "sha256": "670aa4d2124e1fc8d911b4a328baa9f71c11ca94313de50d7f6cec4490a7a382",
+          "text": "isEmpty && format & 32768"
+        },
+        {
+          "start": 120036,
+          "end": 120036,
+          "sha256": "4a6e3be9b80ab5a4eff38dd51f3cf893708d763973a7c46567c324b28d96a7d4",
+          "text": "onBeforeEmitNodeArray == null"
+        },
+        {
+          "start": 120037,
+          "end": 120037,
+          "sha256": "52c1f25d0e69f93b900138a254ea69bb289f47642823576e167796756b046d36",
+          "text": "onAfterEmitNodeArray == null"
+        },
+        {
+          "start": 120040,
+          "end": 120040,
+          "sha256": "ba365bc2558d2774fbb2305a717bd533583d885c007aea3498167d657230a748",
+          "text": "format & 15360"
+        },
+        {
+          "start": 120042,
+          "end": 120042,
+          "sha256": "ca62f9cdf56ad5b301e2617c9642585ec5cd0ad606fc86b0b4330dff2b304c84",
+          "text": "isEmpty && children"
+        },
+        {
+          "start": 120050,
+          "end": 120050,
+          "sha256": "4a6e3be9b80ab5a4eff38dd51f3cf893708d763973a7c46567c324b28d96a7d4",
+          "text": "onBeforeEmitNodeArray == null"
+        },
+        {
+          "start": 120051,
+          "end": 120051,
+          "sha256": "eacba67c557dd37a1964a55f7edb1508238edb8005d5c5e87b6fa581ae1aa5dc",
+          "text": "isEmpty"
+        },
+        {
+          "start": 120052,
+          "end": 120052,
+          "sha256": "e5d1445c3e64a9684addbc63a7de6b3433cceb6363b7911674cdf05b940595b2",
+          "text": "format & 1 /* MultiLine */ && !(preserveSourceNewlines && (!parentNode || currentSourceFile && rangeIsOnSingleLine(parentNode, currentSourceFile)))"
+        },
+        {
+          "start": 120054,
+          "end": 120054,
+          "sha256": "31efc0cf3919ef6eef443e4b4ee9b44293316104b41006831ec3b9ccc825f8f2",
+          "text": "format & 256 /* SpaceBetweenBraces */ && !(format & 524288 /* NoSpaceIfEmpty */)"
+        },
+        {
+          "start": 120060,
+          "end": 120060,
+          "sha256": "52c1f25d0e69f93b900138a254ea69bb289f47642823576e167796756b046d36",
+          "text": "onAfterEmitNodeArray == null"
+        },
+        {
+          "start": 120061,
+          "end": 120061,
+          "sha256": "ba365bc2558d2774fbb2305a717bd533583d885c007aea3498167d657230a748",
+          "text": "format & 15360"
+        },
+        {
+          "start": 120062,
+          "end": 120062,
+          "sha256": "ca62f9cdf56ad5b301e2617c9642585ec5cd0ad606fc86b0b4330dff2b304c84",
+          "text": "isEmpty && children"
+        }
+      ]
+    },
+    {
+      "name": "getLeadingLineTerminatorCount",
+      "start": 120268,
+      "end": 120300,
+      "sha256": "4ce7f023d2eb494223f66404ea1d2b462a671806862e8aff2aad0867e856894f",
+      "body": "function getLeadingLineTerminatorCount(parentNode, firstChild, format) {\n    if (format & 2 /* PreserveLines */ || preserveSourceNewlines) {\n      if (format & 65536 /* PreferNewLine */) {\n        return 1;\n      }\n      if (firstChild === void 0) {\n        return !parentNode || currentSourceFile && rangeIsOnSingleLine(parentNode, currentSourceFile) ? 0 : 1;\n      }\n      if (firstChild.pos === nextListElementPos) {\n        return 0;\n      }\n      if (firstChild.kind === 12 /* JsxText */) {\n        return 0;\n      }\n      if (currentSourceFile && parentNode && !positionIsSynthesized(parentNode.pos) && !nodeIsSynthesized(firstChild) && (!firstChild.parent || getOriginalNode(firstChild.parent) === getOriginalNode(parentNode))) {\n        if (preserveSourceNewlines) {\n          return getEffectiveLines(\n            (includeComments) => getLinesBetweenPositionAndPrecedingNonWhitespaceCharacter(\n              firstChild.pos,\n              parentNode.pos,\n              currentSourceFile,\n              includeComments\n            )\n          );\n        }\n        return rangeStartPositionsAreOnSameLine(parentNode, firstChild, currentSourceFile) ? 0 : 1;\n      }\n      if (synthesizedNodeStartsOnNewLine(firstChild, format)) {\n        return 1;\n      }\n    }\n    return format & 1 /* MultiLine */ ? 1 : 0;\n  }",
+      "predicates": [
+        {
+          "start": 120269,
+          "end": 120269,
+          "sha256": "0c022e8cdd4f9c2b92bd64cc4b5c912a7a17a085d3694e1bd40ea6737c4b1481",
+          "text": "format & 2 /* PreserveLines */ || preserveSourceNewlines"
+        },
+        {
+          "start": 120270,
+          "end": 120270,
+          "sha256": "3c6f56e586fbda15adb979fb14f721cde978be547a290d8d5832ed7ec5cd4f79",
+          "text": "format & 65536"
+        },
+        {
+          "start": 120273,
+          "end": 120273,
+          "sha256": "d0ce7d0cbed3d0a517cd814c1693009a8426c7453382806586c739956738ff99",
+          "text": "firstChild === void 0"
+        },
+        {
+          "start": 120274,
+          "end": 120274,
+          "sha256": "2fda63440d9f0010818a907e3543a7d7b8921be8b0a0aeca6e03eac64c2e1c9d",
+          "text": "!parentNode || currentSourceFile && rangeIsOnSingleLine(parentNode, currentSourceFile)"
+        },
+        {
+          "start": 120276,
+          "end": 120276,
+          "sha256": "ae1c0484b54dc18ce9b730525e2cc88c1b3f78fb4b2ce443a4bda67072ba3c7a",
+          "text": "firstChild.pos === nextListElementPos"
+        },
+        {
+          "start": 120279,
+          "end": 120279,
+          "sha256": "8c5acbf4c8f5361c98bb32421586670f145052f28f8fe8b81d1715a0e8757330",
+          "text": "firstChild.kind === 12"
+        },
+        {
+          "start": 120282,
+          "end": 120282,
+          "sha256": "23ca3f6f21c379db3b748e4c74ed8b48e794b1e9d3e2ac145522a0c4b99d4dbd",
+          "text": "currentSourceFile && parentNode && !positionIsSynthesized(parentNode.pos) && !nodeIsSynthesized(firstChild) && (!firstChild.parent || getOriginalNode(firstChild.parent) === getOriginalNode(parentNode))"
+        },
+        {
+          "start": 120283,
+          "end": 120283,
+          "sha256": "a275c202127c53935db7f133e255c75fae4ae71262e2b7505b96cf5485238131",
+          "text": "preserveSourceNewlines"
+        },
+        {
+          "start": 120293,
+          "end": 120293,
+          "sha256": "75148bc64bb2412004875c3a3263758eb23d82688ccac4b3ce9675f2351eaf0a",
+          "text": "rangeStartPositionsAreOnSameLine(parentNode, firstChild, currentSourceFile)"
+        },
+        {
+          "start": 120295,
+          "end": 120295,
+          "sha256": "453340a147d3e7f7b2615f53d1f0fec67c54f7588c332d763e878009a22d8b27",
+          "text": "synthesizedNodeStartsOnNewLine(firstChild, format)"
+        },
+        {
+          "start": 120299,
+          "end": 120299,
+          "sha256": "ade6a3a49096ddddbff06b1559f27243a7612d386f579578d96537019bc5c05d",
+          "text": "format & 1"
+        }
+      ]
+    },
+    {
+      "name": "emitListItemNoParenthesizer",
+      "start": 121393,
+      "end": 121395,
+      "sha256": "9328cdd401a4c7c79539bd16ccf4248af5e817579391b548b8e426f8f95f0c80",
+      "body": "function emitListItemNoParenthesizer(node, emit, _parenthesizerRule, _index) {\n  emit(node);\n}",
+      "predicates": []
+    },
+    {
+      "name": "emitListItemWithParenthesizerRuleSelector",
+      "start": 121396,
+      "end": 121398,
+      "sha256": "9dbfccf7cc98b90962320d6aaa5eb67523be3a908b20bff0efee8711de6722fe",
+      "body": "function emitListItemWithParenthesizerRuleSelector(node, emit, parenthesizerRuleSelector, index) {\n  emit(node, parenthesizerRuleSelector.select(index));\n}",
+      "predicates": []
+    },
+    {
+      "name": "emitListItemWithParenthesizerRule",
+      "start": 121399,
+      "end": 121401,
+      "sha256": "790a40d72cbabeeba439e259324871b50fb2ff7c18eaa8f02a0f3c971f20c44a",
+      "body": "function emitListItemWithParenthesizerRule(node, emit, parenthesizerRule, _index) {\n  emit(node, parenthesizerRule);\n}",
+      "predicates": []
+    },
+    {
+      "name": "getEmitListItem",
+      "start": 121402,
+      "end": 121404,
+      "sha256": "2bcfcd125bde6ceb3bfdf507f598a4ff43e9e7c4915eefcce8cf4da71c4a570d",
+      "body": "function getEmitListItem(emit, parenthesizerRule) {\n  return emit.length === 1 ? emitListItemNoParenthesizer : typeof parenthesizerRule === \"object\" ? emitListItemWithParenthesizerRuleSelector : emitListItemWithParenthesizerRule;\n}",
+      "predicates": [
+        {
+          "start": 121403,
+          "end": 121403,
+          "sha256": "c00987469ba45c490262307c43b4a5a301ede0a839632644a0e35338d9cb8873",
+          "text": "emit.length === 1"
+        },
+        {
+          "start": 121403,
+          "end": 121403,
+          "sha256": "7668420d6e651207b846520c939e2490b4e7c22a63dc8f166cf9a5c643daf592",
+          "text": "typeof parenthesizerRule === \"object\""
+        }
+      ]
+    }
+  ]
+}

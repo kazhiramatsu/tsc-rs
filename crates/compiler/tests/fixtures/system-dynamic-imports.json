@@ -1,0 +1,2026 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "a4b2572ee0547a6060c6c289148c118aab92d079d77ce90f0b1abc56e2f202ff",
+  "repetitions": 2,
+  "cases": [
+    {
+      "case_id": "dynamic-system/2/bundle-root",
+      "files": [
+        {
+          "path": "/project/src/entry.ts",
+          "text": "export {};\nimport('./target');\n"
+        },
+        {
+          "path": "/project/src/target.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 4,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "outFile": "output.js",
+        "rootDir": "/project/src"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "output.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJ0YXJnZXQiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMSwgY29udGV4dF8xKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIHZhciB2YWx1ZTsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgZXhwb3J0c18xKCJ2YWx1ZSIsIHZhbHVlID0gMSk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQpTeXN0ZW0ucmVnaXN0ZXIoImVudHJ5IiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8yICYmIGNvbnRleHRfMi5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgY29udGV4dF8yLmltcG9ydCgidGFyZ2V0Iik7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQo=",
+            "callback_utf8_bytes": 554,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJ0YXJnZXQiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMSwgY29udGV4dF8xKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIHZhciB2YWx1ZTsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgZXhwb3J0c18xKCJ2YWx1ZSIsIHZhbHVlID0gMSk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQpTeXN0ZW0ucmVnaXN0ZXIoImVudHJ5IiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8yICYmIGNvbnRleHRfMi5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgY29udGV4dF8yLmltcG9ydCgidGFyZ2V0Iik7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQo=",
+            "materialized_utf8_bytes": 554,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/target.ts",
+              "/project/src/entry.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "output.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/output.js"
+        ],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "dynamic-system/2/bundle-inferred",
+      "files": [
+        {
+          "path": "/project/src/entry.ts",
+          "text": "export {};\nimport('./target');\n"
+        },
+        {
+          "path": "/project/src/target.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 4,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "outFile": "output.js"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "output.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJ0YXJnZXQiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMSwgY29udGV4dF8xKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIHZhciB2YWx1ZTsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgZXhwb3J0c18xKCJ2YWx1ZSIsIHZhbHVlID0gMSk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQpTeXN0ZW0ucmVnaXN0ZXIoImVudHJ5IiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8yICYmIGNvbnRleHRfMi5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgY29udGV4dF8yLmltcG9ydCgidGFyZ2V0Iik7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQo=",
+            "callback_utf8_bytes": 554,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJ0YXJnZXQiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMSwgY29udGV4dF8xKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIHZhciB2YWx1ZTsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgZXhwb3J0c18xKCJ2YWx1ZSIsIHZhbHVlID0gMSk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQpTeXN0ZW0ucmVnaXN0ZXIoImVudHJ5IiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8yICYmIGNvbnRleHRfMi5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgY29udGV4dF8yLmltcG9ydCgidGFyZ2V0Iik7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQo=",
+            "materialized_utf8_bytes": 554,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/target.ts",
+              "/project/src/entry.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "output.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/output.js"
+        ],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "dynamic-system/2/direct",
+      "files": [
+        {
+          "path": "/project/src/entry.ts",
+          "text": "export {};\nimport('./target');\n"
+        },
+        {
+          "path": "/project/src/target.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 4,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "rootDir": "/project/src"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/src/target.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHZhbHVlOw0KICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOw0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICBleHBvcnRzXzEoInZhbHVlIiwgdmFsdWUgPSAxKTsNCiAgICAgICAgfQ0KICAgIH07DQp9KTsNCg==",
+            "callback_utf8_bytes": 277,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHZhbHVlOw0KICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOw0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICBleHBvcnRzXzEoInZhbHVlIiwgdmFsdWUgPSAxKTsNCiAgICAgICAgfQ0KICAgIH07DQp9KTsNCg==",
+            "materialized_utf8_bytes": 277,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/target.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/src/entry.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGNvbnRleHRfMS5pbXBvcnQoJy4vdGFyZ2V0Jyk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQo=",
+            "callback_utf8_bytes": 260,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGNvbnRleHRfMS5pbXBvcnQoJy4vdGFyZ2V0Jyk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQo=",
+            "materialized_utf8_bytes": 260,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/entry.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/src/target.js",
+            "/project/src/entry.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/src/target.js",
+          "TSFILE: /project/src/entry.js"
+        ],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "dynamic-system/2/unresolved",
+      "files": [
+        {
+          "path": "/project/src/entry.ts",
+          "text": "export {};\nimport('./absent');\n"
+        },
+        {
+          "path": "/project/src/target.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 4,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "outFile": "output.js",
+        "rootDir": "/project/src"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "output.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJlbnRyeSIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGNvbnRleHRfMS5pbXBvcnQoJy4vYWJzZW50Jyk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQpTeXN0ZW0ucmVnaXN0ZXIoInRhcmdldCIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18yLCBjb250ZXh0XzIpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHZhbHVlOw0KICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzIgJiYgY29udGV4dF8yLmlkOw0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICBleHBvcnRzXzIoInZhbHVlIiwgdmFsdWUgPSAxKTsNCiAgICAgICAgfQ0KICAgIH07DQp9KTsNCg==",
+            "callback_utf8_bytes": 556,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJlbnRyeSIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGNvbnRleHRfMS5pbXBvcnQoJy4vYWJzZW50Jyk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQpTeXN0ZW0ucmVnaXN0ZXIoInRhcmdldCIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18yLCBjb250ZXh0XzIpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHZhbHVlOw0KICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzIgJiYgY29udGV4dF8yLmlkOw0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICBleHBvcnRzXzIoInZhbHVlIiwgdmFsdWUgPSAxKTsNCiAgICAgICAgfQ0KICAgIH07DQp9KTsNCg==",
+            "materialized_utf8_bytes": 556,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/entry.ts",
+              "/project/src/target.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "output.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/output.js"
+        ],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "dynamic-system/2/declaration",
+      "files": [
+        {
+          "path": "/project/src/entry.ts",
+          "text": "export {};\nimport('./target');\n"
+        },
+        {
+          "path": "/project/src/target.d.ts",
+          "text": "export declare const value: number;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 4,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "outFile": "output.js",
+        "rootDir": "/project/src"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "output.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJlbnRyeSIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGNvbnRleHRfMS5pbXBvcnQoJy4vdGFyZ2V0Jyk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQo=",
+            "callback_utf8_bytes": 269,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJlbnRyeSIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGNvbnRleHRfMS5pbXBvcnQoJy4vdGFyZ2V0Jyk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQo=",
+            "materialized_utf8_bytes": 269,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/entry.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "output.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/output.js"
+        ],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "dynamic-system/2/expression",
+      "files": [
+        {
+          "path": "/project/src/entry.ts",
+          "text": "const modulePath: string = './target';\nexport {};\nimport(modulePath);\n"
+        },
+        {
+          "path": "/project/src/target.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 4,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "outFile": "output.js",
+        "rootDir": "/project/src"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "output.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJlbnRyeSIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIG1vZHVsZVBhdGg7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIG1vZHVsZVBhdGggPSAnLi90YXJnZXQnOw0KICAgICAgICAgICAgY29udGV4dF8xLmltcG9ydChtb2R1bGVQYXRoKTsNCiAgICAgICAgfQ0KICAgIH07DQp9KTsNClN5c3RlbS5yZWdpc3RlcigidGFyZ2V0IiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICB2YXIgdmFsdWU7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMiAmJiBjb250ZXh0XzIuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGV4cG9ydHNfMigidmFsdWUiLCB2YWx1ZSA9IDEpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0K",
+            "callback_utf8_bytes": 615,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJlbnRyeSIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIG1vZHVsZVBhdGg7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIG1vZHVsZVBhdGggPSAnLi90YXJnZXQnOw0KICAgICAgICAgICAgY29udGV4dF8xLmltcG9ydChtb2R1bGVQYXRoKTsNCiAgICAgICAgfQ0KICAgIH07DQp9KTsNClN5c3RlbS5yZWdpc3RlcigidGFyZ2V0IiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICB2YXIgdmFsdWU7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMiAmJiBjb250ZXh0XzIuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGV4cG9ydHNfMigidmFsdWUiLCB2YWx1ZSA9IDEpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0K",
+            "materialized_utf8_bytes": 615,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/entry.ts",
+              "/project/src/target.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "output.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/output.js"
+        ],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "dynamic-system/2/template",
+      "files": [
+        {
+          "path": "/project/src/entry.ts",
+          "text": "export {};\nimport(`./target`);\n"
+        },
+        {
+          "path": "/project/src/target.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 4,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "outFile": "output.js",
+        "rootDir": "/project/src"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "output.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJ0YXJnZXQiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMSwgY29udGV4dF8xKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIHZhciB2YWx1ZTsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgZXhwb3J0c18xKCJ2YWx1ZSIsIHZhbHVlID0gMSk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQpTeXN0ZW0ucmVnaXN0ZXIoImVudHJ5IiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8yICYmIGNvbnRleHRfMi5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgY29udGV4dF8yLmltcG9ydChgLi90YXJnZXRgKTsNCiAgICAgICAgfQ0KICAgIH07DQp9KTsNCg==",
+            "callback_utf8_bytes": 556,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJ0YXJnZXQiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMSwgY29udGV4dF8xKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIHZhciB2YWx1ZTsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgZXhwb3J0c18xKCJ2YWx1ZSIsIHZhbHVlID0gMSk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQpTeXN0ZW0ucmVnaXN0ZXIoImVudHJ5IiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8yICYmIGNvbnRleHRfMi5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgY29udGV4dF8yLmltcG9ydChgLi90YXJnZXRgKTsNCiAgICAgICAgfQ0KICAgIH07DQp9KTsNCg==",
+            "materialized_utf8_bytes": 556,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/target.ts",
+              "/project/src/entry.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "output.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/output.js"
+        ],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "dynamic-system/2/parenthesized",
+      "files": [
+        {
+          "path": "/project/src/entry.ts",
+          "text": "export {};\nimport(('./target'));\n"
+        },
+        {
+          "path": "/project/src/target.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 4,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "outFile": "output.js",
+        "rootDir": "/project/src"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "output.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJlbnRyeSIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGNvbnRleHRfMS5pbXBvcnQoKCcuL3RhcmdldCcpKTsNCiAgICAgICAgfQ0KICAgIH07DQp9KTsNClN5c3RlbS5yZWdpc3RlcigidGFyZ2V0IiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICB2YXIgdmFsdWU7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMiAmJiBjb250ZXh0XzIuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGV4cG9ydHNfMigidmFsdWUiLCB2YWx1ZSA9IDEpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0K",
+            "callback_utf8_bytes": 558,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJlbnRyeSIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGNvbnRleHRfMS5pbXBvcnQoKCcuL3RhcmdldCcpKTsNCiAgICAgICAgfQ0KICAgIH07DQp9KTsNClN5c3RlbS5yZWdpc3RlcigidGFyZ2V0IiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICB2YXIgdmFsdWU7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMiAmJiBjb250ZXh0XzIuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGV4cG9ydHNfMigidmFsdWUiLCB2YWx1ZSA9IDEpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0K",
+            "materialized_utf8_bytes": 558,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/entry.ts",
+              "/project/src/target.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "output.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/output.js"
+        ],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "dynamic-system/2/import-options",
+      "files": [
+        {
+          "path": "/project/src/entry.ts",
+          "text": "export {};\nimport('./target', { with: { type: 'json' } });\n"
+        },
+        {
+          "path": "/project/src/target.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 4,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "outFile": "output.js",
+        "rootDir": "/project/src"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "output.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJ0YXJnZXQiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMSwgY29udGV4dF8xKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIHZhciB2YWx1ZTsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgZXhwb3J0c18xKCJ2YWx1ZSIsIHZhbHVlID0gMSk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQpTeXN0ZW0ucmVnaXN0ZXIoImVudHJ5IiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8yICYmIGNvbnRleHRfMi5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgY29udGV4dF8yLmltcG9ydCgidGFyZ2V0Iik7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQo=",
+            "callback_utf8_bytes": 554,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJ0YXJnZXQiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMSwgY29udGV4dF8xKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIHZhciB2YWx1ZTsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgZXhwb3J0c18xKCJ2YWx1ZSIsIHZhbHVlID0gMSk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQpTeXN0ZW0ucmVnaXN0ZXIoImVudHJ5IiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8yICYmIGNvbnRleHRfMi5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgY29udGV4dF8yLmltcG9ydCgidGFyZ2V0Iik7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQo=",
+            "materialized_utf8_bytes": 554,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/target.ts",
+              "/project/src/entry.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "output.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/output.js"
+        ],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "dynamic-system/2/missing-argument",
+      "files": [
+        {
+          "path": "/project/src/entry.ts",
+          "text": "export {};\nimport();\n"
+        },
+        {
+          "path": "/project/src/target.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 4,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "outFile": "output.js",
+        "rootDir": "/project/src"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "output.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJlbnRyeSIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGNvbnRleHRfMS5pbXBvcnQoKTsNCiAgICAgICAgfQ0KICAgIH07DQp9KTsNClN5c3RlbS5yZWdpc3RlcigidGFyZ2V0IiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICB2YXIgdmFsdWU7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMiAmJiBjb250ZXh0XzIuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGV4cG9ydHNfMigidmFsdWUiLCB2YWx1ZSA9IDEpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0K",
+            "callback_utf8_bytes": 546,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJlbnRyeSIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGNvbnRleHRfMS5pbXBvcnQoKTsNCiAgICAgICAgfQ0KICAgIH07DQp9KTsNClN5c3RlbS5yZWdpc3RlcigidGFyZ2V0IiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICB2YXIgdmFsdWU7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMiAmJiBjb250ZXh0XzIuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGV4cG9ydHNfMigidmFsdWUiLCB2YWx1ZSA9IDEpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0K",
+            "materialized_utf8_bytes": 546,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/entry.ts",
+              "/project/src/target.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "output.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/output.js"
+        ],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "dynamic-system/2/named",
+      "files": [
+        {
+          "path": "/project/src/entry.ts",
+          "text": "export {};\nimport('./target');\n"
+        },
+        {
+          "path": "/project/src/target.ts",
+          "text": "/// <amd-module name=\"named-target\" />\nexport const value: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 4,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "outFile": "output.js",
+        "rootDir": "/project/src"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "output.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJuYW1lZC10YXJnZXQiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMSwgY29udGV4dF8xKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIHZhciB2YWx1ZTsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgLy8vIDxhbWQtbW9kdWxlIG5hbWU9Im5hbWVkLXRhcmdldCIgLz4NCiAgICAgICAgICAgIGV4cG9ydHNfMSgidmFsdWUiLCB2YWx1ZSA9IDEpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0KU3lzdGVtLnJlZ2lzdGVyKCJlbnRyeSIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18yLCBjb250ZXh0XzIpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMiAmJiBjb250ZXh0XzIuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGNvbnRleHRfMi5pbXBvcnQoIm5hbWVkLXRhcmdldCIpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0K",
+            "callback_utf8_bytes": 618,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJuYW1lZC10YXJnZXQiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMSwgY29udGV4dF8xKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIHZhciB2YWx1ZTsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgLy8vIDxhbWQtbW9kdWxlIG5hbWU9Im5hbWVkLXRhcmdldCIgLz4NCiAgICAgICAgICAgIGV4cG9ydHNfMSgidmFsdWUiLCB2YWx1ZSA9IDEpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0KU3lzdGVtLnJlZ2lzdGVyKCJlbnRyeSIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18yLCBjb250ZXh0XzIpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMiAmJiBjb250ZXh0XzIuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGNvbnRleHRfMi5pbXBvcnQoIm5hbWVkLXRhcmdldCIpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0K",
+            "materialized_utf8_bytes": 618,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/target.ts",
+              "/project/src/entry.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "output.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/output.js"
+        ],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "dynamic-system/2/equal-named",
+      "files": [
+        {
+          "path": "/project/src/entry.ts",
+          "text": "export {};\nimport('./target');\n"
+        },
+        {
+          "path": "/project/src/target.ts",
+          "text": "/// <amd-module name=\"./target\" />\nexport const value: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 4,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "outFile": "output.js",
+        "rootDir": "/project/src"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "output.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCIuL3RhcmdldCIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHZhbHVlOw0KICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOw0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICAvLy8gPGFtZC1tb2R1bGUgbmFtZT0iLi90YXJnZXQiIC8+DQogICAgICAgICAgICBleHBvcnRzXzEoInZhbHVlIiwgdmFsdWUgPSAxKTsNCiAgICAgICAgfQ0KICAgIH07DQp9KTsNClN5c3RlbS5yZWdpc3RlcigiZW50cnkiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMiwgY29udGV4dF8yKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzIgJiYgY29udGV4dF8yLmlkOw0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICBjb250ZXh0XzIuaW1wb3J0KCcuL3RhcmdldCcpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0K",
+            "callback_utf8_bytes": 606,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCIuL3RhcmdldCIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHZhbHVlOw0KICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOw0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICAvLy8gPGFtZC1tb2R1bGUgbmFtZT0iLi90YXJnZXQiIC8+DQogICAgICAgICAgICBleHBvcnRzXzEoInZhbHVlIiwgdmFsdWUgPSAxKTsNCiAgICAgICAgfQ0KICAgIH07DQp9KTsNClN5c3RlbS5yZWdpc3RlcigiZW50cnkiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMiwgY29udGV4dF8yKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzIgJiYgY29udGV4dF8yLmlkOw0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICBjb250ZXh0XzIuaW1wb3J0KCcuL3RhcmdldCcpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0K",
+            "materialized_utf8_bytes": 606,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/target.ts",
+              "/project/src/entry.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "output.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/output.js"
+        ],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "dynamic-system/1/bundle-root",
+      "files": [
+        {
+          "path": "/project/src/entry.ts",
+          "text": "export {};\nimport('./target');\n"
+        },
+        {
+          "path": "/project/src/target.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 1,
+        "module": 4,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "outFile": "output.js",
+        "rootDir": "/project/src"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "output.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJ0YXJnZXQiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMSwgY29udGV4dF8xKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIHZhciB2YWx1ZTsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgZXhwb3J0c18xKCJ2YWx1ZSIsIHZhbHVlID0gMSk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQpTeXN0ZW0ucmVnaXN0ZXIoImVudHJ5IiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8yICYmIGNvbnRleHRfMi5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgY29udGV4dF8yLmltcG9ydCgidGFyZ2V0Iik7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQo=",
+            "callback_utf8_bytes": 554,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJ0YXJnZXQiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMSwgY29udGV4dF8xKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIHZhciB2YWx1ZTsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgZXhwb3J0c18xKCJ2YWx1ZSIsIHZhbHVlID0gMSk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQpTeXN0ZW0ucmVnaXN0ZXIoImVudHJ5IiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8yICYmIGNvbnRleHRfMi5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgY29udGV4dF8yLmltcG9ydCgidGFyZ2V0Iik7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQo=",
+            "materialized_utf8_bytes": 554,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/target.ts",
+              "/project/src/entry.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "output.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/output.js"
+        ],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "dynamic-system/1/bundle-inferred",
+      "files": [
+        {
+          "path": "/project/src/entry.ts",
+          "text": "export {};\nimport('./target');\n"
+        },
+        {
+          "path": "/project/src/target.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 1,
+        "module": 4,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "outFile": "output.js"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "output.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJ0YXJnZXQiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMSwgY29udGV4dF8xKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIHZhciB2YWx1ZTsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgZXhwb3J0c18xKCJ2YWx1ZSIsIHZhbHVlID0gMSk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQpTeXN0ZW0ucmVnaXN0ZXIoImVudHJ5IiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8yICYmIGNvbnRleHRfMi5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgY29udGV4dF8yLmltcG9ydCgidGFyZ2V0Iik7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQo=",
+            "callback_utf8_bytes": 554,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJ0YXJnZXQiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMSwgY29udGV4dF8xKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIHZhciB2YWx1ZTsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgZXhwb3J0c18xKCJ2YWx1ZSIsIHZhbHVlID0gMSk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQpTeXN0ZW0ucmVnaXN0ZXIoImVudHJ5IiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8yICYmIGNvbnRleHRfMi5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgY29udGV4dF8yLmltcG9ydCgidGFyZ2V0Iik7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQo=",
+            "materialized_utf8_bytes": 554,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/target.ts",
+              "/project/src/entry.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "output.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/output.js"
+        ],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "dynamic-system/1/direct",
+      "files": [
+        {
+          "path": "/project/src/entry.ts",
+          "text": "export {};\nimport('./target');\n"
+        },
+        {
+          "path": "/project/src/target.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 1,
+        "module": 4,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "rootDir": "/project/src"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/src/target.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHZhbHVlOw0KICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOw0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICBleHBvcnRzXzEoInZhbHVlIiwgdmFsdWUgPSAxKTsNCiAgICAgICAgfQ0KICAgIH07DQp9KTsNCg==",
+            "callback_utf8_bytes": 277,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHZhbHVlOw0KICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOw0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICBleHBvcnRzXzEoInZhbHVlIiwgdmFsdWUgPSAxKTsNCiAgICAgICAgfQ0KICAgIH07DQp9KTsNCg==",
+            "materialized_utf8_bytes": 277,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/target.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/src/entry.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGNvbnRleHRfMS5pbXBvcnQoJy4vdGFyZ2V0Jyk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQo=",
+            "callback_utf8_bytes": 260,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGNvbnRleHRfMS5pbXBvcnQoJy4vdGFyZ2V0Jyk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQo=",
+            "materialized_utf8_bytes": 260,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/entry.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/src/target.js",
+            "/project/src/entry.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/src/target.js",
+          "TSFILE: /project/src/entry.js"
+        ],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "dynamic-system/1/unresolved",
+      "files": [
+        {
+          "path": "/project/src/entry.ts",
+          "text": "export {};\nimport('./absent');\n"
+        },
+        {
+          "path": "/project/src/target.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 1,
+        "module": 4,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "outFile": "output.js",
+        "rootDir": "/project/src"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "output.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJlbnRyeSIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGNvbnRleHRfMS5pbXBvcnQoJy4vYWJzZW50Jyk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQpTeXN0ZW0ucmVnaXN0ZXIoInRhcmdldCIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18yLCBjb250ZXh0XzIpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHZhbHVlOw0KICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzIgJiYgY29udGV4dF8yLmlkOw0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICBleHBvcnRzXzIoInZhbHVlIiwgdmFsdWUgPSAxKTsNCiAgICAgICAgfQ0KICAgIH07DQp9KTsNCg==",
+            "callback_utf8_bytes": 556,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJlbnRyeSIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGNvbnRleHRfMS5pbXBvcnQoJy4vYWJzZW50Jyk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQpTeXN0ZW0ucmVnaXN0ZXIoInRhcmdldCIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18yLCBjb250ZXh0XzIpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHZhbHVlOw0KICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzIgJiYgY29udGV4dF8yLmlkOw0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICBleHBvcnRzXzIoInZhbHVlIiwgdmFsdWUgPSAxKTsNCiAgICAgICAgfQ0KICAgIH07DQp9KTsNCg==",
+            "materialized_utf8_bytes": 556,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/entry.ts",
+              "/project/src/target.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "output.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/output.js"
+        ],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "dynamic-system/1/declaration",
+      "files": [
+        {
+          "path": "/project/src/entry.ts",
+          "text": "export {};\nimport('./target');\n"
+        },
+        {
+          "path": "/project/src/target.d.ts",
+          "text": "export declare const value: number;\n"
+        }
+      ],
+      "options": {
+        "target": 1,
+        "module": 4,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "outFile": "output.js",
+        "rootDir": "/project/src"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "output.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJlbnRyeSIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGNvbnRleHRfMS5pbXBvcnQoJy4vdGFyZ2V0Jyk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQo=",
+            "callback_utf8_bytes": 269,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJlbnRyeSIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGNvbnRleHRfMS5pbXBvcnQoJy4vdGFyZ2V0Jyk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQo=",
+            "materialized_utf8_bytes": 269,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/entry.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "output.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/output.js"
+        ],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "dynamic-system/1/expression",
+      "files": [
+        {
+          "path": "/project/src/entry.ts",
+          "text": "const modulePath: string = './target';\nexport {};\nimport(modulePath);\n"
+        },
+        {
+          "path": "/project/src/target.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 1,
+        "module": 4,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "outFile": "output.js",
+        "rootDir": "/project/src"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "output.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJlbnRyeSIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIG1vZHVsZVBhdGg7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIG1vZHVsZVBhdGggPSAnLi90YXJnZXQnOw0KICAgICAgICAgICAgY29udGV4dF8xLmltcG9ydChtb2R1bGVQYXRoKTsNCiAgICAgICAgfQ0KICAgIH07DQp9KTsNClN5c3RlbS5yZWdpc3RlcigidGFyZ2V0IiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICB2YXIgdmFsdWU7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMiAmJiBjb250ZXh0XzIuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGV4cG9ydHNfMigidmFsdWUiLCB2YWx1ZSA9IDEpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0K",
+            "callback_utf8_bytes": 615,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJlbnRyeSIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIG1vZHVsZVBhdGg7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIG1vZHVsZVBhdGggPSAnLi90YXJnZXQnOw0KICAgICAgICAgICAgY29udGV4dF8xLmltcG9ydChtb2R1bGVQYXRoKTsNCiAgICAgICAgfQ0KICAgIH07DQp9KTsNClN5c3RlbS5yZWdpc3RlcigidGFyZ2V0IiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICB2YXIgdmFsdWU7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMiAmJiBjb250ZXh0XzIuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGV4cG9ydHNfMigidmFsdWUiLCB2YWx1ZSA9IDEpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0K",
+            "materialized_utf8_bytes": 615,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/entry.ts",
+              "/project/src/target.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "output.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/output.js"
+        ],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "dynamic-system/1/template",
+      "files": [
+        {
+          "path": "/project/src/entry.ts",
+          "text": "export {};\nimport(`./target`);\n"
+        },
+        {
+          "path": "/project/src/target.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 1,
+        "module": 4,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "outFile": "output.js",
+        "rootDir": "/project/src"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "output.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJ0YXJnZXQiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMSwgY29udGV4dF8xKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIHZhciB2YWx1ZTsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgZXhwb3J0c18xKCJ2YWx1ZSIsIHZhbHVlID0gMSk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQpTeXN0ZW0ucmVnaXN0ZXIoImVudHJ5IiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8yICYmIGNvbnRleHRfMi5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgY29udGV4dF8yLmltcG9ydCgidGFyZ2V0Iik7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQo=",
+            "callback_utf8_bytes": 554,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJ0YXJnZXQiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMSwgY29udGV4dF8xKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIHZhciB2YWx1ZTsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgZXhwb3J0c18xKCJ2YWx1ZSIsIHZhbHVlID0gMSk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQpTeXN0ZW0ucmVnaXN0ZXIoImVudHJ5IiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8yICYmIGNvbnRleHRfMi5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgY29udGV4dF8yLmltcG9ydCgidGFyZ2V0Iik7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQo=",
+            "materialized_utf8_bytes": 554,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/target.ts",
+              "/project/src/entry.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "output.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/output.js"
+        ],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "dynamic-system/1/parenthesized",
+      "files": [
+        {
+          "path": "/project/src/entry.ts",
+          "text": "export {};\nimport(('./target'));\n"
+        },
+        {
+          "path": "/project/src/target.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 1,
+        "module": 4,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "outFile": "output.js",
+        "rootDir": "/project/src"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "output.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJlbnRyeSIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGNvbnRleHRfMS5pbXBvcnQoKCcuL3RhcmdldCcpKTsNCiAgICAgICAgfQ0KICAgIH07DQp9KTsNClN5c3RlbS5yZWdpc3RlcigidGFyZ2V0IiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICB2YXIgdmFsdWU7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMiAmJiBjb250ZXh0XzIuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGV4cG9ydHNfMigidmFsdWUiLCB2YWx1ZSA9IDEpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0K",
+            "callback_utf8_bytes": 558,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJlbnRyeSIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGNvbnRleHRfMS5pbXBvcnQoKCcuL3RhcmdldCcpKTsNCiAgICAgICAgfQ0KICAgIH07DQp9KTsNClN5c3RlbS5yZWdpc3RlcigidGFyZ2V0IiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICB2YXIgdmFsdWU7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMiAmJiBjb250ZXh0XzIuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGV4cG9ydHNfMigidmFsdWUiLCB2YWx1ZSA9IDEpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0K",
+            "materialized_utf8_bytes": 558,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/entry.ts",
+              "/project/src/target.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "output.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/output.js"
+        ],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "dynamic-system/1/import-options",
+      "files": [
+        {
+          "path": "/project/src/entry.ts",
+          "text": "export {};\nimport('./target', { with: { type: 'json' } });\n"
+        },
+        {
+          "path": "/project/src/target.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 1,
+        "module": 4,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "outFile": "output.js",
+        "rootDir": "/project/src"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "output.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJ0YXJnZXQiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMSwgY29udGV4dF8xKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIHZhciB2YWx1ZTsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgZXhwb3J0c18xKCJ2YWx1ZSIsIHZhbHVlID0gMSk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQpTeXN0ZW0ucmVnaXN0ZXIoImVudHJ5IiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8yICYmIGNvbnRleHRfMi5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgY29udGV4dF8yLmltcG9ydCgidGFyZ2V0Iik7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQo=",
+            "callback_utf8_bytes": 554,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJ0YXJnZXQiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMSwgY29udGV4dF8xKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIHZhciB2YWx1ZTsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgZXhwb3J0c18xKCJ2YWx1ZSIsIHZhbHVlID0gMSk7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQpTeXN0ZW0ucmVnaXN0ZXIoImVudHJ5IiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8yICYmIGNvbnRleHRfMi5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgY29udGV4dF8yLmltcG9ydCgidGFyZ2V0Iik7DQogICAgICAgIH0NCiAgICB9Ow0KfSk7DQo=",
+            "materialized_utf8_bytes": 554,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/target.ts",
+              "/project/src/entry.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "output.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/output.js"
+        ],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "dynamic-system/1/missing-argument",
+      "files": [
+        {
+          "path": "/project/src/entry.ts",
+          "text": "export {};\nimport();\n"
+        },
+        {
+          "path": "/project/src/target.ts",
+          "text": "export const value: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 1,
+        "module": 4,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "outFile": "output.js",
+        "rootDir": "/project/src"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "output.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJlbnRyeSIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGNvbnRleHRfMS5pbXBvcnQoKTsNCiAgICAgICAgfQ0KICAgIH07DQp9KTsNClN5c3RlbS5yZWdpc3RlcigidGFyZ2V0IiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICB2YXIgdmFsdWU7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMiAmJiBjb250ZXh0XzIuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGV4cG9ydHNfMigidmFsdWUiLCB2YWx1ZSA9IDEpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0K",
+            "callback_utf8_bytes": 546,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJlbnRyeSIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGNvbnRleHRfMS5pbXBvcnQoKTsNCiAgICAgICAgfQ0KICAgIH07DQp9KTsNClN5c3RlbS5yZWdpc3RlcigidGFyZ2V0IiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICB2YXIgdmFsdWU7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMiAmJiBjb250ZXh0XzIuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGV4cG9ydHNfMigidmFsdWUiLCB2YWx1ZSA9IDEpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0K",
+            "materialized_utf8_bytes": 546,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/entry.ts",
+              "/project/src/target.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "output.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/output.js"
+        ],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "dynamic-system/1/named",
+      "files": [
+        {
+          "path": "/project/src/entry.ts",
+          "text": "export {};\nimport('./target');\n"
+        },
+        {
+          "path": "/project/src/target.ts",
+          "text": "/// <amd-module name=\"named-target\" />\nexport const value: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 1,
+        "module": 4,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "outFile": "output.js",
+        "rootDir": "/project/src"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "output.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJuYW1lZC10YXJnZXQiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMSwgY29udGV4dF8xKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIHZhciB2YWx1ZTsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgLy8vIDxhbWQtbW9kdWxlIG5hbWU9Im5hbWVkLXRhcmdldCIgLz4NCiAgICAgICAgICAgIGV4cG9ydHNfMSgidmFsdWUiLCB2YWx1ZSA9IDEpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0KU3lzdGVtLnJlZ2lzdGVyKCJlbnRyeSIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18yLCBjb250ZXh0XzIpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMiAmJiBjb250ZXh0XzIuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGNvbnRleHRfMi5pbXBvcnQoIm5hbWVkLXRhcmdldCIpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0K",
+            "callback_utf8_bytes": 618,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJuYW1lZC10YXJnZXQiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMSwgY29udGV4dF8xKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIHZhciB2YWx1ZTsNCiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsNCiAgICByZXR1cm4gew0KICAgICAgICBzZXR0ZXJzOiBbXSwNCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgew0KICAgICAgICAgICAgLy8vIDxhbWQtbW9kdWxlIG5hbWU9Im5hbWVkLXRhcmdldCIgLz4NCiAgICAgICAgICAgIGV4cG9ydHNfMSgidmFsdWUiLCB2YWx1ZSA9IDEpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0KU3lzdGVtLnJlZ2lzdGVyKCJlbnRyeSIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18yLCBjb250ZXh0XzIpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMiAmJiBjb250ZXh0XzIuaWQ7DQogICAgcmV0dXJuIHsNCiAgICAgICAgc2V0dGVyczogW10sDQogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsNCiAgICAgICAgICAgIGNvbnRleHRfMi5pbXBvcnQoIm5hbWVkLXRhcmdldCIpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0K",
+            "materialized_utf8_bytes": 618,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/target.ts",
+              "/project/src/entry.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "output.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/output.js"
+        ],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "dynamic-system/1/equal-named",
+      "files": [
+        {
+          "path": "/project/src/entry.ts",
+          "text": "export {};\nimport('./target');\n"
+        },
+        {
+          "path": "/project/src/target.ts",
+          "text": "/// <amd-module name=\"./target\" />\nexport const value: number = 1;\n"
+        }
+      ],
+      "options": {
+        "target": 1,
+        "module": 4,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "listEmittedFiles": true,
+        "outFile": "output.js",
+        "rootDir": "/project/src"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "output.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCIuL3RhcmdldCIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHZhbHVlOw0KICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOw0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICAvLy8gPGFtZC1tb2R1bGUgbmFtZT0iLi90YXJnZXQiIC8+DQogICAgICAgICAgICBleHBvcnRzXzEoInZhbHVlIiwgdmFsdWUgPSAxKTsNCiAgICAgICAgfQ0KICAgIH07DQp9KTsNClN5c3RlbS5yZWdpc3RlcigiZW50cnkiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMiwgY29udGV4dF8yKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzIgJiYgY29udGV4dF8yLmlkOw0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICBjb250ZXh0XzIuaW1wb3J0KCcuL3RhcmdldCcpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0K",
+            "callback_utf8_bytes": 606,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCIuL3RhcmdldCIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgdmFyIHZhbHVlOw0KICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOw0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICAvLy8gPGFtZC1tb2R1bGUgbmFtZT0iLi90YXJnZXQiIC8+DQogICAgICAgICAgICBleHBvcnRzXzEoInZhbHVlIiwgdmFsdWUgPSAxKTsNCiAgICAgICAgfQ0KICAgIH07DQp9KTsNClN5c3RlbS5yZWdpc3RlcigiZW50cnkiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMiwgY29udGV4dF8yKSB7DQogICAgInVzZSBzdHJpY3QiOw0KICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzIgJiYgY29udGV4dF8yLmlkOw0KICAgIHJldHVybiB7DQogICAgICAgIHNldHRlcnM6IFtdLA0KICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7DQogICAgICAgICAgICBjb250ZXh0XzIuaW1wb3J0KCcuL3RhcmdldCcpOw0KICAgICAgICB9DQogICAgfTsNCn0pOw0K",
+            "materialized_utf8_bytes": 606,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/target.ts",
+              "/project/src/entry.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "output.js"
+          ],
+          "source_maps": null
+        },
+        "status_writes": [
+          "TSFILE: /project/output.js"
+        ],
+        "exit_code": 2
+      }
+    }
+  ]
+}

@@ -382,43 +382,21 @@ fn common_emit_source_directory(
     prepared: &PreparedProgram,
     source_files: &[SourceFileId],
 ) -> PathBuf {
-    if let Some(root_dir) = prepared.compiler_options().root_dir.as_deref() {
-        let root = Path::new(root_dir);
-        return if root.is_absolute() {
-            root.to_path_buf()
-        } else {
-            prepared.current_directory().display().join(root)
-        };
-    }
-
-    let mut directories = source_files.iter().filter_map(|id| {
-        let source = prepared.source_file(*id)?;
-        (source.may_be_emitted() && !is_declaration_file_name(source.path().display()))
-            .then(|| source.path().display().parent().map(Path::to_path_buf))
-            .flatten()
-    });
-    let Some(mut common) = directories.next() else {
-        return prepared.current_directory().display().to_path_buf();
-    };
-    let case_sensitive = prepared.path_context().use_case_sensitive_file_names();
-    for directory in directories {
-        while !path_starts_with(&directory, &common, case_sensitive) {
-            if !common.pop() {
-                return prepared.current_directory().display().to_path_buf();
-            }
-        }
-    }
-    common
-}
-
-fn path_starts_with(path: &Path, prefix: &Path, case_sensitive: bool) -> bool {
-    if case_sensitive {
-        path.starts_with(prefix)
-    } else {
-        path.to_string_lossy()
-            .to_lowercase()
-            .starts_with(&prefix.to_string_lossy().to_lowercase())
-    }
+    let sources = source_files
+        .iter()
+        .filter_map(|id| prepared.source_file(*id))
+        .map(|source| source.path().display())
+        .collect::<Vec<_>>();
+    tsc_program::common_source_directory(
+        prepared.compiler_options(),
+        prepared
+            .program_options()
+            .config_file_path()
+            .map(|path| path.display()),
+        &sources,
+        prepared.current_directory().display(),
+        prepared.path_context().use_case_sensitive_file_names(),
+    )
 }
 
 impl PreparedModuleProvider<'_> {
@@ -500,7 +478,20 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                 return Err(AuthoritativeModuleLookupFailure::Missing);
             }
         };
-        if !resolution.diagnostics().is_empty() {
+        // A fileless package-root diagnostic does not invalidate the resolved
+        // module. Program getters report these owned facts independently.
+        // Unqualified host diagnostic records retain their typed boundary.
+        if resolution.diagnostics().iter().any(|diagnostic| {
+            !matches!(diagnostic.code(), 2209 | 2210)
+                || diagnostic.file_name.is_some()
+                || diagnostic.start.is_some()
+                || diagnostic.length.is_some()
+                || diagnostic.category() != tsc_diagnostics::DiagnosticCategory::Error
+                || !diagnostic.message.next.is_empty()
+                || diagnostic.related_information_present
+                || !diagnostic.related.is_empty()
+                || diagnostic.canonical_head.is_some()
+        }) {
             return Err(AuthoritativeModuleLookupFailure::Unsupported(
                 UnsupportedAuthoritativeResolution::ResolutionDiagnostics,
             ));
@@ -1400,6 +1391,12 @@ impl ProgramSession {
             .resolutions()
             .type_references()
             .flat_map(|(_, resolution)| resolution.diagnostics())
+            .chain(
+                self.prepared
+                    .resolutions()
+                    .modules()
+                    .flat_map(|(_, resolution)| resolution.diagnostics()),
+            )
             .cloned()
             .collect::<Vec<_>>();
         // The conformance evidence stream is the aggregate of public
@@ -1854,10 +1851,16 @@ fn emit_session_diagnostics(
     checked: &CheckResult,
 ) -> ProgramDiagnostics {
     let preparation = prepared.diagnostics();
-    let type_reference_diagnostics = prepared
+    let resolution_diagnostics = prepared
         .resolutions()
         .type_references()
         .flat_map(|(_, resolution)| resolution.diagnostics())
+        .chain(
+            prepared
+                .resolutions()
+                .modules()
+                .flat_map(|(_, resolution)| resolution.diagnostics()),
+        )
         .cloned()
         .collect::<Vec<_>>();
 
@@ -1871,7 +1874,7 @@ fn emit_session_diagnostics(
     for diagnostic in preparation
         .program()
         .iter()
-        .chain(type_reference_diagnostics.iter())
+        .chain(resolution_diagnostics.iter())
     {
         if diagnostic
             .file_name

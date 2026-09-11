@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "4457844ae8b74614ff4365c0f4ee1669f99c8d1651f6346f21daca2948e8c566",
+  "repetitions": 2,
+  "cases": [
+    {
+      "case_id": "js/add-static",
+      "file_name": "/project/expression-updates.js",
+      "text": "const key = \"value\";\nconst empty = class Empty {};\nconst withStatic = class Static { static value = 1; };\nconst withComputed = class Computed { [key] = 1; };\n",
+      "original_name": "Empty",
+      "members_from": "Static",
+      "expected": {
+        "transform_flags": 16786432
+      }
+    },
+    {
+      "case_id": "js/remove-static",
+      "file_name": "/project/expression-updates.js",
+      "text": "const key = \"value\";\nconst empty = class Empty {};\nconst withStatic = class Static { static value = 1; };\nconst withComputed = class Computed { [key] = 1; };\n",
+      "original_name": "Static",
+      "members_from": "Empty",
+      "expected": {
+        "transform_flags": 1024
+      }
+    },
+    {
+      "case_id": "js/replace-computed",
+      "file_name": "/project/expression-updates.js",
+      "text": "const key = \"value\";\nconst empty = class Empty {};\nconst withStatic = class Static { static value = 1; };\nconst withComputed = class Computed { [key] = 1; };\n",
+      "original_name": "Static",
+      "members_from": "Computed",
+      "expected": {
+        "transform_flags": 16917504
+      }
+    },
+    {
+      "case_id": "ts/add-static",
+      "file_name": "/project/expression-updates.ts",
+      "text": "const key = \"value\";\nconst empty = class Empty {};\nconst withStatic = class Static { static value = 1; };\nconst withComputed = class Computed { [key] = 1; };\n",
+      "original_name": "Empty",
+      "members_from": "Static",
+      "expected": {
+        "transform_flags": 16786432
+      }
+    },
+    {
+      "case_id": "ts/remove-static",
+      "file_name": "/project/expression-updates.ts",
+      "text": "const key = \"value\";\nconst empty = class Empty {};\nconst withStatic = class Static { static value = 1; };\nconst withComputed = class Computed { [key] = 1; };\n",
+      "original_name": "Static",
+      "members_from": "Empty",
+      "expected": {
+        "transform_flags": 1024
+      }
+    },
+    {
+      "case_id": "ts/replace-computed",
+      "file_name": "/project/expression-updates.ts",
+      "text": "const key = \"value\";\nconst empty = class Empty {};\nconst withStatic = class Static { static value = 1; };\nconst withComputed = class Computed { [key] = 1; };\n",
+      "original_name": "Static",
+      "members_from": "Computed",
+      "expected": {
+        "transform_flags": 16917504
+      }
+    }
+  ]
+}

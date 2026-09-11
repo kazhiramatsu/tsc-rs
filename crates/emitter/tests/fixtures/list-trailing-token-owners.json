@@ -1,0 +1,3867 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "route": "direct-factory-and-printer",
+  "repetitions": 2,
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "b5b95e03617e790fd2d7552bb698059f8ff867d5d3e844d0af996f8a0aaa5b41",
+  "cases": [
+    {
+      "case_id": "list-trailing-token/inline/parsed/0/synthetic-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "parsed",
+      "flags": 0,
+      "ranged_list": false,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ b /* before comma */];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gYiAvKiBiZWZvcmUgY29tbWEgKi9dOw0K",
+        "utf8_bytes": 36,
+        "end_utf16": {
+          "position": 36,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/parsed/0/synthetic-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "parsed",
+      "flags": 0,
+      "ranged_list": false,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ b /* before comma */, /* after comma */];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gYiAvKiBiZWZvcmUgY29tbWEgKi8sIC8qIGFmdGVyIGNvbW1hICovXTsNCg==",
+        "utf8_bytes": 55,
+        "end_utf16": {
+          "position": 55,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/parsed/0/ranged-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "parsed",
+      "flags": 0,
+      "ranged_list": true,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 40,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ b /* before comma */];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gYiAvKiBiZWZvcmUgY29tbWEgKi9dOw0K",
+        "utf8_bytes": 36,
+        "end_utf16": {
+          "position": 36,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/parsed/0/ranged-list/no-comma/only-jsdoc",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "parsed",
+      "flags": 0,
+      "ranged_list": true,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "only_print_js_doc_style": true,
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 40,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ b];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gYl07DQo=",
+        "utf8_bytes": 17,
+        "end_utf16": {
+          "position": 17,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/parsed/0/ranged-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "parsed",
+      "flags": 0,
+      "ranged_list": true,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 40,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ b /* before comma */, /* after comma */];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gYiAvKiBiZWZvcmUgY29tbWEgKi8sIC8qIGFmdGVyIGNvbW1hICovXTsNCg==",
+        "utf8_bytes": 55,
+        "end_utf16": {
+          "position": 55,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/parsed/0/ranged-list/comma/only-jsdoc",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "parsed",
+      "flags": 0,
+      "ranged_list": true,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "only_print_js_doc_style": true,
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 40,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ b,];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gYixdOw0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/parsed/2048/synthetic-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "parsed",
+      "flags": 2048,
+      "ranged_list": false,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 0,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ b];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gYl07DQo=",
+        "utf8_bytes": 17,
+        "end_utf16": {
+          "position": 17,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/parsed/2048/synthetic-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "parsed",
+      "flags": 2048,
+      "ranged_list": false,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 0,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ b,];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gYixdOw0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/parsed/2048/ranged-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "parsed",
+      "flags": 2048,
+      "ranged_list": true,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 40,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 0,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ b];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gYl07DQo=",
+        "utf8_bytes": 17,
+        "end_utf16": {
+          "position": 17,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/parsed/2048/ranged-list/no-comma/only-jsdoc",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "parsed",
+      "flags": 2048,
+      "ranged_list": true,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "only_print_js_doc_style": true,
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 40,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 0,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ b];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gYl07DQo=",
+        "utf8_bytes": 17,
+        "end_utf16": {
+          "position": 17,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/parsed/2048/ranged-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "parsed",
+      "flags": 2048,
+      "ranged_list": true,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 40,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 0,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ b,];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gYixdOw0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/parsed/2048/ranged-list/comma/only-jsdoc",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "parsed",
+      "flags": 2048,
+      "ranged_list": true,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "only_print_js_doc_style": true,
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 40,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 0,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ b,];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gYixdOw0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/clone/0/synthetic-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "clone",
+      "flags": 0,
+      "ranged_list": false,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": true,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[b];\r\n",
+        "utf8_base64": "W2JdOw0K",
+        "utf8_bytes": 6,
+        "end_utf16": {
+          "position": 6,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/clone/0/synthetic-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "clone",
+      "flags": 0,
+      "ranged_list": false,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": true,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[b,];\r\n",
+        "utf8_base64": "W2IsXTsNCg==",
+        "utf8_bytes": 7,
+        "end_utf16": {
+          "position": 7,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/clone/0/ranged-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "clone",
+      "flags": 0,
+      "ranged_list": true,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 40,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": true,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[b];\r\n",
+        "utf8_base64": "W2JdOw0K",
+        "utf8_bytes": 6,
+        "end_utf16": {
+          "position": 6,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/clone/0/ranged-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "clone",
+      "flags": 0,
+      "ranged_list": true,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 40,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": true,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[b,];\r\n",
+        "utf8_base64": "W2IsXTsNCg==",
+        "utf8_bytes": 7,
+        "end_utf16": {
+          "position": 7,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/clone/2048/synthetic-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "clone",
+      "flags": 2048,
+      "ranged_list": false,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": true,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[b];\r\n",
+        "utf8_base64": "W2JdOw0K",
+        "utf8_bytes": 6,
+        "end_utf16": {
+          "position": 6,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/clone/2048/synthetic-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "clone",
+      "flags": 2048,
+      "ranged_list": false,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": true,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[b,];\r\n",
+        "utf8_base64": "W2IsXTsNCg==",
+        "utf8_bytes": 7,
+        "end_utf16": {
+          "position": 7,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/clone/2048/ranged-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "clone",
+      "flags": 2048,
+      "ranged_list": true,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 40,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": true,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[b];\r\n",
+        "utf8_base64": "W2JdOw0K",
+        "utf8_bytes": 6,
+        "end_utf16": {
+          "position": 6,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/clone/2048/ranged-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "clone",
+      "flags": 2048,
+      "ranged_list": true,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 40,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": true,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[b,];\r\n",
+        "utf8_base64": "W2IsXTsNCg==",
+        "utf8_bytes": 7,
+        "end_utf16": {
+          "position": 7,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/range-only/0/synthetic-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "range-only",
+      "flags": 0,
+      "ranged_list": false,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ generated /* before comma */];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gZ2VuZXJhdGVkIC8qIGJlZm9yZSBjb21tYSAqL107DQo=",
+        "utf8_bytes": 44,
+        "end_utf16": {
+          "position": 44,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/range-only/0/synthetic-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "range-only",
+      "flags": 0,
+      "ranged_list": false,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ generated /* before comma */,];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gZ2VuZXJhdGVkIC8qIGJlZm9yZSBjb21tYSAqLyxdOw0K",
+        "utf8_bytes": 45,
+        "end_utf16": {
+          "position": 45,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/range-only/0/ranged-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "range-only",
+      "flags": 0,
+      "ranged_list": true,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 40,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ generated /* before comma */];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gZ2VuZXJhdGVkIC8qIGJlZm9yZSBjb21tYSAqL107DQo=",
+        "utf8_bytes": 44,
+        "end_utf16": {
+          "position": 44,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/range-only/0/ranged-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "range-only",
+      "flags": 0,
+      "ranged_list": true,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 40,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ generated /* before comma */,];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gZ2VuZXJhdGVkIC8qIGJlZm9yZSBjb21tYSAqLyxdOw0K",
+        "utf8_bytes": 45,
+        "end_utf16": {
+          "position": 45,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/range-only/2048/synthetic-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "range-only",
+      "flags": 2048,
+      "ranged_list": false,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ generated];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gZ2VuZXJhdGVkXTsNCg==",
+        "utf8_bytes": 25,
+        "end_utf16": {
+          "position": 25,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/range-only/2048/synthetic-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "range-only",
+      "flags": 2048,
+      "ranged_list": false,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ generated,];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gZ2VuZXJhdGVkLF07DQo=",
+        "utf8_bytes": 26,
+        "end_utf16": {
+          "position": 26,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/range-only/2048/ranged-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "range-only",
+      "flags": 2048,
+      "ranged_list": true,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 40,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ generated];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gZ2VuZXJhdGVkXTsNCg==",
+        "utf8_bytes": 25,
+        "end_utf16": {
+          "position": 25,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/range-only/2048/ranged-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "range-only",
+      "flags": 2048,
+      "ranged_list": true,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 40,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ generated,];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gZ2VuZXJhdGVkLF07DQo=",
+        "utf8_bytes": 26,
+        "end_utf16": {
+          "position": 26,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/comment-only/0/synthetic-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "comment-only",
+      "flags": 0,
+      "ranged_list": false,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ generated /* before comma */];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gZ2VuZXJhdGVkIC8qIGJlZm9yZSBjb21tYSAqL107DQo=",
+        "utf8_bytes": 44,
+        "end_utf16": {
+          "position": 44,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/comment-only/0/synthetic-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "comment-only",
+      "flags": 0,
+      "ranged_list": false,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ generated /* before comma */,];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gZ2VuZXJhdGVkIC8qIGJlZm9yZSBjb21tYSAqLyxdOw0K",
+        "utf8_bytes": 45,
+        "end_utf16": {
+          "position": 45,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/comment-only/0/ranged-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "comment-only",
+      "flags": 0,
+      "ranged_list": true,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 40,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ generated /* before comma */];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gZ2VuZXJhdGVkIC8qIGJlZm9yZSBjb21tYSAqL107DQo=",
+        "utf8_bytes": 44,
+        "end_utf16": {
+          "position": 44,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/comment-only/0/ranged-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "comment-only",
+      "flags": 0,
+      "ranged_list": true,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 40,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ generated /* before comma */,];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gZ2VuZXJhdGVkIC8qIGJlZm9yZSBjb21tYSAqLyxdOw0K",
+        "utf8_bytes": 45,
+        "end_utf16": {
+          "position": 45,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/comment-only/2048/synthetic-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "comment-only",
+      "flags": 2048,
+      "ranged_list": false,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ generated];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gZ2VuZXJhdGVkXTsNCg==",
+        "utf8_bytes": 25,
+        "end_utf16": {
+          "position": 25,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/comment-only/2048/synthetic-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "comment-only",
+      "flags": 2048,
+      "ranged_list": false,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ generated,];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gZ2VuZXJhdGVkLF07DQo=",
+        "utf8_bytes": 26,
+        "end_utf16": {
+          "position": 26,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/comment-only/2048/ranged-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "comment-only",
+      "flags": 2048,
+      "ranged_list": true,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 40,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ generated];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gZ2VuZXJhdGVkXTsNCg==",
+        "utf8_bytes": 25,
+        "end_utf16": {
+          "position": 25,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/inline/comment-only/2048/ranged-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "comment-only",
+      "flags": 2048,
+      "ranged_list": true,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 40,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ generated,];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gZ2VuZXJhdGVkLF07DQo=",
+        "utf8_bytes": 26,
+        "end_utf16": {
+          "position": 26,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/parsed/0/synthetic-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "parsed",
+      "flags": 0,
+      "ranged_list": false,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ b\r\n    /* before comma */ ];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gYg0KICAgIC8qIGJlZm9yZSBjb21tYSAqLyBdOw0K",
+        "utf8_bytes": 42,
+        "end_utf16": {
+          "position": 42,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/parsed/0/synthetic-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "parsed",
+      "flags": 0,
+      "ranged_list": false,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ b\r\n    /* before comma */ ,];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gYg0KICAgIC8qIGJlZm9yZSBjb21tYSAqLyAsXTsNCg==",
+        "utf8_bytes": 43,
+        "end_utf16": {
+          "position": 43,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/parsed/0/ranged-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "parsed",
+      "flags": 0,
+      "ranged_list": true,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 41,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ b\r\n    /* before comma */ ];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gYg0KICAgIC8qIGJlZm9yZSBjb21tYSAqLyBdOw0K",
+        "utf8_bytes": 42,
+        "end_utf16": {
+          "position": 42,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/parsed/0/ranged-list/no-comma/only-jsdoc",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "parsed",
+      "flags": 0,
+      "ranged_list": true,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "only_print_js_doc_style": true,
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 41,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ b];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gYl07DQo=",
+        "utf8_bytes": 17,
+        "end_utf16": {
+          "position": 17,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/parsed/0/ranged-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "parsed",
+      "flags": 0,
+      "ranged_list": true,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 41,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ b\r\n    /* before comma */ ,\r\n    /* after comma */ ];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gYg0KICAgIC8qIGJlZm9yZSBjb21tYSAqLyAsDQogICAgLyogYWZ0ZXIgY29tbWEgKi8gXTsNCg==",
+        "utf8_bytes": 67,
+        "end_utf16": {
+          "position": 67,
+          "line": 3,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/parsed/0/ranged-list/comma/only-jsdoc",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "parsed",
+      "flags": 0,
+      "ranged_list": true,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "only_print_js_doc_style": true,
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 41,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ b,];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gYixdOw0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/parsed/2048/synthetic-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "parsed",
+      "flags": 2048,
+      "ranged_list": false,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 0,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ b];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gYl07DQo=",
+        "utf8_bytes": 17,
+        "end_utf16": {
+          "position": 17,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/parsed/2048/synthetic-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "parsed",
+      "flags": 2048,
+      "ranged_list": false,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 0,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ b,];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gYixdOw0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/parsed/2048/ranged-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "parsed",
+      "flags": 2048,
+      "ranged_list": true,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 41,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 0,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ b];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gYl07DQo=",
+        "utf8_bytes": 17,
+        "end_utf16": {
+          "position": 17,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/parsed/2048/ranged-list/no-comma/only-jsdoc",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "parsed",
+      "flags": 2048,
+      "ranged_list": true,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "only_print_js_doc_style": true,
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 41,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 0,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ b];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gYl07DQo=",
+        "utf8_bytes": 17,
+        "end_utf16": {
+          "position": 17,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/parsed/2048/ranged-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "parsed",
+      "flags": 2048,
+      "ranged_list": true,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 41,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 0,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ b,];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gYixdOw0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/parsed/2048/ranged-list/comma/only-jsdoc",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "parsed",
+      "flags": 2048,
+      "ranged_list": true,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "only_print_js_doc_style": true,
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 41,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 0,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ b,];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gYixdOw0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/clone/0/synthetic-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "clone",
+      "flags": 0,
+      "ranged_list": false,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": true,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[b];\r\n",
+        "utf8_base64": "W2JdOw0K",
+        "utf8_bytes": 6,
+        "end_utf16": {
+          "position": 6,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/clone/0/synthetic-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "clone",
+      "flags": 0,
+      "ranged_list": false,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": true,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[b,];\r\n",
+        "utf8_base64": "W2IsXTsNCg==",
+        "utf8_bytes": 7,
+        "end_utf16": {
+          "position": 7,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/clone/0/ranged-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "clone",
+      "flags": 0,
+      "ranged_list": true,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 41,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": true,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[b];\r\n",
+        "utf8_base64": "W2JdOw0K",
+        "utf8_bytes": 6,
+        "end_utf16": {
+          "position": 6,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/clone/0/ranged-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "clone",
+      "flags": 0,
+      "ranged_list": true,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 41,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": true,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[b,];\r\n",
+        "utf8_base64": "W2IsXTsNCg==",
+        "utf8_bytes": 7,
+        "end_utf16": {
+          "position": 7,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/clone/2048/synthetic-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "clone",
+      "flags": 2048,
+      "ranged_list": false,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": true,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[b];\r\n",
+        "utf8_base64": "W2JdOw0K",
+        "utf8_bytes": 6,
+        "end_utf16": {
+          "position": 6,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/clone/2048/synthetic-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "clone",
+      "flags": 2048,
+      "ranged_list": false,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": true,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[b,];\r\n",
+        "utf8_base64": "W2IsXTsNCg==",
+        "utf8_bytes": 7,
+        "end_utf16": {
+          "position": 7,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/clone/2048/ranged-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "clone",
+      "flags": 2048,
+      "ranged_list": true,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 41,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": true,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[b];\r\n",
+        "utf8_base64": "W2JdOw0K",
+        "utf8_bytes": 6,
+        "end_utf16": {
+          "position": 6,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/clone/2048/ranged-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "clone",
+      "flags": 2048,
+      "ranged_list": true,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 41,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": true,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[b,];\r\n",
+        "utf8_base64": "W2IsXTsNCg==",
+        "utf8_bytes": 7,
+        "end_utf16": {
+          "position": 7,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/range-only/0/synthetic-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "range-only",
+      "flags": 0,
+      "ranged_list": false,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ generated\r\n    /* before comma */ ];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gZ2VuZXJhdGVkDQogICAgLyogYmVmb3JlIGNvbW1hICovIF07DQo=",
+        "utf8_bytes": 50,
+        "end_utf16": {
+          "position": 50,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/range-only/0/synthetic-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "range-only",
+      "flags": 0,
+      "ranged_list": false,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ generated,];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gZ2VuZXJhdGVkLF07DQo=",
+        "utf8_bytes": 26,
+        "end_utf16": {
+          "position": 26,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/range-only/0/ranged-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "range-only",
+      "flags": 0,
+      "ranged_list": true,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 41,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ generated\r\n    /* before comma */ ];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gZ2VuZXJhdGVkDQogICAgLyogYmVmb3JlIGNvbW1hICovIF07DQo=",
+        "utf8_bytes": 50,
+        "end_utf16": {
+          "position": 50,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/range-only/0/ranged-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "range-only",
+      "flags": 0,
+      "ranged_list": true,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 41,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ generated,\r\n    /* after comma */ ];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gZ2VuZXJhdGVkLA0KICAgIC8qIGFmdGVyIGNvbW1hICovIF07DQo=",
+        "utf8_bytes": 50,
+        "end_utf16": {
+          "position": 50,
+          "line": 2,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/range-only/2048/synthetic-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "range-only",
+      "flags": 2048,
+      "ranged_list": false,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ generated];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gZ2VuZXJhdGVkXTsNCg==",
+        "utf8_bytes": 25,
+        "end_utf16": {
+          "position": 25,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/range-only/2048/synthetic-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "range-only",
+      "flags": 2048,
+      "ranged_list": false,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ generated,];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gZ2VuZXJhdGVkLF07DQo=",
+        "utf8_bytes": 26,
+        "end_utf16": {
+          "position": 26,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/range-only/2048/ranged-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "range-only",
+      "flags": 2048,
+      "ranged_list": true,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 41,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ generated];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gZ2VuZXJhdGVkXTsNCg==",
+        "utf8_bytes": 25,
+        "end_utf16": {
+          "position": 25,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/range-only/2048/ranged-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "range-only",
+      "flags": 2048,
+      "ranged_list": true,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 41,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 7,
+              "end": 20,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ generated,];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gZ2VuZXJhdGVkLF07DQo=",
+        "utf8_bytes": 26,
+        "end_utf16": {
+          "position": 26,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/comment-only/0/synthetic-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "comment-only",
+      "flags": 0,
+      "ranged_list": false,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ generated];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gZ2VuZXJhdGVkXTsNCg==",
+        "utf8_bytes": 25,
+        "end_utf16": {
+          "position": 25,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/comment-only/0/synthetic-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "comment-only",
+      "flags": 0,
+      "ranged_list": false,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ generated,];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gZ2VuZXJhdGVkLF07DQo=",
+        "utf8_bytes": 26,
+        "end_utf16": {
+          "position": 26,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/comment-only/0/ranged-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "comment-only",
+      "flags": 0,
+      "ranged_list": true,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 41,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ generated];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gZ2VuZXJhdGVkXTsNCg==",
+        "utf8_bytes": 25,
+        "end_utf16": {
+          "position": 25,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/comment-only/0/ranged-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "comment-only",
+      "flags": 0,
+      "ranged_list": true,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 41,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ generated,];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gZ2VuZXJhdGVkLF07DQo=",
+        "utf8_bytes": 26,
+        "end_utf16": {
+          "position": 26,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/comment-only/2048/synthetic-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "comment-only",
+      "flags": 2048,
+      "ranged_list": false,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ generated];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gZ2VuZXJhdGVkXTsNCg==",
+        "utf8_bytes": 25,
+        "end_utf16": {
+          "position": 25,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/comment-only/2048/synthetic-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "comment-only",
+      "flags": 2048,
+      "ranged_list": false,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ generated,];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gZ2VuZXJhdGVkLF07DQo=",
+        "utf8_bytes": 26,
+        "end_utf16": {
+          "position": 26,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/comment-only/2048/ranged-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "comment-only",
+      "flags": 2048,
+      "ranged_list": true,
+      "has_trailing_comma": false,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 41,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ generated];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gZ2VuZXJhdGVkXTsNCg==",
+        "utf8_bytes": 25,
+        "end_utf16": {
+          "position": 25,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/lines/comment-only/2048/ranged-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "comment-only",
+      "flags": 2048,
+      "ranged_list": true,
+      "has_trailing_comma": true,
+      "text": "sink(a, /* last */ b\n/* before comma */ ,\n/* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 41,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* last */ generated,];\r\n",
+        "utf8_base64": "Wy8qIGxhc3QgKi8gZ2VuZXJhdGVkLF07DQo=",
+        "utf8_bytes": 26,
+        "end_utf16": {
+          "position": 26,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/header/parsed/0/synthetic-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "parsed",
+      "flags": 0,
+      "ranged_list": false,
+      "has_trailing_comma": false,
+      "text": "/* file */ sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 18,
+              "end": 31,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "/* file */ [/* last */ b /* before comma */];\r\n",
+        "utf8_base64": "LyogZmlsZSAqLyBbLyogbGFzdCAqLyBiIC8qIGJlZm9yZSBjb21tYSAqL107DQo=",
+        "utf8_bytes": 47,
+        "end_utf16": {
+          "position": 47,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/header/parsed/0/synthetic-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "parsed",
+      "flags": 0,
+      "ranged_list": false,
+      "has_trailing_comma": true,
+      "text": "/* file */ sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 18,
+              "end": 31,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "/* file */ [/* last */ b /* before comma */, /* after comma */];\r\n",
+        "utf8_base64": "LyogZmlsZSAqLyBbLyogbGFzdCAqLyBiIC8qIGJlZm9yZSBjb21tYSAqLywgLyogYWZ0ZXIgY29tbWEgKi9dOw0K",
+        "utf8_bytes": 66,
+        "end_utf16": {
+          "position": 66,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/header/parsed/0/ranged-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "parsed",
+      "flags": 0,
+      "ranged_list": true,
+      "has_trailing_comma": false,
+      "text": "/* file */ sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 16,
+          "end": 51,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 18,
+              "end": 31,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "/* file */ [/* last */ b /* before comma */];\r\n",
+        "utf8_base64": "LyogZmlsZSAqLyBbLyogbGFzdCAqLyBiIC8qIGJlZm9yZSBjb21tYSAqL107DQo=",
+        "utf8_bytes": 47,
+        "end_utf16": {
+          "position": 47,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/header/parsed/0/ranged-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "parsed",
+      "flags": 0,
+      "ranged_list": true,
+      "has_trailing_comma": true,
+      "text": "/* file */ sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 16,
+          "end": 51,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 18,
+              "end": 31,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "/* file */ [/* last */ b /* before comma */, /* after comma */];\r\n",
+        "utf8_base64": "LyogZmlsZSAqLyBbLyogbGFzdCAqLyBiIC8qIGJlZm9yZSBjb21tYSAqLywgLyogYWZ0ZXIgY29tbWEgKi9dOw0K",
+        "utf8_bytes": 66,
+        "end_utf16": {
+          "position": 66,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/header/parsed/2048/synthetic-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "parsed",
+      "flags": 2048,
+      "ranged_list": false,
+      "has_trailing_comma": false,
+      "text": "/* file */ sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 18,
+              "end": 31,
+              "flags": 0,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "/* file */ [/* last */ b];\r\n",
+        "utf8_base64": "LyogZmlsZSAqLyBbLyogbGFzdCAqLyBiXTsNCg==",
+        "utf8_bytes": 28,
+        "end_utf16": {
+          "position": 28,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/header/parsed/2048/synthetic-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "parsed",
+      "flags": 2048,
+      "ranged_list": false,
+      "has_trailing_comma": true,
+      "text": "/* file */ sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 18,
+              "end": 31,
+              "flags": 0,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "/* file */ [/* last */ b,];\r\n",
+        "utf8_base64": "LyogZmlsZSAqLyBbLyogbGFzdCAqLyBiLF07DQo=",
+        "utf8_bytes": 29,
+        "end_utf16": {
+          "position": 29,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/header/parsed/2048/ranged-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "parsed",
+      "flags": 2048,
+      "ranged_list": true,
+      "has_trailing_comma": false,
+      "text": "/* file */ sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 16,
+          "end": 51,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 18,
+              "end": 31,
+              "flags": 0,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "/* file */ [/* last */ b];\r\n",
+        "utf8_base64": "LyogZmlsZSAqLyBbLyogbGFzdCAqLyBiXTsNCg==",
+        "utf8_bytes": 28,
+        "end_utf16": {
+          "position": 28,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/header/parsed/2048/ranged-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "parsed",
+      "flags": 2048,
+      "ranged_list": true,
+      "has_trailing_comma": true,
+      "text": "/* file */ sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 16,
+          "end": 51,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 18,
+              "end": 31,
+              "flags": 0,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "/* file */ [/* last */ b,];\r\n",
+        "utf8_base64": "LyogZmlsZSAqLyBbLyogbGFzdCAqLyBiLF07DQo=",
+        "utf8_bytes": 29,
+        "end_utf16": {
+          "position": 29,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/header/clone/0/synthetic-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "clone",
+      "flags": 0,
+      "ranged_list": false,
+      "has_trailing_comma": false,
+      "text": "/* file */ sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": true,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "/* file */ [b];\r\n",
+        "utf8_base64": "LyogZmlsZSAqLyBbYl07DQo=",
+        "utf8_bytes": 17,
+        "end_utf16": {
+          "position": 17,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/header/clone/0/synthetic-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "clone",
+      "flags": 0,
+      "ranged_list": false,
+      "has_trailing_comma": true,
+      "text": "/* file */ sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": true,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "/* file */ [b,];\r\n",
+        "utf8_base64": "LyogZmlsZSAqLyBbYixdOw0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/header/clone/0/ranged-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "clone",
+      "flags": 0,
+      "ranged_list": true,
+      "has_trailing_comma": false,
+      "text": "/* file */ sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 16,
+          "end": 51,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": true,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "/* file */ [b];\r\n",
+        "utf8_base64": "LyogZmlsZSAqLyBbYl07DQo=",
+        "utf8_bytes": 17,
+        "end_utf16": {
+          "position": 17,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/header/clone/0/ranged-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "clone",
+      "flags": 0,
+      "ranged_list": true,
+      "has_trailing_comma": true,
+      "text": "/* file */ sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 16,
+          "end": 51,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": true,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "/* file */ [b,];\r\n",
+        "utf8_base64": "LyogZmlsZSAqLyBbYixdOw0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/header/clone/2048/synthetic-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "clone",
+      "flags": 2048,
+      "ranged_list": false,
+      "has_trailing_comma": false,
+      "text": "/* file */ sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": true,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "/* file */ [b];\r\n",
+        "utf8_base64": "LyogZmlsZSAqLyBbYl07DQo=",
+        "utf8_bytes": 17,
+        "end_utf16": {
+          "position": 17,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/header/clone/2048/synthetic-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "clone",
+      "flags": 2048,
+      "ranged_list": false,
+      "has_trailing_comma": true,
+      "text": "/* file */ sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": true,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "/* file */ [b,];\r\n",
+        "utf8_base64": "LyogZmlsZSAqLyBbYixdOw0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/header/clone/2048/ranged-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "clone",
+      "flags": 2048,
+      "ranged_list": true,
+      "has_trailing_comma": false,
+      "text": "/* file */ sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 16,
+          "end": 51,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": true,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "/* file */ [b];\r\n",
+        "utf8_base64": "LyogZmlsZSAqLyBbYl07DQo=",
+        "utf8_bytes": 17,
+        "end_utf16": {
+          "position": 17,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/header/clone/2048/ranged-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "clone",
+      "flags": 2048,
+      "ranged_list": true,
+      "has_trailing_comma": true,
+      "text": "/* file */ sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 16,
+          "end": 51,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": true,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "/* file */ [b,];\r\n",
+        "utf8_base64": "LyogZmlsZSAqLyBbYixdOw0K",
+        "utf8_bytes": 18,
+        "end_utf16": {
+          "position": 18,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/header/range-only/0/synthetic-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "range-only",
+      "flags": 0,
+      "ranged_list": false,
+      "has_trailing_comma": false,
+      "text": "/* file */ sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 18,
+              "end": 31,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "/* file */ [/* last */ generated /* before comma */];\r\n",
+        "utf8_base64": "LyogZmlsZSAqLyBbLyogbGFzdCAqLyBnZW5lcmF0ZWQgLyogYmVmb3JlIGNvbW1hICovXTsNCg==",
+        "utf8_bytes": 55,
+        "end_utf16": {
+          "position": 55,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/header/range-only/0/synthetic-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "range-only",
+      "flags": 0,
+      "ranged_list": false,
+      "has_trailing_comma": true,
+      "text": "/* file */ sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 18,
+              "end": 31,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "/* file */ [/* last */ generated /* before comma */,];\r\n",
+        "utf8_base64": "LyogZmlsZSAqLyBbLyogbGFzdCAqLyBnZW5lcmF0ZWQgLyogYmVmb3JlIGNvbW1hICovLF07DQo=",
+        "utf8_bytes": 56,
+        "end_utf16": {
+          "position": 56,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/header/range-only/0/ranged-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "range-only",
+      "flags": 0,
+      "ranged_list": true,
+      "has_trailing_comma": false,
+      "text": "/* file */ sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 16,
+          "end": 51,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 18,
+              "end": 31,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "/* file */ [/* last */ generated /* before comma */];\r\n",
+        "utf8_base64": "LyogZmlsZSAqLyBbLyogbGFzdCAqLyBnZW5lcmF0ZWQgLyogYmVmb3JlIGNvbW1hICovXTsNCg==",
+        "utf8_bytes": 55,
+        "end_utf16": {
+          "position": 55,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/header/range-only/0/ranged-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "range-only",
+      "flags": 0,
+      "ranged_list": true,
+      "has_trailing_comma": true,
+      "text": "/* file */ sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 16,
+          "end": 51,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 18,
+              "end": 31,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "/* file */ [/* last */ generated /* before comma */,];\r\n",
+        "utf8_base64": "LyogZmlsZSAqLyBbLyogbGFzdCAqLyBnZW5lcmF0ZWQgLyogYmVmb3JlIGNvbW1hICovLF07DQo=",
+        "utf8_bytes": 56,
+        "end_utf16": {
+          "position": 56,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/header/range-only/2048/synthetic-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "range-only",
+      "flags": 2048,
+      "ranged_list": false,
+      "has_trailing_comma": false,
+      "text": "/* file */ sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 18,
+              "end": 31,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "/* file */ [/* last */ generated];\r\n",
+        "utf8_base64": "LyogZmlsZSAqLyBbLyogbGFzdCAqLyBnZW5lcmF0ZWRdOw0K",
+        "utf8_bytes": 36,
+        "end_utf16": {
+          "position": 36,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/header/range-only/2048/synthetic-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "range-only",
+      "flags": 2048,
+      "ranged_list": false,
+      "has_trailing_comma": true,
+      "text": "/* file */ sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 18,
+              "end": 31,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "/* file */ [/* last */ generated,];\r\n",
+        "utf8_base64": "LyogZmlsZSAqLyBbLyogbGFzdCAqLyBnZW5lcmF0ZWQsXTsNCg==",
+        "utf8_bytes": 37,
+        "end_utf16": {
+          "position": 37,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/header/range-only/2048/ranged-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "range-only",
+      "flags": 2048,
+      "ranged_list": true,
+      "has_trailing_comma": false,
+      "text": "/* file */ sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 16,
+          "end": 51,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 18,
+              "end": 31,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "/* file */ [/* last */ generated];\r\n",
+        "utf8_base64": "LyogZmlsZSAqLyBbLyogbGFzdCAqLyBnZW5lcmF0ZWRdOw0K",
+        "utf8_bytes": 36,
+        "end_utf16": {
+          "position": 36,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/header/range-only/2048/ranged-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "range-only",
+      "flags": 2048,
+      "ranged_list": true,
+      "has_trailing_comma": true,
+      "text": "/* file */ sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 16,
+          "end": 51,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 18,
+              "end": 31,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "/* file */ [/* last */ generated,];\r\n",
+        "utf8_base64": "LyogZmlsZSAqLyBbLyogbGFzdCAqLyBnZW5lcmF0ZWQsXTsNCg==",
+        "utf8_bytes": 37,
+        "end_utf16": {
+          "position": 37,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/header/comment-only/0/synthetic-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "comment-only",
+      "flags": 0,
+      "ranged_list": false,
+      "has_trailing_comma": false,
+      "text": "/* file */ sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "/* file */ [/* last */ generated /* before comma */];\r\n",
+        "utf8_base64": "LyogZmlsZSAqLyBbLyogbGFzdCAqLyBnZW5lcmF0ZWQgLyogYmVmb3JlIGNvbW1hICovXTsNCg==",
+        "utf8_bytes": 55,
+        "end_utf16": {
+          "position": 55,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/header/comment-only/0/synthetic-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "comment-only",
+      "flags": 0,
+      "ranged_list": false,
+      "has_trailing_comma": true,
+      "text": "/* file */ sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "/* file */ [/* last */ generated /* before comma */,];\r\n",
+        "utf8_base64": "LyogZmlsZSAqLyBbLyogbGFzdCAqLyBnZW5lcmF0ZWQgLyogYmVmb3JlIGNvbW1hICovLF07DQo=",
+        "utf8_bytes": 56,
+        "end_utf16": {
+          "position": 56,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/header/comment-only/0/ranged-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "comment-only",
+      "flags": 0,
+      "ranged_list": true,
+      "has_trailing_comma": false,
+      "text": "/* file */ sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 16,
+          "end": 51,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "/* file */ [/* last */ generated /* before comma */];\r\n",
+        "utf8_base64": "LyogZmlsZSAqLyBbLyogbGFzdCAqLyBnZW5lcmF0ZWQgLyogYmVmb3JlIGNvbW1hICovXTsNCg==",
+        "utf8_bytes": 55,
+        "end_utf16": {
+          "position": 55,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/header/comment-only/0/ranged-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "comment-only",
+      "flags": 0,
+      "ranged_list": true,
+      "has_trailing_comma": true,
+      "text": "/* file */ sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 16,
+          "end": 51,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "/* file */ [/* last */ generated /* before comma */,];\r\n",
+        "utf8_base64": "LyogZmlsZSAqLyBbLyogbGFzdCAqLyBnZW5lcmF0ZWQgLyogYmVmb3JlIGNvbW1hICovLF07DQo=",
+        "utf8_bytes": 56,
+        "end_utf16": {
+          "position": 56,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/header/comment-only/2048/synthetic-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "comment-only",
+      "flags": 2048,
+      "ranged_list": false,
+      "has_trailing_comma": false,
+      "text": "/* file */ sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "/* file */ [/* last */ generated];\r\n",
+        "utf8_base64": "LyogZmlsZSAqLyBbLyogbGFzdCAqLyBnZW5lcmF0ZWRdOw0K",
+        "utf8_bytes": 36,
+        "end_utf16": {
+          "position": 36,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/header/comment-only/2048/synthetic-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "comment-only",
+      "flags": 2048,
+      "ranged_list": false,
+      "has_trailing_comma": true,
+      "text": "/* file */ sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "/* file */ [/* last */ generated,];\r\n",
+        "utf8_base64": "LyogZmlsZSAqLyBbLyogbGFzdCAqLyBnZW5lcmF0ZWQsXTsNCg==",
+        "utf8_bytes": 37,
+        "end_utf16": {
+          "position": 37,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/header/comment-only/2048/ranged-list/no-comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "comment-only",
+      "flags": 2048,
+      "ranged_list": true,
+      "has_trailing_comma": false,
+      "text": "/* file */ sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 16,
+          "end": 51,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "/* file */ [/* last */ generated];\r\n",
+        "utf8_base64": "LyogZmlsZSAqLyBbLyogbGFzdCAqLyBnZW5lcmF0ZWRdOw0K",
+        "utf8_bytes": 36,
+        "end_utf16": {
+          "position": 36,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "list-trailing-token/header/comment-only/2048/ranged-list/comma",
+      "container": "array",
+      "list_mode": "trailing-token",
+      "last_provenance": "comment-only",
+      "flags": 2048,
+      "ranged_list": true,
+      "has_trailing_comma": true,
+      "text": "/* file */ sink(a, /* last */ b /* before comma */, /* after comma */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 16,
+          "end": 51,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 2048,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "/* file */ [/* last */ generated,];\r\n",
+        "utf8_base64": "LyogZmlsZSAqLyBbLyogbGFzdCAqLyBnZW5lcmF0ZWQsXTsNCg==",
+        "utf8_bytes": 37,
+        "end_utf16": {
+          "position": 37,
+          "line": 1,
+          "column": 0
+        }
+      }
+    }
+  ]
+}

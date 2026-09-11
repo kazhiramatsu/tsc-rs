@@ -1,0 +1,277 @@
+{
+  "version": 1,
+  "status": "complete-bounded-after-with-independent-failures",
+  "before_checkpoint": "8ed4ee178e9a4837c124b66b4e2d606fa6b4610b",
+  "fresh": {
+    "eligible": 56,
+    "export_specifier_exact_twice": [
+      "js/es5/local-default",
+      "js/es5/local-renamed",
+      "js/es5/local-keywords",
+      "js/es5/local-underscores",
+      "js/es5/local-merged-default",
+      "js/es5/external-to-default",
+      "js/es5/external-from-default",
+      "js/es5/external-default",
+      "js/es5/external-keywords",
+      "js/es5/external-siblings",
+      "ts/es5/local-default",
+      "ts/es5/local-renamed",
+      "ts/es5/local-keywords",
+      "ts/es5/local-underscores",
+      "ts/es5/local-merged-default",
+      "ts/es5/external-to-default",
+      "ts/es5/external-from-default",
+      "ts/es5/external-default",
+      "ts/es5/external-keywords",
+      "ts/es5/external-siblings",
+      "js/es2015/local-default",
+      "js/es2015/local-renamed",
+      "js/es2015/local-keywords",
+      "js/es2015/local-underscores",
+      "js/es2015/local-merged-default",
+      "js/es2015/external-to-default",
+      "js/es2015/external-from-default",
+      "js/es2015/external-default",
+      "js/es2015/external-keywords",
+      "js/es2015/external-siblings",
+      "ts/es2015/local-default",
+      "ts/es2015/local-renamed",
+      "ts/es2015/local-keywords",
+      "ts/es2015/local-underscores",
+      "ts/es2015/local-merged-default",
+      "ts/es2015/external-to-default",
+      "ts/es2015/external-from-default",
+      "ts/es2015/external-default",
+      "ts/es2015/external-keywords",
+      "ts/es2015/external-siblings"
+    ],
+    "commonjs_default_exact_twice": [
+      "js/es5/class",
+      "js/es5/function",
+      "ts/es5/class",
+      "ts/es5/function",
+      "js/es2015/class",
+      "js/es2015/function",
+      "ts/es2015/class",
+      "ts/es2015/function"
+    ],
+    "independent_quoted_javascript_failures": [
+      "js/es5/local-string-default",
+      "js/es5/external-string-default",
+      "ts/es5/local-string-default",
+      "ts/es5/external-string-default",
+      "js/es2015/local-string-default",
+      "js/es2015/external-string-default",
+      "ts/es2015/local-string-default",
+      "ts/es2015/external-string-default"
+    ],
+    "run_seconds": 60.66,
+    "exit_code": 101
+  },
+  "original": {
+    "eligible": 12,
+    "exact_twice": [
+      "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsDefaultsErr.ts#target%3Des2015",
+      "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsDefaultsErr.ts#target%3Des5",
+      "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportSpecifierNonlocal.ts#target%3Des2015",
+      "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportSpecifierNonlocal.ts#target%3Des5"
+    ],
+    "independent_tslib_failures": [
+      "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode16%2Ctarget%3Des2015",
+      "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode16%2Ctarget%3Des5",
+      "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode18%2Ctarget%3Des2015",
+      "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode18%2Ctarget%3Des5",
+      "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode20%2Ctarget%3Des2015",
+      "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode20%2Ctarget%3Des5",
+      "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnodenext%2Ctarget%3Des2015",
+      "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnodenext%2Ctarget%3Des5"
+    ],
+    "all_declaration_writes_exact": true,
+    "require_alias_controls_exact_twice": 22,
+    "run_seconds_with_controls": 90.57,
+    "exit_code": 101
+  },
+  "adjacent": {
+    "alias_commands_exact_twice": 88,
+    "alias_tests": 3,
+    "alias_seconds": 104.05,
+    "checker_tests": 25,
+    "checker_seconds": 0.02,
+    "exit_code": 0
+  },
+  "original_failure_tuples": [
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode20%2Ctarget%3Des5",
+      "repetition": 0,
+      "tuple_sha256": "e11f9bc00e8258737cc99b0151a135e8117300a8f178f46bccf75341fa33996c"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode16%2Ctarget%3Des5",
+      "repetition": 1,
+      "tuple_sha256": "c7315e1bea2ed556eb20b96599482e1341ccab3e1699cb8ca79df66e40bc1a7d"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode16%2Ctarget%3Des5",
+      "repetition": 0,
+      "tuple_sha256": "2aed5e4c78ba7296973d2d7951d04e13d33530ba477f601467b44281f680cea3"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode20%2Ctarget%3Des5",
+      "repetition": 1,
+      "tuple_sha256": "470941ec59154cdf6ca80f2432e7a38c7a8733153513d4a4c52d7fe1bec9f14e"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode18%2Ctarget%3Des5",
+      "repetition": 0,
+      "tuple_sha256": "c88d4e311d64e5f09bafcc9b70bb48b0c92985d16b45ea8e55377a184bae3423"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode18%2Ctarget%3Des2015",
+      "repetition": 1,
+      "tuple_sha256": "2f0e455b6bb47bf9ffa56f06ac3805ee4ab5a425e06281a556bf72c568491052"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode20%2Ctarget%3Des2015",
+      "repetition": 1,
+      "tuple_sha256": "e547da14af7620cc7b8054098e6f8c7b02db24bd7edffafcebca921b9dae97b7"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode20%2Ctarget%3Des2015",
+      "repetition": 0,
+      "tuple_sha256": "ab2add2c8e0e830a347d48cf748b792f4be464a368aad3f94523570d44a2be0f"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode18%2Ctarget%3Des2015",
+      "repetition": 0,
+      "tuple_sha256": "2b7969b261f5c4ec1ab10c671410a3a3fe46940b25cf27a29573bc6a150c2ce6"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode18%2Ctarget%3Des5",
+      "repetition": 1,
+      "tuple_sha256": "2bc44136f940fdd83b475c41814fdce0d0f3fe081c9e25f7cebe0dc97dbb8f08"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode16%2Ctarget%3Des2015",
+      "repetition": 0,
+      "tuple_sha256": "f14dc31268eba37c8d9e983175550b5b84213fa62f321b20be2b042c14079d8b"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnode16%2Ctarget%3Des2015",
+      "repetition": 1,
+      "tuple_sha256": "7fde17423c3c5989f876cc43081f414ecea5679db09cd2e2e5f2626cc7a771ec"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnodenext%2Ctarget%3Des5",
+      "repetition": 0,
+      "tuple_sha256": "d4cff3fac779a94ea5893147b19cec9806ba86e6c633057343b31fe17dd1194c"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnodenext%2Ctarget%3Des2015",
+      "repetition": 1,
+      "tuple_sha256": "4f8cc1256106ee745207f92b77e0af642ac29d8a2ac6f7133b9657fc52a89ba2"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnodenext%2Ctarget%3Des2015",
+      "repetition": 0,
+      "tuple_sha256": "7941f4a9db4e09f59a9628f272b55ab714806fa8885ff0afbe205b5919c81a02"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsImportHelpersCollisions3.ts#module%3Dnodenext%2Ctarget%3Des5",
+      "repetition": 1,
+      "tuple_sha256": "58639004cc2da62a01c029d8a41bf5af4902ba0d5e690a1f0a17f75f2f8a5acb"
+    }
+  ],
+  "working_source_files": [
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "c141b1cb5bb991921d86b4f1615506f9961d23490701fc8b8cbcaa53af2ef0d3"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "482762547e72ab4c470ac3bb11d12ac863ef3e763941d1642a73a0e9166627e0"
+    },
+    {
+      "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
+      "sha256": "7609a350ab7af8408f8afbbf99cfeb0399512d13702bfe4cf3b09dd0e946892d"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "c0a3f18ada4e9465e407ad0cd9f74daac31c888c56737a7c0a5f10e705d6cfd8"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-export-specifier-names.md",
+      "sha256": "1cbb1fc9ef468ba657ec08df720b2b418f942dabb6aac9587a7c959b06a76d5a"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8.md",
+      "sha256": "a9f448426332029e38203381265864398e607f9fdf710cd3abce9a78691ad114"
+    },
+    {
+      "path": "scripts/check-export-names-readiness.py",
+      "sha256": "d3dcd796fc517f7a96a0c6178dcd94ffb8bbfc9412781f76f13114b6331dbc1c"
+    },
+    {
+      "path": "ratchets/h2-8a-export-names-readiness.v1.json",
+      "sha256": "e6042faa77fe30792c4606d5192ded0b7f4d49f162caeddc09e70cb1930b67a8"
+    },
+    {
+      "path": "ratchets/h2-8a-directory-readiness.v1.json",
+      "sha256": "fffb52d214b7e074688e536e603eb524d2d18e2b390062942dfdd3e896a97819"
+    },
+    {
+      "path": "ratchets/h2-8a-export-names-before.v1.json",
+      "sha256": "4561b07985c9e51c9c02af70556f3a576c0036337d3bd56668abfb6b6a5dfd1f"
+    },
+    {
+      "path": "ratchets/h2-8a-cjs-default-reexport-before.v1.json",
+      "sha256": "680ee4c5f0ee0c515c82008dd3d5839edeacbd499471d6f4cfbaa75460228979"
+    },
+    {
+      "path": "ratchets/h2-8a-export-names-original-before.v1.json",
+      "sha256": "40ef0135bbbf6c686e1c0e9ee6e69016f341dfe0aa6d0d7e01132716372149bb"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/export-specifier-names.json",
+      "sha256": "a687b2fb2f0245742fee08626e55ba04d4a3b723db729ee0489fac2ee17f61e3"
+    },
+    {
+      "path": "scripts/observe-export-specifier-names.mjs",
+      "sha256": "32db9231b3d82e611c412c3cd528ec2534e9ce8f422ccd5fa7e5b71f4df7b714"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/cjs-default-reexport-names.json",
+      "sha256": "eaecc39edf3508ce820e43c1a0a76549798067a4343260763bbb35af394e198d"
+    },
+    {
+      "path": "scripts/observe-cjs-default-reexport-names.mjs",
+      "sha256": "0bd9285c302c4eb63ed7a8190df0659e8b0e911cae299ce6083da429ff908e85"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_export_specifier_names.rs",
+      "sha256": "a4a1b52e814dcc52e72cba7ceef434eede3f06693a043ebfd8b0941d38f820fd"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_cjs_default_reexport_names.rs",
+      "sha256": "cc6854fa182dfd5ebdc2302bbc8fb899883748d774fd6e16f02ca5eb1526b6a8"
+    }
+  ],
+  "logs": [
+    {
+      "path": "target/h2-8a-export-names-after.log",
+      "sha256": "41bcfb9916425cb68eac60eb833855a3e85d593497de92c5a479af86688c8538"
+    },
+    {
+      "path": "target/h2-8a-export-names-original-after.log",
+      "sha256": "6b45b731cec5a2e7af60750a61933797ee49ba3c1d3814ddc5b687464109e3e1"
+    },
+    {
+      "path": "target/h2-8a-export-names-alias-adjacent.log",
+      "sha256": "f87a8192f37e3b2adef952ab073d444721e47ee04bb3c339ab206ad72561ef32"
+    },
+    {
+      "path": "target/h2-8a-export-names-checker-adjacent.log",
+      "sha256": "2b55953479c3476e50416e99e693bf4af7b39300f129b492eccce3bff1311455"
+    }
+  ]
+}

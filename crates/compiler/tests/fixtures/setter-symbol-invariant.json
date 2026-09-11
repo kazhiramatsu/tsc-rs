@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "scope": "internal-symbol-invariant; not complete compiler commands or admitted source inputs",
+  "repetitions": 2,
+  "source_text": "export class Foo { set x(supplied) {} }",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "542af1c6138730dbcf89389a555e522068efb2cacecea06c539be208e83283ad",
+  "rows": [
+    {
+      "case_id": "bound-setter",
+      "corrupt": false,
+      "observation": {
+        "output": [
+          "class Foo {\n    set x(supplied: any);\n}"
+        ],
+        "error": null
+      }
+    },
+    {
+      "case_id": "absent-declarations",
+      "corrupt": true,
+      "observation": {
+        "output": null,
+        "error": "Error: Debug Failure. False expression."
+      }
+    }
+  ]
+}

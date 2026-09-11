@@ -1,0 +1,285 @@
+{
+  "status": "first-after-unexpected-eleven-regressions-frozen",
+  "base": "ea345da10f18cbb660cb51ea5d7b889f06831dd0",
+  "eligible": 434,
+  "exact_twice": 415,
+  "failed_once": 19,
+  "fresh_exact_twice": 92,
+  "fresh_failed_once": 16,
+  "adjacent_exact_twice": 323,
+  "adjacent_failed_once": 3,
+  "exit_code": 101,
+  "seconds": 348.21,
+  "unexpected_regressions": 11,
+  "working_files": [
+    {
+      "path": "crates/emitter/src/builtins/es2015.rs",
+      "sha256": "0427b99e1c10d41c9670ec173625b5f1407e5c1d7223a09abf6374ad09ab4c54"
+    },
+    {
+      "path": "ratchets/h2-8a-transformed-class-assigned-names-before.v1.json",
+      "sha256": "cbdb5b19bf28950dfb8fc09e4135513fb21df7dbd7356dae26d2699dfdaff27a"
+    },
+    {
+      "path": "ratchets/h2-8a-transformed-class-assigned-names-readiness.v1.json",
+      "sha256": "7d7f21b5d8bc1cd68333ca534fb50e7bb7f43f1e4e95feaaff52bc8f60888d0c"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-transformed-class-assigned-names.md",
+      "sha256": "6a1a76365e2826d949a73e14da9b1106d747fe1a90b99957da82a2fe945f54a7"
+    },
+    {
+      "path": "scripts/check-transformed-class-assigned-names-readiness.py",
+      "sha256": "9f757e4645f1ea8f47a657e3f436aaab965164b906b432dd7eab13e42d65cd7a"
+    },
+    {
+      "path": "scripts/observe-transformed-class-assigned-names.mjs",
+      "sha256": "db166db51ecaf39f427363eb4833f63f2e5bfe6cb2fd0b7a7f2a4d2cc064df99"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/transformed-class-assigned-names.json",
+      "sha256": "f04166260e4005fa6bd5df31ef98ef6d7d8cd79b0054e137f5c52e806d906ffb"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_transformed_class_assigned_names.rs",
+      "sha256": "103cba6f7064c3fca0891ab7598930fbabb17f319bab8303349ad6a9028f7a81"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "88703daa270295a3e62c2befd67057b2b52cf09c81e3fcc4586224e2b2f2bb92"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "726a6d93a6f97ec8e9509772260c71bd05326ae3addb56b90ee17d910e92e695"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+      "sha256": "90aff72e27fac502da3ff3f06980c55c4923e35554c3e64800a60213cb1b04ba"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/jsdoc-implements-serialization.json",
+      "sha256": "46f1ad3ebb5480c9d697fca9c6adf3c95dd3fed2f60e8f37210dd1e1733cc057"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_jsdoc_implements_serialization.rs",
+      "sha256": "2c035245d37a82d01b4e3ff15f0f5a05740b11d7b256be02a95c7d1fdd0a24eb"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/class-transform-flags.json",
+      "sha256": "875e14e7252bf2913804875e96b6215c432a68e5337ede4af21ea6445114f5ef"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_class_transform_flags.rs",
+      "sha256": "0bc241e457c5694a641eaf20577ddf6a9b36dd00010bd86e22df2edcf6d279b4"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/class-statement-layout.json",
+      "sha256": "9d166822e3d6129618d1c0334c04295bbe168a60d065073ad871cb288da309b7"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_class_statement_layout.rs",
+      "sha256": "0d6a494307357c44104e052bea8eba499647fe1cc15d967a50daa258cb40a30a"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/synthetic-default-alias.json",
+      "sha256": "99d5a5fde1393a939da9e27f43bfc3c8c2973c93501bb8ffb7116e904a2a6d69"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_synthetic_default_alias.rs",
+      "sha256": "506f9424a4ebdefe59e8b52c303254b932818c4234c9439a1218a405f665e0fc"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/commonjs-class-instance.json",
+      "sha256": "3983c19969e3fb05164b290323eb2d5b16f134e340a6cb9ee48e0a98aed54886"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_commonjs_class_instance.rs",
+      "sha256": "0cc8a8048cdeb9e4904721fb15c63940482da23310a0102be4f7f8db6ba62a77"
+    },
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "d2272c19c29172474bd67e67bbf8c1161d8016aec101ec396ff97f10d4777fb2"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/emitter/src/metadata.rs",
+      "sha256": "c9eaf94391d3eb0893a1d1e7d4c65ff9d876f8b3772634505325a72cf7430e23"
+    },
+    {
+      "path": "crates/emitter/src/builtins/target_bindings.rs",
+      "sha256": "0034f463ff6f1323753377f7c2fa2760b894ba37b59eeb81ec0980e4a6c45338"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "5ffd982b2fb2057fa7c082400f502e755f0acaf663245a9898bb48c0820d57b6"
+    },
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "71853704eadfbdfe31f25171c2241b3a76db192671a0cec0d8c2cdd884081b55"
+    },
+    {
+      "path": "crates/emitter/src/builtins/class_fields/downlevel.rs",
+      "sha256": "5da35ffbcf03c309c4de86f560de08e8d17355c4f50b30bbee7fd2305577eaca"
+    },
+    {
+      "path": "crates/emitter/src/builtins/generated_bindings.rs",
+      "sha256": "6389d2ca6a2751a6ccdf8b87c99e0fdc03fbbbba49468ec534c6bab8fad62f4a"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-after-prelaunch.json",
+      "sha256": "d926a31541c0d31a0e65e51f80cc563191b85ec186d886d7e056b6d90a7e8567"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-after.log",
+      "sha256": "28129cd282ec9372a5287bbad7dbeac8fa0e41204863cf16bfa3b617ee23b239"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-first-after-failures.json",
+      "sha256": "c0472ccd7bbb92bcddfd035bcf73784cdffa0d650d071226efce96022f0a9212"
+    }
+  ],
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-assigned-name-first-after-regressions-sv57j4mg",
+  "version": 1,
+  "unexpected_case_ids": [
+    "class-assigned-name/es5/commonjs/assignment/plain",
+    "class-assigned-name/es5/commonjs/binding/plain",
+    "class-assigned-name/es5/commonjs/property/plain",
+    "class-assigned-name/es5/commonjs/variable/plain",
+    "class-assigned-name/es5/esnext/assignment/plain",
+    "class-assigned-name/es5/esnext/binding/plain",
+    "class-assigned-name/es5/esnext/property/plain",
+    "class-assigned-name/es5/esnext/variable/plain",
+    "jsdoc-implements/es5/commonjs/qualified",
+    "jsdoc-implements/es5/esm/qualified",
+    "jsdoc-implements/es5/script/qualified"
+  ],
+  "retained_case_ids": [
+    "class-assigned-name/es2015/commonjs/class-fields-alias",
+    "class-assigned-name/es2015/commonjs/plain-function-new-target",
+    "class-assigned-name/es2015/commonjs/typed-function-new-target",
+    "class-assigned-name/es2015/esnext/class-fields-alias",
+    "class-assigned-name/es2015/esnext/plain-function-new-target",
+    "class-assigned-name/es2015/esnext/typed-function-new-target",
+    "class-assigned-name/es5/commonjs/class-fields-alias",
+    "class-assigned-name/es5/esnext/class-fields-alias"
+  ],
+  "first_failure_comparisons": [
+    {
+      "case_id": "jsdoc-implements/es5/script/qualified",
+      "boundary": "exact source-map result",
+      "actual_sha256": "31a57585652f6675f0a94243db4b9f39f98fc44f5b6900a023ff18f68c4f2695",
+      "expected_sha256": "dbddf904e7def9a9a1e080efa77119df228fba656ee86247396cfcd2470ad319"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/commonjs/qualified",
+      "boundary": "exact source-map result",
+      "actual_sha256": "54fb7cb2d10893b40857a5d9d37c8d55bfc30506b4682591bd2712bfa2d5e1c1",
+      "expected_sha256": "f4c21b33cae1ec3db7b735be4175aa6351d7f7c71ea89197767aac34be534b40"
+    },
+    {
+      "case_id": "jsdoc-implements/es5/esm/qualified",
+      "boundary": "exact source-map result",
+      "actual_sha256": "3653013799c4566f27becba8ed05396f6f8c3ed616c1c0e50304b5c5676d5197",
+      "expected_sha256": "328ac7c8e26282edb33f2e1b68fd20127591c564427dbadedec41f888f2867bd"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/variable/plain",
+      "boundary": "exact source-map result",
+      "actual_sha256": "e247cc07d1635352d396ea8e29328504a214ef8337d66918f52125a3c29bacfb",
+      "expected_sha256": "8992bee579ff05fab64c2c6638b3f90dc5e47f0013e01c480d623bc1ee89ca13"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/property/plain",
+      "boundary": "exact source-map result",
+      "actual_sha256": "1415373f80771d77a1dc54a8548a4f6c31c541fb21bf735fd0ada78910f45f8a",
+      "expected_sha256": "64432a786d94806593718a0668bd6361d820f557244fe6fe6d92b33b7b477663"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/assignment/plain",
+      "boundary": "exact source-map result",
+      "actual_sha256": "6616e77ee17e5343f29d66877d8754be7201a89f0af30444edf0ff06b3242188",
+      "expected_sha256": "abb46b150892c9ca64f25cb14a21b5b6091ef534d29ff2b255d62284c6773428"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/binding/plain",
+      "boundary": "exact source-map result",
+      "actual_sha256": "a74a5a02f3eea32ee732f9e3eb3942ce5c38e9f334d72585b440b3c8cad7f44a",
+      "expected_sha256": "5e652d2899c93ea139b56d8400a572b1f6284d3ae8ef40172332915c401fb4d4"
+    },
+    {
+      "case_id": "class-assigned-name/es5/commonjs/class-fields-alias",
+      "boundary": "exact source-map result",
+      "actual_sha256": "5702103111b0cd9249b849525d5739242d628fd6c5a7a2754d3a1a4bddedab43",
+      "expected_sha256": "97772df0c87284442107bba850264cea6a586588ad359f15820613f4ca397cb6"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/variable/plain",
+      "boundary": "exact source-map result",
+      "actual_sha256": "09bc23ce7ed4c0e78b58d320416162eb621d7370b0b7a1c9ce358081f613b9ec",
+      "expected_sha256": "aa0d950564864cb5df8f7167e72cc3e39eb6092f70f1b4bf1f311af96e845265"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/property/plain",
+      "boundary": "exact source-map result",
+      "actual_sha256": "b089a596dca38be4ed0cbf99cffdf25ee0673f818dfbc3aa69a07cd2731b7600",
+      "expected_sha256": "9132f6793ee5249a4c0c0b48116e97611acde0438ca38452140e1e407f9c0619"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/assignment/plain",
+      "boundary": "exact source-map result",
+      "actual_sha256": "e2af9a5c04aa080ad6e3bcbbdac7c0c556f3bade72361c3b1385ac4812fd4a44",
+      "expected_sha256": "c2992ee14ad6df3775785a26c94111543310ce481556050eaf942a549d42021e"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/binding/plain",
+      "boundary": "exact source-map result",
+      "actual_sha256": "bd5bfdf7258493abdb06ee04c2546d667264d3c9f9efe81ac3199c32523b646b",
+      "expected_sha256": "c5a70bcaf6dcffabfc36b60d0420fd422d17405cde2984369b3fe23f828103c3"
+    },
+    {
+      "case_id": "class-assigned-name/es5/esnext/class-fields-alias",
+      "boundary": "exact source-map result",
+      "actual_sha256": "810be1fbfa749264828c5d2e89d6be14764fa4f44073f4461b24920b304d51f4",
+      "expected_sha256": "1b9833918366eeeb5f52ab51e3ba788c3eafacfcc00023f99fb6a5f6a19fc75b"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/plain-function-new-target",
+      "boundary": "exact source-map result",
+      "actual_sha256": "c8e23a2b877f25852dd3bef2d7ffc466d83000edeaca6e137c1a63ca08a126c8",
+      "expected_sha256": "820a81607e724fff6e8fe5e0f458f802f860a8f711c08785ee3e03b7653c9f2b"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/typed-function-new-target",
+      "boundary": "exact source-map result",
+      "actual_sha256": "f0951b56403995948fa7d058ae2d5ae61c2a834af89debff5ef06a1d7e128393",
+      "expected_sha256": "e925ee998c8fb76a6c07bb713d80e79d95b5f3260ea26246ccc96d67b3eaa4a7"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/commonjs/class-fields-alias",
+      "boundary": "exact source-map result",
+      "actual_sha256": "595c26cad2669a994630bea3bae73d28bd5c2ae05035b25781674bd3b3af9b5f",
+      "expected_sha256": "aab19fa409ebed89b6596bbcc79d52d25bb8dc9b5eafc2795e439f91c34c4939"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/plain-function-new-target",
+      "boundary": "exact source-map result",
+      "actual_sha256": "108581fb6a9f811134fb24ba95fb4e00fe4d1fd4416d8bfac0646d88aa0206bc",
+      "expected_sha256": "9b32612cec9896b4acbcfe150d4ba532b2f76830d7eca13f806dc6d99da56e76"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/typed-function-new-target",
+      "boundary": "exact source-map result",
+      "actual_sha256": "f9399cdd3e82a62817d6278c4ad7753f08baaedce7f9feb0395177128411a997",
+      "expected_sha256": "82d978b2b23801301ed83ec23ff522244218e9888f31c4cd6ce90d5868ba0e54"
+    },
+    {
+      "case_id": "class-assigned-name/es2015/esnext/class-fields-alias",
+      "boundary": "exact source-map result",
+      "actual_sha256": "43abc4e25f1bad146c652fa6ccb7600bd227728b0ee81999e8916f2ceae5d998",
+      "expected_sha256": "de0fd8def999808f5ee93d7c4df1763c653aeb5e696b1c7f187ef457acc8fead"
+    }
+  ]
+}

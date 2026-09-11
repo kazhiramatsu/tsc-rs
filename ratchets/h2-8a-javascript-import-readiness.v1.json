@@ -1,0 +1,418 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-4",
+  "base": "43e1107e823727df2a62caa88463326f41337e34",
+  "unresolved": 0,
+  "undispositioned": 0,
+  "authorities": [
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-javascript-imports.md",
+      "sha256": "f63a84834fb9f0a1875e2a5b854e9881d6f089499e868ad0721785836300ea55"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/javascript-import-retention.json",
+      "sha256": "7f2219f3fe096ac19035a0988750d3650f04d529aa03b40c6e2defd985166941"
+    },
+    {
+      "path": "scripts/observe-javascript-import-retention.mjs",
+      "sha256": "5deaff2b0643f205e39280060b16b4c45229d7ba60333a2c5e020a5d788a24a3"
+    },
+    {
+      "path": "ratchets/h2-8a-javascript-import-before.v1.json",
+      "sha256": "06002bfe30c327cea6fd4f2ca88bff245c9c559b94ae76efd565320d19889f2c"
+    },
+    {
+      "path": "ratchets/h2-8a-candidates.v1.json",
+      "sha256": "e33fbf9b6c7eb96dae5186013e054e57eae371a48fca461a809ae4e6e2a1095c"
+    },
+    {
+      "path": "ratchets/h2-8a-candidate-inputs.v1.json",
+      "sha256": "6ff7ea8d1d986e8a9d833d45ec694ab0b8616604fdf065ba52e24a34ac86759b"
+    },
+    {
+      "path": "ratchets/h2-8a-observations.v1.json",
+      "sha256": "91fc28206d663eab46fef98f72ba296d29e02def72518e012616c4d0d01acc87"
+    },
+    {
+      "path": "ratchets/h2-8a-global-before.v1.json",
+      "sha256": "d8beabca4abf261656a3d7897a6c042b1b448fdf17b84cf54a384376a0b9a11e"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "0f2bc703d085dd00452595b800d94ebfac5fb314a6c5bc1c57b4f79ae88569eb"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/checker/src/emit.rs",
+      "sha256": "d43e9507e0f925b4e06ed4956a2bf2e436daf48c605b0876e4b5fc5b432e4dd6"
+    },
+    {
+      "path": "crates/syntax/src/parser.rs",
+      "sha256": "c30ad50f80148d8a7aaa49c2df2ec2f8be05d1ea635c69c0a7ac6d0731ce0732"
+    },
+    {
+      "path": "crates/types/src/flags.rs",
+      "sha256": "cbd7915f38c2715d426f3d53cd9a5dd6483f4cfb287a14f0b2f37d830bc96d7a"
+    }
+  ],
+  "owners": [
+    {
+      "owner": "isInJSFile",
+      "start": 14886,
+      "end": 14888,
+      "sha256": "c5f0db66356c51537ce1e7c91692c0775f3db5764d39100f22ad85b89e0ec9a1"
+    },
+    {
+      "owner": "visitImportClause",
+      "start": 95538,
+      "end": 95543,
+      "sha256": "b5034ee4461cd93181909793decb1a90aad8335d0d94483ff8fb6d354ca610d9"
+    },
+    {
+      "owner": "visitNamedImportBindings",
+      "start": 95544,
+      "end": 95552,
+      "sha256": "0f7aeaf0920cb053652be2bc7d159a325d018951be96b70a8ea5dd26b6b3fe16"
+    },
+    {
+      "owner": "visitImportSpecifier",
+      "start": 95553,
+      "end": 95555,
+      "sha256": "e5e75294badae2b6b365fd46d3275b40d4f1b5cd4a5dba6365b757d7b60a7abe"
+    },
+    {
+      "owner": "shouldEmitImportEqualsDeclaration",
+      "start": 95602,
+      "end": 95604,
+      "sha256": "57b4513e98e044e5db682e495dffcf5e550fb2c7b0d3584ec955750cd45c0479"
+    },
+    {
+      "owner": "visitImportEqualsDeclaration",
+      "start": 95605,
+      "end": 95653,
+      "sha256": "b05420512b8b9e2333d1b23ed7ec1b6a327903fcc381ed44f3fa5f46ff66c7ef"
+    },
+    {
+      "owner": "shouldEmitAliasDeclaration",
+      "start": 95846,
+      "end": 95848,
+      "sha256": "768f0d459b8a033e5fbad0737593ac3b03d7f123c30ea33737cb92ce2d6604d1"
+    },
+    {
+      "owner": "visitImportEqualsDeclaration",
+      "start": 112558,
+      "end": 112563,
+      "sha256": "a4085638a235566d7c7160c24c451e44f2cb394d2a497acbdb57c82a0299fcf7"
+    },
+    {
+      "owner": "visitImportEqualsDeclaration",
+      "start": 113569,
+      "end": 113601,
+      "sha256": "218804820ede70d9f3cc9ab46b1244b21c98ac1c8bbaa4125eb39b9dbbc84a7f"
+    },
+    {
+      "owner": "getExternalModuleNameLiteral",
+      "start": 27713,
+      "end": 27719,
+      "sha256": "2d6cd262d872b1b38c0094ffd8a9d77b5864e3d8f912de6e8dd07e1e7f5d5852"
+    },
+    {
+      "owner": "createRequireCall",
+      "start": 113495,
+      "end": 113568,
+      "sha256": "8b039c02e0c00d4f0716746a728ab1c00772ad8f4aa97c2cba5bbf873e271cd6"
+    },
+    {
+      "owner": "cloneNode",
+      "start": 24436,
+      "end": 24466,
+      "sha256": "d223dcea6ccf14e9212d40d5b8df188197023622ea3e5d624ffb974a25db19d6"
+    }
+  ],
+  "steps": [
+    "A6-4-1",
+    "A6-4-2",
+    "A6-4-3",
+    "A6-4-4"
+  ],
+  "architecture": [
+    {
+      "id": "E-PROTOCOL",
+      "disposition": "premise-unchanged but rechecked"
+    },
+    {
+      "id": "E-RESOLVER-BASE",
+      "disposition": "premise-unchanged but rechecked"
+    },
+    {
+      "id": "E-METADATA-BASE",
+      "disposition": "premise-unchanged but rechecked"
+    },
+    {
+      "id": "E-ORDER-G",
+      "disposition": "premise-unchanged but rechecked"
+    }
+  ],
+  "tests": [
+    "crates/compiler/tests/integration/h2_8a_javascript_imports.rs",
+    "crates/compiler/tests/h2_8a_original_corpus.rs"
+  ],
+  "witnesses": [
+    {
+      "case_id": "ts/commonjs/default",
+      "row_sha256": "dd6bf6a3d78c7faf0066faa56d124216b2e428a198f1b2374dd8ba4f8f99d8ee",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/commonjs/namespace",
+      "row_sha256": "633a13a629e03419c7187241420712292814fa320f89a5fd53b7660d92dcfc25",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/commonjs/named",
+      "row_sha256": "6f28ac4331ebe924b5ee0b35f8bdddfde8c1163fc9c4e9f2d9103916a99b03ad",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/commonjs/type-only",
+      "row_sha256": "17db1f36e9211632722cf1ef9c9da316a3cba868d0b8c8f894befcaf8941e5f4",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/commonjs/import-equals",
+      "row_sha256": "75b84039dd4b659de97850a0be96353c441b57365fd1f64de78a050661ac9db8",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/esnext/default",
+      "row_sha256": "90aaaaf241389fb98a27fe2e9f002b6bdce174114f5b96db8638649e8670437b",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/esnext/namespace",
+      "row_sha256": "694d2e17c1610dd8468a5bd26cfe7405f65a740897813008fcc558e0fddbfb21",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/esnext/named",
+      "row_sha256": "37d5393997155e8d6bbbe6771e407e87f75e98a5a796a66d2b86d5f9fc9ca6f2",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/esnext/type-only",
+      "row_sha256": "4071b6aa3364af098da2a968fec0d41f773cb6f7f2e75ed754f6b4a104233f5d",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/esnext/import-equals",
+      "row_sha256": "602b5675609156f69fd3b2aa862e283d2dd72b8e847bc47b9b825a9daf715f87",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/node-esm/default",
+      "row_sha256": "beb74aea9f050adce4f0d4815d99aac49edd36843d99817280f796a3c5fb99c8",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/node-esm/namespace",
+      "row_sha256": "1081f75104e44690214e821d9510ccc953106e177aee0c7682ce2af33dd211f2",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/node-esm/named",
+      "row_sha256": "e756f494f4e66f7a826702617b7ea3606d03bf3ea5f356d7bee303bcd121a495",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/node-esm/type-only",
+      "row_sha256": "012d7f978883665e4262a92f3fdfc1def46ea6c214231c71bd12956aefd36323",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/node-esm/import-equals",
+      "row_sha256": "2795dd929674bc8f63b974cf5e2e8fcf14d17ee34f7c420cbebb93b6c8c131b4",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/node-cjs/default",
+      "row_sha256": "b2c2384a7c0396d047cef3701bb588b8aa37f51b585a059580e307fd923797be",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/node-cjs/namespace",
+      "row_sha256": "213c8879322ab168b398161bb8c113a0cab9bbc6b59df68faa5ddabd3f2ae1f4",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/node-cjs/named",
+      "row_sha256": "d2096d8c6c12a111106fb404897c24b6dcf1bc76c94976f57ce6eb0b0811f7c6",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/node-cjs/type-only",
+      "row_sha256": "58fa9efb1493cb40736224d72235dff357d1e884be3f0d2ae94221cc42e7b5b3",
+      "before": "exact"
+    },
+    {
+      "case_id": "ts/node-cjs/import-equals",
+      "row_sha256": "0452e23c4086a0e3e6336abfcccf99079573d7a64fe3ca09fa5544ac20a6e809",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/commonjs/default",
+      "row_sha256": "0e7dcda7a4cd56f280bdf15d855d9dd00560eae580ee55944fc678de138b1907",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/commonjs/namespace",
+      "row_sha256": "51d8855da6ecb69685c44fb651a5309c1d6cabaa4c721745ac39432014ab67cf",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/commonjs/named",
+      "row_sha256": "3ac14047b6205115b17d174c28a717590b984ba0df4e3e649b6e13bc52fd5eac",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/commonjs/type-only",
+      "row_sha256": "50d37d0f4d3e3b9968c702f1e441e4fde93b0252f68c612f3a011dcd30ab6fc4",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/commonjs/import-equals",
+      "row_sha256": "8294706094e26ee2f36ef5f600fcde0821e54786d900d87a68110aafda0915e3",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/esnext/default",
+      "row_sha256": "e8f6f499fef41f64f33d52cec904d2d7eb1159f28c37663ed64fc4a493ca03e5",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/esnext/namespace",
+      "row_sha256": "92595a19234ead0d9fbb4f34f3d71a292e48f9fad4c2f1d81ca23d510590a297",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/esnext/named",
+      "row_sha256": "5847c94992692eb9e5e53b0923b3af1705803164bdc12c523ff7ef04bb8fc570",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/esnext/type-only",
+      "row_sha256": "86003ea98dbfd86ede143793aed13119c6366b036821ed6a32a75349e7d290e5",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/esnext/import-equals",
+      "row_sha256": "6c527459deea8c63388b17b74f224aa1f8c21baf2a7cdf40c2c0ded374bea462",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/node-esm/default",
+      "row_sha256": "6d38b436ea2d4b9607231a7879c0ec236b09f7ebabbfcbeccceabf57bfb3ef4d",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/node-esm/namespace",
+      "row_sha256": "963074cd6b206d9a38262a8e166377ce8c7c2bcbbbe9d0314166b092f1f19768",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/node-esm/named",
+      "row_sha256": "f0afa0fccc19a874efe9baaa9350625e102a46fe7351bec33d5e7a613c8d4131",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/node-esm/type-only",
+      "row_sha256": "88e165e5061f5dcbab22df2dfd3a2c5c6ed7764ad75adc41b6b335ca1b345439",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/node-esm/import-equals",
+      "row_sha256": "ff8a80b4cbe84187443e05f14cf9c9deb0eb2b08ab9f84ec6f9c863100bc7b5d",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/node-cjs/default",
+      "row_sha256": "72a752086992cdb43abc19ce03db778a416e1047737e780db908826e6c857bf9",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/node-cjs/namespace",
+      "row_sha256": "cf5c108d3ed4cf25e0dce62a40df3d08a51dd76ecd78631aabde5728494e8da1",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/node-cjs/named",
+      "row_sha256": "1f14cbbc867b322ec2a6fc2d211815afadfe2fb0391518e8de1285e1616664bf",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/node-cjs/type-only",
+      "row_sha256": "ddb5571588e5974fa316699e883284ee17bb7812ea7087ec11d58ccb773a79a6",
+      "before": "exact"
+    },
+    {
+      "case_id": "js/node-cjs/import-equals",
+      "row_sha256": "0f8b115f492f63ae1d35055b163f4ce715d40fe1ad9f8596402bed3c18b0fa3c",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/checkJs-false/default",
+      "row_sha256": "6750a7575263dc6e52c9547c5c59b8a2c285e824dd01253596b15f5331d74a69",
+      "before": "failed"
+    },
+    {
+      "case_id": "js/checkJs-false/namespace",
+      "row_sha256": "9bccda823419cdcf9a67cb2359594e56dd3903193480840d0fbeba59ef1f9a16",
+      "before": "failed"
+    }
+  ],
+  "originals": [
+    {
+      "case_id": "typescript-6.0.3/compiler/elidedJSImport1.ts#default",
+      "input_sha256": "9f379b6b19ea01c47ef016a7a622d246e84088ab35e063b42e9283d078fed166",
+      "observation_sha256": "dfdd7844e637780380cc1c4ae1ac7d4c0be632eb42f7eba2750939f2673a08a4"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionLikeClasses.ts#target%3Des2015",
+      "input_sha256": "06fbf696252cce55939cb6c7c44d2c830be0e1750a3c274863f4ffd1dda8f2e7",
+      "observation_sha256": "c45ce27e02b78561bc08a6bfd514490e62bf79c32c648968c3a50dc7e2557974"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsFunctionLikeClasses.ts#target%3Des5",
+      "input_sha256": "1d44d05e0d76a1c88193db54f3063eb120f7c46260e543c6cc09584b41e08526",
+      "observation_sha256": "884764a040eb13d16a96e67d69dd74a26c61ed27846cdc6133fd04e0c8835276"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsSynchronousCallErrors.ts#module%3Dnode16",
+      "input_sha256": "ea058068aa046f75ab11903867e5cde41c7ca23054256b0fe5e78e350a68b0ca",
+      "observation_sha256": "9061c7bb05adac0f249b8b7ee48b64045f22ce8418edbc9278a1c0098122920e"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsSynchronousCallErrors.ts#module%3Dnode18",
+      "input_sha256": "11a63505a0578eae18c1d5a885150b9f82528ada77ba1e3113ea5cde066674bd",
+      "observation_sha256": "381a54f43adae5e5433829f1c3f37c2271b00ba41923d5af9baac3b4b993407a"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsSynchronousCallErrors.ts#module%3Dnode20",
+      "input_sha256": "52483b2d950f1183f00f57fc32118ae48cacc12994ced718efa066bd940b6200",
+      "observation_sha256": "710c16803f649ee7baa0623652bfb8955b2b068c84bf5c20940b05814b3823bb"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/allowJs/nodeModulesAllowJsSynchronousCallErrors.ts#module%3Dnodenext",
+      "input_sha256": "5d22ec2f0a8eec6c538dcd8fa39de70df7c9a324cd9a46afabc2e9a62951719f",
+      "observation_sha256": "f3f0bafe732d61655ff04533b08d330ea865be4bd8acdb7dc5ada9532f88d3c6"
+    }
+  ]
+}

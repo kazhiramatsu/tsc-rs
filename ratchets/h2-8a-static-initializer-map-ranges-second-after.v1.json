@@ -1,0 +1,464 @@
+{
+  "version": 1,
+  "status": "second-complete-after-with-twelve-new-class-expression-map-components",
+  "base": "d7863caaad331660aee8d3bf3704273cab10e190",
+  "eligible": 367,
+  "exact_twice": 293,
+  "fresh_exact_twice": 30,
+  "fresh_failed_once": 74,
+  "literal_exact_twice": 20,
+  "adjacent_exact_twice": 233,
+  "original_exact_twice": 10,
+  "new_map_components": [
+    {
+      "case_id": "es5/set/commonjs/class-expression",
+      "native_extra_points_remaining": 3,
+      "typescript_missing_points_remaining": 1,
+      "remaining_difference_points_are_subsets_of_before": false,
+      "new_native_extra_points": [
+        [
+          10,
+          16,
+          0,
+          0,
+          42,
+          null
+        ],
+        [
+          10,
+          16,
+          0,
+          0,
+          37,
+          null
+        ]
+      ],
+      "new_typescript_missing_points": [
+        [
+          10,
+          16,
+          0,
+          0,
+          43,
+          null
+        ]
+      ]
+    },
+    {
+      "case_id": "es5/set/commonjs/anonymous-expression",
+      "native_extra_points_remaining": 3,
+      "typescript_missing_points_remaining": 1,
+      "remaining_difference_points_are_subsets_of_before": false,
+      "new_native_extra_points": [
+        [
+          15,
+          16,
+          0,
+          0,
+          36,
+          null
+        ],
+        [
+          15,
+          16,
+          0,
+          0,
+          31,
+          null
+        ]
+      ],
+      "new_typescript_missing_points": [
+        [
+          15,
+          16,
+          0,
+          0,
+          37,
+          null
+        ]
+      ]
+    },
+    {
+      "case_id": "es5/set/commonjs/nested-resume",
+      "native_extra_points_remaining": 4,
+      "typescript_missing_points_remaining": 1,
+      "remaining_difference_points_are_subsets_of_before": false,
+      "new_native_extra_points": [
+        [
+          13,
+          20,
+          0,
+          0,
+          70,
+          null
+        ],
+        [
+          13,
+          20,
+          0,
+          0,
+          65,
+          null
+        ]
+      ],
+      "new_typescript_missing_points": [
+        [
+          13,
+          20,
+          0,
+          0,
+          71,
+          null
+        ]
+      ]
+    },
+    {
+      "case_id": "es5/define/commonjs/class-expression",
+      "native_extra_points_remaining": 2,
+      "typescript_missing_points_remaining": 1,
+      "remaining_difference_points_are_subsets_of_before": false,
+      "new_native_extra_points": [
+        [
+          20,
+          6,
+          0,
+          0,
+          37,
+          null
+        ]
+      ],
+      "new_typescript_missing_points": [
+        [
+          20,
+          6,
+          0,
+          0,
+          43,
+          null
+        ]
+      ]
+    },
+    {
+      "case_id": "es5/define/commonjs/anonymous-expression",
+      "native_extra_points_remaining": 2,
+      "typescript_missing_points_remaining": 1,
+      "remaining_difference_points_are_subsets_of_before": false,
+      "new_native_extra_points": [
+        [
+          25,
+          6,
+          0,
+          0,
+          31,
+          null
+        ]
+      ],
+      "new_typescript_missing_points": [
+        [
+          25,
+          6,
+          0,
+          0,
+          37,
+          null
+        ]
+      ]
+    },
+    {
+      "case_id": "es5/define/commonjs/nested-resume",
+      "native_extra_points_remaining": 3,
+      "typescript_missing_points_remaining": 1,
+      "remaining_difference_points_are_subsets_of_before": false,
+      "new_native_extra_points": [
+        [
+          27,
+          14,
+          0,
+          0,
+          65,
+          null
+        ]
+      ],
+      "new_typescript_missing_points": [
+        [
+          27,
+          14,
+          0,
+          0,
+          71,
+          null
+        ]
+      ]
+    },
+    {
+      "case_id": "es2015/set/commonjs/class-expression",
+      "native_extra_points_remaining": 3,
+      "typescript_missing_points_remaining": 1,
+      "remaining_difference_points_are_subsets_of_before": false,
+      "new_native_extra_points": [
+        [
+          9,
+          16,
+          0,
+          0,
+          42,
+          null
+        ],
+        [
+          9,
+          16,
+          0,
+          0,
+          37,
+          null
+        ]
+      ],
+      "new_typescript_missing_points": [
+        [
+          9,
+          16,
+          0,
+          0,
+          43,
+          null
+        ]
+      ]
+    },
+    {
+      "case_id": "es2015/set/commonjs/anonymous-expression",
+      "native_extra_points_remaining": 3,
+      "typescript_missing_points_remaining": 1,
+      "remaining_difference_points_are_subsets_of_before": false,
+      "new_native_extra_points": [
+        [
+          14,
+          16,
+          0,
+          0,
+          36,
+          null
+        ],
+        [
+          14,
+          16,
+          0,
+          0,
+          31,
+          null
+        ]
+      ],
+      "new_typescript_missing_points": [
+        [
+          14,
+          16,
+          0,
+          0,
+          37,
+          null
+        ]
+      ]
+    },
+    {
+      "case_id": "es2015/set/commonjs/nested-resume",
+      "native_extra_points_remaining": 6,
+      "typescript_missing_points_remaining": 3,
+      "remaining_difference_points_are_subsets_of_before": false,
+      "new_native_extra_points": [
+        [
+          12,
+          16,
+          0,
+          0,
+          70,
+          null
+        ],
+        [
+          12,
+          16,
+          0,
+          0,
+          65,
+          null
+        ]
+      ],
+      "new_typescript_missing_points": [
+        [
+          12,
+          16,
+          0,
+          0,
+          71,
+          null
+        ]
+      ]
+    },
+    {
+      "case_id": "es2015/define/commonjs/class-expression",
+      "native_extra_points_remaining": 2,
+      "typescript_missing_points_remaining": 1,
+      "remaining_difference_points_are_subsets_of_before": false,
+      "new_native_extra_points": [
+        [
+          19,
+          6,
+          0,
+          0,
+          37,
+          null
+        ]
+      ],
+      "new_typescript_missing_points": [
+        [
+          19,
+          6,
+          0,
+          0,
+          43,
+          null
+        ]
+      ]
+    },
+    {
+      "case_id": "es2015/define/commonjs/anonymous-expression",
+      "native_extra_points_remaining": 2,
+      "typescript_missing_points_remaining": 1,
+      "remaining_difference_points_are_subsets_of_before": false,
+      "new_native_extra_points": [
+        [
+          24,
+          6,
+          0,
+          0,
+          31,
+          null
+        ]
+      ],
+      "new_typescript_missing_points": [
+        [
+          24,
+          6,
+          0,
+          0,
+          37,
+          null
+        ]
+      ]
+    },
+    {
+      "case_id": "es2015/define/commonjs/nested-resume",
+      "native_extra_points_remaining": 5,
+      "typescript_missing_points_remaining": 3,
+      "remaining_difference_points_are_subsets_of_before": false,
+      "new_native_extra_points": [
+        [
+          26,
+          10,
+          0,
+          0,
+          65,
+          null
+        ]
+      ],
+      "new_typescript_missing_points": [
+        [
+          26,
+          10,
+          0,
+          0,
+          71,
+          null
+        ]
+      ]
+    }
+  ],
+  "compiler_exit_code": 101,
+  "emitter_exit_code": 0,
+  "emitter_units": 483,
+  "emitter_contracts": 451,
+  "seconds": [
+    366.89,
+    29.33,
+    0.7,
+    2.55
+  ],
+  "required_followup": "restore moveRangePastModifiers expression map after static statement unwrap, as generateInitializedPropertyExpressionsOrClassStaticBlock does",
+  "working_files": [
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "06fb3fbd4bdf47f28841e5295f3533f33a926924944990c37d98b174c669d790"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/property-literal-key-ranges.json",
+      "sha256": "ab161b74a368187cf78398127e2ecf951748fa4a398c08b0e9e071c8242ccd8a"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/static-initializer-map-ranges.json",
+      "sha256": "5c02323b3b5a00ff6e3a285aef4d40f78b637728490cbeba4b62f436855e69de"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "726a6d93a6f97ec8e9509772260c71bd05326ae3addb56b90ee17d910e92e695"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_static_initializer_map_ranges.rs",
+      "sha256": "bee007cbc47b29e2cbbdc3416bcc1703ebcd48e63e892b258cad7ae000a46e72"
+    },
+    {
+      "path": "crates/emitter/src/builtins/class_fields/downlevel.rs",
+      "sha256": "a80fb27fadd857fffce9b5b79e68831359fa55b8a294d77f3137cd546f367bad"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-static-initializer-map-ranges.md",
+      "sha256": "46cdc4c38562e7e8cffdca37bd04707efa1f26ccf09d25db87d123493418af61"
+    },
+    {
+      "path": "ratchets/h2-8a-property-literal-key-ranges-before.v1.json",
+      "sha256": "0ed124a80fe7aca8f8db892722af8258cae0ac6dde78f0034eeafd1669dc2b54"
+    },
+    {
+      "path": "ratchets/h2-8a-static-initializer-map-ranges-before.v1.json",
+      "sha256": "5fff6f961d1f463f625c01105bf627fc7e10e4aa60e729d3495e2d0f60b78ea7"
+    },
+    {
+      "path": "ratchets/h2-8a-static-initializer-map-ranges-first-after.v1.json",
+      "sha256": "6aa095a8ccadfe5655cf717c3b36b322840c132bd9ae54cf14be8e67ebd57b8e"
+    },
+    {
+      "path": "ratchets/h2-8a-static-initializer-map-ranges-readiness.v1.json",
+      "sha256": "b5c1de224948baa44b75dd6bb6b2e70bf31f94b58d25792d1bb110e21f73ae7a"
+    },
+    {
+      "path": "scripts/check-static-initializer-map-ranges-readiness.py",
+      "sha256": "5ccaeb272d2c677edec59c875dcfd6941a03c97fb4584f1fcb2bf144cc6daf23"
+    },
+    {
+      "path": "scripts/observe-property-literal-key-ranges.mjs",
+      "sha256": "2641adb871dfc7b5250a0c6660c6f1b40374370f0a3a3b93655f1ffd8cb4f3d5"
+    },
+    {
+      "path": "scripts/observe-static-initializer-map-ranges.mjs",
+      "sha256": "534a4cc55cc9edc3c76a2ff1fa83a4cf6d10ac3897b6f72f8e5edbe7cc6c3faf"
+    },
+    {
+      "path": "target/h2-8a-static-initializer-map-ranges-after-analysis.json",
+      "sha256": "0e3dd0904448b75f02d162a013a93f8c73685bf2e6da459a02b094c17061b931"
+    },
+    {
+      "path": "target/h2-8a-static-initializer-map-ranges-after.log",
+      "sha256": "c00f7f4741840c96e8c84548f5df73f26db1d8a525a8e499051187f48e4ebd4a"
+    },
+    {
+      "path": "target/h2-8a-static-initializer-map-ranges-emitter-after.log",
+      "sha256": "050fe02eca12c6379150b952721631cee0c56ecf12fd129651c2deddd8f911ba"
+    },
+    {
+      "path": "target/h2-8a-static-initializer-map-ranges-residue-subsets.json",
+      "sha256": "cefc3ab9646ea8be0f936e16bce09e97836f58dd51d178e07f9a339a2ca5dda9"
+    },
+    {
+      "path": "target/verify-static-map-residue-subsets.py",
+      "sha256": "f5b72f558b98f542d1fcbaab7122074fd5e38a4d677a91114d8d6427e6344cb5"
+    }
+  ],
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-static-map-second-after-i6qhf05v"
+}

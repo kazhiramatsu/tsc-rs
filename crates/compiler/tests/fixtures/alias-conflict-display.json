@@ -1,0 +1,2514 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "41963c0ba405537e6fda342140ed402aa7f9033c0da4dcd1385ee19eb64fc8d0",
+  "repetitions": 2,
+  "cases": [
+    {
+      "case_id": "js/es2015/quoted-double-before",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "export { value as \"value\" };\nexport const value = 1;\n"
+        },
+        {
+          "path": "/project/lib.js",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 24,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 24,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 9,
+            "length": 16,
+            "message": "Cannot redeclare exported variable 'value'.",
+            "related_information": null
+          },
+          {
+            "code": 2484,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 9,
+            "length": 16,
+            "message": "Export declaration conflicts with exported declaration of '\"value\"'.",
+            "related_information": null
+          },
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 42,
+            "length": 5,
+            "message": "Cannot redeclare exported variable 'value'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/es2015/quoted-single-before",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "export { value as 'value' };\nexport const value = 1;\n"
+        },
+        {
+          "path": "/project/lib.js",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 24,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 24,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 9,
+            "length": 16,
+            "message": "Cannot redeclare exported variable 'value'.",
+            "related_information": null
+          },
+          {
+            "code": 2484,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 9,
+            "length": 16,
+            "message": "Export declaration conflicts with exported declaration of ''value''.",
+            "related_information": null
+          },
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 42,
+            "length": 5,
+            "message": "Cannot redeclare exported variable 'value'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/es2015/quoted-unicode-before",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "export { 名前 as \"名前\" };\nexport const 名前 = 1;\n"
+        },
+        {
+          "path": "/project/lib.js",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMu5ZCN5YmNID0gdm9pZCAwOw0KZXhwb3J0cy7lkI3liY0gPSAxOw0K",
+            "callback_utf8_bytes": 126,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMu5ZCN5YmNID0gdm9pZCAwOw0KZXhwb3J0cy7lkI3liY0gPSAxOw0K",
+            "materialized_utf8_bytes": 126,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IOWQjeWJjTogMTsNCg==",
+            "callback_utf8_bytes": 25,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IOWQjeWJjTogMTsNCg==",
+            "materialized_utf8_bytes": 25,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 9,
+            "length": 10,
+            "message": "Cannot redeclare exported variable '名前'.",
+            "related_information": null
+          },
+          {
+            "code": 2484,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 9,
+            "length": 10,
+            "message": "Export declaration conflicts with exported declaration of '\"名前\"'.",
+            "related_information": null
+          },
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 36,
+            "length": 2,
+            "message": "Cannot redeclare exported variable '名前'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/es2015/quoted-underscores-before",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "export { ___value as \"___value\" };\nexport const ___value = 1;\n"
+        },
+        {
+          "path": "/project/lib.js",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuX19fdmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLl9fX3ZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 130,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuX19fdmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLl9fX3ZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 130,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IF9fX3ZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 27,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IF9fX3ZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 27,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 9,
+            "length": 22,
+            "message": "Cannot redeclare exported variable '___value'.",
+            "related_information": null
+          },
+          {
+            "code": 2484,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 9,
+            "length": 22,
+            "message": "Export declaration conflicts with exported declaration of '\"___value\"'.",
+            "related_information": null
+          },
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 48,
+            "length": 8,
+            "message": "Cannot redeclare exported variable '___value'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/es2015/direct-before-double",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "export const value = 1;\nexport { value as \"value\" };\n"
+        },
+        {
+          "path": "/project/lib.js",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 24,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 24,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 13,
+            "length": 5,
+            "message": "Cannot redeclare exported variable 'value'.",
+            "related_information": null
+          },
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 33,
+            "length": 16,
+            "message": "Cannot redeclare exported variable 'value'.",
+            "related_information": null
+          },
+          {
+            "code": 2484,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 33,
+            "length": 16,
+            "message": "Export declaration conflicts with exported declaration of 'value'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/es2015/direct-before-single",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "export const value = 1;\nexport { value as 'value' };\n"
+        },
+        {
+          "path": "/project/lib.js",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 24,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 24,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 13,
+            "length": 5,
+            "message": "Cannot redeclare exported variable 'value'.",
+            "related_information": null
+          },
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 33,
+            "length": 16,
+            "message": "Cannot redeclare exported variable 'value'.",
+            "related_information": null
+          },
+          {
+            "code": 2484,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 33,
+            "length": 16,
+            "message": "Export declaration conflicts with exported declaration of 'value'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/es2015/identifier-before",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "export { value };\nexport const value = 1;\n"
+        },
+        {
+          "path": "/project/lib.js",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 24,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 24,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 9,
+            "length": 5,
+            "message": "Cannot redeclare exported variable 'value'.",
+            "related_information": null
+          },
+          {
+            "code": 2484,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 9,
+            "length": 5,
+            "message": "Export declaration conflicts with exported declaration of 'value'.",
+            "related_information": null
+          },
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 31,
+            "length": 5,
+            "message": "Cannot redeclare exported variable 'value'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/es2015/quoted-before-function",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "export { value as \"value\" };\nexport function value() { return 1; }\n"
+        },
+        {
+          "path": "/project/lib.js",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2YWx1ZTsNCmZ1bmN0aW9uIHZhbHVlKCkgeyByZXR1cm4gMTsgfQ0K",
+            "callback_utf8_bytes": 135,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2YWx1ZTsNCmZ1bmN0aW9uIHZhbHVlKCkgeyByZXR1cm4gMTsgfQ0K",
+            "materialized_utf8_bytes": 135,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGZ1bmN0aW9uIHZhbHVlKCk6IG51bWJlcjsNCg==",
+            "callback_utf8_bytes": 34,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGZ1bmN0aW9uIHZhbHVlKCk6IG51bWJlcjsNCg==",
+            "materialized_utf8_bytes": 34,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 9,
+            "length": 16,
+            "message": "Cannot redeclare exported variable 'value'.",
+            "related_information": null
+          },
+          {
+            "code": 2484,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 9,
+            "length": 16,
+            "message": "Export declaration conflicts with exported declaration of 'value'.",
+            "related_information": null
+          },
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 45,
+            "length": 5,
+            "message": "Cannot redeclare exported variable 'value'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/es2015/quoted-before-class",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "export { value as \"value\" };\nexport class value {}\n"
+        },
+        {
+          "path": "/project/lib.js",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpjbGFzcyB2YWx1ZSB7DQp9DQpleHBvcnRzLnZhbHVlID0gdmFsdWU7DQo=",
+            "callback_utf8_bytes": 146,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpjbGFzcyB2YWx1ZSB7DQp9DQpleHBvcnRzLnZhbHVlID0gdmFsdWU7DQo=",
+            "materialized_utf8_bytes": 146,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNsYXNzIHZhbHVlIHsNCn0NCg==",
+            "callback_utf8_bytes": 25,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNsYXNzIHZhbHVlIHsNCn0NCg==",
+            "materialized_utf8_bytes": 25,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 9,
+            "length": 16,
+            "message": "Cannot redeclare exported variable 'value'.",
+            "related_information": null
+          },
+          {
+            "code": 2484,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 9,
+            "length": 16,
+            "message": "Export declaration conflicts with exported declaration of '\"value\"'.",
+            "related_information": null
+          },
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 42,
+            "length": 5,
+            "message": "Cannot redeclare exported variable 'value'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/es2015/import-conflict",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import { value } from \"./lib\";\nconst value = 2;\nexport { value };\n"
+        },
+        {
+          "path": "/project/lib.js",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/lib.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/lib.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/lib.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 24,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 24,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/lib.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpjb25zdCBsaWJfMSA9IHJlcXVpcmUoIi4vbGliIik7DQpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgInZhbHVlIiwgeyBlbnVtZXJhYmxlOiB0cnVlLCBnZXQ6IGZ1bmN0aW9uICgpIHsgcmV0dXJuIHZhbHVlOyB9IH0pOw0KY29uc3QgdmFsdWUgPSAyOw0KZXhwb3J0cy52YWx1ZSA9IHZhbHVlOw0K",
+            "callback_utf8_bytes": 279,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpjb25zdCBsaWJfMSA9IHJlcXVpcmUoIi4vbGliIik7DQpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgInZhbHVlIiwgeyBlbnVtZXJhYmxlOiB0cnVlLCBnZXQ6IGZ1bmN0aW9uICgpIHsgcmV0dXJuIHZhbHVlOyB9IH0pOw0KY29uc3QgdmFsdWUgPSAyOw0KZXhwb3J0cy52YWx1ZSA9IHZhbHVlOw0K",
+            "materialized_utf8_bytes": 279,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlOiAyOw0KaW1wb3J0IHsgdmFsdWUgfSBmcm9tICIuL2xpYiI7DQo=",
+            "callback_utf8_bytes": 56,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlOiAyOw0KaW1wb3J0IHsgdmFsdWUgfSBmcm9tICIuL2xpYiI7DQo=",
+            "materialized_utf8_bytes": 56,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 2440,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 9,
+            "length": 5,
+            "message": "Import declaration conflicts with local declaration of 'value'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/es2015/quoted-import-conflict",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import { \"value\" as local } from \"./lib\";\nconst local = 2;\nexport { local };\n"
+        },
+        {
+          "path": "/project/lib.js",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/lib.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/lib.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/lib.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 24,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 24,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/lib.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMubG9jYWwgPSB2b2lkIDA7DQpjb25zdCBsaWJfMSA9IHJlcXVpcmUoIi4vbGliIik7DQpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgImxvY2FsIiwgeyBlbnVtZXJhYmxlOiB0cnVlLCBnZXQ6IGZ1bmN0aW9uICgpIHsgcmV0dXJuIGxvY2FsOyB9IH0pOw0KY29uc3QgbG9jYWwgPSAyOw0KZXhwb3J0cy5sb2NhbCA9IGxvY2FsOw0K",
+            "callback_utf8_bytes": 279,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMubG9jYWwgPSB2b2lkIDA7DQpjb25zdCBsaWJfMSA9IHJlcXVpcmUoIi4vbGliIik7DQpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgImxvY2FsIiwgeyBlbnVtZXJhYmxlOiB0cnVlLCBnZXQ6IGZ1bmN0aW9uICgpIHsgcmV0dXJuIGxvY2FsOyB9IH0pOw0KY29uc3QgbG9jYWwgPSAyOw0KZXhwb3J0cy5sb2NhbCA9IGxvY2FsOw0K",
+            "materialized_utf8_bytes": 279,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IGxvY2FsOiAyOw0KaW1wb3J0IHsgdmFsdWUgYXMgbG9jYWwgfSBmcm9tICIuL2xpYiI7DQo=",
+            "callback_utf8_bytes": 65,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IGxvY2FsOiAyOw0KaW1wb3J0IHsgdmFsdWUgYXMgbG9jYWwgfSBmcm9tICIuL2xpYiI7DQo=",
+            "materialized_utf8_bytes": 65,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 2440,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 9,
+            "length": 16,
+            "message": "Import declaration conflicts with local declaration of 'local'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "js/es2015/quoted-without-conflict",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "const value = 1;\nexport { value as \"value\" };\n"
+        },
+        {
+          "path": "/project/lib.js",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHNbInZhbHVlIl0gPSB2b2lkIDA7DQpjb25zdCB2YWx1ZSA9IDE7DQpleHBvcnRzWyJ2YWx1ZSJdID0gdmFsdWU7DQo=",
+            "callback_utf8_bytes": 152,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHNbInZhbHVlIl0gPSB2b2lkIDA7DQpjb25zdCB2YWx1ZSA9IDE7DQpleHBvcnRzWyJ2YWx1ZSJdID0gdmFsdWU7DQo=",
+            "materialized_utf8_bytes": 152,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlOiAxOw0K",
+            "callback_utf8_bytes": 24,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlOiAxOw0K",
+            "materialized_utf8_bytes": 24,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "ts/es2015/quoted-double-before",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export { value as \"value\" };\nexport const value = 1;\n"
+        },
+        {
+          "path": "/project/lib.ts",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IHsgdmFsdWUgYXMgInZhbHVlIiB9Ow0KZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAxOw0K",
+            "callback_utf8_bytes": 63,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IHsgdmFsdWUgYXMgInZhbHVlIiB9Ow0KZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAxOw0K",
+            "materialized_utf8_bytes": 63,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 9,
+            "length": 16,
+            "message": "Cannot redeclare exported variable 'value'.",
+            "related_information": null
+          },
+          {
+            "code": 2484,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 9,
+            "length": 16,
+            "message": "Export declaration conflicts with exported declaration of '\"value\"'.",
+            "related_information": null
+          },
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 42,
+            "length": 5,
+            "message": "Cannot redeclare exported variable 'value'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "ts/es2015/quoted-single-before",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export { value as 'value' };\nexport const value = 1;\n"
+        },
+        {
+          "path": "/project/lib.ts",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IHsgdmFsdWUgYXMgJ3ZhbHVlJyB9Ow0KZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAxOw0K",
+            "callback_utf8_bytes": 63,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IHsgdmFsdWUgYXMgJ3ZhbHVlJyB9Ow0KZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAxOw0K",
+            "materialized_utf8_bytes": 63,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 9,
+            "length": 16,
+            "message": "Cannot redeclare exported variable 'value'.",
+            "related_information": null
+          },
+          {
+            "code": 2484,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 9,
+            "length": 16,
+            "message": "Export declaration conflicts with exported declaration of ''value''.",
+            "related_information": null
+          },
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 42,
+            "length": 5,
+            "message": "Cannot redeclare exported variable 'value'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "ts/es2015/quoted-unicode-before",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export { 名前 as \"名前\" };\nexport const 名前 = 1;\n"
+        },
+        {
+          "path": "/project/lib.ts",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMu5ZCN5YmNID0gdm9pZCAwOw0KZXhwb3J0cy7lkI3liY0gPSAxOw0K",
+            "callback_utf8_bytes": 126,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMu5ZCN5YmNID0gdm9pZCAwOw0KZXhwb3J0cy7lkI3liY0gPSAxOw0K",
+            "materialized_utf8_bytes": 126,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IHsg5ZCN5YmNIGFzICLlkI3liY0iIH07DQpleHBvcnQgZGVjbGFyZSBjb25zdCDlkI3liY0gPSAxOw0K",
+            "callback_utf8_bytes": 66,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IHsg5ZCN5YmNIGFzICLlkI3liY0iIH07DQpleHBvcnQgZGVjbGFyZSBjb25zdCDlkI3liY0gPSAxOw0K",
+            "materialized_utf8_bytes": 66,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 9,
+            "length": 10,
+            "message": "Cannot redeclare exported variable '名前'.",
+            "related_information": null
+          },
+          {
+            "code": 2484,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 9,
+            "length": 10,
+            "message": "Export declaration conflicts with exported declaration of '\"名前\"'.",
+            "related_information": null
+          },
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 36,
+            "length": 2,
+            "message": "Cannot redeclare exported variable '名前'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "ts/es2015/quoted-underscores-before",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export { ___value as \"___value\" };\nexport const ___value = 1;\n"
+        },
+        {
+          "path": "/project/lib.ts",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuX19fdmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLl9fX3ZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 130,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuX19fdmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLl9fX3ZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 130,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IHsgX19fdmFsdWUgYXMgIl9fX3ZhbHVlIiB9Ow0KZXhwb3J0IGRlY2xhcmUgY29uc3QgX19fdmFsdWUgPSAxOw0K",
+            "callback_utf8_bytes": 72,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IHsgX19fdmFsdWUgYXMgIl9fX3ZhbHVlIiB9Ow0KZXhwb3J0IGRlY2xhcmUgY29uc3QgX19fdmFsdWUgPSAxOw0K",
+            "materialized_utf8_bytes": 72,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 9,
+            "length": 22,
+            "message": "Cannot redeclare exported variable '___value'.",
+            "related_information": null
+          },
+          {
+            "code": 2484,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 9,
+            "length": 22,
+            "message": "Export declaration conflicts with exported declaration of '\"___value\"'.",
+            "related_information": null
+          },
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 48,
+            "length": 8,
+            "message": "Cannot redeclare exported variable '___value'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "ts/es2015/direct-before-double",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\nexport { value as \"value\" };\n"
+        },
+        {
+          "path": "/project/lib.ts",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAxOw0KZXhwb3J0IHsgdmFsdWUgYXMgInZhbHVlIiB9Ow0K",
+            "callback_utf8_bytes": 63,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAxOw0KZXhwb3J0IHsgdmFsdWUgYXMgInZhbHVlIiB9Ow0K",
+            "materialized_utf8_bytes": 63,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 13,
+            "length": 5,
+            "message": "Cannot redeclare exported variable 'value'.",
+            "related_information": null
+          },
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 33,
+            "length": 16,
+            "message": "Cannot redeclare exported variable 'value'.",
+            "related_information": null
+          },
+          {
+            "code": 2484,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 33,
+            "length": 16,
+            "message": "Export declaration conflicts with exported declaration of 'value'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "ts/es2015/direct-before-single",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const value = 1;\nexport { value as 'value' };\n"
+        },
+        {
+          "path": "/project/lib.ts",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAxOw0KZXhwb3J0IHsgdmFsdWUgYXMgJ3ZhbHVlJyB9Ow0K",
+            "callback_utf8_bytes": 63,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAxOw0KZXhwb3J0IHsgdmFsdWUgYXMgJ3ZhbHVlJyB9Ow0K",
+            "materialized_utf8_bytes": 63,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 13,
+            "length": 5,
+            "message": "Cannot redeclare exported variable 'value'.",
+            "related_information": null
+          },
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 33,
+            "length": 16,
+            "message": "Cannot redeclare exported variable 'value'.",
+            "related_information": null
+          },
+          {
+            "code": 2484,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 33,
+            "length": 16,
+            "message": "Export declaration conflicts with exported declaration of 'value'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "ts/es2015/identifier-before",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export { value };\nexport const value = 1;\n"
+        },
+        {
+          "path": "/project/lib.ts",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IHsgdmFsdWUgfTsNCmV4cG9ydCBkZWNsYXJlIGNvbnN0IHZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 52,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IHsgdmFsdWUgfTsNCmV4cG9ydCBkZWNsYXJlIGNvbnN0IHZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 52,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 9,
+            "length": 5,
+            "message": "Cannot redeclare exported variable 'value'.",
+            "related_information": null
+          },
+          {
+            "code": 2484,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 9,
+            "length": 5,
+            "message": "Export declaration conflicts with exported declaration of 'value'.",
+            "related_information": null
+          },
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 31,
+            "length": 5,
+            "message": "Cannot redeclare exported variable 'value'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "ts/es2015/quoted-before-function",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export { value as \"value\" };\nexport function value() { return 1; }\n"
+        },
+        {
+          "path": "/project/lib.ts",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2YWx1ZTsNCmZ1bmN0aW9uIHZhbHVlKCkgeyByZXR1cm4gMTsgfQ0K",
+            "callback_utf8_bytes": 135,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2YWx1ZTsNCmZ1bmN0aW9uIHZhbHVlKCkgeyByZXR1cm4gMTsgfQ0K",
+            "materialized_utf8_bytes": 135,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IHsgdmFsdWUgYXMgInZhbHVlIiB9Ow0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gdmFsdWUoKTogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 72,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IHsgdmFsdWUgYXMgInZhbHVlIiB9Ow0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gdmFsdWUoKTogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 72,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 9,
+            "length": 16,
+            "message": "Cannot redeclare exported variable 'value'.",
+            "related_information": null
+          },
+          {
+            "code": 2484,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 9,
+            "length": 16,
+            "message": "Export declaration conflicts with exported declaration of 'value'.",
+            "related_information": null
+          },
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 45,
+            "length": 5,
+            "message": "Cannot redeclare exported variable 'value'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "ts/es2015/quoted-before-class",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export { value as \"value\" };\nexport class value {}\n"
+        },
+        {
+          "path": "/project/lib.ts",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpjbGFzcyB2YWx1ZSB7DQp9DQpleHBvcnRzLnZhbHVlID0gdmFsdWU7DQo=",
+            "callback_utf8_bytes": 146,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpjbGFzcyB2YWx1ZSB7DQp9DQpleHBvcnRzLnZhbHVlID0gdmFsdWU7DQo=",
+            "materialized_utf8_bytes": 146,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IHsgdmFsdWUgYXMgInZhbHVlIiB9Ow0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgdmFsdWUgew0KfQ0K",
+            "callback_utf8_bytes": 63,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IHsgdmFsdWUgYXMgInZhbHVlIiB9Ow0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgdmFsdWUgew0KfQ0K",
+            "materialized_utf8_bytes": 63,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 9,
+            "length": 16,
+            "message": "Cannot redeclare exported variable 'value'.",
+            "related_information": null
+          },
+          {
+            "code": 2484,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 9,
+            "length": 16,
+            "message": "Export declaration conflicts with exported declaration of '\"value\"'.",
+            "related_information": null
+          },
+          {
+            "code": 2323,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 42,
+            "length": 5,
+            "message": "Cannot redeclare exported variable 'value'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "ts/es2015/import-conflict",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "import { value } from \"./lib\";\nconst value = 2;\nexport { value };\n"
+        },
+        {
+          "path": "/project/lib.ts",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/lib.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/lib.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/lib.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAxOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAxOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/lib.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpjb25zdCB2YWx1ZSA9IDI7DQpleHBvcnRzLnZhbHVlID0gdmFsdWU7DQo=",
+            "callback_utf8_bytes": 146,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpjb25zdCB2YWx1ZSA9IDI7DQpleHBvcnRzLnZhbHVlID0gdmFsdWU7DQo=",
+            "materialized_utf8_bytes": 146,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "aW1wb3J0IHsgdmFsdWUgfSBmcm9tICIuL2xpYiI7DQpkZWNsYXJlIGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCB7IHZhbHVlIH07DQo=",
+            "callback_utf8_bytes": 77,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "aW1wb3J0IHsgdmFsdWUgfSBmcm9tICIuL2xpYiI7DQpkZWNsYXJlIGNvbnN0IHZhbHVlID0gMjsNCmV4cG9ydCB7IHZhbHVlIH07DQo=",
+            "materialized_utf8_bytes": 77,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 2440,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 9,
+            "length": 5,
+            "message": "Import declaration conflicts with local declaration of 'value'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "ts/es2015/quoted-import-conflict",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "import { \"value\" as local } from \"./lib\";\nconst local = 2;\nexport { local };\n"
+        },
+        {
+          "path": "/project/lib.ts",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/lib.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "callback_utf8_bytes": 124,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudmFsdWUgPSB2b2lkIDA7DQpleHBvcnRzLnZhbHVlID0gMTsNCg==",
+            "materialized_utf8_bytes": 124,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/lib.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/lib.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAxOw0K",
+            "callback_utf8_bytes": 33,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAxOw0K",
+            "materialized_utf8_bytes": 33,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/lib.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMubG9jYWwgPSB2b2lkIDA7DQpjb25zdCBsb2NhbCA9IDI7DQpleHBvcnRzLmxvY2FsID0gbG9jYWw7DQo=",
+            "callback_utf8_bytes": 146,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMubG9jYWwgPSB2b2lkIDA7DQpjb25zdCBsb2NhbCA9IDI7DQpleHBvcnRzLmxvY2FsID0gbG9jYWw7DQo=",
+            "materialized_utf8_bytes": 146,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "aW1wb3J0IHsgInZhbHVlIiBhcyBsb2NhbCB9IGZyb20gIi4vbGliIjsNCmRlY2xhcmUgY29uc3QgbG9jYWwgPSAyOw0KZXhwb3J0IHsgbG9jYWwgfTsNCg==",
+            "callback_utf8_bytes": 88,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "aW1wb3J0IHsgInZhbHVlIiBhcyBsb2NhbCB9IGZyb20gIi4vbGliIjsNCmRlY2xhcmUgY29uc3QgbG9jYWwgPSAyOw0KZXhwb3J0IHsgbG9jYWwgfTsNCg==",
+            "materialized_utf8_bytes": 88,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 2440,
+            "category": "Error",
+            "file": "/project/main.ts",
+            "start": 9,
+            "length": 16,
+            "message": "Import declaration conflicts with local declaration of 'local'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "ts/es2015/quoted-without-conflict",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const value = 1;\nexport { value as \"value\" };\n"
+        },
+        {
+          "path": "/project/lib.ts",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 1,
+        "target": 2
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHNbInZhbHVlIl0gPSB2b2lkIDA7DQpjb25zdCB2YWx1ZSA9IDE7DQpleHBvcnRzWyJ2YWx1ZSJdID0gdmFsdWU7DQo=",
+            "callback_utf8_bytes": 152,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHNbInZhbHVlIl0gPSB2b2lkIDA7DQpjb25zdCB2YWx1ZSA9IDE7DQpleHBvcnRzWyJ2YWx1ZSJdID0gdmFsdWU7DQo=",
+            "materialized_utf8_bytes": 152,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQpleHBvcnQgeyB2YWx1ZSBhcyAidmFsdWUiIH07DQo=",
+            "callback_utf8_bytes": 56,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQpleHBvcnQgeyB2YWx1ZSBhcyAidmFsdWUiIH07DQo=",
+            "materialized_utf8_bytes": 56,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    }
+  ]
+}

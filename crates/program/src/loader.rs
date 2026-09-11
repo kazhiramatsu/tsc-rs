@@ -1041,7 +1041,7 @@ enum SourceInclusionReason {
     Root(RootFileReason),
     Import {
         parent: PathBuf,
-        specifier: String,
+        reference_text: String,
         pos: u32,
         end: u32,
     },
@@ -1229,6 +1229,7 @@ struct CompleteGraph {
     module_resolutions: Vec<StagedModuleResolution>,
     type_resolutions: Vec<StagedTypeResolution>,
     program_diagnostics: Vec<Diagnostic>,
+    option_diagnostics: Vec<Diagnostic>,
 }
 
 struct StagedGraph<'host, 'options, 'resolver> {
@@ -1800,6 +1801,8 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         self.program_diagnostics
             .extend(case_sensitive_casing_diagnostics);
         self.propagate_non_external_reachability();
+        let (option_diagnostics, root_diagnostics) = self.output_directory_diagnostics();
+        self.program_diagnostics.extend(root_diagnostics);
         let mut library_postorder = self
             .postorder
             .iter()
@@ -1827,7 +1830,162 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             module_resolutions: self.module_resolutions,
             type_resolutions: self.type_resolutions,
             program_diagnostics: self.program_diagnostics,
+            option_diagnostics,
         }
+    }
+
+    /// tsc-port: verifyCompilerOptions @6.0.3 (output directories)
+    /// tsc-hash: 37d75cd1533127623cddc13e96bd9dec83595c91e1c2cc7166c7e2b27bfeaeeb
+    /// tsc-span: _tsc.js:124907-124943
+    /// tsc-port: checkSourceFilesBelongToPath @6.0.3
+    /// tsc-hash: ce80660462a7406eafca61b870f95cc1d860753bbf6a7f7b4c97a857a0fec137
+    /// tsc-span: _tsc.js:124639-124657
+    /// Root diagnostics join the Program collection; its consumers select
+    /// fileless option diagnostics and source-owned semantic diagnostics.
+    fn output_directory_diagnostics(&self) -> (Vec<Diagnostic>, Vec<Diagnostic>) {
+        use crate::output_directories::{
+            canonical_emit_path, common_source_directory, directory_relative_to_config,
+            inferred_common_source_directory, source_file_may_be_emitted_for_options,
+        };
+        let options = self.compiler_options;
+        let active =
+            |value: &Option<String>| value.as_deref().is_some_and(|value| !value.is_empty());
+        let declarations = options.declaration == Some(true) || options.composite == Some(true);
+        let config_path = self
+            .program_options
+            .config_file_path()
+            .map(ProgramPath::display);
+        let verify = active(&options.out_dir)
+            || active(&options.root_dir)
+            || active(&options.source_root)
+            || active(&options.map_root)
+            || declarations && active(&options.declaration_dir);
+        let migration = options.no_emit != Some(true)
+            && options.composite != Some(true)
+            && !active(&options.root_dir)
+            && config_path.is_some()
+            && (active(&options.out_dir)
+                || active(&options.out_file)
+                || declarations && active(&options.declaration_dir));
+        if !verify && !migration {
+            return (Vec::new(), Vec::new());
+        }
+
+        let context = self.resolver.path_context();
+        let current_directory = context.current_directory().display();
+        let case_sensitive = context.use_case_sensitive_file_names();
+        let emitted = self
+            .postorder
+            .iter()
+            .map(|&index| &self.sources[index])
+            .filter(|source| {
+                source_file_may_be_emitted_for_options(
+                    source.prepared.path().display(),
+                    source.prepared.may_be_emitted() && source.has_non_external_reason,
+                    options,
+                    config_path,
+                    current_directory,
+                    case_sensitive,
+                )
+            })
+            .collect::<Vec<_>>();
+        let paths = emitted
+            .iter()
+            .map(|source| source.prepared.path().display())
+            .collect::<Vec<_>>();
+        let common = common_source_directory(
+            options,
+            config_path,
+            &paths,
+            current_directory,
+            case_sensitive,
+        );
+        let mut diagnostics = Vec::new();
+        let mut root_diagnostics = Vec::new();
+        let root = options
+            .root_dir
+            .as_deref()
+            .filter(|root| !root.is_empty())
+            .map(str::to_owned)
+            .or_else(|| config_path.map(|config| directory_name(&config.to_string_lossy())));
+        if let Some(root) = root {
+            let packages = self
+                .resolver
+                .observed_package_metadata()
+                .map(|package| (package.package_json().canonical(), package))
+                .collect::<BTreeMap<_, _>>();
+            let canonical_root =
+                canonical_emit_path(Path::new(&root), current_directory, case_sensitive);
+            for source in &emitted {
+                let file = canonical_emit_path(
+                    source.prepared.path().display(),
+                    current_directory,
+                    case_sensitive,
+                );
+                if !file
+                    .to_string_lossy()
+                    .starts_with(canonical_root.to_string_lossy().as_ref())
+                {
+                    root_diagnostics.push(root_directory_diagnostic(
+                        source,
+                        &root,
+                        self.program_options.config_file(),
+                        source
+                            .prepared
+                            .package_scope()
+                            .and_then(|key| packages.get(key).copied()),
+                    ));
+                }
+            }
+        }
+        if active(&options.out_dir)
+            && common.as_os_str().is_empty()
+            && self.sources.iter().any(|source| {
+                crate::module_resolution::normalized_root_parts(
+                    &source.prepared.path().display().to_string_lossy(),
+                )
+                .is_some_and(|(root, _)| root.len() > 1)
+            })
+        {
+            append_output_option_diagnostic(
+                &mut diagnostics,
+                self.program_options.config_file(),
+                &["outDir"],
+                MessageChain::new(
+                    &gen::Cannot_find_the_common_subdirectory_path_for_the_input_files,
+                    &[],
+                ),
+            );
+        }
+        if migration {
+            let config = config_path.expect("migration requires a config path");
+            let inferred =
+                inferred_common_source_directory(&paths, current_directory, case_sensitive);
+            if !inferred.as_os_str().is_empty()
+                && canonical_emit_path(&common, current_directory, case_sensitive)
+                    != canonical_emit_path(&inferred, current_directory, case_sensitive)
+            {
+                let names: &[&str] = if active(&options.out_file) {
+                    &["outFile"]
+                } else if active(&options.out_dir) {
+                    &["outDir", "declarationDir"]
+                } else {
+                    &["declarationDir"]
+                };
+                let message = MessageChain::new(
+                    &gen::The_common_source_directory_of_0_is_1_The_rootDir_setting_must_be_explicitly_set_to_this_or_another_path_to_adjust_your_output_s_file_layout,
+                    &[config.file_name().expect("config path names a file").to_string_lossy().into_owned(),
+                        directory_relative_to_config(config, &inferred, case_sensitive)],
+                ).with_next(vec![MessageChain::new(&gen::Visit_https_aka_ms_ts6_for_migration_information, &[])]);
+                append_output_option_diagnostic(
+                    &mut diagnostics,
+                    self.program_options.config_file(),
+                    names,
+                    message,
+                );
+            }
+        }
+        (diagnostics, root_diagnostics)
     }
 
     fn visit_source(
@@ -2771,11 +2929,22 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             let inclusion = self.sources[source]
                 .module_request_spans
                 .get(&key)
-                .map(|(pos, end)| SourceInclusionReason::Import {
-                    parent: containing_file.clone(),
-                    specifier: key.specifier().to_owned(),
-                    pos: *pos,
-                    end: *end,
+                .map(|(pos, end)| {
+                    let prepared = &self.sources[source].prepared;
+                    let positions = prepared.snapshot().positions();
+                    let start_byte = positions
+                        .utf16_to_byte(*pos)
+                        .expect("module request starts at a source token boundary");
+                    let end_byte = positions
+                        .utf16_to_byte(*end)
+                        .expect("module request ends at a source token boundary");
+                    SourceInclusionReason::Import {
+                        parent: containing_file.clone(),
+                        reference_text: prepared.text()[start_byte as usize..end_byte as usize]
+                            .to_owned(),
+                        pos: *pos,
+                        end: *end,
+                    }
                 })
                 .unwrap_or(SourceInclusionReason::Synthetic);
             let index = if let Some(index) = self.module_resolution_by_key.get(&key).copied() {
@@ -3144,7 +3313,7 @@ fn publish_program(
 
     builder.set_diagnostics(PreparationDiagnostics::new(
         Vec::new(),
-        Vec::new(),
+        staged.option_diagnostics,
         staged.program_diagnostics,
     ));
     builder.build().map_err(|error| {
@@ -3161,8 +3330,9 @@ fn bind_module_resolution(
     no_resolve: bool,
 ) -> Result<ModuleResolution, ResolutionError> {
     let alternate_result = host.alternate_result().cloned();
-    let ResolutionOutcome::Resolved(module) = host.into_outcome() else {
-        let mut resolution = ModuleResolution::not_found();
+    let (outcome, diagnostics) = host.into_parts();
+    let ResolutionOutcome::Resolved(module) = outcome else {
+        let mut resolution = ModuleResolution::not_found().with_diagnostics(diagnostics);
         if let Some(alternate_result) = alternate_result {
             resolution = resolution.with_alternate_result(alternate_result);
         }
@@ -3218,6 +3388,7 @@ fn bind_module_resolution(
         ));
     };
     let mut resolution = ModuleResolution::resolved(module.into_resolved_module(target)?)
+        .with_diagnostics(diagnostics)
         .with_types_package_exists(types_package_exists)
         .with_package_bundles_types(package_bundles_types);
     if let Some(alternate_result) = alternate_result {
@@ -3749,6 +3920,218 @@ fn casing_distinct_file_diagnostic(
     )
 }
 
+/// tsc-port: createDiagnosticForOption @6.0.3
+/// tsc-hash: 24da25470bdd02c4cde5520b78ea191837823bf1df686438144a8106edfd5f53
+/// tsc-span: _tsc.js:125368-125386
+fn append_output_option_diagnostic(
+    diagnostics: &mut Vec<Diagnostic>,
+    config: Option<&ProgramConfigFile>,
+    names: &[&str],
+    message: MessageChain,
+) {
+    let Some(config) = config else {
+        diagnostics.push(Diagnostic::new(None, None, None, message));
+        return;
+    };
+    let mut locations = names
+        .iter()
+        .flat_map(|name| config.compiler_option_name_locations(name))
+        .copied()
+        .collect::<Vec<_>>();
+    locations.sort_by_key(|location| location.start());
+    if locations.is_empty() {
+        locations.extend(config.compiler_options_location());
+    }
+    if locations.is_empty() {
+        diagnostics.push(Diagnostic::new(None, None, None, message));
+    } else {
+        for location in locations {
+            diagnostics.push(Diagnostic::new(
+                Some(config.diagnostic_file_name().to_owned()),
+                Some(location.start()),
+                Some(location.length()),
+                message.clone(),
+            ));
+        }
+    }
+}
+
+/// tsc-port: createDiagnosticExplainingFile @6.0.3
+/// tsc-hash: a52da4c2aafdb0c939e2bf00de5064eb03340c4858ad40378af65b5b6c9de41d
+/// tsc-span: _tsc.js:125851-125932
+fn root_directory_diagnostic(
+    source: &StagedSource,
+    root: &str,
+    config: Option<&ProgramConfigFile>,
+    package: Option<&PackageMetadata>,
+) -> Diagnostic {
+    let reasons = &source.inclusion_reasons;
+    let located = reasons.iter().enumerate().find_map(|(index, reason)| {
+        source_inclusion_location(reason).map(|location| (index, location))
+    });
+    let mut message = MessageChain::new(
+        &gen::File_0_is_not_under_rootDir_1_rootDir_is_expected_to_contain_all_source_files,
+        &[
+            source
+                .prepared
+                .path()
+                .display()
+                .to_string_lossy()
+                .into_owned(),
+            root.to_owned(),
+        ],
+    );
+    if !reasons.is_empty() && (reasons.len() != 1 || located.is_none()) {
+        message = message.with_next(vec![MessageChain::new(
+            &gen::The_file_is_in_the_program_because,
+            &[],
+        )
+        .with_next(
+            reasons
+                .iter()
+                .filter_map(source_inclusion_reason_message)
+                .collect(),
+        )]);
+    }
+    if let Some(detail) = root_module_format_detail(&source.prepared, package) {
+        message.next_present = true;
+        message.next.push(detail);
+    }
+    let (file, start, length) =
+        located
+            .as_ref()
+            .map_or((None, None, None), |(_, (file, start, end))| {
+                (
+                    Some(file.clone()),
+                    Some(*start),
+                    Some(end.saturating_sub(*start)),
+                )
+            });
+    let mut diagnostic = Diagnostic::new(file, start, length, message);
+    for (index, reason) in reasons.iter().enumerate() {
+        if located
+            .as_ref()
+            .is_some_and(|(location_index, _)| *location_index == index)
+        {
+            continue;
+        }
+        if let Some(related) = root_inclusion_related_information(reason, config) {
+            diagnostic.related.push(related);
+        } else if let Some((file, start, end)) = source_inclusion_location(reason) {
+            let message = match reason {
+                SourceInclusionReason::Import { .. } => &gen::File_is_included_via_import_here,
+                SourceInclusionReason::PathReference { .. } => {
+                    &gen::File_is_included_via_reference_here
+                }
+                SourceInclusionReason::TypeReference { .. } => {
+                    &gen::File_is_included_via_type_library_reference_here
+                }
+                _ => unreachable!("only reference reasons carry source locations"),
+            };
+            diagnostic.related.push(RelatedInfo {
+                file_name: Some(file),
+                start: Some(start),
+                length: Some(end.saturating_sub(start)),
+                message: MessageChain::new(message, &[]),
+            });
+        }
+    }
+    diagnostic.related_information_present = !diagnostic.related.is_empty();
+    diagnostic
+}
+
+/// tsc-port: explainIfFileIsRedirectAndImpliedFormat @6.0.3 (module-format branch)
+/// tsc-hash: 4bd1d72257a11fc0d58f2ff3b8609170d5f225f9a8b5d801b67751dfbf9e001a
+/// tsc-span: _tsc.js:129225-129275
+fn root_module_format_detail(
+    source: &PreparedSourceFile,
+    package: Option<&PackageMetadata>,
+) -> Option<MessageChain> {
+    if source.is_external_module() != Some(true) {
+        return None;
+    }
+    let name = source.path().display().to_string_lossy();
+    // The TS implied-format worker returns a bare format for fixed module
+    // extensions, with no packageJsonScope or packageJsonLocations fields.
+    if [".mts", ".mjs", ".cts", ".cjs"]
+        .iter()
+        .any(|extension| name.ends_with(extension))
+    {
+        return None;
+    }
+    match source.implied_node_format_for_emit()? {
+        ResolutionMode::EsNext => package.map(|package| {
+            MessageChain::new(
+                &gen::File_is_ECMAScript_module_because_0_has_field_type_with_value_module,
+                &[package
+                    .package_json()
+                    .display()
+                    .to_string_lossy()
+                    .into_owned()],
+            )
+        }),
+        ResolutionMode::CommonJs => Some(match package {
+            Some(package) => MessageChain::new(
+                if package
+                    .type_field_truthiness()
+                    .expect("loader package parser supplies type truthiness")
+                {
+                    &gen::File_is_CommonJS_module_because_0_has_field_type_whose_value_is_not_module
+                } else {
+                    &gen::File_is_CommonJS_module_because_0_does_not_have_field_type
+                },
+                &[package
+                    .package_json()
+                    .display()
+                    .to_string_lossy()
+                    .into_owned()],
+            ),
+            None => MessageChain::new(
+                &gen::File_is_CommonJS_module_because_package_json_was_not_found,
+                &[],
+            ),
+        }),
+        ResolutionMode::Unspecified => None,
+    }
+}
+
+fn root_inclusion_related_information(
+    reason: &SourceInclusionReason,
+    config: Option<&ProgramConfigFile>,
+) -> Option<RelatedInfo> {
+    let SourceInclusionReason::Root(reason) = reason else {
+        return None;
+    };
+    let (option, spec, message) = match reason {
+        RootFileReason::FilesList { spec } => (
+            "files",
+            spec,
+            &gen::File_is_matched_by_files_list_specified_here,
+        ),
+        RootFileReason::IncludePattern { spec, .. } => (
+            "include",
+            spec,
+            &gen::File_is_matched_by_include_pattern_specified_here,
+        ),
+        RootFileReason::Explicit | RootFileReason::DefaultInclude => return None,
+    };
+    let config = config?;
+    let location = config.root_option_array_location(option, spec)?;
+    Some(RelatedInfo {
+        file_name: Some(
+            config
+                .path()
+                .display()
+                .to_str()
+                .expect("validated config paths are Unicode")
+                .to_owned(),
+        ),
+        start: Some(location.start()),
+        length: Some(location.length()),
+        message: MessageChain::new(message, &[]),
+    })
+}
+
 fn casing_diagnostic(
     existing: &PreparedSourceFile,
     incoming: &Path,
@@ -3817,42 +4200,9 @@ fn casing_diagnostic(
         });
     let mut diagnostic = Diagnostic::new(file_name, start, length, message);
     for reason in all_reasons {
-        let SourceInclusionReason::Root(reason) = reason else {
-            continue;
-        };
-        let (option_name, spec, related_message) = match reason {
-            RootFileReason::FilesList { spec } => (
-                "files",
-                spec,
-                &gen::File_is_matched_by_files_list_specified_here,
-            ),
-            RootFileReason::IncludePattern { spec, .. } => (
-                "include",
-                spec,
-                &gen::File_is_matched_by_include_pattern_specified_here,
-            ),
-            RootFileReason::Explicit | RootFileReason::DefaultInclude => continue,
-        };
-        let Some((config_file, location)) = config_file.and_then(|config_file| {
-            config_file
-                .root_option_array_location(option_name, spec)
-                .map(|location| (config_file, location))
-        }) else {
-            continue;
-        };
-        diagnostic.related.push(RelatedInfo {
-            file_name: Some(
-                config_file
-                    .path()
-                    .display()
-                    .to_str()
-                    .expect("validated config paths are Unicode")
-                    .to_owned(),
-            ),
-            start: Some(location.start()),
-            length: Some(location.length()),
-            message: MessageChain::new(related_message, &[]),
-        });
+        if let Some(related) = root_inclusion_related_information(reason, config_file) {
+            diagnostic.related.push(related);
+        }
     }
     diagnostic.related_information_present = !diagnostic.related.is_empty();
     diagnostic
@@ -3863,22 +4213,24 @@ fn source_inclusion_reason_message(reason: &SourceInclusionReason) -> Option<Mes
     match reason {
         SourceInclusionReason::Root(root) => Some(root_file_reason_message(root)),
         SourceInclusionReason::Import {
-            parent, specifier, ..
+            parent,
+            reference_text,
+            ..
         } => Some(MessageChain::new(
             &gen::Imported_via_0_from_file_1,
-            &[format!("'{specifier}'"), path_text(parent)?],
+            &[reference_text.clone(), path_text(parent)?],
         )),
         SourceInclusionReason::PathReference {
             parent, specifier, ..
         } => Some(MessageChain::new(
             &gen::Referenced_via_0_from_file_1,
-            &[format!("'{specifier}'"), path_text(parent)?],
+            &[specifier.clone(), path_text(parent)?],
         )),
         SourceInclusionReason::TypeReference {
             parent, specifier, ..
         } => Some(MessageChain::new(
             &gen::Type_library_referenced_via_0_from_file_1,
-            &[format!("'{specifier}'"), path_text(parent)?],
+            &[specifier.clone(), path_text(parent)?],
         )),
         SourceInclusionReason::AutomaticType { name } => Some(MessageChain::new(
             &gen::Entry_point_of_type_library_0_specified_in_compilerOptions,

@@ -1428,7 +1428,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// TS core kinds plus CommonJS/object-literal assignments and
     /// checked-JS bare/accessed require aliases.
-    fn get_target_of_alias_declaration(
+    pub(crate) fn get_target_of_alias_declaration(
         &mut self,
         node: NodeId,
         dont_recursively_resolve: bool,
@@ -8408,7 +8408,7 @@ impl<'a> CheckerState<'a> {
             } else {
                 &diagnostics::Import_declaration_conflicts_with_local_declaration_of_0
             };
-            let display = self.symbol_display_name(symbol);
+            let display = self.emit_symbol_to_string_default(symbol)?;
             self.error_at(Some(node), message, &[&display]);
         }
 
@@ -9529,8 +9529,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:86391-86501
     ///
     /// collectLinkedAliases is live behind the declaration/composite gate;
-    /// the JSDoc type-annotation arm remains outside the modeled syntax
-    /// surface. erasableSyntaxOnly rejects non-ambient export-equals before
+    /// effective JSDoc annotations check the cached expression before alias
+    /// processing. erasableSyntaxOnly rejects non-ambient export-equals before
     /// the declaration-container checks. The verbatimModuleSyntax and isolatedModules
     /// type-only faces are live, including the CommonJS
     /// export-default diagnostic. The export= tail must use
@@ -9606,6 +9606,16 @@ impl<'a> CheckerState<'a> {
         let Some(expression) = expression else {
             return Ok(());
         };
+        if let Some(annotation) = self.effective_type_annotation_node(node) {
+            let source_type = self.check_expression_cached(expression, CheckMode::NORMAL)?;
+            let target_type = self.get_type_from_type_node(annotation)?;
+            self.check_type_assignable_to(
+                source_type,
+                target_type,
+                Some(expression),
+                &diagnostics::Type_0_is_not_assignable_to_type_1,
+            )?;
+        }
         let ambient = self
             .binder
             .flags_of(node)

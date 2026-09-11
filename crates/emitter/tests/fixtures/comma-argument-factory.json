@@ -1,0 +1,1621 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "route": "direct-factory-and-printer",
+  "repetitions": 2,
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "21131b9213be4e87c3ac5efaa8e5f2f6b0fdc594d40ca88badeedc204a450324",
+  "cases": [
+    {
+      "case_id": "comma-argument-factory/call/comma-list/0/synthetic",
+      "container": "call",
+      "expression": "comma-list",
+      "flags": 0,
+      "ranged": false,
+      "list_mode": "comma",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "ParenthesizedExpression",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": true
+            }
+          ]
+        },
+        "text": "sink((/* first */ a /* tail a */, /* between */ b, c /* tail c */));\r\n",
+        "utf8_base64": "c2luaygoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIC8qIGJldHdlZW4gKi8gYiwgYyAvKiB0YWlsIGMgKi8pKTsNCg==",
+        "utf8_bytes": 70,
+        "end_utf16": {
+          "position": 70,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/call/comma-list/0/ranged",
+      "container": "call",
+      "expression": "comma-list",
+      "flags": 0,
+      "ranged": true,
+      "list_mode": "comma",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "ParenthesizedExpression",
+              "pos": 5,
+              "end": 51,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": true
+            }
+          ]
+        },
+        "text": "sink(/* first */ (/* first */ a /* tail a */, /* between */ b, c) /* tail c */);\r\n",
+        "utf8_base64": "c2luaygvKiBmaXJzdCAqLyAoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIC8qIGJldHdlZW4gKi8gYiwgYykgLyogdGFpbCBjICovKTsNCg==",
+        "utf8_bytes": 82,
+        "end_utf16": {
+          "position": 82,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/call/comma-list/2048/synthetic",
+      "container": "call",
+      "expression": "comma-list",
+      "flags": 2048,
+      "ranged": false,
+      "list_mode": "comma",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "ParenthesizedExpression",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": true
+            }
+          ]
+        },
+        "text": "sink((/* first */ a /* tail a */, /* between */ b, c /* tail c */));\r\n",
+        "utf8_base64": "c2luaygoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIC8qIGJldHdlZW4gKi8gYiwgYyAvKiB0YWlsIGMgKi8pKTsNCg==",
+        "utf8_bytes": 70,
+        "end_utf16": {
+          "position": 70,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/call/comma-list/2048/ranged",
+      "container": "call",
+      "expression": "comma-list",
+      "flags": 2048,
+      "ranged": true,
+      "list_mode": "comma",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "ParenthesizedExpression",
+              "pos": 5,
+              "end": 51,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": true
+            }
+          ]
+        },
+        "text": "sink(/* first */ (/* first */ a /* tail a */, /* between */ b, c) /* tail c */);\r\n",
+        "utf8_base64": "c2luaygvKiBmaXJzdCAqLyAoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIC8qIGJldHdlZW4gKi8gYiwgYykgLyogdGFpbCBjICovKTsNCg==",
+        "utf8_bytes": 82,
+        "end_utf16": {
+          "position": 82,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/call/binary-comma/0/synthetic",
+      "container": "call",
+      "expression": "binary-comma",
+      "flags": 0,
+      "ranged": false,
+      "list_mode": "comma",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "ParenthesizedExpression",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": true
+            }
+          ]
+        },
+        "text": "sink((a /* tail a */, b, c /* tail c */));\r\n",
+        "utf8_base64": "c2luaygoYSAvKiB0YWlsIGEgKi8sIGIsIGMgLyogdGFpbCBjICovKSk7DQo=",
+        "utf8_bytes": 44,
+        "end_utf16": {
+          "position": 44,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/call/binary-comma/0/ranged",
+      "container": "call",
+      "expression": "binary-comma",
+      "flags": 0,
+      "ranged": true,
+      "list_mode": "comma",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "ParenthesizedExpression",
+              "pos": 5,
+              "end": 51,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": true
+            }
+          ]
+        },
+        "text": "sink(/* first */ (a /* tail a */, b, c) /* tail c */);\r\n",
+        "utf8_base64": "c2luaygvKiBmaXJzdCAqLyAoYSAvKiB0YWlsIGEgKi8sIGIsIGMpIC8qIHRhaWwgYyAqLyk7DQo=",
+        "utf8_bytes": 56,
+        "end_utf16": {
+          "position": 56,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/call/binary-comma/2048/synthetic",
+      "container": "call",
+      "expression": "binary-comma",
+      "flags": 2048,
+      "ranged": false,
+      "list_mode": "comma",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "ParenthesizedExpression",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": true
+            }
+          ]
+        },
+        "text": "sink((a /* tail a */, b, c /* tail c */));\r\n",
+        "utf8_base64": "c2luaygoYSAvKiB0YWlsIGEgKi8sIGIsIGMgLyogdGFpbCBjICovKSk7DQo=",
+        "utf8_bytes": 44,
+        "end_utf16": {
+          "position": 44,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/call/binary-comma/2048/ranged",
+      "container": "call",
+      "expression": "binary-comma",
+      "flags": 2048,
+      "ranged": true,
+      "list_mode": "comma",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "ParenthesizedExpression",
+              "pos": 5,
+              "end": 51,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": true
+            }
+          ]
+        },
+        "text": "sink(/* first */ (a /* tail a */, b, c) /* tail c */);\r\n",
+        "utf8_base64": "c2luaygvKiBmaXJzdCAqLyAoYSAvKiB0YWlsIGEgKi8sIGIsIGMpIC8qIHRhaWwgYyAqLyk7DQo=",
+        "utf8_bytes": 56,
+        "end_utf16": {
+          "position": 56,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/call/plain",
+      "container": "call",
+      "list_mode": "plain",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 51,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 32,
+              "end": 48,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 49,
+              "end": 51,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\r\n",
+        "utf8_base64": "c2luaygvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLywgLyogYmV0d2VlbiAqLyBiLCBjIC8qIHRhaWwgYyAqLyk7DQo=",
+        "utf8_bytes": 68,
+        "end_utf16": {
+          "position": 68,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/call/hole",
+      "container": "call",
+      "list_mode": "hole",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 51,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "OmittedExpression",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink(/* first */ a /* tail a */, );\r\n",
+        "utf8_base64": "c2luaygvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLywgKTsNCg==",
+        "utf8_bytes": 37,
+        "end_utf16": {
+          "position": 37,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/call/absent",
+      "container": "call",
+      "list_mode": "absent",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": []
+        },
+        "text": "sink();\r\n",
+        "utf8_base64": "c2luaygpOw0K",
+        "utf8_bytes": 9,
+        "end_utf16": {
+          "position": 9,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/optional-call/comma-list/0/synthetic",
+      "container": "optional-call",
+      "expression": "comma-list",
+      "flags": 0,
+      "ranged": false,
+      "list_mode": "comma",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "ParenthesizedExpression",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": true
+            }
+          ]
+        },
+        "text": "sink?.((/* first */ a /* tail a */, /* between */ b, c /* tail c */));\r\n",
+        "utf8_base64": "c2luaz8uKCgvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLywgLyogYmV0d2VlbiAqLyBiLCBjIC8qIHRhaWwgYyAqLykpOw0K",
+        "utf8_bytes": 72,
+        "end_utf16": {
+          "position": 72,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/optional-call/comma-list/0/ranged",
+      "container": "optional-call",
+      "expression": "comma-list",
+      "flags": 0,
+      "ranged": true,
+      "list_mode": "comma",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "ParenthesizedExpression",
+              "pos": 5,
+              "end": 51,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": true
+            }
+          ]
+        },
+        "text": "sink?.(/* first */ (/* first */ a /* tail a */, /* between */ b, c) /* tail c */);\r\n",
+        "utf8_base64": "c2luaz8uKC8qIGZpcnN0ICovICgvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLywgLyogYmV0d2VlbiAqLyBiLCBjKSAvKiB0YWlsIGMgKi8pOw0K",
+        "utf8_bytes": 84,
+        "end_utf16": {
+          "position": 84,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/optional-call/comma-list/2048/synthetic",
+      "container": "optional-call",
+      "expression": "comma-list",
+      "flags": 2048,
+      "ranged": false,
+      "list_mode": "comma",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "ParenthesizedExpression",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": true
+            }
+          ]
+        },
+        "text": "sink?.((/* first */ a /* tail a */, /* between */ b, c /* tail c */));\r\n",
+        "utf8_base64": "c2luaz8uKCgvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLywgLyogYmV0d2VlbiAqLyBiLCBjIC8qIHRhaWwgYyAqLykpOw0K",
+        "utf8_bytes": 72,
+        "end_utf16": {
+          "position": 72,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/optional-call/comma-list/2048/ranged",
+      "container": "optional-call",
+      "expression": "comma-list",
+      "flags": 2048,
+      "ranged": true,
+      "list_mode": "comma",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "ParenthesizedExpression",
+              "pos": 5,
+              "end": 51,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": true
+            }
+          ]
+        },
+        "text": "sink?.(/* first */ (/* first */ a /* tail a */, /* between */ b, c) /* tail c */);\r\n",
+        "utf8_base64": "c2luaz8uKC8qIGZpcnN0ICovICgvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLywgLyogYmV0d2VlbiAqLyBiLCBjKSAvKiB0YWlsIGMgKi8pOw0K",
+        "utf8_bytes": 84,
+        "end_utf16": {
+          "position": 84,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/optional-call/binary-comma/0/synthetic",
+      "container": "optional-call",
+      "expression": "binary-comma",
+      "flags": 0,
+      "ranged": false,
+      "list_mode": "comma",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "ParenthesizedExpression",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": true
+            }
+          ]
+        },
+        "text": "sink?.((a /* tail a */, b, c /* tail c */));\r\n",
+        "utf8_base64": "c2luaz8uKChhIC8qIHRhaWwgYSAqLywgYiwgYyAvKiB0YWlsIGMgKi8pKTsNCg==",
+        "utf8_bytes": 46,
+        "end_utf16": {
+          "position": 46,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/optional-call/binary-comma/0/ranged",
+      "container": "optional-call",
+      "expression": "binary-comma",
+      "flags": 0,
+      "ranged": true,
+      "list_mode": "comma",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "ParenthesizedExpression",
+              "pos": 5,
+              "end": 51,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": true
+            }
+          ]
+        },
+        "text": "sink?.(/* first */ (a /* tail a */, b, c) /* tail c */);\r\n",
+        "utf8_base64": "c2luaz8uKC8qIGZpcnN0ICovIChhIC8qIHRhaWwgYSAqLywgYiwgYykgLyogdGFpbCBjICovKTsNCg==",
+        "utf8_bytes": 58,
+        "end_utf16": {
+          "position": 58,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/optional-call/binary-comma/2048/synthetic",
+      "container": "optional-call",
+      "expression": "binary-comma",
+      "flags": 2048,
+      "ranged": false,
+      "list_mode": "comma",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "ParenthesizedExpression",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": true
+            }
+          ]
+        },
+        "text": "sink?.((a /* tail a */, b, c /* tail c */));\r\n",
+        "utf8_base64": "c2luaz8uKChhIC8qIHRhaWwgYSAqLywgYiwgYyAvKiB0YWlsIGMgKi8pKTsNCg==",
+        "utf8_bytes": 46,
+        "end_utf16": {
+          "position": 46,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/optional-call/binary-comma/2048/ranged",
+      "container": "optional-call",
+      "expression": "binary-comma",
+      "flags": 2048,
+      "ranged": true,
+      "list_mode": "comma",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "ParenthesizedExpression",
+              "pos": 5,
+              "end": 51,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": true
+            }
+          ]
+        },
+        "text": "sink?.(/* first */ (a /* tail a */, b, c) /* tail c */);\r\n",
+        "utf8_base64": "c2luaz8uKC8qIGZpcnN0ICovIChhIC8qIHRhaWwgYSAqLywgYiwgYykgLyogdGFpbCBjICovKTsNCg==",
+        "utf8_bytes": 58,
+        "end_utf16": {
+          "position": 58,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/optional-call/plain",
+      "container": "optional-call",
+      "list_mode": "plain",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 51,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 32,
+              "end": 48,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 49,
+              "end": 51,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink?.(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\r\n",
+        "utf8_base64": "c2luaz8uKC8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCAvKiBiZXR3ZWVuICovIGIsIGMgLyogdGFpbCBjICovKTsNCg==",
+        "utf8_bytes": 70,
+        "end_utf16": {
+          "position": 70,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/optional-call/hole",
+      "container": "optional-call",
+      "list_mode": "hole",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 51,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "OmittedExpression",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "sink?.(/* first */ a /* tail a */, );\r\n",
+        "utf8_base64": "c2luaz8uKC8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCApOw0K",
+        "utf8_bytes": 39,
+        "end_utf16": {
+          "position": 39,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/optional-call/absent",
+      "container": "optional-call",
+      "list_mode": "absent",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": []
+        },
+        "text": "sink?.();\r\n",
+        "utf8_base64": "c2luaz8uKCk7DQo=",
+        "utf8_bytes": 11,
+        "end_utf16": {
+          "position": 11,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/new/comma-list/0/synthetic",
+      "container": "new",
+      "expression": "comma-list",
+      "flags": 0,
+      "ranged": false,
+      "list_mode": "comma",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "ParenthesizedExpression",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": true
+            }
+          ]
+        },
+        "text": "new sink((/* first */ a /* tail a */, /* between */ b, c /* tail c */));\r\n",
+        "utf8_base64": "bmV3IHNpbmsoKC8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCAvKiBiZXR3ZWVuICovIGIsIGMgLyogdGFpbCBjICovKSk7DQo=",
+        "utf8_bytes": 74,
+        "end_utf16": {
+          "position": 74,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/new/comma-list/0/ranged",
+      "container": "new",
+      "expression": "comma-list",
+      "flags": 0,
+      "ranged": true,
+      "list_mode": "comma",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "ParenthesizedExpression",
+              "pos": 5,
+              "end": 51,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": true
+            }
+          ]
+        },
+        "text": "new sink(/* first */ (/* first */ a /* tail a */, /* between */ b, c) /* tail c */);\r\n",
+        "utf8_base64": "bmV3IHNpbmsoLyogZmlyc3QgKi8gKC8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCAvKiBiZXR3ZWVuICovIGIsIGMpIC8qIHRhaWwgYyAqLyk7DQo=",
+        "utf8_bytes": 86,
+        "end_utf16": {
+          "position": 86,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/new/comma-list/2048/synthetic",
+      "container": "new",
+      "expression": "comma-list",
+      "flags": 2048,
+      "ranged": false,
+      "list_mode": "comma",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "ParenthesizedExpression",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": true
+            }
+          ]
+        },
+        "text": "new sink((/* first */ a /* tail a */, /* between */ b, c /* tail c */));\r\n",
+        "utf8_base64": "bmV3IHNpbmsoKC8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCAvKiBiZXR3ZWVuICovIGIsIGMgLyogdGFpbCBjICovKSk7DQo=",
+        "utf8_bytes": 74,
+        "end_utf16": {
+          "position": 74,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/new/comma-list/2048/ranged",
+      "container": "new",
+      "expression": "comma-list",
+      "flags": 2048,
+      "ranged": true,
+      "list_mode": "comma",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "ParenthesizedExpression",
+              "pos": 5,
+              "end": 51,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": true
+            }
+          ]
+        },
+        "text": "new sink(/* first */ (/* first */ a /* tail a */, /* between */ b, c) /* tail c */);\r\n",
+        "utf8_base64": "bmV3IHNpbmsoLyogZmlyc3QgKi8gKC8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCAvKiBiZXR3ZWVuICovIGIsIGMpIC8qIHRhaWwgYyAqLyk7DQo=",
+        "utf8_bytes": 86,
+        "end_utf16": {
+          "position": 86,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/new/binary-comma/0/synthetic",
+      "container": "new",
+      "expression": "binary-comma",
+      "flags": 0,
+      "ranged": false,
+      "list_mode": "comma",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "ParenthesizedExpression",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": true
+            }
+          ]
+        },
+        "text": "new sink((a /* tail a */, b, c /* tail c */));\r\n",
+        "utf8_base64": "bmV3IHNpbmsoKGEgLyogdGFpbCBhICovLCBiLCBjIC8qIHRhaWwgYyAqLykpOw0K",
+        "utf8_bytes": 48,
+        "end_utf16": {
+          "position": 48,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/new/binary-comma/0/ranged",
+      "container": "new",
+      "expression": "binary-comma",
+      "flags": 0,
+      "ranged": true,
+      "list_mode": "comma",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "ParenthesizedExpression",
+              "pos": 5,
+              "end": 51,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": true
+            }
+          ]
+        },
+        "text": "new sink(/* first */ (a /* tail a */, b, c) /* tail c */);\r\n",
+        "utf8_base64": "bmV3IHNpbmsoLyogZmlyc3QgKi8gKGEgLyogdGFpbCBhICovLCBiLCBjKSAvKiB0YWlsIGMgKi8pOw0K",
+        "utf8_bytes": 60,
+        "end_utf16": {
+          "position": 60,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/new/binary-comma/2048/synthetic",
+      "container": "new",
+      "expression": "binary-comma",
+      "flags": 2048,
+      "ranged": false,
+      "list_mode": "comma",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "ParenthesizedExpression",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": true
+            }
+          ]
+        },
+        "text": "new sink((a /* tail a */, b, c /* tail c */));\r\n",
+        "utf8_base64": "bmV3IHNpbmsoKGEgLyogdGFpbCBhICovLCBiLCBjIC8qIHRhaWwgYyAqLykpOw0K",
+        "utf8_bytes": 48,
+        "end_utf16": {
+          "position": 48,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/new/binary-comma/2048/ranged",
+      "container": "new",
+      "expression": "binary-comma",
+      "flags": 2048,
+      "ranged": true,
+      "list_mode": "comma",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "ParenthesizedExpression",
+              "pos": 5,
+              "end": 51,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": true
+            }
+          ]
+        },
+        "text": "new sink(/* first */ (a /* tail a */, b, c) /* tail c */);\r\n",
+        "utf8_base64": "bmV3IHNpbmsoLyogZmlyc3QgKi8gKGEgLyogdGFpbCBhICovLCBiLCBjKSAvKiB0YWlsIGMgKi8pOw0K",
+        "utf8_bytes": 60,
+        "end_utf16": {
+          "position": 60,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/new/plain",
+      "container": "new",
+      "list_mode": "plain",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 51,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 32,
+              "end": 48,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 49,
+              "end": 51,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "new sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\r\n",
+        "utf8_base64": "bmV3IHNpbmsoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sIC8qIGJldHdlZW4gKi8gYiwgYyAvKiB0YWlsIGMgKi8pOw0K",
+        "utf8_bytes": 72,
+        "end_utf16": {
+          "position": 72,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/new/hole",
+      "container": "new",
+      "list_mode": "hole",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 51,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "OmittedExpression",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "new sink(/* first */ a /* tail a */, );\r\n",
+        "utf8_base64": "bmV3IHNpbmsoLyogZmlyc3QgKi8gYSAvKiB0YWlsIGEgKi8sICk7DQo=",
+        "utf8_bytes": 41,
+        "end_utf16": {
+          "position": 41,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/new/absent",
+      "container": "new",
+      "list_mode": "absent",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": null,
+        "text": "new sink;\r\n",
+        "utf8_base64": "bmV3IHNpbms7DQo=",
+        "utf8_bytes": 11,
+        "end_utf16": {
+          "position": 11,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/array/comma-list/0/synthetic",
+      "container": "array",
+      "expression": "comma-list",
+      "flags": 0,
+      "ranged": false,
+      "list_mode": "comma",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "ParenthesizedExpression",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": true
+            }
+          ]
+        },
+        "text": "[(/* first */ a /* tail a */, /* between */ b, c /* tail c */)];\r\n",
+        "utf8_base64": "WygvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLywgLyogYmV0d2VlbiAqLyBiLCBjIC8qIHRhaWwgYyAqLyldOw0K",
+        "utf8_bytes": 66,
+        "end_utf16": {
+          "position": 66,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/array/comma-list/0/ranged",
+      "container": "array",
+      "expression": "comma-list",
+      "flags": 0,
+      "ranged": true,
+      "list_mode": "comma",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "ParenthesizedExpression",
+              "pos": 5,
+              "end": 51,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": true
+            }
+          ]
+        },
+        "text": "[/* first */ (/* first */ a /* tail a */, /* between */ b, c) /* tail c */];\r\n",
+        "utf8_base64": "Wy8qIGZpcnN0ICovICgvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLywgLyogYmV0d2VlbiAqLyBiLCBjKSAvKiB0YWlsIGMgKi9dOw0K",
+        "utf8_bytes": 78,
+        "end_utf16": {
+          "position": 78,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/array/comma-list/2048/synthetic",
+      "container": "array",
+      "expression": "comma-list",
+      "flags": 2048,
+      "ranged": false,
+      "list_mode": "comma",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "ParenthesizedExpression",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": true
+            }
+          ]
+        },
+        "text": "[(/* first */ a /* tail a */, /* between */ b, c /* tail c */)];\r\n",
+        "utf8_base64": "WygvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLywgLyogYmV0d2VlbiAqLyBiLCBjIC8qIHRhaWwgYyAqLyldOw0K",
+        "utf8_bytes": 66,
+        "end_utf16": {
+          "position": 66,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/array/comma-list/2048/ranged",
+      "container": "array",
+      "expression": "comma-list",
+      "flags": 2048,
+      "ranged": true,
+      "list_mode": "comma",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "ParenthesizedExpression",
+              "pos": 5,
+              "end": 51,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": true
+            }
+          ]
+        },
+        "text": "[/* first */ (/* first */ a /* tail a */, /* between */ b, c) /* tail c */];\r\n",
+        "utf8_base64": "Wy8qIGZpcnN0ICovICgvKiBmaXJzdCAqLyBhIC8qIHRhaWwgYSAqLywgLyogYmV0d2VlbiAqLyBiLCBjKSAvKiB0YWlsIGMgKi9dOw0K",
+        "utf8_bytes": 78,
+        "end_utf16": {
+          "position": 78,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/array/binary-comma/0/synthetic",
+      "container": "array",
+      "expression": "binary-comma",
+      "flags": 0,
+      "ranged": false,
+      "list_mode": "comma",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "ParenthesizedExpression",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": true
+            }
+          ]
+        },
+        "text": "[(a /* tail a */, b, c /* tail c */)];\r\n",
+        "utf8_base64": "WyhhIC8qIHRhaWwgYSAqLywgYiwgYyAvKiB0YWlsIGMgKi8pXTsNCg==",
+        "utf8_bytes": 40,
+        "end_utf16": {
+          "position": 40,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/array/binary-comma/0/ranged",
+      "container": "array",
+      "expression": "binary-comma",
+      "flags": 0,
+      "ranged": true,
+      "list_mode": "comma",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "ParenthesizedExpression",
+              "pos": 5,
+              "end": 51,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": true
+            }
+          ]
+        },
+        "text": "[/* first */ (a /* tail a */, b, c) /* tail c */];\r\n",
+        "utf8_base64": "Wy8qIGZpcnN0ICovIChhIC8qIHRhaWwgYSAqLywgYiwgYykgLyogdGFpbCBjICovXTsNCg==",
+        "utf8_bytes": 52,
+        "end_utf16": {
+          "position": 52,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/array/binary-comma/2048/synthetic",
+      "container": "array",
+      "expression": "binary-comma",
+      "flags": 2048,
+      "ranged": false,
+      "list_mode": "comma",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "ParenthesizedExpression",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": true
+            }
+          ]
+        },
+        "text": "[(a /* tail a */, b, c /* tail c */)];\r\n",
+        "utf8_base64": "WyhhIC8qIHRhaWwgYSAqLywgYiwgYyAvKiB0YWlsIGMgKi8pXTsNCg==",
+        "utf8_bytes": 40,
+        "end_utf16": {
+          "position": 40,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/array/binary-comma/2048/ranged",
+      "container": "array",
+      "expression": "binary-comma",
+      "flags": 2048,
+      "ranged": true,
+      "list_mode": "comma",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "ParenthesizedExpression",
+              "pos": 5,
+              "end": 51,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": true
+            }
+          ]
+        },
+        "text": "[/* first */ (a /* tail a */, b, c) /* tail c */];\r\n",
+        "utf8_base64": "Wy8qIGZpcnN0ICovIChhIC8qIHRhaWwgYSAqLywgYiwgYykgLyogdGFpbCBjICovXTsNCg==",
+        "utf8_bytes": 52,
+        "end_utf16": {
+          "position": 52,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/array/plain",
+      "container": "array",
+      "list_mode": "plain",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": true,
+          "pos": 5,
+          "end": 51,
+          "has_trailing_comma": false,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 32,
+              "end": 48,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "Identifier",
+              "pos": 49,
+              "end": 51,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* first */ a /* tail a */, /* between */ b, c /* tail c */];\r\n",
+        "utf8_base64": "Wy8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCAvKiBiZXR3ZWVuICovIGIsIGMgLyogdGFpbCBjICovXTsNCg==",
+        "utf8_bytes": 64,
+        "end_utf16": {
+          "position": 64,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/array/hole",
+      "container": "array",
+      "list_mode": "hole",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": 5,
+          "end": 51,
+          "has_trailing_comma": true,
+          "elements": [
+            {
+              "kind": "Identifier",
+              "pos": 5,
+              "end": 18,
+              "flags": 0,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            },
+            {
+              "kind": "OmittedExpression",
+              "pos": -1,
+              "end": -1,
+              "flags": 16,
+              "emit_flags": 0,
+              "original_present": false,
+              "inner_is_supplied": null
+            }
+          ]
+        },
+        "text": "[/* first */ a /* tail a */, ,];\r\n",
+        "utf8_base64": "Wy8qIGZpcnN0ICovIGEgLyogdGFpbCBhICovLCAsXTsNCg==",
+        "utf8_bytes": 34,
+        "end_utf16": {
+          "position": 34,
+          "line": 1,
+          "column": 0
+        }
+      }
+    },
+    {
+      "case_id": "comma-argument-factory/array/absent",
+      "container": "array",
+      "list_mode": "absent",
+      "text": "sink(/* first */ a /* tail a */, /* between */ b, c /* tail c */);\n",
+      "typescript_observation": {
+        "array_state": {
+          "same_input": false,
+          "pos": -1,
+          "end": -1,
+          "has_trailing_comma": false,
+          "elements": []
+        },
+        "text": "[];\r\n",
+        "utf8_base64": "W107DQo=",
+        "utf8_bytes": 5,
+        "end_utf16": {
+          "position": 5,
+          "line": 1,
+          "column": 0
+        }
+      }
+    }
+  ]
+}

@@ -133,6 +133,32 @@ fn deferred_dynamic_import_uses_the_same_authoritative_mode_as_import_call() {
 }
 
 #[test]
+fn dynamic_import_templates_publish_literal_requests_with_original_spans() {
+    let text = concat!(
+        "import(`./plain.js`);\n",
+        "import(`./${name}.js`);\n",
+        "import(('./parenthesized.js'));\n",
+        "import(`./attributes.js`, { with: { type: 'javascript' } });\n",
+    );
+    let source = source(text, ResolutionMode::CommonJs);
+    let plan = plan_source_requests(&source, &node_options()).expect("template import requests");
+    assert_eq!(plan.observed_request_occurrence_count(), 2);
+    let requests = plan.module_requests();
+    assert_eq!(requests.len(), 2);
+    for (request, specifier) in requests.iter().zip(["./plain.js", "./attributes.js"]) {
+        assert_eq!(request.specifier(), specifier);
+        assert_eq!(request.mode(), ResolutionMode::EsNext);
+        let (start, end) = plan
+            .module_request_span(request)
+            .expect("original template span");
+        assert_eq!(
+            &text[start as usize..end as usize],
+            format!("`{specifier}`")
+        );
+    }
+}
+
+#[test]
 fn expanded_plan_includes_external_import_equals_as_common_js() {
     let source = source(
         concat!(

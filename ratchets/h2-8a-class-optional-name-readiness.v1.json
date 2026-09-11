@@ -1,0 +1,853 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-32",
+  "base": "833b50bfe3f3c80289341a771d3dae7d557c4559",
+  "runtime_paths": [
+    "crates/emitter/src/printer.rs"
+  ],
+  "steps": [
+    "A6-32-1",
+    "A6-32-2"
+  ],
+  "owners": [
+    {
+      "owner": "moveRangePastDecorators",
+      "start": 17307,
+      "end": 17310,
+      "sha256": "27d3b9fba1576ed2d7269a9fe1b694ac1e16e977da92c9935f13359611222a93",
+      "gap": "shared-prerequisite",
+      "step": "A6-32-1",
+      "test": "class_optional_name_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "moveRangePastModifiers",
+      "start": 17311,
+      "end": 17317,
+      "sha256": "9d43119a4e2ea51f3f5a151f00816f7985c1781c9dc80cfd8e44f40807d3db9d",
+      "gap": "shared-prerequisite",
+      "step": "A6-32-1",
+      "test": "class_optional_name_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "parseClassDeclarationOrExpression",
+      "start": 34244,
+      "end": 34264,
+      "sha256": "872261275a5ff0aa7d224638c4fcffe4071319832bbe900f0b3d1895fe728de1",
+      "gap": "shared-prerequisite",
+      "step": "A6-32-1",
+      "test": "class_optional_name_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "parseNameOfClassDeclarationOrExpression",
+      "start": 34265,
+      "end": 34267,
+      "sha256": "2f2cea44721db1b8209b360d39ef633a8e98d3948684012062c4d127c62572c3",
+      "gap": "shared-prerequisite",
+      "step": "A6-32-1",
+      "test": "class_optional_name_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "emitIdentifierName",
+      "start": 117149,
+      "end": 117157,
+      "sha256": "847193fac9ff770a8b062033c89f8676a42ac88e0adb16b22fdafb5a33c09ae4",
+      "gap": "shared-prerequisite",
+      "step": "A6-32-1",
+      "test": "class_optional_name_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "emitClassExpression",
+      "start": 118532,
+      "end": 118535,
+      "sha256": "f94df8a64f3b42568611733971796c82066ac5c6d881e6cc7f1ed9eadbf89acb",
+      "gap": "shared-prerequisite",
+      "step": "A6-32-2",
+      "test": "class_optional_name_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "emitTokenWithComment",
+      "start": 118731,
+      "end": 118764,
+      "sha256": "d7df39bba502705facedce379a636ae55b168b77701df5e72abf10ec444c2e50",
+      "gap": "shared-prerequisite",
+      "step": "A6-32-1",
+      "test": "class_optional_name_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "emitClassDeclaration",
+      "start": 119059,
+      "end": 119061,
+      "sha256": "77f56050655c5c665c24f2eed672cf60d8ba8513416f9d34b19b1627bf1786ef",
+      "gap": "shared-prerequisite",
+      "step": "A6-32-2",
+      "test": "class_optional_name_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "emitClassDeclarationOrExpression",
+      "start": 119062,
+      "end": 119090,
+      "sha256": "7f38f7abe1799deb70b1601157c52ddc1b4d9d44c83c871ecdee9dea01859c48",
+      "gap": "partial-or-stale",
+      "step": "A6-32-1",
+      "test": "class_optional_name_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "emitDecoratorsAndModifiers",
+      "start": 119846,
+      "end": 119902,
+      "sha256": "8fb50c70cd68d557886307bc8242e2f79f0533fea4c44e498feb8ce7c0eba899",
+      "gap": "shared-prerequisite",
+      "step": "A6-32-1",
+      "test": "class_optional_name_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "emitList",
+      "start": 120015,
+      "end": 120025,
+      "sha256": "8a0512c2af9ba16a7481b372c31ae88611a0f3f8b4daaf5919a7278927262b5c",
+      "gap": "shared-prerequisite",
+      "step": "A6-32-1",
+      "test": "class_optional_name_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "pushNameGenerationScope",
+      "start": 120480,
+      "end": 120492,
+      "sha256": "75e640eff0f9e7b2d16c54e74bb57754277c93c13f82cd2954e427afaad2a1d0",
+      "gap": "shared-prerequisite",
+      "step": "A6-32-1",
+      "test": "class_optional_name_matches_complete_typescript_observations"
+    },
+    {
+      "owner": "popNameGenerationScope",
+      "start": 120493,
+      "end": 120502,
+      "sha256": "a2f730a921200a11f765aa55e960623d4e87c9c1d20b1d78fbb2d9ed6003bb37",
+      "gap": "shared-prerequisite",
+      "step": "A6-32-1",
+      "test": "class_optional_name_matches_complete_typescript_observations"
+    }
+  ],
+  "architecture": [
+    {
+      "id": "E-ARENA",
+      "row": "| `E-ARENA` | Parsed trees remain immutable; the detached arena appends synthetic nodes and tracks the mounted parsed interval. | `tsc_emitter::{TransformArena,TransformSource,TransformSourceId,TransformNode,TransformNodeArray,NodeFactory}` (public) Existing `NodeFactory::modifier_flags` is now `pub(crate)`; downlevel auto-accessor setters use fresh factory modifiers while getters retain source tokens. | `active-qualified`; validation ref `0653e10d` (2026-08-17); candidate audit 2026-08-14. H2.5f protects the predecessor subset. [A6-29](slices/h2-8a-class-helper-accessor-producers.md) qualifies these producers on the train: 1020/1140 complete commands exact twice, all92 repairs and928 prior positives, and unchanged494/451 emitter tests;120 outside cases remain. Prior dated qualifications remain frozen. | H2.5g profile; every later transform packet maps provenance explicitly |",
+      "row_sha256": "8d9acb66fc4ede78903efbb5ca9c41cba0818e263a6d459f6778650de742ced6",
+      "disposition": "premise-unchanged",
+      "lifecycle_before": "active-qualified",
+      "lifecycle_after": "active-qualified"
+    },
+    {
+      "id": "E-METADATA-BASE",
+      "row": "| `E-METADATA-BASE` | Transform flags and `emitNode`-equivalent facts are sparse session side tables; there is no standalone Rust `EmitNode` syntax object. Original/map/comment/value identities are separate. CommentRange carries independent source start/end states through CommentSourceRange; paired source slices and source-map ranges keep their existing domains. | Public `tsc_emitter::TransformArena::{transform_flags,set_transform_flags,array_transform_flags,set_array_transform_flags,metadata,metadata_mut,clear_session_metadata,get_original_node,set_original_node}` over private storage in `crates/emitter/src/factory.rs`; public `tsc_emitter::{EmitMetadata,SourceMapRange,CommentRange,CommentSourceRange,JavaScriptString}` defined in `crates/emitter/src/metadata.rs` (`EmitMetadata` storage fields remain `pub(crate)`, with its cross-crate operations exposed by public methods) | `active-qualified`; validation ref `0653e10d` (2026-08-17); candidate audit 2026-08-14; [A6-28-7](slices/h2-8a-one-sided-class-comments.md) qualifies independent comment endpoints on the train candidate: 896/996 complete commands exact twice, all 16 selected repairs and all 880 prior positives, with 494 units/451 contracts passing; historical paired-range qualification remains retained. A6-29 candidate uses existing `EmitMetadata::set_flags` to replace inherited flags on the ES5 accessor receiver clone, retaining its original/text/map ownership. [A6-29](slices/h2-8a-class-helper-accessor-producers.md) qualifies these producers on the train: 1020/1140 complete commands exact twice, all92 repairs and928 prior positives, and unchanged494/451 emitter tests;120 outside cases remain. Prior dated qualifications remain frozen. | H2.5g profile; H2.5h/H2.6 extend rather than infer from text |",
+      "row_sha256": "c8f2b0aff8f1d2b108325e49379e5c09616a7d131ee284c3b1a876631ff8086c",
+      "disposition": "premise-unchanged",
+      "lifecycle_before": "active-qualified",
+      "lifecycle_after": "active-qualified"
+    },
+    {
+      "id": "E-NAMES-BASE",
+      "row": "| `E-NAMES-BASE` | Generated identity, printable name, target provenance, and allocation scope are separate; final names use the composed tree. | `crate::transform::GeneratedBindingId` (`pub(crate)`); `crate::builtins::generated_bindings::GeneratedBindingScopes` and `target_bindings::{TargetBinding,finalize_generated_binding_names}` (`pub(super)`) | `active-qualified`; validation ref `0653e10d` (2026-08-17); candidate audit 2026-08-14 | H2.5g profile and generated-binding controls |",
+      "row_sha256": "d1f1d2b6dad26702c9dad1663b5d69896159e8a6c0c67bac2de3852c054622ac",
+      "disposition": "premise-unchanged",
+      "lifecycle_before": "active-qualified",
+      "lifecycle_after": "active-qualified"
+    },
+    {
+      "id": "E-PRINTER-BASE",
+      "row": "| `E-PRINTER-BASE` | Printer has no direct checker dependency. It consumes transformed syntax/metadata, drives retained substitution and before/after notification hooks, and applies immutable structural planning. | `tsc_emitter::Printer` (public); `tsc_emitter::TransformationResult::{substitute_node,before_emit_node,after_emit_node}`; `crate::printer::EmissionPlan` and `EmitContext` (private); `crate::factory::NodeFactory::apply_parenthesizer_rules` (private) | `active-qualified`; qualified at validation ref `6acd5d43` (2026-08-21, CS-6 fixture/audit gate); previous ref `0653e10d` (2026-08-17); candidate audit 2026-08-14. H2.5f protects the predecessor subset. The H2.5h-a comment-scope packets reshape the private context carrier into the threaded `EmitContext` (CS-2 landed the root and core pipeline byte-identically); the row's hook-composition, no-checker-dependency, and immutable-planning invariants are preserved; requalified at `6acd5d43`. | H2.5g profile; later packets preserve hook composition and enumerate new expression contexts |",
+      "row_sha256": "6ced222697e4556ad486723cdf09804d4743e59495c09fadb4a11d562f1b48ab",
+      "disposition": "premise-unchanged",
+      "lifecycle_before": "active-qualified",
+      "lifecycle_after": "active-qualified"
+    },
+    {
+      "id": "E-COMMENTS-G",
+      "row": "| `E-COMMENTS-G` | Parsed ownership, synthetic comments, relocated owners, token progress, and comment progress are distinct typed facts. `TokenEmission` may hand its cursor plus an optional `CommentResume` only to the immediately following token/child; the resume carries both owner start and next position, requires one source and monotone progress, and can merge only with the same owner. A retained arrow anchors trailing comments at its own comment-range end, not semantic-original provenance, so a synthetic token cannot borrow source comments. The simple parameter's list-owned trailing comments and the retained arrow token's trailing comments remain separate phases, including tsc's observable list/leading replay at a shared range start. `SourceLeadingCommentPhaseVisit` distinguishes an absent/suppressed phase from a visited exact range, so a transitional class-field comment anchor is skipped only after that same range was visited; contextless routes retain the anchor. Token/comment ownership performs no source-wide token search; the position-cursor contract keeps local source work linear. H2.5g qualifies only the direct expression and list routes enumerated by its source-comment topology contracts; it does not claim that tsc's enclosing comment-container state already reaches every nested node route. Comment ownership now distinguishes paired, synthesized, start-only and end-only positions; positional readers and ordinary node-phase extent checks remain separate. | Public `tsc_emitter::SyntheticComment`; `crate::metadata::RelocatedStatementListComments` (`pub(crate)`); `crate::comment_cursor::{CommentCursor,CommentResume,CommentResumeError}` and `crate::token_cursor::{TokenCursor,TokenEmission,TokenAnchor,TokenCommentBoundary,FixedToken,TokenWriteKind,TokenLeadingSpace}` (`pub(crate)`); private `crate::printer::SourceLeadingCommentPhaseVisit` and other comment/list workers | `active-qualified`; qualified at validation ref `6acd5d43` (2026-08-21, CS-6 fixture/audit gate); previous ref `0653e10d` (2026-08-17); candidate-only audit 2026-08-14. The H2.5h-a comment-scope packet CS-3 re-expresses the row's qualified expression/list comment projections on the per-side threaded scope (cursor/resume semantics and the token machinery unchanged); requalified at `6acd5d43`; A6-28-5 retires the obsolete initializer trailing-comment marker; [the shared packet](slices/h2-8a-class-field-initializer-comments.md) qualifies all64 new controls and8 prior repairs in434/556 exact complete commands twice, with all490 units/451 contracts passing; subsequent [A6-28-6](slices/h2-8a-promoted-class-export-maps.md) qualifies all100 selected map repairs plus six ES2022 cases in764/868 exact complete commands twice and all490/451 emitter tests, leaving four original A28 comment targets at that prerequisite; subsequent A6-28-7 qualifies all four; [A6-28-7](slices/h2-8a-one-sided-class-comments.md) qualifies independent comment endpoints on the train candidate: 896/996 complete commands exact twice, all 16 selected repairs and all 880 prior positives, with 494 units/451 contracts passing; historical paired-range qualification remains retained. | Current-code audit, token/comment cursor unit contracts, `position_cursor_2727_statement_work_is_linear_and_scan_free`, source-comment topology and relocated class-field contracts, and arrow replay/resume integration contracts; H2.5g inventory/profile for observable parity |",
+      "row_sha256": "9aa9c160b1460e4523b543d86f688dea6d30a0e83ea9a4ef26f344121d32a6ea",
+      "disposition": "premise-unchanged",
+      "lifecycle_before": "active-qualified",
+      "lifecycle_after": "active-qualified"
+    },
+    {
+      "id": "E-COMMENT-SCOPE-H",
+      "row": "| `E-COMMENT-SCOPE-H` | tsc scopes three independent values across nested emit routes: `containerPos`, `containerEnd`, and `declarationListContainerEnd`. The threaded immutable representation mandated by this row is LANDED end to end through the H2.5h-a comment-scope packets (CS-2..CS-6): the printer's ambient comment state is the immutable `CommentEmissionScope` triple threaded through an explicit `EmitContext` with `EmitContext::file_root` as the single zero-scope constructor, tsc's per-side flag/JsxText claim predicates on every route, the declaration-list writer (`claim_declaration_list_sides`), and the `NO_NESTED_COMMENTS` suppressed extent. The 30-case witness-driven fixture gate (byte parity against the frozen artifact, both `removeComments` polarities, all six transforms) and the permanent emitter-scoped zero-contextless workspace audit enforce it; qualified at `6acd5d43`. ES2015/Generators production (H2.5h-b) may now proceed. A single optional range or mutable ad-hoc stack is not an equivalent semantic model. Present comment endpoints claim their own sides independently; missing sides and sole-zero positions do not claim a container, and suppression flags cannot create an absent endpoint. | Landed private `crate::comment_cursor::CommentEmissionScope` and `crate::printer::EmitContext` (with `crate::printer::ExpressionSyntaxContext` as its syntax half); the 30-case artifact-driven fixture suite `crates/emitter/tests/integration/comment_scope_witness_contract.rs` | `active-qualified`; CS-2 landed 2026-08-18 ([CS-2 packet](slices/h2-5h-a-cs-2.md)); CS-3 landed 2026-08-19 ([CS-3 packet](slices/h2-5h-a-cs-3.md)); CS-4 landed 2026-08-20 ([CS-4 packet](slices/h2-5h-a-cs-4.md)); CS-5 landed 2026-08-20 ([CS-5 packet](slices/h2-5h-a-cs-5.md)); CS-6 landed 2026-08-21 ([CS-6 packet](slices/h2-5h-a-cs-6.md)); qualified at `6acd5d43`; [A6-28-7](slices/h2-8a-one-sided-class-comments.md) qualifies independent comment endpoints on the train candidate: 896/996 complete commands exact twice, all 16 selected repairs and all 880 prior positives, with 494 units/451 contracts passing; historical paired-range qualification remains retained. | Pinned tsc scope/save-restore graph; direct/list/wrapper/declaration-list oracle fixtures; contextless-call zero-use audit; focused, emitter, owner-control, and inventory gates |",
+      "row_sha256": "e8a5cb0389faaa721edfa214d35199430571e52fd9c4a67e109268d68b25dced",
+      "disposition": "premise-unchanged",
+      "lifecycle_before": "active-qualified",
+      "lifecycle_after": "active-qualified"
+    },
+    {
+      "id": "E-POSITIONS",
+      "row": "| `E-POSITIONS` | Source bytes, source/generated UTF-16, synthetic ranges, and source switches remain typed domains. | Public `tsc_emitter` position/writer/hook types; definitions in private `position`, `writer`, `metadata`, and `printer` modules | `active-qualified`; validation ref `0653e10d` (2026-08-17); candidate audit 2026-08-14. H1/H2.5f protect predecessor behavior. | H2.5g profile and H1 Unicode/newline controls |",
+      "row_sha256": "cb11a74840d3fe403450e0f9b9e2c4226b34fd6e8bc14d0779a82bd4bd75f9f9",
+      "disposition": "premise-unchanged",
+      "lifecycle_before": "active-qualified",
+      "lifecycle_after": "active-qualified"
+    },
+    {
+      "id": "E-OUTPUT-SCRIPT",
+      "row": "| `E-OUTPUT-SCRIPT` | JavaScript artifacts are constructed before the first sink callback; callback order and `emittedFiles` stay independent. | `tsc_emitter::{emit_files_with_activity,EmitArtifact,MemoryOutputSink,FsOutputSink,EmitOutcome}` (public) | `active-qualified`; validation ref `0653e10d` (2026-08-17); candidate audit 2026-08-14 | H2.5g profile and H1 sink-failure controls |",
+      "row_sha256": "b785ad8c4df4ec27f1ff4a0e242c4f9115d7095f6d446bf2dd8e2c4f9d966ae0",
+      "disposition": "premise-unchanged",
+      "lifecycle_before": "active-qualified",
+      "lifecycle_after": "active-qualified"
+    }
+  ],
+  "witnesses": [
+    {
+      "case_id": "class-optional-name/js/es2015/anonymous-empty",
+      "disposition": "owned-optional-class-name",
+      "step": "A6-32-1",
+      "row_sha256": "f23ed3c20b9afcf134f67996630cb014fde3faa14347537d0b1ce143a6cf1ffa"
+    },
+    {
+      "case_id": "class-optional-name/js/es2015/anonymous-method",
+      "disposition": "owned-optional-class-name",
+      "step": "A6-32-1",
+      "row_sha256": "f2cb436d9eb51e53487930fd36eaca6aa7075319785e115664dd3c67b1afcf1d"
+    },
+    {
+      "case_id": "class-optional-name/js/es2015/anonymous-extends",
+      "disposition": "owned-optional-class-name",
+      "step": "A6-32-1",
+      "row_sha256": "e5501d7a2955044fee754e04f985bb69621029b06bde5b4e37f6288fe33fc9f7"
+    },
+    {
+      "case_id": "class-optional-name/js/es2015/anonymous-keyword-comment",
+      "disposition": "outside-class-keyword-comments",
+      "step": "A6-32-1",
+      "row_sha256": "bc003b94cdd9e361d5875011c60100b72e7a8649e8fa577cb37b3768de4335fa"
+    },
+    {
+      "case_id": "class-optional-name/js/es2015/named",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "071cc214a6d51e3ce0905475ba80da056ac255fd489cf9ff41be103707636d3c"
+    },
+    {
+      "case_id": "class-optional-name/js/es2015/default",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "6106534c6a63823cb9ecdac22053ac6c38ebd4a9a706ae4239404c04cd6e6a5d"
+    },
+    {
+      "case_id": "class-optional-name/js/es2015/expression",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "ee54c48fd70f99f44559ebb9cdd3582f17af0c12ab65461253afbe905cce0b9e"
+    },
+    {
+      "case_id": "class-optional-name/js/es2015/named-comments",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "e603f1b4c88baeaf9098b5de841d5d938aa852c201b9fca5c87b808c875c9dc8"
+    },
+    {
+      "case_id": "class-optional-name/js/es2022/anonymous-empty",
+      "disposition": "owned-optional-class-name",
+      "step": "A6-32-1",
+      "row_sha256": "e671863046cc3165e950d81762b9956157f7544d807b08f2832cc2c22e5d922d"
+    },
+    {
+      "case_id": "class-optional-name/js/es2022/anonymous-method",
+      "disposition": "owned-optional-class-name",
+      "step": "A6-32-1",
+      "row_sha256": "156203b29a6c06098a7ef23fa0f2c39481580aa24552291b49b54d25d5f824e7"
+    },
+    {
+      "case_id": "class-optional-name/js/es2022/anonymous-extends",
+      "disposition": "owned-optional-class-name",
+      "step": "A6-32-1",
+      "row_sha256": "fbfdc9fcc35b7bca3e94abd84cc0f37269603a6774f4e711658ef9591298d6c1"
+    },
+    {
+      "case_id": "class-optional-name/js/es2022/anonymous-keyword-comment",
+      "disposition": "outside-class-keyword-comments",
+      "step": "A6-32-1",
+      "row_sha256": "67f4bd9436f4a5b0643358686d145b57b94913af85e47537a0a0ee971dc5f687"
+    },
+    {
+      "case_id": "class-optional-name/js/es2022/named",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "5d93422dffed479c33c64d458d22f5da7432035ae85b067af9a428ce78323a46"
+    },
+    {
+      "case_id": "class-optional-name/js/es2022/default",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "8a00ff3d9b5ceeaceabf7a91316899dfa0f98a288df9bcb6223fbf648d1054a5"
+    },
+    {
+      "case_id": "class-optional-name/js/es2022/expression",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "0206cd8881f2c6eef5db4157882d8b50608accc73115fbc46d28e11bbe930982"
+    },
+    {
+      "case_id": "class-optional-name/js/es2022/named-comments",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "d87bcb287f15fc8c6fa189369172bc75c6ed591846e1b74c9cd39b8dfed2264c"
+    },
+    {
+      "case_id": "class-optional-name/js/esnext/anonymous-empty",
+      "disposition": "owned-optional-class-name",
+      "step": "A6-32-1",
+      "row_sha256": "41a35fbcba2872d0749eab48ee83f9d5e90b0817fd326d7c7bda83bddbdb0e59"
+    },
+    {
+      "case_id": "class-optional-name/js/esnext/anonymous-method",
+      "disposition": "owned-optional-class-name",
+      "step": "A6-32-1",
+      "row_sha256": "90b7d92ed8a98e20f0285a0126fc2fd371572bb3b9a6b2878bf101bfe4f9ff0a"
+    },
+    {
+      "case_id": "class-optional-name/js/esnext/anonymous-extends",
+      "disposition": "owned-optional-class-name",
+      "step": "A6-32-1",
+      "row_sha256": "ff512807282a3fb07a3095f8820f4c671cf2b4efdbc742891b63cc21ab5cf275"
+    },
+    {
+      "case_id": "class-optional-name/js/esnext/anonymous-keyword-comment",
+      "disposition": "outside-class-keyword-comments",
+      "step": "A6-32-1",
+      "row_sha256": "9def40c33bcfa5f9af6e75942aaa89829b79b4f2c141199e433f32880eede5f8"
+    },
+    {
+      "case_id": "class-optional-name/js/esnext/named",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "a231ad238d05f63f16a57213995ce6589b7792f927fbdcfcda3c05661bf29e97"
+    },
+    {
+      "case_id": "class-optional-name/js/esnext/default",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "031ca0189111a9b7d3211341f1378fa1d4d078bd63e554166bf57f648e0d112c"
+    },
+    {
+      "case_id": "class-optional-name/js/esnext/expression",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "be11e358a049f4eeb332a2f6f0f61ee40a2cd1ff708e7d10e44dabe731762a64"
+    },
+    {
+      "case_id": "class-optional-name/js/esnext/named-comments",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "90a350fbf0184f832e589f0248f388d90d14b8a932d6925198f18b72ca8fd728"
+    },
+    {
+      "case_id": "class-optional-name/js/blocked/anonymous-method",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "b0f7f770a7849df9a84b3c90fc0695c3afa9762292f3fe29631803bf5dea16c2"
+    },
+    {
+      "case_id": "class-optional-name/js/blocked/named",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "8b57777c8ef715648175c2a2b4d82df9592c9342be8972391f35cedbf627dd39"
+    },
+    {
+      "case_id": "class-optional-name/js/es5/anonymous-empty",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "2ff14c2ed4fa729930528f9d674330bde76e9e4567164f3f4004c83f507d4549"
+    },
+    {
+      "case_id": "class-optional-name/js/es5/anonymous-method",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "646181a71182295567bc380acb09fa66ce13511189593593bd13784f220388b9"
+    },
+    {
+      "case_id": "class-optional-name/js/es5/named",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "6412f2e7c68b4907257d0d6b94b94c121b37487f3747165d3c4f0902f81e5c19"
+    },
+    {
+      "case_id": "class-optional-name/js/es5/default",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "d8d9adf01860fda77f22d277b572f7f955081b2da80765c22ee87748e57383f6"
+    },
+    {
+      "case_id": "class-optional-name/js/declaration/named",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "df51f7dcc6947bed8a21d1c0e10def03acc14bfbadc16e1086376bf86ac5dc69"
+    },
+    {
+      "case_id": "class-optional-name/js/declaration/default",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "214345cf723620227176689dfe4740f474dac714e08c1b32bb720c2e43d56123"
+    },
+    {
+      "case_id": "class-optional-name/ts/es2015/anonymous-empty",
+      "disposition": "owned-optional-class-name",
+      "step": "A6-32-1",
+      "row_sha256": "130d602d5005d8237ea74a2139b4f4f95b196c715a5e5f2e7d879f3a72c559b1"
+    },
+    {
+      "case_id": "class-optional-name/ts/es2015/anonymous-method",
+      "disposition": "owned-optional-class-name",
+      "step": "A6-32-1",
+      "row_sha256": "b6866192b30fcb32129227e3d0f9f2a45354402f8c7fa2c8266c4756026b4917"
+    },
+    {
+      "case_id": "class-optional-name/ts/es2015/anonymous-extends",
+      "disposition": "owned-optional-class-name",
+      "step": "A6-32-1",
+      "row_sha256": "d5f874f05bfc57b9cd047497a86114b8388e26b09ec60e3ec57e8d2fdc70b817"
+    },
+    {
+      "case_id": "class-optional-name/ts/es2015/anonymous-keyword-comment",
+      "disposition": "outside-class-keyword-comments",
+      "step": "A6-32-1",
+      "row_sha256": "90fece5e3bbc3fb07b50889c33e1763a9e42784fb7dabfd9a1957005e3bba12f"
+    },
+    {
+      "case_id": "class-optional-name/ts/es2015/named",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "37319edb1ec961ecd1c40460f0d5ce0e54b25d597618a889319697270f0de308"
+    },
+    {
+      "case_id": "class-optional-name/ts/es2015/default",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "7c8e54a627de38634ff7dc7fbb04b91291983a15433b7344a47aefdca1ec75dc"
+    },
+    {
+      "case_id": "class-optional-name/ts/es2015/expression",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "ddeb806d15a865275d136d603b05f34e3cae5bb24b8dfb21600245f19691bfd9"
+    },
+    {
+      "case_id": "class-optional-name/ts/es2015/named-comments",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "5ba485270aa3f995a907376da6ec95a6b477570e6db01857fbed153716a5793b"
+    },
+    {
+      "case_id": "class-optional-name/ts/es2022/anonymous-empty",
+      "disposition": "owned-optional-class-name",
+      "step": "A6-32-1",
+      "row_sha256": "634086a431310f745170d3c25da80b5e63c9cf947769aa47b137bf9e3d845ea9"
+    },
+    {
+      "case_id": "class-optional-name/ts/es2022/anonymous-method",
+      "disposition": "owned-optional-class-name",
+      "step": "A6-32-1",
+      "row_sha256": "7c89ba02df4c6db0a9a64bf35870e9c20df12fa69909d9be68eefe2f6a49bf5b"
+    },
+    {
+      "case_id": "class-optional-name/ts/es2022/anonymous-extends",
+      "disposition": "owned-optional-class-name",
+      "step": "A6-32-1",
+      "row_sha256": "c0f3e31ee1d8704b2174b80e768c4cf5e84da6435d00cee648f80c610d84a42f"
+    },
+    {
+      "case_id": "class-optional-name/ts/es2022/anonymous-keyword-comment",
+      "disposition": "outside-class-keyword-comments",
+      "step": "A6-32-1",
+      "row_sha256": "862217abd1fb068ab44fff48a97b9fe483d910b91616e03bf2bb89409c664b39"
+    },
+    {
+      "case_id": "class-optional-name/ts/es2022/named",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "4eaf961cf03a2f4f72a7406bbf298fd825f71b883e9ae84b5886b590277743a4"
+    },
+    {
+      "case_id": "class-optional-name/ts/es2022/default",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "7315339ecc322004788512e42e9611401f6fd62f05c0fb7f73f2f5763c07d8a3"
+    },
+    {
+      "case_id": "class-optional-name/ts/es2022/expression",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "285bcb4de2cade259a3c992b9684fd71df102e0a6c2f1b1dc718cfb6305dc16d"
+    },
+    {
+      "case_id": "class-optional-name/ts/es2022/named-comments",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "e4bfd347ddd8884bdc96cde4ce792ebe30e0b1ce2d11d17caef60cccff747542"
+    },
+    {
+      "case_id": "class-optional-name/ts/esnext/anonymous-empty",
+      "disposition": "owned-optional-class-name",
+      "step": "A6-32-1",
+      "row_sha256": "b8b0c94fbef42c55eb33ef980534c0f2466873326623b6f129729dcd7a57e0c1"
+    },
+    {
+      "case_id": "class-optional-name/ts/esnext/anonymous-method",
+      "disposition": "owned-optional-class-name",
+      "step": "A6-32-1",
+      "row_sha256": "7fbd37297985bd8098bd01d585568a29907a7c4c89696bfc1137c4aa07a4f5f7"
+    },
+    {
+      "case_id": "class-optional-name/ts/esnext/anonymous-extends",
+      "disposition": "owned-optional-class-name",
+      "step": "A6-32-1",
+      "row_sha256": "f7e8273e74172832d85a9544e6284a6034c1df0fc7119baaf04520f7d9bca36a"
+    },
+    {
+      "case_id": "class-optional-name/ts/esnext/anonymous-keyword-comment",
+      "disposition": "outside-class-keyword-comments",
+      "step": "A6-32-1",
+      "row_sha256": "a9043ff3b59323128fc501863087b6ae47dc6d576e4b8fc21cd2cde87e39db9e"
+    },
+    {
+      "case_id": "class-optional-name/ts/esnext/named",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "083241e79a5b1daf03157a086424582ed377bd460831172faf75334eccc7dc6b"
+    },
+    {
+      "case_id": "class-optional-name/ts/esnext/default",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "fae48993abc16e5f6729bd5cc1e1941af54fb02222355bb905e1f7ad2049afab"
+    },
+    {
+      "case_id": "class-optional-name/ts/esnext/expression",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "9e2b61068d2699aad9bad406a054d82dcf92957b27ccc92fb88616140b718e0b"
+    },
+    {
+      "case_id": "class-optional-name/ts/esnext/named-comments",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "60ce3e986e68fbc65d26b5e63e29492013c9e61f5c7ffefa675e9f56e577e929"
+    },
+    {
+      "case_id": "class-optional-name/ts/blocked/anonymous-method",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "27b533794fb188de56ed21a90d9f85ea1c1e6fb64104f3dfb5794790905b482e"
+    },
+    {
+      "case_id": "class-optional-name/ts/blocked/named",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "65eaf630fbf6fe0a165435dc1fcfd0de5baa4a9a31ce5a1466387ff1da29fb29"
+    },
+    {
+      "case_id": "class-optional-name/ts/es5/anonymous-empty",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "4e2cab522c53c3f19c5a94f9e626222041f3ba0bed4d7532f197f19a869d8e64"
+    },
+    {
+      "case_id": "class-optional-name/ts/es5/anonymous-method",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "7e7d1d1876d056e12bd0d85c2f87d2264885f0a2ad175b410676bfa5bae51582"
+    },
+    {
+      "case_id": "class-optional-name/ts/es5/named",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "ef5cb093e290b40fcadcf33dec5f77d14c53e403052a9e8f3c0397c88439fc7b"
+    },
+    {
+      "case_id": "class-optional-name/ts/es5/default",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "b2bf9f2c598a389a71083507702163d0f96a7520f2ecef27eefe55b1ada846d0"
+    },
+    {
+      "case_id": "class-optional-name/ts/declaration/named",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "f6d7232be70c9869c51c9a8d290ba0ec46354969a5404456b02e725246fee2f3"
+    },
+    {
+      "case_id": "class-optional-name/ts/declaration/default",
+      "disposition": "adjacent-exact",
+      "step": "A6-32-1",
+      "row_sha256": "98cbed28e653e43a80b73c9a5bd5a895d5e41f5b44783f2accc372d089b3c4cf"
+    }
+  ],
+  "rust_map_rows": 8,
+  "unresolved": 0,
+  "undispositioned": 0,
+  "after_minimum_exact_twice": 58,
+  "authorities": [
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-class-optional-name.md",
+      "sha256": "a57702ef274498f7d98e5b79721c34377c254ea0a0857ee68618aaafbf9dd7f0"
+    },
+    {
+      "path": "scripts/check-class-optional-name-readiness.py",
+      "sha256": "b1c11cde0176460efde3f990995b48417df9086496cca4a92d0fc6f4eb64a295"
+    },
+    {
+      "path": "scripts/observe-class-optional-name.mjs",
+      "sha256": "e6673076b8ed5189e19a7abc82e9ae752132e54631fbd5d915fcc6d77f55e233"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/class-optional-name.json",
+      "sha256": "4e457ca277b808792dd36337c7009effc57ef267d9249ef834c922906f7d998e"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_class_optional_name.rs",
+      "sha256": "31aadd1cbe00f3ae7497614cd06de0ff23c963aaef478505dbdd67b75f153c50"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "40ea7d779e4338672df014446ac88c7e2a9c878166b3df9419908eda7fadef57"
+    },
+    {
+      "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
+      "sha256": "213393a3905c99b980054bfb2db8f19d593fd4620e09ab84c473b64b0851c423"
+    },
+    {
+      "path": "ratchets/h2-8a-class-optional-name-before.v1.json",
+      "sha256": "23666e9d04bd6a66e5b95e6e625066db292d1311a8041ba7c8d264b111711014"
+    },
+    {
+      "path": "ratchets/h2-8a-class-optional-name-original-before.v1.json",
+      "sha256": "69e8986c0c597a7021b756d65f1af7d6f95504e707f345f36093512dc9709a1f"
+    },
+    {
+      "path": "docs/design/README.md",
+      "sha256": "c2843bea19df08c887bd6461f10b7daf4ea2c86c32ca9ecc908008316a3497e0"
+    },
+    {
+      "path": "docs/design/greenfield/post-h1-completion-slices.md",
+      "sha256": "df4e630f4fe348119e43714261d1193a880453fa6847b42c7bf52d086bd840fb"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "87866477f1e3ee90371f0600264540a9688a98b51517e0689926d37ca0f6bfb2"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    }
+  ],
+  "unit_sources": [
+    {
+      "path": "crates/emitter/tests/integration/printer_foundation_contract.rs",
+      "sha256": "6706f2dd7759d7fb88f5090082442c7de2d956531523465bdf028479cefd49a8"
+    },
+    {
+      "path": "crates/emitter/tests/integration/printer_oracle_contract.rs",
+      "sha256": "e17bcbdc03d3be5b0d787fec4d721820aafbce0528aa8f4b9a9da01c45e6bc5e"
+    },
+    {
+      "path": "crates/emitter/tests/integration/declaration_printer_reprint_contract.rs",
+      "sha256": "9bc851af71f40a2fb2e70c0f5901f2b306214db830ced7d83cfbac79dfedfd9b"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "70d1d8fcb5c42d07f7d332b749aced1930f293789218a01295f6cdc4b0f0d0ba"
+    }
+  ],
+  "authority_amendments": [
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-class-optional-name.md",
+      "old_sha256": "8481a065aa975e296d6f006b8305aae4d4079f7b0d265b9f44cbd05e53c0883b",
+      "sha256": "a57702ef274498f7d98e5b79721c34377c254ea0a0857ee68618aaafbf9dd7f0",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-optional-name-doc-before-wyn9qsch/docs/design/greenfield/slices/h2-8a-class-optional-name.md",
+      "reason": "A6-32 measured 58/64 fresh commands and 38 unchanged printer contracts; optional-name branch only, remaining comments/recovery explicit, H2.8 remains open"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "old_sha256": "a026c1991e2a9bf374c4d58e53c1ac7dc98a719889f8a4d045e14527dd27faff",
+      "sha256": "398f304b29980689d55ab5a341af5c2b320a641b889a3745203680053d980aa2",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-header-token-registration-before-ed8zfz3m/crates/compiler/tests/contracts.rs",
+      "reason": "Only append A6-33 complete comparator registration, proven against exact HEAD preimage; all prior tests unchanged"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "old_sha256": "398f304b29980689d55ab5a341af5c2b320a641b889a3745203680053d980aa2",
+      "sha256": "aa9d0196d96ed7272ad7bed5dc93b39f32b206d1bfa0d1f5351e59ad1783acea",
+      "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-const-modifier-erasure-registration-before-k4273ijg/crates/compiler/tests/contracts.rs",
+      "reason": "Exact append of A6-34 complete comparator registration; all prior test bytes unchanged"
+    },
+    {
+      "manifest": "ratchets/h2-8a-class-optional-name-readiness.v1.json",
+      "events": [
+        {
+          "path": "crates/compiler/tests/contracts.rs",
+          "old_sha256": "aa9d0196d96ed7272ad7bed5dc93b39f32b206d1bfa0d1f5351e59ad1783acea",
+          "sha256": "0c291f1858ba83d2cf555b485295a9c2b534a98a3e739302a4df3e970e17f794",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-import-helpers-registration-before-dwvi2qwi/crates/compiler/tests/contracts.rs",
+          "reason": "A6-35 appends complete importHelpers controls and source-owned packet; prior runtime, architecture premises, fixtures and observations retained"
+        },
+        {
+          "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
+          "old_sha256": "eb5b6ed1cae0eb707ac4bf9733237a2b9436a999b4b176651e426ef6862f2537",
+          "sha256": "997620c17f18a3fb2317f29fbcf4b4a672623ab58b0fda92b810e075214542b0",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-import-helpers-registration-before-dwvi2qwi/crates/compiler/tests/h2_8a_original_corpus.rs",
+          "reason": "A6-35 appends complete importHelpers controls and source-owned packet; prior runtime, architecture premises, fixtures and observations retained"
+        },
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "fc6f3db60723355f9586bdc7fd73466bd6a6c51a38eb30c4c8e835bb3bcaba5f",
+          "sha256": "e628700a3b961d9db653611dd3d781068ecc707b1f38fe8e95dc390ed3dd2d51",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-import-helpers-readiness-before-fa2sju0s/docs/design/greenfield/emitter-architecture.md",
+          "reason": "A6-35 appends complete importHelpers controls and source-owned packet; prior runtime, architecture premises, fixtures and observations retained"
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-class-optional-name-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "e628700a3b961d9db653611dd3d781068ecc707b1f38fe8e95dc390ed3dd2d51",
+          "sha256": "cd91d32db2da8f5d7bc979276530b5e3389f54bf778e141eb88cea83941551cc",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-import-helpers-qualification-before-wg08jd62/docs/design/greenfield/emitter-architecture.md",
+          "reason": "A6-35 focused qualification and dependency-pin propagation; prior observations and architecture invariants retained"
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-class-optional-name-readiness.v1.json",
+      "events": [
+        {
+          "path": "crates/compiler/tests/contracts.rs",
+          "old_sha256": "0c291f1858ba83d2cf555b485295a9c2b534a98a3e739302a4df3e970e17f794",
+          "sha256": "7ab9f2e689de5eeb3c982b957cbd35df66aabf9675f37e40183aaa4110d030f1",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-token-comment-registration-before-rk0vuq67/crates/compiler/tests/contracts.rs",
+          "reason": "A6-36 complete modifier/spread controls and separate candidate architecture row; prior runtime, expectations and qualification claims retained"
+        },
+        {
+          "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
+          "old_sha256": "997620c17f18a3fb2317f29fbcf4b4a672623ab58b0fda92b810e075214542b0",
+          "sha256": "213393a3905c99b980054bfb2db8f19d593fd4620e09ab84c473b64b0851c423",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-token-comment-registration-before-rk0vuq67/crates/compiler/tests/h2_8a_original_corpus.rs",
+          "reason": "A6-36 complete modifier/spread controls and separate candidate architecture row; prior runtime, expectations and qualification claims retained"
+        },
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "cd91d32db2da8f5d7bc979276530b5e3389f54bf778e141eb88cea83941551cc",
+          "sha256": "3263dd4e8f728d7f64e37e07548c25b11bf8f74758581c4543e244874b5892db",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-token-comment-readiness-before-itu3c39w/docs/design/greenfield/emitter-architecture.md",
+          "reason": "A6-36 complete modifier/spread controls and separate candidate architecture row; prior runtime, expectations and qualification claims retained"
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-class-optional-name-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "3263dd4e8f728d7f64e37e07548c25b11bf8f74758581c4543e244874b5892db",
+          "sha256": "e0fc6ac9e2011ba948ff79b20a78bc1b581170b8f71be12d413376bab94bc81b",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-token-comment-source-file-amendment-0a17tb95/docs/design/greenfield/emitter-architecture.md",
+          "reason": "A36 source-file statement scope regression amendment; all initial evidence and predecessor qualification retained, no expected outputs changed"
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-class-optional-name-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "e0fc6ac9e2011ba948ff79b20a78bc1b581170b8f71be12d413376bab94bc81b",
+          "sha256": "4dc4998a377ed919851f7e272b173f5439f8a718334616d103ce26eb0c96e256",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-token-comment-qualification-before-5o1blteg/docs/design/greenfield/emitter-architecture.md",
+          "reason": "A6-36 focused qualification and dependency-pin propagation; prior observations and architecture invariants retained"
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-class-optional-name-readiness.v1.json",
+      "events": [
+        {
+          "path": "crates/compiler/tests/contracts.rs",
+          "old_sha256": "7ab9f2e689de5eeb3c982b957cbd35df66aabf9675f37e40183aaa4110d030f1",
+          "sha256": "de67e0a8cfaefc22e6c712718efe4f0c9443638d1e99941b49ee7e2267cdb242",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-registration-before-xpo_o1jo/crates/compiler/tests/contracts.rs",
+          "reason": "A6-37 tests and candidate architecture row; jsx fixture option adapter pass-through; predecessor runtime, fixture expectations and qualification scope retained."
+        },
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "4dc4998a377ed919851f7e272b173f5439f8a718334616d103ce26eb0c96e256",
+          "sha256": "de25c9a7fcc41d0668835cd15cddaa0c6e5210b2efbe5da6231444a428068435",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-readiness-before-s13azpeg/docs/design/greenfield/emitter-architecture.md",
+          "reason": "A6-37 tests and candidate architecture row; jsx fixture option adapter pass-through; predecessor runtime, fixture expectations and qualification scope retained."
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-class-optional-name-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "de25c9a7fcc41d0668835cd15cddaa0c6e5210b2efbe5da6231444a428068435",
+          "sha256": "49bb246418e4ff408ed673eb93de903f56558e02471a1fd00386bfeeaec3052c",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-preflight-symbol-before-1fp2k71b/docs/design/greenfield/emitter-architecture.md",
+          "reason": "Correct native admission symbol to actual builtins::preflight_source; source/runtime and qualification unchanged."
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-class-optional-name-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "49bb246418e4ff408ed673eb93de903f56558e02471a1fd00386bfeeaec3052c",
+          "sha256": "65bf76c8fd088062b02ac29606bd1345f2d14a284be85f5bcf09b71fa447a63a",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-ellipsis-comment-qualification-before-m2oiytjw/docs/design/greenfield/emitter-architecture.md",
+          "reason": "A6-37 focused qualification and dependency-pin propagation; prior observations and qualification scope retained."
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-class-optional-name-readiness.v1.json",
+      "events": [
+        {
+          "path": "crates/compiler/tests/contracts.rs",
+          "old_sha256": "de67e0a8cfaefc22e6c712718efe4f0c9443638d1e99941b49ee7e2267cdb242",
+          "sha256": "40ea7d779e4338672df014446ac88c7e2a9c878166b3df9419908eda7fadef57",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-retained-accessor-before-registration-mtc_kvww/crates/compiler/tests/contracts.rs",
+          "reason": "Qualified A6-38 documentation and transitive authority pins; test registration adds A38 and retained-accessor before controls. Existing expected tuples and harness comparisons remain unchanged."
+        },
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "65bf76c8fd088062b02ac29606bd1345f2d14a284be85f5bcf09b71fa447a63a",
+          "sha256": "f40c27da29da4752cf448395434e1a57fad9bfd86352cf89c0e17af604570bb8",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-retained-accessor-before-registration-mtc_kvww/docs/design/greenfield/emitter-architecture.md",
+          "reason": "Qualified A6-38 documentation and transitive authority pins; test registration adds A38 and retained-accessor before controls. Existing expected tuples and harness comparisons remain unchanged."
+        }
+      ]
+    },
+    {
+      "manifest": "ratchets/h2-8a-class-optional-name-readiness.v1.json",
+      "events": [
+        {
+          "path": "docs/design/greenfield/emitter-architecture.md",
+          "old_sha256": "f40c27da29da4752cf448395434e1a57fad9bfd86352cf89c0e17af604570bb8",
+          "sha256": "87866477f1e3ee90371f0600264540a9688a98b51517e0689926d37ca0f6bfb2",
+          "archived_path": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-retained-producers-readiness-ibhacd_w/emitter-architecture-before.md",
+          "reason": "Measured A39 producer profile documentation and transitive authority references only; all prior architecture subrows, expected tuples, comparators and accepted profiles retain their exact scopes."
+        }
+      ]
+    }
+  ],
+  "qualification": {
+    "record": "ratchets/h2-8a-class-optional-name-after.v1.json",
+    "sha256": "7817e63225c2c8fc63e6b7c36a8178986c80dd2d204e9abb373db7fa15ced28c",
+    "fresh_exact_twice": 58,
+    "printer_contracts": 38,
+    "global_matrix_claim": false
+  }
+}

@@ -1376,6 +1376,90 @@ x.use();
     );
 }
 
+// These module-only fixtures query the local name of an import declaration
+// when publishing it. Supply those projections without changing the legacy
+// resolver's deliberately absent answers for ordinary expression references.
+struct ModulePublicationResolver<'a> {
+    source: &'a tsc_syntax::SourceFile,
+}
+
+impl EmitResolver for ModulePublicationResolver<'_> {
+    fn get_constant_value(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitConstantValue>, EmitResolverError> {
+        LegacyScriptJsxResolver.get_constant_value(node)
+    }
+
+    fn has_node_check_flag(
+        &self,
+        node: EmitResolverNode,
+        flag: u32,
+    ) -> Result<bool, EmitResolverError> {
+        LegacyScriptJsxResolver.has_node_check_flag(node, flag)
+    }
+
+    fn is_external_or_common_js_module(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        LegacyScriptJsxResolver.is_external_or_common_js_module(node)
+    }
+
+    fn get_referenced_import_declaration(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        let Some(parent) = self.source.arena.node(node.node()).parent else {
+            return Ok(None);
+        };
+        let name = match &self.source.arena.node(parent).data {
+            NodeData::ImportClause(data) => data.name,
+            NodeData::ImportSpecifier(data) => data.name,
+            NodeData::NamespaceImport(data) => data.name,
+            NodeData::ImportEqualsDeclaration(data) => data.name,
+            _ => None,
+        };
+        Ok((name == Some(node.node())).then_some(EmitResolverNode::new(node.source(), parent)))
+    }
+
+    fn get_referenced_export_container(
+        &self,
+        node: EmitResolverNode,
+        mode: EmitExportContainerMode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        if mode != EmitExportContainerMode::Reference {
+            return Ok(None);
+        }
+        let Some(parent) = self.source.arena.node(node.node()).parent else {
+            return Ok(None);
+        };
+        let NodeData::ImportEqualsDeclaration(data) = &self.source.arena.node(parent).data else {
+            return Ok(None);
+        };
+        let exported = data.name == Some(node.node())
+            && data.modifiers.is_some_and(|modifiers| {
+                self.source
+                    .arena
+                    .node_array(modifiers)
+                    .nodes
+                    .iter()
+                    .any(|&modifier| {
+                        self.source.arena.node(modifier).kind
+                            == tsc_syntax::SyntaxKind::ExportKeyword
+                    })
+            });
+        Ok(exported.then_some(EmitResolverNode::new(node.source(), self.source.root)))
+    }
+
+    fn get_referenced_value_declaration(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        LegacyScriptJsxResolver.get_referenced_value_declaration(node)
+    }
+}
+
 fn transform_and_print_module_with_remove_comments(
     source_text: &str,
     module: ModuleKind,
@@ -1391,7 +1475,7 @@ fn transform_and_print_module_with_remove_comments(
         always_strict: Some(false),
         ..CompilerOptions::default()
     };
-    let resolver = LegacyScriptJsxResolver;
+    let resolver = ModulePublicationResolver { source: &parsed };
     let mut result = transform_nodes(
         arena,
         vec![TransformRoot::SourceFile(source)],
@@ -2765,6 +2849,56 @@ fn ordinary_detached_comment_uses_the_same_relocated_statement_list_contract() {
 }
 
 #[test]
+fn hoisted_exports_leave_detached_comments_for_the_function_declaration() {
+    for module in [ModuleKind::COMMON_JS, ModuleKind::AMD, ModuleKind::UMD] {
+        for (declaration, publication, function) in [
+            (
+                "export default function () {}\n",
+                "exports.default = default_1;",
+                "function default_1()",
+            ),
+            (
+                "export function named() {}\n",
+                "exports.named = named;",
+                "function named()",
+            ),
+        ] {
+            for detached in [false, true] {
+                let header = if detached {
+                    "// detached header\n\n"
+                } else {
+                    ""
+                };
+                let source = format!("{header}// attached function\n{declaration}");
+                let output = transform_and_print_module(&source, module);
+                let publication = output
+                    .find(publication)
+                    .expect("hoisted export publication");
+                let function = output
+                    .find(function)
+                    .expect("retained function declaration");
+                let attached = output
+                    .find("// attached function")
+                    .expect("attached comment");
+                assert_eq!(
+                    output.matches("// attached function").count(),
+                    1,
+                    "{output}"
+                );
+                assert!(publication < attached && attached < function, "{output}");
+                if detached {
+                    assert_eq!(output.matches("// detached header").count(), 1, "{output}");
+                    assert!(
+                        output.find("// detached header").unwrap() < publication,
+                        "{output}"
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn amd_import_re_exports_are_published_at_their_import_source_positions() {
     let output = transform_and_print_module(
         concat!(
@@ -3013,8 +3147,10 @@ fn common_js_file_level_generated_export_map_rejects_ordinary_generated_ids() {
     let file_level_identifier = file_level_identifier.expect("default owns a FileLevel ID");
     assert!(exports.add_for_identifier(arena, file_level_identifier, "default"));
     assert_eq!(
-        exports.get_for_identifier(arena, file_level_identifier),
-        Some(&[Box::<str>::from("default")][..]),
+        exports
+            .get_for_identifier(arena, file_level_identifier)
+            .map(|names| names.iter().map(AsRef::as_ref).collect::<Vec<_>>()),
+        Some(vec!["default"]),
     );
 }
 
@@ -4244,7 +4380,11 @@ fn using_anonymous_default_decorator_handoff_keeps_owner_and_binding_domains() {
                             "ordinary default_N must not enter the FileLevel domain ({case})",
                         );
                     }
-                    if metadata.generated_binding_is_file_level_optimistic() {
+                    // Decorator helpers also own FileLevel bindings. Inspect the
+                    // anonymous default export's binding without conflating them.
+                    if metadata.generated_binding_is_file_level_optimistic()
+                        && metadata.generated_binding_preferred_base() == Some("_default")
+                    {
                         file_level_identifier.get_or_insert(node);
                         assert_eq!(identifier.text, "_default", "{case}");
                         assert_eq!(
@@ -5383,5 +5523,1049 @@ fn es5_pipeline_registers_the_joint_es2015_generators_pass_in_upstream_order() {
             "transformGenerators",
             "transformSystemModule",
         ],
+    );
+}
+
+fn class_transform_flag_fixture() -> serde_json::Value {
+    serde_json::from_slice(include_bytes!(
+        "../../../../compiler/tests/fixtures/class-transform-flags.json"
+    ))
+    .unwrap()
+}
+
+fn record_class_flag_difference(
+    failures: &mut Vec<serde_json::Value>,
+    case_id: &str,
+    flags: TransformFlags,
+    expected: &serde_json::Value,
+    exact_word: bool,
+) {
+    let mask = if exact_word { -1 } else { 1 | 8192 };
+    let wanted = expected["transform_flags"].as_i64().unwrap() as i32 & mask;
+    let actual = flags.bits() & mask;
+    if actual != wanted {
+        failures.push(serde_json::json!({"case_id":case_id,"actual":actual,"expected":wanted}));
+    }
+}
+
+#[test]
+fn parsed_class_transform_flags_match_typescript_owned_bits() {
+    let fixture = class_transform_flag_fixture();
+    let cases = fixture["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 50);
+    let mut failures = Vec::new();
+    for case in cases {
+        let file = &case["files"][0];
+        let name = file["path"].as_str().unwrap();
+        let parsed = parse_source_file(
+            name,
+            file["text"].as_str().unwrap(),
+            ParseOptions {
+                script_target: if case["options"]["target"] == 1 {
+                    ScriptTarget::ES5
+                } else {
+                    ScriptTarget::ES2015
+                },
+                javascript_file: name.ends_with(".js"),
+                ..Default::default()
+            },
+            None,
+        );
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+        initialize_transform_flags(&mut arena, source).unwrap();
+        let mut stack = vec![parsed.root];
+        let mut nodes = Vec::new();
+        while let Some(id) = stack.pop() {
+            let node = parsed.arena.node(id);
+            if matches!(
+                node.kind,
+                tsc_syntax::SyntaxKind::ClassDeclaration
+                    | tsc_syntax::SyntaxKind::ClassExpression
+                    | tsc_syntax::SyntaxKind::PropertyDeclaration
+            ) {
+                nodes.push(id);
+            }
+            let mut children = Vec::new();
+            for_each_child(&parsed.arena, node, |child| {
+                children.push(child);
+                false
+            });
+            stack.extend(children.into_iter().rev());
+        }
+        let expected = case["typescript_parse_flags"].as_array().unwrap();
+        assert_eq!(nodes.len(), expected.len());
+        for (id, expected) in nodes.into_iter().zip(expected) {
+            let node = parsed.arena.node(id);
+            assert_eq!(
+                format!("{:?}", node.kind),
+                expected["kind"].as_str().unwrap()
+            );
+            assert_eq!(node.pos, expected["pos"].as_u64().unwrap() as u32);
+            assert_eq!(node.end, expected["end"].as_u64().unwrap() as u32);
+            let flags = arena.transform_flags(arena.node_ref(source, id).unwrap());
+            let case_id = case["case_id"].as_str().unwrap();
+            record_class_flag_difference(
+                &mut failures,
+                case_id,
+                flags,
+                expected,
+                case_id.ends_with("ambient-static")
+                    && node.kind == tsc_syntax::SyntaxKind::ClassDeclaration,
+            );
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "parsed class flag differences: {failures:?}"
+    );
+}
+
+#[test]
+fn updated_class_transform_flags_match_typescript_owned_bits() {
+    let fixture = class_transform_flag_fixture();
+    let controls = &fixture["update_controls"];
+    let parsed = parse_source_file(
+        controls["file_name"].as_str().unwrap(),
+        controls["text"].as_str().unwrap(),
+        Default::default(),
+        None,
+    );
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    initialize_transform_flags(&mut arena, source).unwrap();
+    let mut classes = BTreeMap::new();
+    for_each_child(&parsed.arena, parsed.arena.node(parsed.root), |id| {
+        if let NodeData::ClassDeclaration(data) = &parsed.arena.node(id).data {
+            let Some(name) = data.name else { return false };
+            let NodeData::Identifier(name) = &parsed.arena.node(name).data else {
+                return false;
+            };
+            classes.insert(name.escaped_text.clone(), (id, data.clone()));
+        }
+        false
+    });
+    let static_class = &classes["Static"].1;
+    let static_property = parsed.arena.node_array(static_class.members.unwrap()).nodes[0];
+    let NodeData::PropertyDeclaration(static_data) = &parsed.arena.node(static_property).data
+    else {
+        panic!()
+    };
+    let computed_property = parsed
+        .arena
+        .node_array(classes["Computed"].1.members.unwrap())
+        .nodes[0];
+    let NodeData::PropertyDeclaration(computed_data) = &parsed.arena.node(computed_property).data
+    else {
+        panic!()
+    };
+    let mut failures = Vec::new();
+    let updates = controls["updates"].as_array().unwrap();
+    assert_eq!(updates.len(), 9);
+    for update in updates {
+        let (original, data) = if update["kind"] == "class" {
+            let (id, original) = &classes[update["original_name"].as_str().unwrap()];
+            let mut data = original.clone();
+            data.members = classes[update["members_from"].as_str().unwrap()].1.members;
+            data.modifiers = classes[update["modifiers_from"].as_str().unwrap()]
+                .1
+                .modifiers;
+            (*id, NodeData::ClassDeclaration(data))
+        } else {
+            let mut data = static_data.clone();
+            if update["computed_name"] == true {
+                data.name = computed_data.name;
+            }
+            if update["static_modifier"] == false {
+                data.modifiers = None;
+            }
+            if update["initializer_present"] == false {
+                data.initializer = None;
+            }
+            (static_property, NodeData::PropertyDeclaration(data))
+        };
+        let flags =
+            super::flags_after_update(&arena, arena.node_ref(source, original).unwrap(), &data)
+                .unwrap();
+        record_class_flag_difference(
+            &mut failures,
+            update["case_id"].as_str().unwrap(),
+            flags,
+            &update["expected"],
+            update["case_id"] == "class-become-ambient",
+        );
+    }
+    assert!(
+        failures.is_empty(),
+        "updated class flag differences: {failures:?}"
+    );
+}
+
+#[test]
+fn updated_class_expression_transform_flags_match_typescript_owned_bits() {
+    let fixture: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../../fixtures/class-expression-updates.json"
+    ))
+    .unwrap();
+    let cases = fixture["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 6);
+    let mut failures = Vec::new();
+    for case in cases {
+        let file_name = case["file_name"].as_str().unwrap();
+        let parsed = parse_source_file(
+            file_name,
+            case["text"].as_str().unwrap(),
+            ParseOptions {
+                script_target: ScriptTarget::ES2015,
+                javascript_file: file_name.ends_with(".js"),
+                ..Default::default()
+            },
+            None,
+        );
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+        initialize_transform_flags(&mut arena, source).unwrap();
+        let mut classes = BTreeMap::new();
+        let mut stack = vec![parsed.root];
+        while let Some(id) = stack.pop() {
+            let node = parsed.arena.node(id);
+            if let NodeData::ClassExpression(data) = &node.data {
+                let NodeData::Identifier(name) = &parsed.arena.node(data.name.unwrap()).data else {
+                    panic!()
+                };
+                classes.insert(name.escaped_text.clone(), (id, data.clone()));
+            }
+            for_each_child(&parsed.arena, node, |child| {
+                stack.push(child);
+                false
+            });
+        }
+        let (original, mut data) = classes[case["original_name"].as_str().unwrap()].clone();
+        data.members = classes[case["members_from"].as_str().unwrap()].1.members;
+        let flags = super::flags_after_update(
+            &arena,
+            arena.node_ref(source, original).unwrap(),
+            &NodeData::ClassExpression(data),
+        )
+        .unwrap();
+        record_class_flag_difference(
+            &mut failures,
+            case["case_id"].as_str().unwrap(),
+            flags,
+            &case["expected"],
+            false,
+        );
+    }
+    assert!(
+        failures.is_empty(),
+        "updated class expression flag differences: {failures:?}"
+    );
+}
+
+// The complete compiler fixture owns output bytes; these controls own the
+// borrowing resolver boundary, parser sentinel identity and error cleanup.
+struct CommonJsMarkerResolver {
+    answer: Result<bool, EmitResolverError>,
+    calls: std::cell::RefCell<Vec<EmitResolverNode>>,
+}
+
+impl EmitResolver for CommonJsMarkerResolver {
+    fn is_common_js_module(&self, node: EmitResolverNode) -> Result<bool, EmitResolverError> {
+        self.calls.borrow_mut().push(node);
+        self.answer.clone()
+    }
+
+    fn get_constant_value(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitConstantValue>, EmitResolverError> {
+        Ok(None)
+    }
+    fn has_node_check_flag(
+        &self,
+        _node: EmitResolverNode,
+        _flag: u32,
+    ) -> Result<bool, EmitResolverError> {
+        Ok(false)
+    }
+    fn get_referenced_import_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+    fn get_referenced_export_container(
+        &self,
+        _node: EmitResolverNode,
+        _mode: EmitExportContainerMode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+    fn get_referenced_value_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+}
+
+struct CommonJsMarkerCleanupProbe<'a> {
+    inner: Box<dyn crate::Transformer + 'a>,
+    observed: &'a std::cell::Cell<bool>,
+}
+
+impl crate::Transformer for CommonJsMarkerCleanupProbe<'_> {
+    fn name(&self) -> &'static str {
+        "CommonJS marker lexical environment probe"
+    }
+    fn initialize(
+        &mut self,
+        context: &mut crate::TransformationContext,
+    ) -> Result<(), crate::TransformError> {
+        self.inner.initialize(context)
+    }
+    fn transform_root(
+        &mut self,
+        context: &mut crate::TransformationContext,
+        root: TransformRoot,
+    ) -> Result<TransformRoot, crate::TransformError> {
+        context.start_lexical_environment()?;
+        context
+            .set_lexical_environment_flags(crate::LexicalEnvironmentFlags::IN_PARAMETERS, true)?;
+        let result = self.inner.transform_root(context, root);
+        assert_eq!(
+            context.lexical_environment_flags(),
+            crate::LexicalEnvironmentFlags::IN_PARAMETERS
+        );
+        context.end_lexical_environment()?;
+        assert_eq!(
+            context.lexical_environment_flags(),
+            crate::LexicalEnvironmentFlags::NONE
+        );
+        self.observed.set(true);
+        result
+    }
+}
+
+#[test]
+fn common_js_esmodule_marker_queries_only_the_forced_javascript_source() {
+    use crate::EmitResolverMethod;
+    // The marker query remains independent of the enclosing effective-module
+    // query, which also checks unforced JavaScript in CommonJS format.
+    for module in [ModuleKind::COMMON_JS, ModuleKind::AMD, ModuleKind::UMD] {
+        for (file, text, forced, marker_queried, marker) in [
+            ("module.js", "exports.value = 1;", true, true, false),
+            ("module.jsx", "exports.value = 1;", true, true, false),
+            ("module.mjs", "exports.value = 1;", true, true, false),
+            ("module.cjs", "exports.value = 1;", true, true, false),
+            (
+                "module.js",
+                "exports.value = 1; export {};",
+                true,
+                false,
+                true,
+            ),
+            ("module.ts", ";", true, false, true),
+            ("module.JS", ";", true, false, true),
+            (".js", ";", true, false, true),
+            ("module.js", "exports.value = 1;", false, false, false),
+            ("module.cts", "export = 1;", true, false, false),
+        ] {
+            let parsed = parse_source_file(
+                file,
+                text,
+                ParseOptions {
+                    javascript_file: !file.ends_with(".ts") && !file.ends_with(".cts"),
+                    force_external_module: forced,
+                    ..ParseOptions::default()
+                },
+                None,
+            );
+            let program_source = SourceFileId::from_raw(17);
+            let query = EmitResolverNode::new(program_source, parsed.root);
+            let effective_queried = !forced && module == ModuleKind::COMMON_JS;
+            let queried = marker_queried || effective_queried;
+            let options = CompilerOptions {
+                module: Some(module.bits()),
+                target: Some(ScriptTarget::ES2015.bits()),
+                ..CompilerOptions::default()
+            };
+            for answer in [
+                Ok(true),
+                Ok(false),
+                Err(EmitResolverError::Unavailable {
+                    method: EmitResolverMethod::IsCommonJsModule,
+                    node: query,
+                }),
+                Err(EmitResolverError::CheckerAborted {
+                    method: EmitResolverMethod::IsCommonJsModule,
+                    node: query,
+                    reason: "marker query fault",
+                }),
+            ] {
+                let resolver = CommonJsMarkerResolver {
+                    answer: answer.clone(),
+                    calls: Default::default(),
+                };
+                let mut arena = TransformArena::new();
+                let source = arena.add_source(&parsed, Some(program_source));
+                let cleanup = std::cell::Cell::new(false);
+                let transformed = transform_nodes(
+                    arena,
+                    vec![TransformRoot::SourceFile(source)],
+                    vec![Box::new(CommonJsMarkerCleanupProbe {
+                        inner: transform_module(&options, &resolver),
+                        observed: &cleanup,
+                    })],
+                    false,
+                );
+                assert!(cleanup.get(), "{file} {module:?} {answer:?}");
+                assert_eq!(
+                    *resolver.calls.borrow(),
+                    if queried { vec![query] } else { vec![] },
+                    "{file} {module:?}"
+                );
+                if let Err(error) = &answer {
+                    if queried {
+                        assert!(
+                            matches!(&transformed, Err(crate::TransformError::Resolver(actual)) if actual == error)
+                        );
+                        continue;
+                    }
+                }
+                let mut transformed = transformed.expect("marker transform");
+                if marker_queried {
+                    // Adding the strict prologue has replaced syntax.root, but
+                    // the query must still carry the original program root.
+                    assert_ne!(
+                        transformed.arena().root(source).unwrap().node(),
+                        parsed.root
+                    );
+                }
+                let output = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
+                    .print(&mut transformed, PrintRequest::SourceFile(source), None)
+                    .unwrap();
+                let want_marker = if marker_queried {
+                    !answer.unwrap()
+                } else {
+                    marker
+                };
+                assert_eq!(
+                    output
+                        .text()
+                        .contains("Object.defineProperty(exports, \"__esModule\""),
+                    want_marker,
+                    "{file} {module:?}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn common_js_esmodule_marker_resolver_default_is_typed_unavailable() {
+    let parsed = parse_source_file("module.js", ";", ParseOptions::default(), None);
+    let node = EmitResolverNode::new(SourceFileId::from_raw(5), parsed.root);
+    assert_eq!(
+        LegacyScriptJsxResolver.is_common_js_module(node),
+        Err(EmitResolverError::Unavailable {
+            method: crate::EmitResolverMethod::IsCommonJsModule,
+            node
+        })
+    );
+    assert_eq!(
+        crate::EmitResolverMethod::IsCommonJsModule.name(),
+        "isCommonJsModule"
+    );
+}
+
+// Complete compiler commands own emitted bytes. These controls independently
+// qualify factory topology and the native host/activity failure boundaries.
+struct ModuleFactoryHost {
+    options: CompilerOptions,
+    format: Option<i32>,
+    format_calls: std::cell::RefCell<Vec<SourceFileId>>,
+}
+
+impl ModuleFactoryHost {
+    fn new(options: CompilerOptions, format: Option<i32>) -> Self {
+        Self {
+            options,
+            format,
+            format_calls: Default::default(),
+        }
+    }
+}
+
+impl EmitResolver for ModuleFactoryHost {}
+
+impl crate::EmitHost for ModuleFactoryHost {
+    fn compiler_options(&self) -> &CompilerOptions {
+        &self.options
+    }
+    fn current_directory(&self) -> &std::path::Path {
+        std::path::Path::new("/project")
+    }
+    fn common_source_directory(&self) -> &std::path::Path {
+        self.current_directory()
+    }
+    fn config_file_path(&self) -> Option<&std::path::Path> {
+        None
+    }
+    fn use_case_sensitive_file_names(&self) -> bool {
+        true
+    }
+    fn source_file_ids(&self) -> &[SourceFileId] {
+        &[]
+    }
+    fn source_file(&self, _id: SourceFileId) -> Option<crate::EmitSource<'_>> {
+        None
+    }
+    fn get_emit_module_format_of_file(&self, id: SourceFileId) -> Option<i32> {
+        self.format_calls.borrow_mut().push(id);
+        self.format
+    }
+}
+
+#[test]
+fn module_transformer_selection_factory_names_match_typescript_twice() {
+    let fixture: serde_json::Value = serde_json::from_slice(include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../compiler/tests/fixtures/module-transformer-selection.json"
+    )))
+    .unwrap();
+    let cases = fixture["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 184);
+    let mut mismatches = Vec::new();
+    for case in cases {
+        for repetition in 0..2 {
+            // These fixtures have no JSX/custom/legacy decorator options;
+            // target and module are the only varying factory-list inputs.
+            let options = CompilerOptions {
+                target: Some(case["options"]["target"].as_i64().unwrap() as i32),
+                module: Some(case["options"]["module"].as_i64().unwrap() as i32),
+                ..CompilerOptions::default()
+            };
+            let host = ModuleFactoryHost::new(options, Some(99));
+            let transformers = super::get_script_transformers_for_source(
+                &host.options,
+                &host,
+                &host,
+                SourceFileId::from_raw(17),
+            )
+            .unwrap();
+            let actual =
+                serde_json::json!(transformers.iter().map(|t| t.name()).collect::<Vec<_>>());
+            if actual != case["typescript_factory_names"] {
+                mismatches.push(format!(
+                    "{} repetition {repetition}: {actual}",
+                    case["case_id"]
+                ));
+            }
+        }
+    }
+    assert!(
+        mismatches.is_empty(),
+        "factory-list differences: {mismatches:?}"
+    );
+}
+
+#[test]
+fn module_transformer_selection_host_calls_and_bundle_activity_follow_selected_factory() {
+    use crate::{H2ActivityCanary, H2RuntimeSlice};
+    for module in [0, 1, 2, 3, 4, 5, 6, 7, 99, 100, 101, 102, 199, 200] {
+        for format in [None, Some(0), Some(1), Some(2), Some(3), Some(99)] {
+            let host = ModuleFactoryHost::new(
+                CompilerOptions {
+                    target: Some(99),
+                    module: Some(module),
+                    ..CompilerOptions::default()
+                },
+                format,
+            );
+            let mut activity = H2ActivityCanary::h2_7e_profile();
+            let members = [17, 18, 19].map(SourceFileId::from_raw);
+            let transformers = super::get_script_transformers_with_activity(
+                &host.options,
+                &host,
+                &host,
+                members[0],
+                &mut activity,
+            )
+            .unwrap();
+            for source in &members[1..] {
+                super::observe_additional_bundle_source_activity(
+                    &host.options,
+                    &host,
+                    *source,
+                    &mut activity,
+                );
+            }
+            let activity = activity.counters();
+            let implied = !matches!(module, 0 | 2 | 3 | 4 | 200);
+            assert_eq!(
+                host.format_calls.borrow().as_slice(),
+                if implied { &members[..] } else { &[] },
+                "module {module}, format {format:?}"
+            );
+            assert_eq!(activity.script_transformer_list_constructions(), 1);
+            assert_eq!(activity.transform_typescript_constructions(), 1);
+            assert_eq!(activity.transform_class_fields_constructions(), 1);
+            assert_eq!(
+                activity.transform_ecmascript_module_constructions(),
+                u64::from(implied || module == 200)
+            );
+            assert_eq!(
+                activity.runtime_slice(H2RuntimeSlice::H2_1a),
+                u64::from(implied)
+            );
+            let delegate = if implied {
+                format
+            } else if matches!(module, 0 | 2 | 3) {
+                Some(module)
+            } else {
+                None
+            };
+            assert_eq!(
+                activity.runtime_slice(H2RuntimeSlice::H2_1b),
+                if delegate.is_some_and(|m| m < 5) {
+                    3
+                } else {
+                    0
+                }
+            );
+            assert_eq!(
+                activity.runtime_slice(H2RuntimeSlice::H2_1c),
+                if delegate.is_some_and(|m| matches!(m, 2 | 3)) {
+                    3
+                } else {
+                    0
+                }
+            );
+            assert_eq!(
+                activity.runtime_slice(H2RuntimeSlice::H2_1d),
+                u64::from(module == 4)
+            );
+            drop(transformers);
+        }
+    }
+}
+
+#[test]
+fn module_transformer_selection_absent_host_and_missing_format_keep_distinct_boundaries() {
+    use crate::TransformError;
+    for module in [0, 1, 2, 3, 4, 5, 6, 7, 99, 100, 101, 102, 199, 200] {
+        let options = CompilerOptions {
+            target: Some(99),
+            module: Some(module),
+            ..CompilerOptions::default()
+        };
+        let host = ModuleFactoryHost::new(options.clone(), None);
+        let implied = !matches!(module, 0 | 2 | 3 | 4 | 200);
+        let without_host = get_script_transformers(&options, &host);
+        if implied {
+            assert!(
+                matches!(
+                    without_host,
+                    Err(TransformError::EmitHostRequiredForImpliedModuleFormat)
+                ),
+                "module {module}"
+            );
+        } else {
+            assert!(without_host.is_ok(), "module {module}");
+        }
+        let mut transformers = super::get_script_transformers_for_source(
+            &options,
+            &host,
+            &host,
+            SourceFileId::from_raw(17),
+        )
+        .expect("missing format is not a construction error");
+        let parsed = parse_source_file("/project/empty.ts", "", Default::default(), None);
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(17)));
+        let result = transform_nodes(
+            arena,
+            vec![TransformRoot::SourceFile(source)],
+            vec![transformers.pop().unwrap()],
+            false,
+        );
+        if implied {
+            assert!(
+                matches!(result, Err(TransformError::MissingProgramSourceForModuleFormat(id)) if id == source),
+                "module {module}"
+            );
+        } else {
+            assert!(result.is_ok(), "module {module}");
+            assert!(host.format_calls.borrow().is_empty(), "module {module}");
+        }
+        let bundle_options = CompilerOptions {
+            out_file: Some("/project/bundle.js".into()),
+            ..options
+        };
+        assert!(matches!(
+            get_script_transformers(&bundle_options, &host),
+            Err(TransformError::UnsupportedCompilerOption {
+                option: "outFile",
+                ..
+            })
+        ));
+    }
+    for module in [-1, 8, 201] {
+        let options = CompilerOptions {
+            target: Some(99),
+            module: Some(module),
+            ..CompilerOptions::default()
+        };
+        let host = ModuleFactoryHost::new(options.clone(), Some(99));
+        assert!(matches!(
+            super::get_script_transformers_for_source(
+                &options,
+                &host,
+                &host,
+                SourceFileId::from_raw(17)
+            ),
+            Err(TransformError::UnsupportedCompilerOption {
+                option: "module",
+                ..
+            })
+        ));
+        assert!(host.format_calls.borrow().is_empty());
+    }
+}
+
+/// Internal printer invariants use the same built-in transform selection as
+/// the TypeScript Program.emit oracle, then apply the recorded after mutation.
+#[test]
+fn meta_property_token_maps_internal_invariants_match_typescript() {
+    use crate::{SourceMapRange, SourceRange, TransformError, TransformNode, TransformSourceId};
+    use tsc_syntax::{NodeArrayId, NodeDataChildVisitor, SyntaxKind};
+
+    struct Mutator<'a> {
+        arena: &'a mut TransformArena,
+        source: TransformSourceId,
+        mode: &'a str,
+        touched: usize,
+    }
+    impl NodeDataChildVisitor for Mutator<'_> {
+        type Error = TransformError;
+        fn node_kind(&self, id: NodeId) -> SyntaxKind {
+            self.arena
+                .node(self.arena.node_ref(self.source, id).unwrap())
+                .unwrap()
+                .kind
+        }
+        fn visit_node(&mut self, id: NodeId) -> Result<Option<NodeId>, Self::Error> {
+            let node = self.arena.node_ref(self.source, id).unwrap();
+            let mut data = self.arena.node(node)?.data.clone();
+            let flags = self.arena.transform_flags(node);
+            if let NodeData::MetaProperty(meta) = &mut data {
+                self.touched += 1;
+                match self.mode {
+                    "baseline" => {}
+                    "no-token-maps" => self
+                        .arena
+                        .metadata_mut(node)
+                        .add_flags(EmitFlags::NO_TOKEN_SOURCE_MAPS),
+                    "token-override" => {
+                        let range = SourceRange::from_raw(
+                            0,
+                            1,
+                            self.arena.source(self.source)?.syntax().positions(),
+                        )
+                        .unwrap();
+                        self.arena.metadata_mut(node).set_token_source_map_range(
+                            meta.keyword_token,
+                            SourceMapRange::new(self.source, range),
+                        );
+                    }
+                    "absent-name" => meta.name = None,
+                    other => panic!("unknown invariant mode {other}"),
+                }
+            } else {
+                tsc_syntax::try_visit_each_child(&mut data, self)?;
+            }
+            self.arena
+                .factory()
+                .update_node(node, data, flags)
+                .map(|node| Some(node.node()))
+        }
+        fn visit_nodes(&mut self, id: NodeArrayId) -> Result<Option<NodeArrayId>, Self::Error> {
+            let array = self.arena.node_array_ref(self.source, id).unwrap();
+            let ids = self.arena.node_array(array)?.nodes.clone();
+            let nodes = ids
+                .into_iter()
+                .map(|id| {
+                    let visited = self.visit_node(id)?.unwrap();
+                    Ok(self.arena.node_ref(self.source, visited).unwrap())
+                })
+                .collect::<Result<Vec<TransformNode>, TransformError>>()?;
+            self.arena
+                .factory()
+                .update_node_array(array, nodes)
+                .map(|array| Some(array.array()))
+        }
+        fn required_child_removed(
+            &mut self,
+            parent: SyntaxKind,
+            field: &'static str,
+        ) -> Self::Error {
+            TransformError::RequiredChildRemoved { parent, field }
+        }
+    }
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(
+        "../../fixtures/meta-property-token-map-invariants.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let rows = artifact["rows"].as_array().unwrap();
+    assert_eq!(rows.len(), 8);
+    let mut failures = Vec::new();
+    for row in rows {
+        let id = row["case_id"].as_str().unwrap();
+        for repetition in 0..2 {
+            let result = std::panic::catch_unwind(|| {
+                let parsed = parse_source_file(
+                    "/main.ts",
+                    row["source_text"].as_str().unwrap(),
+                    Default::default(),
+                    None,
+                );
+                let mut arena = TransformArena::new();
+                let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+                let options = CompilerOptions {
+                    target: Some(ScriptTarget::ES2015.bits()),
+                    module: Some(ModuleKind::ES_NEXT.bits()),
+                    source_map: Some(true),
+                    ..Default::default()
+                };
+                let resolver = LegacyScriptJsxResolver;
+                let host =
+                    ModuleFactoryHost::new(options.clone(), Some(ModuleKind::ES_NEXT.bits()));
+                let transformers = crate::get_script_transformers_for_source(
+                    &options,
+                    &resolver,
+                    &host,
+                    SourceFileId::from_raw(0),
+                )
+                .unwrap();
+                let mut transformed = transform_nodes(
+                    arena,
+                    vec![TransformRoot::SourceFile(source)],
+                    transformers,
+                    false,
+                )
+                .unwrap();
+                let arena = transformed.arena_mut().unwrap();
+                let root = arena.root(source).unwrap();
+                let mut visitor = Mutator {
+                    arena,
+                    source,
+                    mode: row["mode"].as_str().unwrap(),
+                    touched: 0,
+                };
+                let updated = visitor.visit_node(root.node()).unwrap().unwrap();
+                assert_eq!(
+                    visitor.touched,
+                    row["observation"]["touched"].as_u64().unwrap() as usize
+                );
+                let updated = visitor.arena.node_ref(source, updated).unwrap();
+                visitor.arena.replace_root(source, updated).unwrap();
+                let printed = create_printer(
+                    PrinterOptions::new(NewLineKind::CarriageReturnLineFeed)
+                        .with_target(ScriptTarget::ES2015),
+                )
+                .print(
+                    &mut transformed,
+                    PrintRequest::SourceFile(source),
+                    Some(crate::SourceMapRecordingInputs {
+                        file: "main.js".into(),
+                        source_root: "".into(),
+                        sources_directory_path: "/".into(),
+                        current_directory: "/".into(),
+                        use_case_sensitive_source_keys: true,
+                        inline_sources: false,
+                    }),
+                )
+                .unwrap();
+                let expected = &row["observation"];
+                let write = expected["writes"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|w| w["path"] == "/main.js")
+                    .unwrap();
+                // Compiler-owned sourceMappingURL is outside the printer. Split
+                // only at the oracle's explicit UTF-16 callback metadata position.
+                let utf16 = write["callback_text"]
+                    .as_str()
+                    .unwrap()
+                    .encode_utf16()
+                    .collect::<Vec<_>>();
+                let url_pos = write["data_source_map_url_pos"].as_u64().unwrap() as usize;
+                let expected_text = String::from_utf16(&utf16[..url_pos]).unwrap();
+                assert_eq!(printed.text(), expected_text, "{id}: internal printer text");
+                let actual_map = printed.source_map().unwrap().clone().to_json_string();
+                assert_eq!(
+                    actual_map,
+                    expected["source_maps"][0]["source_map_json"]
+                        .as_str()
+                        .unwrap(),
+                    "{id}: complete internal map JSON"
+                );
+            });
+            if result.is_err() {
+                failures.push((id, repetition));
+            } else {
+                eprintln!("MetaProperty invariant EXACT {id} repetition {repetition}");
+            }
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "MetaProperty internal invariant failures: {failures:?}"
+    );
+}
+
+/// Eager module visitors must preserve the Unspecified name slot used by
+/// emitMetaProperty. Reference queries remain observable on the real value use.
+#[test]
+fn meta_property_token_maps_module_name_context_is_not_a_value_reference() {
+    struct QueryResolver {
+        references: BTreeMap<NodeId, NodeId>,
+        queried: std::cell::RefCell<Vec<NodeId>>,
+    }
+    impl EmitResolver for QueryResolver {
+        fn get_constant_value(
+            &self,
+            _: EmitResolverNode,
+        ) -> Result<Option<EmitConstantValue>, EmitResolverError> {
+            Ok(None)
+        }
+        fn has_node_check_flag(
+            &self,
+            _: EmitResolverNode,
+            _: u32,
+        ) -> Result<bool, EmitResolverError> {
+            Ok(false)
+        }
+        fn get_referenced_import_declaration(
+            &self,
+            node: EmitResolverNode,
+        ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+            self.queried.borrow_mut().push(node.node());
+            Ok(self
+                .references
+                .get(&node.node())
+                .map(|&decl| EmitResolverNode::new(node.source(), decl)))
+        }
+        fn is_referenced_alias_declaration(
+            &self,
+            _: EmitResolverNode,
+        ) -> Result<bool, EmitResolverError> {
+            Ok(true)
+        }
+        fn is_value_alias_declaration(
+            &self,
+            _: EmitResolverNode,
+        ) -> Result<bool, EmitResolverError> {
+            Ok(true)
+        }
+        fn get_referenced_export_container(
+            &self,
+            _: EmitResolverNode,
+            _: EmitExportContainerMode,
+        ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+            Ok(None)
+        }
+        fn get_referenced_value_declaration(
+            &self,
+            _: EmitResolverNode,
+        ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+            Ok(None)
+        }
+        fn is_external_or_common_js_module(
+            &self,
+            _: EmitResolverNode,
+        ) -> Result<bool, EmitResolverError> {
+            Ok(true)
+        }
+    }
+    let artifact: serde_json::Value = serde_json::from_slice(include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../compiler/tests/fixtures/meta-property-token-maps.json"
+    )))
+    .unwrap();
+    let mut observed = Vec::new();
+    for row in artifact["cases"].as_array().unwrap() {
+        let id = row["case_id"].as_str().unwrap();
+        if !id.contains("/es2015/") || !id.ends_with("imported-binding") {
+            continue;
+        }
+        let text = row["files"][0]["text"].as_str().unwrap();
+        let parsed = parse_source_file("/project/main.ts", text, Default::default(), None);
+        let mut meta_name = None;
+        let mut import = None;
+        let mut identifiers = Vec::new();
+        let mut stack = vec![parsed.root];
+        while let Some(node) = stack.pop() {
+            let record = parsed.arena.node(node);
+            match &record.data {
+                NodeData::MetaProperty(data) => meta_name = data.name,
+                NodeData::ImportSpecifier(_) => import = Some(node),
+                NodeData::Identifier(data) if data.text == "meta" || data.text == "target" => {
+                    identifiers.push(node)
+                }
+                _ => {}
+            }
+            for_each_child(&parsed.arena, record, |child| {
+                stack.push(child);
+                false
+            });
+        }
+        let meta_name = meta_name.unwrap();
+        let import = import.unwrap();
+        let value = identifiers
+            .iter()
+            .copied()
+            .find(|&node| node != meta_name && parsed.arena.node(node).parent != Some(import))
+            .unwrap();
+        let resolver = QueryResolver {
+            references: identifiers.into_iter().map(|node| (node, import)).collect(),
+            queried: Default::default(),
+        };
+        let options = CompilerOptions {
+            target: Some(ScriptTarget::ES2015.bits()),
+            module: Some(row["options"]["module"].as_i64().unwrap() as i32),
+            ..Default::default()
+        };
+        let host = ModuleFactoryHost::new(options.clone(), options.module);
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+        let transformers = crate::get_script_transformers_for_source(
+            &options,
+            &resolver,
+            &host,
+            SourceFileId::from_raw(0),
+        )
+        .unwrap();
+        let _transformed = transform_nodes(
+            arena,
+            vec![TransformRoot::SourceFile(source)],
+            transformers,
+            false,
+        )
+        .unwrap();
+        let queried = resolver.queried.borrow();
+        let name_was_not_queried = !queried.contains(&meta_name);
+        let value_query_matches_phase =
+            queried.contains(&value) == (options.module != Some(ModuleKind::ES_NEXT.bits()));
+        observed.push((id, name_was_not_queried, value_query_matches_phase));
+    }
+    assert_eq!(observed.len(), 6);
+    assert!(
+        observed.iter().all(|(_, name, value)| *name && *value),
+        "MetaProperty name/reference query observations: {observed:?}"
     );
 }

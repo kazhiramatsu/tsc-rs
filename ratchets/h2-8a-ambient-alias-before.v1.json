@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "status": "complete-before",
+  "eligible": 8,
+  "exact": [
+    "ambient/es5/default",
+    "ambient/es5/named",
+    "ambient/es5/namespace",
+    "ambient/es5/equals",
+    "ambient/es2015/default",
+    "ambient/es2015/named",
+    "ambient/es2015/namespace",
+    "ambient/es2015/equals"
+  ],
+  "failed": [],
+  "run_seconds": 10.34,
+  "log_sha256": "dcbcf4bb615e3ae6f95f2590e56bcaec9d79d6069d93da21c43d460b4eaed9f3",
+  "working_source_files": [
+    {
+      "path": "crates/compiler/tests/fixtures/ambient-alias-target-names.json",
+      "sha256": "36c5f242fbe53f070a9ceb4b17394a8dfa021dbe075f8396ede798a5d22f9fdb"
+    },
+    {
+      "path": "scripts/observe-ambient-alias-target-names.mjs",
+      "sha256": "f355ad98221130cc21fc8c8a270a99694783a3efc9455140e3690901dcf2825e"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_local_aliases.rs",
+      "sha256": "c532fe525bf6f237f94679411d36e0d59345df68279a3c53c56a9bace31ea7f0"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "fc32b5ae4e08458c7796ac8591252c47bb78e6cbf8ce41ea153820d8d3e80564"
+    },
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "a624cd64636369f22c104db486d013a740b00d852b4c39edf8f00574b94fe6f0"
+    },
+    {
+      "path": "crates/checker/src/modules.rs",
+      "sha256": "3e4845ca707c2869da9fc3969040350d8b44a4751170af7e09dfbd451b4bcdf1"
+    },
+    {
+      "path": "crates/checker/src/node_builder/chains.rs",
+      "sha256": "cbf3b8549fcb85a51951836650ec0b7f657dc248aa039d7dc562cc3379347162"
+    },
+    {
+      "path": "target/h2-8a-ambient-alias-before.log",
+      "sha256": "dcbcf4bb615e3ae6f95f2590e56bcaec9d79d6069d93da21c43d460b4eaed9f3"
+    }
+  ],
+  "note": "A6-5-1 through A6-5-3 production staged; serialize_as_alias caller body unchanged from checkpoint 622850a85. Every ambient control exact twice before A6-5-4 edits."
+}

@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "status": "complete-before",
+  "checkpoint": "f8ead8db9ce1f9f429d8c3bb5db36dea00cc2540",
+  "eligible": 10,
+  "exact": [
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClasses.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsComputedNames.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance3.ts#target%3Des2015"
+  ],
+  "failed": [
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClasses.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsComputedNames.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsDefaultsErr.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsDefaultsErr.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance2.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance2.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance3.ts#target%3Des5"
+  ],
+  "failures": [
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance2.ts#target%3Des5",
+      "repetition": 0,
+      "tuple_sha256": "94893cd052ff61f9179b1bc4c3781edc4fdafd38d39b799d766e1bddcb262476"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance2.ts#target%3Des5",
+      "repetition": 1,
+      "tuple_sha256": "c7f71abefd82240e489335d0f44aa1e68a805c896dab0cf1222c427d0c3f91ae"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsComputedNames.ts#target%3Des5",
+      "repetition": 0,
+      "tuple_sha256": "f03e0ca4241f1dda3bb43f64daa4afb586bd1d49e3cef29b26cb3036a26bcfae"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsComputedNames.ts#target%3Des5",
+      "repetition": 1,
+      "tuple_sha256": "163141a7a28c81dd3efb49c66eec5a0e43d8dee803dbfd5c66e8fd20ce499779"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance3.ts#target%3Des5",
+      "repetition": 0,
+      "tuple_sha256": "7684d571b00174b9be04ec04d77e44c7c5dae6b961be22b33d004f48f332f67c"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance3.ts#target%3Des5",
+      "repetition": 1,
+      "tuple_sha256": "487bbc58bb7bcd057baea096ac503ab42662ffeecd53f334b7c5b30e4d71ef6c"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsDefaultsErr.ts#target%3Des5",
+      "repetition": 0,
+      "tuple_sha256": "d8c5d6a508d4a5ba7c0b792cdb79bd3db722ebe52e8ab25beb0accf7de8f2bcc"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsDefaultsErr.ts#target%3Des5",
+      "repetition": 1,
+      "tuple_sha256": "8b022d6685cbabd6129d221b542539c0134b0a16ed19d3253582bc986f2cbd3f"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClasses.ts#target%3Des5",
+      "repetition": 0,
+      "tuple_sha256": "2c29cf8a7b3685973b2a9fe35bf9538c49b42b5529be7ad544ee94c1194492b0"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClasses.ts#target%3Des5",
+      "repetition": 1,
+      "tuple_sha256": "032d8afd4165ced63b8a9c05184236798aa0462d94b8f9e607f75f4b77f1d241"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance2.ts#target%3Des2015",
+      "repetition": 0,
+      "tuple_sha256": "6d497c32aa2cc7e03d831348bcc5b525eda96b2f9119a79525f17cafbcff050b"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance2.ts#target%3Des2015",
+      "repetition": 1,
+      "tuple_sha256": "cdc530538e536b4c517870cdf23ad92fd56fbf5a3794675540da34081246ec47"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsDefaultsErr.ts#target%3Des2015",
+      "repetition": 0,
+      "tuple_sha256": "59fbd831442c4864eec80ef4e6730439ff33eb06625fe0dc1de087e43fcff3f4"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsDefaultsErr.ts#target%3Des2015",
+      "repetition": 1,
+      "tuple_sha256": "016de93e6c33b6ff7bc8f2f7c83b2a60194d6962cbf0cd6879e0dadb963c9fa5"
+    }
+  ],
+  "run_seconds": 46.94,
+  "log_sha256": "2a5fe596587e6161789f0a00615d5fe7f352cbbb8b3a827c0d21e85106ff22b9"
+}

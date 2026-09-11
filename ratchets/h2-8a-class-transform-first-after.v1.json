@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "status": "complete-first-after",
+  "checkpoint": "f8ead8db9ce1f9f429d8c3bb5db36dea00cc2540",
+  "fresh_eligible": 50,
+  "fresh_exact": 46,
+  "fresh_failed": [
+    "js/es5/nested-static",
+    "ts/es5/nested-static",
+    "js/es2015/nested-static",
+    "ts/es2015/nested-static"
+  ],
+  "fresh_seconds": 61.37,
+  "unit_tests_passed": 98,
+  "unit_seconds": 0.13,
+  "original_eligible": 10,
+  "original_exact": 5,
+  "original_failed": [
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsComputedNames.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsDefaultsErr.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsDefaultsErr.ts#target%3Des5",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance2.ts#target%3Des2015",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsExportAssignedClassInstance2.ts#target%3Des5"
+  ],
+  "original_seconds": 33.19,
+  "logs": [
+    {
+      "path": "target/h2-8a-class-transform-after.log",
+      "sha256": "c03a3b08ffccb36468a229a8f9086413c8924e2a9d7731a55eb03008d5986af1"
+    },
+    {
+      "path": "target/h2-8a-class-transform-unit-after.log",
+      "sha256": "534babfe0c2c6b93af2d250cb14857308e1221ab14bdc6aa48bdc816a2766a83"
+    },
+    {
+      "path": "target/h2-8a-class-transform-original-after.log",
+      "sha256": "9e52fedeab731710efbe79ef27e8b48c69e882530265c72d87c956dba164a1bd"
+    }
+  ],
+  "runtime_sha256": "049188745987131ee9f95cab5d869eb916fc17b12dd9cabf5a870a0c5a502688"
+}

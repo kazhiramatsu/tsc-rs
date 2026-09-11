@@ -191,7 +191,7 @@ impl Printer {
             .take_source_map_recording()
             .map(crate::source_map::SourceMapRecording::into_generator);
         Ok(PrintedText {
-            text: writer.text().to_owned(),
+            text: writer.generated_text().clone(),
             end: writer.location(),
             source_map,
         })
@@ -217,8 +217,8 @@ impl Printer {
         };
         if let Some(value) = transformation
             .arena()
-            .metadata(expression)
-            .and_then(crate::EmitMetadata::javascript_string_value)
+            .literal_properties(expression)
+            .and_then(crate::LiteralNodeProperties::javascript_string_value)
         {
             return Ok(Some(value.code_units().to_vec()));
         }
@@ -251,16 +251,22 @@ impl Printer {
     }
 
     fn write_bundle_prologue(
-        &self,
+        &mut self,
         transformation: &mut TransformationResult<'_>,
         statement: TransformNode,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         writer.write_line(false);
-        transformation.before_emit_node(EmitHint::Unspecified, statement)?;
         let emitted = transformation.substitute_node(EmitHint::Unspecified, statement)?;
+        transformation.before_emit_node(EmitHint::Unspecified, statement)?;
         self.emit_statement_leading_comments(transformation, emitted, writer)?;
-        self.emit_transformed_node(transformation, emitted, EmitContext::file_root(), writer)?;
+        self.emit_transformed_node(
+            transformation,
+            emitted,
+            EmitHint::Unspecified,
+            EmitContext::file_root(),
+            writer,
+        )?;
         self.emit_statement_trailing_comments(transformation, emitted, writer)?;
         transformation.after_emit_node(EmitHint::Unspecified, statement)?;
         writer.write_line(false);

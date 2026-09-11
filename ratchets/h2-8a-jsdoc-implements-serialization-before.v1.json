@@ -1,0 +1,787 @@
+{
+  "version": 1,
+  "status": "complete-before-with-two-independent-native-fresh-jobs",
+  "base": "2c040c23338f7fc17aaa4dc4d5c83d6638208ec1",
+  "eligible": 96,
+  "exact_twice": [
+    "jsdoc-implements/es5/script/no-implements",
+    "jsdoc-implements/es5/script/empty",
+    "jsdoc-implements/es5/script/exports-entity",
+    "jsdoc-implements/es5/script/class-expression",
+    "jsdoc-implements/es5/commonjs/no-implements",
+    "jsdoc-implements/es5/commonjs/empty",
+    "jsdoc-implements/es5/commonjs/class-expression",
+    "jsdoc-implements/es5/esm/no-implements",
+    "jsdoc-implements/es5/esm/empty",
+    "jsdoc-implements/es5/esm/exports-entity",
+    "jsdoc-implements/es5/esm/class-expression",
+    "jsdoc-implements/es2015/script/no-implements",
+    "jsdoc-implements/es2015/script/empty",
+    "jsdoc-implements/es2015/script/exports-entity",
+    "jsdoc-implements/es2015/script/class-expression",
+    "jsdoc-implements/es2015/commonjs/no-implements",
+    "jsdoc-implements/es2015/commonjs/empty",
+    "jsdoc-implements/es2015/commonjs/class-expression",
+    "jsdoc-implements/es2015/esm/no-implements",
+    "jsdoc-implements/es2015/esm/empty",
+    "jsdoc-implements/es2015/esm/exports-entity",
+    "jsdoc-implements/es2015/esm/class-expression",
+    "jsdoc-implements/es5/script/typed-no-implements",
+    "jsdoc-implements/es5/script/typed-simple",
+    "jsdoc-implements/es5/script/typed-multiple",
+    "jsdoc-implements/es5/esm/typed-no-implements",
+    "jsdoc-implements/es5/esm/typed-simple",
+    "jsdoc-implements/es5/esm/typed-multiple",
+    "jsdoc-implements/es2015/script/typed-no-implements",
+    "jsdoc-implements/es2015/script/typed-simple",
+    "jsdoc-implements/es2015/script/typed-multiple",
+    "jsdoc-implements/es2015/script/typed-class-expression",
+    "jsdoc-implements/es2015/esm/typed-no-implements",
+    "jsdoc-implements/es2015/esm/typed-simple",
+    "jsdoc-implements/es2015/esm/typed-multiple",
+    "jsdoc-implements/es2015/esm/typed-class-expression"
+  ],
+  "failed_twice": [
+    "jsdoc-implements/es5/script/class",
+    "jsdoc-implements/es5/script/typedef",
+    "jsdoc-implements/es5/script/multiple",
+    "jsdoc-implements/es5/script/qualified",
+    "jsdoc-implements/es5/script/generic",
+    "jsdoc-implements/es5/script/parenthesized-generic",
+    "jsdoc-implements/es5/script/unknown",
+    "jsdoc-implements/es5/script/partial-unknown",
+    "jsdoc-implements/es5/commonjs/class",
+    "jsdoc-implements/es5/commonjs/typedef",
+    "jsdoc-implements/es5/commonjs/multiple",
+    "jsdoc-implements/es5/commonjs/qualified",
+    "jsdoc-implements/es5/commonjs/generic",
+    "jsdoc-implements/es5/commonjs/parenthesized-generic",
+    "jsdoc-implements/es5/commonjs/unknown",
+    "jsdoc-implements/es5/commonjs/partial-unknown",
+    "jsdoc-implements/es5/commonjs/exports-entity",
+    "jsdoc-implements/es5/esm/class",
+    "jsdoc-implements/es5/esm/typedef",
+    "jsdoc-implements/es5/esm/multiple",
+    "jsdoc-implements/es5/esm/qualified",
+    "jsdoc-implements/es5/esm/generic",
+    "jsdoc-implements/es5/esm/parenthesized-generic",
+    "jsdoc-implements/es5/esm/unknown",
+    "jsdoc-implements/es5/esm/partial-unknown",
+    "jsdoc-implements/es2015/script/class",
+    "jsdoc-implements/es2015/script/typedef",
+    "jsdoc-implements/es2015/script/multiple",
+    "jsdoc-implements/es2015/script/qualified",
+    "jsdoc-implements/es2015/script/generic",
+    "jsdoc-implements/es2015/script/parenthesized-generic",
+    "jsdoc-implements/es2015/script/unknown",
+    "jsdoc-implements/es2015/script/partial-unknown",
+    "jsdoc-implements/es2015/commonjs/class",
+    "jsdoc-implements/es2015/commonjs/typedef",
+    "jsdoc-implements/es2015/commonjs/multiple",
+    "jsdoc-implements/es2015/commonjs/qualified",
+    "jsdoc-implements/es2015/commonjs/generic",
+    "jsdoc-implements/es2015/commonjs/parenthesized-generic",
+    "jsdoc-implements/es2015/commonjs/unknown",
+    "jsdoc-implements/es2015/commonjs/partial-unknown",
+    "jsdoc-implements/es2015/commonjs/exports-entity",
+    "jsdoc-implements/es2015/esm/class",
+    "jsdoc-implements/es2015/esm/typedef",
+    "jsdoc-implements/es2015/esm/multiple",
+    "jsdoc-implements/es2015/esm/qualified",
+    "jsdoc-implements/es2015/esm/generic",
+    "jsdoc-implements/es2015/esm/parenthesized-generic",
+    "jsdoc-implements/es2015/esm/unknown",
+    "jsdoc-implements/es2015/esm/partial-unknown",
+    "jsdoc-implements/es5/script/typed-class-expression",
+    "jsdoc-implements/es5/esm/typed-class-expression",
+    "jsdoc-implements/es5/commonjs/imported-simple",
+    "jsdoc-implements/es5/commonjs/imported-generic",
+    "jsdoc-implements/es5/esm/imported-simple",
+    "jsdoc-implements/es5/esm/imported-generic",
+    "jsdoc-implements/es2015/commonjs/imported-simple",
+    "jsdoc-implements/es2015/commonjs/imported-generic",
+    "jsdoc-implements/es2015/esm/imported-simple",
+    "jsdoc-implements/es2015/esm/imported-generic"
+  ],
+  "native_jobs": 2,
+  "positive_executions_per_case": 4,
+  "failed_executions_per_case": 2,
+  "seconds": [
+    94.62,
+    95.93
+  ],
+  "exit_codes": [
+    101,
+    101
+  ],
+  "first_failure_comparisons": [
+    {
+      "case_id": "jsdoc-implements/es5/script/class",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "2f161e228d9335d7c920132c84a5141af86221a2343ec4a6a0dac5d5e497416d",
+      "expected_sha256": "151e9f381d5b8c0e450ae57b042ff03107f52076cfb7de49d653df04787400f5",
+      "native_executions": 2,
+      "only_missing_implements": true
+    },
+    {
+      "case_id": "jsdoc-implements/es5/script/typedef",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "6818ecbc5487a523d41694dda3e4f8bd8c62243f5e5a5f3af3fa17303cd1d10b",
+      "expected_sha256": "2c4ceb0dc8c92f922a65e50ee6c58f207ba25b9b593e5c4f410f7f3aa20afb72",
+      "native_executions": 2,
+      "only_missing_implements": true
+    },
+    {
+      "case_id": "jsdoc-implements/es5/script/multiple",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "e1a6cd77b4d6720689ba16174c42a8800196aba2e95941df15fbe24f45780079",
+      "expected_sha256": "f2a569d555c2c145ae27230a483a5ee4e403bf66e7b7c9ec39deb5490bcf67ff",
+      "native_executions": 2,
+      "only_missing_implements": true
+    },
+    {
+      "case_id": "jsdoc-implements/es5/script/qualified",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "07376349715be34e046f660c46b795d76136845842b030c2a72b74d33cf60ec8",
+      "expected_sha256": "6be04eb7c9ad483916754bf67ac69a4dabd8b6f0bafd064d078455d4c286603f",
+      "native_executions": 2,
+      "only_missing_implements": true
+    },
+    {
+      "case_id": "jsdoc-implements/es5/script/generic",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "ebb4353ef7538e80c3e5fd5c50ed2fa772f7c3a67ff7f3a034d2d0cd78cdd4b3",
+      "expected_sha256": "cf4637358d4ae9a6572613a82f79b0502d2ddcd2833ab6b5c2b65569352f0156",
+      "native_executions": 2,
+      "only_missing_implements": true
+    },
+    {
+      "case_id": "jsdoc-implements/es5/script/parenthesized-generic",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "fdf12e18b3ec1cdd9c8b6bf5d84fb4c6c0a1c45a860f80eb097f43b38e334936",
+      "expected_sha256": "fdb4ce2ad17e3f60dcde41c12b3db8300e0893969928d1130614b76d44d2c88d",
+      "native_executions": 2,
+      "only_missing_implements": true
+    },
+    {
+      "case_id": "jsdoc-implements/es5/script/unknown",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "8c1e40c608d2caabd51b2c74f35ebbd9fd07156e7176c3e71320443f15dc066e",
+      "expected_sha256": "6d97d5903d67313cf6402589d9be9c3fa6cf0021c4e07c1222678ff1a1bc6641",
+      "native_executions": 2,
+      "only_missing_implements": true
+    },
+    {
+      "case_id": "jsdoc-implements/es5/script/partial-unknown",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "344653b22bcd67c53fc67d4df7f68ab92232dc5050ad51167021dfc246b6f42e",
+      "expected_sha256": "38f6274fbbb9188320ac25a04b753d76226be6fe2153fca001c197887c0d6cc0",
+      "native_executions": 2,
+      "only_missing_implements": true
+    },
+    {
+      "case_id": "jsdoc-implements/es5/commonjs/class",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "73a389aaf7c6e175b712e6de4b45cf632de12721dbace1e897990d743e7b2490",
+      "expected_sha256": "29ca3156ab15138f60dcc102d36b1d2c93dbd98139253de29e559ea8261e3869",
+      "native_executions": 2,
+      "only_missing_implements": false
+    },
+    {
+      "case_id": "jsdoc-implements/es5/commonjs/typedef",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "5aa65b02b9ec3a83f6266d9cf6353af911790f7d83e453416f3b53a9895afc52",
+      "expected_sha256": "ae7de14db46ccf8ddfc341ab3842760ee2c330ea0bcb143f898ecf19bb1221ee",
+      "native_executions": 2,
+      "only_missing_implements": true
+    },
+    {
+      "case_id": "jsdoc-implements/es5/commonjs/multiple",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "a302a24356060fae70f0d15771d048969884cf0908237d3a74ddb44ba61ef0cd",
+      "expected_sha256": "7ed93bc56789ef9f2221cfbce2dca800f63823d9233e2ade8d4615725fcac2d0",
+      "native_executions": 2,
+      "only_missing_implements": false
+    },
+    {
+      "case_id": "jsdoc-implements/es5/commonjs/qualified",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "55c6829c1c24656f0b1f1870813752d1302437ef73098a547d6f3bd22896bd00",
+      "expected_sha256": "b6b536918298cb959decc7fa1b374424c57f0d3220bd8602225770534aef4fcc",
+      "native_executions": 2,
+      "only_missing_implements": false
+    },
+    {
+      "case_id": "jsdoc-implements/es5/commonjs/generic",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "33e809357c0971e014744099b96030bb6c19a8a7b9251edac39296e51e6836ed",
+      "expected_sha256": "6455bac0d4d629b46b2ec1739e038e595939fec6bebdaf15f442e0d1d0472ad3",
+      "native_executions": 2,
+      "only_missing_implements": false
+    },
+    {
+      "case_id": "jsdoc-implements/es5/commonjs/parenthesized-generic",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "f336ef2a79de7a9ba62fb9bacef9510555fc7faa9e2075eec3cc15f36280aacd",
+      "expected_sha256": "1e087bcb3697dc3a43623527679093077377ec4444383203147d6e7fc151fde2",
+      "native_executions": 2,
+      "only_missing_implements": false
+    },
+    {
+      "case_id": "jsdoc-implements/es5/commonjs/unknown",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "88a46315493a3fb4cc433644f84b549b25e87f754b0b9c5b250a155313f80af8",
+      "expected_sha256": "9abacd4e376ad617ba6523f12f01a4e2c60a3f039bfa634d25b03078609e5833",
+      "native_executions": 2,
+      "only_missing_implements": true
+    },
+    {
+      "case_id": "jsdoc-implements/es5/commonjs/partial-unknown",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "c7086d818b86e52d49843fc2284c3ef2c33c30f12dab9bd7e599539aa8816ee1",
+      "expected_sha256": "c30ff59de3ee4acf5604643dbb1ea70254437724397f5856a9d9bc902929666c",
+      "native_executions": 2,
+      "only_missing_implements": false
+    },
+    {
+      "case_id": "jsdoc-implements/es5/commonjs/exports-entity",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "db494f434b6bbac652a23e16d6f1c81121cf05eb2c075eda53c0426b8d0be11a",
+      "expected_sha256": "1a7c2ba3431000eb33abe74feb877ceed5ddc26e9c4ec36b69c9317d71480e7e",
+      "native_executions": 2,
+      "only_missing_implements": true
+    },
+    {
+      "case_id": "jsdoc-implements/es5/esm/class",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "4492026fbdb98c9e1e6eb067a5d546bb81b926dd6eb8b970518d578e738723b9",
+      "expected_sha256": "daa4b8cbae760a8951d1f0bcf358221652a62621acfb0757b6e8d80b27cdbb07",
+      "native_executions": 2,
+      "only_missing_implements": false
+    },
+    {
+      "case_id": "jsdoc-implements/es5/esm/typedef",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "03e114deabcf406d73ac401c8c792781020ab224abbf5d85f513f9d0ff37f8f5",
+      "expected_sha256": "de3a48c06dc8de55cfe90cb2d469ec9347d248db310b5855e0c1766ff399a9bd",
+      "native_executions": 2,
+      "only_missing_implements": true
+    },
+    {
+      "case_id": "jsdoc-implements/es5/esm/multiple",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "f5c4d9cbc3ab7735370d5557d64e2af3da19a0f64741fd5cc2e10c12290ce532",
+      "expected_sha256": "dfe46375e3f59c3487089b64c6fff9689c0ffca6983e27d6dc73dbe76c6bfece",
+      "native_executions": 2,
+      "only_missing_implements": false
+    },
+    {
+      "case_id": "jsdoc-implements/es5/esm/qualified",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "3496e9860b4a04e72c949418ad3718ddc9481c9e9dff37fed10985ef2918daf3",
+      "expected_sha256": "8276b22fb04bc3e8ed6c9722eacdab3e9a996ea437bd70d8312c57065446c1c0",
+      "native_executions": 2,
+      "only_missing_implements": false
+    },
+    {
+      "case_id": "jsdoc-implements/es5/esm/generic",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "e30c7d0b135fedbe2de8f7b40b1fa191788f7c31cd88bc87f41a57eca57505be",
+      "expected_sha256": "69f0be7d77db44b0ca0ea2878f41a72107628fafc6eb34f95e5479e5328c6119",
+      "native_executions": 2,
+      "only_missing_implements": false
+    },
+    {
+      "case_id": "jsdoc-implements/es5/esm/parenthesized-generic",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "6b23af4fdcd578e716184fcc20df5711fb5a855cac6e26e932c429b3e36202f4",
+      "expected_sha256": "ba2cb6b58105ff75a6723fd34cbf21ba59428c22c0922410836272a33daac1e9",
+      "native_executions": 2,
+      "only_missing_implements": false
+    },
+    {
+      "case_id": "jsdoc-implements/es5/esm/unknown",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "45df06d83f05cb71e166aac17b9b95e99a2b2c51902e1573096939393a372cf5",
+      "expected_sha256": "2aa5fb589f1a91bce49b351962a6a8ed5f3a9ad0d7a2af41ea8a14667f8f23a9",
+      "native_executions": 2,
+      "only_missing_implements": true
+    },
+    {
+      "case_id": "jsdoc-implements/es5/esm/partial-unknown",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "33ca2dbff91f4194dc8729e7959589adcde441864595cc39dacabf1174360eea",
+      "expected_sha256": "3d6a3b65f04cb85bb00e28dc93b1c9ab6733323940631e1fa8ac77965eac38e8",
+      "native_executions": 2,
+      "only_missing_implements": false
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/script/class",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "2f161e228d9335d7c920132c84a5141af86221a2343ec4a6a0dac5d5e497416d",
+      "expected_sha256": "151e9f381d5b8c0e450ae57b042ff03107f52076cfb7de49d653df04787400f5",
+      "native_executions": 2,
+      "only_missing_implements": true
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/script/typedef",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "6818ecbc5487a523d41694dda3e4f8bd8c62243f5e5a5f3af3fa17303cd1d10b",
+      "expected_sha256": "2c4ceb0dc8c92f922a65e50ee6c58f207ba25b9b593e5c4f410f7f3aa20afb72",
+      "native_executions": 2,
+      "only_missing_implements": true
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/script/multiple",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "e1a6cd77b4d6720689ba16174c42a8800196aba2e95941df15fbe24f45780079",
+      "expected_sha256": "f2a569d555c2c145ae27230a483a5ee4e403bf66e7b7c9ec39deb5490bcf67ff",
+      "native_executions": 2,
+      "only_missing_implements": true
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/script/qualified",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "07376349715be34e046f660c46b795d76136845842b030c2a72b74d33cf60ec8",
+      "expected_sha256": "6be04eb7c9ad483916754bf67ac69a4dabd8b6f0bafd064d078455d4c286603f",
+      "native_executions": 2,
+      "only_missing_implements": true
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/script/generic",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "ebb4353ef7538e80c3e5fd5c50ed2fa772f7c3a67ff7f3a034d2d0cd78cdd4b3",
+      "expected_sha256": "cf4637358d4ae9a6572613a82f79b0502d2ddcd2833ab6b5c2b65569352f0156",
+      "native_executions": 2,
+      "only_missing_implements": true
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/script/parenthesized-generic",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "fdf12e18b3ec1cdd9c8b6bf5d84fb4c6c0a1c45a860f80eb097f43b38e334936",
+      "expected_sha256": "fdb4ce2ad17e3f60dcde41c12b3db8300e0893969928d1130614b76d44d2c88d",
+      "native_executions": 2,
+      "only_missing_implements": true
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/script/unknown",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "8c1e40c608d2caabd51b2c74f35ebbd9fd07156e7176c3e71320443f15dc066e",
+      "expected_sha256": "6d97d5903d67313cf6402589d9be9c3fa6cf0021c4e07c1222678ff1a1bc6641",
+      "native_executions": 2,
+      "only_missing_implements": true
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/script/partial-unknown",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "344653b22bcd67c53fc67d4df7f68ab92232dc5050ad51167021dfc246b6f42e",
+      "expected_sha256": "38f6274fbbb9188320ac25a04b753d76226be6fe2153fca001c197887c0d6cc0",
+      "native_executions": 2,
+      "only_missing_implements": true
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/commonjs/class",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "73a389aaf7c6e175b712e6de4b45cf632de12721dbace1e897990d743e7b2490",
+      "expected_sha256": "29ca3156ab15138f60dcc102d36b1d2c93dbd98139253de29e559ea8261e3869",
+      "native_executions": 2,
+      "only_missing_implements": false
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/commonjs/typedef",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "5aa65b02b9ec3a83f6266d9cf6353af911790f7d83e453416f3b53a9895afc52",
+      "expected_sha256": "ae7de14db46ccf8ddfc341ab3842760ee2c330ea0bcb143f898ecf19bb1221ee",
+      "native_executions": 2,
+      "only_missing_implements": true
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/commonjs/multiple",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "a302a24356060fae70f0d15771d048969884cf0908237d3a74ddb44ba61ef0cd",
+      "expected_sha256": "7ed93bc56789ef9f2221cfbce2dca800f63823d9233e2ade8d4615725fcac2d0",
+      "native_executions": 2,
+      "only_missing_implements": false
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/commonjs/qualified",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "55c6829c1c24656f0b1f1870813752d1302437ef73098a547d6f3bd22896bd00",
+      "expected_sha256": "b6b536918298cb959decc7fa1b374424c57f0d3220bd8602225770534aef4fcc",
+      "native_executions": 2,
+      "only_missing_implements": false
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/commonjs/generic",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "33e809357c0971e014744099b96030bb6c19a8a7b9251edac39296e51e6836ed",
+      "expected_sha256": "6455bac0d4d629b46b2ec1739e038e595939fec6bebdaf15f442e0d1d0472ad3",
+      "native_executions": 2,
+      "only_missing_implements": false
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/commonjs/parenthesized-generic",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "f336ef2a79de7a9ba62fb9bacef9510555fc7faa9e2075eec3cc15f36280aacd",
+      "expected_sha256": "1e087bcb3697dc3a43623527679093077377ec4444383203147d6e7fc151fde2",
+      "native_executions": 2,
+      "only_missing_implements": false
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/commonjs/unknown",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "88a46315493a3fb4cc433644f84b549b25e87f754b0b9c5b250a155313f80af8",
+      "expected_sha256": "9abacd4e376ad617ba6523f12f01a4e2c60a3f039bfa634d25b03078609e5833",
+      "native_executions": 2,
+      "only_missing_implements": true
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/commonjs/partial-unknown",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "c7086d818b86e52d49843fc2284c3ef2c33c30f12dab9bd7e599539aa8816ee1",
+      "expected_sha256": "c30ff59de3ee4acf5604643dbb1ea70254437724397f5856a9d9bc902929666c",
+      "native_executions": 2,
+      "only_missing_implements": false
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/commonjs/exports-entity",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "db494f434b6bbac652a23e16d6f1c81121cf05eb2c075eda53c0426b8d0be11a",
+      "expected_sha256": "1a7c2ba3431000eb33abe74feb877ceed5ddc26e9c4ec36b69c9317d71480e7e",
+      "native_executions": 2,
+      "only_missing_implements": true
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/esm/class",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "4492026fbdb98c9e1e6eb067a5d546bb81b926dd6eb8b970518d578e738723b9",
+      "expected_sha256": "daa4b8cbae760a8951d1f0bcf358221652a62621acfb0757b6e8d80b27cdbb07",
+      "native_executions": 2,
+      "only_missing_implements": false
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/esm/typedef",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "03e114deabcf406d73ac401c8c792781020ab224abbf5d85f513f9d0ff37f8f5",
+      "expected_sha256": "de3a48c06dc8de55cfe90cb2d469ec9347d248db310b5855e0c1766ff399a9bd",
+      "native_executions": 2,
+      "only_missing_implements": true
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/esm/multiple",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "f5c4d9cbc3ab7735370d5557d64e2af3da19a0f64741fd5cc2e10c12290ce532",
+      "expected_sha256": "dfe46375e3f59c3487089b64c6fff9689c0ffca6983e27d6dc73dbe76c6bfece",
+      "native_executions": 2,
+      "only_missing_implements": false
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/esm/qualified",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "3496e9860b4a04e72c949418ad3718ddc9481c9e9dff37fed10985ef2918daf3",
+      "expected_sha256": "8276b22fb04bc3e8ed6c9722eacdab3e9a996ea437bd70d8312c57065446c1c0",
+      "native_executions": 2,
+      "only_missing_implements": false
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/esm/generic",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "e30c7d0b135fedbe2de8f7b40b1fa191788f7c31cd88bc87f41a57eca57505be",
+      "expected_sha256": "69f0be7d77db44b0ca0ea2878f41a72107628fafc6eb34f95e5479e5328c6119",
+      "native_executions": 2,
+      "only_missing_implements": false
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/esm/parenthesized-generic",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "6b23af4fdcd578e716184fcc20df5711fb5a855cac6e26e932c429b3e36202f4",
+      "expected_sha256": "ba2cb6b58105ff75a6723fd34cbf21ba59428c22c0922410836272a33daac1e9",
+      "native_executions": 2,
+      "only_missing_implements": false
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/esm/unknown",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "45df06d83f05cb71e166aac17b9b95e99a2b2c51902e1573096939393a372cf5",
+      "expected_sha256": "2aa5fb589f1a91bce49b351962a6a8ed5f3a9ad0d7a2af41ea8a14667f8f23a9",
+      "native_executions": 2,
+      "only_missing_implements": true
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/esm/partial-unknown",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "33ca2dbff91f4194dc8729e7959589adcde441864595cc39dacabf1174360eea",
+      "expected_sha256": "3d6a3b65f04cb85bb00e28dc93b1c9ab6733323940631e1fa8ac77965eac38e8",
+      "native_executions": 2,
+      "only_missing_implements": false
+    },
+    {
+      "case_id": "jsdoc-implements/es5/script/typed-class-expression",
+      "boundary": "exact source-map result",
+      "actual_sha256": "e5296993b936bf19050ece805f396d5db4c1a307e7c7d7401bb4c2ed88b6f1c3",
+      "expected_sha256": "241f5603268c53b0b3b30bbc386d3b359010f277f48ecec86487ea736d9e2667",
+      "native_executions": 2
+    },
+    {
+      "case_id": "jsdoc-implements/es5/esm/typed-class-expression",
+      "boundary": "exact source-map result",
+      "actual_sha256": "9ac6b7f88405f36338d18d0c79119bd4d5311869c1420978d12037dcadfe1606",
+      "expected_sha256": "92281dc0cdaf1d4bc41bf803de5b81906b1230b4cf3ba3335757e6c7cb7ebe2b",
+      "native_executions": 2
+    },
+    {
+      "case_id": "jsdoc-implements/es5/commonjs/imported-simple",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "a8673d7af24e25f1486189a1ff8f423af8fbf2f84ce110186e6ff0cb3eebbf8a",
+      "expected_sha256": "9b033c7f853bce743faf0bd39a7c0cdf826b0ed10942c3d399717a239ca73c07",
+      "native_executions": 2,
+      "only_missing_implements": false
+    },
+    {
+      "case_id": "jsdoc-implements/es5/commonjs/imported-generic",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "ef8b478a4e9ef7fed56358b64710dcf38f6895f7eac25541e1d382eb29dfcb8a",
+      "expected_sha256": "6dac9d414ba636c14a6cc061f2a94760d540feb0da3ad80768c328692c01e59c",
+      "native_executions": 2,
+      "only_missing_implements": false
+    },
+    {
+      "case_id": "jsdoc-implements/es5/esm/imported-simple",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "abd1b007a0f81a8433ea3809a81e49f7f160e23452e41794326ac0a10b1d9ee6",
+      "expected_sha256": "41d506f3c08571f588bfcfba9dfc63ad5ecfa24e785e57e6128409576a30fc07",
+      "native_executions": 2,
+      "only_missing_implements": false
+    },
+    {
+      "case_id": "jsdoc-implements/es5/esm/imported-generic",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "07675b403d273054033e0ee27f4bfa28afd69ee20c84fd9d370a7aa4bb1cef8e",
+      "expected_sha256": "5849d51918004135b4659f43fab2639c63536f8b2c8a7355fc81f75975d045c0",
+      "native_executions": 2,
+      "only_missing_implements": false
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/commonjs/imported-simple",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "a8673d7af24e25f1486189a1ff8f423af8fbf2f84ce110186e6ff0cb3eebbf8a",
+      "expected_sha256": "9b033c7f853bce743faf0bd39a7c0cdf826b0ed10942c3d399717a239ca73c07",
+      "native_executions": 2,
+      "only_missing_implements": false
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/commonjs/imported-generic",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "ef8b478a4e9ef7fed56358b64710dcf38f6895f7eac25541e1d382eb29dfcb8a",
+      "expected_sha256": "6dac9d414ba636c14a6cc061f2a94760d540feb0da3ad80768c328692c01e59c",
+      "native_executions": 2,
+      "only_missing_implements": false
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/esm/imported-simple",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "abd1b007a0f81a8433ea3809a81e49f7f160e23452e41794326ac0a10b1d9ee6",
+      "expected_sha256": "41d506f3c08571f588bfcfba9dfc63ad5ecfa24e785e57e6128409576a30fc07",
+      "native_executions": 2,
+      "only_missing_implements": false
+    },
+    {
+      "case_id": "jsdoc-implements/es2015/esm/imported-generic",
+      "boundary": "callback bytes for /project/out/main.d.ts",
+      "actual_sha256": "07675b403d273054033e0ee27f4bfa28afd69ee20c84fd9d370a7aa4bb1cef8e",
+      "expected_sha256": "5849d51918004135b4659f43fab2639c63536f8b2c8a7355fc81f75975d045c0",
+      "native_executions": 2,
+      "only_missing_implements": false
+    }
+  ],
+  "original": {
+    "eligible": 8,
+    "exact": 0,
+    "failed": 8,
+    "native_jobs": 1,
+    "native_executions_per_case": 2,
+    "full_tuples": 16,
+    "failed_twice": [
+      "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassImplementsGenericsSerialization.ts#target%3Des2015",
+      "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsClassImplementsGenericsSerialization.ts#target%3Des5",
+      "typescript-6.0.3/conformance/jsdoc/jsdocImplements_class.ts#default",
+      "typescript-6.0.3/conformance/jsdoc/jsdocImplements_interface.ts#default",
+      "typescript-6.0.3/conformance/jsdoc/jsdocImplements_interface_multiple.ts#default",
+      "typescript-6.0.3/conformance/jsdoc/jsdocImplements_namespacedInterface.ts#default",
+      "typescript-6.0.3/conformance/jsdoc/jsdocImplements_properties.ts#default",
+      "typescript-6.0.3/conformance/jsdoc/jsdocImplements_signatures.ts#default"
+    ]
+  },
+  "invalid_package_launch": {
+    "exit_code": 101,
+    "native_executions": 0,
+    "status": "package-selection-error-before-compilation"
+  },
+  "working_files": [
+    {
+      "path": "crates/checker/src/annotate.rs",
+      "sha256": "20eb0dcaaab36deaef67cd36207cf0cf40f7ac55b9f6c306fecd8697698fca6c"
+    },
+    {
+      "path": "crates/checker/src/class.rs",
+      "sha256": "7b03f7f7cdca7350cf1dd4001073d4b09419bf30abeb31e14666db0501b7c12b"
+    },
+    {
+      "path": "crates/checker/src/node_builder/chains.rs",
+      "sha256": "cbf3b8549fcb85a51951836650ec0b7f657dc248aa039d7dc562cc3379347162"
+    },
+    {
+      "path": "crates/checker/src/node_builder/context.rs",
+      "sha256": "beba5a3add26b6e917101adfb73796b1370e1d47de501d2dd010c340297910c4"
+    },
+    {
+      "path": "crates/checker/src/node_builder/mod.rs",
+      "sha256": "fd29baeb9104f3da2ea3db5fda94eafea7623ae3f4e103590d8732d48e703c1b"
+    },
+    {
+      "path": "crates/checker/src/node_builder/serialize.rs",
+      "sha256": "1f3ec654ee5eeb0a4b2912858128a522236ecbbc922ca1830b96af6fd79be27d"
+    },
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "c6abf4d5083008eefcaceb50bd8945100100f2eab35e322f045c2b1b4b732da2"
+    },
+    {
+      "path": "crates/checker/src/syntactic_type_node_builder.rs",
+      "sha256": "a543c48150b86f6444bb1bad2d57f6948d40fd9e644247a6d22cb1d86ac65717"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "492f3ae7beb828595c6093f107f6b1f099f9f990efb4166cd6684e40ac48bdd9"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/jsdoc-implements-serialization.json",
+      "sha256": "46f1ad3ebb5480c9d697fca9c6adf3c95dd3fed2f60e8f37210dd1e1733cc057"
+    },
+    {
+      "path": "crates/compiler/tests/h2_8a_original_corpus.rs",
+      "sha256": "c9872fc3a509326dd3757a9d4cc5f586766fc04284fae5e293c170da72011c18"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "726a6d93a6f97ec8e9509772260c71bd05326ae3addb56b90ee17d910e92e695"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+      "sha256": "90aff72e27fac502da3ff3f06980c55c4923e35554c3e64800a60213cb1b04ba"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_jsdoc_implements_serialization.rs",
+      "sha256": "2c035245d37a82d01b4e3ff15f0f5a05740b11d7b256be02a95c7d1fdd0a24eb"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/types/src/tables.rs",
+      "sha256": "fb40af06e83696e2b750a53de857fe5ff89563c6b7fa2038a2039d6e5396865a"
+    },
+    {
+      "path": "scripts/observe-jsdoc-implements-serialization.mjs",
+      "sha256": "8f408f62162626dda590e3b7cb32464f00744f13e7851c9222f330446c0400ba"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-implements-serialization-before-prelaunch.json",
+      "sha256": "0f014129c9fc4b0f99e22b1ebbff1efc8e5bea0c2ec27ba14a8146fe74630f17"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-implements-serialization-before-repeat.log",
+      "sha256": "5576656d02ec5150b3fcd4e316f77c59b0cefd07c29fe3ceb1255762cc469cb5"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-implements-serialization-before.log",
+      "sha256": "2feb12a13b5d193ceacb2e9c29f91b779ac3ff2e66cc52b331770956063f9a90"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-implements-serialization-declaration-components.draft.json",
+      "sha256": "772a6eb04f72f93c0ba2da4642df55a06085eb7fed7640dcdf8d046507d70937"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-implements-serialization-invalid-package-launch.log",
+      "sha256": "47415e00a0b9cacf030d07eea11a02dd193dda1003eb806d19f663c723166a95"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-implements-serialization-original-before-components.draft.json",
+      "sha256": "b7348a989a39304450465bf790206d4dade3ca3d941cb15f7d6fd012d353f998"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-implements-serialization-original-before-tuples/38bd1d753dcffa45c39583954b326abf97a817be252a8c2c543c87d5a05168a9-0.json",
+      "sha256": "5c017a8703ca08843cd37a194f905dcfaed55ac2e6a0f7f53e06a596a3f38a1e"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-implements-serialization-original-before-tuples/38bd1d753dcffa45c39583954b326abf97a817be252a8c2c543c87d5a05168a9-1.json",
+      "sha256": "4d21b6052db63731f13d03ac18023ec51788e40d6906d8a449f1d60a5070b0a2"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-implements-serialization-original-before-tuples/59a1bf306ab764a1a9b901aa2b3a95f376edafb0f7d828affee0157ad4025389-0.json",
+      "sha256": "daa704da4958b8d3b23f0673f01c60872244216c1ce0a163c8b8b3792dca12a4"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-implements-serialization-original-before-tuples/59a1bf306ab764a1a9b901aa2b3a95f376edafb0f7d828affee0157ad4025389-1.json",
+      "sha256": "6937a703ae2074f5feba212757b14ffff487483ec966e78557b2e85a50e9b339"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-implements-serialization-original-before-tuples/64d0e19c48c3221795eda6ee4fb2211decb6ef953a579c661c44087259a723a3-0.json",
+      "sha256": "371b443dc314b71461a0f41214c5d82e8cf6b1ebbb931a0543adb6ed9e2c759a"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-implements-serialization-original-before-tuples/64d0e19c48c3221795eda6ee4fb2211decb6ef953a579c661c44087259a723a3-1.json",
+      "sha256": "06b9381e6a34f7bfad34ab03ef6adf19b6494e2d882884ed2005bd623dfbec0e"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-implements-serialization-original-before-tuples/7b541ad7205d2b760e5c9c05d0ab67d6f0299901ca2d2bfa548e3473d9bb8ea0-0.json",
+      "sha256": "b4d57946eac412183a6d7ee9643d99df31f77621c0c54a6077fa5da650a3d545"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-implements-serialization-original-before-tuples/7b541ad7205d2b760e5c9c05d0ab67d6f0299901ca2d2bfa548e3473d9bb8ea0-1.json",
+      "sha256": "2d0706baada72293c3269a62e490f4a9901ef91eba174c8326b1fef39b0e5452"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-implements-serialization-original-before-tuples/b83c3c6200125d04c7fe5205aa680d65fd43134b99c0e0c87a8f2520e289bcb8-0.json",
+      "sha256": "08422ab14b143b9445fa862d0315837ab146d95a3b93cbc58b7002e76345f756"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-implements-serialization-original-before-tuples/b83c3c6200125d04c7fe5205aa680d65fd43134b99c0e0c87a8f2520e289bcb8-1.json",
+      "sha256": "8c76282e530e24e093623efa2f2c3af929c4bb31babaafdc023a25245e414b9e"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-implements-serialization-original-before-tuples/d33488cd0baf0bb86816198a16ca94160626cf1f3a7afadd524b313cbf90d554-0.json",
+      "sha256": "d95bc67f65532bbff07143f3ab5888382c75eaec682e9e36db9a1fd0ee3ce83d"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-implements-serialization-original-before-tuples/d33488cd0baf0bb86816198a16ca94160626cf1f3a7afadd524b313cbf90d554-1.json",
+      "sha256": "e7646ae579994ffdf9611dd6fc5dc17fb22229126b45f947b035daeb23b52b8a"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-implements-serialization-original-before-tuples/de386f23a4749d7bdb98d20d3f2b7408a2a2921dd34de718cf0fc530e4851083-0.json",
+      "sha256": "2f23e87ae0181abba505461e54d3297c4b7f5c8145dca203d5c1058ec62593c8"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-implements-serialization-original-before-tuples/de386f23a4749d7bdb98d20d3f2b7408a2a2921dd34de718cf0fc530e4851083-1.json",
+      "sha256": "6f54b0d989904833dd67c7c045524540ae3a11e492bb6bdacc3b6f906b53c8d2"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-implements-serialization-original-before-tuples/f1e557892e9b6042a7c22966bd0dcf217cf04a5d702626eed01113c228e9607c-0.json",
+      "sha256": "eeb1d088293a3d19c1f9e335f90a975aec5b8a81211826cb07952f186694050c"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-implements-serialization-original-before-tuples/f1e557892e9b6042a7c22966bd0dcf217cf04a5d702626eed01113c228e9607c-1.json",
+      "sha256": "2fe9f82cfbba33f025b8459704775132f6c4fa53caf38451db57360f33f02fce"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-implements-serialization-ts-before.log",
+      "sha256": "32421c9126f948e151e5e8bde3b985ff03f14db2dd47f04215ffeab660515bb2"
+    },
+    {
+      "path": "target/h2-8a-jsdoc-implements-serialization-ts-check.log",
+      "sha256": "32421c9126f948e151e5e8bde3b985ff03f14db2dd47f04215ffeab660515bb2"
+    }
+  ],
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-jsdoc-implements-before-kd7wvt0l"
+}

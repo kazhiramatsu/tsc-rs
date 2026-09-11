@@ -3725,6 +3725,24 @@ impl<'a> CheckerState<'a> {
         Ok(ty)
     }
 
+    /// tsc-port: isClassInstanceSide @6.0.3
+    /// tsc-hash: 8e21fadcbc33deb3417c74d765f9cb21010fabad5d134be360a3918935e4f1de
+    /// tsc-span: _tsc.js:50771-50773
+    pub(crate) fn is_class_instance_side(&mut self, ty: TypeId) -> CheckResult<bool> {
+        let Some(symbol) = self.tables.type_of(ty).symbol else {
+            return Ok(false);
+        };
+        if !self.symbol_flags(symbol).intersects(SymbolFlags::CLASS) {
+            return Ok(false);
+        }
+        Ok(ty == self.get_declared_type_of_class_or_interface(symbol)?
+            || self.tables.flags_of(ty).intersects(TypeFlags::OBJECT)
+                && self
+                    .tables
+                    .object_flags_of(ty)
+                    .intersects(ObjectFlags::IS_CLASS_INSTANCE_CLONE))
+    }
+
     /// tsc-port: getDeclaredTypeOfClassOrInterface @6.0.3
     /// tsc-hash: b159a970fade450a929f147df283c2d536e3a3459c66ac6b6e9b9675173ef57c
     /// tsc-span: _tsc.js:57375-57403
@@ -4150,7 +4168,7 @@ impl<'a> CheckerState<'a> {
                     .binder
                     .create_symbol(symbol_flags, source_symbol.escaped_name.clone());
                 let check_flags = CheckFlags::REVERSE_MAPPED
-                    | if readonly_mask && state.is_readonly_symbol(property) {
+                    | if readonly_mask && state.is_readonly_symbol(property)? {
                         CheckFlags::READONLY
                     } else {
                         CheckFlags::NONE
@@ -8972,8 +8990,11 @@ impl<'a> CheckerState<'a> {
         Ok(widened)
     }
 
-    /// tsc getInitializerTypeFromAssignmentDeclaration
-    /// (56378-56437): a `module.exports = <object>` export-equals
+    /// tsc-port: getInitializerTypeFromAssignmentDeclaration @6.0.3
+    /// tsc-hash: 9e23e3cbf38ef08a8fa25529eaf36a4c7796bfa243d6f2ad834907e8cf5c5f5b
+    /// tsc-span: _tsc.js:56348-56446
+    ///
+    /// CommonJS object-combination branch: a `module.exports = <object>` export-equals
     /// assignment exposes both the checked object's members and the
     /// source file's direct CommonJS export-property assignments.
     ///
@@ -9100,6 +9121,15 @@ impl<'a> CheckerState<'a> {
                 self.tables.type_mut(result).alias_symbol = alias_symbol;
                 self.tables.type_mut(result).alias_type_arguments =
                     (!arguments.is_empty()).then(|| arguments.into());
+            }
+        }
+        if let Some(result_symbol) = self.tables.type_of(result).symbol {
+            if self
+                .symbol_flags(result_symbol)
+                .intersects(SymbolFlags::CLASS)
+                && ty == self.get_declared_type_of_class_or_interface(result_symbol)?
+            {
+                self.tables.type_mut(result).object_flags |= ObjectFlags::IS_CLASS_INSTANCE_CLONE;
             }
         }
         Ok(result)

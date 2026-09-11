@@ -1,0 +1,995 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-25",
+  "base": "d12abe61cd90a45d45935bb057be65bf3dfd5abd",
+  "unresolved": 0,
+  "undispositioned": 0,
+  "runtime_paths": [
+    "crates/checker/src/node_builder/statements.rs"
+  ],
+  "unit_paths": [
+    "crates/checker/tests/unit/node_builder_statements/tests.rs"
+  ],
+  "steps": [
+    "A6-25-1",
+    "A6-25-2",
+    "A6-25-3"
+  ],
+  "owners": [
+    {
+      "owner": "symbolName",
+      "declaration_name": "symbolName",
+      "start": 11452,
+      "end": 11457,
+      "sha256": "201131264fe4f6f45c2da6248df265ae411ebc24acc96f4b77c6b676a48ade0a"
+    },
+    {
+      "owner": "getNonAssignedNameOfDeclaration",
+      "declaration_name": "getNonAssignedNameOfDeclaration",
+      "start": 11517,
+      "end": 11561,
+      "sha256": "382ebe3aca3c5b65c264f1177b6f9ed47454cdc918c228f8469456fb504d617b"
+    },
+    {
+      "owner": "getNameOfDeclaration",
+      "declaration_name": "getNameOfDeclaration",
+      "start": 11562,
+      "end": 11565,
+      "sha256": "5d3aafbdab871f0fe6f088a4904cd11e6b44e467e0cca8ad0c215b3f899b570b"
+    },
+    {
+      "owner": "isFunctionLikeDeclaration",
+      "declaration_name": "isFunctionLikeDeclaration",
+      "start": 11998,
+      "end": 12000,
+      "sha256": "404ab157d8b8bff3e824ad430826c813dabff35889efea1abc649dc35ad41b68"
+    },
+    {
+      "owner": "isFunctionLikeDeclarationKind",
+      "declaration_name": "isFunctionLikeDeclarationKind",
+      "start": 12004,
+      "end": 12017,
+      "sha256": "98d32c450062ebe6e646b6d040bb2eca00c5125e30f03ee890d3d24000678a58"
+    },
+    {
+      "owner": "isBindableObjectDefinePropertyCall",
+      "declaration_name": "isBindableObjectDefinePropertyCall",
+      "start": 15059,
+      "end": 15065,
+      "sha256": "11b59e7edd8f66683d81b05c7488aa75a2404cf5328472fffb75d1a94f2cb2a9"
+    },
+    {
+      "owner": "isBindableStaticNameExpression",
+      "declaration_name": "isBindableStaticNameExpression",
+      "start": 15086,
+      "end": 15088,
+      "sha256": "53acbb025bc0548bdb246e8d1665df9cada206e07d887c1612ef1486dfe2b6c0"
+    },
+    {
+      "owner": "isStringOrNumericLiteralLike",
+      "declaration_name": "isStringOrNumericLiteralLike",
+      "start": 15844,
+      "end": 15846,
+      "sha256": "c4b0aff81eab867a2d799872ff7a55d26daeae2697511c247d141e352be2c42c"
+    },
+    {
+      "owner": "cloneSymbol",
+      "declaration_name": "cloneSymbol",
+      "start": 47696,
+      "end": 47706,
+      "sha256": "1a41af611deac3728405e13030e086a1fbdd56ccbeb7e8aea75c5489897c283c"
+    },
+    {
+      "owner": "mergeSymbol",
+      "declaration_name": "mergeSymbol",
+      "start": 47707,
+      "end": 47783,
+      "sha256": "1b2782c87ef6132c3927aeaa879b58dfaff7fcb1e192463b4d52ab115f868242"
+    },
+    {
+      "owner": "getEffectiveParameterDeclaration",
+      "declaration_name": "getEffectiveParameterDeclaration",
+      "start": 52845,
+      "end": 52853,
+      "sha256": "2588afb7d3b8e6e07a54d982d06c2f7c2b2858fc29e3477e095fde223ae1dafe"
+    },
+    {
+      "owner": "parameterToParameterDeclarationName",
+      "declaration_name": "parameterToParameterDeclarationName",
+      "start": 52876,
+      "end": 52909,
+      "sha256": "f8c988288813b2b174b4e49718f6864d442cbfe82334ec499d89013ec3df06a4"
+    },
+    {
+      "owner": "parameterToParameterDeclarationName.cloneBindingName",
+      "declaration_name": "cloneBindingName",
+      "start": 52878,
+      "end": 52908,
+      "sha256": "d14170c43f6b359e6b695faf5357071724cd4133986d5621d68cf83b06867014"
+    },
+    {
+      "owner": "serializeTypeForDeclaration",
+      "declaration_name": "serializeTypeForDeclaration",
+      "start": 53487,
+      "end": 53508,
+      "sha256": "61ebc9bf5f2f88bf1e2a94886d4878fb12a562ca515d046a7d782c34c54ce979"
+    },
+    {
+      "owner": "makeSerializePropertySymbol",
+      "declaration_name": "makeSerializePropertySymbol",
+      "start": 55099,
+      "end": 55229,
+      "sha256": "fab03df95bee26e871b1bc817932eb99b58a9c262f37009266cc1a5291f817a7"
+    },
+    {
+      "owner": "getWriteTypeOfAccessors",
+      "declaration_name": "getWriteTypeOfAccessors",
+      "start": 56786,
+      "end": 56803,
+      "sha256": "5a40e99bfe94666a2fd8034dfe6e5f6823070a2e3c7990a72b56f3da8f16dc61"
+    },
+    {
+      "owner": "getWriteTypeOfSymbol",
+      "declaration_name": "getWriteTypeOfSymbol",
+      "start": 56929,
+      "end": 56944,
+      "sha256": "2c1e85a0c9e90a6b8acad4ad180acfd12a0afc3d8cc35e3216a643a6ab8f4380"
+    },
+    {
+      "owner": "createUnionOrIntersectionProperty",
+      "declaration_name": "createUnionOrIntersectionProperty",
+      "start": 59101,
+      "end": 59245,
+      "sha256": "21791f74b0558b599db3de8950d26bd93152bbb62c3e250727503334167bf713"
+    },
+    {
+      "owner": "getSignatureFromDeclaration",
+      "declaration_name": "getSignatureFromDeclaration",
+      "start": 59569,
+      "end": 59651,
+      "sha256": "f74d65ac24febb2f8dc4dfe2c0cc3fc26cfd01a4f004385457085decf95922cd"
+    },
+    {
+      "owner": "instantiateSymbol",
+      "declaration_name": "instantiateSymbol",
+      "start": 63436,
+      "end": 63462,
+      "sha256": "3151a0198339a37ffdc3a8585ade0d5da549d926ba9a7fe013bd08c3919ba27a"
+    }
+  ],
+  "architecture": [
+    {
+      "id": "E-RESOLVER-BASE",
+      "disposition": "modified-requalify"
+    },
+    {
+      "id": "E-PROTOCOL",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-ARENA",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-CONTEXT",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-METADATA-BASE",
+      "disposition": "premise-unchanged"
+    },
+    {
+      "id": "E-POSITIONS",
+      "disposition": "premise-unchanged"
+    }
+  ],
+  "authorities": [
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-defineproperty-setter-names.md",
+      "sha256": "782f48bf7a36c2437db72cf467bc889755f98d614acf38c8607811c060c9c12b"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "0faf8c3be3ef2faac924464254e210f59381149d84a5fe1ac96082eff56d8e19"
+    },
+    {
+      "path": "docs/design/greenfield/post-h1-completion-slices.md",
+      "sha256": "df4e630f4fe348119e43714261d1193a880453fa6847b42c7bf52d086bd840fb"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-setter-names-before.v1.json",
+      "sha256": "7c9045c6d1e72995845605e60f7686b7ea0a3a3cde36587ac2e128e1074d16b8"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-setter-annotations-before.v1.json",
+      "sha256": "7b76e601fb8f815aee83ffe5066a967af5ca3eafc0a715aec074a4cc3fcdd5e3"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-setter-names-native-before.v1.json",
+      "sha256": "ef4ecb28cc6db746bfa38fc780a2c049e5431ac7b7b75d4757d0660542611534"
+    },
+    {
+      "path": "ratchets/h2-8a-defineproperty-setter-names-native-first-before.v1.json",
+      "sha256": "e147a3a68e38944c9b1a1a0a9280aa2455c94c27a7eeafed3f42ad23500e685b"
+    },
+    {
+      "path": "scripts/observe-setter-symbol-invariant.mjs",
+      "sha256": "542af1c6138730dbcf89389a555e522068efb2cacecea06c539be208e83283ad"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/setter-symbol-invariant.json",
+      "sha256": "db61e9adcdec9ba0f7840629d2a927e9eebed919057fc8074ea25c0acd1ed9e1"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "54d5849d2db6baf84152e6505add6e01906e6740cb21285f8b62631e538599ad"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+      "sha256": "7b14d30e473948b7a7878c20ed9feb528a629f8d26db042306ba6574a6edde81"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+      "sha256": "90aff72e27fac502da3ff3f06980c55c4923e35554c3e64800a60213cb1b04ba"
+    },
+    {
+      "path": "crates/checker/tests/unit/node_builder_statements/tests.rs",
+      "sha256": "30e8bf2197aa9d7db335d8148bc7c0ee20c63ff04256003bba02686c3c5ff4cb"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/defineproperty-setter-names.json",
+      "sha256": "17f4edf8d471fa96b09834c488ba0e2fb5de0c268360cc67060091646e1ed57f"
+    },
+    {
+      "path": "scripts/observe-defineproperty-setter-names.mjs",
+      "sha256": "52643cdaff5ff137f742d3e6774baf89b51721d65b9e8b1fe918dc888b7ece50"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/defineproperty-setter-annotations.json",
+      "sha256": "e6722af3eec06a7b3b352f03a3f9ccc27a39773860cba1ec216493260cd7d06f"
+    },
+    {
+      "path": "scripts/observe-defineproperty-setter-annotations.mjs",
+      "sha256": "5b26985ce7406353b6d4bfe3c4c92c2bb6cb31860042fae54766a56aa64bddbc"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "71853704eadfbdfe31f25171c2241b3a76db192671a0cec0d8c2cdd884081b55"
+    },
+    {
+      "path": "crates/checker/src/node_builder/signatures.rs",
+      "sha256": "d46a6c370c777dc7f90624d8a7efcd7c277ba3350f84a8db5fbfa9bbb70c4a3a"
+    },
+    {
+      "path": "crates/checker/src/node_builder/serialize.rs",
+      "sha256": "0ab71141dac64fdf557c93d30a1a8ed2ce9ccf6c2f10daa5cbba5ea19f053330"
+    },
+    {
+      "path": "crates/checker/src/class.rs",
+      "sha256": "0cac7e0564ba2c2eeaee5cd7fd41c90abf10d5b21e6ca385d15d8e794aa71856"
+    },
+    {
+      "path": "crates/checker/src/emit.rs",
+      "sha256": "ed7a09cb4ca7b57b839aa03186385142141911d2af117b611e55191ff9bda105"
+    },
+    {
+      "path": "crates/checker/src/program.rs",
+      "sha256": "b7a6e8c75296e6e6ea3fa284d438bec910f1034c974653d42e260feedd45693b"
+    },
+    {
+      "path": "crates/binder/src/bind.rs",
+      "sha256": "5252a966639e5e4dcdee538ff1f1594f04bb25d1d20cb9316f8a5a6a14a2d396"
+    },
+    {
+      "path": "crates/binder/src/assignment.rs",
+      "sha256": "3589abfd9c9de29468e06d3582419e34c01f1ec58c0b88b62ebd350918a3afcc"
+    },
+    {
+      "path": "crates/binder/src/node_util.rs",
+      "sha256": "5d3eea9d3dc9a23a6cb4240aaa01cc85f41c1e5b39e0d074f43e36a101f7d551"
+    },
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "03191340f09238ee4802e90d56b9f6aac246189e6d44da6230cd6caeca2bbf7d"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "5ffd982b2fb2057fa7c082400f502e755f0acaf663245a9898bb48c0820d57b6"
+    },
+    {
+      "path": "crates/checker/src/merge.rs",
+      "sha256": "7ebe0f165d780395c865c21a885c90101f7be170739221172513754a1192632d"
+    },
+    {
+      "path": "crates/checker/src/instantiate.rs",
+      "sha256": "4d409efca2e636732ca5ec938f7aca36c7bc6b845897b24b377ec6ffc89eaa70"
+    },
+    {
+      "path": "crates/checker/src/structural.rs",
+      "sha256": "7a77541359c03bb6c0f7a9578b4638c52177cfe1b8078142ff51daa24fa32b73"
+    },
+    {
+      "path": "crates/checker/src/annotate.rs",
+      "sha256": "20eb0dcaaab36deaef67cd36207cf0cf40f7ac55b9f6c306fecd8697698fca6c"
+    },
+    {
+      "path": "crates/checker/src/access.rs",
+      "sha256": "317fb130f96c1a5f2d55d00de119b5cb719494edda8ca9c8d6ba5aa5070bfd5e"
+    },
+    {
+      "path": "crates/checker/src/links.rs",
+      "sha256": "07a50c8976a559103cfc9f686e1e1db2dac4dc11176c556bca3779acbfce5a5a"
+    }
+  ],
+  "witnesses": [
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-repeated-call-order",
+      "row_sha256": "a30d2cdba30c3b1a4895fdd53a8a8aaa4e4d8f7ecf78a7b67ccd955f0bad0a62",
+      "status": "owned-setter-parameter-name",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-duplicate-member-order",
+      "row_sha256": "51c109d88ac298b6fe2b3040e82d039004a8904b9940199304320a0cd334ffa7",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-variable-argument",
+      "row_sha256": "e97e31a9143bc91d7838ebe17792296c771d8c21a3bcc73a9f58fd9e47b68d5d",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-call-argument",
+      "row_sha256": "3b105377f6a0be591c87323285b6a07b99455b766cc5d841a9ef89187b358405",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-method",
+      "row_sha256": "d7b1bf669aeb14f8ac9db9f272d0a426f06b4696fb07bff7d7630c1d434e2a42",
+      "status": "owned-setter-parameter-name",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-get-set",
+      "row_sha256": "5fd56c87773ddfbe8ab3f983bde0cc6dc669287949b4b963a22e41f925d0bb37",
+      "status": "owned-setter-parameter-name",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-rest",
+      "row_sha256": "f4f10dd0f132c7763c2c13a62a39f75b319fcc5911c388b616441b3570666758",
+      "status": "owned-setter-parameter-name",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-noarg",
+      "row_sha256": "6b2eb47f951953565618518f7fd22f80820ad6a83ee87f4bf14e378570b755ec",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-object-binding",
+      "row_sha256": "2367c8691e44f90418ce2adf2a9f3146296061ca90f25677f113741a92b33298",
+      "status": "owned-setter-parameter-name",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-array-binding",
+      "row_sha256": "7d35faf61f479710886402abe27ddc160b9a87f7547f4b7f3f8bb9a2884c7832",
+      "status": "owned-setter-parameter-name",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-quoted-method",
+      "row_sha256": "e3d49cc5aebc0ff1eda78591dd2a2e9b4a3dfd75d52d7e467896bf63cda4fb01",
+      "status": "outside-descriptor-readonly",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-computed-method",
+      "row_sha256": "0ba35f76c160b90bf06c80aa8458b2642ad5718b2eafcbd49ef759d5d83023e4",
+      "status": "outside-descriptor-readonly",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-function-property",
+      "row_sha256": "42c4773dafd023412764004a7f7d3625c1c5e9f1020fd6078bbd92a1acf74bbd",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-arrow-property",
+      "row_sha256": "d7915925211ca1f2ca9a6faa423ef0a8dc68215c31b91be2e03558b29effc52f",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-identifier-property",
+      "row_sha256": "cd4475c78f2b2db31499e0ecfa01828a342d5225d1948cdaeb11326d4b0ef2b9",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-union-property",
+      "row_sha256": "7560455b47586fa390572ca56b439c7775f1d106e0331a88032484c2d3219277",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/descriptor-static-method",
+      "row_sha256": "0806248fb18915a73de8d4a221bed7d00b19aeb7925c5a08fe7a473c4f8944e1",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/actual-js-setter",
+      "row_sha256": "2c9b8ded013a2d410fadecf9ddc9c39d2be64da48b29294ab6488766c4c2ca4c",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/actual-js-get-set",
+      "row_sha256": "1bb7d839aa919eb8a92a5ef5761b9bfac3ed718f47408e89071d7bbaf633ea65",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/actual-js-private-setter",
+      "row_sha256": "628be054310d6bf952122b5e4789110b2a7f8bb6ec533e94cfeb3c71305bc492",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/actual-ts-setter",
+      "row_sha256": "4523ec55574bc004a2d5482bf5733708db257941a7b2db3163ba9e39b438bd7f",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es5/commonjs/anonymous-ts-private-setter",
+      "row_sha256": "bec4db433bb78d7bb7a6b0849e59264975b071bb4d94343df59a37648139d8a4",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-repeated-call-order",
+      "row_sha256": "4699064a9da097920984a869fd08f7707814f0483983608dadd69f2a35159bcd",
+      "status": "owned-setter-parameter-name",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-duplicate-member-order",
+      "row_sha256": "57c3c238b56a25ee096a7402a667de8835c0dcbd4641bacb554431f978199274",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-variable-argument",
+      "row_sha256": "09afd2bc29f52617d7a2068df6928855b3ea3309826f20c72abb516f18428c93",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-call-argument",
+      "row_sha256": "9b77b6c5dc473af3e21ffd3e4f1c6a10909650037a35f8356fd2421ae5a2290d",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-method",
+      "row_sha256": "2daee6955c695f2effb052f7b9566bdabe52c9f2f1e0e0bfd02b0a8149fcf889",
+      "status": "owned-setter-parameter-name",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-get-set",
+      "row_sha256": "d2edf4d504dfb3f018209018756c5c356d42ff0659703c27cc91bfdb2b31368e",
+      "status": "owned-setter-parameter-name",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-rest",
+      "row_sha256": "8ccec246120b69fe7551b580bf8bcb5907336d35f19127afbea3d85d2c31df54",
+      "status": "owned-setter-parameter-name",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-noarg",
+      "row_sha256": "f2d86ec521a199ae7e27342e62f81cc29c00a78554dc4ee1426b6b9e96194efc",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-object-binding",
+      "row_sha256": "0fb7b37b1e33c02a4506ddd42c2d1748d49a657ce086e1b09fc03b373c02897b",
+      "status": "owned-setter-parameter-name",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-array-binding",
+      "row_sha256": "f8b040c35be0efeae3942e777e8dcc9ae0200d7c0f768f831c5d77105ddbdde8",
+      "status": "owned-setter-parameter-name",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-quoted-method",
+      "row_sha256": "3bec52b10fdc0ae565ff4f77bdb66890b92577e73ab20f2a6206b283f195a3bf",
+      "status": "outside-descriptor-readonly",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-computed-method",
+      "row_sha256": "b1aff305cc7300da5dd2b9ff6aa8e2305979766e985724ad37c0fc8940d424f6",
+      "status": "outside-descriptor-readonly",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-function-property",
+      "row_sha256": "e75b65cd9d7b7ebc153307e3584c1f81efa1cf52ba527aee4d1b0a6f60990065",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-arrow-property",
+      "row_sha256": "409b7084e8552784dd1447fefa41f30668f685f0fcef57ec42b43bc23e951193",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-identifier-property",
+      "row_sha256": "d0b08b9571a56d2de15f5312cad172cc3715fefd9ced76968431403545b5e8b8",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-union-property",
+      "row_sha256": "149755440408225a3e9db44389335b45c450467d79fe286a11d374639be64ce1",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/descriptor-static-method",
+      "row_sha256": "ba5c78cb1fbedf175c28982fe5f8256c0b292ba4c67fee6055bded4354ca03ae",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/actual-js-setter",
+      "row_sha256": "78923ccd427c7f1b633f5b78387d805c1ddd523053d6540cd47a181709e65798",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/actual-js-get-set",
+      "row_sha256": "d02bb964090b6cdb41232b517ab2c2685279adfcf1c623b3355d73793d87c761",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/actual-js-private-setter",
+      "row_sha256": "818dd92501dc12a4561ada805c4b9c1c18fc5156cf3a4b137be6fa07f9694a04",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/actual-ts-setter",
+      "row_sha256": "fe91d7e3c9c2e8fe20cdcea798a05be3757f30fef56458a0717a63efeb52504f",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es5/esnext/anonymous-ts-private-setter",
+      "row_sha256": "f2e7157402598c984ab576bb0ec99e4a6f5c71830da759e559b01e82b5448256",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-repeated-call-order",
+      "row_sha256": "bf7a0d9eb3dcbd5713b904a95cdd4a99550d55563182bb5ae97f7a32129e3214",
+      "status": "owned-setter-parameter-name",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-duplicate-member-order",
+      "row_sha256": "b5d5fbb12d643d1538a5280a306bd9489fae01615f5dd196ed16d9c03f436806",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-variable-argument",
+      "row_sha256": "0cf517ce6b5706ce52b4cbd73f14f5f4aeee3b73a96d890ae96945d35f1122bc",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-call-argument",
+      "row_sha256": "7a8404e86851c0ee845926b75b1f089a1d7fb45b3451f7b30ce5687e95aa1929",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-method",
+      "row_sha256": "c058f0796b692bfa75fb1346623ae14b48ad503c2bf3214c9024e5ba0ef3db78",
+      "status": "owned-setter-parameter-name",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-get-set",
+      "row_sha256": "6f56f4ed6c10f1acb9d998099ca57defebeb98e390a2b748205891123d671f18",
+      "status": "owned-setter-parameter-name",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-rest",
+      "row_sha256": "2229fd2797c64da450a6212be66713cc2d4787c00b625ca797c0bd0831bf4326",
+      "status": "owned-setter-parameter-name",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-noarg",
+      "row_sha256": "91695f5af681423341749a86feae4a59b4b6a79d6aea6ab66559365b77c08e69",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-object-binding",
+      "row_sha256": "0f92d61fbd47a7456062a91187d496a7e4b1dade5a82754d614a7e64857615d4",
+      "status": "owned-setter-parameter-name",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-array-binding",
+      "row_sha256": "30ed6f0a45323904cf98af50b805523740a89d7e00da3c068a4473303b6180fb",
+      "status": "owned-setter-parameter-name",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-quoted-method",
+      "row_sha256": "ea805bced3fd0a0522d128eb1b8d1ffbf4c9c05d91af826834d881115e86ed82",
+      "status": "outside-descriptor-readonly",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-computed-method",
+      "row_sha256": "716031fef890dc22dd06156b05fb99ea7019cdc6103aab5981f1411c706739f9",
+      "status": "outside-descriptor-readonly",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-function-property",
+      "row_sha256": "b3e3e8e97e0a77263a231d1389610bca6cd34c87fb0f4db57f41b9f1cf4bccfa",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-arrow-property",
+      "row_sha256": "cbdfa4d3e629fe090ac3a675c49b1a3304371d912e68856dae00698b6929f50f",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-identifier-property",
+      "row_sha256": "3befd83adc3886e53997ac11356cffa53724eb4fa1f492dd1e25f6fbea4789fc",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-union-property",
+      "row_sha256": "7cad7d262abf2dc19fb1ff98d57b5780a847d65817e408d87e1fee6e02740568",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/descriptor-static-method",
+      "row_sha256": "082ee7ff5c16d00c2b0c32dfcc3259c76301de5a42770f8771d7242c4f6115ea",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/actual-js-setter",
+      "row_sha256": "bd615e96afcdf826a8de4cd9a00a2f8f84d275b9cc477c3bf70a979c09a93be3",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/actual-js-get-set",
+      "row_sha256": "709ded85c19f07898e715e7c4c27043a70109bec0ce44712d0193729a4d8b2f9",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/actual-js-private-setter",
+      "row_sha256": "664a1bc217808d5b016254565cc1a65eff7df39b76446f46416cb9dc1ef90f2c",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/actual-ts-setter",
+      "row_sha256": "f3af330583dd6f53ff44a353e8b08f31d492eaa7d65bf6c911c3c5446071cb73",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es2015/commonjs/anonymous-ts-private-setter",
+      "row_sha256": "402c32011218d3b5f58d419c22699405118030802c19260a18130bbf15df64d1",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-repeated-call-order",
+      "row_sha256": "51b849ce67d9c2c603e4f2c55cc3fb301bc39def25f12d18f9600f6205561a0d",
+      "status": "owned-setter-parameter-name",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-duplicate-member-order",
+      "row_sha256": "853aff5aa01b72180d360205de5da5ff164f422f81b90235fa048bd0fc1f9e21",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-variable-argument",
+      "row_sha256": "123e7fe43ed6816d03771696c36089b42f343a5e63a98bd7ded27c4ec9e91f87",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-call-argument",
+      "row_sha256": "561fc422347e7d5276bead58667b448aa2c994dc5a91c8f85ad1219614ac6bdb",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-method",
+      "row_sha256": "535b0d4b42ec13dedb81e69d7297e6e7744ddae696011e23307c1bcdb544f70b",
+      "status": "owned-setter-parameter-name",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-get-set",
+      "row_sha256": "84d9dd2aac83f608b3ceec32a6cf2646ce5128f556eacfc9f778b512c198e552",
+      "status": "owned-setter-parameter-name",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-rest",
+      "row_sha256": "7cda23889149af08b95a58bd8a1eb72899524688c50087723146286ff1c41395",
+      "status": "owned-setter-parameter-name",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-noarg",
+      "row_sha256": "3aee968ed361aff97c25a861da8739fbdae48ac40b15b77c867942e128e9b58f",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-object-binding",
+      "row_sha256": "04a53b572bb1da7dba418c3a4dd190eae63697283b5f2edc89330fa22eebc503",
+      "status": "owned-setter-parameter-name",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-array-binding",
+      "row_sha256": "9a9eb40e7d55f743069bb9a25803aeed63077d0466a36fa854b86fb5f75e6fe6",
+      "status": "owned-setter-parameter-name",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-quoted-method",
+      "row_sha256": "f63257240f886ebe9cf7f3825323b067dc8dddd88e7b4754104f32b2ecb648b3",
+      "status": "outside-descriptor-readonly",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-computed-method",
+      "row_sha256": "8191826080eb43c3e0df64d93108f7524270e33f0478b4b826e454e0987cdac0",
+      "status": "outside-descriptor-readonly",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-function-property",
+      "row_sha256": "69ee988b03a2a411fd26dafeb99e1d1e0f9b77f3b8ae5d4f867439a55af7f2b6",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-arrow-property",
+      "row_sha256": "9e27bdf75dda6a6ed4bc6df7340faf190306200ec80e06d10a2ad974d831ac22",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-identifier-property",
+      "row_sha256": "0ff2cb6aad64dc791d09b9efbfb684b0c8ecb9e165f3545b07fc4212264e415b",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-union-property",
+      "row_sha256": "841ac67f05de53462218056887683efe4cc210157bfe983d52941897397ba921",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/descriptor-static-method",
+      "row_sha256": "112b50e66ae7a4d088568eab19d3126e4fac499210c2eae863d36ea6056bb5a1",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/actual-js-setter",
+      "row_sha256": "1defe5745a301de56c5cc3eac95d4012cf83765fd22c391e37616df35cee9688",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/actual-js-get-set",
+      "row_sha256": "63f0c13b4427847824f585d7bb7793fe97a198018ee52ca8f9c003a232751d73",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/actual-js-private-setter",
+      "row_sha256": "1c0ace8120f7698312d074dee3a95925056d1ffd90c778f1d9e046287b600231",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/actual-ts-setter",
+      "row_sha256": "1bfb31f718e892d7c0c9c482af6b1be37b4d053e8005bc44a860618a95dc774b",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-names/es2015/esnext/anonymous-ts-private-setter",
+      "row_sha256": "79e89b446d73a407cefce1939e51a9762d3b6ca3e4feeeee295d3414a29823d5",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-annotations/es5/commonjs/multiline-private",
+      "row_sha256": "d95ddaad1d705f9e2993e1d63f932bfcc740f541bdaa5f28daabfe26c90d2a69",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-annotations/es5/commonjs/multiline-public",
+      "row_sha256": "c297f513ba3e84cc1e0e103efde2cd74bb93bc58538f0a41bb64419ca8b35e9b",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-annotations/es5/commonjs/multiline-descriptor",
+      "row_sha256": "22c42901fca828af7a82b3777d162844335a57a80594c070b118768b46fdb3ec",
+      "status": "owned-setter-parameter-name",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-annotations/es5/commonjs/ts-private",
+      "row_sha256": "902d341a3a1e8e25782e65e529e5f844139dc859b699f3476be076dae65cc64b",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-annotations/es5/commonjs/js-private-alias",
+      "row_sha256": "9bb8a65c18e76b04b5c6d54a9f1e2165b7a7ca24e1e84d38755556e87bb71ec4",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-annotations/es5/esnext/multiline-private",
+      "row_sha256": "59556af12e73ab12416cb906ce4d23c961dfdce93b501247d813bbed9fc71dcd",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-annotations/es5/esnext/multiline-public",
+      "row_sha256": "028801627a84586c3d868131d93beaecaa18e1a3569672d8d00bc1cb5cf6a74d",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-annotations/es5/esnext/multiline-descriptor",
+      "row_sha256": "27fe528e41f0531abce2d806fc0a1cb9c314dfc4e4580aafa573e3f6c57c7cc4",
+      "status": "owned-setter-parameter-name",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-annotations/es5/esnext/ts-private",
+      "row_sha256": "500bb1c8b4cce2e7a5f98e5e3c3f452c4eb23c77fafac672762af65dd46af59b",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-annotations/es5/esnext/js-private-alias",
+      "row_sha256": "000a54fa9fbdeec959a217d9fdf89425f40b90550cf766608352271b90a73744",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-annotations/es2015/commonjs/multiline-private",
+      "row_sha256": "848a19027cd2c77f661da05fbe6fd4025d05802157e1178aa3b9325219d4409b",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-annotations/es2015/commonjs/multiline-public",
+      "row_sha256": "08d4d7e0a34775170860a723511b0e2ef158c5bf585b2ef615b197cf7f519f7f",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-annotations/es2015/commonjs/multiline-descriptor",
+      "row_sha256": "f2c72e8515ee9438604d8a14409eec27bbe0b05b450fcf8f324abe9157ce5228",
+      "status": "owned-setter-parameter-name",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-annotations/es2015/commonjs/ts-private",
+      "row_sha256": "22c6861dd995ef758393ccf195a8bb4b1214b9e05ae24540f7c65688cc059014",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-annotations/es2015/commonjs/js-private-alias",
+      "row_sha256": "03ef10c2f443a13dcb83e7e7eae8c8723885c26137109b7092c0e2d1eebc0a76",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-annotations/es2015/esnext/multiline-private",
+      "row_sha256": "392c24f7c8903f49d07fb468e686cd0742de2b149c3d289ec350c6fe2977d4c5",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-annotations/es2015/esnext/multiline-public",
+      "row_sha256": "b6b72a95c66ad586bd2870a3d420f6f0ccaa65f474a3304451cc0ce676be8820",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-annotations/es2015/esnext/multiline-descriptor",
+      "row_sha256": "bc6b3d4cef62cc697cd7557e3ab39b62b4cf012dd4189fbc19068b2a4bf0baf3",
+      "status": "owned-setter-parameter-name",
+      "later_complete_command_fields": "not-qualified"
+    },
+    {
+      "case_id": "setter-annotations/es2015/esnext/ts-private",
+      "row_sha256": "4541889173f2ff7fa5a53278f76b7a1c26226b49131025ee72133baf91557735",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    },
+    {
+      "case_id": "setter-annotations/es2015/esnext/js-private-alias",
+      "row_sha256": "2a57fd3b94ee4b6b0362c64064b9d87bb0ac7eb568e5eb5943a6488a4f942092",
+      "status": "adjacent-exact",
+      "later_complete_command_fields": "exact-twice-per-job"
+    }
+  ],
+  "after_required_complete_commands": 213,
+  "after_target_exact_twice": 205,
+  "after_outside_failure_case_ids": [
+    "setter-names/es2015/commonjs/descriptor-computed-method",
+    "setter-names/es2015/commonjs/descriptor-quoted-method",
+    "setter-names/es2015/esnext/descriptor-computed-method",
+    "setter-names/es2015/esnext/descriptor-quoted-method",
+    "setter-names/es5/commonjs/descriptor-computed-method",
+    "setter-names/es5/commonjs/descriptor-quoted-method",
+    "setter-names/es5/esnext/descriptor-computed-method",
+    "setter-names/es5/esnext/descriptor-quoted-method"
+  ],
+  "checker_node_builder_units_required": 62,
+  "before_complete_comparison_and_supplemental_executions": 542,
+  "before_additional_adjacent_emit_executions": 44
+}

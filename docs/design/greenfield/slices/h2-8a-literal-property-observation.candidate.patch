@@ -1,0 +1,11 @@
+--- a/crates/emitter/src/metadata.rs
++++ b/crates/emitter/src/metadata.rs
+@@ -597,7 +597,7 @@
+         self.string_literal_single_quote
+     }
+ 
+-    pub(crate) const fn string_literal_text_source(&self) -> Option<TransformNode> {
++    pub const fn string_literal_text_source(&self) -> Option<TransformNode> {
+         self.string_literal_text_source
+     }
+ 

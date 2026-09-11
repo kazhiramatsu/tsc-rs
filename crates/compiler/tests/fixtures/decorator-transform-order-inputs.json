@@ -1,0 +1,1686 @@
+{
+  "version": 1,
+  "description": "Decorator, heritage and member visit order: pending expression injection, outerThis, two-phase members and nested class state.",
+  "cases": [
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/set/pending-into-undecorated-names",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\n@dec export class Box {\n    @dec method() {}\n    [keys.b]() { return this; }\n    @dec static sm() {}\n    get [keys.c]() { return 1; }\n    @dec field = 1;\n    [keys.a] = 2;\n    @dec static sf = 3;\n    static [keys.s] = 4;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/define/pending-into-undecorated-names",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\n@dec export class Box {\n    @dec method() {}\n    [keys.b]() { return this; }\n    @dec static sm() {}\n    get [keys.c]() { return 1; }\n    @dec field = 1;\n    [keys.a] = 2;\n    @dec static sf = 3;\n    static [keys.s] = 4;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/set/pending-into-undecorated-names",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\n@dec export class Box {\n    @dec method() {}\n    [keys.b]() { return this; }\n    @dec static sm() {}\n    get [keys.c]() { return 1; }\n    @dec field = 1;\n    [keys.a] = 2;\n    @dec static sf = 3;\n    static [keys.s] = 4;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/define/pending-into-undecorated-names",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\n@dec export class Box {\n    @dec method() {}\n    [keys.b]() { return this; }\n    @dec static sm() {}\n    get [keys.c]() { return 1; }\n    @dec field = 1;\n    [keys.a] = 2;\n    @dec static sf = 3;\n    static [keys.s] = 4;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/set/pending-into-undecorated-names",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\n@dec export class Box {\n    @dec method() {}\n    [keys.b]() { return this; }\n    @dec static sm() {}\n    get [keys.c]() { return 1; }\n    @dec field = 1;\n    [keys.a] = 2;\n    @dec static sf = 3;\n    static [keys.s] = 4;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/define/pending-into-undecorated-names",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\n@dec export class Box {\n    @dec method() {}\n    [keys.b]() { return this; }\n    @dec static sm() {}\n    get [keys.c]() { return 1; }\n    @dec field = 1;\n    [keys.a] = 2;\n    @dec static sf = 3;\n    static [keys.s] = 4;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/set/decorated-computed-fields",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\n@dec export class Box {\n    static k = \"k\";\n    @dec [keys.a] = 1;\n    [keys.b]() { return this; }\n    @dec static [keys.s] = 2;\n    @dec accessor [keys.x] = 3;\n    @dec method() {}\n    constructor() { }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/define/decorated-computed-fields",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\n@dec export class Box {\n    static k = \"k\";\n    @dec [keys.a] = 1;\n    [keys.b]() { return this; }\n    @dec static [keys.s] = 2;\n    @dec accessor [keys.x] = 3;\n    @dec method() {}\n    constructor() { }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/set/decorated-computed-fields",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\n@dec export class Box {\n    static k = \"k\";\n    @dec [keys.a] = 1;\n    [keys.b]() { return this; }\n    @dec static [keys.s] = 2;\n    @dec accessor [keys.x] = 3;\n    @dec method() {}\n    constructor() { }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/define/decorated-computed-fields",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\n@dec export class Box {\n    static k = \"k\";\n    @dec [keys.a] = 1;\n    [keys.b]() { return this; }\n    @dec static [keys.s] = 2;\n    @dec accessor [keys.x] = 3;\n    @dec method() {}\n    constructor() { }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/set/decorated-computed-fields",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\n@dec export class Box {\n    static k = \"k\";\n    @dec [keys.a] = 1;\n    [keys.b]() { return this; }\n    @dec static [keys.s] = 2;\n    @dec accessor [keys.x] = 3;\n    @dec method() {}\n    constructor() { }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/define/decorated-computed-fields",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\n@dec export class Box {\n    static k = \"k\";\n    @dec [keys.a] = 1;\n    [keys.b]() { return this; }\n    @dec static [keys.s] = 2;\n    @dec accessor [keys.x] = 3;\n    @dec method() {}\n    constructor() { }\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/set/heritage-safe-extends",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nclass Base { static base = 0; }\n@dec export class A extends (class { static base = 1; }) { static self = this; }\n@dec export class B extends (function () {} as any) { static self = this; }\n@dec export class C extends ((() => {}) as any) { static self = this; }\n@dec export class D extends (Base) { static self = this; }\n@dec export class E extends (class Named { static base = 2; }) { static self = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/define/heritage-safe-extends",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nclass Base { static base = 0; }\n@dec export class A extends (class { static base = 1; }) { static self = this; }\n@dec export class B extends (function () {} as any) { static self = this; }\n@dec export class C extends ((() => {}) as any) { static self = this; }\n@dec export class D extends (Base) { static self = this; }\n@dec export class E extends (class Named { static base = 2; }) { static self = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/set/heritage-safe-extends",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nclass Base { static base = 0; }\n@dec export class A extends (class { static base = 1; }) { static self = this; }\n@dec export class B extends (function () {} as any) { static self = this; }\n@dec export class C extends ((() => {}) as any) { static self = this; }\n@dec export class D extends (Base) { static self = this; }\n@dec export class E extends (class Named { static base = 2; }) { static self = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/define/heritage-safe-extends",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nclass Base { static base = 0; }\n@dec export class A extends (class { static base = 1; }) { static self = this; }\n@dec export class B extends (function () {} as any) { static self = this; }\n@dec export class C extends ((() => {}) as any) { static self = this; }\n@dec export class D extends (Base) { static self = this; }\n@dec export class E extends (class Named { static base = 2; }) { static self = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/set/heritage-safe-extends",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nclass Base { static base = 0; }\n@dec export class A extends (class { static base = 1; }) { static self = this; }\n@dec export class B extends (function () {} as any) { static self = this; }\n@dec export class C extends ((() => {}) as any) { static self = this; }\n@dec export class D extends (Base) { static self = this; }\n@dec export class E extends (class Named { static base = 2; }) { static self = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/define/heritage-safe-extends",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nclass Base { static base = 0; }\n@dec export class A extends (class { static base = 1; }) { static self = this; }\n@dec export class B extends (function () {} as any) { static self = this; }\n@dec export class C extends ((() => {}) as any) { static self = this; }\n@dec export class D extends (Base) { static self = this; }\n@dec export class E extends (class Named { static base = 2; }) { static self = this; }\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/set/outer-this-static-block",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nexport function make(this: any): any {\n    @dec class Outer {\n        @((this as any).dec) method() {}\n        static inner = @dec class { @((this as any).dec) m() {} };\n    }\n    return Outer;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/define/outer-this-static-block",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nexport function make(this: any): any {\n    @dec class Outer {\n        @((this as any).dec) method() {}\n        static inner = @dec class { @((this as any).dec) m() {} };\n    }\n    return Outer;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/set/outer-this-static-block",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nexport function make(this: any): any {\n    @dec class Outer {\n        @((this as any).dec) method() {}\n        static inner = @dec class { @((this as any).dec) m() {} };\n    }\n    return Outer;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/define/outer-this-static-block",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nexport function make(this: any): any {\n    @dec class Outer {\n        @((this as any).dec) method() {}\n        static inner = @dec class { @((this as any).dec) m() {} };\n    }\n    return Outer;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/set/outer-this-static-block",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nexport function make(this: any): any {\n    @dec class Outer {\n        @((this as any).dec) method() {}\n        static inner = @dec class { @((this as any).dec) m() {} };\n    }\n    return Outer;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/define/outer-this-static-block",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nexport function make(this: any): any {\n    @dec class Outer {\n        @((this as any).dec) method() {}\n        static inner = @dec class { @((this as any).dec) m() {} };\n    }\n    return Outer;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/set/outer-this-computed-name",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\nexport function make(this: any): any {\n    @dec class Outer {\n        @((this as any).dec) method() {}\n        @((this as any).dec) static [keys.a] = 1;\n        @((this as any).dec) [keys.b]() {}\n    }\n    return Outer;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/define/outer-this-computed-name",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\nexport function make(this: any): any {\n    @dec class Outer {\n        @((this as any).dec) method() {}\n        @((this as any).dec) static [keys.a] = 1;\n        @((this as any).dec) [keys.b]() {}\n    }\n    return Outer;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/set/outer-this-computed-name",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\nexport function make(this: any): any {\n    @dec class Outer {\n        @((this as any).dec) method() {}\n        @((this as any).dec) static [keys.a] = 1;\n        @((this as any).dec) [keys.b]() {}\n    }\n    return Outer;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/define/outer-this-computed-name",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\nexport function make(this: any): any {\n    @dec class Outer {\n        @((this as any).dec) method() {}\n        @((this as any).dec) static [keys.a] = 1;\n        @((this as any).dec) [keys.b]() {}\n    }\n    return Outer;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/set/outer-this-computed-name",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\nexport function make(this: any): any {\n    @dec class Outer {\n        @((this as any).dec) method() {}\n        @((this as any).dec) static [keys.a] = 1;\n        @((this as any).dec) [keys.b]() {}\n    }\n    return Outer;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/define/outer-this-computed-name",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\nexport function make(this: any): any {\n    @dec class Outer {\n        @((this as any).dec) method() {}\n        @((this as any).dec) static [keys.a] = 1;\n        @((this as any).dec) [keys.b]() {}\n    }\n    return Outer;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/set/outer-this-nested-numbering",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\nexport function make(this: any): any {\n    @((this as any).reg.dec) class Outer extends (@dec class { @((this as any).reg.dec) h() {} }) {\n        @((this as any).reg.dec) m() {}\n        static inner = @dec class { @((this as any).reg.dec) i() {} };\n        static [keys.a] = @dec class { @((this as any).reg.dec) j() {} };\n    }\n    return Outer;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/define/outer-this-nested-numbering",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\nexport function make(this: any): any {\n    @((this as any).reg.dec) class Outer extends (@dec class { @((this as any).reg.dec) h() {} }) {\n        @((this as any).reg.dec) m() {}\n        static inner = @dec class { @((this as any).reg.dec) i() {} };\n        static [keys.a] = @dec class { @((this as any).reg.dec) j() {} };\n    }\n    return Outer;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/set/outer-this-nested-numbering",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\nexport function make(this: any): any {\n    @((this as any).reg.dec) class Outer extends (@dec class { @((this as any).reg.dec) h() {} }) {\n        @((this as any).reg.dec) m() {}\n        static inner = @dec class { @((this as any).reg.dec) i() {} };\n        static [keys.a] = @dec class { @((this as any).reg.dec) j() {} };\n    }\n    return Outer;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/define/outer-this-nested-numbering",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\nexport function make(this: any): any {\n    @((this as any).reg.dec) class Outer extends (@dec class { @((this as any).reg.dec) h() {} }) {\n        @((this as any).reg.dec) m() {}\n        static inner = @dec class { @((this as any).reg.dec) i() {} };\n        static [keys.a] = @dec class { @((this as any).reg.dec) j() {} };\n    }\n    return Outer;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/set/outer-this-nested-numbering",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\nexport function make(this: any): any {\n    @((this as any).reg.dec) class Outer extends (@dec class { @((this as any).reg.dec) h() {} }) {\n        @((this as any).reg.dec) m() {}\n        static inner = @dec class { @((this as any).reg.dec) i() {} };\n        static [keys.a] = @dec class { @((this as any).reg.dec) j() {} };\n    }\n    return Outer;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/define/outer-this-nested-numbering",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\nexport function make(this: any): any {\n    @((this as any).reg.dec) class Outer extends (@dec class { @((this as any).reg.dec) h() {} }) {\n        @((this as any).reg.dec) m() {}\n        static inner = @dec class { @((this as any).reg.dec) i() {} };\n        static [keys.a] = @dec class { @((this as any).reg.dec) j() {} };\n    }\n    return Outer;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/set/class-decorator-before-heritage",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nexport function make(this: any): any {\n    @((this as any).reg.dec(@dec class { @((this as any).reg.dec) [key()]() {} }))\n    class Box extends ((this as any).reg.base(@dec class { @((this as any).reg.dec) [key()]() {} })) {\n        @((this as any).reg.dec) [key()]() {}\n    }\n    return Box;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/define/class-decorator-before-heritage",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nexport function make(this: any): any {\n    @((this as any).reg.dec(@dec class { @((this as any).reg.dec) [key()]() {} }))\n    class Box extends ((this as any).reg.base(@dec class { @((this as any).reg.dec) [key()]() {} })) {\n        @((this as any).reg.dec) [key()]() {}\n    }\n    return Box;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/set/class-decorator-before-heritage",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nexport function make(this: any): any {\n    @((this as any).reg.dec(@dec class { @((this as any).reg.dec) [key()]() {} }))\n    class Box extends ((this as any).reg.base(@dec class { @((this as any).reg.dec) [key()]() {} })) {\n        @((this as any).reg.dec) [key()]() {}\n    }\n    return Box;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/define/class-decorator-before-heritage",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nexport function make(this: any): any {\n    @((this as any).reg.dec(@dec class { @((this as any).reg.dec) [key()]() {} }))\n    class Box extends ((this as any).reg.base(@dec class { @((this as any).reg.dec) [key()]() {} })) {\n        @((this as any).reg.dec) [key()]() {}\n    }\n    return Box;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/set/class-decorator-before-heritage",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nexport function make(this: any): any {\n    @((this as any).reg.dec(@dec class { @((this as any).reg.dec) [key()]() {} }))\n    class Box extends ((this as any).reg.base(@dec class { @((this as any).reg.dec) [key()]() {} })) {\n        @((this as any).reg.dec) [key()]() {}\n    }\n    return Box;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/define/class-decorator-before-heritage",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nexport function make(this: any): any {\n    @((this as any).reg.dec(@dec class { @((this as any).reg.dec) [key()]() {} }))\n    class Box extends ((this as any).reg.base(@dec class { @((this as any).reg.dec) [key()]() {} })) {\n        @((this as any).reg.dec) [key()]() {}\n    }\n    return Box;\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/set/two-phase-constructor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\nconst registry = { dec };\n@dec export class Box {\n    constructor(readonly x = @dec class { @(registry.dec) m() {} }) { this.y = this.x; }\n    y: any;\n    @(registry.dec) [keys.a] = 1;\n    @(registry.dec) static [keys.s]() {}\n    static self = this;\n    @(registry.dec) last() {}\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/define/two-phase-constructor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\nconst registry = { dec };\n@dec export class Box {\n    constructor(readonly x = @dec class { @(registry.dec) m() {} }) { this.y = this.x; }\n    y: any;\n    @(registry.dec) [keys.a] = 1;\n    @(registry.dec) static [keys.s]() {}\n    static self = this;\n    @(registry.dec) last() {}\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/set/two-phase-constructor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\nconst registry = { dec };\n@dec export class Box {\n    constructor(readonly x = @dec class { @(registry.dec) m() {} }) { this.y = this.x; }\n    y: any;\n    @(registry.dec) [keys.a] = 1;\n    @(registry.dec) static [keys.s]() {}\n    static self = this;\n    @(registry.dec) last() {}\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/define/two-phase-constructor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\nconst registry = { dec };\n@dec export class Box {\n    constructor(readonly x = @dec class { @(registry.dec) m() {} }) { this.y = this.x; }\n    y: any;\n    @(registry.dec) [keys.a] = 1;\n    @(registry.dec) static [keys.s]() {}\n    static self = this;\n    @(registry.dec) last() {}\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/set/two-phase-constructor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\nconst registry = { dec };\n@dec export class Box {\n    constructor(readonly x = @dec class { @(registry.dec) m() {} }) { this.y = this.x; }\n    y: any;\n    @(registry.dec) [keys.a] = 1;\n    @(registry.dec) static [keys.s]() {}\n    static self = this;\n    @(registry.dec) last() {}\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/define/two-phase-constructor",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst keys = { a: \"a\", b: \"b\", c: \"c\", s: \"s\", x: \"x\" } as const;\nconst registry = { dec };\n@dec export class Box {\n    constructor(readonly x = @dec class { @(registry.dec) m() {} }) { this.y = this.x; }\n    y: any;\n    @(registry.dec) [keys.a] = 1;\n    @(registry.dec) static [keys.s]() {}\n    static self = this;\n    @(registry.dec) last() {}\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/set/nested-class-in-computed-name",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction k(value: any): \"k\" { return \"k\"; }\n@dec export class Outer {\n    @dec m() {}\n    static [k(@dec class { @dec n() {} })]() {}\n    get [k(@dec class { @dec o() {} })]() { return 1; }\n    @dec p() {}\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/define/nested-class-in-computed-name",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction k(value: any): \"k\" { return \"k\"; }\n@dec export class Outer {\n    @dec m() {}\n    static [k(@dec class { @dec n() {} })]() {}\n    get [k(@dec class { @dec o() {} })]() { return 1; }\n    @dec p() {}\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/set/nested-class-in-computed-name",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction k(value: any): \"k\" { return \"k\"; }\n@dec export class Outer {\n    @dec m() {}\n    static [k(@dec class { @dec n() {} })]() {}\n    get [k(@dec class { @dec o() {} })]() { return 1; }\n    @dec p() {}\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/define/nested-class-in-computed-name",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction k(value: any): \"k\" { return \"k\"; }\n@dec export class Outer {\n    @dec m() {}\n    static [k(@dec class { @dec n() {} })]() {}\n    get [k(@dec class { @dec o() {} })]() { return 1; }\n    @dec p() {}\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/set/nested-class-in-computed-name",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction k(value: any): \"k\" { return \"k\"; }\n@dec export class Outer {\n    @dec m() {}\n    static [k(@dec class { @dec n() {} })]() {}\n    get [k(@dec class { @dec o() {} })]() { return 1; }\n    @dec p() {}\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/define/nested-class-in-computed-name",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction k(value: any): \"k\" { return \"k\"; }\n@dec export class Outer {\n    @dec m() {}\n    static [k(@dec class { @dec n() {} })]() {}\n    get [k(@dec class { @dec o() {} })]() { return 1; }\n    @dec p() {}\n}\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/set/decorated-class-expression-positions",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nexport const a = @dec class { @dec m() {} };\nexport function f() { return @dec class { @dec [key()]() {} }; }\nexport const o = { p: @dec class { @dec m() {} }, q() { return @dec class { @dec m() {} }; } };\nexport default @dec class { @dec m() {} static self = this; };\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2015/esnext/define/decorated-class-expression-positions",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nexport const a = @dec class { @dec m() {} };\nexport function f() { return @dec class { @dec [key()]() {} }; }\nexport const o = { p: @dec class { @dec m() {} }, q() { return @dec class { @dec m() {} }; } };\nexport default @dec class { @dec m() {} static self = this; };\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/set/decorated-class-expression-positions",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nexport const a = @dec class { @dec m() {} };\nexport function f() { return @dec class { @dec [key()]() {} }; }\nexport const o = { p: @dec class { @dec m() {} }, q() { return @dec class { @dec m() {} }; } };\nexport default @dec class { @dec m() {} static self = this; };\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/es2022/esnext/define/decorated-class-expression-positions",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nexport const a = @dec class { @dec m() {} };\nexport function f() { return @dec class { @dec [key()]() {} }; }\nexport const o = { p: @dec class { @dec m() {} }, q() { return @dec class { @dec m() {} }; } };\nexport default @dec class { @dec m() {} static self = this; };\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/set/decorated-class-expression-positions",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nexport const a = @dec class { @dec m() {} };\nexport function f() { return @dec class { @dec [key()]() {} }; }\nexport const o = { p: @dec class { @dec m() {} }, q() { return @dec class { @dec m() {} }; } };\nexport default @dec class { @dec m() {} static self = this; };\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-transform-order/esnext/esnext/define/decorated-class-expression-positions",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nfunction key(): \"k\" { return \"k\"; }\nexport const a = @dec class { @dec m() {} };\nexport function f() { return @dec class { @dec [key()]() {} }; }\nexport const o = { p: @dec class { @dec m() {} }, q() { return @dec class { @dec m() {} }; } };\nexport default @dec class { @dec m() {} static self = this; };\nexport const tail = 1;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    }
+  ]
+}

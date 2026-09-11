@@ -1,10 +1,11 @@
 use std::collections::BTreeMap;
 
+use tsc_diagnostics::PositionIndex;
 use tsc_syntax::SyntaxKind;
 
 use crate::{
-    transform::GeneratedBindingId, SourceRange, TransformNode, TransformNodeArray,
-    TransformSourceId,
+    transform::GeneratedBindingId, SourceBytePosition, SourceByteRange, SourcePositionError,
+    SourceRange, TransformNode, TransformNodeArray, TransformSourceId,
 };
 
 /// Emitter-only node flags. They live in a sparse session table and never
@@ -131,7 +132,81 @@ pub struct SourceMapRange {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct CommentRange {
     source: TransformSourceId,
-    range: SourceRange,
+    range: CommentSourceRange,
+}
+
+/// Comment ownership can carry either source endpoint independently.
+///
+/// These positions do not describe a source slice or a source-map range.
+/// Generated class wrappers use one real endpoint and one synthesized endpoint
+/// while still participating in the corresponding comment-container claim.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum CommentSourceRange {
+    Synthesized,
+    Original(SourceByteRange),
+    StartOnly(SourceBytePosition),
+    EndOnly(SourceBytePosition),
+}
+
+impl CommentSourceRange {
+    pub fn from_raw(
+        start: u32,
+        end: u32,
+        positions: &PositionIndex,
+    ) -> Result<Self, SourcePositionError> {
+        match (start == u32::MAX, end == u32::MAX) {
+            (true, true) => Ok(Self::Synthesized),
+            (false, true) => SourceBytePosition::new(start, positions).map(Self::StartOnly),
+            (true, false) => SourceBytePosition::new(end, positions).map(Self::EndOnly),
+            (false, false) => SourceByteRange::new(start, end, positions).map(Self::Original),
+        }
+    }
+
+    pub const fn start(self) -> Option<SourceBytePosition> {
+        match self {
+            Self::Original(range) => Some(range.start()),
+            Self::StartOnly(start) => Some(start),
+            Self::Synthesized | Self::EndOnly(_) => None,
+        }
+    }
+
+    pub const fn end(self) -> Option<SourceBytePosition> {
+        match self {
+            Self::Original(range) => Some(range.end()),
+            Self::EndOnly(end) => Some(end),
+            Self::Synthesized | Self::StartOnly(_) => None,
+        }
+    }
+
+    /// tsc-port: emitLeadingCommentsOfNode @6.0.3
+    /// tsc-hash: ce6bf342a94094cccc4bf56debcb99390c8e232705263609dfcf068589284ebb
+    /// tsc-span: _tsc.js:121007-121032
+    pub const fn has_nonempty_extent(self) -> bool {
+        match self {
+            Self::Original(range) => range.start().value() != range.end().value(),
+            Self::StartOnly(position) | Self::EndOnly(position) => position.value() > 0,
+            Self::Synthesized => false,
+        }
+    }
+
+    /// A source lookup bound does not create an ownership end. Paired
+    /// recovery ranges keep their existing, tighter trivia scan bound.
+    pub(crate) fn leading_trivia_end(
+        self,
+        source: &str,
+        positions: &PositionIndex,
+    ) -> Result<Option<SourceBytePosition>, SourcePositionError> {
+        let lookup = match self {
+            Self::Original(range) => range,
+            Self::StartOnly(start) => {
+                SourceByteRange::new(start.value(), positions.byte_len(), positions)?
+            }
+            Self::Synthesized | Self::EndOnly(_) => return Ok(None),
+        };
+        Ok(Some(
+            lookup.without_leading_trivia(source, positions)?.start(),
+        ))
+    }
 }
 
 /// Original statement-list provenance retained by a synthetic block after
@@ -158,14 +233,32 @@ impl RelocatedStatementListComments {
 
 impl CommentRange {
     pub const fn new(source: TransformSourceId, range: SourceRange) -> Self {
-        Self { source, range }
+        Self {
+            source,
+            range: match range {
+                SourceRange::Original(range) => CommentSourceRange::Original(range),
+                SourceRange::Synthesized => CommentSourceRange::Synthesized,
+            },
+        }
+    }
+
+    pub fn from_raw(
+        source: TransformSourceId,
+        start: u32,
+        end: u32,
+        positions: &PositionIndex,
+    ) -> Result<Self, SourcePositionError> {
+        Ok(Self {
+            source,
+            range: CommentSourceRange::from_raw(start, end, positions)?,
+        })
     }
 
     pub const fn source(self) -> TransformSourceId {
         self.source
     }
 
-    pub const fn range(self) -> SourceRange {
+    pub const fn range(self) -> CommentSourceRange {
         self.range
     }
 }
@@ -304,14 +397,6 @@ pub(crate) enum ClassExpressionDeclarationOrigin {
     LegacyDecorated { declaration: TransformNode },
 }
 
-/// A source expression whose same-line trailing trivia moved to a generated
-/// class-field operation. The operation (statement for declarations, comma
-/// expression for class expressions) is the sole owner of that boundary.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum RelocatedTrailingCommentOwner {
-    ClassFieldOperation,
-}
-
 impl EmitEnumMemberValue {
     pub const fn new(
         value: Option<EmitConstantValue>,
@@ -338,6 +423,63 @@ impl EmitEnumMemberValue {
     }
 }
 
+/// Literal node properties with the lifetime of their TransformArena node.
+/// These survive emit-session disposal and are copied by cloneNode's own-
+/// property transition, never by setOriginalNode's emitNode merge.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct LiteralNodeProperties {
+    /// Lossless cooked text for parsed or synthetic nodes whose JavaScript
+    /// value may contain an unpaired UTF-16 surrogate. Original raw source
+    /// remains authoritative whenever the printer can copy it unchanged.
+    pub(crate) javascript_string_value: Option<JavaScriptString>,
+    /// TypeScript's synthetic `StringLiteral.singleQuote` preference. JSX
+    /// attribute lowering preserves the source delimiter after decoding
+    /// entities, so the cooked value and quote choice must travel together.
+    pub(crate) string_literal_single_quote: Option<bool>,
+    /// Parsed string literal whose token spelling supplies a synthetic
+    /// string's emitted text. This is the source-string branch of tsc's
+    /// `StringLiteral.textSourceNode`; unlike `original`, it carries only
+    /// lexical spelling ownership and grants neither comments nor resolver
+    /// identity to the synthesized literal.
+    pub(crate) string_literal_text_source: Option<TransformNode>,
+    /// Exact rawText supplied to a template factory. None and empty differ.
+    raw_template_text: Option<JavaScriptString>,
+}
+
+impl LiteralNodeProperties {
+    pub fn javascript_string_value(&self) -> Option<&JavaScriptString> {
+        self.javascript_string_value.as_ref()
+    }
+
+    pub const fn string_literal_single_quote(&self) -> Option<bool> {
+        self.string_literal_single_quote
+    }
+
+    pub const fn string_literal_text_source(&self) -> Option<TransformNode> {
+        self.string_literal_text_source
+    }
+
+    pub fn raw_template_text(&self) -> Option<&JavaScriptString> {
+        self.raw_template_text.as_ref()
+    }
+
+    pub fn set_javascript_string_value(&mut self, value: JavaScriptString) {
+        self.javascript_string_value = Some(value);
+    }
+
+    pub fn set_string_literal_single_quote(&mut self, value: bool) {
+        self.string_literal_single_quote = Some(value);
+    }
+
+    pub fn set_string_literal_text_source(&mut self, value: TransformNode) {
+        self.string_literal_text_source = Some(value);
+    }
+
+    pub fn set_raw_template_text(&mut self, value: JavaScriptString) {
+        self.raw_template_text = Some(value);
+    }
+}
+
 /// Session-owned `emitNode` equivalent. Parsed nodes remain unchanged.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct EmitMetadata {
@@ -354,12 +496,15 @@ pub struct EmitMetadata {
     pub(crate) token_source_map_ranges: BTreeMap<SyntaxKind, SourceMapRange>,
     pub(crate) constant_value: Option<EmitConstantValue>,
     pub(crate) helpers: Vec<Box<str>>,
+    /// Facts owned by the original SourceFile, not inherited by clone/update
+    /// metadata merging (tsc's mergeEmitNode does not copy these fields).
+    pub(crate) external_helpers_module_name: Option<TransformNode>,
+    pub(crate) external_helpers: bool,
     pub(crate) starts_on_new_line: Option<bool>,
     pub(crate) snippet_element: Option<Box<str>>,
     pub(crate) class_this: Option<TransformNode>,
     pub(crate) assigned_name: Option<TransformNode>,
     pub(crate) class_expression_declaration_origin: Option<ClassExpressionDeclarationOrigin>,
-    pub(crate) relocated_trailing_comment_owner: Option<RelocatedTrailingCommentOwner>,
     /// Erased TypeScript type annotation whose trailing source boundary still
     /// belongs to this declaration name. The JavaScript printer uses it to
     /// retain comments on either side of the removed annotation without
@@ -373,20 +518,6 @@ pub struct EmitMetadata {
     /// lowered class-field initializer. Decorated static auto-accessors own
     /// this in addition to the generated getter's normal comment range.
     pub(crate) class_field_initializer_comment_source: Option<TransformNode>,
-    /// Lossless cooked text for parsed or synthetic nodes whose JavaScript
-    /// value may contain an unpaired UTF-16 surrogate. Original raw source
-    /// remains authoritative whenever the printer can copy it unchanged.
-    pub(crate) javascript_string_value: Option<JavaScriptString>,
-    /// TypeScript's synthetic `StringLiteral.singleQuote` preference. JSX
-    /// attribute lowering preserves the source delimiter after decoding
-    /// entities, so the cooked value and quote choice must travel together.
-    pub(crate) string_literal_single_quote: Option<bool>,
-    /// Parsed string literal whose token spelling supplies a synthetic
-    /// string's emitted text. This is the source-string branch of tsc's
-    /// `StringLiteral.textSourceNode`; unlike `original`, it carries only
-    /// lexical spelling ownership and grants neither comments nor resolver
-    /// identity to the synthesized literal.
-    pub(crate) string_literal_text_source: Option<TransformNode>,
     /// Import declaration selected for a synthesized reference. This includes
     /// both classic JSX factory expressions and automatic-runtime helpers.
     /// The declaration identity, rather than the printable local spelling,
@@ -501,18 +632,6 @@ impl EmitMetadata {
         self.starts_on_new_line
     }
 
-    pub fn javascript_string_value(&self) -> Option<&JavaScriptString> {
-        self.javascript_string_value.as_ref()
-    }
-
-    pub const fn string_literal_single_quote(&self) -> Option<bool> {
-        self.string_literal_single_quote
-    }
-
-    pub(crate) const fn string_literal_text_source(&self) -> Option<TransformNode> {
-        self.string_literal_text_source
-    }
-
     pub const fn type_node(&self) -> Option<TransformNode> {
         self.type_node
     }
@@ -610,18 +729,6 @@ impl EmitMetadata {
 
     pub fn set_type_node(&mut self, value: TransformNode) {
         self.type_node = Some(value);
-    }
-
-    pub fn set_javascript_string_value(&mut self, value: JavaScriptString) {
-        self.javascript_string_value = Some(value);
-    }
-
-    pub fn set_string_literal_single_quote(&mut self, value: bool) {
-        self.string_literal_single_quote = Some(value);
-    }
-
-    pub fn set_string_literal_text_source(&mut self, value: TransformNode) {
-        self.string_literal_text_source = Some(value);
     }
 
     pub fn set_referenced_import_declaration(&mut self, value: TransformNode) {
@@ -743,9 +850,6 @@ impl EmitMetadata {
         if source.class_expression_declaration_origin.is_some() {
             self.class_expression_declaration_origin = source.class_expression_declaration_origin;
         }
-        if source.relocated_trailing_comment_owner.is_some() {
-            self.relocated_trailing_comment_owner = source.relocated_trailing_comment_owner;
-        }
         if source.type_node.is_some() {
             self.type_node = source.type_node;
         }
@@ -774,15 +878,6 @@ impl EmitMetadata {
             source.generated_binding_planned_name_authoritative;
         self.generated_binding_reserved_in_nested_scopes |=
             source.generated_binding_reserved_in_nested_scopes;
-        if source.javascript_string_value.is_some() {
-            self.javascript_string_value = source.javascript_string_value.clone();
-        }
-        if source.string_literal_single_quote.is_some() {
-            self.string_literal_single_quote = source.string_literal_single_quote;
-        }
-        if source.string_literal_text_source.is_some() {
-            self.string_literal_text_source = source.string_literal_text_source;
-        }
         if source.referenced_import_declaration.is_some() {
             self.referenced_import_declaration = source.referenced_import_declaration;
             self.generated_import_reference = source.generated_import_reference;

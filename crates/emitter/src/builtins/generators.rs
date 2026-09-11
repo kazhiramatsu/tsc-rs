@@ -5062,7 +5062,7 @@ impl GeneratorsVisitor<'_, '_> {
                 let literal = self.create_string_literal(&data.text)?;
                 self.context
                     .arena_mut()?
-                    .metadata_mut(literal)
+                    .literal_properties_mut(literal)?
                     .set_string_literal_text_source(member_name);
                 Ok(literal)
             }
@@ -5207,7 +5207,7 @@ impl GeneratorsVisitor<'_, '_> {
         if self.context.arena().node(property_name)?.kind == SyntaxKind::StringLiteral {
             self.context
                 .arena_mut()?
-                .metadata_mut(clone)
+                .literal_properties_mut(clone)?
                 .set_string_literal_text_source(property_name);
         }
         Ok(clone)

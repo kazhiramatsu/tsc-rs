@@ -1,0 +1,177 @@
+{
+  "version": 1,
+  "status": "emitter-first-after-one-standalone-mode-test-failure",
+  "base": "ea345da10f18cbb660cb51ea5d7b889f06831dd0",
+  "library_tests_passed": 483,
+  "contracts_passed": 450,
+  "contracts_failed": 1,
+  "failed_test": "active_transform_contract::empty_function_body_does_not_reown_the_open_brace_trailing_comment",
+  "seconds": [
+    0.79,
+    2.33
+  ],
+  "exit_code": 101,
+  "typescript_existing_expected_bytes_recheck": {
+    "kind": "upstream-recheck-of-existing-unit-expected-bytes-not-a-full-command-oracle",
+    "repetitions": 2,
+    "source": "function D7() {\n    return class T {\n        a(x = arguments) {  // ok\n        }\n    };\n}\n",
+    "result": {
+      "diagnostics": [
+        {
+          "code": 5107,
+          "message": "Option 'alwaysStrict=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+        }
+      ],
+      "emitSkipped": false,
+      "writes": [
+        {
+          "path": "/virtual/out/main.js",
+          "text": "function D7() {\n    return class T {\n        a(x = arguments) {\n        }\n    };\n}\n"
+        }
+      ]
+    }
+  },
+  "working_files": [
+    {
+      "path": "crates/emitter/src/builtins/es2015.rs",
+      "sha256": "0427b99e1c10d41c9670ec173625b5f1407e5c1d7223a09abf6374ad09ab4c54"
+    },
+    {
+      "path": "ratchets/h2-8a-transformed-class-assigned-names-before.v1.json",
+      "sha256": "cbdb5b19bf28950dfb8fc09e4135513fb21df7dbd7356dae26d2699dfdaff27a"
+    },
+    {
+      "path": "ratchets/h2-8a-transformed-class-assigned-names-readiness.v1.json",
+      "sha256": "ac5bab0c80950994b4e4b81abdb55e63e47cfc6c924389edd9a4d472ab054901"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-transformed-class-assigned-names.md",
+      "sha256": "b50adc56227190644347abd9342051119ceeb4b7c1ea361cc5d379e16b07a88d"
+    },
+    {
+      "path": "scripts/check-transformed-class-assigned-names-readiness.py",
+      "sha256": "7c3feacaaf932f056be94b092ee5a619b7f7458579c8a82ab6eaf9117f9d1c2c"
+    },
+    {
+      "path": "scripts/observe-transformed-class-assigned-names.mjs",
+      "sha256": "db166db51ecaf39f427363eb4833f63f2e5bfe6cb2fd0b7a7f2a4d2cc064df99"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/transformed-class-assigned-names.json",
+      "sha256": "f04166260e4005fa6bd5df31ef98ef6d7d8cd79b0054e137f5c52e806d906ffb"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_transformed_class_assigned_names.rs",
+      "sha256": "103cba6f7064c3fca0891ab7598930fbabb17f319bab8303349ad6a9028f7a81"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "88703daa270295a3e62c2befd67057b2b52cf09c81e3fcc4586224e2b2f2bb92"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "726a6d93a6f97ec8e9509772260c71bd05326ae3addb56b90ee17d910e92e695"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+      "sha256": "90aff72e27fac502da3ff3f06980c55c4923e35554c3e64800a60213cb1b04ba"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/jsdoc-implements-serialization.json",
+      "sha256": "46f1ad3ebb5480c9d697fca9c6adf3c95dd3fed2f60e8f37210dd1e1733cc057"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_jsdoc_implements_serialization.rs",
+      "sha256": "2c035245d37a82d01b4e3ff15f0f5a05740b11d7b256be02a95c7d1fdd0a24eb"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/class-transform-flags.json",
+      "sha256": "875e14e7252bf2913804875e96b6215c432a68e5337ede4af21ea6445114f5ef"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_class_transform_flags.rs",
+      "sha256": "0bc241e457c5694a641eaf20577ddf6a9b36dd00010bd86e22df2edcf6d279b4"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/class-statement-layout.json",
+      "sha256": "9d166822e3d6129618d1c0334c04295bbe168a60d065073ad871cb288da309b7"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_class_statement_layout.rs",
+      "sha256": "0d6a494307357c44104e052bea8eba499647fe1cc15d967a50daa258cb40a30a"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/synthetic-default-alias.json",
+      "sha256": "99d5a5fde1393a939da9e27f43bfc3c8c2973c93501bb8ffb7116e904a2a6d69"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_synthetic_default_alias.rs",
+      "sha256": "506f9424a4ebdefe59e8b52c303254b932818c4234c9439a1218a405f665e0fc"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/commonjs-class-instance.json",
+      "sha256": "3983c19969e3fb05164b290323eb2d5b16f134e340a6cb9ee48e0a98aed54886"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_8a_commonjs_class_instance.rs",
+      "sha256": "0cc8a8048cdeb9e4904721fb15c63940482da23310a0102be4f7f8db6ba62a77"
+    },
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "d2272c19c29172474bd67e67bbf8c1161d8016aec101ec396ff97f10d4777fb2"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "d4af3b58ddd565e8ff8ff7945149702e57adc60c13839defe99ca7ea7459c8f5"
+    },
+    {
+      "path": "crates/emitter/src/metadata.rs",
+      "sha256": "c9eaf94391d3eb0893a1d1e7d4c65ff9d876f8b3772634505325a72cf7430e23"
+    },
+    {
+      "path": "crates/emitter/src/builtins/target_bindings.rs",
+      "sha256": "0034f463ff6f1323753377f7c2fa2760b894ba37b59eeb81ec0980e4a6c45338"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "5ffd982b2fb2057fa7c082400f502e755f0acaf663245a9898bb48c0820d57b6"
+    },
+    {
+      "path": "crates/checker/src/node_builder/statements.rs",
+      "sha256": "71853704eadfbdfe31f25171c2241b3a76db192671a0cec0d8c2cdd884081b55"
+    },
+    {
+      "path": "crates/emitter/src/builtins/class_fields/downlevel.rs",
+      "sha256": "3d002576e6f023bd0e543533ba79973451b0d392dea6158682ea8beaeb2c9a55"
+    },
+    {
+      "path": "crates/emitter/src/builtins/generated_bindings.rs",
+      "sha256": "6389d2ca6a2751a6ccdf8b87c99e0fdc03fbbbba49468ec534c6bab8fad62f4a"
+    },
+    {
+      "path": "ratchets/h2-8a-transformed-class-assigned-names-first-after.v1.json",
+      "sha256": "7ed452b96191ff20625ad2149ecb7b4bca66697022cc99de89383a09a8cf9973"
+    },
+    {
+      "path": "crates/emitter/src/execute.rs",
+      "sha256": "61a00d3569ab9099cfc3b79cce6fcf5aeea24d9f3f38137d05163fbbe6076d13"
+    },
+    {
+      "path": "crates/emitter/tests/integration/active_transform_contract.rs",
+      "sha256": "69766103d0bed842c9b9f6069271388fbd9f6c6f9025ffa9bf27443987dd9896"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-emitter-after.log",
+      "sha256": "31cb56cb9245ce47ea7632dec70684edf6e84710fc4401c1f9ced96bea71a699"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-empty-body-typescript-check.log",
+      "sha256": "edf058310e71738e98dd6d654c6826ae4ce8fdd24ca4e3a3de092de9ed4acae4"
+    },
+    {
+      "path": "target/h2-8a-transformed-class-assigned-names-final-after-prelaunch.json",
+      "sha256": "073b08b7a00e8b0c7d23166c14dd6213a75891e014ca045165c6e4687cc54e57"
+    }
+  ],
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-class-assigned-name-emitter-first-after-4ua2z88y"
+}

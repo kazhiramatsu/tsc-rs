@@ -1,0 +1,550 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "repetitions": 2,
+  "native_executions": 0,
+  "status": "Fresh source evidence; printer cursor lifecycle remains unimplemented and unqualified",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "0b2b4fa49b7f5e2ea333f6744a8d781a7df9fa080194be9d0fa61a8fdc4f774b",
+  "cases": [
+    {
+      "case_id": "list-cursor/first",
+      "recipe": "first",
+      "typescript_observation": {
+        "target_source": "target(\n a, b\n);\n",
+        "seed_source": "target(\n a, b\n);\n",
+        "target_first_pos_utf16": 7,
+        "fresh": {
+          "text": "[\r\n    a, b]",
+          "utf8_base64": "Ww0KICAgIGEsIGJd",
+          "utf8_bytes": 12,
+          "end_utf16": {
+            "position": 12,
+            "line": 1,
+            "column": 9
+          }
+        },
+        "seed_output": {
+          "text": "[a]",
+          "utf8_base64": "W2Fd",
+          "utf8_bytes": 3,
+          "end_utf16": {
+            "position": 3,
+            "line": 0,
+            "column": 3
+          }
+        },
+        "after_seed": {
+          "text": "[a, b]",
+          "utf8_base64": "W2EsIGJd",
+          "utf8_bytes": 6,
+          "end_utf16": {
+            "position": 6,
+            "line": 0,
+            "column": 6
+          }
+        },
+        "after_target": {
+          "text": "[\r\n    a, b]",
+          "utf8_base64": "Ww0KICAgIGEsIGJd",
+          "utf8_bytes": 12,
+          "end_utf16": {
+            "position": 12,
+            "line": 1,
+            "column": 9
+          }
+        }
+      }
+    },
+    {
+      "case_id": "list-cursor/last",
+      "recipe": "last",
+      "typescript_observation": {
+        "target_source": "target(\n a, b\n);\n",
+        "seed_source": "target(\n a, b\n);\n",
+        "target_first_pos_utf16": 7,
+        "fresh": {
+          "text": "[\r\n    a, b]",
+          "utf8_base64": "Ww0KICAgIGEsIGJd",
+          "utf8_bytes": 12,
+          "end_utf16": {
+            "position": 12,
+            "line": 1,
+            "column": 9
+          }
+        },
+        "seed_output": {
+          "text": "[b]",
+          "utf8_base64": "W2Jd",
+          "utf8_bytes": 3,
+          "end_utf16": {
+            "position": 3,
+            "line": 0,
+            "column": 3
+          }
+        },
+        "after_seed": {
+          "text": "[\r\n    a, b]",
+          "utf8_base64": "Ww0KICAgIGEsIGJd",
+          "utf8_bytes": 12,
+          "end_utf16": {
+            "position": 12,
+            "line": 1,
+            "column": 9
+          }
+        },
+        "after_target": {
+          "text": "[\r\n    a, b]",
+          "utf8_base64": "Ww0KICAgIGEsIGJd",
+          "utf8_bytes": 12,
+          "end_utf16": {
+            "position": 12,
+            "line": 1,
+            "column": 9
+          }
+        }
+      }
+    },
+    {
+      "case_id": "list-cursor/empty",
+      "recipe": "empty",
+      "typescript_observation": {
+        "target_source": "target(\n a, b\n);\n",
+        "seed_source": "target(\n a, b\n);\n",
+        "target_first_pos_utf16": 7,
+        "fresh": {
+          "text": "[\r\n    a, b]",
+          "utf8_base64": "Ww0KICAgIGEsIGJd",
+          "utf8_bytes": 12,
+          "end_utf16": {
+            "position": 12,
+            "line": 1,
+            "column": 9
+          }
+        },
+        "seed_output": {
+          "text": "[]",
+          "utf8_base64": "W10=",
+          "utf8_bytes": 2,
+          "end_utf16": {
+            "position": 2,
+            "line": 0,
+            "column": 2
+          }
+        },
+        "after_seed": {
+          "text": "[\r\n    a, b]",
+          "utf8_base64": "Ww0KICAgIGEsIGJd",
+          "utf8_bytes": 12,
+          "end_utf16": {
+            "position": 12,
+            "line": 1,
+            "column": 9
+          }
+        },
+        "after_target": {
+          "text": "[\r\n    a, b]",
+          "utf8_base64": "Ww0KICAgIGEsIGJd",
+          "utf8_bytes": 12,
+          "end_utf16": {
+            "position": 12,
+            "line": 1,
+            "column": 9
+          }
+        }
+      }
+    },
+    {
+      "case_id": "list-cursor/nested-first",
+      "recipe": "nested-first",
+      "typescript_observation": {
+        "target_source": "target(\n a, b\n);\n",
+        "seed_source": "target(\n a, b\n);\n",
+        "target_first_pos_utf16": 7,
+        "fresh": {
+          "text": "[\r\n    a, b]",
+          "utf8_base64": "Ww0KICAgIGEsIGJd",
+          "utf8_bytes": 12,
+          "end_utf16": {
+            "position": 12,
+            "line": 1,
+            "column": 9
+          }
+        },
+        "seed_output": {
+          "text": "[[a]]",
+          "utf8_base64": "W1thXV0=",
+          "utf8_bytes": 5,
+          "end_utf16": {
+            "position": 5,
+            "line": 0,
+            "column": 5
+          }
+        },
+        "after_seed": {
+          "text": "[a, b]",
+          "utf8_base64": "W2EsIGJd",
+          "utf8_bytes": 6,
+          "end_utf16": {
+            "position": 6,
+            "line": 0,
+            "column": 6
+          }
+        },
+        "after_target": {
+          "text": "[\r\n    a, b]",
+          "utf8_base64": "Ww0KICAgIGEsIGJd",
+          "utf8_bytes": 12,
+          "end_utf16": {
+            "position": 12,
+            "line": 1,
+            "column": 9
+          }
+        }
+      }
+    },
+    {
+      "case_id": "list-cursor/nested-last",
+      "recipe": "nested-last",
+      "typescript_observation": {
+        "target_source": "target(\n a, b\n);\n",
+        "seed_source": "target(\n a, b\n);\n",
+        "target_first_pos_utf16": 7,
+        "fresh": {
+          "text": "[\r\n    a, b]",
+          "utf8_base64": "Ww0KICAgIGEsIGJd",
+          "utf8_bytes": 12,
+          "end_utf16": {
+            "position": 12,
+            "line": 1,
+            "column": 9
+          }
+        },
+        "seed_output": {
+          "text": "[[a], b]",
+          "utf8_base64": "W1thXSwgYl0=",
+          "utf8_bytes": 8,
+          "end_utf16": {
+            "position": 8,
+            "line": 0,
+            "column": 8
+          }
+        },
+        "after_seed": {
+          "text": "[\r\n    a, b]",
+          "utf8_base64": "Ww0KICAgIGEsIGJd",
+          "utf8_bytes": 12,
+          "end_utf16": {
+            "position": 12,
+            "line": 1,
+            "column": 9
+          }
+        },
+        "after_target": {
+          "text": "[\r\n    a, b]",
+          "utf8_base64": "Ww0KICAgIGEsIGJd",
+          "utf8_bytes": 12,
+          "end_utf16": {
+            "position": 12,
+            "line": 1,
+            "column": 9
+          }
+        }
+      }
+    },
+    {
+      "case_id": "list-cursor/comma-first",
+      "recipe": "comma-first",
+      "typescript_observation": {
+        "target_source": "target(\n a, b\n);\n",
+        "seed_source": "target(\n a, b\n);\n",
+        "target_first_pos_utf16": 7,
+        "fresh": {
+          "text": "[\r\n    a, b]",
+          "utf8_base64": "Ww0KICAgIGEsIGJd",
+          "utf8_bytes": 12,
+          "end_utf16": {
+            "position": 12,
+            "line": 1,
+            "column": 9
+          }
+        },
+        "seed_output": {
+          "text": "a",
+          "utf8_base64": "YQ==",
+          "utf8_bytes": 1,
+          "end_utf16": {
+            "position": 1,
+            "line": 0,
+            "column": 1
+          }
+        },
+        "after_seed": {
+          "text": "[a, b]",
+          "utf8_base64": "W2EsIGJd",
+          "utf8_bytes": 6,
+          "end_utf16": {
+            "position": 6,
+            "line": 0,
+            "column": 6
+          }
+        },
+        "after_target": {
+          "text": "[\r\n    a, b]",
+          "utf8_base64": "Ww0KICAgIGEsIGJd",
+          "utf8_bytes": 12,
+          "end_utf16": {
+            "position": 12,
+            "line": 1,
+            "column": 9
+          }
+        }
+      }
+    },
+    {
+      "case_id": "list-cursor/call-first",
+      "recipe": "call-first",
+      "typescript_observation": {
+        "target_source": "target(\n a, b\n);\n",
+        "seed_source": "target(\n a, b\n);\n",
+        "target_first_pos_utf16": 7,
+        "fresh": {
+          "text": "[\r\n    a, b]",
+          "utf8_base64": "Ww0KICAgIGEsIGJd",
+          "utf8_bytes": 12,
+          "end_utf16": {
+            "position": 12,
+            "line": 1,
+            "column": 9
+          }
+        },
+        "seed_output": {
+          "text": "f(a)",
+          "utf8_base64": "ZihhKQ==",
+          "utf8_bytes": 4,
+          "end_utf16": {
+            "position": 4,
+            "line": 0,
+            "column": 4
+          }
+        },
+        "after_seed": {
+          "text": "[a, b]",
+          "utf8_base64": "W2EsIGJd",
+          "utf8_bytes": 6,
+          "end_utf16": {
+            "position": 6,
+            "line": 0,
+            "column": 6
+          }
+        },
+        "after_target": {
+          "text": "[\r\n    a, b]",
+          "utf8_base64": "Ww0KICAgIGEsIGJd",
+          "utf8_bytes": 12,
+          "end_utf16": {
+            "position": 12,
+            "line": 1,
+            "column": 9
+          }
+        }
+      }
+    },
+    {
+      "case_id": "list-cursor/object-first",
+      "recipe": "object-first",
+      "typescript_observation": {
+        "target_source": "target(\n a, b\n);\n",
+        "seed_source": "target(\n a, b\n);\n",
+        "target_first_pos_utf16": 7,
+        "fresh": {
+          "text": "[\r\n    a, b]",
+          "utf8_base64": "Ww0KICAgIGEsIGJd",
+          "utf8_bytes": 12,
+          "end_utf16": {
+            "position": 12,
+            "line": 1,
+            "column": 9
+          }
+        },
+        "seed_output": {
+          "text": "{ x: [a] }",
+          "utf8_base64": "eyB4OiBbYV0gfQ==",
+          "utf8_bytes": 10,
+          "end_utf16": {
+            "position": 10,
+            "line": 0,
+            "column": 10
+          }
+        },
+        "after_seed": {
+          "text": "[a, b]",
+          "utf8_base64": "W2EsIGJd",
+          "utf8_bytes": 6,
+          "end_utf16": {
+            "position": 6,
+            "line": 0,
+            "column": 6
+          }
+        },
+        "after_target": {
+          "text": "[\r\n    a, b]",
+          "utf8_base64": "Ww0KICAgIGEsIGJd",
+          "utf8_bytes": 12,
+          "end_utf16": {
+            "position": 12,
+            "line": 1,
+            "column": 9
+          }
+        }
+      }
+    },
+    {
+      "case_id": "list-cursor/object-scalar-after",
+      "recipe": "object-scalar-after",
+      "typescript_observation": {
+        "target_source": "target(\n a, b\n);\n",
+        "seed_source": "target(\n a, b\n);\n",
+        "target_first_pos_utf16": 7,
+        "fresh": {
+          "text": "[\r\n    a, b]",
+          "utf8_base64": "Ww0KICAgIGEsIGJd",
+          "utf8_bytes": 12,
+          "end_utf16": {
+            "position": 12,
+            "line": 1,
+            "column": 9
+          }
+        },
+        "seed_output": {
+          "text": "{ x: [a], y: a }",
+          "utf8_base64": "eyB4OiBbYV0sIHk6IGEgfQ==",
+          "utf8_bytes": 16,
+          "end_utf16": {
+            "position": 16,
+            "line": 0,
+            "column": 16
+          }
+        },
+        "after_seed": {
+          "text": "[\r\n    a, b]",
+          "utf8_base64": "Ww0KICAgIGEsIGJd",
+          "utf8_bytes": 12,
+          "end_utf16": {
+            "position": 12,
+            "line": 1,
+            "column": 9
+          }
+        },
+        "after_target": {
+          "text": "[\r\n    a, b]",
+          "utf8_base64": "Ww0KICAgIGEsIGJd",
+          "utf8_bytes": 12,
+          "end_utf16": {
+            "position": 12,
+            "line": 1,
+            "column": 9
+          }
+        }
+      }
+    },
+    {
+      "case_id": "list-cursor/same-position-clone",
+      "recipe": "same-position-clone",
+      "typescript_observation": {
+        "target_source": "target(\n a, b\n);\n",
+        "seed_source": "target(\n a, b\n);\n",
+        "target_first_pos_utf16": 7,
+        "fresh": {
+          "text": "[\r\n    a, b]",
+          "utf8_base64": "Ww0KICAgIGEsIGJd",
+          "utf8_bytes": 12,
+          "end_utf16": {
+            "position": 12,
+            "line": 1,
+            "column": 9
+          }
+        },
+        "seed_output": {
+          "text": "[a]",
+          "utf8_base64": "W2Fd",
+          "utf8_bytes": 3,
+          "end_utf16": {
+            "position": 3,
+            "line": 0,
+            "column": 3
+          }
+        },
+        "after_seed": {
+          "text": "[a, b]",
+          "utf8_base64": "W2EsIGJd",
+          "utf8_bytes": 6,
+          "end_utf16": {
+            "position": 6,
+            "line": 0,
+            "column": 6
+          }
+        },
+        "after_target": {
+          "text": "[\r\n    a, b]",
+          "utf8_base64": "Ww0KICAgIGEsIGJd",
+          "utf8_bytes": 12,
+          "end_utf16": {
+            "position": 12,
+            "line": 1,
+            "column": 9
+          }
+        }
+      }
+    },
+    {
+      "case_id": "list-cursor/unicode-other-source",
+      "recipe": "unicode-other-source",
+      "typescript_observation": {
+        "target_source": "target(\n a, b\n);\n",
+        "seed_source": "f(\"😀\",a);\n",
+        "target_first_pos_utf16": 7,
+        "fresh": {
+          "text": "[\r\n    a, b]",
+          "utf8_base64": "Ww0KICAgIGEsIGJd",
+          "utf8_bytes": 12,
+          "end_utf16": {
+            "position": 12,
+            "line": 1,
+            "column": 9
+          }
+        },
+        "seed_output": {
+          "text": "[a]",
+          "utf8_base64": "W2Fd",
+          "utf8_bytes": 3,
+          "end_utf16": {
+            "position": 3,
+            "line": 0,
+            "column": 3
+          }
+        },
+        "after_seed": {
+          "text": "[a, b]",
+          "utf8_base64": "W2EsIGJd",
+          "utf8_bytes": 6,
+          "end_utf16": {
+            "position": 6,
+            "line": 0,
+            "column": 6
+          }
+        },
+        "after_target": {
+          "text": "[\r\n    a, b]",
+          "utf8_base64": "Ww0KICAgIGEsIGJd",
+          "utf8_bytes": 12,
+          "end_utf16": {
+            "position": 12,
+            "line": 1,
+            "column": 9
+          }
+        }
+      }
+    }
+  ]
+}

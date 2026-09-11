@@ -1,0 +1,219 @@
+{
+  "status": "read-only-before-component-disposition-correction",
+  "rows": [
+    {
+      "case_id": "es2015/set/commonjs/static-super",
+      "prior_static_component_disposition": "local-class-export-publication-range only",
+      "corrected_components": [
+        "local-class-export-publication-range",
+        "static-super-reference-endpoint-range"
+      ],
+      "remaining_component": "static-super-reference-endpoint-range",
+      "later_complete_command_fields": "not-qualified",
+      "a18_final_after": [
+        {
+          "native": [
+            [
+              9,
+              0,
+              0,
+              0,
+              33,
+              null
+            ],
+            [
+              9,
+              18,
+              0,
+              0,
+              86,
+              null
+            ]
+          ],
+          "typescript": [
+            [
+              9,
+              0,
+              0,
+              1,
+              9,
+              null
+            ],
+            [
+              9,
+              18,
+              0,
+              1,
+              12,
+              null
+            ]
+          ]
+        },
+        {
+          "native": [
+            [
+              11,
+              39,
+              0,
+              0,
+              83,
+              null
+            ]
+          ],
+          "typescript": [
+            [
+              11,
+              39,
+              0,
+              0,
+              78,
+              null
+            ]
+          ]
+        }
+      ],
+      "a19_after": [
+        {
+          "native": [
+            [
+              11,
+              39,
+              0,
+              0,
+              83,
+              null
+            ]
+          ],
+          "typescript": [
+            [
+              11,
+              39,
+              0,
+              0,
+              78,
+              null
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "es2015/define/commonjs/static-super",
+      "prior_static_component_disposition": "local-class-export-publication-range only",
+      "corrected_components": [
+        "local-class-export-publication-range",
+        "static-super-reference-endpoint-range"
+      ],
+      "remaining_component": "static-super-reference-endpoint-range",
+      "later_complete_command_fields": "not-qualified",
+      "a18_final_after": [
+        {
+          "native": [
+            [
+              14,
+              0,
+              0,
+              0,
+              33,
+              null
+            ],
+            [
+              14,
+              18,
+              0,
+              0,
+              86,
+              null
+            ]
+          ],
+          "typescript": [
+            [
+              14,
+              0,
+              0,
+              1,
+              9,
+              null
+            ],
+            [
+              14,
+              18,
+              0,
+              1,
+              12,
+              null
+            ]
+          ]
+        },
+        {
+          "native": [
+            [
+              20,
+              38,
+              0,
+              0,
+              83,
+              null
+            ]
+          ],
+          "typescript": [
+            [
+              20,
+              38,
+              0,
+              0,
+              78,
+              null
+            ]
+          ]
+        }
+      ],
+      "a19_after": [
+        {
+          "native": [
+            [
+              20,
+              38,
+              0,
+              0,
+              83,
+              null
+            ]
+          ],
+          "typescript": [
+            [
+              20,
+              38,
+              0,
+              0,
+              78,
+              null
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "upstream_owners": [
+    {
+      "owner": "visitPropertyAccessExpression",
+      "start": 96436,
+      "end": 96466,
+      "sha256": "f126d51cb6594efe816fe1acf0ce71593f42ea08c8803d1b63662c4e22ad8be9"
+    },
+    {
+      "owner": "visitElementAccessExpression",
+      "start": 96467,
+      "end": 96485,
+      "sha256": "3ff4636174344ebc1bf7d52a6cc463cc2b3d8e61a0b7567880b9b1c5aef95828"
+    }
+  ],
+  "native_owner": "crates/emitter/src/builtins/class_fields/downlevel.rs:visit_property_access and visit_element_access",
+  "native_owner_sha256": "5da35ffbcf03c309c4de86f560de08e8d17355c4f50b30bbee7fd2305577eaca",
+  "source_gap": "Native assigns original and text range from the complete super access; TypeScript assigns both from node.expression (the super receiver). The A19 export publication producer does not own this earlier class-field consumer.",
+  "version": 1,
+  "base": "2f7f297c13046fb569bbb199b39393b4a235a3e5",
+  "a18_final_record_sha256": "7881b76580c3bc381f21923e8cc7171fac342673fd7d3b03e7c620565b359aaa",
+  "a18_final_log_sha256": "920d2b46941d903b7f02cdb69093ea661b394b914518537a4c7582871b20a122",
+  "a19_final_log_sha256": "e2f9e80b13060b5a7cf96976ec7b79b9c2ca43f3401b2dd0adccf904d831e84c"
+}

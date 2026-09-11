@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "status": "intermediate-after-before-test-provider-repair",
+  "archive": "/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-h2-8a-import-publication-emitter-producer-after-tbjvx_ez",
+  "emitter_units": {
+    "passed": 481,
+    "failed": [
+      "amd_import_re_exports_are_published_at_their_import_source_positions",
+      "exported_import_equals_re_exports_from_the_export_object_owner"
+    ],
+    "seconds": 0.48
+  },
+  "emitter_contracts": {
+    "passed": 451,
+    "failed": 0,
+    "seconds": 1.58
+  },
+  "exit_code": 101,
+  "preliminary_invocation": "Unknown active_transform_contract target; exit101 with no tests. Actual invocation uses --lib --test contracts --no-fail-fast.",
+  "cause": "LegacyScriptJsxResolver returns None for every declaration-name projection; complete compiler 18-query proof supplies actual checker answers. Repair only the unit helper adapter; preserve expected bytes and ordinary reference answers.",
+  "receipts": [
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "038975bba6e8d22d54c2bdc8e48290bc72cc483e6a74ba9d28bfc5d4addff739"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "52d1835dc36c14f939a38d78580f8002163f1fb65b58981094be70f24a181e3d"
+    },
+    {
+      "path": "crates/emitter/tests/unit/builtins/tests.rs",
+      "sha256": "744fa1b7a0f7342c3a2ce04d059c1a8df68440f25aa1236040339fc27c5a8059"
+    },
+    {
+      "path": "crates/emitter/tests/integration/active_transform_contract.rs",
+      "sha256": "69766103d0bed842c9b9f6069271388fbd9f6c6f9025ffa9bf27443987dd9896"
+    },
+    {
+      "path": "target/h2-8a-import-publication-reference-emitter-first-after.log",
+      "sha256": "f0e25607c5757017023834af0e54e3fbf1bfce2485683aa4cfc2567c59995a6a"
+    },
+    {
+      "path": "target/h2-8a-import-publication-reference-emitter-after-producer.log",
+      "sha256": "a256ad232fa7dda8efa1be68a31191a84b1b91005befcd0f0478ed261c99faef"
+    }
+  ]
+}

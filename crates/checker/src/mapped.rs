@@ -586,7 +586,10 @@ impl<'a> CheckerState<'a> {
                     });
             let is_readonly = template_modifiers.intersects(MappedTypeModifiers::INCLUDE_READONLY)
                 || !template_modifiers.intersects(MappedTypeModifiers::EXCLUDE_READONLY)
-                    && modifiers_prop.is_some_and(|property| self.is_readonly_symbol(property));
+                    && match modifiers_prop {
+                        Some(property) => self.is_readonly_symbol(property)?,
+                        None => false,
+                    };
             let strip_optional = self.tables.strict_null_checks
                 && !is_optional
                 && modifiers_prop.is_some_and(|property| {

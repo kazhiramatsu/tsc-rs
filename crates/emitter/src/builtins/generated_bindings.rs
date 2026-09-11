@@ -402,6 +402,46 @@ impl GeneratedBindingScopes {
         }
     }
 
+    /// tsc-port: makeUniqueName(baseName, isUniqueName, optimistic, scoped = false) @6.0.3
+    ///
+    /// An optimistic name that is neither `FileLevel` nor
+    /// `ReservedInNestedScopes` (`_outerThis`): tsc records it in the
+    /// file-wide `generatedNames` set, so it collides with source identifiers
+    /// and with every earlier file-wide generated name regardless of scope,
+    /// and is never reused by a sibling or nested scope. The planned spelling
+    /// is kept when free; otherwise the ordinal continues from it.
+    pub(super) fn allocate_planned_file_wide_optimistic(
+        &mut self,
+        preferred: &str,
+        planned: String,
+    ) -> String {
+        if self.reserve_file_wide(planned.clone()) {
+            return planned;
+        }
+        let prefix = format!("{preferred}_");
+        let mut suffix = planned
+            .strip_prefix(&prefix)
+            .and_then(|suffix| suffix.parse::<usize>().ok())
+            .map_or(1, |suffix| suffix + 1);
+        loop {
+            let candidate = format!("{preferred}_{suffix}");
+            if self.reserve_file_wide(candidate.clone()) {
+                return candidate;
+            }
+            suffix += 1;
+        }
+    }
+
+    fn reserve_file_wide(&mut self, candidate: String) -> bool {
+        if !self.reserve_in_source(candidate.clone()) {
+            return false;
+        }
+        if self.current != GeneratedBindingScopeId(0) {
+            self.scopes[self.current.0].names.push(candidate);
+        }
+        true
+    }
+
     /// Commits a file-level optimistic name that was planned from the parsed
     /// source identifier snapshot.
     ///

@@ -1,0 +1,1515 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-40",
+  "status": "Source supplement for comma design and helper closure; not whole A40 readiness",
+  "source": {
+    "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+    "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+  },
+  "observer": {
+    "path": "scripts/observe-retained-comma-sources.mjs",
+    "sha256": "b151b4b32c0026d5cb3a75169afbc480b83359353b1b6afe550742b18194dfa0"
+  },
+  "owners": [
+    {
+      "name": "sameFlatMap",
+      "start": 269,
+      "end": 288,
+      "start_utf16": 6337,
+      "end_utf16": 6824,
+      "sha256": "55f0c15e49671d4de3924c33116cff91c6500435d728bf29eb12d7aa4f18d700",
+      "body": "function sameFlatMap(array, mapfn) {\n  let result;\n  if (array !== void 0) {\n    for (let i = 0; i < array.length; i++) {\n      const item = array[i];\n      const mapped = mapfn(item, i);\n      if (result || item !== mapped || isArray(mapped)) {\n        if (!result) {\n          result = array.slice(0, i);\n        }\n        if (isArray(mapped)) {\n          addRange(result, mapped);\n        } else {\n          result.push(mapped);\n        }\n      }\n    }\n  }\n  return result ?? array;\n}"
+    },
+    {
+      "name": "isParseTreeNode",
+      "start": 11423,
+      "end": 11425,
+      "start_utf16": 899082,
+      "end_utf16": 899168,
+      "sha256": "0d68440d4be1093a35e2879de1cfd1f646c4cd1869f9422505397f633874cd61",
+      "body": "function isParseTreeNode(node) {\n  return (node.flags & 16 /* Synthesized */) === 0;\n}"
+    },
+    {
+      "name": "nodeIsSynthesized",
+      "start": 16000,
+      "end": 16002,
+      "start_utf16": 1065742,
+      "end_utf16": 1065858,
+      "sha256": "92513d762f0ce3b9395668680a82e8298d0f0e2b0894ff2381f5cc80c1459b68",
+      "body": "function nodeIsSynthesized(range) {\n  return positionIsSynthesized(range.pos) || positionIsSynthesized(range.end);\n}"
+    },
+    {
+      "name": "positionIsSynthesized",
+      "start": 18811,
+      "end": 18813,
+      "start_utf16": 1175036,
+      "end_utf16": 1175097,
+      "sha256": "d5e8789e34c3dd4c8fcedc3de80e5dc4d20481646eaa085277c28ca8bf5be384",
+      "body": "function positionIsSynthesized(pos) {\n  return !(pos >= 0);\n}"
+    },
+    {
+      "name": "flattenCommaElements",
+      "start": 24371,
+      "end": 24381,
+      "start_utf16": 1426027,
+      "end_utf16": 1426401,
+      "sha256": "41e4af4418a8fbeaa8c661b78e39f2123ea2abb7fcd77103834d6a4c7b5420cd",
+      "body": "function flattenCommaElements(node) {\n    if (nodeIsSynthesized(node) && !isParseTreeNode(node) && !node.original && !node.emitNode && !node.id) {\n      if (isCommaListExpression(node)) {\n        return node.elements;\n      }\n      if (isBinaryExpression(node) && isCommaToken(node.operatorToken)) {\n        return [node.left, node.right];\n      }\n    }\n    return node;\n  }"
+    },
+    {
+      "name": "createCommaListExpression",
+      "start": 24382,
+      "end": 24387,
+      "start_utf16": 1426404,
+      "end_utf16": 1426683,
+      "sha256": "b8cb24a371e64707d838d5d5572ba90d791d9e7940802508816991740730a106",
+      "body": "function createCommaListExpression(elements) {\n    const node = createBaseNode(357 /* CommaListExpression */);\n    node.elements = createNodeArray(sameFlatMap(elements, flattenCommaElements));\n    node.transformFlags |= propagateChildrenFlags(node.elements);\n    return node;\n  }"
+    },
+    {
+      "name": "getNodeId",
+      "start": 46420,
+      "end": 46426,
+      "start_utf16": 2331941,
+      "end_utf16": 2332053,
+      "sha256": "92767ee389b72a063a920d80f0ec530099289aa649ec605d30137cc692b7c7b3",
+      "body": "function getNodeId(node) {\n  if (!node.id) {\n    node.id = nextNodeId;\n    nextNodeId++;\n  }\n  return node.id;\n}"
+    },
+    {
+      "name": "getOriginalNodeId",
+      "start": 92735,
+      "end": 92738,
+      "start_utf16": 4535772,
+      "end_utf16": 4535877,
+      "sha256": "bc079b7dbfba376d405e51064f626d17ca3413ad1722dfc382713974daf2234a",
+      "body": "function getOriginalNodeId(node) {\n  node = getOriginalNode(node);\n  return node ? getNodeId(node) : 0;\n}"
+    },
+    {
+      "name": "getScriptTransformers",
+      "start": 115903,
+      "end": 115949,
+      "start_utf16": 5445190,
+      "end_utf16": 5447006,
+      "sha256": "823ab32cb344404e263bb874a0df5fa7254c76bb0022f1db754505592a0e716f",
+      "body": "function getScriptTransformers(compilerOptions, customTransformers, emitOnly) {\n  if (emitOnly) return emptyArray;\n  const languageVersion = getEmitScriptTarget(compilerOptions);\n  const moduleKind = getEmitModuleKind(compilerOptions);\n  const useDefineForClassFields = getUseDefineForClassFields(compilerOptions);\n  const transformers = [];\n  addRange(transformers, customTransformers && map(customTransformers.before, wrapScriptTransformerFactory));\n  transformers.push(transformTypeScript);\n  if (compilerOptions.experimentalDecorators) {\n    transformers.push(transformLegacyDecorators);\n  }\n  if (getJSXTransformEnabled(compilerOptions)) {\n    transformers.push(transformJsx);\n  }\n  if (languageVersion < 99 /* ESNext */) {\n    transformers.push(transformESNext);\n  }\n  if (!compilerOptions.experimentalDecorators && (languageVersion < 99 /* ESNext */ || !useDefineForClassFields)) {\n    transformers.push(transformESDecorators);\n  }\n  transformers.push(transformClassFields);\n  if (languageVersion < 8 /* ES2021 */) {\n    transformers.push(transformES2021);\n  }\n  if (languageVersion < 7 /* ES2020 */) {\n    transformers.push(transformES2020);\n  }\n  if (languageVersion < 6 /* ES2019 */) {\n    transformers.push(transformES2019);\n  }\n  if (languageVersion < 5 /* ES2018 */) {\n    transformers.push(transformES2018);\n  }\n  if (languageVersion < 4 /* ES2017 */) {\n    transformers.push(transformES2017);\n  }\n  if (languageVersion < 3 /* ES2016 */) {\n    transformers.push(transformES2016);\n  }\n  if (languageVersion < 2 /* ES2015 */) {\n    transformers.push(transformES2015);\n    transformers.push(transformGenerators);\n  }\n  transformers.push(getModuleTransformer(moduleKind));\n  addRange(transformers, customTransformers && map(customTransformers.after, wrapScriptTransformerFactory));\n  return transformers;\n}"
+    },
+    {
+      "name": "isHoistedVariable",
+      "start": 14170,
+      "end": 14172,
+      "start_utf16": 992455,
+      "end_utf16": 992546,
+      "sha256": "7e53aea512ba0da886a40e578df3efa820535ea0d586d5336fb0a6403f22896b",
+      "body": "function isHoistedVariable(node) {\n  return isIdentifier(node.name) && !node.initializer;\n}"
+    },
+    {
+      "name": "hoistFunctionDeclaration",
+      "start": 116117,
+      "end": 116126,
+      "start_utf16": 5453814,
+      "end_utf16": 5454330,
+      "sha256": "9138641bf805fe05bdde51e4a5a8efaf94fdd0f91fdd6484339453763bc5cfa8",
+      "body": "function hoistFunctionDeclaration(func) {\n    Debug.assert(state > 0 /* Uninitialized */, \"Cannot modify the lexical environment during initialization.\");\n    Debug.assert(state < 2 /* Completed */, \"Cannot modify the lexical environment after transformation has completed.\");\n    setEmitFlags(func, 2097152 /* CustomPrologue */);\n    if (!lexicalEnvironmentFunctionDeclarations) {\n      lexicalEnvironmentFunctionDeclarations = [func];\n    } else {\n      lexicalEnvironmentFunctionDeclarations.push(func);\n    }\n  }"
+    },
+    {
+      "name": "getSuperCallFromStatement",
+      "start": 93070,
+      "end": 93076,
+      "start_utf16": 4548209,
+      "end_utf16": 4548440,
+      "sha256": "25dc882b69d3d791ef54e5c9a4c52ed6a5284c712f28a8260995734f7816cb08",
+      "body": "function getSuperCallFromStatement(statement) {\n  if (!isExpressionStatement(statement)) {\n    return void 0;\n  }\n  const expression = skipParentheses(statement.expression);\n  return isSuperCall(expression) ? expression : void 0;\n}"
+    },
+    {
+      "name": "findSuperStatementIndexPathWorker",
+      "start": 93077,
+      "end": 93089,
+      "start_utf16": 4548441,
+      "end_utf16": 4548895,
+      "sha256": "f0924fec2c2f590eaea8c48ba7c0866747479353fa2b0f03dd93253f9bb767d3",
+      "body": "function findSuperStatementIndexPathWorker(statements, start, indices) {\n  for (let i = start; i < statements.length; i += 1) {\n    const statement = statements[i];\n    if (getSuperCallFromStatement(statement)) {\n      indices.unshift(i);\n      return true;\n    } else if (isTryStatement(statement) && findSuperStatementIndexPathWorker(statement.tryBlock.statements, 0, indices)) {\n      indices.unshift(i);\n      return true;\n    }\n  }\n  return false;\n}"
+    },
+    {
+      "name": "formatIdentifier",
+      "start": 28113,
+      "end": 28115,
+      "start_utf16": 1571290,
+      "end_utf16": 1571446,
+      "sha256": "a63ce25a501834bfc07e4afaeb287c5ea70cdb65ca4a0d1480ddfcea0c6b028f",
+      "body": "function formatIdentifier(name, generateName) {\n  return typeof name === \"string\" ? name : formatIdentifierWorker(name, Debug.checkDefined(generateName));\n}"
+    },
+    {
+      "name": "formatIdentifierWorker",
+      "start": 28116,
+      "end": 28118,
+      "start_utf16": 1571447,
+      "end_utf16": 1571699,
+      "sha256": "90e36079982b6abb70a15aa20c1fdad3ab775a05bffe1f403af058f12e83547f",
+      "body": "function formatIdentifierWorker(node, generateName) {\n  return isGeneratedPrivateIdentifier(node) ? generateName(node).slice(1) : isGeneratedIdentifier(node) ? generateName(node) : isPrivateIdentifier(node) ? node.escapedText.slice(1) : idText(node);\n}"
+    }
+  ],
+  "direct_id_calls": [
+    {
+      "start": 21661,
+      "end": 21661,
+      "start_utf16": 1285685,
+      "end_utf16": 1285700,
+      "sha256": "ece5c0b30d881e496ba1ee58fbdd67428e0258729fba1fbb52dad62069f186e9",
+      "text": "getNodeId(node)",
+      "owner": {
+        "name": "getGeneratedNameForNode",
+        "start": 21652,
+        "end": 21666,
+        "start_utf16": 1285355,
+        "end_utf16": 1285900,
+        "sha256": "ccf0eda44b7da1cbe1edd78e298fa45a1d4e00087a2741b770cf9dd2ad3c5419"
+      },
+      "domain": "generated-name-source-key"
+    },
+    {
+      "start": 21701,
+      "end": 21701,
+      "start_utf16": 1287348,
+      "end_utf16": 1287363,
+      "sha256": "ece5c0b30d881e496ba1ee58fbdd67428e0258729fba1fbb52dad62069f186e9",
+      "text": "getNodeId(node)",
+      "owner": {
+        "name": "getGeneratedPrivateNameForNode",
+        "start": 21693,
+        "end": 21706,
+        "start_utf16": 1287116,
+        "end_utf16": 1287587,
+        "sha256": "1806c69ce25fd103782508ef492180d29f3b717aa70de9bbcd20d7d0be4f0096"
+      },
+      "domain": "generated-name-source-key"
+    },
+    {
+      "start": 42290,
+      "end": 42290,
+      "start_utf16": 2153409,
+      "end_utf16": 2153424,
+      "sha256": "ece5c0b30d881e496ba1ee58fbdd67428e0258729fba1fbb52dad62069f186e9",
+      "text": "getNodeId(node)",
+      "owner": {
+        "name": "getModuleInstanceStateCached",
+        "start": 42289,
+        "end": 42298,
+        "start_utf16": 2153309,
+        "end_utf16": 2153660,
+        "sha256": "776e75b82d469512a1bc49c9b046c49cc74068dd8a4b57ccbc122b8207b51c76"
+      },
+      "domain": "binder-checker-identity"
+    },
+    {
+      "start": 44749,
+      "end": 44749,
+      "start_utf16": 2252417,
+      "end_utf16": 2252432,
+      "sha256": "ece5c0b30d881e496ba1ee58fbdd67428e0258729fba1fbb52dad62069f186e9",
+      "text": "getNodeId(node)",
+      "owner": {
+        "name": "addLateBoundAssignmentDeclarationToSymbol",
+        "start": 44747,
+        "end": 44751,
+        "start_utf16": 2252215,
+        "end_utf16": 2252450,
+        "sha256": "7eec2c271b7b2f626639a907624dfd358849552adcb661baefe34ce3f4d95c02"
+      },
+      "domain": "binder-checker-identity"
+    },
+    {
+      "start": 47901,
+      "end": 47901,
+      "start_utf16": 2394301,
+      "end_utf16": 2394316,
+      "sha256": "ece5c0b30d881e496ba1ee58fbdd67428e0258729fba1fbb52dad62069f186e9",
+      "text": "getNodeId(node)",
+      "owner": {
+        "name": "getNodeLinks",
+        "start": 47900,
+        "end": 47903,
+        "start_utf16": 2394252,
+        "end_utf16": 2394392,
+        "sha256": "6b477eee71bd3f550d64a5578a7db495b6d4f67cf5be84363f7aee31a9010472"
+      },
+      "domain": "binder-checker-identity"
+    },
+    {
+      "start": 49951,
+      "end": 49951,
+      "start_utf16": 2497376,
+      "end_utf16": 2497401,
+      "sha256": "d54c4910282c6c2018a252eadb56122a61443c5566db12e02542a23f6fe54a75",
+      "text": "getNodeId(containingFile)",
+      "owner": {
+        "name": "getAlternativeContainingModules",
+        "start": 49949,
+        "end": 49988,
+        "start_utf16": 2497218,
+        "end_utf16": 2498752,
+        "sha256": "98a362c1c59e5f2cba44d6d2ee17fc39fdfa33903613749c32d117c577b05840"
+      },
+      "domain": "binder-checker-identity"
+    },
+    {
+      "start": 50301,
+      "end": 50301,
+      "start_utf16": 2512651,
+      "end_utf16": 2512683,
+      "sha256": "8c91b1dd1ddb593934e312fe0b78c8453a07d73f5166bbc1076ca2941b3de6ee",
+      "text": "getNodeId(firstRelevantLocation)",
+      "owner": {
+        "name": "getAccessibleSymbolChain",
+        "start": 50294,
+        "end": 50375,
+        "start_utf16": 2512066,
+        "end_utf16": 2517177,
+        "sha256": "ee7d57cc3698d3d2dd87b4f2a6db8e60c77f2e162adcac7e04715c0f18b1e52d"
+      },
+      "domain": "binder-checker-identity"
+    },
+    {
+      "start": 51815,
+      "end": 51815,
+      "start_utf16": 2585366,
+      "end_utf16": 2585387,
+      "sha256": "7398438e2507c015b762aaf052b31d4dd72f7724d36e96266bad1f92ab1eaf63",
+      "text": "getNodeId(type2.node)",
+      "owner": {
+        "name": "visitAndTransformType",
+        "start": 51811,
+        "end": 51893,
+        "start_utf16": 2585038,
+        "end_utf16": 2588663,
+        "sha256": "735642c0041139ff777be2a84c9678596eb17c343784ea15353c16cbdef7d82a"
+      },
+      "domain": "binder-checker-identity"
+    },
+    {
+      "start": 51815,
+      "end": 51815,
+      "start_utf16": 2585439,
+      "end_utf16": 2585465,
+      "sha256": "6f85815c573b4ab5230b2ca76de55f27b3457b8d9ec01ad6e94517b5a027dabb",
+      "text": "getNodeId(type2.root.node)",
+      "owner": {
+        "name": "visitAndTransformType",
+        "start": 51811,
+        "end": 51893,
+        "start_utf16": 2585038,
+        "end_utf16": 2588663,
+        "sha256": "735642c0041139ff777be2a84c9678596eb17c343784ea15353c16cbdef7d82a"
+      },
+      "domain": "binder-checker-identity"
+    },
+    {
+      "start": 61149,
+      "end": 61149,
+      "start_utf16": 3029013,
+      "end_utf16": 3029028,
+      "sha256": "ece5c0b30d881e496ba1ee58fbdd67428e0258729fba1fbb52dad62069f186e9",
+      "text": "getNodeId(node)",
+      "owner": {
+        "name": "<callback>",
+        "start": 61149,
+        "end": 61149,
+        "start_utf16": 3028996,
+        "end_utf16": 3029034,
+        "sha256": "d595b611f86a24b1693c3b89f9758f6f8ba8a3c95d56b7df6d0c750fc0858267"
+      },
+      "domain": "binder-checker-identity"
+    },
+    {
+      "start": 69412,
+      "end": 69412,
+      "start_utf16": 3435584,
+      "end_utf16": 3435608,
+      "sha256": "3301175bb64e066522e59174eec2de607044d56a5a84acdf86983f0b1df9ef81",
+      "text": "getNodeId(flowContainer)",
+      "owner": {
+        "name": "getFlowCacheKey",
+        "start": 69407,
+        "end": 69447,
+        "start_utf16": 3435299,
+        "end_utf16": 3437405,
+        "sha256": "41e6ceb2323e138ab5f2f0f0a658d689bf0760f3533917f6e4bab9ca6ac6b1d0"
+      },
+      "domain": "binder-checker-identity"
+    },
+    {
+      "start": 69416,
+      "end": 69416,
+      "start_utf16": 3435807,
+      "end_utf16": 3435831,
+      "sha256": "3301175bb64e066522e59174eec2de607044d56a5a84acdf86983f0b1df9ef81",
+      "text": "getNodeId(flowContainer)",
+      "owner": {
+        "name": "getFlowCacheKey",
+        "start": 69407,
+        "end": 69447,
+        "start_utf16": 3435299,
+        "end_utf16": 3437405,
+        "sha256": "41e6ceb2323e138ab5f2f0f0a658d689bf0760f3533917f6e4bab9ca6ac6b1d0"
+      },
+      "domain": "binder-checker-identity"
+    },
+    {
+      "start": 69444,
+      "end": 69444,
+      "start_utf16": 3437331,
+      "end_utf16": 3437346,
+      "sha256": "ece5c0b30d881e496ba1ee58fbdd67428e0258729fba1fbb52dad62069f186e9",
+      "text": "getNodeId(node)",
+      "owner": {
+        "name": "getFlowCacheKey",
+        "start": 69407,
+        "end": 69447,
+        "start_utf16": 3435299,
+        "end_utf16": 3437405,
+        "sha256": "41e6ceb2323e138ab5f2f0f0a658d689bf0760f3533917f6e4bab9ca6ac6b1d0"
+      },
+      "domain": "binder-checker-identity"
+    },
+    {
+      "start": 73358,
+      "end": 73358,
+      "start_utf16": 3623849,
+      "end_utf16": 3623864,
+      "sha256": "ece5c0b30d881e496ba1ee58fbdd67428e0258729fba1fbb52dad62069f186e9",
+      "text": "getNodeId(node)",
+      "owner": {
+        "name": "discriminateContextualTypeByObjectMembers",
+        "start": 73357,
+        "end": 73390,
+        "start_utf16": 3623754,
+        "end_utf16": 3625330,
+        "sha256": "be166e88867661699e4202f02410868fb3b69cf0977b15cefa056a8664e7b05c"
+      },
+      "domain": "binder-checker-identity"
+    },
+    {
+      "start": 73392,
+      "end": 73392,
+      "start_utf16": 3625428,
+      "end_utf16": 3625443,
+      "sha256": "ece5c0b30d881e496ba1ee58fbdd67428e0258729fba1fbb52dad62069f186e9",
+      "text": "getNodeId(node)",
+      "owner": {
+        "name": "discriminateContextualTypeByJSXAttributes",
+        "start": 73391,
+        "end": 73423,
+        "start_utf16": 3625333,
+        "end_utf16": 3626943,
+        "sha256": "b9f3a059600eee87bee61ec2ad4827e76e05f0d9e7b8046db109ed874b8c70c4"
+      },
+      "domain": "binder-checker-identity"
+    },
+    {
+      "start": 80901,
+      "end": 80901,
+      "start_utf16": 3980342,
+      "end_utf16": 3980357,
+      "sha256": "ece5c0b30d881e496ba1ee58fbdd67428e0258729fba1fbb52dad62069f186e9",
+      "text": "getNodeId(node)",
+      "owner": {
+        "name": "getTypeOfExpression",
+        "start": 80895,
+        "end": 80914,
+        "start_utf16": 3980093,
+        "end_utf16": 3980783,
+        "sha256": "0e1ae61423f0d81a8d13858e9f9b5a8c6fb020ead813f9abb8c1cea5eee7ccd7"
+      },
+      "domain": "binder-checker-identity"
+    },
+    {
+      "start": 80910,
+      "end": 80910,
+      "start_utf16": 3980665,
+      "end_utf16": 3980680,
+      "sha256": "ece5c0b30d881e496ba1ee58fbdd67428e0258729fba1fbb52dad62069f186e9",
+      "text": "getNodeId(node)",
+      "owner": {
+        "name": "getTypeOfExpression",
+        "start": 80895,
+        "end": 80914,
+        "start_utf16": 3980093,
+        "end_utf16": 3980783,
+        "sha256": "0e1ae61423f0d81a8d13858e9f9b5a8c6fb020ead813f9abb8c1cea5eee7ccd7"
+      },
+      "domain": "binder-checker-identity"
+    },
+    {
+      "start": 92737,
+      "end": 92737,
+      "start_utf16": 4535855,
+      "end_utf16": 4535870,
+      "sha256": "ece5c0b30d881e496ba1ee58fbdd67428e0258729fba1fbb52dad62069f186e9",
+      "text": "getNodeId(node)",
+      "owner": {
+        "name": "getOriginalNodeId",
+        "start": 92735,
+        "end": 92738,
+        "start_utf16": 4535772,
+        "end_utf16": 4535877,
+        "sha256": "bc079b7dbfba376d405e51064f626d17ca3413ad1722dfc382713974daf2234a"
+      },
+      "domain": "original-declaration-key"
+    },
+    {
+      "start": 92980,
+      "end": 92980,
+      "start_utf16": 4545352,
+      "end_utf16": 4545367,
+      "sha256": "ece5c0b30d881e496ba1ee58fbdd67428e0258729fba1fbb52dad62069f186e9",
+      "text": "getNodeId(node)",
+      "owner": {
+        "name": "toKey",
+        "start": 92975,
+        "end": 93005,
+        "start_utf16": 4544967,
+        "end_utf16": 4545976,
+        "sha256": "b2afbd4ba05f01da8b40c7d6b1bd3ad4f0df8350db6e7d1ce3f5e3da67e667f2"
+      },
+      "domain": "generated-identifier-name-map-key"
+    },
+    {
+      "start": 101248,
+      "end": 101248,
+      "start_utf16": 4884568,
+      "end_utf16": 4884596,
+      "sha256": "9daa7dba4e8e79943d92d813457de9d59a6eb5e998df5a34d2da70595e3a5ae0",
+      "text": "getNodeId(variableStatement)",
+      "owner": {
+        "name": "transformMethodBody",
+        "start": 101235,
+        "end": 101264,
+        "start_utf16": 4883527,
+        "end_utf16": 4885321,
+        "sha256": "30a749ce5e59ab9d1b6e509997b8d70821a6d6321b4a1fb5b3a90eb49585ba88"
+      },
+      "domain": "later-async-transform-or-emit-hook"
+    },
+    {
+      "start": 101383,
+      "end": 101383,
+      "start_utf16": 4890531,
+      "end_utf16": 4890559,
+      "sha256": "9daa7dba4e8e79943d92d813457de9d59a6eb5e998df5a34d2da70595e3a5ae0",
+      "text": "getNodeId(variableStatement)",
+      "owner": {
+        "name": "transformAsyncFunctionBody",
+        "start": 101315,
+        "end": 101424,
+        "start_utf16": 4887020,
+        "end_utf16": 4892129,
+        "sha256": "02b0e87563421bdfba5b5b70fed155050a8c027faac16cf577fba877383879b4"
+      },
+      "domain": "later-async-transform-or-emit-hook"
+    },
+    {
+      "start": 101466,
+      "end": 101466,
+      "start_utf16": 4894550,
+      "end_utf16": 4894565,
+      "sha256": "ece5c0b30d881e496ba1ee58fbdd67428e0258729fba1fbb52dad62069f186e9",
+      "text": "getNodeId(node)",
+      "owner": {
+        "name": "onEmitNode",
+        "start": 101456,
+        "end": 101474,
+        "start_utf16": 4893674,
+        "end_utf16": 4894885,
+        "sha256": "a4afef9db65b770e60f5f98a470536e9d7bc2940cb4fb088429bdd81981db12e"
+      },
+      "domain": "later-async-transform-or-emit-hook"
+    },
+    {
+      "start": 102661,
+      "end": 102661,
+      "start_utf16": 4939247,
+      "end_utf16": 4939275,
+      "sha256": "9daa7dba4e8e79943d92d813457de9d59a6eb5e998df5a34d2da70595e3a5ae0",
+      "text": "getNodeId(variableStatement)",
+      "owner": {
+        "name": "transformAsyncGeneratorFunctionBody",
+        "start": 102630,
+        "end": 102676,
+        "start_utf16": 4937494,
+        "end_utf16": 4939990,
+        "sha256": "9a507256bc2ef2b30d3d43e3d3530c481b861d3bd60b2451f1b0a160dafe1953"
+      },
+      "domain": "later-async-transform-or-emit-hook"
+    },
+    {
+      "start": 102810,
+      "end": 102810,
+      "start_utf16": 4946389,
+      "end_utf16": 4946404,
+      "sha256": "ece5c0b30d881e496ba1ee58fbdd67428e0258729fba1fbb52dad62069f186e9",
+      "text": "getNodeId(node)",
+      "owner": {
+        "name": "onEmitNode",
+        "start": 102800,
+        "end": 102818,
+        "start_utf16": 4945513,
+        "end_utf16": 4946724,
+        "sha256": "a4afef9db65b770e60f5f98a470536e9d7bc2940cb4fb088429bdd81981db12e"
+      },
+      "domain": "later-async-transform-or-emit-hook"
+    },
+    {
+      "start": 110924,
+      "end": 110924,
+      "start_utf16": 5239354,
+      "end_utf16": 5239375,
+      "sha256": "380df1cc218007ceda0107e2ce8212f6d0bafc5ecf70e5647ca5e91c7b2e83a9",
+      "text": "getNodeId(expression)",
+      "owner": {
+        "name": "visitPreOrPostfixUnaryExpression",
+        "start": 110905,
+        "end": 110937,
+        "start_utf16": 5238187,
+        "end_utf16": 5239794,
+        "sha256": "76acce84857b753a90ce3a443b4d85de0003759cdc9eb206969ebe5724580c92"
+      },
+      "domain": "later-module-transform-or-substitution"
+    },
+    {
+      "start": 110929,
+      "end": 110929,
+      "start_utf16": 5239553,
+      "end_utf16": 5239574,
+      "sha256": "380df1cc218007ceda0107e2ce8212f6d0bafc5ecf70e5647ca5e91c7b2e83a9",
+      "text": "getNodeId(expression)",
+      "owner": {
+        "name": "visitPreOrPostfixUnaryExpression",
+        "start": 110905,
+        "end": 110937,
+        "start_utf16": 5238187,
+        "end_utf16": 5239794,
+        "sha256": "76acce84857b753a90ce3a443b4d85de0003759cdc9eb206969ebe5724580c92"
+      },
+      "domain": "later-module-transform-or-substitution"
+    },
+    {
+      "start": 111911,
+      "end": 111911,
+      "start_utf16": 5272759,
+      "end_utf16": 5272780,
+      "sha256": "380df1cc218007ceda0107e2ce8212f6d0bafc5ecf70e5647ca5e91c7b2e83a9",
+      "text": "getNodeId(expression)",
+      "owner": {
+        "name": "substituteCallExpression",
+        "start": 111908,
+        "end": 111926,
+        "start_utf16": 5272581,
+        "end_utf16": 5273176,
+        "sha256": "086536428388671e68bdcf06a1739f55beeba67b8ba5b77871e17020fc33b846"
+      },
+      "domain": "later-module-transform-or-substitution"
+    },
+    {
+      "start": 111930,
+      "end": 111930,
+      "start_utf16": 5273346,
+      "end_utf16": 5273360,
+      "sha256": "a53667330907b9d0ad292972bf99189de3413a932e7cb5dbb3ee4bc3a04bc2fc",
+      "text": "getNodeId(tag)",
+      "owner": {
+        "name": "substituteTaggedTemplateExpression",
+        "start": 111927,
+        "end": 111945,
+        "start_utf16": 5273179,
+        "end_utf16": 5273744,
+        "sha256": "5e2a2979426b287eade562b5b9d8aa3a75cea47c42baa370ea99cd4b4ce6bdd8"
+      },
+      "domain": "later-module-transform-or-substitution"
+    },
+    {
+      "start": 111996,
+      "end": 111996,
+      "start_utf16": 5276185,
+      "end_utf16": 5276206,
+      "sha256": "380df1cc218007ceda0107e2ce8212f6d0bafc5ecf70e5647ca5e91c7b2e83a9",
+      "text": "getNodeId(expression)",
+      "owner": {
+        "name": "substituteBinaryExpression",
+        "start": 111990,
+        "end": 112008,
+        "start_utf16": 5275754,
+        "end_utf16": 5276437,
+        "sha256": "09665bfa962b9cc8dc01bbf52a09074a995198564039bc58b58aa24ab29fa987"
+      },
+      "domain": "later-module-transform-or-substitution"
+    },
+    {
+      "start": 113360,
+      "end": 113360,
+      "start_utf16": 5326055,
+      "end_utf16": 5326070,
+      "sha256": "ece5c0b30d881e496ba1ee58fbdd67428e0258729fba1fbb52dad62069f186e9",
+      "text": "getNodeId(node)",
+      "owner": {
+        "name": "preventSubstitution",
+        "start": 113358,
+        "end": 113362,
+        "start_utf16": 5325943,
+        "end_utf16": 5326100,
+        "sha256": "6d1f54dafd8f195cf257f5d27c706ff16c24e416d28e867557022c234b4f5a4e"
+      },
+      "domain": "later-module-transform-or-substitution"
+    },
+    {
+      "start": 113714,
+      "end": 113714,
+      "start_utf16": 5338882,
+      "end_utf16": 5338897,
+      "sha256": "ece5c0b30d881e496ba1ee58fbdd67428e0258729fba1fbb52dad62069f186e9",
+      "text": "getNodeId(node)",
+      "owner": {
+        "name": "substituteHelperName",
+        "start": 113711,
+        "end": 113726,
+        "start_utf16": 5338674,
+        "end_utf16": 5339342,
+        "sha256": "191f5dc875fbe56f5834d47f5d2db969b1e68a910863866e03fb464145913bfa"
+      },
+      "domain": "later-module-transform-or-substitution"
+    },
+    {
+      "start": 120634,
+      "end": 120634,
+      "start_utf16": 5624335,
+      "end_utf16": 5624350,
+      "sha256": "ece5c0b30d881e496ba1ee58fbdd67428e0258729fba1fbb52dad62069f186e9",
+      "text": "getNodeId(node)",
+      "owner": {
+        "name": "generateNameCached",
+        "start": 120633,
+        "end": 120637,
+        "start_utf16": 5624244,
+        "end_utf16": 5624630,
+        "sha256": "976f864ebc31d76318dc766366075a68583abc7b4ebc485ff1b6cb6bf6300eb8"
+      },
+      "domain": "later-printer-generated-name"
+    }
+  ],
+  "pre_retained_identity_requests": [
+    {
+      "start": 24798,
+      "end": 24798,
+      "start_utf16": 1442187,
+      "end_utf16": 1442216,
+      "sha256": "294a02743bf530e81a92c2312af6ace12333f7abf359b87afee692aff273bf00",
+      "text": "getGeneratedNameForNode(node)",
+      "owner": {
+        "name": "getName",
+        "start": 24788,
+        "end": 24799,
+        "start_utf16": 1441547,
+        "end_utf16": 1442221,
+        "sha256": "68336e64df4cc93c0c35702898bcb259b0ce2bff5297d10ad5df7081873fb2f4"
+      },
+      "pipeline_root": "shared-helper",
+      "arguments": [
+        "node"
+      ]
+    },
+    {
+      "start": 27701,
+      "end": 27701,
+      "start_utf16": 1554203,
+      "end_utf16": 1554241,
+      "sha256": "61f7631670e1eb4bd600bd37a6ce230dc401bdf2e8ef8ebd8a2a5c59d5d8f7ef",
+      "text": "factory2.getGeneratedNameForNode(node)",
+      "owner": {
+        "name": "getLocalNameForExternalImport",
+        "start": 27696,
+        "end": 27712,
+        "start_utf16": 1553859,
+        "end_utf16": 1554672,
+        "sha256": "1d27fb1973554e603827bf252423042b008ab8b713f6e892bae021403754b06e"
+      },
+      "pipeline_root": "shared-helper",
+      "arguments": [
+        "node"
+      ]
+    },
+    {
+      "start": 27706,
+      "end": 27706,
+      "start_utf16": 1554480,
+      "end_utf16": 1554518,
+      "sha256": "61f7631670e1eb4bd600bd37a6ce230dc401bdf2e8ef8ebd8a2a5c59d5d8f7ef",
+      "text": "factory2.getGeneratedNameForNode(node)",
+      "owner": {
+        "name": "getLocalNameForExternalImport",
+        "start": 27696,
+        "end": 27712,
+        "start_utf16": 1553859,
+        "end_utf16": 1554672,
+        "sha256": "1d27fb1973554e603827bf252423042b008ab8b713f6e892bae021403754b06e"
+      },
+      "pipeline_root": "shared-helper",
+      "arguments": [
+        "node"
+      ]
+    },
+    {
+      "start": 27709,
+      "end": 27709,
+      "start_utf16": 1554610,
+      "end_utf16": 1554648,
+      "sha256": "61f7631670e1eb4bd600bd37a6ce230dc401bdf2e8ef8ebd8a2a5c59d5d8f7ef",
+      "text": "factory2.getGeneratedNameForNode(node)",
+      "owner": {
+        "name": "getLocalNameForExternalImport",
+        "start": 27696,
+        "end": 27712,
+        "start_utf16": 1553859,
+        "end_utf16": 1554672,
+        "sha256": "1d27fb1973554e603827bf252423042b008ab8b713f6e892bae021403754b06e"
+      },
+      "pipeline_root": "shared-helper",
+      "arguments": [
+        "node"
+      ]
+    },
+    {
+      "start": 28129,
+      "end": 28134,
+      "start_utf16": 1572184,
+      "end_utf16": 1572304,
+      "sha256": "8bba162448ebaf20152a5f91accaa067c7ef51d355b4529440bb8b24dbbee42c",
+      "text": "factory2.getGeneratedPrivateNameForNode(\n      node.name,\n      /*prefix*/\n      void 0,\n      \"_accessor_storage\"\n    )",
+      "owner": {
+        "name": "createAccessorPropertyBackingField",
+        "start": 28125,
+        "end": 28141,
+        "start_utf16": 1572024,
+        "end_utf16": 1572400,
+        "sha256": "09802e87b5b100349deff08496bfccbb5d54805a4719ae88222ac0fc6c5164c6"
+      },
+      "pipeline_root": "shared-helper",
+      "arguments": [
+        "node.name",
+        "void 0",
+        "\"_accessor_storage\""
+      ]
+    },
+    {
+      "start": 28153,
+      "end": 28158,
+      "start_utf16": 1572765,
+      "end_utf16": 1572915,
+      "sha256": "7529abd5e140a85a64d31c93993871dd15190a79695e069f24448d2b28b1c8d7",
+      "text": "factory2.getGeneratedPrivateNameForNode(\n            node.name,\n            /*prefix*/\n            void 0,\n            \"_accessor_storage\"\n          )",
+      "owner": {
+        "name": "createAccessorPropertyGetRedirector",
+        "start": 28142,
+        "end": 28163,
+        "start_utf16": 1572401,
+        "end_utf16": 1572947,
+        "sha256": "f4f35138b14c7113f0d3dc4d7fe486c22ecf1f4e55825bfc51098df9ad017ff2"
+      },
+      "pipeline_root": "shared-helper",
+      "arguments": [
+        "node.name",
+        "void 0",
+        "\"_accessor_storage\""
+      ]
+    },
+    {
+      "start": 28180,
+      "end": 28185,
+      "start_utf16": 1573461,
+      "end_utf16": 1573621,
+      "sha256": "7e7a6f4c274e68b2c24dd404309e3e3e5b05e0886f4adf81bab8f1d11b912bf6",
+      "text": "factory2.getGeneratedPrivateNameForNode(\n              node.name,\n              /*prefix*/\n              void 0,\n              \"_accessor_storage\"\n            )",
+      "owner": {
+        "name": "createAccessorPropertySetRedirector",
+        "start": 28164,
+        "end": 28192,
+        "start_utf16": 1572948,
+        "end_utf16": 1573711,
+        "sha256": "62e418ef1e09600f4446c64c09b76cc79aae056360585cdfa4c730f75406ca20"
+      },
+      "pipeline_root": "shared-helper",
+      "arguments": [
+        "node.name",
+        "void 0",
+        "\"_accessor_storage\""
+      ]
+    },
+    {
+      "start": 91214,
+      "end": 91214,
+      "start_utf16": 4463358,
+      "end_utf16": 4463401,
+      "sha256": "df1c6a58e8abd45e1075239515ce7128873475411c3a806fe50f239ae7f1ef14",
+      "text": "factory2.getGeneratedNameForNode(parameter)",
+      "owner": {
+        "name": "addDefaultValueAssignmentForBindingPattern",
+        "start": 91200,
+        "end": 91238,
+        "start_utf16": 4462812,
+        "end_utf16": 4463985,
+        "sha256": "ffe4a52e24846839c3f130cf1bd52a52e9b01c37ef2b34d0d42c910e4f2c71a3"
+      },
+      "pipeline_root": "shared-helper",
+      "arguments": [
+        "parameter"
+      ]
+    },
+    {
+      "start": 91222,
+      "end": 91222,
+      "start_utf16": 4463602,
+      "end_utf16": 4463645,
+      "sha256": "df1c6a58e8abd45e1075239515ce7128873475411c3a806fe50f239ae7f1ef14",
+      "text": "factory2.getGeneratedNameForNode(parameter)",
+      "owner": {
+        "name": "addDefaultValueAssignmentForBindingPattern",
+        "start": 91200,
+        "end": 91238,
+        "start_utf16": 4462812,
+        "end_utf16": 4463985,
+        "sha256": "ffe4a52e24846839c3f130cf1bd52a52e9b01c37ef2b34d0d42c910e4f2c71a3"
+      },
+      "pipeline_root": "shared-helper",
+      "arguments": [
+        "parameter"
+      ]
+    },
+    {
+      "start": 91223,
+      "end": 91223,
+      "start_utf16": 4463660,
+      "end_utf16": 4463703,
+      "sha256": "df1c6a58e8abd45e1075239515ce7128873475411c3a806fe50f239ae7f1ef14",
+      "text": "factory2.getGeneratedNameForNode(parameter)",
+      "owner": {
+        "name": "addDefaultValueAssignmentForBindingPattern",
+        "start": 91200,
+        "end": 91238,
+        "start_utf16": 4462812,
+        "end_utf16": 4463985,
+        "sha256": "ffe4a52e24846839c3f130cf1bd52a52e9b01c37ef2b34d0d42c910e4f2c71a3"
+      },
+      "pipeline_root": "shared-helper",
+      "arguments": [
+        "parameter"
+      ]
+    },
+    {
+      "start": 91232,
+      "end": 91232,
+      "start_utf16": 4463854,
+      "end_utf16": 4463897,
+      "sha256": "df1c6a58e8abd45e1075239515ce7128873475411c3a806fe50f239ae7f1ef14",
+      "text": "factory2.getGeneratedNameForNode(parameter)",
+      "owner": {
+        "name": "addDefaultValueAssignmentForBindingPattern",
+        "start": 91200,
+        "end": 91238,
+        "start_utf16": 4462812,
+        "end_utf16": 4463985,
+        "sha256": "ffe4a52e24846839c3f130cf1bd52a52e9b01c37ef2b34d0d42c910e4f2c71a3"
+      },
+      "pipeline_root": "shared-helper",
+      "arguments": [
+        "parameter"
+      ]
+    },
+    {
+      "start": 92823,
+      "end": 92823,
+      "start_utf16": 4539344,
+      "end_utf16": 4539367,
+      "sha256": "bf8f8e2289b2f5cdfb1a7396fca3419a645007cdda14b18fa314ca6b4e9bbf12",
+      "text": "getOriginalNodeId(node)",
+      "owner": {
+        "name": "collectExternalModuleInfo",
+        "start": 92779,
+        "end": 92919,
+        "start_utf16": 4537481,
+        "end_utf16": 4543425,
+        "sha256": "76c57f48f2994c1c3bd7e59377f275ce2d3eb6018991d014284d281fd8c78e5c"
+      },
+      "pipeline_root": "shared-helper",
+      "arguments": [
+        "node"
+      ]
+    },
+    {
+      "start": 92860,
+      "end": 92860,
+      "start_utf16": 4540675,
+      "end_utf16": 4540698,
+      "sha256": "bf8f8e2289b2f5cdfb1a7396fca3419a645007cdda14b18fa314ca6b4e9bbf12",
+      "text": "getOriginalNodeId(node)",
+      "owner": {
+        "name": "collectExternalModuleInfo",
+        "start": 92779,
+        "end": 92919,
+        "start_utf16": 4537481,
+        "end_utf16": 4543425,
+        "sha256": "76c57f48f2994c1c3bd7e59377f275ce2d3eb6018991d014284d281fd8c78e5c"
+      },
+      "pipeline_root": "shared-helper",
+      "arguments": [
+        "node"
+      ]
+    },
+    {
+      "start": 92866,
+      "end": 92866,
+      "start_utf16": 4540966,
+      "end_utf16": 4540989,
+      "sha256": "bf8f8e2289b2f5cdfb1a7396fca3419a645007cdda14b18fa314ca6b4e9bbf12",
+      "text": "getOriginalNodeId(node)",
+      "owner": {
+        "name": "collectExternalModuleInfo",
+        "start": 92779,
+        "end": 92919,
+        "start_utf16": 4537481,
+        "end_utf16": 4543425,
+        "sha256": "76c57f48f2994c1c3bd7e59377f275ce2d3eb6018991d014284d281fd8c78e5c"
+      },
+      "pipeline_root": "shared-helper",
+      "arguments": [
+        "node"
+      ]
+    },
+    {
+      "start": 92895,
+      "end": 92895,
+      "start_utf16": 4542578,
+      "end_utf16": 4542601,
+      "sha256": "cfa995833d8304419b524435cd24e866770872cc12ea349658eec38d8c82f4cb",
+      "text": "getOriginalNodeId(decl)",
+      "owner": {
+        "name": "addExportedNamesForExportDeclaration",
+        "start": 92880,
+        "end": 92902,
+        "start_utf16": 4541692,
+        "end_utf16": 4542774,
+        "sha256": "ba2eb4b2b0821bcb346d4fc05ae80ea1e8d350190a6e7a5b988e685fd352cf1c"
+      },
+      "pipeline_root": "shared-helper",
+      "arguments": [
+        "decl"
+      ]
+    },
+    {
+      "start": 92907,
+      "end": 92907,
+      "start_utf16": 4543016,
+      "end_utf16": 4543039,
+      "sha256": "bf8f8e2289b2f5cdfb1a7396fca3419a645007cdda14b18fa314ca6b4e9bbf12",
+      "text": "getOriginalNodeId(node)",
+      "owner": {
+        "name": "addExportedFunctionDeclaration",
+        "start": 92903,
+        "end": 92918,
+        "start_utf16": 4542777,
+        "end_utf16": 4543423,
+        "sha256": "a7c9ab1ca6bc7cdbd8e3564f108192f9ccb16d3df075ec0a49ccdf2082d0367d"
+      },
+      "pipeline_root": "shared-helper",
+      "arguments": [
+        "node"
+      ]
+    },
+    {
+      "start": 92914,
+      "end": 92914,
+      "start_utf16": 4543331,
+      "end_utf16": 4543354,
+      "sha256": "bf8f8e2289b2f5cdfb1a7396fca3419a645007cdda14b18fa314ca6b4e9bbf12",
+      "text": "getOriginalNodeId(node)",
+      "owner": {
+        "name": "addExportedFunctionDeclaration",
+        "start": 92903,
+        "end": 92918,
+        "start_utf16": 4542777,
+        "end_utf16": 4543423,
+        "sha256": "a7c9ab1ca6bc7cdbd8e3564f108192f9ccb16d3df075ec0a49ccdf2082d0367d"
+      },
+      "pipeline_root": "shared-helper",
+      "arguments": [
+        "node"
+      ]
+    },
+    {
+      "start": 92933,
+      "end": 92933,
+      "start_utf16": 4544071,
+      "end_utf16": 4544094,
+      "sha256": "cfa995833d8304419b524435cd24e866770872cc12ea349658eec38d8c82f4cb",
+      "text": "getOriginalNodeId(decl)",
+      "owner": {
+        "name": "collectExportedVariableInfo",
+        "start": 92920,
+        "end": 92938,
+        "start_utf16": 4543426,
+        "end_utf16": 4544151,
+        "sha256": "177786ee8f36ebe26eb9ff2db559945ca742cd1f786c1143b20f47fe3aef8b95"
+      },
+      "pipeline_root": "shared-helper",
+      "arguments": [
+        "decl"
+      ]
+    },
+    {
+      "start": 93782,
+      "end": 93782,
+      "start_utf16": 4576560,
+      "end_utf16": 4576598,
+      "sha256": "bd137876575ad233159add1f5014802f9e40cbdd0a300a9e96fcd0a4f522d278",
+      "text": "factory2.getGeneratedNameForNode(name)",
+      "owner": {
+        "name": "getAssignedNameOfPropertyName",
+        "start": 93768,
+        "end": 93788,
+        "start_utf16": 4575850,
+        "end_utf16": 4576924,
+        "sha256": "8ccf487673073b9faf86153fbfd3dd42bbf7d69cbe6b84cf8f6740c9f8121a00"
+      },
+      "pipeline_root": "shared-helper",
+      "arguments": [
+        "name"
+      ]
+    },
+    {
+      "start": 94457,
+      "end": 94457,
+      "start_utf16": 4605082,
+      "end_utf16": 4605120,
+      "sha256": "61f7631670e1eb4bd600bd37a6ce230dc401bdf2e8ef8ebd8a2a5c59d5d8f7ef",
+      "text": "factory2.getGeneratedNameForNode(node)",
+      "owner": {
+        "name": "visitClassDeclaration",
+        "start": 94434,
+        "end": 94548,
+        "start_utf16": 4603738,
+        "end_utf16": 4608177,
+        "sha256": "b1cff6f491df348f8eca85b182f22a2c436c22e9a71eb049ffcff0efdc1405a5"
+      },
+      "pipeline_root": "transformTypeScript",
+      "arguments": [
+        "node"
+      ]
+    },
+    {
+      "start": 94725,
+      "end": 94725,
+      "start_utf16": 4615520,
+      "end_utf16": 4615558,
+      "sha256": "bd137876575ad233159add1f5014802f9e40cbdd0a300a9e96fcd0a4f522d278",
+      "text": "factory2.getGeneratedNameForNode(name)",
+      "owner": {
+        "name": "getExpressionForPropertyName",
+        "start": 94720,
+        "end": 94731,
+        "start_utf16": 4615176,
+        "end_utf16": 4615733,
+        "sha256": "30c424087e161f7e2a440d5c5735b0e2835c4aef6aa61559161c54a19f21cf7f"
+      },
+      "pipeline_root": "transformTypeScript",
+      "arguments": [
+        "name"
+      ]
+    },
+    {
+      "start": 94739,
+      "end": 94739,
+      "start_utf16": 4616175,
+      "end_utf16": 4616213,
+      "sha256": "bd137876575ad233159add1f5014802f9e40cbdd0a300a9e96fcd0a4f522d278",
+      "text": "factory2.getGeneratedNameForNode(name)",
+      "owner": {
+        "name": "visitPropertyNameOfClassElement",
+        "start": 94732,
+        "end": 94745,
+        "start_utf16": 4615736,
+        "end_utf16": 4616466,
+        "sha256": "4205684037f3b9d55537e8206fcfbe14748b09f30300b61292fd7efff074dbdd"
+      },
+      "pipeline_root": "transformTypeScript",
+      "arguments": [
+        "name"
+      ]
+    },
+    {
+      "start": 95718,
+      "end": 95718,
+      "start_utf16": 4650607,
+      "end_utf16": 4650645,
+      "sha256": "61f7631670e1eb4bd600bd37a6ce230dc401bdf2e8ef8ebd8a2a5c59d5d8f7ef",
+      "text": "factory2.getGeneratedNameForNode(node)",
+      "owner": {
+        "name": "getNamespaceParameterName",
+        "start": 95717,
+        "end": 95721,
+        "start_utf16": 4650547,
+        "end_utf16": 4650707,
+        "sha256": "bc95143ee47e51c5bb14271846aea3d4ca3f5ddf5ad82ac930653e43a58faa05"
+      },
+      "pipeline_root": "transformTypeScript",
+      "arguments": [
+        "node"
+      ]
+    },
+    {
+      "start": 95723,
+      "end": 95723,
+      "start_utf16": 4650764,
+      "end_utf16": 4650802,
+      "sha256": "61f7631670e1eb4bd600bd37a6ce230dc401bdf2e8ef8ebd8a2a5c59d5d8f7ef",
+      "text": "factory2.getGeneratedNameForNode(node)",
+      "owner": {
+        "name": "getNamespaceContainerName",
+        "start": 95722,
+        "end": 95724,
+        "start_utf16": 4650710,
+        "end_utf16": 4650807,
+        "sha256": "773d0600c30030f2f616b86bb0167b7c40d47b50cb8dce50d1c76d07b497b0e3"
+      },
+      "pipeline_root": "transformTypeScript",
+      "arguments": [
+        "node"
+      ]
+    },
+    {
+      "start": 95809,
+      "end": 95809,
+      "start_utf16": 4654569,
+      "end_utf16": 4654612,
+      "sha256": "786630d7fa6c53f360b14a642166c89fdd95b423692b52b39613dd162d197b7a",
+      "text": "factory2.getGeneratedNameForNode(container)",
+      "owner": {
+        "name": "trySubstituteNamespaceExportedName",
+        "start": 95798,
+        "end": 95817,
+        "start_utf16": 4653867,
+        "end_utf16": 4654722,
+        "sha256": "ab5361ea0e42a3b2ff3c778e2a5e10af772fb232f375ff5a87121c1e2bee5b6e"
+      },
+      "pipeline_root": "transformTypeScript",
+      "arguments": [
+        "container"
+      ]
+    },
+    {
+      "start": 97029,
+      "end": 97029,
+      "start_utf16": 4707397,
+      "end_utf16": 4707420,
+      "sha256": "bf8f8e2289b2f5cdfb1a7396fca3419a645007cdda14b18fa314ca6b4e9bbf12",
+      "text": "getOriginalNodeId(node)",
+      "owner": {
+        "name": "visitClassDeclarationInNewClassLexicalEnvironment",
+        "start": 96971,
+        "end": 97045,
+        "start_utf16": 4704512,
+        "end_utf16": 4707780,
+        "sha256": "5d93d79fc1ea6be772cb5d2617fc3d134edaad9c4980d3b2d7418ffe57b85ebf"
+      },
+      "pipeline_root": "transformClassFields",
+      "arguments": [
+        "node"
+      ]
+    },
+    {
+      "start": 97114,
+      "end": 97114,
+      "start_utf16": 4711519,
+      "end_utf16": 4711542,
+      "sha256": "bf8f8e2289b2f5cdfb1a7396fca3419a645007cdda14b18fa314ca6b4e9bbf12",
+      "text": "getOriginalNodeId(node)",
+      "owner": {
+        "name": "visitClassExpressionInNewClassLexicalEnvironment",
+        "start": 97049,
+        "end": 97129,
+        "start_utf16": 4707929,
+        "end_utf16": 4712140,
+        "sha256": "14b8c963902b758dd9fbbc2809669c02a1e07b8f9c760e44d8754bb9d8851921"
+      },
+      "pipeline_root": "transformClassFields",
+      "arguments": [
+        "node"
+      ]
+    },
+    {
+      "start": 97164,
+      "end": 97169,
+      "start_utf16": 4713880,
+      "end_utf16": 4714042,
+      "sha256": "77cedae5865ba580ae99743c5485430ecb5a2b00bd75cd3b7e9f9cace1a56937",
+      "text": "factory2.getGeneratedPrivateNameForNode(\n              member.name,\n              /*prefix*/\n              void 0,\n              \"_accessor_storage\"\n            )",
+      "owner": {
+        "name": "transformClassMembers",
+        "start": 97143,
+        "end": 97237,
+        "start_utf16": 4712723,
+        "end_utf16": 4716952,
+        "sha256": "16fc56d4730a122dd62f20e7dd473ce5b9b88fd9a54def99359d9a9163d788ea"
+      },
+      "pipeline_root": "transformClassFields",
+      "arguments": [
+        "member.name",
+        "void 0",
+        "\"_accessor_storage\""
+      ]
+    },
+    {
+      "start": 97506,
+      "end": 97506,
+      "start_utf16": 4728023,
+      "end_utf16": 4728077,
+      "sha256": "fe70466a1ac8ff9eb8e332c892eb32351b66541f4347a8671bd87deb8dcc9203",
+      "text": "factory2.getGeneratedPrivateNameForNode(property.name)",
+      "owner": {
+        "name": "transformPropertyWorker",
+        "start": 97501,
+        "end": 97575,
+        "start_utf16": 4727714,
+        "end_utf16": 4731527,
+        "sha256": "b6adbf7a3142fe420c6fbbbd4cdd36d1d11a8ead4442ad1b6e5a51752c3b5061"
+      },
+      "pipeline_root": "transformClassFields",
+      "arguments": [
+        "property.name"
+      ]
+    },
+    {
+      "start": 97506,
+      "end": 97506,
+      "start_utf16": 4728230,
+      "end_utf16": 4728277,
+      "sha256": "74eced778df60defc12005c8411ea70cbf785a26677c4ac778106ef103756625",
+      "text": "factory2.getGeneratedNameForNode(property.name)",
+      "owner": {
+        "name": "transformPropertyWorker",
+        "start": 97501,
+        "end": 97575,
+        "start_utf16": 4727714,
+        "end_utf16": 4731527,
+        "sha256": "b6adbf7a3142fe420c6fbbbd4cdd36d1d11a8ead4442ad1b6e5a51752c3b5061"
+      },
+      "pipeline_root": "transformClassFields",
+      "arguments": [
+        "property.name"
+      ]
+    },
+    {
+      "start": 97628,
+      "end": 97628,
+      "start_utf16": 4734092,
+      "end_utf16": 4734130,
+      "sha256": "bd137876575ad233159add1f5014802f9e40cbdd0a300a9e96fcd0a4f522d278",
+      "text": "factory2.getGeneratedNameForNode(name)",
+      "owner": {
+        "name": "getPropertyNameExpressionIfNeeded",
+        "start": 97620,
+        "end": 97638,
+        "start_utf16": 4733455,
+        "end_utf16": 4734509,
+        "sha256": "9b1e547c87a3145460c6b060898752c749c4c7a32efff25d9bacd59633728e65"
+      },
+      "pipeline_root": "transformClassFields",
+      "arguments": [
+        "name"
+      ]
+    },
+    {
+      "start": 97775,
+      "end": 97775,
+      "start_utf16": 4741519,
+      "end_utf16": 4741627,
+      "sha256": "938447a85ee3bfc41256f4e66322649676f1959842abdb531a58173f0687a1c9",
+      "text": "factory2.getGeneratedNameForNode(name, 16 /* Optimistic */ | 8 /* ReservedInNestedScopes */, prefix, suffix)",
+      "owner": {
+        "name": "createHoistedVariableForClass",
+        "start": 97772,
+        "end": 97789,
+        "start_utf16": 4741258,
+        "end_utf16": 4742091,
+        "sha256": "fab7be3c67798aac2f31894aa52e25b4f6d147329355151aeef10b047aa69970"
+      },
+      "pipeline_root": "transformClassFields",
+      "arguments": [
+        "name",
+        "16 /* Optimistic */ | 8",
+        "prefix",
+        "suffix"
+      ]
+    },
+    {
+      "start": 97799,
+      "end": 97799,
+      "start_utf16": 4742602,
+      "end_utf16": 4742640,
+      "sha256": "61f7631670e1eb4bd600bd37a6ce230dc401bdf2e8ef8ebd8a2a5c59d5d8f7ef",
+      "text": "factory2.getGeneratedNameForNode(node)",
+      "owner": {
+        "name": "wrapPrivateIdentifierForDestructuringTarget",
+        "start": 97798,
+        "end": 97822,
+        "start_utf16": 4742519,
+        "end_utf16": 4743415,
+        "sha256": "5a524350e442232447387d808082c2e7cd506bc308614bb3a8493c1dc74997e4"
+      },
+      "pipeline_root": "transformClassFields",
+      "arguments": [
+        "node"
+      ]
+    },
+    {
+      "start": 98837,
+      "end": 98837,
+      "start_utf16": 4784240,
+      "end_utf16": 4784263,
+      "sha256": "bf8f8e2289b2f5cdfb1a7396fca3419a645007cdda14b18fa314ca6b4e9bbf12",
+      "text": "getOriginalNodeId(node)",
+      "owner": {
+        "name": "generateConstructorDecorationExpression",
+        "start": 98827,
+        "end": 98856,
+        "start_utf16": 4783875,
+        "end_utf16": 4784933,
+        "sha256": "2ccf838e8b0fba59b85a688ca68d38a6fb14846901d07d09cdb4e055f96e82b0"
+      },
+      "pipeline_root": "transformLegacyDecorators",
+      "arguments": [
+        "node"
+      ]
+    },
+    {
+      "start": 98881,
+      "end": 98881,
+      "start_utf16": 4785913,
+      "end_utf16": 4785951,
+      "sha256": "bd137876575ad233159add1f5014802f9e40cbdd0a300a9e96fcd0a4f522d278",
+      "text": "factory2.getGeneratedNameForNode(name)",
+      "owner": {
+        "name": "getExpressionForPropertyName",
+        "start": 98876,
+        "end": 98887,
+        "start_utf16": 4785569,
+        "end_utf16": 4786126,
+        "sha256": "30c424087e161f7e2a440d5c5735b0e2835c4aef6aa61559161c54a19f21cf7f"
+      },
+      "pipeline_root": "transformLegacyDecorators",
+      "arguments": [
+        "name"
+      ]
+    },
+    {
+      "start": 98898,
+      "end": 98898,
+      "start_utf16": 4786612,
+      "end_utf16": 4786635,
+      "sha256": "bf8f8e2289b2f5cdfb1a7396fca3419a645007cdda14b18fa314ca6b4e9bbf12",
+      "text": "getOriginalNodeId(node)",
+      "owner": {
+        "name": "getClassAliasIfNeeded",
+        "start": 98894,
+        "end": 98902,
+        "start_utf16": 4786293,
+        "end_utf16": 4786729,
+        "sha256": "62f83f2548158cfb65acf40c6aa9d80472cf4fc79856a0899e27434b53395462"
+      },
+      "pipeline_root": "transformLegacyDecorators",
+      "arguments": [
+        "node"
+      ]
+    },
+    {
+      "start": 100356,
+      "end": 100356,
+      "start_utf16": 4850672,
+      "end_utf16": 4850710,
+      "sha256": "61f7631670e1eb4bd600bd37a6ce230dc401bdf2e8ef8ebd8a2a5c59d5d8f7ef",
+      "text": "factory2.getGeneratedNameForNode(node)",
+      "owner": {
+        "name": "visitReferencedPropertyName",
+        "start": 100345,
+        "end": 100362,
+        "start_utf16": 4850027,
+        "end_utf16": 4851069,
+        "sha256": "de244f3b09468b20b26f15c865695d3d170d5e4b3bda4def46194767ecef602e"
+      },
+      "pipeline_root": "transformESDecorators",
+      "arguments": [
+        "node"
+      ]
+    },
+    {
+      "start": 100654,
+      "end": 100654,
+      "start_utf16": 4862563,
+      "end_utf16": 4862613,
+      "sha256": "0a0a79dfc88dc88bf646afd883401b431352790d32c41db5969250e5cf7e8b10",
+      "text": "factory2.getGeneratedPrivateNameForNode(node.name)",
+      "owner": {
+        "name": "createAccessorPropertyDescriptorObject",
+        "start": 100640,
+        "end": 100686,
+        "start_utf16": 4862116,
+        "end_utf16": 4863363,
+        "sha256": "4580b33bee177e974fa14e5991cc46b760c37a8c2882b9065aca3b62f66f2ddd"
+      },
+      "pipeline_root": "transformESDecorators",
+      "arguments": [
+        "node.name"
+      ]
+    },
+    {
+      "start": 100678,
+      "end": 100678,
+      "start_utf16": 4863190,
+      "end_utf16": 4863240,
+      "sha256": "0a0a79dfc88dc88bf646afd883401b431352790d32c41db5969250e5cf7e8b10",
+      "text": "factory2.getGeneratedPrivateNameForNode(node.name)",
+      "owner": {
+        "name": "createAccessorPropertyDescriptorObject",
+        "start": 100640,
+        "end": 100686,
+        "start_utf16": 4862116,
+        "end_utf16": 4863363,
+        "sha256": "4580b33bee177e974fa14e5991cc46b760c37a8c2882b9065aca3b62f66f2ddd"
+      },
+      "pipeline_root": "transformESDecorators",
+      "arguments": [
+        "node.name"
+      ]
+    },
+    {
+      "start": 103436,
+      "end": 103436,
+      "start_utf16": 4968791,
+      "end_utf16": 4968837,
+      "sha256": "2cae18c5b633139110b1c0220728af322833d1ca5224f84024b558cca08c228b",
+      "text": "factory2.getGeneratedNameForNode(forDecl.name)",
+      "owner": {
+        "name": "visitForOfStatement",
+        "start": 103428,
+        "end": 103477,
+        "start_utf16": 4968337,
+        "end_utf16": 4970017,
+        "sha256": "594214357e7dd7e0eed9addbc297d4b51d5dc6261a160c269c63cc11ad1de2f4"
+      },
+      "pipeline_root": "transformESNext",
+      "arguments": [
+        "forDecl.name"
+      ]
+    }
+  ],
+  "policy": "Every direct getNodeId call is enumerated. Domain labels are source call ownership; the design amendment supplies the argument/provenance and pass-order proof. Whole new helper bodies supplement the prior220-owner inventory.",
+  "counts": {
+    "owners": 15,
+    "direct_id_calls": 32,
+    "pre_retained_identity_requests": 40
+  }
+}
