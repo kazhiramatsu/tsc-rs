@@ -74,9 +74,14 @@ pub struct CompilerOptionListDescriptor {
     element_kind: CompilerOptionListElementKind,
     preserve_falsy_values: bool,
     allow_config_dir_template_substitution: bool,
+    validate_file_spec: bool,
 }
 
 impl CompilerOptionListDescriptor {
+    pub const fn validate_file_spec(self) -> bool {
+        self.validate_file_spec
+    }
+
     pub const fn element_name(self) -> &'static str {
         self.element_name
     }
@@ -596,6 +601,7 @@ pub const LIB_LIST_DESCRIPTOR: CompilerOptionListDescriptor = CompilerOptionList
     element_kind: CompilerOptionListElementKind::NamedString(TYPESCRIPT_6_0_3_LIBRARIES),
     preserve_falsy_values: false,
     allow_config_dir_template_substitution: false,
+    validate_file_spec: false,
 };
 
 pub const ROOT_DIRS_LIST_DESCRIPTOR: CompilerOptionListDescriptor = CompilerOptionListDescriptor {
@@ -603,6 +609,7 @@ pub const ROOT_DIRS_LIST_DESCRIPTOR: CompilerOptionListDescriptor = CompilerOpti
     element_kind: CompilerOptionListElementKind::FilePath,
     preserve_falsy_values: false,
     allow_config_dir_template_substitution: true,
+    validate_file_spec: false,
 };
 
 pub const TYPE_ROOTS_LIST_DESCRIPTOR: CompilerOptionListDescriptor = CompilerOptionListDescriptor {
@@ -610,6 +617,7 @@ pub const TYPE_ROOTS_LIST_DESCRIPTOR: CompilerOptionListDescriptor = CompilerOpt
     element_kind: CompilerOptionListElementKind::FilePath,
     preserve_falsy_values: false,
     allow_config_dir_template_substitution: true,
+    validate_file_spec: false,
 };
 
 pub const TYPES_LIST_DESCRIPTOR: CompilerOptionListDescriptor = CompilerOptionListDescriptor {
@@ -617,6 +625,7 @@ pub const TYPES_LIST_DESCRIPTOR: CompilerOptionListDescriptor = CompilerOptionLi
     element_kind: CompilerOptionListElementKind::String,
     preserve_falsy_values: false,
     allow_config_dir_template_substitution: false,
+    validate_file_spec: false,
 };
 
 pub const MODULE_SUFFIXES_LIST_DESCRIPTOR: CompilerOptionListDescriptor =
@@ -625,6 +634,7 @@ pub const MODULE_SUFFIXES_LIST_DESCRIPTOR: CompilerOptionListDescriptor =
         element_kind: CompilerOptionListElementKind::String,
         preserve_falsy_values: true,
         allow_config_dir_template_substitution: false,
+        validate_file_spec: false,
     };
 
 pub const CUSTOM_CONDITIONS_LIST_DESCRIPTOR: CompilerOptionListDescriptor =
@@ -633,6 +643,7 @@ pub const CUSTOM_CONDITIONS_LIST_DESCRIPTOR: CompilerOptionListDescriptor =
         element_kind: CompilerOptionListElementKind::String,
         preserve_falsy_values: false,
         allow_config_dir_template_substitution: false,
+        validate_file_spec: false,
     };
 
 pub const PLUGINS_LIST_DESCRIPTOR: CompilerOptionListDescriptor = CompilerOptionListDescriptor {
@@ -640,6 +651,7 @@ pub const PLUGINS_LIST_DESCRIPTOR: CompilerOptionListDescriptor = CompilerOption
     element_kind: CompilerOptionListElementKind::Object,
     preserve_falsy_values: false,
     allow_config_dir_template_substitution: false,
+    validate_file_spec: false,
 };
 
 /// tsc-port: paths option declaration @6.0.3
@@ -1254,11 +1266,18 @@ pub fn is_command_option_without_build(name: &str) -> bool {
 pub fn compiler_option_spelling_suggestion(
     name: &str,
 ) -> Option<&'static CompilerOptionDeclaration> {
+    option_spelling_suggestion(name, COMPILER_OPTION_DECLARATIONS)
+}
+
+pub(crate) fn option_spelling_suggestion(
+    name: &str,
+    declarations: &'static [CompilerOptionDeclaration],
+) -> Option<&'static CompilerOptionDeclaration> {
     let name_units = name.encode_utf16().collect::<Vec<_>>();
     let maximum_length_difference = 2usize.max((name_units.len() as f64 * 0.34).floor() as usize);
     let mut best_distance = (name_units.len() as f64 * 0.4).floor() + 1.0;
     let mut best_candidate = None;
-    for candidate in COMPILER_OPTION_DECLARATIONS {
+    for candidate in declarations {
         let candidate_units = candidate.name.encode_utf16().collect::<Vec<_>>();
         if name_units.len().abs_diff(candidate_units.len()) > maximum_length_difference
             || candidate.name == name
@@ -1368,3 +1387,113 @@ pub static JSCONFIG_DEFAULTS: &[(&str, JsConfigDefaultValue)] = &[
 pub const fn jsconfig_defaults() -> &'static [(&'static str, JsConfigDefaultValue)] {
     JSCONFIG_DEFAULTS
 }
+
+// TypeScript 6.0.3 optionsForWatch (:36543–36620) and
+// typeAcquisitionDeclarations (:38000–38028). They use the same JSON option
+// converter, but have separate schemas and spelling suggestions.
+const WATCH_FILE_VALUES: &[CompilerOptionNamedValue] = &[
+    CompilerOptionNamedValue {
+        name: "fixedpollinginterval",
+        value: 0,
+    },
+    CompilerOptionNamedValue {
+        name: "prioritypollinginterval",
+        value: 1,
+    },
+    CompilerOptionNamedValue {
+        name: "dynamicprioritypolling",
+        value: 2,
+    },
+    CompilerOptionNamedValue {
+        name: "fixedchunksizepolling",
+        value: 3,
+    },
+    CompilerOptionNamedValue {
+        name: "usefsevents",
+        value: 4,
+    },
+    CompilerOptionNamedValue {
+        name: "usefseventsonparentdirectory",
+        value: 5,
+    },
+];
+const WATCH_DIRECTORY_VALUES: &[CompilerOptionNamedValue] = &[
+    CompilerOptionNamedValue {
+        name: "usefsevents",
+        value: 0,
+    },
+    CompilerOptionNamedValue {
+        name: "fixedpollinginterval",
+        value: 1,
+    },
+    CompilerOptionNamedValue {
+        name: "dynamicprioritypolling",
+        value: 2,
+    },
+    CompilerOptionNamedValue {
+        name: "fixedchunksizepolling",
+        value: 3,
+    },
+];
+const FALLBACK_POLLING_VALUES: &[CompilerOptionNamedValue] = &[
+    CompilerOptionNamedValue {
+        name: "fixedinterval",
+        value: 0,
+    },
+    CompilerOptionNamedValue {
+        name: "priorityinterval",
+        value: 1,
+    },
+    CompilerOptionNamedValue {
+        name: "dynamicpriority",
+        value: 2,
+    },
+    CompilerOptionNamedValue {
+        name: "fixedchunksize",
+        value: 3,
+    },
+];
+const fn root_list(element_name: &'static str, file_spec: bool) -> CompilerOptionValueKind {
+    CompilerOptionValueKind::List(CompilerOptionListDescriptor {
+        element_name,
+        element_kind: if file_spec {
+            CompilerOptionListElementKind::FilePath
+        } else {
+            CompilerOptionListElementKind::String
+        },
+        preserve_falsy_values: false,
+        allow_config_dir_template_substitution: file_spec,
+        validate_file_spec: file_spec,
+    })
+}
+pub(crate) const WATCH_OPTION_DECLARATIONS: &[CompilerOptionDeclaration] = &[
+    option(
+        "watchFile",
+        CompilerOptionValueKind::Named(WATCH_FILE_VALUES),
+    ),
+    option(
+        "watchDirectory",
+        CompilerOptionValueKind::Named(WATCH_DIRECTORY_VALUES),
+    ),
+    option(
+        "fallbackPolling",
+        CompilerOptionValueKind::Named(FALLBACK_POLLING_VALUES),
+    ),
+    option(
+        "synchronousWatchDirectory",
+        CompilerOptionValueKind::Boolean,
+    ),
+    option("excludeDirectories", root_list("excludeDirectory", true)),
+    option("excludeFiles", root_list("excludeFile", true)),
+];
+pub(crate) const ACQUISITION_OPTION_DECLARATIONS: &[CompilerOptionDeclaration] = &[
+    option("enable", CompilerOptionValueKind::Boolean),
+    option("include", root_list("include", false)),
+    option("exclude", root_list("exclude", false)),
+    option(
+        "disableFilenameBasedTypeAcquisition",
+        CompilerOptionValueKind::Boolean,
+    ),
+];
+pub(crate) const COMPILE_ON_SAVE_DECLARATION: CompilerOptionDeclaration =
+    option("compileOnSave", CompilerOptionValueKind::Boolean);

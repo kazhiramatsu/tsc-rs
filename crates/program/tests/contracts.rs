@@ -47,3 +47,6 @@ mod h2_8b_config_diagnostics;
 
 #[path = "integration/h2_8b_config_root_options.rs"]
 mod h2_8b_config_root_options;
+
+#[path = "integration/h2_8b_config_root_boundaries.rs"]
+mod h2_8b_config_root_boundaries;

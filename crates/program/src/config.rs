@@ -775,8 +775,16 @@ impl ConfigOptionBag {
         &mut self,
         config_base_path: &str,
     ) -> Result<(), ConfigParseError> {
+        self.finalize_group_config_dir_templates(config_base_path, ConfigOptionGroup::Compiler)
+    }
+
+    fn finalize_group_config_dir_templates(
+        &mut self,
+        config_base_path: &str,
+        group: ConfigOptionGroup,
+    ) -> Result<(), ConfigParseError> {
         for option in &mut self.typed_entries {
-            let Some(declaration) = compiler_option_declaration(&option.name) else {
+            let Some(declaration) = group.declaration(&option.name) else {
                 continue;
             };
             match (declaration.value_kind(), &mut option.value) {
@@ -933,6 +941,8 @@ pub struct ConfigRootPlan {
     /// no-emit loader still rejects truthy values before source loading.
     watch_options: Option<Value>,
     type_acquisition: Option<Value>,
+    watch_option_bag: Option<ConfigOptionBag>,
+    type_acquisition_option_bag: ConfigOptionBag,
     compile_on_save: Option<Value>,
     /// Truthy root-level schemas which the single-project no-emit loader does
     /// not consume. Keep this separate from `raw`: `raw` is intentionally a
@@ -1006,14 +1016,31 @@ impl ConfigRootPlan {
         self.project_references.as_deref()
     }
 
-    /// Effective raw `watchOptions` after `extends` merging.
+    /// JSON projection of converted, merged watch options. Undefined values
+    /// are omitted; use `watch_option_bag` to preserve their presence.
     pub fn watch_options(&self) -> Option<&Value> {
         self.watch_options.as_ref()
     }
 
-    /// Effective raw `typeAcquisition` after `extends` merging.
+    /// JSON projection of converted type acquisition options, including
+    /// tsconfig/jsconfig defaults. These options do not inherit from extends.
     pub fn type_acquisition(&self) -> Option<&Value> {
         self.type_acquisition.as_ref()
+    }
+
+    pub fn watch_option_bag(&self) -> Option<&ConfigOptionBag> {
+        self.watch_option_bag.as_ref()
+    }
+
+    pub fn type_acquisition_option_bag(&self) -> &ConfigOptionBag {
+        &self.type_acquisition_option_bag
+    }
+
+    /// ParsedCommandLine.compileOnSave uses the raw value's truthiness.
+    pub fn compile_on_save_enabled(&self) -> bool {
+        self.compile_on_save
+            .as_ref()
+            .is_some_and(json_value_is_truthy)
     }
 
     /// Effective raw `compileOnSave` after `extends` merging.
@@ -1544,8 +1571,8 @@ struct ParsedConfigNode {
     inheritable_include: Option<Vec<ConfigSpec>>,
     inheritable_exclude: Option<Vec<ConfigSpec>>,
     references: Option<Value>,
-    watch_options: Option<Value>,
-    type_acquisition: Option<Value>,
+    watch_options: Option<ConfigOptionBag>,
+    type_acquisition: ConfigOptionBag,
     compile_on_save: Option<Value>,
     unsupported_root_scopes: BTreeSet<String>,
     extended_sources: Vec<ConfigSourceText>,
@@ -1601,6 +1628,11 @@ pub fn parse_config_root_plan(
         )?
         .expect("the primary config cannot be a recursive child of itself");
     node.options.finalize_config_dir_templates(&config_base)?;
+    if let Some(watch) = &mut node.watch_options {
+        watch.finalize_group_config_dir_templates(&config_base, ConfigOptionGroup::Watch)?;
+        watch.restore_public_entry_order();
+    }
+    node.type_acquisition.restore_public_entry_order();
     let paths_option_validation = paths_option_validation_plan(&node.options, &node.source);
     let discovery_options = effective_discovery_options(&node.options, &config_base)?;
     let module_resolution_options = config_module_resolution_options(
@@ -1669,8 +1701,10 @@ pub fn parse_config_root_plan(
         exclude,
         references: node.references,
         project_references,
-        watch_options: node.watch_options,
-        type_acquisition: node.type_acquisition,
+        watch_options: node.watch_options.as_ref().map(typed_option_bag_json),
+        type_acquisition: Some(typed_option_bag_json(&node.type_acquisition)),
+        watch_option_bag: node.watch_options,
+        type_acquisition_option_bag: node.type_acquisition,
         compile_on_save: node.compile_on_save,
         unsupported_root_scopes: node.unsupported_root_scopes,
         file_names,
@@ -1703,7 +1737,7 @@ fn unsupported_config_scope(
         }
     }
 
-    if let Some(scope) = unsupported_root_scopes.into_iter().next() {
+    if let Some(scope) = unsupported_root_scopes.into_iter().find(|_| !emitting) {
         let scope = scope.as_ref();
         let detail = match scope {
             "watchOptions" => "watchOptions are outside the H0 single-project no-emit driver",
@@ -2202,18 +2236,21 @@ impl ParseContext<'_> {
         let mut unsupported_root_scopes = BTreeSet::new();
         let own_references =
             config_property_get(object, &raw_property_names, "references").cloned();
-        let own_watch_options_present = raw_property_names.contains("watchOptions");
-        let own_watch_options =
+        let raw_watch_options =
             config_property_get(object, &raw_property_names, "watchOptions").cloned();
-        let own_type_acquisition_present = raw_property_names.contains("typeAcquisition");
-        let own_type_acquisition =
+        let raw_type_acquisition =
             config_property_get(object, &raw_property_names, "typeAcquisition").cloned();
         let own_compile_on_save_present = raw_property_names.contains("compileOnSave");
         let own_compile_on_save =
             config_property_get(object, &raw_property_names, "compileOnSave").cloned();
 
         let mut own_options = default_compiler_options(normalized_file_name, base_path);
-        let mut converted_own_options = compiler_options(base_path, &parsed, &mut own_errors)?;
+        let mut converted_own_options = config_option_group(
+            base_path,
+            ConfigOptionGroup::Compiler,
+            &parsed,
+            &mut own_errors,
+        )?;
         // parseConfig records the declaring config directory beside every
         // truthy own `paths` value before extends are merged. An invalid or
         // null own value masks inherited paths but deliberately leaves an
@@ -2228,6 +2265,22 @@ impl ParseContext<'_> {
             );
         }
         own_options.extend_from(&converted_own_options);
+        let own_watch_options = config_option_group(
+            base_path,
+            ConfigOptionGroup::Watch,
+            &parsed,
+            &mut own_errors,
+        )?;
+        let own_watch_options =
+            (!own_watch_options.typed_entries.is_empty()).then_some(own_watch_options);
+        let mut type_acquisition = default_type_acquisition(normalized_file_name);
+        type_acquisition.extend_from(&config_option_group(
+            base_path,
+            ConfigOptionGroup::Acquisition,
+            &parsed,
+            &mut own_errors,
+        )?);
+        validate_compile_on_save(&parsed, base_path, &mut own_errors)?;
         let own_files = specs("files", base_path, &parsed, &mut own_errors);
         let own_include = specs("include", base_path, &parsed, &mut own_errors);
         let own_exclude = specs("exclude", base_path, &parsed, &mut own_errors);
@@ -2256,8 +2309,7 @@ impl ParseContext<'_> {
         let mut inherited_files = None;
         let mut inherited_include = None;
         let mut inherited_exclude = None;
-        let mut inherited_watch_options = None;
-        let mut inherited_type_acquisition = None;
+        let mut inherited_watch_options: Option<ConfigOptionBag> = None;
         let mut inherited_compile_on_save = None;
         let mut extended_sources = Vec::new();
         let mut seen_sources = BTreeSet::new();
@@ -2362,11 +2414,10 @@ impl ParseContext<'_> {
                     extended_source_files.push(extended_source_file.clone());
                 }
             }
-            if extended.watch_options.is_some() {
-                inherited_watch_options = extended.watch_options.clone();
-            }
-            if extended.type_acquisition.is_some() {
-                inherited_type_acquisition = extended.type_acquisition.clone();
+            if let Some(watch) = &extended.watch_options {
+                inherited_watch_options
+                    .get_or_insert_with(ConfigOptionBag::default)
+                    .extend_from(watch);
             }
             if extended.compile_on_save.is_some() {
                 inherited_compile_on_save = extended.compile_on_save.clone();
@@ -2382,16 +2433,12 @@ impl ParseContext<'_> {
             .and_then(|node| config_location(&parsed, node));
         let include = own_include.or(inherited_include);
         let exclude = own_exclude.or(inherited_exclude);
-        let watch_options = if own_watch_options_present {
-            own_watch_options
-        } else {
-            inherited_watch_options
-        };
-        let type_acquisition = if own_type_acquisition_present {
-            own_type_acquisition
-        } else {
-            inherited_type_acquisition
-        };
+        let mut watch_options = inherited_watch_options;
+        if let Some(own) = own_watch_options {
+            watch_options
+                .get_or_insert_with(ConfigOptionBag::default)
+                .extend_from(&own);
+        }
         let compile_on_save = if own_compile_on_save_present {
             own_compile_on_save
         } else {
@@ -2400,13 +2447,16 @@ impl ParseContext<'_> {
             inherited_compile_on_save.filter(json_value_is_truthy)
         };
         for (name, value) in [
-            ("watchOptions", watch_options.as_ref()),
-            ("typeAcquisition", type_acquisition.as_ref()),
+            ("watchOptions", raw_watch_options.as_ref()),
+            ("typeAcquisition", raw_type_acquisition.as_ref()),
             ("compileOnSave", compile_on_save.as_ref()),
         ] {
             if value.is_some_and(json_value_is_truthy) {
                 unsupported_root_scopes.insert(name.to_owned());
             }
+        }
+        if watch_options.is_some() {
+            unsupported_root_scopes.insert("watchOptions".to_owned());
         }
         let raw_object = raw
             .as_object_mut()
@@ -2431,16 +2481,10 @@ impl ParseContext<'_> {
                 }
             }
         }
-        for (name, value) in [
-            ("watchOptions", watch_options.as_ref()),
-            ("typeAcquisition", type_acquisition.as_ref()),
-            ("compileOnSave", compile_on_save.as_ref()),
-        ] {
-            if !raw_property_names.contains(name) {
-                if let Some(value) = value {
-                    raw_object.insert(name.to_owned(), value.clone());
-                    raw_property_names.insert(name.to_owned());
-                }
+        if !raw_property_names.contains("compileOnSave") {
+            if let Some(value) = &compile_on_save {
+                raw_object.insert("compileOnSave".to_owned(), value.clone());
+                raw_property_names.insert("compileOnSave".to_owned());
             }
         }
         let inheritable_files =
@@ -3598,7 +3642,7 @@ enum ConfigJsonConversionContext {
     /// The ordinary top-level tsconfig option map.
     Root,
     /// The `compilerOptions` object and its known declaration lookup.
-    CompilerOptions,
+    Options(ConfigOptionGroup),
     /// A currently owned scalar option. Its direct invalid value is diagnosed
     /// by the existing notifier conversion, while nested structures lose that
     /// scalar schema and use ordinary JSON conversion diagnostics.
@@ -3691,7 +3735,7 @@ fn config_json_conversion_diagnostics_from_root(
                         }
                         ConfigJsonConversionContext::Generic
                         | ConfigJsonConversionContext::Root
-                        | ConfigJsonConversionContext::CompilerOptions
+                        | ConfigJsonConversionContext::Options(_)
                         | ConfigJsonConversionContext::KnownValue
                         | ConfigJsonConversionContext::StringListElement(_)
                         | ConfigJsonConversionContext::CompilerOptionListElement(_) => {
@@ -3733,7 +3777,9 @@ fn config_json_conversion_diagnostics_from_root(
                                 ConfigJsonConversionContext::Root => match property_name.as_deref()
                                 {
                                     Some("compilerOptions") => {
-                                        ConfigJsonConversionContext::CompilerOptions
+                                        ConfigJsonConversionContext::Options(
+                                            ConfigOptionGroup::Compiler,
+                                        )
                                     }
                                     Some("files") => {
                                         ConfigJsonConversionContext::StringList("files")
@@ -3747,15 +3793,23 @@ fn config_json_conversion_diagnostics_from_root(
                                     Some("extends") => {
                                         ConfigJsonConversionContext::StringOrList("extends")
                                     }
-                                    Some(
-                                        "watchOptions" | "typeAcquisition" | "references"
-                                        | "compileOnSave",
-                                    ) => ConfigJsonConversionContext::Unported,
+                                    Some("watchOptions") => ConfigJsonConversionContext::Options(
+                                        ConfigOptionGroup::Watch,
+                                    ),
+                                    Some("typeAcquisition") => {
+                                        ConfigJsonConversionContext::Options(
+                                            ConfigOptionGroup::Acquisition,
+                                        )
+                                    }
+                                    Some("compileOnSave") => {
+                                        ConfigJsonConversionContext::KnownValue
+                                    }
+                                    Some("references") => ConfigJsonConversionContext::Unported,
                                     Some(_) | None => ConfigJsonConversionContext::Generic,
                                 },
-                                ConfigJsonConversionContext::CompilerOptions => match property_name
+                                ConfigJsonConversionContext::Options(group) => match property_name
                                     .as_deref()
-                                    .and_then(compiler_option_declaration)
+                                    .and_then(|name| group.declaration(name))
                                 {
                                     Some(declaration) => match declaration.value_kind() {
                                         CompilerOptionValueKind::List(descriptor) => {
@@ -4973,8 +5027,158 @@ fn computed_resolve_json_module(options: &ConfigOptionBag) -> bool {
     }
 }
 
-fn compiler_options(
+fn typed_option_bag_json(bag: &ConfigOptionBag) -> Value {
+    let mut object = Map::new();
+    for entry in &bag.typed_entries {
+        let Some(value) = &entry.value else {
+            continue;
+        };
+        let value = match value {
+            ConfigTypedOptionValue::Json(value) => value.clone(),
+            ConfigTypedOptionValue::Object(value) => value.json_projection(),
+            ConfigTypedOptionValue::List(values) => Value::Array(
+                values
+                    .iter()
+                    .map(|element| match element {
+                        ConfigTypedListElement::Undefined => Value::Null,
+                        ConfigTypedListElement::Value(value) => value.clone(),
+                    })
+                    .collect(),
+            ),
+            ConfigTypedOptionValue::PositiveInfinity | ConfigTypedOptionValue::NegativeInfinity => {
+                Value::Null
+            }
+        };
+        object.insert(entry.name.clone(), value);
+    }
+    Value::Object(object)
+}
+
+fn default_type_acquisition(file_name: &str) -> ConfigOptionBag {
+    let mut bag = ConfigOptionBag::default();
+    for (name, value) in [
+        (
+            "enable",
+            Value::Bool(file_name.rsplit('/').next() == Some("jsconfig.json")),
+        ),
+        ("include", Value::Array(Vec::new())),
+        ("exclude", Value::Array(Vec::new())),
+    ] {
+        let typed = if value.is_array() {
+            ConfigTypedOptionValue::List(Vec::new())
+        } else {
+            ConfigTypedOptionValue::Json(value.clone())
+        };
+        bag.insert(ConfigOption {
+            name: name.to_owned(),
+            value,
+            base_path: String::new(),
+        });
+        bag.insert_typed(name, Some(typed));
+    }
+    bag
+}
+
+fn validate_compile_on_save(
+    source: &SourceFile,
     base_path: &str,
+    errors: &mut Vec<Diagnostic>,
+) -> Result<(), ConfigParseError> {
+    for property in config_root_object(source)
+        .into_iter()
+        .flat_map(|root| config_object_properties(source, root))
+        .filter(|p| p.name == "compileOnSave")
+    {
+        match convert_recoverable_json_node_to_value(source, property.initializer) {
+            Some(RecoverableJsonValue::Defined(value)) => {
+                convert_compiler_option_value(
+                    crate::config_options::COMPILE_ON_SAVE_DECLARATION,
+                    "compileOnSave",
+                    &value,
+                    CompilerOptionConversionContext {
+                        source,
+                        value_node: property.initializer,
+                        base_path,
+                        value_location: config_location(source, property.initializer),
+                        name_location: config_location(source, property.name_node),
+                    },
+                    errors,
+                )?;
+            }
+            Some(RecoverableJsonValue::Undefined) => errors.push(config_diagnostic(
+                &gen::Compiler_option_0_requires_a_value_of_type_1,
+                &["compileOnSave".to_owned(), "boolean".to_owned()],
+                config_location(source, property.initializer),
+            )),
+            None => {}
+        }
+    }
+    Ok(())
+}
+
+#[derive(Clone, Copy)]
+enum ConfigOptionGroup {
+    Compiler,
+    Watch,
+    Acquisition,
+}
+
+impl ConfigOptionGroup {
+    const fn name(self) -> &'static str {
+        match self {
+            Self::Compiler => "compilerOptions",
+            Self::Watch => "watchOptions",
+            Self::Acquisition => "typeAcquisition",
+        }
+    }
+    fn declaration(
+        self,
+        name: &str,
+    ) -> Option<&'static crate::config_options::CompilerOptionDeclaration> {
+        match self {
+            Self::Compiler => compiler_option_declaration(name),
+            Self::Watch => crate::config_options::WATCH_OPTION_DECLARATIONS
+                .iter()
+                .find(|d| d.name() == name),
+            Self::Acquisition => crate::config_options::ACQUISITION_OPTION_DECLARATIONS
+                .iter()
+                .find(|d| d.name() == name),
+        }
+    }
+    fn unknown(self, name: &str) -> (&'static DiagnosticMessage, Vec<String>) {
+        let (plain, suggested, suggestion) = match self {
+            Self::Compiler => (
+                &gen::Unknown_compiler_option_0,
+                &gen::Unknown_compiler_option_0_Did_you_mean_1,
+                compiler_option_spelling_suggestion(name),
+            ),
+            Self::Watch => (
+                &gen::Unknown_watch_option_0,
+                &gen::Unknown_watch_option_0_Did_you_mean_1,
+                crate::config_options::option_spelling_suggestion(
+                    name,
+                    crate::config_options::WATCH_OPTION_DECLARATIONS,
+                ),
+            ),
+            Self::Acquisition => (
+                &gen::Unknown_type_acquisition_option_0,
+                &gen::Unknown_type_acquisition_option_0_Did_you_mean_1,
+                crate::config_options::option_spelling_suggestion(
+                    name,
+                    crate::config_options::ACQUISITION_OPTION_DECLARATIONS,
+                ),
+            ),
+        };
+        suggestion.map_or_else(
+            || (plain, vec![name.to_owned()]),
+            |d| (suggested, vec![name.to_owned(), d.name().to_owned()]),
+        )
+    }
+}
+
+fn config_option_group(
+    base_path: &str,
+    group: ConfigOptionGroup,
     source: &SourceFile,
     errors: &mut Vec<Diagnostic>,
 ) -> Result<ConfigOptionBag, ConfigParseError> {
@@ -4984,7 +5188,7 @@ fn compiler_options(
     };
     for compiler_options in config_object_properties(source, root)
         .into_iter()
-        .filter(|property| property.name == "compilerOptions")
+        .filter(|property| property.name == group.name())
     {
         let Some(value) =
             convert_recoverable_json_node_to_value(source, compiler_options.initializer)
@@ -4994,7 +5198,7 @@ fn compiler_options(
         let RecoverableJsonValue::Defined(value) = value else {
             errors.push(config_diagnostic(
                 &gen::Compiler_option_0_requires_a_value_of_type_1,
-                &["compilerOptions".to_owned(), "object".to_owned()],
+                &[group.name().to_owned(), "object".to_owned()],
                 config_location(source, compiler_options.initializer),
             ));
             continue;
@@ -5011,7 +5215,7 @@ fn compiler_options(
         let Some(options) = value.as_object() else {
             errors.push(config_diagnostic(
                 &gen::Compiler_option_0_requires_a_value_of_type_1,
-                &["compilerOptions".to_owned(), "object".to_owned()],
+                &[group.name().to_owned(), "object".to_owned()],
                 config_location(source, compiler_options.initializer),
             ));
             continue;
@@ -5037,7 +5241,7 @@ fn compiler_options(
             }
             let value_location = config_location(source, property.initializer);
             let name_location = config_location(source, property.name_node);
-            if let Some(declaration) = compiler_option_declaration(name) {
+            if let Some(declaration) = group.declaration(name) {
                 let typed = match value {
                     Some(RecoverableJsonValue::Defined(value)) => convert_compiler_option_value(
                         *declaration,
@@ -5074,15 +5278,7 @@ fn compiler_options(
                 };
                 bag.insert_typed(name, typed);
             } else {
-                let (message, args) = compiler_option_spelling_suggestion(name).map_or_else(
-                    || (&gen::Unknown_compiler_option_0, vec![name.to_owned()]),
-                    |suggestion| {
-                        (
-                            &gen::Unknown_compiler_option_0_Did_you_mean_1,
-                            vec![name.to_owned(), suggestion.name().to_owned()],
-                        )
-                    },
-                );
+                let (message, args) = group.unknown(name);
                 errors.push(config_diagnostic(message, &args, name_location));
             }
         }
@@ -5430,6 +5626,14 @@ fn convert_compiler_option_list_element(
                 ));
                 return Ok(ConfigTypedListElement::Undefined);
             };
+            if descriptor.validate_file_spec() && invalid_dot_dot_after_recursive_wildcard(written)
+            {
+                errors.push(config_diagnostic(
+                    &gen::File_specification_cannot_contain_a_parent_directory_that_appears_after_a_recursive_directory_wildcard_0,
+                    &[written.to_owned()], location,
+                ));
+                return Ok(ConfigTypedListElement::Undefined);
+            }
             if matches!(
                 descriptor.element_kind(),
                 CompilerOptionListElementKind::FilePath

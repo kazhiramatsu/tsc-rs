@@ -132,20 +132,21 @@ fn observe(case: &Value, option_keys: &[Value]) -> Value {
 }
 
 #[test]
-fn config_root_options_matches_fresh_typescript_observations() {
+fn config_root_boundaries_matches_fresh_typescript_observations() {
     let inputs: Value = serde_json::from_slice(include_bytes!(
-        "../fixtures/h2-8b-config-root-options-inputs.json"
+        "../fixtures/h2-8b-config-root-boundaries-inputs.json"
     ))
     .expect("config inputs");
-    let oracle: Value =
-        serde_json::from_slice(include_bytes!("../fixtures/h2-8b-config-root-options.json"))
-            .expect("frozen config observations");
+    let oracle: Value = serde_json::from_slice(include_bytes!(
+        "../fixtures/h2-8b-config-root-boundaries.json"
+    ))
+    .expect("frozen config observations");
     assert_eq!(oracle["typescript"], "6.0.3");
     assert_eq!(oracle["repetitions"], 2);
     assert_eq!(oracle["program_executions"], 0);
     let cases = inputs["cases"].as_array().expect("input cases");
     let expected = oracle["cases"].as_array().expect("observed cases");
-    assert_eq!(cases.len(), 40);
+    assert_eq!(cases.len(), 32);
     assert_eq!(expected.len(), cases.len());
     let option_keys = inputs["option_probe_keys"].as_array().expect("option keys");
     let mut failures = Vec::new();
@@ -157,7 +158,7 @@ fn config_root_options_matches_fresh_typescript_observations() {
             let actual = observe(case, option_keys);
             let exact = json_values_equivalent(&actual, &expected);
             eprintln!(
-                "H2.8b-CFG1d {}",
+                "H2.8b-CFG1d-boundary {}",
                 json!({"case_id": case_id, "repetition": repetition, "exact": exact, "actual": actual})
             );
             if !exact {
