@@ -1497,3 +1497,99 @@ pub(crate) const ACQUISITION_OPTION_DECLARATIONS: &[CompilerOptionDeclaration] =
 ];
 pub(crate) const COMPILE_ON_SAVE_DECLARATION: CompilerOptionDeclaration =
     option("compileOnSave", CompilerOptionValueKind::Boolean);
+
+#[cfg(test)]
+mod schema_oracle {
+    use super::*;
+    use serde_json::{json, Value};
+
+    fn shape(
+        kind: CompilerOptionValueKind,
+        file_path: bool,
+        command_line_only: bool,
+        tsconfig_only: bool,
+        extra_validation: bool,
+    ) -> Value {
+        let value_type = match kind {
+            CompilerOptionValueKind::Boolean => json!({"kind":"boolean"}),
+            CompilerOptionValueKind::Number => json!({"kind":"number"}),
+            CompilerOptionValueKind::String => json!({"kind":"string"}),
+            CompilerOptionValueKind::Named(values) => {
+                json!({"kind":"named","values":values.iter().map(|v|json!([v.name,v.value])).collect::<Vec<_>>()})
+            }
+            CompilerOptionValueKind::Object(v) => {
+                json!({"kind":"object","config_dir":v.allow_config_dir_template_substitution})
+            }
+            CompilerOptionValueKind::List(v) => {
+                let mut element = match v.element_kind {
+                    CompilerOptionListElementKind::String => shape(
+                        CompilerOptionValueKind::String,
+                        false,
+                        false,
+                        false,
+                        v.validate_file_spec,
+                    ),
+                    CompilerOptionListElementKind::FilePath => shape(
+                        CompilerOptionValueKind::String,
+                        true,
+                        false,
+                        false,
+                        v.validate_file_spec,
+                    ),
+                    CompilerOptionListElementKind::Object => shape(
+                        CompilerOptionValueKind::Object(CompilerOptionObjectDescriptor {
+                            allow_config_dir_template_substitution: false,
+                        }),
+                        false,
+                        false,
+                        false,
+                        v.validate_file_spec,
+                    ),
+                    CompilerOptionListElementKind::NamedString(values) => {
+                        json!({"type":{"kind":"named","values":values.iter().map(|v|json!([v.name,v.value])).collect::<Vec<_>>()},"file_path":false,"command_line_only":false,"tsconfig_only":false,"extra_validation":false})
+                    }
+                };
+                element["name"] = json!(v.element_name);
+                json!({"kind":"list","element":element,"preserve_falsy":v.preserve_falsy_values,"config_dir":v.allow_config_dir_template_substitution})
+            }
+        };
+        json!({"type":value_type,"file_path":file_path,"command_line_only":command_line_only,"tsconfig_only":tsconfig_only,"extra_validation":extra_validation})
+    }
+    #[test]
+    fn all_conversion_schemas_match_pinned_typescript() {
+        let oracle: Value = serde_json::from_slice(include_bytes!(
+            "../tests/fixtures/h2-8b-config-catalogue.json"
+        ))
+        .unwrap();
+        assert_eq!(oracle["typescript"], "6.0.3");
+        for (name, decls) in [
+            ("compiler", COMPILER_OPTION_DECLARATIONS),
+            ("watch", WATCH_OPTION_DECLARATIONS),
+            ("acquisition", ACQUISITION_OPTION_DECLARATIONS),
+        ] {
+            let actual = decls
+                .iter()
+                .map(|d| {
+                    let mut v = shape(
+                        d.value_kind,
+                        d.is_file_path,
+                        d.is_command_line_only,
+                        d.is_tsconfig_only,
+                        false,
+                    );
+                    v["name"] = json!(d.name);
+                    v
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(
+                json!(actual),
+                oracle["groups"][name],
+                "{name}: full ordered conversion schema"
+            );
+            eprintln!(
+                "H2.8b-CFG-schema {}",
+                json!({"group":name,"declarations":actual.len(),"exact":true})
+            );
+        }
+    }
+}

@@ -22,3 +22,11 @@ observer事前確認でcacheを9番目に渡してしまい、hitが起きてい
 cached caseも全件uncachedとして実行した。8不一致はcache hit、変換診断の重複、case aliasの
 source表記、呼出間変更の保持であり、fresh/host-fault/path/package対照はすべて一致した。
 基準ログと各actualをrun dirのreuse-baselineへ保存した。
+
+最初のcache実装ee849e8c9の全契約実行は既存64段extends制限testでstack overflowとなり、
+通常test完走に数えない。CachedExtendedConfig.nodeをBoxに移し再帰frameを小さくした。
+cc74ba59cの同depth testは実exit0。制限64・parser nesting256・既存test入力は変えていない。
+
+追加の実filesystem CLI対照6件はroot設定、変換失敗、同じbaseの変換/parse失敗、取得設定の
+非継承、watch継承。各2回、vendored _tsc.jsを先に走らせ、同じinputからproduction binaryの
+stdout/stderr/exit・全output path/bytesを比較する。両実行後にinput不変も検査する。
