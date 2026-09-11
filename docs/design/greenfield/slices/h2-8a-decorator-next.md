@@ -820,3 +820,37 @@ repetitions=2, exit 0; log SHA-256
 `632d8fb49af6315ac306e76e0e7580368141628c773a234abd79406e789f59c2`. Both logs and actual exits are
 in `target/dec-next-runs/pr-retained-constructor-r1/`. The normal 126-command
 decorator witness test is rerun separately on the committed production change.
+
+### PR admission design: private receiver end-only comment range
+
+Hosted `34557100742` at `399360efc` passed through H2.5a, then found a
+complete-output mismatch in H2.5b
+`privateNameWhenNotUseDefineForClassFieldsInEsNext.ts#target%3Des2020`.
+A preceding `// OK` comment was emitted again immediately before the
+`new _a()` receiver inside `__classPrivateFieldGet`. The original output
+length is 2972 bytes; actual is 3088. This is a production mismatch, not an
+acceptance expectation to relax. The 126-command run at that head remains
+valid for its own inputs and is retained separately.
+
+Before editing production: pinned TypeScript `createPrivateIdentifierAccessHelper`
+(`_tsc.js`:96407) and `createPrivateIdentifierAssignment` (96808) both use
+`setCommentRange(receiver, moveRangePos(receiver, -1))`. Rust's old
+`create_private_get`/`create_private_set` used `NO_LEADING_COMMENTS` as an
+approximation because source ranges cannot mix synthetic and real endpoints.
+However, comment ranges now have their own `CommentSourceRange::EndOnly`
+representation. The flag is not equivalent: list-intervening comment emission
+uses the comment start independently of the ordinary leading-comment phase.
+
+Use `CommentRange::from_raw(receiver.source(), u32::MAX, receiver.end, ...)`
+in the shared private-receiver helper construction path. Preserve the raw
+node/source-map range, ending ownership and any pre-existing flags; stop
+adding the approximation flag. No printer-wide suppression or range-type
+change is needed. Verify the unchanged complete H2.5b band and adjacent
+private comment contracts before fresh decorator witnesses.
+
+The 23 existing emitter contracts selected by `private_` pass after this
+change (exit 0, log SHA-256
+`564b5dc5ecb5cc4c1c4049b312bc6135d061b6b381d6c4305d144e056e59e6e3`). They include private reads,
+method calls/tags, assignments/updates, destructuring setter wrappers and
+comment ownership. The complete H2.5b projection is checked separately in
+`target/dec-next-runs/pr-private-receiver-r1/`.

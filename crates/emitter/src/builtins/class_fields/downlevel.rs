@@ -7214,6 +7214,31 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         Ok(Some(SourceMapRange::new(original.source(), range)))
     }
 
+    fn set_private_receiver_comment_range(
+        &mut self,
+        receiver: TransformNode,
+    ) -> Result<(), TransformError> {
+        // setCommentRange(receiver, moveRangePos(receiver, -1)): the helper
+        // argument retains ending ownership without donating a list-leading
+        // position. An emit flag cannot represent that one-sided boundary.
+        let arena = self.context.arena();
+        let range = CommentRange::from_raw(
+            receiver.source(),
+            u32::MAX,
+            arena.node(receiver)?.end,
+            arena.source(receiver.source())?.syntax().positions(),
+        )
+        .map_err(|error| TransformError::InvalidSourceRange {
+            node: receiver,
+            error,
+        })?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(receiver)
+            .set_comment_range(range);
+        Ok(())
+    }
+
     fn create_private_get(
         &mut self,
         receiver: TransformNode,
@@ -7226,15 +7251,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             None,
             Vec::new(),
         ))?;
-        // tsc moves the receiver's comment range start to the synthetic
-        // sentinel before placing it in the helper argument list. Rust's
-        // range type intentionally rejects mixed synthetic/original ranges,
-        // so encode the same ownership directly: the containing access owns
-        // leading trivia, while the receiver retains its source range.
-        self.context
-            .arena_mut()?
-            .metadata_mut(receiver)
-            .add_flags(EmitFlags::NO_LEADING_COMMENTS);
+        self.set_private_receiver_comment_range(receiver)?;
         let helper = self
             .context
             .factory()?
@@ -7261,10 +7278,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             None,
             Vec::new(),
         ))?;
-        self.context
-            .arena_mut()?
-            .metadata_mut(receiver)
-            .add_flags(EmitFlags::NO_LEADING_COMMENTS);
+        self.set_private_receiver_comment_range(receiver)?;
         // The source assignment/update owns trivia at the end of the right
         // operand. Without this boundary, a retained trailing comment is
         // emitted inside the synthesized helper's argument list and then a
