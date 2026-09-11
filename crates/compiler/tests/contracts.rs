@@ -267,3 +267,6 @@ mod h2_8a_object_property_owners;
 
 #[path = "integration/h2_8b_config_discovery_commands.rs"]
 mod h2_8b_config_discovery_commands;
+
+#[path = "integration/h2_8b_config_diagnostic_commands.rs"]
+mod h2_8b_config_diagnostic_commands;
