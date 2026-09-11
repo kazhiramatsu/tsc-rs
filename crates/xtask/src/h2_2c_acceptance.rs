@@ -477,6 +477,22 @@ struct TypedSourceFacts {
     has_import_attributes: bool,
 }
 
+// getModuleTransformer selects this composite before consulting per-file format.
+fn uses_implied_node_format(module_kind: ModuleKind) -> bool {
+    matches!(
+        module_kind,
+        ModuleKind::COMMON_JS
+            | ModuleKind::ES2015
+            | ModuleKind::ES2020
+            | ModuleKind::ES2022
+            | ModuleKind::ES_NEXT
+            | ModuleKind::NODE16
+            | ModuleKind::NODE18
+            | ModuleKind::NODE20
+            | ModuleKind::NODE_NEXT
+    )
+}
+
 /// Project activity from the same durable program facts consumed by the
 /// emitter. This deliberately does not use the qualification feature
 /// inventory: recovery nodes and per-file pragmas are typed syntax facts, and
@@ -560,11 +576,17 @@ fn expected_typed_activity(
         } else if module_kind == ModuleKind::SYSTEM {
             activity.h2_1d_sources += 1;
         } else {
-            activity.h2_1a_sources += 1;
-            let emit_format = match source.implied_node_format_for_emit() {
-                Some(ResolutionMode::CommonJs) => ModuleKind::COMMON_JS,
-                Some(ResolutionMode::EsNext) => ModuleKind::ES_NEXT,
-                Some(ResolutionMode::Unspecified) | None => module_kind,
+            let emit_format = if uses_implied_node_format(module_kind) {
+                activity.h2_1a_sources += 1;
+                match source.implied_node_format_for_emit() {
+                    Some(ResolutionMode::CommonJs) => ModuleKind::COMMON_JS,
+                    Some(ResolutionMode::EsNext) => ModuleKind::ES_NEXT,
+                    Some(ResolutionMode::Unspecified) | None => module_kind,
+                }
+            } else {
+                // Direct transformModule uses the compiler option, without
+                // consulting a per-file implied Node format.
+                module_kind
             };
             if emit_format.bits() < ModuleKind::ES2015.bits() {
                 activity.h2_1b_sources += 1;
@@ -836,6 +858,7 @@ fn execute_slice_observed_with_inputs(
     // bytes. The repetition still consumes two distinct owned programs and
     // compares every observable below.
     let first_program = prepare()?;
+    let module_kind = ModuleKind::from_bits(first_program.compiler_options().emit_module_kind());
     let second_program = first_program.clone();
     let typed_activity = if matches!(accepted_slice, AcceptanceSlice::H2_5g) {
         Some(expected_typed_activity(
@@ -1164,7 +1187,11 @@ fn execute_slice_observed_with_inputs(
     ) = typed_activity.map_or_else(
         || {
             (
-                transformed_sources - system_sources - preserve_sources,
+                if uses_implied_node_format(module_kind) {
+                    transformed_sources
+                } else {
+                    0
+                },
                 transform_module_sources,
                 amd_umd_sources,
                 system_sources,

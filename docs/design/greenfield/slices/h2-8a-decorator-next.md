@@ -748,3 +748,45 @@ repetitions=2, exit 0. Log:
 `534f738db5a72112e2d8a0ff1209fdeae243ee5a948d5c1e747698ee86f8d4e6`.
 The preceding full run is retained in `pr-acceptance-r2/`, exit 1, log
 SHA-256 `1fa825e4ced33e6e253c10415778a8d1032bbc20fe45859de94bced5c24a0938`.
+
+### PR admission: shared module activity projection
+
+The local full acceptance at `fc9c4bb82` and hosted run `34554799771`
+both passed through H2.2c, then stopped at H2.2d
+`importCallExpressionInExportEqualsAMD.ts#default`. Again, complete
+observables compared before the activity assertion failed: actual H2.1a=0,
+H2.1b=2, H2.1c=2, H2.2d=2. Local log SHA-256:
+`ffd407672a8032e92dac3d176472b8f68012983d93b76b858175b81e367fdcf5`
+(`target/dec-next-runs/pr-acceptance-r3/`).
+
+The hosted acceptance consumers were audited together. H2.2d now excludes
+its AMD/UMD sources from implied-format composite activity. The shared
+H2.2c/H2.4/H2.5 projection selects that composite from the prepared compiler
+module option. Its typed H2.5g path consults per-file implied format only
+inside the composite; direct Module delegates use the compiler option.
+The composite options are CommonJS, ES2015/ES2020/ES2022/ESNext, and
+Node16/Node18/Node20/NodeNext. Preserve, System and direct Module retain
+their separate counts. This matches pinned `getModuleTransformer` and
+the existing emitter routing contracts without calling the production
+selector to compute its own expected result.
+
+The frozen admitted H2.2b and H2.3a/b/c bands contain no None/AMD/UMD/Preserve
+rows requiring this correction; their assertions are unchanged. Synthetic
+H2.3d owner controls belong to the omitted full developer gate and are not
+claimed as passing here. Historical qualification inputs/observations and
+all production source files remain unchanged.
+
+A focused regression runs five original H2.5g complete observations twice:
+CommonJS, AMD, UMD, NodeNext and None. H2.2d and H2.4b are checked separately
+before returning to the fixed, unsplit hosted acceptance command.
+
+Focused results (`pr-module-routing-r1/`): the five complete H2.5g commands
+pass (test exit 0, log SHA-256
+`d2702094ae8ee16d8364f3161542e4e581c3acf167c1b965cd8759845a2a2b01`);
+H2.2d passes 9/9 exact twice, 36 diagnostics and 13 writes (exit 0, log
+SHA-256 `c60e944f4521a50fc486e5528cfdf8062e53db325c6017a3acdc08cbc0b247a9`).
+H2.4b then exposed a separate production comment-ownership error in
+`autoAccessor9.ts#default`: the leading class comment is duplicated on the
+synthetic constructor. That failure is retained, not accepted or skipped
+(exit 1, log SHA-256
+`873194e4c89392ddb285d77dfc2b64b91f1d3738384508b9f260954402c8ec08`).

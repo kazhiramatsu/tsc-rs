@@ -385,6 +385,32 @@ fn h2_5g_activity_projection_uses_prepared_typed_sources_and_global_module_route
     }
 }
 
+#[test]
+fn h2_5g_direct_and_implied_module_routes_keep_complete_observations() {
+    let workspace = workspace();
+    let artifact: serde_json::Value = serde_json::from_slice(
+        &fs::read(workspace.join(super::H2_5G_QUALIFICATION_RELATIVE_PATH))
+            .expect("read H2.5g qualification"),
+    )
+    .expect("parse H2.5g qualification");
+    let cases = artifact["cases"].as_array().expect("H2.5g cases");
+    let inputs = super::H2_5gExecutionInputs::load(&workspace).expect("load H2.5g inputs");
+    for case_id in [
+        "typescript-6.0.3/compiler/aliasAssignments.ts#default",
+        "typescript-6.0.3/compiler/ambientExternalModuleWithInternalImportDeclaration.ts#default",
+        "typescript-6.0.3/compiler/destructuringInVariableDeclarations5.ts#default",
+        "typescript-6.0.3/compiler/emitHelpersWithLocalCollisions.ts#module%3Dnodenext",
+        "typescript-6.0.3/compiler/emitHelpersWithLocalCollisions.ts#module%3Dnone",
+    ] {
+        let case = cases
+            .iter()
+            .find(|case| case["case_id"] == case_id)
+            .unwrap_or_else(|| panic!("missing module-route case {case_id}"));
+        super::execute_h2_5g_observed(&workspace, case, &inputs)
+            .unwrap_or_else(|error| panic!("{case_id}: {error}"));
+    }
+}
+
 /// Local-only probe for finding a later H2.5g parity failure without changing
 /// the fixed, unsplit acceptance entrypoint. The half-open range is selected
 /// with `TSRS_H2_5G_PROBE_START` and `TSRS_H2_5G_PROBE_END` and every admitted

@@ -396,7 +396,10 @@ fn execute_observed(workspace: &Path, case: &Value) -> Result<(usize, usize), Bo
         })
         .unwrap_or(0);
     let node_format_sources = expected_node_format_sources(case)?;
-    if activity.runtime_slice(H2RuntimeSlice::H2_1a) != reached_sources - system_sources
+    // The AMD/UMD rows select transformModule without the implied-format
+    // composite, just as the direct System rows bypass that composite.
+    if activity.runtime_slice(H2RuntimeSlice::H2_1a)
+        != reached_sources - system_sources - asynchronous_module_sources
         || activity.runtime_slice(H2RuntimeSlice::H2_1b) != module_transform_sources
         || activity.runtime_slice(H2RuntimeSlice::H2_1c) != asynchronous_module_sources
         || activity.runtime_slice(H2RuntimeSlice::H2_1d) != system_sources
