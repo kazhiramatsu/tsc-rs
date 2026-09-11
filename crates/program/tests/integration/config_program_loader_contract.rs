@@ -106,7 +106,7 @@ fn recognized_but_unprojected_config_options_fail_closed() {
 }
 
 #[test]
-fn unsupported_root_config_scopes_fail_closed_even_when_inherited() {
+fn inherited_root_scopes_respect_acquisition_noninheritance() {
     let host = host();
     for (scope, value) in [
         ("watchOptions", r#"{"watchFile":"useFsEvents"}"#),
@@ -124,13 +124,21 @@ fn unsupported_root_config_scopes_fail_closed_even_when_inherited() {
             request(r#"{"extends":"./base.json","compilerOptions":{"noEmit":true,"noLib":true},"files":["main.ts"]}"#),
         )
         .expect("inherited root scope remains a partial plan");
-        let error = load_config_program_with_no_emit_override(
+        let loaded = load_config_program_with_no_emit_override(
             &host,
             &plan,
             &LibraryCatalog::typescript_6_0_3("/vendor/typescript/lib"),
             LIMITS,
-        )
-        .expect_err("unported root scope must not be silently ignored");
+        );
+        if scope == "typeAcquisition" {
+            assert!(
+                loaded.is_ok(),
+                "typeAcquisition does not inherit into this config"
+            );
+            assert_eq!(plan.unsupported_root_scopes().next(), None);
+            continue;
+        }
+        let error = loaded.expect_err("inherited H0 root scope must retain its explicit gate");
         let ConfigProgramLoadError::Program(error) = error else {
             panic!("unported root scope should be a typed program-scope failure");
         };

@@ -26,3 +26,7 @@ watch/typeAcquisitionのchild propertyを診断順序ownerに登録していな�
 継承するとしていた。凍結40件のwatch-inheritance、watch-false、typeAcquisition継承対照と
 上記sourceに基づき、変換されたwatch値・非継承の取得既定値・rawのfalse/nullを分けて訂正した。
 凍結oracleは変更していない。
+
+fc03cd859で72/72 projection×2に到達。全Program契約は473通過/1失敗/5既存ignore。
+残る旧H0契約もtypeAcquisitionの継承を仮定していたため、baseにだけ存在する取得設定では
+rootの既定値になりロードできる対照へ訂正。watch/compileOnSaveのH0 gate対照は維持する。
