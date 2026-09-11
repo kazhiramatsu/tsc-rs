@@ -207,6 +207,31 @@ struct PropertyPlan {
     /// `createStringLiteralFromNode(expression)`; no cache temp, no hoist,
     /// no `__propKey`.
     computed_literal: Option<NodeId>,
+    /// `getAssignedNameOfPropertyName` hoisted this generated name for the
+    /// anonymous decorated class initializer; `visitReferencedPropertyName`
+    /// then requests `getGeneratedNameForNode` for the rewritten name, which
+    /// resolves to the same cached name, and hoists it again.
+    named_evaluation_temp: Option<TargetBinding>,
+}
+
+/// tsc-port: visitPropertyDeclaration named evaluation @6.0.3 — what
+/// `prepare_property_named_evaluation` did with an anonymous decorated class
+/// initializer before the element work.
+enum PropertyNamedEvaluation {
+    /// No such initializer, or a literal name recorded the assigned name; the
+    /// element name is visited by the caller.
+    NotRewritten,
+    /// Undecorated member: the name was rewritten to `[temp = __propKey(…)]`
+    /// and previsited under the name frame.
+    Previsited,
+    /// Decorated member: the rewritten name and its cache assignment reach
+    /// `visitReferencedPropertyName` unvisited, together with the hoisted
+    /// binding it declares again.
+    Decorated {
+        name: NodeId,
+        assignment: NodeId,
+        temporary: TargetBinding,
+    },
 }
 
 /// The computed form of a decorator context's `access` object: an element
@@ -1098,43 +1123,40 @@ impl<'context> StandardDecoratorVisitor<'context> {
     ///
     /// A class property whose initializer is an anonymous decorated class:
     /// a literal name names it directly; a non-literal computed name hoists
-    /// the `__propKey` cache temp (in the class IIFE, ahead of the member's
-    /// own decorator temporaries), rewrites the property name to
-    /// `[temp = __propKey(expression)]` (visited under the name frame and
-    /// absorbing the pending expressions) and names the class by that temp.
-    /// Returns whether the property name was already visited.
+    /// the `__propKey` cache temp (`getAssignedNameOfPropertyName`:
+    /// `getGeneratedNameForNode(name)` in the innermost lexical environment,
+    /// ahead of the member's own decorator temporaries), rewrites the name to
+    /// `[temp = __propKey(expression)]` with the key expression unvisited,
+    /// and names the class by that temp. An undecorated member's rewritten
+    /// name is then visited under the name frame (`partialTransformClassElement`
+    /// without class info); a decorated member's reaches
+    /// `visitReferencedPropertyName` through the plan.
     fn prepare_property_named_evaluation(
         &mut self,
         member: TransformNode,
         data: &tsc_syntax::nodes::PropertyDeclarationData,
         decorated: bool,
-    ) -> Result<bool, TransformError> {
+    ) -> Result<PropertyNamedEvaluation, TransformError> {
         let Some(class) = self.anonymous_class_needing_assigned_name(data.initializer)? else {
-            return Ok(false);
+            return Ok(PropertyNamedEvaluation::NotRewritten);
         };
         let Some(name) = data.name else {
-            return Ok(false);
+            return Ok(PropertyNamedEvaluation::NotRewritten);
         };
         let name_node = self.node(name);
         if let Some(text) = self.property_name_literal_text(name_node)? {
             self.inferred_class_names
                 .entry(class.node())
                 .or_insert(text);
-            return Ok(false);
+            return Ok(PropertyNamedEvaluation::NotRewritten);
         }
         let NodeData::ComputedPropertyName(computed) =
             self.context.arena().node(name_node)?.data.clone()
         else {
-            return Ok(false);
+            return Ok(PropertyNamedEvaluation::NotRewritten);
         };
-        if decorated {
-            // A decorated property with a non-literal computed name: tsc
-            // hoists the same generated name twice (`var _b, _b`); not
-            // reproduced here — recorded as an open row.
-            return Ok(false);
-        }
         let Some(expression) = computed.expression else {
-            return Ok(false);
+            return Ok(PropertyNamedEvaluation::NotRewritten);
         };
         let _ = member;
         let temporary_binding = self.hoist_temp_variable(true)?;
@@ -1162,9 +1184,16 @@ impl<'context> StandardDecoratorVisitor<'context> {
         )?;
         self.mark_generated_computed_property_name(updated_name)?;
         self.inferred_class_name_references
-            .insert(class.node(), temporary_binding);
+            .insert(class.node(), temporary_binding.clone());
+        if decorated {
+            return Ok(PropertyNamedEvaluation::Decorated {
+                name: updated_name.node(),
+                assignment: assignment.node(),
+                temporary: temporary_binding,
+            });
+        }
         self.previsit_property_name(updated_name.node(), name)?;
-        Ok(true)
+        Ok(PropertyNamedEvaluation::Previsited)
     }
 
     fn visit_class_declaration(
@@ -1553,6 +1582,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                         computed_temp: None,
                         computed_expression,
                         computed_literal,
+                        named_evaluation_temp: None,
                     });
                 }
                 NodeData::MethodDeclaration(member_data) => self.collect_method_plan(
@@ -2255,12 +2285,28 @@ impl<'context> StandardDecoratorVisitor<'context> {
     ) -> Result<(), TransformError> {
         // tsc-port: visitPropertyDeclaration @6.0.3 — named evaluation of an
         // anonymous decorated class initializer precedes the element work.
-        let name_previsited = if let NodeData::PropertyDeclaration(data) = &member_data {
-            let decorated = state.plans_by_node.contains_key(&member.node());
-            self.prepare_property_named_evaluation(member, data, decorated)?
-        } else {
-            false
-        };
+        let mut name_previsited = false;
+        if let NodeData::PropertyDeclaration(data) = &member_data {
+            let plan_index = state.plans_by_node.get(&member.node()).copied();
+            match self.prepare_property_named_evaluation(member, data, plan_index.is_some())? {
+                PropertyNamedEvaluation::NotRewritten => {}
+                PropertyNamedEvaluation::Previsited => name_previsited = true,
+                PropertyNamedEvaluation::Decorated {
+                    name,
+                    assignment,
+                    temporary,
+                } => {
+                    let index = plan_index.ok_or(TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::PropertyDeclaration,
+                        field: "decorated property plan",
+                    })?;
+                    let plan = &mut state.plans[index];
+                    plan.data.name = Some(name);
+                    plan.computed_expression = Some(assignment);
+                    plan.named_evaluation_temp = Some(temporary);
+                }
+            }
+        }
         if let Some(index) = state.plans_by_node.get(&member.node()).copied() {
             self.partial_transform_property_plan(&mut state.plans[index])?;
         } else if let Some(index) = state.method_plans_by_node.get(&member.node()).copied() {
@@ -2401,8 +2447,11 @@ impl<'context> StandardDecoratorVisitor<'context> {
         plan.decorators = self.transform_decorator_expressions(&plan.decorators)?;
         self.queue_member_decorators_assignment(&plan.decorators_name, &plan.decorators)?;
         if let Some(expression) = plan.computed_expression {
-            let (temporary, name) =
-                self.visit_referenced_property_name(plan.data.name, expression)?;
+            let (temporary, name) = self.visit_referenced_property_name(
+                plan.data.name,
+                expression,
+                plan.named_evaluation_temp.as_ref(),
+            )?;
             plan.computed_temp = Some(temporary);
             plan.data.name = Some(name.node());
         } else {
@@ -2424,7 +2473,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 .declaration_property_name(plan.original)?
                 .map(TransformNode::node);
             let (temporary, name) =
-                self.visit_referenced_property_name(original_name, expression)?;
+                self.visit_referenced_property_name(original_name, expression, None)?;
             plan.computed_temp = Some(temporary);
             plan.emitted_name = Some(name.node());
         } else {
@@ -2458,8 +2507,16 @@ impl<'context> StandardDecoratorVisitor<'context> {
         &mut self,
         original_name: Option<NodeId>,
         expression: NodeId,
+        named_evaluation_temp: Option<&TargetBinding>,
     ) -> Result<(TargetBinding, TransformNode), TransformError> {
-        let temporary_binding = self.hoist_temp_variable(true)?;
+        let temporary_binding = match named_evaluation_temp {
+            // `getGeneratedNameForNode(updatedName)` resolves to the parsed
+            // name's cached generated name (getNodeForGeneratedName walks
+            // `original`); `hoistVariableDeclaration` declares it again:
+            // one binding, two declarators (`var _a, _a`).
+            Some(binding) => self.hoist_existing_temp_variable(binding)?,
+            None => self.hoist_temp_variable(true)?,
+        };
         self.request_prop_key_helper()?;
         self.enter_receiver_name();
         let visited = self.visit(expression);
@@ -5629,6 +5686,26 @@ impl<'context> StandardDecoratorVisitor<'context> {
             environment.temporaries.push(binding.clone());
         }
         Ok(binding)
+    }
+
+    /// `hoistVariableDeclaration(name)` for a generated name the innermost
+    /// lexical environment already declares: tsc pushes another declarator
+    /// of the same name (no de-duplication), and the printed spelling stays
+    /// the cached one, so the binding is pushed again without advancing the
+    /// temp sequence.
+    fn hoist_existing_temp_variable(
+        &mut self,
+        binding: &TargetBinding,
+    ) -> Result<TargetBinding, TransformError> {
+        let environment =
+            self.lexical_environments
+                .last_mut()
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::ClassExpression,
+                    field: "lexical environment for a hoisted temporary",
+                })?;
+        environment.temporaries.push(binding.clone());
+        Ok(binding.clone())
     }
 
     fn temp_spelling(ordinal: usize) -> String {
