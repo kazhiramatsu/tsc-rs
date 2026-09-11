@@ -1359,15 +1359,16 @@ fn validate_config_plan_for_mode(
     emitting: bool,
 ) -> Result<(), ConfigProgramLoadError> {
     let config = plan.diagnostics().cloned().collect::<Vec<_>>();
-    // TypeScript reports deprecation diagnostics from getOptionsDiagnostics
-    // but still constructs and checks the program. Keep those non-fatal rows
-    // out of the source-loading gate; malformed option values and structural
-    // validation diagnostics remain fatal and fail closed before host work.
+    // Ordinary emit creates the Program before reporting option relations;
+    // noEmitOnError decides whether diagnostics suppress writes. The H0
+    // no-emit adapter retains its explicit validation gate. Conversion errors
+    // remain in the separate config collection below.
     let options = plan
         .option_diagnostics()
         .iter()
         .filter(|diagnostic| {
-            !(is_non_fatal_option_diagnostic(diagnostic)
+            !(emitting
+                || is_non_fatal_option_diagnostic(diagnostic)
                 || force_no_emit && diagnostic.code() == 5096)
         })
         .cloned()
@@ -3141,6 +3142,15 @@ fn option_relationship_diagnostics(
     let projected = CompilerOptions {
         allow_js: config_option_bool(options, "allowJs")
             .unwrap_or_else(|| config_option_bool(options, "checkJs").unwrap_or(false)),
+        no_emit: config_option_bool(options, "noEmit"),
+        allow_importing_ts_extensions: config_option_bool(options, "allowImportingTsExtensions"),
+        rewrite_relative_import_extensions: config_option_bool(
+            options,
+            "rewriteRelativeImportExtensions",
+        ),
+        resolve_package_json_exports: config_option_bool(options, "resolvePackageJsonExports"),
+        resolve_package_json_imports: config_option_bool(options, "resolvePackageJsonImports"),
+        custom_conditions: config_option_string_list(options, "customConditions"),
         check_js: config_option_bool(options, "checkJs"),
         isolated_modules: config_option_bool(options, "isolatedModules"),
         verbatim_module_syntax: config_option_bool(options, "verbatimModuleSyntax"),
@@ -3176,8 +3186,6 @@ fn option_relationship_diagnostics(
         declaration_map: config_option_bool(options, "declarationMap"),
         ..CompilerOptions::default()
     };
-    let module_kind = projected.emit_module_kind();
-    let module_resolution = projected.emit_module_resolution_kind();
     let mut diagnostics = Vec::new();
 
     for violation in validate_compiler_options(&projected) {
@@ -3187,133 +3195,6 @@ fn option_relationship_diagnostics(
             &compiler_properties,
             &fallback,
             &violation,
-        );
-    }
-
-    if module_resolution == 100 && !matches!(module_kind, 1 | 5..=99 | 200) {
-        emit_option_diagnostic_for_properties(
-            &mut diagnostics,
-            &parsed,
-            &compiler_properties,
-            &fallback,
-            "moduleResolution",
-            false,
-            &gen::Option_0_can_only_be_used_when_module_is_set_to_preserve_commonjs_or_es2015_or_later,
-            &["bundler".to_owned()],
-        );
-    }
-
-    if (3..=99).contains(&module_resolution) && !(100..=199).contains(&module_kind) {
-        let module_resolution_name = if module_resolution == 99 {
-            "NodeNext"
-        } else {
-            "Node16"
-        };
-        emit_option_diagnostic_for_properties(
-            &mut diagnostics,
-            &parsed,
-            &compiler_properties,
-            &fallback,
-            "module",
-            false,
-            &gen::Option_module_must_be_set_to_0_when_option_moduleResolution_is_set_to_1,
-            &[
-                module_resolution_name.to_owned(),
-                module_resolution_name.to_owned(),
-            ],
-        );
-    } else if (100..=199).contains(&module_kind)
-        && options.typed_value("moduleResolution").is_some()
-        && !(3..=99).contains(&module_resolution)
-    {
-        let module_kind_name = match module_kind {
-            101 => "Node18",
-            102 => "Node20",
-            199 => "NodeNext",
-            _ => "Node16",
-        };
-        let resolution_name = if module_kind == 199 {
-            "NodeNext"
-        } else {
-            "Node16"
-        };
-        emit_option_diagnostic_for_properties(
-            &mut diagnostics,
-            &parsed,
-            &compiler_properties,
-            &fallback,
-            "moduleResolution",
-            false,
-            &gen::Option_moduleResolution_must_be_set_to_0_or_left_unspecified_when_option_module_is_set_to_1,
-            &[
-                resolution_name.to_owned(),
-                module_kind_name.to_owned(),
-            ],
-        );
-    }
-
-    let package_maps_supported = (3..=99).contains(&module_resolution) || module_resolution == 100;
-    if !package_maps_supported {
-        for name in ["resolvePackageJsonExports", "resolvePackageJsonImports"] {
-            if config_option_bool(options, name) == Some(true) {
-                emit_option_diagnostic_for_properties(
-                    &mut diagnostics,
-                    &parsed,
-                    &compiler_properties,
-                    &fallback,
-                    name,
-                    true,
-                    &gen::Option_0_can_only_be_used_when_moduleResolution_is_set_to_node16_nodenext_or_bundler,
-                    &[name.to_owned()],
-                );
-            }
-        }
-        if matches!(
-            options.typed_value_state("customConditions"),
-            ConfigOptionValueState::List(_)
-        ) {
-            emit_option_diagnostic_for_properties(
-                &mut diagnostics,
-                &parsed,
-                &compiler_properties,
-                &fallback,
-                "customConditions",
-                true,
-                &gen::Option_0_can_only_be_used_when_moduleResolution_is_set_to_node16_nodenext_or_bundler,
-                &["customConditions".to_owned()],
-            );
-        }
-    }
-
-    if config_option_bool(options, "verbatimModuleSyntax") == Some(true)
-        && matches!(module_kind, 2..=4)
-    {
-        emit_option_diagnostic_for_properties(
-            &mut diagnostics,
-            &parsed,
-            &compiler_properties,
-            &fallback,
-            "verbatimModuleSyntax",
-            true,
-            &gen::Option_verbatimModuleSyntax_cannot_be_used_when_module_is_set_to_UMD_AMD_or_System,
-            &[],
-        );
-    }
-
-    if config_option_bool(options, "allowImportingTsExtensions") == Some(true)
-        && config_option_bool(options, "noEmit") != Some(true)
-        && config_option_bool(options, "emitDeclarationOnly") != Some(true)
-        && config_option_bool(options, "rewriteRelativeImportExtensions") != Some(true)
-    {
-        emit_option_diagnostic_for_properties(
-            &mut diagnostics,
-            &parsed,
-            &compiler_properties,
-            &fallback,
-            "allowImportingTsExtensions",
-            false,
-            &gen::Option_allowImportingTsExtensions_can_only_be_used_when_one_of_noEmit_emitDeclarationOnly_or_rewriteRelativeImportExtensions_is_set,
-            &[],
         );
     }
 
@@ -5009,7 +4890,8 @@ fn program_config_file(path: ProgramPath, source: &ConfigSourceText) -> ProgramC
     }
     for compiler_options in root_properties
         .into_iter()
-        .filter(|property| property.name == "compilerOptions")
+        .find(|property| property.name == "compilerOptions")
+        .into_iter()
     {
         if let Some(span) = config_span(&parsed, compiler_options.name_node) {
             config_file = config_file
