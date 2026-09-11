@@ -1089,7 +1089,9 @@ impl<'context> JsxVisitor<'context> {
             }),
             TransformFlags::NONE,
         )?;
-        self.set_original_and_range(call, original)?;
+        // Automatic JSX calls retain location without the parsed JSX
+        // element's semantic parent identity (tsc uses setTextRange only).
+        self.context.factory()?.set_text_range(call, original)?;
         if is_child {
             self.context
                 .arena_mut()?
