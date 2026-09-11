@@ -201,6 +201,20 @@ struct PropertyPlan {
     /// access object and (for auto-accessors) the setter name.
     computed_temp: Option<TargetBinding>,
     computed_expression: Option<NodeId>,
+    /// `partialTransformClassElement`: a computed name whose expression is a
+    /// non-identifier property-name literal (`isPropertyNameLiteral(expression)
+    /// && !isIdentifier(expression)`) names the decorator context by
+    /// `createStringLiteralFromNode(expression)`; no cache temp, no hoist,
+    /// no `__propKey`.
+    computed_literal: Option<NodeId>,
+}
+
+/// The computed form of a decorator context's `access` object: an element
+/// access by the cache temp or by the literal key.
+#[derive(Clone, Copy)]
+enum ComputedAccessName<'a> {
+    Temp(&'a TargetBinding),
+    Literal(NodeId),
 }
 
 #[derive(Clone)]
@@ -427,6 +441,8 @@ struct MethodPlan {
     descriptor_name: Option<TargetBinding>,
     computed_temp: Option<TargetBinding>,
     computed_expression: Option<NodeId>,
+    /// See `PropertyPlan::computed_literal`.
+    computed_literal: Option<NodeId>,
     emitted_name: Option<NodeId>,
 }
 
@@ -1320,7 +1336,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             return Ok(());
         }
         let is_private = self.name_is_private(name)?;
-        let (name, computed_expression) = self.decorator_property_name(name)?;
+        let (name, computed_expression, computed_literal) = self.decorator_property_name(name)?;
         let is_static = self.has_modifier(modifiers, SyntaxKind::StaticKeyword)?;
         let static_prefix = if is_static { "static_" } else { "" };
         let private_prefix = if is_private { "private_" } else { "" };
@@ -1347,6 +1363,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             descriptor_name,
             computed_temp: None,
             computed_expression,
+            computed_literal,
             emitted_name: None,
         });
         Ok(())
@@ -1484,7 +1501,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                         continue;
                     }
                     let is_private = self.name_is_private(member_data.name)?;
-                    let (name, computed_expression) =
+                    let (name, computed_expression, computed_literal) =
                         self.decorator_property_name(member_data.name)?;
                     let is_static =
                         self.has_modifier(member_data.modifiers, SyntaxKind::StaticKeyword)?;
@@ -1535,6 +1552,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                         backing_name,
                         computed_temp: None,
                         computed_expression,
+                        computed_literal,
                     });
                 }
                 NodeData::MethodDeclaration(member_data) => self.collect_method_plan(
@@ -3332,6 +3350,9 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let kind = self.create_string_literal(kind)?;
         let name = if let Some(temporary) = plan.computed_temp.as_ref() {
             self.create_binding_identifier(temporary)?
+        } else if let Some(literal) = plan.computed_literal {
+            // `{ computed: true, name: createStringLiteralFromNode(expression) }`
+            self.create_string_literal_from_property_literal(self.node(literal))?
         } else {
             self.create_string_literal(&plan.name)?
         };
@@ -3350,7 +3371,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
             true,
             true,
             plan.is_private,
-            plan.computed_temp.as_ref(),
+            plan.computed_temp
+                .as_ref()
+                .map(ComputedAccessName::Temp)
+                .or(plan.computed_literal.map(ComputedAccessName::Literal)),
             source_name,
         )?;
         let metadata = self.create_identifier(metadata_name)?;
@@ -3374,6 +3398,9 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let kind = self.create_string_literal(plan.kind.context_name())?;
         let name = if let Some(temporary) = plan.computed_temp.as_ref() {
             self.create_binding_identifier(temporary)?
+        } else if let Some(literal) = plan.computed_literal {
+            // `{ computed: true, name: createStringLiteralFromNode(expression) }`
+            self.create_string_literal_from_property_literal(self.node(literal))?
         } else {
             self.create_string_literal(&plan.name)?
         };
@@ -3392,7 +3419,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
             plan.kind != MethodKind::Setter,
             plan.kind == MethodKind::Setter,
             plan.is_private,
-            plan.computed_temp.as_ref(),
+            plan.computed_temp
+                .as_ref()
+                .map(ComputedAccessName::Temp)
+                .or(plan.computed_literal.map(ComputedAccessName::Literal)),
             source_name,
         )?;
         let metadata = self.create_identifier(metadata_name)?;
@@ -3413,12 +3443,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
         include_get: bool,
         include_set: bool,
         is_private: bool,
-        computed_temp: Option<&TargetBinding>,
+        computed: Option<ComputedAccessName<'_>>,
         source_name: Option<TransformNode>,
     ) -> Result<TransformNode, TransformError> {
         let obj = self.create_parameter("obj")?;
-        let property = if let Some(temporary) = computed_temp {
-            self.create_binding_identifier(temporary)?
+        // createESDecorateClassElementAccessHasMethod: a computed name is the
+        // `in` operand itself (temp or literal).
+        let property = if let Some(computed) = computed {
+            self.create_computed_access_key(computed)?
         } else if is_private {
             source_name.unwrap_or(self.create_private_identifier(name)?)
         } else {
@@ -3431,8 +3463,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
         if include_get {
             let obj = self.create_parameter("obj")?;
             let obj_expression = self.create_identifier("obj")?;
-            let get_body = if let Some(temporary) = computed_temp {
-                let name = self.create_binding_identifier(temporary)?;
+            let get_body = if let Some(computed) = computed {
+                let name = self.create_computed_access_key(computed)?;
                 self.create_element_access(obj_expression, name)?
             } else {
                 let name = match source_name {
@@ -3449,8 +3481,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
             let obj = self.create_parameter("obj")?;
             let value = self.create_parameter("value")?;
             let obj_expression = self.create_identifier("obj")?;
-            let target = if let Some(temporary) = computed_temp {
-                let name = self.create_binding_identifier(temporary)?;
+            let target = if let Some(computed) = computed {
+                let name = self.create_computed_access_key(computed)?;
                 self.create_element_access(obj_expression, name)?
             } else {
                 let name = match source_name {
@@ -3468,6 +3500,50 @@ impl<'context> StandardDecoratorVisitor<'context> {
             properties.push(self.create_property("set", set)?);
         }
         self.create_object_literal(properties, false)
+    }
+
+    /// The `access` key of a computed decorator context: the cache temp's
+    /// binding identifier or the literal key as a string literal.
+    fn create_computed_access_key(
+        &mut self,
+        computed: ComputedAccessName<'_>,
+    ) -> Result<TransformNode, TransformError> {
+        match computed {
+            ComputedAccessName::Temp(binding) => self.create_binding_identifier(binding),
+            ComputedAccessName::Literal(literal) => {
+                self.create_string_literal_from_property_literal(self.node(literal))
+            }
+        }
+    }
+
+    /// tsc-port: createStringLiteralFromNode @6.0.3 for a computed name's
+    /// literal expression: the text is `getTextOfIdentifierOrLiteral`; a
+    /// string-literal source also supplies the emitted spelling
+    /// (`textSourceNode`, the source-string branch of
+    /// `getLiteralTextOfNode`).
+    fn create_string_literal_from_property_literal(
+        &mut self,
+        literal: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let (text, is_string) = match &self.context.arena().node(literal)?.data {
+            NodeData::StringLiteral(data) => (data.text.clone(), true),
+            NodeData::NumericLiteral(data) => (data.text.clone(), false),
+            NodeData::NoSubstitutionTemplateLiteral(data) => (data.text.clone(), false),
+            _ => {
+                return Err(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::ComputedPropertyName,
+                    field: "literal expression",
+                });
+            }
+        };
+        let created = self.create_string_literal(&text)?;
+        if is_string {
+            self.context
+                .arena_mut()?
+                .literal_properties_mut(created)?
+                .set_string_literal_text_source(literal);
+        }
+        Ok(created)
     }
 
     /// tsc-port: partialTransformClassElement @6.0.3
@@ -5380,19 +5456,24 @@ impl<'context> StandardDecoratorVisitor<'context> {
         Ok(())
     }
 
+    /// The helper-variable stem (`getHelperVariableName`: `member` for every
+    /// computed name), the computed expression that needs the `__propKey`
+    /// cache temp, and the literal expression of a computed name that
+    /// `partialTransformClassElement` keeps as `{ computed: true, name:
+    /// createStringLiteralFromNode(expression) }` instead.
     fn decorator_property_name(
         &mut self,
         name: Option<NodeId>,
-    ) -> Result<(String, Option<NodeId>), TransformError> {
+    ) -> Result<(String, Option<NodeId>, Option<NodeId>), TransformError> {
         let name = name.ok_or(TransformError::RequiredChildRemoved {
             parent: SyntaxKind::PropertyDeclaration,
             field: "name",
         })?;
         match &self.context.arena().node(self.node(name))?.data {
-            NodeData::Identifier(data) => Ok((data.text.clone(), None)),
-            NodeData::PrivateIdentifier(data) => Ok((data.text.clone(), None)),
-            NodeData::StringLiteral(data) => Ok((data.text.clone(), None)),
-            NodeData::NumericLiteral(data) => Ok((data.text.clone(), None)),
+            NodeData::Identifier(data) => Ok((data.text.clone(), None, None)),
+            NodeData::PrivateIdentifier(data) => Ok((data.text.clone(), None, None)),
+            NodeData::StringLiteral(data) => Ok((data.text.clone(), None, None)),
+            NodeData::NumericLiteral(data) => Ok((data.text.clone(), None, None)),
             NodeData::ComputedPropertyName(data) => {
                 let expression = data
                     .expression
@@ -5400,8 +5481,20 @@ impl<'context> StandardDecoratorVisitor<'context> {
                         parent: SyntaxKind::ComputedPropertyName,
                         field: "expression",
                     })?;
-                let expression = self.node(expression).node();
-                Ok(("member".to_owned(), Some(expression)))
+                let expression_node = self.node(expression);
+                // isPropertyNameLiteral(expression) && !isIdentifier(expression)
+                let is_literal = matches!(
+                    self.context.arena().node(expression_node)?.data,
+                    NodeData::StringLiteral(_)
+                        | NodeData::NumericLiteral(_)
+                        | NodeData::NoSubstitutionTemplateLiteral(_)
+                );
+                let expression = expression_node.node();
+                if is_literal {
+                    Ok(("member".to_owned(), None, Some(expression)))
+                } else {
+                    Ok(("member".to_owned(), Some(expression), None))
+                }
             }
             _ => Err(TransformError::UnsupportedSyntax {
                 feature: UnsupportedTransformFeature::Decorators,
