@@ -1,0 +1,19 @@
+# CFG1e config reuse / host boundary
+
+CFG1の残存監査。pinned _tsc.js:39460–39500のgetExtendedConfigはoptional cacheを受ける。
+通常CLI自身も:132652でMapを作成してparserに渡す。したがってcache有りをwatch/buildだけの
+対象外として扱わない。既存のfresh APIを残して明示cache APIとCLI接続を追加する。
+
+26ケース、60 parse試行を上流側で先に固定した。fresh/cacheのduplicate・diamond・変換失敗・
+構文失敗・case alias・read absent/throw、呼出間のfile変更とcache clear、cycle、missing、
+fileExists/readDirectory fault、Windows/UNC/URL、package extendsを比較する。
+config projectionだけでなく、host callbackの順序・引数も一致させる。
+
+cacheは変換済みnodeとsourceを再利用する。変換エラーはhit時に再報告されず、parse/readの
+エラーはhitごとに再報告される。keyはhostのcase sensitivityに従う。cache clearは呼出元が
+明示的に行い、filesystem変更を推測して無効化しない。新しいfresh呼出へ状態を漏らさない。
+
+observer事前確認でcacheを9番目に渡してしまい、hitが起きていないことをhost call件数から
+検出した。8番目へ訂正し、未到達だったdirectory faultと合法trailing commaの入力も訂正。
+初期の未登録試行3ファイルはrun dir/reuse-observer-preflightに保存した。登録する観測は
+正しいsignatureでfresh/cached差とfault到達を確認済み。native結果に合わせた変更ではない。

@@ -1017,6 +1017,10 @@ pub struct ProgramOptions {
     type_roots: Option<Vec<ProgramPath>>,
     config_file_path: Option<ProgramPath>,
     config_file: Option<ProgramConfigFile>,
+    /// Source-file config conversion diagnostics passed to createProgram.
+    /// They remain separate from option diagnostics and noEmitOnError.
+    config_parsing_diagnostics: Vec<Diagnostic>,
+    config_parsing_sources: Vec<PreparedAuxiliaryFile>,
     /// An embedding config parser owns option diagnostics even though it did
     /// not pass TypeScript's optional config-file identity into createProgram.
     external_config_option_diagnostics: bool,
@@ -1030,6 +1034,24 @@ pub struct ProgramOptions {
 }
 
 impl ProgramOptions {
+    pub(crate) fn with_config_parsing_diagnostics(
+        mut self,
+        diagnostics: Vec<Diagnostic>,
+        sources: Vec<PreparedAuxiliaryFile>,
+    ) -> Self {
+        self.config_parsing_diagnostics = diagnostics;
+        self.config_parsing_sources = sources;
+        self
+    }
+
+    pub(crate) fn config_parsing_diagnostics(&self) -> &[Diagnostic] {
+        &self.config_parsing_diagnostics
+    }
+
+    pub(crate) fn config_parsing_sources(&self) -> &[PreparedAuxiliaryFile] {
+        &self.config_parsing_sources
+    }
+
     pub fn with_no_lib(mut self, value: bool) -> Self {
         self.no_lib = Some(value);
         self

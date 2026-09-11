@@ -276,3 +276,6 @@ mod h2_8b_config_extension_commands;
 
 #[path = "integration/h2_8b_config_root_commands.rs"]
 mod h2_8b_config_root_commands;
+
+#[path = "integration/h2_8b_config_conversion_commands.rs"]
+mod h2_8b_config_conversion_commands;

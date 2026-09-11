@@ -62,8 +62,8 @@ use crate::option_validation::{
 use crate::path::ProgramPath;
 use crate::prepared::{
     PathMapping, PathsOptionDiagnosticLocation, PathsOptionValidationPlan, PathsOptionViolation,
-    PathsOptionViolationKind, PreparedProgram, ProgramConfigFile, ProgramConfigSpan,
-    ProgramOptions,
+    PathsOptionViolationKind, PreparedAuxiliaryFile, PreparedProgram, ProgramConfigFile,
+    ProgramConfigSpan, ProgramOptions,
 };
 use crate::resolution::{ResolutionError, ResolutionOutcome};
 use crate::ConfigFilePattern;
@@ -1387,9 +1387,9 @@ fn validate_config_plan_for_mode(
 ) -> Result<(), ConfigProgramLoadError> {
     let config = plan.diagnostics().cloned().collect::<Vec<_>>();
     // Ordinary emit creates the Program before reporting option relations;
-    // noEmitOnError decides whether diagnostics suppress writes. The H0
-    // no-emit adapter retains its explicit validation gate. Conversion errors
-    // remain in the separate config collection below.
+    // noEmitOnError checks option/syntax/global/semantic diagnostics, while
+    // config conversion diagnostics are reported separately and do not block
+    // writes. H0 retains its explicit validation gate.
     let options = plan
         .option_diagnostics()
         .iter()
@@ -1400,7 +1400,7 @@ fn validate_config_plan_for_mode(
         })
         .cloned()
         .collect::<Vec<_>>();
-    if !config.is_empty() || !options.is_empty() {
+    if !emitting && (!config.is_empty() || !options.is_empty()) {
         return Err(ConfigProgramLoadError::Diagnostics { config, options });
     }
 
@@ -1635,7 +1635,7 @@ pub fn parse_config_root_plan(
     node.type_acquisition.restore_public_entry_order();
     let paths_option_validation = paths_option_validation_plan(&node.options, &node.source);
     let discovery_options = effective_discovery_options(&node.options, &config_base)?;
-    let module_resolution_options = config_module_resolution_options(
+    let mut module_resolution_options = config_module_resolution_options(
         &node.options,
         &discovery_options,
         &config_file_name,
@@ -1687,6 +1687,25 @@ pub fn parse_config_root_plan(
         .exclude
         .as_ref()
         .map(|specs| specs.iter().map(|spec| spec.text.clone()).collect());
+    let config_diagnostics = context
+        .root_parse_diagnostics
+        .iter()
+        .chain(&context.errors)
+        .cloned()
+        .collect();
+    let config_sources = node
+        .extended_sources
+        .iter()
+        .map(|source| {
+            Ok(PreparedAuxiliaryFile::from_snapshot(
+                config_program_path(&source.file_name, host.use_case_sensitive_file_names())?,
+                Arc::clone(source.snapshot()),
+            ))
+        })
+        .collect::<Result<Vec<_>, ConfigParseError>>()?;
+    module_resolution_options.program_options = module_resolution_options
+        .program_options
+        .with_config_parsing_diagnostics(config_diagnostics, config_sources);
     Ok(ConfigRootPlan {
         config_file_name,
         source: node.source,
@@ -1749,6 +1768,11 @@ fn unsupported_config_scope(
     }
 
     for option in options.entries() {
+        // Unknown names have already produced config conversion diagnostics
+        // and do not request a feature in the converted options.
+        if emitting && compiler_option_declaration(&option.name).is_none() {
+            continue;
+        }
         if !(config_option_is_supported_by_h0(&option.name)
             || emitting && config_option_is_projected_for_h1_emit(&option.name))
             && config_value_requests_feature(&option.value)

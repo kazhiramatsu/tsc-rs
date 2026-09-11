@@ -50,3 +50,6 @@ mod h2_8b_config_root_options;
 
 #[path = "integration/h2_8b_config_root_boundaries.rs"]
 mod h2_8b_config_root_boundaries;
+
+#[path = "integration/h2_8b_config_reuse.rs"]
+mod h2_8b_config_reuse;

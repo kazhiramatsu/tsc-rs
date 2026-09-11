@@ -30,3 +30,10 @@ watch/typeAcquisitionのchild propertyを診断順序ownerに登録していな�
 fc03cd859で72/72 projection×2に到達。全Program契約は473通過/1失敗/5既存ignore。
 残る旧H0契約もtypeAcquisitionの継承を仮定していたため、baseにだけ存在する取得設定では
 rootの既定値になりロードできる対照へ訂正。watch/compileOnSaveのH0 gate対照は維持する。
+
+通常command12件は9f3a7b0f3で7一致/5失敗。失敗はすべてconfig conversion診断をloaderが
+Program作成前に返すこと。_tsc.jsのperformCompilationとhandleNoEmitOptionsに従い、
+config診断はPreparationDiagnostics.configへ、対応するbase sourceはauxiliary snapshotへ
+渡す。builderのdiagnostic source検証は維持する。H0は既存gateを保つ。
+さらに型エラー・unknown compiler option・回復可能JSON構文・empty files・missing extends・
+base内診断・invalid filesの8上流commandを固定し、通常emitへの接続を対照する。

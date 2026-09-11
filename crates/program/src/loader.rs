@@ -3195,6 +3195,14 @@ fn publish_program(
     };
     builder = builder.with_dependency_symlink_resolutions(dependency_symlink_resolutions);
     let config_file = program_options.config_file().cloned();
+    let config_diagnostics = program_options.config_parsing_diagnostics().to_vec();
+    for source in program_options.config_parsing_sources() {
+        builder
+            .add_auxiliary_file(source.clone())
+            .map_err(|error| {
+                ProgramLoadError::preparation(ProgramLoadOperation::BuildPreparedProgram, error)
+            })?;
+    }
     builder.set_program_options(program_options);
 
     if let Some(config_file) = config_file {
@@ -3333,7 +3341,7 @@ fn publish_program(
     }
 
     builder.set_diagnostics(PreparationDiagnostics::new(
-        Vec::new(),
+        config_diagnostics,
         staged.option_diagnostics,
         staged.program_diagnostics,
     ));
