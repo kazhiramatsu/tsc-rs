@@ -1,0 +1,358 @@
+{
+  "version": 1,
+  "slice": "H2.8b-CFG1b",
+  "cases": [
+    {
+      "case_id": "h2-8b-config-discovery-commands/sibling-recursive",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"../shared/**/*.ts\"],\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"..\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true}}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        }
+      ],
+      "options": {}
+    },
+    {
+      "case_id": "h2-8b-config-discovery-commands/parent-recursive",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"../**/*.ts\"],\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"..\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true}}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        }
+      ],
+      "options": {}
+    },
+    {
+      "case_id": "h2-8b-config-discovery-commands/absolute-recursive",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"/project/shared/**/*.ts\"],\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"..\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true}}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        }
+      ],
+      "options": {}
+    },
+    {
+      "case_id": "h2-8b-config-discovery-commands/sibling-file",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"../shared/z.ts\"],\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"..\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true}}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        }
+      ],
+      "options": {}
+    },
+    {
+      "case_id": "h2-8b-config-discovery-commands/wildcard-directory",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"../sh*/**/*.ts\"],\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"..\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true}}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        }
+      ],
+      "options": {}
+    },
+    {
+      "case_id": "h2-8b-config-discovery-commands/child-before-parent",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"../shared/deep/**/*.ts\",\"../**/*.ts\"],\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"..\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true}}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        }
+      ],
+      "options": {}
+    },
+    {
+      "case_id": "h2-8b-config-discovery-commands/external-exclude",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"../shared/**/*.ts\"],\"exclude\":[\"../shared/skip.ts\",\"../shared/deep/**/*\"],\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"..\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true}}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        }
+      ],
+      "options": {}
+    },
+    {
+      "case_id": "h2-8b-config-discovery-commands/include-bucket-order",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"../other/**/*.ts\",\"src/**/*.ts\",\"../shared/**/*.ts\"],\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"..\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true}}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        }
+      ],
+      "options": {}
+    }
+  ]
+}

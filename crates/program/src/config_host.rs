@@ -330,3 +330,43 @@ fn is_implicit_excluded_directory(path: &Path) -> bool {
             )
         })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::discovery_base_paths;
+    use serde_json::{json, Value};
+
+    #[test]
+    fn config_discovery_base_paths_match_typescript() {
+        let oracle: Value = serde_json::from_slice(include_bytes!(
+            "../tests/fixtures/h2-8b-config-discovery-paths.json"
+        ))
+        .expect("frozen base path observations");
+        assert_eq!(oracle["typescript"], "6.0.3");
+        let cases = oracle["cases"].as_array().expect("path cases");
+        assert_eq!(cases.len(), 16);
+        for case in cases {
+            let includes = case["includes"].as_array().map(|values| {
+                values
+                    .iter()
+                    .map(|value| value.as_str().expect("include").to_owned())
+                    .collect::<Vec<_>>()
+            });
+            for repetition in 1..=2 {
+                let actual = discovery_base_paths(
+                    case["directory"].as_str().expect("directory"),
+                    includes.as_deref(),
+                    case["case_sensitive"].as_bool().expect("case policy"),
+                )
+                .expect("valid discovery paths");
+                eprintln!(
+                    "H2.8b-CFG1b-path {}",
+                    json!({
+                        "case_id": case["case_id"], "repetition": repetition, "actual": actual,
+                    })
+                );
+                assert_eq!(json!(actual), case["base_paths"], "{}", case["case_id"]);
+            }
+        }
+    }
+}
