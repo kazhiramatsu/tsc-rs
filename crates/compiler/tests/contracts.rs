@@ -83,6 +83,8 @@ mod h2_7c_strip_internal;
 #[path = "integration/h2_7c_declaration_blocking.rs"]
 mod h2_7c_declaration_blocking;
 
+#[path = "integration/h2_8b_config_commands.rs"]
+mod h2_8b_config_commands;
 #[path = "integration/h2_8b_library_replacement.rs"]
 mod h2_8b_library_replacement;
 
