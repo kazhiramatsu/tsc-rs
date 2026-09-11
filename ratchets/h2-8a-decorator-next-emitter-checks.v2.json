@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "slice": "H2.8a-A6-41 decorator-next review",
+  "status": "isolated draft evidence; not production admission",
+  "head": "6f916cd5e315aa5ef03ed8b9af780f2f460fba7a",
+  "branch": "draft/h2-8a-decorator-next",
+  "worktree": "/Users/hiramatsu/dev/tsc-rs-dec-next",
+  "run_dir": "/Users/hiramatsu/dev/tsc-rs-dec-next/target/dec-next-runs/review-emitter-r2",
+  "production_inputs": {
+    "crates/emitter/src/builtins/class_fields.rs": "96f1bfd5ea1be50c01e27699b05467142f2ef33a6155bd5e501e77135650d4b2",
+    "crates/emitter/src/builtins/class_fields/downlevel.rs": "32d5f95dbea6440a228adf4977def865152b88bd1a3bedc1bf26df478779ef02",
+    "crates/emitter/src/builtins/es2018.rs": "40cdbebfebb94b4a6eba3065c23128f99b9ce6160e24666fda74e68539fb2c52",
+    "crates/emitter/src/builtins/generated_bindings.rs": "510a111813e241c2f7a8df3b54399a0449929d67781b7da483a31065236b43a7",
+    "crates/emitter/src/builtins/standard_decorators.rs": "d367bce01a5521e10d0cdff66a2cc52555b486583f4e976e718139fa68be3006",
+    "crates/emitter/src/builtins/target_bindings.rs": "bcdce6113161252bfc74c2be11e2350947938443287f753d3592bd619e0b7396",
+    "crates/emitter/src/execute.rs": "0cf74b891e5c43ba86068d8fc33f49791d2a5a913650b3112d09a8a2643ed42d"
+  },
+  "prelaunch": {
+    "path": "/Users/hiramatsu/dev/tsc-rs-dec-next/target/dec-next-runs/review-emitter-r2/prelaunch.json",
+    "sha256": "75456f86c60151d681646a82319348031c5bf1dcd6eb956b2bc58ba7ae80713a"
+  },
+  "execution": {
+    "path": "/Users/hiramatsu/dev/tsc-rs-dec-next/target/dec-next-runs/review-emitter-r2/execution.json",
+    "sha256": "03e0ce2c413c019f5f60aa1136e52614d9c9eab63baf77090fdfa6372c5a204a"
+  },
+  "archive": {
+    "path": "/Users/hiramatsu/dev/tsc-rs-dec-next/target/dec-next-runs/review-emitter-r2/source-and-inputs.tar.gz",
+    "sha256": "6d4063f8fb0fea6a50eb01723237491cb67475796264ea6e6e72e20ae3c25840"
+  },
+  "command": [
+    "cargo",
+    "test",
+    "--offline",
+    "-p",
+    "tsc-rs-emitter",
+    "--lib",
+    "--test",
+    "contracts",
+    "--",
+    "--test-threads=1"
+  ],
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-dec-next/target/dec-next-review-artifacts",
+    "CARGO_BUILD_JOBS": "2",
+    "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-dec-next/target/dec-next-runs/review-emitter-r2/captures"
+  },
+  "actual_exit": 0,
+  "log_sha256": "4e0edb99d5886ba2024c1c75992f95e377c21067f70c52c4bbde38aa2976fddd",
+  "executed_binaries": {
+    "target/dec-next-review-artifacts/debug/deps/tsc_emitter-221a698c259a056a": "ec501e7ae4431116ec6ad321546f80fd3c026586f613921ba71dda2588f00939",
+    "target/dec-next-review-artifacts/debug/deps/contracts-f64a19b8f0cd5475": "9a9839b66e3a8720312003d1f1b69c6c76cacdb7959b6ae66c2ea21727b10532"
+  },
+  "archived_binaries": {
+    "target/dec-next-runs/review-emitter-r2/binaries/tsc_emitter-221a698c259a056a": {
+      "executed_path": "target/dec-next-review-artifacts/debug/deps/tsc_emitter-221a698c259a056a",
+      "sha256": "ec501e7ae4431116ec6ad321546f80fd3c026586f613921ba71dda2588f00939"
+    },
+    "target/dec-next-runs/review-emitter-r2/binaries/contracts-f64a19b8f0cd5475": {
+      "executed_path": "target/dec-next-review-artifacts/debug/deps/contracts-f64a19b8f0cd5475",
+      "sha256": "9a9839b66e3a8720312003d1f1b69c6c76cacdb7959b6ae66c2ea21727b10532"
+    }
+  },
+  "inputs_changed_during_run": [],
+  "suites": {
+    "lib": {
+      "passed": 494,
+      "failed": 0,
+      "ignored": 0
+    },
+    "contracts": {
+      "passed": 452,
+      "failed": 0,
+      "ignored": 0
+    }
+  }
+}

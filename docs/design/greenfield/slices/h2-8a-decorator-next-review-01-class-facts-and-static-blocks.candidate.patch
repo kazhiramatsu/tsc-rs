@@ -1,0 +1,279 @@
+From 186a6d4f6a41d014383a7e21e95dc6b9b1fe7cf9 Mon Sep 17 00:00:00 2001
+From: kazhiramatsu <kazutakehiramatsu@gmail.com>
+Date: Fri, 11 Sep 2026 10:12:41 +0900
+Subject: [PATCH] fix(A6-41 review): preserve decorated class facts and native
+ static blocks
+
+---
+ .../src/builtins/class_fields/downlevel.rs    | 68 ++++++++++++--
+ .../greenfield/slices/h2-8a-decorator-next.md | 94 +++++++++++++++++--
+ 2 files changed, 145 insertions(+), 17 deletions(-)
+
+diff --git a/crates/emitter/src/builtins/class_fields/downlevel.rs b/crates/emitter/src/builtins/class_fields/downlevel.rs
+index a7051bc31..51d0c29a8 100644
+--- a/crates/emitter/src/builtins/class_fields/downlevel.rs
++++ b/crates/emitter/src/builtins/class_fields/downlevel.rs
+@@ -1848,12 +1848,8 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
+         let heritage_semantics = self.class_heritage_semantics(data.heritage_clauses)?;
+         let private_plan = self.scan_private_environment(data.members)?;
+         let instance_brand = self.allocate_instance_brand(&private_plan, class_name.as_deref())?;
+-        // getClassFacts: ClassWasDecorated (classOrConstructorParameterIsDecorated
+-        // on the original class) suppresses the constructor/super references
+-        // derived from static lexical this/super. A standard-decorator class
+-        // expression carries the decorated class's classThis identity; the
+-        // decorator transform already projected its own static super
+-        // references, so only nested classes can still contain super here.
++        // ClassWasDecorated suppresses constructor/super references derived
++        // from static lexical this/super when classThis is already supplied.
+         let class_was_decorated = preferred_class_this.is_some();
+         let reference_plan = ClassConstructorReferencePlan::from_class_facts(
+             &class_facts,
+@@ -2045,12 +2041,19 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
+         // tsc's private lexical environment owns this allocation before
+         // getClassFacts creates a constructor identity.
+         let instance_brand = self.allocate_instance_brand(&private_plan, class_name.as_deref())?;
++        // Standard decorators transport classThis on the emitted class
++        // expression. Legacy decorated declarations use the expansion plan.
++        // Both are ClassWasDecorated: their own static super references have
++        // already been projected, so nested classes must not allocate a
++        // redundant super alias for the enclosing class.
++        let class_was_decorated =
++            preferred_class_this.is_some() || decorated_declaration.is_some();
+         let reference_plan = ClassConstructorReferencePlan::from_class_facts(
+             &class_facts,
+             preferred_class_this.is_some()
+                 || needs_named_evaluation
+                 || already_has_named_evaluation,
+-            decorated_declaration.is_some(),
++            class_was_decorated,
+         );
+         let class_definition_binding = self.allocate_class_constructor_identity(
+             reference_plan,
+@@ -2060,7 +2063,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
+         // ClassWasDecorated suppresses NeedsClassSuperReference even when a
+         // different fact allocated a usable constructor identity.
+         let needs_super_reference =
+-            class_facts.static_facts.contains_super && decorated_declaration.is_none();
++            class_facts.static_facts.contains_super && !class_was_decorated;
+         data.name = self.visit_optional_node(data.name)?;
+         data.type_parameters = self.visit_optional_nodes(data.type_parameters)?;
+         data.modifiers = self.visit_optional_nodes(data.modifiers)?;
+@@ -5514,6 +5517,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
+                         name,
+                         value,
+                         range_static_expression_to_name: receiver == FieldReceiver::Static
++                            && !self.selectively_transforms_private_static_elements()
+                             && self
+                                 .private_environments
+                                 .last()
+@@ -5535,7 +5539,12 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
+                             // define modes. Instance define-mode fields remain
+                             // observable own properties and are handled above.
+                             if operation.value.has_runtime_value() {
+-                                operations.static_.push(StaticOperation::Field(operation));
++                                if self.selectively_transforms_private_static_elements() {
++                                    let block = self.materialize_public_static_field_block(&operation)?;
++                                    operations.retained_members.push(block);
++                                } else {
++                                    operations.static_.push(StaticOperation::Field(operation));
++                                }
+                             }
+                         }
+                     }
+@@ -6669,6 +6678,13 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
+                 SyntaxKind::ThisKeyword,
+                 TransformFlags::CONTAINS_LEXICAL_THIS,
+             )?,
++            FieldReceiver::Static if self.selectively_transforms_private_static_elements() => {
++                self.context.factory()?.create_token(
++                    self.source,
++                    SyntaxKind::ThisKeyword,
++                    TransformFlags::CONTAINS_LEXICAL_THIS,
++                )?
++            }
+             FieldReceiver::Static => self.create_binding_identifier(class_name.ok_or(
+                 TransformError::RequiredChildRemoved {
+                     parent: SyntaxKind::ClassDeclaration,
+@@ -7005,6 +7021,40 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
+         Ok(statement)
+     }
+ 
++    /// tsc transformPublicFieldInitializer: at ES2022+ assignment-mode
++    /// public fields become static blocks even when private static members
++    /// caused this class to enter the selective downlevel visitor.
++    fn materialize_public_static_field_block(
++        &mut self,
++        operation: &FieldOperation,
++    ) -> Result<TransformNode, TransformError> {
++        let statement = self.materialize_field_operation(operation, None)?;
++        let body = self.create_block(vec![statement], false)?;
++        let block = self.context.factory()?.create_node(
++            self.source,
++            NodeData::ClassStaticBlockDeclaration(
++                tsc_syntax::nodes::ClassStaticBlockDeclarationData {
++                    body: Some(body.node()),
++                    modifiers: None,
++                },
++            ),
++            TransformFlags::NONE,
++        )?;
++        let record = self.context.arena().node(operation.original)?;
++        let positions = self.context.arena().source(self.source)?.syntax().positions();
++        let range = SourceRange::from_raw(record.pos, record.end, positions).map_err(|error| {
++            TransformError::InvalidSourceRange { node: operation.original, error }
++        })?;
++        let arena = self.context.arena_mut()?;
++        arena.set_original_node(block, Some(operation.original))?;
++        arena.metadata_mut(block).set_comment_range(CommentRange::new(self.source, range));
++        let metadata = arena.metadata_mut(statement);
++        metadata.set_comment_range(CommentRange::new(self.source, SourceRange::Synthesized));
++        metadata.leading_comments.clear();
++        metadata.trailing_comments.clear();
++        Ok(block)
++    }
++
+     fn materialize_private_static_field_block(
+         &mut self,
+         operation: &PrivateFieldOperation,
+diff --git a/docs/design/greenfield/slices/h2-8a-decorator-next.md b/docs/design/greenfield/slices/h2-8a-decorator-next.md
+index e03e0f7ab..5a432aeac 100644
+--- a/docs/design/greenfield/slices/h2-8a-decorator-next.md
++++ b/docs/design/greenfield/slices/h2-8a-decorator-next.md
+@@ -242,8 +242,10 @@ map segments that the ES2015 destructuring flattener records for the
+ pattern's `{`, rest element and `}` (upstream records none) — out of scope
+ (flatten_destructuring / es2015 owner), evidence in the run captures;
+ `super-lexical-boundaries` allocated a spurious `(_a = _classSuper)` alias in
+-the ES2015 class-fields lowering, fixed by the item 3c follow-up
+-(`ClassWasDecorated`).
++the ES2015 class-fields lowering. The item 3c follow-up attempted to fix
++`ClassWasDecorated`, but changed `visit_class_declaration`; the emitted
++standard-decorator class reaches `visit_class_expression`, so both ES2015
++witness commands still fail at `306930ab7`.
+ 
+ ### Item 3b — `_outerThis` numbering and the FileLevel census (commit `29248861f`)
+ 
+@@ -373,9 +375,10 @@ private/accessor members) keeps `__setFunctionName(this, name)`.
+ | `visitStaticPropertyDeclaration` decorator receivers (`createCallBinding` with `setTextRange`) | `bind_decorator_receiver` | `outer-this-computed-name`, `decorated-computed-fields` (transform-order) | `65f688302` |
+ | global node-id memo assumption (no upstream counterpart; the visitor caches by node) | `audit_memo_first_visit`, `audit_memo_hit` (debug builds) | all 126 witnesses and the 530 commands run on the audited binary | `a2784933e`, `5af111fea` |
+ 
+-## Open rows (not closed by this candidate)
++## Original candidate's open rows (`306930ab7`)
+ 
+-Measured (witness commands still failing at the final head):
++Measured at the original candidate head. Follow-up resolution is recorded
++in the review corrections below; the original receipts remain unchanged.
+ 
+ - `decorator-name-owners/*/cross-file-global-names` (5 of 6): `hasGlobalName`
+   is consulted only by the bundle print path
+@@ -404,6 +407,11 @@ Measured (witness commands still failing at the final head):
+   three map segments recorded by the ES2015 destructuring flattener for the
+   object pattern's `{`, rest element and `}` are absent upstream
+   (flatten_destructuring / es2015 owner).
++- `decorator-super-paths/es2015/*/super-lexical-boundaries` (2 commands):
++  the class-fields class-expression path fails to recognize the transported
++  standard-decorator `classThis` identity as `ClassWasDecorated`, and emits
++  an unnecessary `extends (_a = _classSuper)` alias, shifting generated names
++  and source maps. This was omitted from the original open-row list.
+ 
+ Source-level rows without a failing witness (need a witness before a claim):
+ 
+@@ -422,9 +430,10 @@ Source-level rows without a failing witness (need a witness before a claim):
+   `_classThis`) are transform-time strings; nested/sibling numbering matched
+   every witness, but the print-order model is not proven beyond them.
+ 
+-## Results and evidence
++## Original results and evidence
+ 
+-Final head of the draft branch: see the receipts below (`head`). Runs are
++Original production candidate head: `306930ab7`, followed by evidence commit
++`a4ad3742e`; see the original receipts below (`head`). Runs are
+ debug binaries with the item 4 audit active; every run is demoted
+ (`taskpolicy -b nice -n 15`, `CARGO_BUILD_JOBS=2`, own target dir
+ `target/dec-next-artifacts`), one heavy run at a time.
+@@ -482,8 +491,10 @@ Added tests: one contracts test function
+ `crates/compiler/tests/contracts.rs`) covering 126 new complete commands
+ (60 + 42 + 24), compared as full tuples like the existing 530; it is not
+ counted into the 494/452 emitter suites above, and it currently fails on the
+-17 open commands by design (the receipt is the accepted state, not the test
+-exit). No existing fixture or expectation was rewritten.
++17 open commands at that head (exit 101). This did not meet the handoff's
++requirement that the new controls pass; a receipt documenting failures is
++not a substitute for a passing test. No existing fixture or expectation was
++rewritten.
+ 
+ Candidate patches (one per cause, `git format-patch` of the draft commits on
+ top of the start point `cb4e5f3e8`, plus the cumulative production diff):
+@@ -495,3 +506,70 @@ and `h2-8a-decorator-next-production.cumulative.patch`. Scripts:
+ `scripts/export-decorator-next-candidates.sh`; the capture analyzers used
+ during the work (`analyze-witnesses.py`, `compare-with-full62.py`,
+ `mapdiff.py`) are copied under `target/dec-next-runs/tools/`.
++
++## Review corrections (in progress)
++
++The review verified the original receipts (109/126 and 530/530) but found
++the missing lexical-boundary row, the unmet requirement that all new
++controls pass, and an export range that included its own evidence commit.
++The original receipts and captures remain historical evidence, not a passing
++acceptance gate. The follow-up will require the ordinary, unfiltered witness
++test to exit zero, with all 126 complete commands exact twice.
++
++Planned source owners and boundaries, recorded before implementation:
++
++- `class_fields/downlevel.rs`: recognize standard-decorator `classThis` on
++  the class-expression path; use the target's static-block policy when
++  selectively lowering private static members; preserve the upstream ranges
++  of Reflect receiver/key operations.
++- `es2018.rs`: its existing object-rest assignment flattener, reached while
++  targeting ES2015, owns the remaining synthesized chunk/comma ranges.
++  Comparison with the shared flattener and upstream confirmed that an
++  assignment chunk's fresh object pattern and the enclosing comma sequence
++  must not inherit the full source pattern's text range.
++- `standard_decorators.rs`, `target_bindings.rs`, and `execute.rs`: transport
++  generated helper identities into the existing binding finalizer and provide
++  the resolver's global-name oracle on single-source JavaScript printing.
++  No source identifier will receive a binding by matching its spelling.
++- Candidate export: pin the default endpoint to the original production
++  candidate `306930ab7`; permit an explicit endpoint for follow-up patches
++  and exclude documentation/evidence-only commits.
++
++These changes stay in the isolated worktree. Verification will use a new
++target directory and new run directories, demoted and with two build jobs;
++existing fixtures, observations, and previous run artifacts are preserved.
++
++First follow-up (`review-class-fields-r1`): still 109/126 complete tuples,
++but JavaScript now exact for the two lexical-boundary and four selective
++private-static commands. Their remaining differences are map ranges. The
++super read maps belonged to the `super` token rather than the whole access;
++the static assignment retains the property-name range even inside a native
++static block. These ranges and the ES2015 Reflect assignment/update ranges
++are addressed in the next run, together with global-name handling.
++
++Generated helper plans now carry `TargetBinding` handles, including
++`classThis` transported through the class-fields owner. Identifier creation
++accepts typed bindings or literal source text and never resolves a binding
++by text. FileLevel helpers have their own non-reserved optimistic policy;
++the print finalizer checks the resolver oracle for every generated-name
++domain, and single-source JavaScript emit supplies that oracle.
++
++Second follow-up (`review-all-r2`): **117/126 exact twice**, zero inconsistent
++captures. The two lexical-boundary, two object-rest destructuring, and four
++selective private-static commands now match completely. The four ES2015
++controls still lack the closing map range of a cloned computed-key call and
++the leading range of an explicitly synthesized parenthesized update value.
++Those nodes now follow upstream's direct key reuse and argument
++parenthesization. The five global-name commands exposed another gate:
++`finalize_generated_binding_names_for_print` skipped bindings already named
++by a transformer without the oracle. Printing with an actual resolver now
++reconciles those bindings as well. FileLevel names query the oracle once per
++candidate through their existing predicate; the declaration printer's
++fallible-oracle contract retains its query order.
++
++The export script defaults to the immutable original candidate endpoint
++`306930ab7c7fabab39c4e66321de68181b1abfe9`, accepts an explicit candidate
++endpoint, validates ancestry, and omits commits that change no `crates/`
++files. Re-running `bash scripts/export-decorator-next-candidates.sh cb4e5f3e8`
++at the evidence head reproduced all ten original patches and the original
++cumulative patch byte for byte, without exporting the evidence commit.
+-- 
+2.50.1 (Apple Git-155)
+

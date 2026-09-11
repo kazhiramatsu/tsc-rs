@@ -8,6 +8,13 @@ This is an isolated research candidate in the worktree
 `~/dev/tsc-rs-dec-next` (branch `draft/h2-8a-decorator-next`); root production,
 hosted acceptance and whole-H2.8 completion are out of scope.
 
+Review correction candidate: `6f916cd5e`. The new **126/126** witnesses and
+existing **530/530** commands match complete tuples twice, both test commands
+exit **0**, and **494 lib + 452 emitter contracts** pass. The 530 captures
+have zero changes, missing cases, or additions versus full62. The original
+17 failures, including the omitted two lexical-boundary cases, are closed;
+see **Review corrections** and **Review verification provenance** below.
+
 Pinned source: `vendor/typescript-6.0.3/lib/_tsc.js`, whole SHA-256
 `1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3`
 (`transformESDecorators` 98946–100620, named evaluation 93715–93960,
@@ -359,6 +366,9 @@ private/accessor members) keeps `__setFunctionName(this, name)`.
 
 ## Source → Rust → witness map
 
+This table describes the original candidate. The review-correction table
+below records the additional owners and closes the measured open rows.
+
 | `_tsc.js` (6.0.3) | Rust (`crates/emitter/src/builtins/…`) | witness source (fixture group) | commit |
 | --- | --- | --- | --- |
 | `updateState` 98973, `enterClass`/`exitClass`, `enterClassElement`, `enterName`, `enterOther`/`exitOther` (pendingExpressions save/restore) | `standard_decorators.rs` `DecoratorReceiverFrame`, `update_receiver_state`, `enter_receiver_class`/`exit_receiver_class`, `enter_receiver_other`/`exit_receiver_other`, `pending_expressions` | `pending-into-undecorated-names`, `outer-this-static-block`, `nested-class-in-computed-name` (transform-order) | `65f688302` |
@@ -428,7 +438,9 @@ Source-level rows without a failing witness (need a witness before a claim):
   function's lexical environment, which this transform does not own).
 - ReservedInNestedScopes helper-variable names (`_x_decorators`, unique
   `_classThis`) are transform-time strings; nested/sibling numbering matched
-  every witness, but the print-order model is not proven beyond them.
+  every witness, but the print-order model is not proven beyond them. The
+  review now transports these names as `TargetBinding`; that closes the
+  measured cross-file collisions, without claiming exhaustive name coverage.
 
 ## Original results and evidence
 
@@ -507,14 +519,14 @@ and `h2-8a-decorator-next-production.cumulative.patch`. Scripts:
 during the work (`analyze-witnesses.py`, `compare-with-full62.py`,
 `mapdiff.py`) are copied under `target/dec-next-runs/tools/`.
 
-## Review corrections (in progress)
+## Review corrections
 
 The review verified the original receipts (109/126 and 530/530) but found
 the missing lexical-boundary row, the unmet requirement that all new
 controls pass, and an export range that included its own evidence commit.
 The original receipts and captures remain historical evidence, not a passing
-acceptance gate. The follow-up will require the ordinary, unfiltered witness
-test to exit zero, with all 126 complete commands exact twice.
+acceptance gate. The ordinary, unfiltered witness test now exits zero, with
+all 126 complete commands exact twice (`review-all-r3`).
 
 Planned source owners and boundaries, recorded before implementation:
 
@@ -535,7 +547,7 @@ Planned source owners and boundaries, recorded before implementation:
   candidate `306930ab7`; permit an explicit endpoint for follow-up patches
   and exclude documentation/evidence-only commits.
 
-These changes stay in the isolated worktree. Verification will use a new
+These changes stay in the isolated worktree. Verification uses a new
 target directory and new run directories, demoted and with two build jobs;
 existing fixtures, observations, and previous run artifacts are preserved.
 
@@ -554,6 +566,14 @@ by text. FileLevel helpers have their own non-reserved optimistic policy;
 the print finalizer checks the resolver oracle for every generated-name
 domain, and single-source JavaScript emit supplies that oracle.
 
+The downstream identity inventory consequently changes: `class_this_binding`
+now reads the generated binding ID and reconstructs its `TargetBinding`
+instead of reducing it to identifier text. `clone_receiver_class_this` still
+creates a distinct syntax node; `clone_node` → `set_original_node` →
+`EmitMetadata::merge_from` preserves the binding metadata across that clone.
+The receiver frames also carry a typed `classSuper` handle, and the debug
+memo audit compares its binding ID rather than its provisional spelling.
+
 Second follow-up (`review-all-r2`): **117/126 exact twice**, zero inconsistent
 captures. The two lexical-boundary, two object-rest destructuring, and four
 selective private-static commands now match completely. The four ES2015
@@ -567,9 +587,107 @@ reconciles those bindings as well. FileLevel names query the oracle once per
 candidate through their existing predicate; the declaration printer's
 fallible-oracle contract retains its query order.
 
+Third follow-up (`review-all-r3`): **126/126 exact twice**, exit **0**;
+transform-order **60/60**, super-paths **42/42**, name-owners **24/24**.
+All 252 captures match their original complete expected tuples; none reports
+an error, an inconsistent repetition, or a memo-audit violation. Neither the
+six witness fixture files nor the witness test was changed during this
+review. The original 17 failures are closed by implementation changes:
+
+| original failure | corrected source owner / upstream rule | commit |
+| --- | --- | --- |
+| ES2015 `super-lexical-boundaries`, set/define (2) | `class_fields/downlevel.rs`: the actual class-expression path recognizes transported `classThis` as `ClassWasDecorated`, avoiding the extra `extends (_a = _classSuper)`; Reflect maps use the super-token range | `186a6d4f6`, `ef74dffe6` |
+| ES2022/ESNext set `sibling-classes-reuse` and `source-identifier-collisions` (4) | `class_fields/downlevel.rs`: selective private-static lowering retains public static fields as native static assignment blocks, with the original property-name map range | `186a6d4f6` |
+| ES2015 undecorated/member-only super controls (4) | `class_fields/downlevel.rs`: preserve Reflect receiver/key/update ranges, reuse the visited key, and let argument parenthesization handle the comma expression | `ef74dffe6` |
+| ES2015 `super-destructuring`, set/define (2) | `es2018.rs`: fresh object-rest assignment chunks and synthesized outer comma sequences have no inherited pattern range; the original attribution to the ES2015/shared flattener was incorrect | `ef74dffe6` |
+| `cross-file-global-names` (5) | `standard_decorators.rs`, `target_bindings.rs`, `execute.rs`, class-this handoff in `downlevel.rs`: preserve helper binding identities and apply the global-name oracle during single-source print finalization | `de99312b1` |
+
+The first emitter-suite run (`review-emitter-r1`, exit 101) passed 493/494
+lib tests. The remaining structural test assumed that every FileLevel
+binding in an anonymous-default decorated class was `_default`; helpers
+such as `_classThis` now legitimately carry FileLevel identity too. Commit
+`6f916cd5e` narrows that test's selection to the `_default` preferred base.
+It retains the original projection counts, source owner, identity-domain,
+flags, reserved-in-nested-scopes, and CommonJS identity-map assertions. This
+changes no expected emitted output and does not filter or ignore a test.
+
 The export script defaults to the immutable original candidate endpoint
 `306930ab7c7fabab39c4e66321de68181b1abfe9`, accepts an explicit candidate
 endpoint, validates ancestry, and omits commits that change no `crates/`
 files. Re-running `bash scripts/export-decorator-next-candidates.sh cb4e5f3e8`
 at the evidence head reproduced all ten original patches and the original
 cumulative patch byte for byte, without exporting the evidence commit.
+The same check at the review candidate is recorded in
+`target/dec-next-runs/review-export-verification.json`.
+
+Follow-up patches are separate from that immutable original series:
+`h2-8a-decorator-next-review-01…04-*.candidate.patch` correspond to commits
+`186a6d4f6`, `ef74dffe6`, `de99312b1`, and `6f916cd5e` respectively, generated
+with `git format-patch -1 --stdout <commit>`. The review cumulative production
+patch is `git diff 306930ab7 6f916cd5e -- crates/emitter/src`, written as
+`h2-8a-decorator-next-review-production.cumulative.patch`; its SHA-256 is
+`bb51fd17ca3191d61fc57b0d93b27e8488bd81d711dcabffb9f34262e3da8a57`.
+
+## Review verification provenance
+
+Candidate source/test head: `6f916cd5e` (the production source itself last
+changed at `de99312b1`). New runs use `scripts/run-decorator-next-review.py`,
+`target/dec-next-review-artifacts`, `taskpolicy -b nice -n 15`, and
+`CARGO_BUILD_JOBS=2`, one heavy run at a time. Each run archives source and
+inputs before execution, records the actual launch head and command,
+verifies input hashes after execution, and preserves the executed binaries,
+log, actual exit, and complete captures. The seven cumulative production
+files since `cb4e5f3e8` are hashed, including `es2018.rs` and `execute.rs`.
+
+The passing witness run launched from `a4ad3742e` with the measured working
+tree changes, which were subsequently split into causal commits without
+editing those production bytes. Its v2 receipt preserves that actual
+`launch_head` separately from the verified candidate `head` (`6f916cd5e`),
+and the freezer verifies every production file against both the immutable
+prelaunch manifest and `git show` of that candidate. The later emitter-test
+selection change does not alter production or compiler witness inputs.
+
+Passing witness receipt: `ratchets/h2-8a-decorator-next-witnesses.v2.json`,
+SHA-256 `5fae9f7303c5128d34fbaac806aeb5f6a40ca6f52e9beb9de4beb846e0882dea`;
+executed compiler contracts binary SHA-256
+`f80aa47c18a7a32253111131b86f8950addb010a20f2149d05ba025192f3df35`,
+preserved under `target/dec-next-runs/review-all-r3/binaries/`.
+
+Emitter verification (`review-emitter-r2`) passed **494 lib + 452 contracts**,
+zero failed/ignored, exit **0**, with no input changes during the run.
+Receipt: `ratchets/h2-8a-decorator-next-emitter-checks.v2.json`, SHA-256
+`8d4f9c2e4215921ebb605c3cc54254da48ccd6dfe432a000c56a5404f42796a3`.
+It binds both archived binaries, the prelaunch source archive, and log
+SHA-256 `4e0edb99d5886ba2024c1c75992f95e377c21067f70c52c4bbde38aa2976fddd`.
+
+The existing 530 complete commands (`review-full530-r1`) passed
+**530/530 exact twice**, zero failed/inconsistent/error captures, exit **0**,
+using the same compiler contracts binary as the passing witness run.
+Prelaunch and candidate head are both `6f916cd5e`; no input changed during
+execution. Receipt: `ratchets/h2-8a-decorator-next-full530.v2.json`, SHA-256
+`bb76bc3dcd19f85f4a9a81e13bbe7e08d58f4c67e4cf31b2426bc4eeb7bac16f`;
+log SHA-256
+`fd2805dc176f19e9558b35c39a4c21a46914fc3dbedd4497a8ac51fa0a54c8f7`.
+
+`target/dec-next-runs/tools/compare-with-full62.py` compared all 1060 new
+captures with the original full62 directory recorded above. Its output is
+preserved in `target/dec-next-runs/review-full530-r1/compare-with-full62.log`:
+
+```json
+{"cases": 530, "exact_twice": 530, "failed": 0, "inconsistent": 0, "changed_vs_full62": 0, "missing_vs_full62": 0, "extra_vs_full62": 0}
+```
+
+| review acceptance check | result | receipt / evidence |
+| --- | --- | --- |
+| new 126 complete commands, unchanged fixtures and test | 126/126 exact twice; exit 0; no errors, inconsistent repetitions, or memo-audit violations | `h2-8a-decorator-next-witnesses.v2.json` |
+| existing 530 complete commands, unchanged fixtures and test | 530/530 exact twice; exit 0; full62 changed/missing/extra all 0 | `h2-8a-decorator-next-full530.v2.json` |
+| emitter lib + contracts | 494 + 452 passed; zero failed/ignored; exit 0 | `h2-8a-decorator-next-emitter-checks.v2.json` |
+| default patch export at a later HEAD | original 10 numbered patches + cumulative patch reproduced byte for byte; no eleventh numbered patch | `review-export-verification.json` |
+
+No production source was edited after the passing witness measurement.
+The source/test tree is clean at `6f916cd5e`; the evidence-only successor
+adds the final design record, v2 receipts, and review patches. The original
+v1 receipts and every referenced fixture hash are unchanged. Root production
+and `~/dev/tsc-rs-dec53` were not edited. The source-level suspicions without
+witnesses remain listed above; these results close the measured 17 failures
+and the three review requests, not all H2.8 research or production admission.
