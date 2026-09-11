@@ -172,12 +172,8 @@ impl LibraryCatalog {
         if matches!(basename, "lib.d.ts" | "lib.es6.d.ts") {
             return 0;
         }
-        let Some(name) = basename
-            .strip_prefix("lib.")
-            .and_then(|name| name.strip_suffix(".d.ts"))
-        else {
-            return typescript_6_0_3_libraries().len() + 2;
-        };
+        let unprefixed = basename.strip_prefix("lib.").unwrap_or(basename);
+        let name = unprefixed.strip_suffix(".d.ts").unwrap_or(unprefixed);
         typescript_6_0_3_libraries()
             .iter()
             .position(|entry| entry.name() == name)

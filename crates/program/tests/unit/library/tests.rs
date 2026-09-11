@@ -2,6 +2,22 @@ use super::{replacement_package_name, LibraryCatalog};
 use tsc_types::CompilerOptions;
 
 #[test]
+fn physical_library_priority_accepts_optional_filename_affixes() {
+    let catalog = LibraryCatalog::typescript_6_0_3("/lib");
+    let directory = crate::ProgramPath::from_trusted_parts("/lib", "/lib").unwrap();
+    // Direct replay of getDefaultLibFilePriority returns 1 for both paths:
+    // removePrefix/removeSuffix leave a nonmatching spelling unchanged.
+    for name in ["/lib/es5.d.ts", "/lib/lib.es5"] {
+        let source = crate::ProgramPath::from_trusted_parts(name, name).unwrap();
+        assert_eq!(
+            catalog.source_file_priority(&source, &directory),
+            1,
+            "{name}"
+        );
+    }
+}
+
+#[test]
 fn resolved_source_priorities_match_typescript_path_boundaries() {
     let artifact: serde_json::Value =
         serde_json::from_slice(include_bytes!("../../fixtures/h2-8b-library-priority.json"))
