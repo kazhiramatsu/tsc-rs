@@ -122,13 +122,18 @@ impl Transformer for StandardDecoratorTransformer {
         }
         let current_root = context.arena().root(source)?;
         let mut visitor = StandardDecoratorVisitor::new(context, source, self.target);
-        let transformed =
-            visitor
-                .visit(current_root.node())?
-                .ok_or(TransformError::RequiredChildRemoved {
-                    parent: SyntaxKind::SourceFile,
-                    field: "root",
-                })?;
+        // tsc-port: visitEachChild(SourceFile) → visitLexicalEnvironment
+        // @6.0.3 — the source file owns the outermost lexical environment;
+        // temporaries hoisted there (named-evaluation keys of undecorated
+        // top-level classes) merge after its prologue directives.
+        visitor.start_lexical_environment();
+        let visited = visitor.visit(current_root.node());
+        let temporaries = visitor.end_lexical_environment();
+        let transformed = visited?.ok_or(TransformError::RequiredChildRemoved {
+            parent: SyntaxKind::SourceFile,
+            field: "root",
+        })?;
+        let transformed = visitor.merge_source_file_environment(transformed, temporaries)?;
         if visitor.should_transform_private_static_elements_in_file {
             let root = TransformNode::new(source, transformed);
             let internal_flags = visitor
@@ -5748,6 +5753,86 @@ impl<'context> StandardDecoratorVisitor<'context> {
         )?))
     }
 
+    /// tsc-port: mergeLexicalEnvironment @6.0.3 for the source file: the
+    /// hoisted `var` statement splices at `leftHoistedFunctionsEnd`, after the
+    /// standard prologue directives and any custom-prologue hoisted function
+    /// declarations of earlier transforms.
+    fn merge_source_file_environment(
+        &mut self,
+        root: NodeId,
+        temporaries: Vec<TargetBinding>,
+    ) -> Result<NodeId, TransformError> {
+        let Some(declaration) = self.create_hoisted_declarations(temporaries)? else {
+            return Ok(root);
+        };
+        let root_node = self.node(root);
+        let NodeData::SourceFile(mut data) = self.context.arena().node(root_node)?.data.clone()
+        else {
+            return Err(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::SourceFile,
+                field: "source file for hoisted temporaries",
+            });
+        };
+        let mut statements = self.array_nodes(data.statements)?;
+        let mut index = 0;
+        while index < statements.len() && self.is_prologue_directive(statements[index])? {
+            index += 1;
+        }
+        while index < statements.len() && self.is_hoisted_function(statements[index])? {
+            index += 1;
+        }
+        statements.insert(index, declaration);
+        let statements = if let Some(original) = data.statements.map(|array| self.array(array)) {
+            self.context
+                .factory()?
+                .update_node_array(original, statements)?
+        } else {
+            self.context
+                .factory()?
+                .create_node_array(self.source, statements)?
+        };
+        data.statements = Some(statements.array());
+        let flags = flags_after_update(
+            self.context.arena(),
+            root_node,
+            &NodeData::SourceFile(data.clone()),
+        )?;
+        Ok(self
+            .context
+            .factory()?
+            .update_node(root_node, NodeData::SourceFile(data), flags)?
+            .node())
+    }
+
+    /// tsc-port: isPrologueDirective @6.0.3
+    fn is_prologue_directive(&self, node: TransformNode) -> Result<bool, TransformError> {
+        let arena = self.context.arena();
+        if let NodeData::ExpressionStatement(data) = &arena.node(node)?.data {
+            if let Some(expression) = data.expression {
+                return Ok(matches!(
+                    arena.node(self.node(expression))?.data,
+                    NodeData::StringLiteral(_)
+                ));
+            }
+        }
+        Ok(false)
+    }
+
+    /// tsc-port: isHoistedFunction @6.0.3 (`isCustomPrologue(node) &&
+    /// isFunctionDeclaration(node)`)
+    fn is_hoisted_function(&self, node: TransformNode) -> Result<bool, TransformError> {
+        let custom_prologue = self
+            .context
+            .arena()
+            .metadata(node)
+            .is_some_and(|metadata| metadata.flags().contains(EmitFlags::CUSTOM_PROLOGUE));
+        Ok(custom_prologue
+            && matches!(
+                self.context.arena().node(node)?.data,
+                NodeData::FunctionDeclaration(_)
+            ))
+    }
+
     /// tsc-port: visitFunctionBody / mergeLexicalEnvironment @6.0.3
     ///
     /// Declares the temporaries hoisted while visiting a block body at the
@@ -6694,26 +6779,26 @@ impl StandardDecoratorVisitor<'_> {
         let mut visited = Vec::with_capacity(nodes.len());
         for member in nodes {
             let member = self.node(member);
-            // Named evaluation of a decorated class initializer with a
-            // literal property name; a non-literal computed name would hoist
-            // into the enclosing lexical environment, which this transform
-            // does not own (open row).
-            if let NodeData::PropertyDeclaration(data) = &self.context.arena().node(member)?.data {
-                if let (Some(name), Some(class)) = (
-                    data.name,
-                    self.anonymous_class_needing_assigned_name(data.initializer)?,
-                ) {
-                    if let Some(text) = self.property_name_literal_text(self.node(name))? {
-                        self.inferred_class_names
-                            .entry(class.node())
-                            .or_insert(text);
-                    }
-                }
-            }
+            let property = match &self.context.arena().node(member)?.data {
+                NodeData::PropertyDeclaration(data) => Some(data.clone()),
+                _ => None,
+            };
             self.enter_receiver_class_element(member)?;
-            let result = self
-                .previsit_class_element_name(member)
-                .and_then(|()| self.visit_class_element_generic(member));
+            // tsc-port: visitPropertyDeclaration @6.0.3 — the named evaluation
+            // of an anonymous decorated class initializer precedes the element
+            // name visit. An undecorated class starts no lexical environment
+            // (`enterClass(undefined)`), so the `__propKey` cache temp hoists
+            // into the innermost enclosing one: the function body
+            // (`visitFunctionBody`) or the source file
+            // (`visitLexicalEnvironment`).
+            let result = match property {
+                Some(data) => self
+                    .prepare_property_named_evaluation(member, &data, false)
+                    .map(|_| ()),
+                None => Ok(()),
+            }
+            .and_then(|()| self.previsit_class_element_name(member))
+            .and_then(|()| self.visit_class_element_generic(member));
             self.exit_receiver_class_element();
             visited.push(result?);
         }
