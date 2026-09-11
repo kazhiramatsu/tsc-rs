@@ -1,0 +1,904 @@
+{
+  "version": 1,
+  "slice": "H2.8b-CFG1c",
+  "option_probe_keys": [
+    "target",
+    "module",
+    "moduleResolution",
+    "ignoreDeprecations",
+    "noLib",
+    "types",
+    "strictPropertyInitialization",
+    "strictNullChecks",
+    "strict",
+    "exactOptionalPropertyTypes",
+    "isolatedModules",
+    "outFile",
+    "verbatimModuleSyntax",
+    "isolatedDeclarations",
+    "allowJs",
+    "declaration",
+    "composite",
+    "sourceMap",
+    "inlineSourceMap",
+    "mapRoot",
+    "inlineSources",
+    "sourceRoot",
+    "declarationMap",
+    "incremental",
+    "declarationDir",
+    "lib",
+    "preserveConstEnums",
+    "emitDeclarationOnly",
+    "resolveJsonModule",
+    "checkJs",
+    "emitDecoratorMetadata",
+    "experimentalDecorators",
+    "jsxFactory",
+    "reactNamespace",
+    "jsx",
+    "jsxFragmentFactory",
+    "jsxImportSource",
+    "allowImportingTsExtensions",
+    "noEmit",
+    "rewriteRelativeImportExtensions",
+    "resolvePackageJsonExports",
+    "resolvePackageJsonImports",
+    "customConditions",
+    "paths"
+  ],
+  "cases": [
+    {
+      "case_id": "h2-8b-config-diagnostics/valid",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[]},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/strict-property",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"strictPropertyInitialization\":true,\"strictNullChecks\":false},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/strict-property-inherited-strict",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"strict\":true,\"strictPropertyInitialization\":true},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/exact-optional",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"exactOptionalPropertyTypes\":true,\"strictNullChecks\":false},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/exact-optional-control",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"exactOptionalPropertyTypes\":true,\"strict\":true},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/isolated-outfile",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"amd\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"isolatedModules\":true,\"outFile\":\"bundle.js\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/verbatim-outfile",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"amd\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"verbatimModuleSyntax\":true,\"outFile\":\"bundle.js\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/both-isolation-precedence",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"system\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"isolatedModules\":true,\"verbatimModuleSyntax\":true,\"outFile\":\"bundle.js\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/isolated-declarations-js",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"isolatedDeclarations\":true,\"allowJs\":true,\"declaration\":true},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/isolated-declarations-missing",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"isolatedDeclarations\":true,\"declaration\":false},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/isolated-declarations-composite",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"isolatedDeclarations\":true,\"composite\":true},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/inline-source-map-pair",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"sourceMap\":true,\"inlineSourceMap\":true},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/inline-map-root-pair",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"mapRoot\":\"maps\",\"inlineSourceMap\":true},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/inline-sources",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"inlineSources\":true},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/inline-sources-control",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"inlineSources\":true,\"sourceMap\":true},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/source-root",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"sourceRoot\":\"src\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/map-root-three-names",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"mapRoot\":\"maps\",\"sourceMap\":false,\"declarationMap\":false},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/composite-no-declaration",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"composite\":true,\"declaration\":false},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/composite-no-incremental",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"composite\":true,\"incremental\":false},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/composite-both-disabled",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"composite\":true,\"declaration\":false,\"incremental\":false},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/config-incremental-valid",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"incremental\":true},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/declaration-dir",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"declarationDir\":\"types\",\"declaration\":false},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/declaration-dir-outfile",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"amd\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"declarationDir\":\"types\",\"outFile\":\"bundle.js\",\"declaration\":true},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/declaration-map",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"declarationMap\":true,\"declaration\":false},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/lib-and-no-lib",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"lib\":[]},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/isolated-none-low-target",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"none\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"isolatedModules\":true},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/isolated-none-es2015",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"none\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"isolatedModules\":true},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/isolated-const-enums",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"isolatedModules\":true,\"preserveConstEnums\":false},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/verbatim-const-enums",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"verbatimModuleSyntax\":true,\"preserveConstEnums\":false},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/outfile-commonjs",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"commonjs\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"outFile\":\"bundle.js\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/outfile-declaration-only",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"commonjs\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"outFile\":\"bundle.d.ts\",\"emitDeclarationOnly\":true,\"declaration\":true},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/json-classic",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"classic\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"resolveJsonModule\":true},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/json-system",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"system\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"resolveJsonModule\":true},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/json-esnext",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"resolveJsonModule\":true},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/check-js-disallowed",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"checkJs\":true,\"allowJs\":false},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/check-js-implies-allow",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"checkJs\":true},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/emit-declaration-only-missing",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"emitDeclarationOnly\":true,\"declaration\":false},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/decorator-metadata-missing",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"emitDecoratorMetadata\":true,\"experimentalDecorators\":false},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/decorator-metadata-valid",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"emitDecoratorMetadata\":true,\"experimentalDecorators\":true},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/jsx-factory-namespace",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"h\",\"reactNamespace\":\"R\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/jsx-factory-runtime",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"h\",\"jsx\":\"react-jsx\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/jsx-factory-invalid",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFactory\":\"h=\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/jsx-namespace-invalid",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"reactNamespace\":\"R.x\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/jsx-fragment-missing",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFragmentFactory\":\"F\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/jsx-fragment-runtime",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFragmentFactory\":\"F\",\"jsxFactory\":\"h\",\"jsx\":\"react-jsxdev\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/jsx-fragment-invalid",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxFragmentFactory\":\"F=\",\"jsxFactory\":\"h\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/jsx-namespace-runtime",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"reactNamespace\":\"R\",\"jsx\":\"react-jsx\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/jsx-import-source-classic",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"jsxImportSource\":\"lib\",\"jsx\":\"react\"},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/verbatim-amd",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"amd\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"verbatimModuleSyntax\":true},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/verbatim-none-control",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"none\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"verbatimModuleSyntax\":true},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/ts-extensions-invalid",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"allowImportingTsExtensions\":true},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/ts-extensions-noemit",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"allowImportingTsExtensions\":true,\"noEmit\":true},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/ts-extensions-declaration-only",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"allowImportingTsExtensions\":true,\"emitDeclarationOnly\":true,\"declaration\":true},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/ts-extensions-rewrite",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"allowImportingTsExtensions\":true,\"rewriteRelativeImportExtensions\":true},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/exports-classic",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"classic\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"resolvePackageJsonExports\":true},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/imports-classic",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"classic\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"resolvePackageJsonImports\":true},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/conditions-empty-classic",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"classic\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"customConditions\":[]},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/package-flags-false",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"resolvePackageJsonExports\":false,\"resolvePackageJsonImports\":false},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/conditions-bundler",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"bundler\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"customConditions\":[\"dev\"]},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/bundler-amd",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"amd\",\"moduleResolution\":\"bundler\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[]},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/node16-classic",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"node16\",\"moduleResolution\":\"classic\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[]},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/node18-classic",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"node18\",\"moduleResolution\":\"classic\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[]},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/node20-classic",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"node20\",\"moduleResolution\":\"classic\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[]},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/nodenext-classic",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"nodenext\",\"moduleResolution\":\"classic\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[]},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/resolution-node16",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node16\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[]},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/resolution-nodenext",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"nodenext\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[]},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/paths-errors",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"paths\":{\"bad**\":[\"bare\",\"x**\",false],\"empty\":[]}},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/invalid-ignore-deprecations",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"5.9\",\"noLib\":true,\"types\":[]},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/multi-diagnostic-order",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"strictNullChecks\":false,\"strictPropertyInitialization\":true,\"inlineSources\":true,\"jsxFactory\":\"h=\",\"emitDecoratorMetadata\":true},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/inherited-no-own",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":\"./base.json\",\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        },
+        {
+          "path": "/project/base.json",
+          "text": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"strictPropertyInitialization\":true,\"strictNullChecks\":false,\"allowImportingTsExtensions\":true}}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/inherited-empty-own",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":\"./base.json\",\"files\":[\"main.d.ts\"],\"compilerOptions\":{}}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        },
+        {
+          "path": "/project/base.json",
+          "text": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"strictPropertyInitialization\":true,\"strictNullChecks\":false,\"allowImportingTsExtensions\":true}}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/inherited-unrelated-own",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":\"./base.json\",\"files\":[\"main.d.ts\"],\"compilerOptions\":{\"strict\":false}}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        },
+        {
+          "path": "/project/base.json",
+          "text": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"strictPropertyInitialization\":true,\"strictNullChecks\":false,\"allowImportingTsExtensions\":true}}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/inherited-one-related-own",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":\"./base.json\",\"files\":[\"main.d.ts\"],\"compilerOptions\":{\"strictNullChecks\":false}}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        },
+        {
+          "path": "/project/base.json",
+          "text": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"strictPropertyInitialization\":true,\"strictNullChecks\":false,\"allowImportingTsExtensions\":true}}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/duplicate-option",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"strictNullChecks\":false,\"strictPropertyInitialization\":false,\"strictPropertyInitialization\":true},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/duplicate-compiler-options",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"strictNullChecks\":false},\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"strictPropertyInitialization\":true,\"strictNullChecks\":false},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostics/astral-before-option",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"note\":\"𐀀\",\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"noLib\":true,\"types\":[],\"allowImportingTsExtensions\":true},\"files\":[\"main.d.ts\"]}",
+      "files": [
+        {
+          "path": "/project/main.d.ts",
+          "text": "declare const witness: number;\n"
+        }
+      ]
+    }
+  ]
+}

@@ -41,3 +41,6 @@ mod typescript_library_catalog_contract;
 
 #[path = "integration/h2_8b_config_discovery.rs"]
 mod h2_8b_config_discovery;
+
+#[path = "integration/h2_8b_config_diagnostics.rs"]
+mod h2_8b_config_diagnostics;
