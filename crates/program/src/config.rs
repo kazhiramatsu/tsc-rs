@@ -2626,7 +2626,7 @@ fn order_config_conversion_and_notifier_diagnostics(
     // runs its option notifier. A compacted list can therefore publish a
     // notifier diagnostic at an earlier AST element than a conversion-time
     // diagnostic which must still precede it. Group diagnostics by the direct
-    // root/compiler-option property and order the two phases explicitly.
+    // root/schema-option property and order the two phases explicitly.
     // This replaces the former adjacent-swap repair, whose inversion count
     // could make a large invalid list quadratic.
     let diagnostic_owners = config_diagnostic_owners(source);
@@ -2668,7 +2668,10 @@ fn config_diagnostic_owners(source: &SourceFile) -> Vec<ConfigLocation> {
         if let Some(owner) = config_property_owner_location(source, &property) {
             owners.push(owner);
         }
-        if property.name == "compilerOptions" {
+        if matches!(
+            property.name.as_str(),
+            "compilerOptions" | "watchOptions" | "typeAcquisition"
+        ) {
             owners.extend(
                 config_object_properties(source, property.initializer)
                     .into_iter()

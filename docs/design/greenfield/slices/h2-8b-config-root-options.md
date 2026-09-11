@@ -18,3 +18,11 @@ sourceと矛盾する手書き期待値は新しい上流観測を根拠とし�
 
 変換はwatch processやtype acquisition processを起動しない。通常one-shotからは変換済みplanを
 受け取り、watch/build製品側へ渡す契約までを確認する。
+
+最初の実装46be4cd4cでは40件中39件、追加境界32件中30件が各2回一致。残り3件は
+watch/typeAcquisitionのchild propertyを診断順序ownerに登録していないため、変換とnotifierの
+順序が入れ替わる。値・診断集合・spanは一致し、既存のowner方式を両schemaにも適用する。
+旧config_root_plan_contractの2つの手書きassertは、watchを文字列/falseで保持しtypeAcquisitionを
+継承するとしていた。凍結40件のwatch-inheritance、watch-false、typeAcquisition継承対照と
+上記sourceに基づき、変換されたwatch値・非継承の取得既定値・rawのfalse/nullを分けて訂正した。
+凍結oracleは変更していない。

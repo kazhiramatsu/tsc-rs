@@ -2419,7 +2419,7 @@ fn root_plan_exposes_effective_file_include_and_exclude_specs() {
 }
 
 #[test]
-fn root_plan_retains_noninherited_references_and_inherited_root_settings() {
+fn root_plan_converts_watch_inheritance_and_keeps_acquisition_defaults() {
     let host = MemoryConfigHost::default()
         .with_file(
             "/project/base.json",
@@ -2436,17 +2436,17 @@ fn root_plan_retains_noninherited_references_and_inherited_root_settings() {
     .expect("root metadata projection");
 
     assert!(plan.references().is_none());
+    assert_eq!(plan.watch_options(), Some(&json!({"watchFile": 4})));
     assert_eq!(
-        plan.watch_options(),
-        Some(&json!({"watchFile": "useFsEvents"}))
+        plan.type_acquisition(),
+        Some(&json!({"enable": false, "include": [], "exclude": []}))
     );
-    assert_eq!(plan.type_acquisition(), Some(&json!({"include": ["jest"]})));
     assert_eq!(plan.compile_on_save(), Some(&json!(true)));
     assert_eq!(plan.raw()["compileOnSave"], json!(true));
 }
 
 #[test]
-fn own_falsey_root_settings_mask_inherited_unsupported_scopes() {
+fn falsey_root_settings_preserve_watch_inheritance_and_raw_values() {
     let host = MemoryConfigHost::default().with_file(
         "/project/base.json",
         r#"{"watchOptions":{"watchFile":"useFsEvents"},"typeAcquisition":{"include":["jest"]},"compileOnSave":true}"#,
@@ -2460,10 +2460,22 @@ fn own_falsey_root_settings_mask_inherited_unsupported_scopes() {
     )
     .expect("falsey own root settings remain observable");
 
-    assert_eq!(plan.watch_options(), Some(&json!(false)));
-    assert_eq!(plan.type_acquisition(), Some(&json!(null)));
+    assert_eq!(plan.watch_options(), Some(&json!({"watchFile": 4})));
+    assert_eq!(plan.raw()["watchOptions"], json!(false));
+    assert_eq!(
+        plan.type_acquisition(),
+        Some(&json!({"enable": false, "include": [], "exclude": []}))
+    );
+    assert_eq!(plan.raw()["typeAcquisition"], json!(null));
     assert_eq!(plan.compile_on_save(), Some(&json!(false)));
-    assert_eq!(plan.unsupported_root_scopes().next(), None);
+    assert_eq!(
+        plan.unsupported_root_scopes().collect::<Vec<_>>(),
+        ["watchOptions"]
+    );
+    assert_eq!(
+        plan.errors().iter().map(|d| d.code()).collect::<Vec<_>>(),
+        [5024]
+    );
 }
 
 #[test]

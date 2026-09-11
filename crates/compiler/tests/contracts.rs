@@ -273,3 +273,6 @@ mod h2_8b_config_diagnostic_commands;
 
 #[path = "integration/h2_8b_config_extension_commands.rs"]
 mod h2_8b_config_extension_commands;
+
+#[path = "integration/h2_8b_config_root_commands.rs"]
+mod h2_8b_config_root_commands;

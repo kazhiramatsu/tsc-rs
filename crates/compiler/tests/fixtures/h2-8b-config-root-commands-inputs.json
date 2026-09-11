@@ -1,0 +1,166 @@
+{
+  "version": 1,
+  "slice": "H2.8b-CFG1d",
+  "cases": [
+    {
+      "case_id": "h2-8b-config-root-commands/watch",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true},\"files\":[\"src/main.ts\"],\"watchOptions\":{\"watchFile\":\"useFsEvents\",\"excludeFiles\":[\"**/generated.ts\"]}}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-commands/acquisition",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true},\"files\":[\"src/main.ts\"],\"typeAcquisition\":{\"enable\":true,\"include\":[\"jest\"]}}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-commands/save",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true},\"files\":[\"src/main.ts\"],\"compileOnSave\":true}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-commands/combined",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true},\"files\":[\"src/main.ts\"],\"watchOptions\":{\"watchFile\":\"useFsEvents\"},\"typeAcquisition\":{\"enable\":true},\"compileOnSave\":true}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-commands/invalid-watch",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true},\"files\":[\"src/main.ts\"],\"watchOptions\":{\"watchFile\":\"wrong\"}}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-commands/invalid-acquisition",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true},\"files\":[\"src/main.ts\"],\"typeAcquisition\":{\"enable\":\"wrong\"}}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-commands/invalid-save",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true},\"files\":[\"src/main.ts\"],\"compileOnSave\":\"wrong\"}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-commands/invalid-no-emit-on-error",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true,\"noEmitOnError\":true},\"files\":[\"src/main.ts\"],\"watchOptions\":{\"watchFile\":\"wrong\"}}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-commands/inherited-watch",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true},\"files\":[\"src/main.ts\"],\"extends\":\"./base.json\"}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/base.json",
+          "text": "{\"watchOptions\":{\"watchFile\":\"useFsEvents\"}}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-commands/inherited-acquisition",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true},\"files\":[\"src/main.ts\"],\"extends\":\"./base.json\"}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/base.json",
+          "text": "{\"typeAcquisition\":{\"enable\":true,\"include\":[\"jest\"]}}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-commands/inherited-save",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true},\"files\":[\"src/main.ts\"],\"extends\":\"./base.json\"}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/base.json",
+          "text": "{\"compileOnSave\":true}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-root-commands/false-watch-with-base",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true},\"files\":[\"src/main.ts\"],\"watchOptions\":false,\"extends\":\"./base.json\"}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/base.json",
+          "text": "{\"watchOptions\":{\"watchFile\":\"useFsEvents\"}}"
+        }
+      ]
+    }
+  ]
+}
