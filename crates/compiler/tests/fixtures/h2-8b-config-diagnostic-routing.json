@@ -1,0 +1,897 @@
+{
+  "version": 1,
+  "status": "Complete upstream observations; native qualification is recorded separately",
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "cf6fa411d997ea1cbcc3f80ef14a5d57f84658c32c220dcb2845d83747bf54fa",
+  "inputs": {
+    "path": "crates/compiler/tests/fixtures/h2-8b-config-diagnostic-routing-inputs.json",
+    "sha256": "08bf7c38780f0d3b1c6652237598d580004319738810d0d99561bd48a5addb2c"
+  },
+  "repetitions": 2,
+  "program_attempts": 16,
+  "program_executions": 16,
+  "exception_attempts": 0,
+  "cases": [
+    {
+      "case_id": "h2-8b-config-diagnostic-routing/direct-class",
+      "roots": [
+        "/project/a.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "export class Foo {\n    foo: string;\n}\n"
+        }
+      ],
+      "options": {
+        "target": 1,
+        "module": 0,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "skipDefaultLibCheck": true
+      },
+      "typescript_observation": {
+        "program_facts": {
+          "source_files": [
+            "/lib/lib.d.ts",
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.es2015.d.ts",
+            "/lib/lib.dom.d.ts",
+            "/lib/lib.webworker.importscripts.d.ts",
+            "/lib/lib.scripthost.d.ts",
+            "/lib/lib.es2015.core.d.ts",
+            "/lib/lib.es2015.collection.d.ts",
+            "/lib/lib.es2015.generator.d.ts",
+            "/lib/lib.es2015.iterable.d.ts",
+            "/lib/lib.es2015.promise.d.ts",
+            "/lib/lib.es2015.proxy.d.ts",
+            "/lib/lib.es2015.reflect.d.ts",
+            "/lib/lib.es2015.symbol.d.ts",
+            "/lib/lib.es2015.symbol.wellknown.d.ts",
+            "/lib/lib.es2018.asynciterable.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts",
+            "/project/a.ts"
+          ],
+          "library_files": [
+            "/lib/lib.d.ts",
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.es2015.d.ts",
+            "/lib/lib.dom.d.ts",
+            "/lib/lib.webworker.importscripts.d.ts",
+            "/lib/lib.scripthost.d.ts",
+            "/lib/lib.es2015.core.d.ts",
+            "/lib/lib.es2015.collection.d.ts",
+            "/lib/lib.es2015.generator.d.ts",
+            "/lib/lib.es2015.iterable.d.ts",
+            "/lib/lib.es2015.promise.d.ts",
+            "/lib/lib.es2015.proxy.d.ts",
+            "/lib/lib.es2015.reflect.d.ts",
+            "/lib/lib.es2015.symbol.d.ts",
+            "/lib/lib.es2015.symbol.wellknown.d.ts",
+            "/lib/lib.es2018.asynciterable.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts"
+          ],
+          "root_names": [
+            "/project/a.ts"
+          ]
+        },
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRm9vID0gdm9pZCAwOw0KdmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgfQ0KICAgIHJldHVybiBGb287DQp9KCkpOw0KZXhwb3J0cy5Gb28gPSBGb287DQo=",
+            "callback_utf8_bytes": 215,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuRm9vID0gdm9pZCAwOw0KdmFyIEZvbyA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsNCiAgICBmdW5jdGlvbiBGb28oKSB7DQogICAgfQ0KICAgIHJldHVybiBGb287DQp9KCkpOw0KZXhwb3J0cy5Gb28gPSBGb287DQo=",
+            "materialized_utf8_bytes": 215,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "h2-8b-config-diagnostic-routing/direct-dts-last",
+      "roots": [
+        "/project/1.ts",
+        "/project/0.d.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/1.ts",
+          "text": "export var j = \"hello\"; // error\n"
+        },
+        {
+          "path": "/project/0.d.ts",
+          "text": "export = a;\ndeclare var a: number;"
+        }
+      ],
+      "options": {
+        "target": 1,
+        "module": 0,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "skipDefaultLibCheck": true
+      },
+      "typescript_observation": {
+        "program_facts": {
+          "source_files": [
+            "/lib/lib.d.ts",
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.es2015.d.ts",
+            "/lib/lib.dom.d.ts",
+            "/lib/lib.webworker.importscripts.d.ts",
+            "/lib/lib.scripthost.d.ts",
+            "/lib/lib.es2015.core.d.ts",
+            "/lib/lib.es2015.collection.d.ts",
+            "/lib/lib.es2015.generator.d.ts",
+            "/lib/lib.es2015.iterable.d.ts",
+            "/lib/lib.es2015.promise.d.ts",
+            "/lib/lib.es2015.proxy.d.ts",
+            "/lib/lib.es2015.reflect.d.ts",
+            "/lib/lib.es2015.symbol.d.ts",
+            "/lib/lib.es2015.symbol.wellknown.d.ts",
+            "/lib/lib.es2018.asynciterable.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts",
+            "/project/1.ts",
+            "/project/0.d.ts"
+          ],
+          "library_files": [
+            "/lib/lib.d.ts",
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.es2015.d.ts",
+            "/lib/lib.dom.d.ts",
+            "/lib/lib.webworker.importscripts.d.ts",
+            "/lib/lib.scripthost.d.ts",
+            "/lib/lib.es2015.core.d.ts",
+            "/lib/lib.es2015.collection.d.ts",
+            "/lib/lib.es2015.generator.d.ts",
+            "/lib/lib.es2015.iterable.d.ts",
+            "/lib/lib.es2015.promise.d.ts",
+            "/lib/lib.es2015.proxy.d.ts",
+            "/lib/lib.es2015.reflect.d.ts",
+            "/lib/lib.es2015.symbol.d.ts",
+            "/lib/lib.es2015.symbol.wellknown.d.ts",
+            "/lib/lib.es2018.asynciterable.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts"
+          ],
+          "root_names": [
+            "/project/1.ts",
+            "/project/0.d.ts"
+          ]
+        },
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/1.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuaiA9IHZvaWQgMDsNCmV4cG9ydHMuaiA9ICJoZWxsbyI7IC8vIGVycm9yDQo=",
+            "callback_utf8_bytes": 131,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuaiA9IHZvaWQgMDsNCmV4cG9ydHMuaiA9ICJoZWxsbyI7IC8vIGVycm9yDQo=",
+            "materialized_utf8_bytes": 131,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/1.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "h2-8b-config-diagnostic-routing/direct-dts-first",
+      "roots": [
+        "/project/0.d.ts",
+        "/project/1.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/0.d.ts",
+          "text": "export = a;\ndeclare var a: number;\n"
+        },
+        {
+          "path": "/project/1.ts",
+          "text": "export var j = \"hello\";  // error\n"
+        }
+      ],
+      "options": {
+        "target": 1,
+        "module": 0,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "skipDefaultLibCheck": true
+      },
+      "typescript_observation": {
+        "program_facts": {
+          "source_files": [
+            "/lib/lib.d.ts",
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.es2015.d.ts",
+            "/lib/lib.dom.d.ts",
+            "/lib/lib.webworker.importscripts.d.ts",
+            "/lib/lib.scripthost.d.ts",
+            "/lib/lib.es2015.core.d.ts",
+            "/lib/lib.es2015.collection.d.ts",
+            "/lib/lib.es2015.generator.d.ts",
+            "/lib/lib.es2015.iterable.d.ts",
+            "/lib/lib.es2015.promise.d.ts",
+            "/lib/lib.es2015.proxy.d.ts",
+            "/lib/lib.es2015.reflect.d.ts",
+            "/lib/lib.es2015.symbol.d.ts",
+            "/lib/lib.es2015.symbol.wellknown.d.ts",
+            "/lib/lib.es2018.asynciterable.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts",
+            "/project/0.d.ts",
+            "/project/1.ts"
+          ],
+          "library_files": [
+            "/lib/lib.d.ts",
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.es2015.d.ts",
+            "/lib/lib.dom.d.ts",
+            "/lib/lib.webworker.importscripts.d.ts",
+            "/lib/lib.scripthost.d.ts",
+            "/lib/lib.es2015.core.d.ts",
+            "/lib/lib.es2015.collection.d.ts",
+            "/lib/lib.es2015.generator.d.ts",
+            "/lib/lib.es2015.iterable.d.ts",
+            "/lib/lib.es2015.promise.d.ts",
+            "/lib/lib.es2015.proxy.d.ts",
+            "/lib/lib.es2015.reflect.d.ts",
+            "/lib/lib.es2015.symbol.d.ts",
+            "/lib/lib.es2015.symbol.wellknown.d.ts",
+            "/lib/lib.es2018.asynciterable.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts"
+          ],
+          "root_names": [
+            "/project/0.d.ts",
+            "/project/1.ts"
+          ]
+        },
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/1.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuaiA9IHZvaWQgMDsNCmV4cG9ydHMuaiA9ICJoZWxsbyI7IC8vIGVycm9yDQo=",
+            "callback_utf8_bytes": 131,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuaiA9IHZvaWQgMDsNCmV4cG9ydHMuaiA9ICJoZWxsbyI7IC8vIGVycm9yDQo=",
+            "materialized_utf8_bytes": 131,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/1.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "h2-8b-config-diagnostic-routing/config-none-deprecated",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"none\",\"moduleResolution\":\"node\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true},\"files\":[\"src/main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "typescript_observation": {
+        "program_facts": {
+          "source_files": [
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts",
+            "/project/src/main.ts"
+          ],
+          "library_files": [
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts"
+          ],
+          "root_names": [
+            "/project/src/main.ts"
+          ]
+        },
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL3NyYy9tYWluLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFhLFFBQUEsS0FBSyxHQUFHLENBQUMsQ0FBQyJ9",
+            "callback_utf8_bytes": 132,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL3NyYy9tYWluLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFhLFFBQUEsS0FBSyxHQUFHLENBQUMsQ0FBQyJ9",
+            "materialized_utf8_bytes": 132,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnZhbHVlID0gdm9pZCAwOwpleHBvcnRzLnZhbHVlID0gMTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 152,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnZhbHVlID0gdm9pZCAwOwpleHBvcnRzLnZhbHVlID0gMTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 152,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 120,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/dist/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vc3JjL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "callback_utf8_bytes": 131,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vc3JjL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "materialized_utf8_bytes": 131,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/dist/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAxOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "callback_utf8_bytes": 66,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAxOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "materialized_utf8_bytes": 66,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": "/project/tsconfig.json",
+            "start": 29,
+            "length": 5,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": "/project/tsconfig.json",
+            "start": 44,
+            "length": 6,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": "/project/tsconfig.json",
+            "start": 70,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/src/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../src/main.ts\"],\"names\":[],\"mappings\":\";;;AAAa,QAAA,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/src/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../src/main.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "h2-8b-config-diagnostic-routing/config-none-semantic",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"none\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true},\"files\":[\"src/main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "typescript_observation": {
+        "program_facts": {
+          "source_files": [
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts",
+            "/project/src/main.ts"
+          ],
+          "library_files": [
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts"
+          ],
+          "root_names": [
+            "/project/src/main.ts"
+          ]
+        },
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL3NyYy9tYWluLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFhLFFBQUEsS0FBSyxHQUFHLENBQUMsQ0FBQyJ9",
+            "callback_utf8_bytes": 132,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL3NyYy9tYWluLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUFhLFFBQUEsS0FBSyxHQUFHLENBQUMsQ0FBQyJ9",
+            "materialized_utf8_bytes": 132,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnZhbHVlID0gdm9pZCAwOwpleHBvcnRzLnZhbHVlID0gMTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 152,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnZhbHVlID0gdm9pZCAwOwpleHBvcnRzLnZhbHVlID0gMTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 152,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 120,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/dist/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vc3JjL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "callback_utf8_bytes": 131,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vc3JjL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "materialized_utf8_bytes": 131,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/dist/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAxOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "callback_utf8_bytes": 66,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAxOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "materialized_utf8_bytes": 66,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 1148,
+            "category": "Error",
+            "file": "/project/src/main.ts",
+            "start": 0,
+            "length": 23,
+            "message": "Cannot use imports, exports, or module augmentations when '--module' is 'none'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/src/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../src/main.ts\"],\"names\":[],\"mappings\":\";;;AAAa,QAAA,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/src/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../src/main.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "h2-8b-config-diagnostic-routing/config-outfile-deprecated",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"moduleResolution\":\"node\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true,\"outFile\":\"dist/bundle.js\"},\"files\":[\"src/main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "typescript_observation": {
+        "program_facts": {
+          "source_files": [
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts",
+            "/project/src/main.ts"
+          ],
+          "library_files": [
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts"
+          ],
+          "root_names": [
+            "/project/src/main.ts"
+          ]
+        },
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": "/project/tsconfig.json",
+            "start": 29,
+            "length": 5,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": "/project/tsconfig.json",
+            "start": 54,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+            "related_information": null
+          },
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": "/project/tsconfig.json",
+            "start": 180,
+            "length": 9,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": []
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "h2-8b-config-diagnostic-routing/config-outfile-semantic",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true,\"outFile\":\"dist/bundle.js\"},\"files\":[\"src/main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "typescript_observation": {
+        "program_facts": {
+          "source_files": [
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts",
+            "/project/src/main.ts"
+          ],
+          "library_files": [
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts"
+          ],
+          "root_names": [
+            "/project/src/main.ts"
+          ]
+        },
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 6131,
+            "category": "Error",
+            "file": "/project/src/main.ts",
+            "start": 0,
+            "length": 23,
+            "message": "Cannot compile modules using option 'outFile' unless the '--module' flag is 'amd' or 'system'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": []
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "h2-8b-config-diagnostic-routing/config-none-deprecated-blocked",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"none\",\"moduleResolution\":\"node\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true,\"noEmitOnError\":true},\"files\":[\"src/main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ],
+      "typescript_observation": {
+        "program_facts": {
+          "source_files": [
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts",
+            "/project/src/main.ts"
+          ],
+          "library_files": [
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts"
+          ],
+          "root_names": [
+            "/project/src/main.ts"
+          ]
+        },
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": "/project/tsconfig.json",
+            "start": 29,
+            "length": 5,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": "/project/tsconfig.json",
+            "start": 44,
+            "length": 6,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": "/project/tsconfig.json",
+            "start": 70,
+            "length": 6,
+            "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+            "related_information": null
+          },
+          {
+            "code": 1148,
+            "category": "Error",
+            "file": "/project/src/main.ts",
+            "start": 0,
+            "length": 23,
+            "message": "Cannot use imports, exports, or module augmentations when '--module' is 'none'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": "/project/tsconfig.json",
+              "start": 29,
+              "length": 5,
+              "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": "/project/tsconfig.json",
+              "start": 44,
+              "length": 6,
+              "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": "/project/tsconfig.json",
+              "start": 70,
+              "length": 6,
+              "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+              "related_information": null
+            },
+            {
+              "code": 1148,
+              "category": "Error",
+              "file": "/project/src/main.ts",
+              "start": 0,
+              "length": 23,
+              "message": "Cannot use imports, exports, or module augmentations when '--module' is 'none'.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    }
+  ],
+  "upstream_failures": []
+}

@@ -1808,8 +1808,13 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         self.program_diagnostics
             .extend(case_sensitive_casing_diagnostics);
         self.propagate_non_external_reachability();
-        let (mut option_diagnostics, root_diagnostics) = self.output_directory_diagnostics();
-        option_diagnostics.extend(self.source_module_option_diagnostics());
+        let (option_diagnostics, root_diagnostics) = self.output_directory_diagnostics();
+        // getOptionsDiagnostics selects only global/config-file rows from
+        // the combined collection (_tsc.js:124024-124036). Source-owned
+        // module constraints instead feed getSemanticDiagnostics, which
+        // command reporting skips after an option/global diagnostic.
+        self.program_diagnostics
+            .extend(self.source_module_option_diagnostics());
         self.program_diagnostics.extend(root_diagnostics);
         let mut library_postorder = self
             .postorder
