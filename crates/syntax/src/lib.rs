@@ -40,7 +40,8 @@ pub use nodes::{
 };
 pub use observable_fields::{for_each_observable_field, ObservableField};
 pub use parser::{
-    is_identifier_text, is_identifier_text_for_target, JSDocParsingMode, ParseOptions,
+    is_entity_name_text, is_identifier_text, is_identifier_text_for_target, JSDocParsingMode,
+    ParseOptions,
 };
 pub use scanner::{
     is_js_whitespace, is_line_break, is_whitespace_like, js_trim_start, scan_big_int_string,

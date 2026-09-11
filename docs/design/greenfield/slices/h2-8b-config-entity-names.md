@@ -12,3 +12,8 @@ CFG1最終source監査でpure option validationの`is_isolated_entity_name`が
 実装はsyntax crateの既存Parserに小さなvalidity projectionを追加し、Programから呼ぶ。
 ASTを返すAPIの新設や別の字句解析器は不要。これはconfig validationの契約であり、
 これらのfactory名を使ったJSX expressionのtransform全組合せの完了は主張しない。
+
+修正前854662417は36件中22一致/14不一致 ×2、実exit101。全14件はコメント/escape/JS whitespaceを
+持つ有効なfactory名への誤ったoption診断。reactNamespaceの4対照と無効値の拒否は一致した。
+観測stdoutのJSONにはU+2028が含まれるため、capture抽出はLFで区切る（Python splitlinesは
+U+2028まで区切る）。native比較の入力・期待値・assert自体は変更せず、72件のcaptureを保持した。

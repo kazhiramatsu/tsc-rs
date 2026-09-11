@@ -7,7 +7,7 @@
 //! fabricating a source location.
 
 use tsc_diagnostics::{gen, sort_and_dedupe_diagnostics, Diagnostic, MessageChain};
-use tsc_syntax::is_identifier_text_for_target;
+use tsc_syntax::{is_entity_name_text, is_identifier_text_for_target};
 use tsc_types::CompilerOptions;
 
 use crate::prepared::{
@@ -542,7 +542,7 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
             violations
                 .push(CompilerOptionViolation::JsxFactoryConflictsWithAutomaticRuntime { jsx });
         }
-        if !is_isolated_entity_name(factory, target) {
+        if !is_entity_name_text(factory, target) {
             violations.push(CompilerOptionViolation::InvalidJsxFactory {
                 value: factory.to_owned(),
             });
@@ -564,7 +564,7 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
                 CompilerOptionViolation::JsxFragmentFactoryConflictsWithAutomaticRuntime { jsx },
             );
         }
-        if !is_isolated_entity_name(fragment_factory, target) {
+        if !is_entity_name_text(fragment_factory, target) {
             violations.push(CompilerOptionViolation::InvalidJsxFragmentFactory {
                 value: fragment_factory.to_owned(),
             });
@@ -791,16 +791,6 @@ fn automatic_jsx_runtime_name(jsx: Option<i32>) -> Option<&'static str> {
         Some(5) => Some("react-jsxdev"),
         _ => None,
     }
-}
-
-fn is_isolated_entity_name(value: &str, target: tsc_types::ScriptTarget) -> bool {
-    let mut parts = value.split('.').map(str::trim);
-    let Some(first) = parts.next() else {
-        return false;
-    };
-    !first.is_empty()
-        && is_identifier_text_for_target(first, target)
-        && parts.all(|part| !part.is_empty() && is_identifier_text_for_target(part, target))
 }
 
 #[cfg(test)]
