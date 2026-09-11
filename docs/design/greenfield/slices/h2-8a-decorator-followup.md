@@ -339,6 +339,67 @@ keeps native decorators): `literal-computed-decorated-field` 1 → 6 exact,
 1 → 6, top-level undecorated (plain, prologue) 2 → 12; everything else was
 already exact and stayed exact.
 
+
+### Acceptance at the candidate head (start-head manifest)
+
+`cargo xtask acceptance` with the handoff's environment, run alone after the
+chain (`target/decorator-followup-runs/acceptance-r1/`,
+[receipt](../../../../ratchets/h2-8a-decorator-followup-acceptance-start-manifest.v1.json),
+log SHA-256 `8cbd50eb08eb…`): conformance band=all 49024/49024 T0 100%
+FP=0 FN=0, H1 and every H2 band through H2.5g report the same counts as the
+hosted run at the start head — H2.5g candidates 9027, exact 8511,
+h2_8a_deferred 6, h2_9_deferred 510, exact_diagnostics 26815, exact_writes 9466 —
+so the three causes changed no H2.5g disposition. The run then stops at
+H2.5h with the pre-existing stale row
+(`typescript-6.0.3/compiler/blockScopedVariablesUseBeforeDef.ts#target%3Des5` is
+exact now), actual exit 1, identical to hosted run 34565157958.
+
+### H2.5h manifest shrink (requested after the acceptance run)
+
+The stale-entry check stops at the first exact row, so the whole current
+divergence set was enumerated once in write mode
+(`TSRS_H2_5H_WRITE_DIVERGENCES=1 cargo xtask h2-5h-acceptance`,
+`target/decorator-followup-runs/h2-5h-shrink-r3/`): candidates 932, exact 860,
+known_diverging 28, deferred 44. Reconciled against the committed manifest
+(`reconcile-h2-5h.py`): 22 rows are exact now, 0 new divergences, 0 rows whose
+divergence fields changed. The committed manifest keeps its 28 remaining rows
+with their owners (`h2-5h-ca-2a-r1/r2/r4`) — the write mode's `UNASSIGNED`
+owners are not used — and the 22 stale rows are deleted (pure deletion, the
+shape of every earlier shrink).
+
+Stale rows: `blockScopedVariablesUseBeforeDef`, `classInConvertedLoopES5`,
+`nestedLoops`, `newLexicalEnvironmentForConvertedLoop`, `classStaticBlock5`,
+`classStaticBlock9`, `typeOfThisInStaticMembers3/4/7/8/9`,
+`staticPropertyNameConflicts` (define false/true), `computedPropertyNames12_ES5`,
+`invalidNewTarget.es5`, `newTarget.es5`, `es6modulekindWithES5Target(2)`,
+`esnextmodulekindWithES5Target(2)` (all `#target=es5`) and the project rows
+`rootDirectoryWithoutOutDir.json#module=amd|commonjs`.
+
+Attribution: the same write-mode enumeration at the start head `2953ecb8a`
+(a detached worktree with its own target directory,
+`target/decorator-followup-runs/h2-5h-start-head-r1/`,
+[receipt](../../../../ratchets/h2-8a-decorator-followup-h2-5h-start-head-attribution.v1.json))
+reports the identical counts (candidates 932, exact 860, known_diverging 28,
+deferred 44) and a byte-identical written manifest (SHA-256 `268b588854be…`
+at both heads). All 22 rows were therefore exact before this branch; the
+three causes changed no H2.5h disposition. The shrink lands here because it
+was requested, as commit `eedbe221d`
+([receipt](../../../../ratchets/h2-8a-decorator-followup-h2-5h-shrink.v1.json));
+it is the same pure deletion PR #512's admission would need, so a later fold
+into that PR merges cleanly.
+
+Observed while shrinking (recorded, not changed): `h2_slice_ratchet_join`
+(H2.5h, H2.6a, H2.6b) returns at the first stale row, the first new
+divergence and the first facet difference, so a run names one row at a time;
+`h2_vector_ratchet_join` (H2.6c, H2.7b) and the repaired H2.5g join collect
+every difference before failing. Aligning the former with the latter is a
+small xtask-only change left for a separate decision.
+
+The hosted acceptance was dispatched manually on the pushed branch
+(run 34578894288, head `eedbe221d`); its result is recorded below when it
+completes.
+
+
 ## Claim boundary and remaining rows
 
 - Claimed: the 48 prepared commands and the 18 top-level commands are exact
@@ -357,6 +418,6 @@ already exact and stayed exact.
   `typescript-6.0.3/compiler/blockScopedVariablesUseBeforeDef.ts#target=es5` is
   exact now and `ratchets/h2-5h-known-divergences.v1.json` must shrink. H2.5g
   and every earlier band passed there (H2.5g candidates 9027, exact 8511,
-  h2_8a_deferred 6, h2_9_deferred 510). That manifest shrink belongs to the
-  repairs that made the row exact (PR #512's own admission), so this branch
-  does not edit it; the local acceptance run below is read against it.
+  h2_8a_deferred 6, h2_9_deferred 510). That staleness predates this branch
+  (attribution above); the shrink was requested afterwards and landed as
+  `eedbe221d` without changing any production byte.
