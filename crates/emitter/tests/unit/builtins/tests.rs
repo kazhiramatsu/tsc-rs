@@ -4330,7 +4330,11 @@ fn using_anonymous_default_decorator_handoff_keeps_owner_and_binding_domains() {
                             "ordinary default_N must not enter the FileLevel domain ({case})",
                         );
                     }
-                    if metadata.generated_binding_is_file_level_optimistic() {
+                    // Decorator helpers also own FileLevel bindings. Inspect the
+                    // anonymous default export's binding without conflating them.
+                    if metadata.generated_binding_is_file_level_optimistic()
+                        && metadata.generated_binding_preferred_base() == Some("_default")
+                    {
                         file_level_identifier.get_or_insert(node);
                         assert_eq!(identifier.text, "_default", "{case}");
                         assert_eq!(
