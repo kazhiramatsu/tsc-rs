@@ -1579,8 +1579,33 @@ struct ParsedConfigNode {
     extended_source_files: Vec<String>,
 }
 
+/// Caller-owned cache of extended configs, matching TypeScript's optional
+/// extendedConfigCache. Reuse retains source snapshots until `clear` is called.
+/// A fresh parse without this object performs every read again.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ConfigExtendedCache {
+    entries: BTreeMap<String, CachedExtendedConfig>,
+}
+
+impl ConfigExtendedCache {
+    pub fn clear(&mut self) {
+        self.entries.clear();
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct CachedExtendedConfig {
+    file_name: String,
+    source: Option<ConfigSourceText>,
+    node: Option<ParsedConfigNode>,
+    // Source parse/read diagnostics replay on a hit; option conversion
+    // diagnostics belong only to the first parse's error collection.
+    read_parse_diagnostics: Vec<Diagnostic>,
+}
+
 struct ParseContext<'a> {
     host: &'a dyn ConfigParseHost,
+    extended_cache: Option<&'a mut ConfigExtendedCache>,
     stack: Vec<String>,
     root_parse_diagnostics: Vec<Diagnostic>,
     errors: Vec<Diagnostic>,
@@ -1611,10 +1636,29 @@ pub fn parse_config_root_plan(
     host: &dyn ConfigParseHost,
     request: ConfigRootPlanRequest,
 ) -> Result<ConfigRootPlan, ConfigParseError> {
+    parse_config_root_plan_inner(host, request, None)
+}
+
+/// Parse with the caller's extended-config cache. The root is always parsed
+/// afresh. Cache hits preserve the first source spelling and conversion result.
+pub fn parse_config_root_plan_with_cache(
+    host: &dyn ConfigParseHost,
+    request: ConfigRootPlanRequest,
+    cache: &mut ConfigExtendedCache,
+) -> Result<ConfigRootPlan, ConfigParseError> {
+    parse_config_root_plan_inner(host, request, Some(cache))
+}
+
+fn parse_config_root_plan_inner(
+    host: &dyn ConfigParseHost,
+    request: ConfigRootPlanRequest,
+    extended_cache: Option<&mut ConfigExtendedCache>,
+) -> Result<ConfigRootPlan, ConfigParseError> {
     let config_file_name = normalized_path(&request.file_name, &request.base_path)?;
     let config_base = directory_name(&config_file_name);
     let mut context = ParseContext {
         host,
+        extended_cache,
         stack: Vec::new(),
         root_parse_diagnostics: Vec::new(),
         errors: Vec::new(),
@@ -2128,7 +2172,88 @@ fn config_value_requests_feature(value: &Value) -> bool {
     }
 }
 
+fn parse_config_source(source: &ConfigSourceText) -> Result<SourceFile, ConfigParseError> {
+    match json_parser_preflight(source.text()) {
+        JsonParserPreflight::Safe => {}
+        JsonParserPreflight::UnsafeSyntax => {
+            return Err(ConfigParseError::new(
+                ConfigParseErrorKind::Unsupported,
+                Some(source.file_name.clone()),
+                "config source uses syntax outside the bounded JSONC grammar",
+            ));
+        }
+        JsonParserPreflight::ResourceLimit => {
+            return Err(ConfigParseError::new(
+                ConfigParseErrorKind::ResourceLimit,
+                Some(source.file_name.clone()),
+                "config JSON nesting exceeds the 256-level parser limit",
+            ));
+        }
+    }
+    Ok(tsc_syntax::parse_json_text_from_snapshot(
+        &source.file_name,
+        Arc::clone(source.snapshot()),
+    ))
+}
+
 impl ParseContext<'_> {
+    fn extended_config(&mut self, path: &str) -> Result<CachedExtendedConfig, ConfigParseError> {
+        let key = canonical_key(path, self.host.use_case_sensitive_file_names());
+        if let Some(entry) = self
+            .extended_cache
+            .as_ref()
+            .and_then(|cache| cache.entries.get(&key))
+            .cloned()
+        {
+            self.errors
+                .extend(entry.read_parse_diagnostics.iter().cloned());
+            return Ok(entry);
+        }
+        let mut entry = CachedExtendedConfig {
+            file_name: path.to_owned(),
+            source: None,
+            node: None,
+            read_parse_diagnostics: Vec::new(),
+        };
+        match self.host.read_file(path) {
+            Ok(Some(text)) => {
+                let source = ConfigSourceText::new(path, text);
+                let parsed = parse_config_source(&source)?;
+                entry.read_parse_diagnostics = parsed.parse_diagnostics.iter().cloned().collect();
+                entry.source = Some(source.clone());
+                entry.node = self.parse_node_from_source(
+                    source,
+                    parsed,
+                    path,
+                    &directory_name(path),
+                    false,
+                )?;
+            }
+            Ok(None) => {
+                entry.read_parse_diagnostics.push(config_diagnostic(
+                    &gen::Cannot_read_file_0,
+                    &[path.to_owned()],
+                    None,
+                ));
+                self.errors
+                    .extend(entry.read_parse_diagnostics.iter().cloned());
+            }
+            Err(error) => {
+                entry.read_parse_diagnostics.push(config_diagnostic(
+                    &gen::Cannot_read_file_0_1,
+                    &[path.to_owned(), error.detail().to_owned()],
+                    None,
+                ));
+                self.errors
+                    .extend(entry.read_parse_diagnostics.iter().cloned());
+            }
+        }
+        if let Some(cache) = &mut self.extended_cache {
+            cache.entries.insert(key, entry.clone());
+        }
+        Ok(entry)
+    }
+
     fn parse_node(
         &mut self,
         source: ConfigSourceText,
@@ -2136,27 +2261,18 @@ impl ParseContext<'_> {
         base_path: &str,
         is_root: bool,
     ) -> Result<Option<ParsedConfigNode>, ConfigParseError> {
-        match json_parser_preflight(source.text()) {
-            JsonParserPreflight::Safe => {}
-            JsonParserPreflight::UnsafeSyntax => {
-                return Err(ConfigParseError::new(
-                    ConfigParseErrorKind::Unsupported,
-                    Some(source.file_name.clone()),
-                    "config source uses syntax outside the bounded JSONC grammar",
-                ));
-            }
-            JsonParserPreflight::ResourceLimit => {
-                return Err(ConfigParseError::new(
-                    ConfigParseErrorKind::ResourceLimit,
-                    Some(source.file_name.clone()),
-                    "config JSON nesting exceeds the 256-level parser limit",
-                ));
-            }
-        }
-        let parsed = tsc_syntax::parse_json_text_from_snapshot(
-            &source.file_name,
-            Arc::clone(source.snapshot()),
-        );
+        let parsed = parse_config_source(&source)?;
+        self.parse_node_from_source(source, parsed, normalized_file_name, base_path, is_root)
+    }
+
+    fn parse_node_from_source(
+        &mut self,
+        source: ConfigSourceText,
+        parsed: SourceFile,
+        normalized_file_name: &str,
+        base_path: &str,
+        is_root: bool,
+    ) -> Result<Option<ParsedConfigNode>, ConfigParseError> {
         if !parsed.parse_diagnostics.is_empty() {
             if is_root {
                 self.root_parse_diagnostics
@@ -2374,36 +2490,16 @@ impl ParseContext<'_> {
         }
         self.errors.extend(own_errors);
         for extended_path in extended_paths.into_iter().flatten() {
-            if seen_source_files.insert(extended_path.clone()) {
-                extended_source_files.push(extended_path.clone());
+            let entry = self.extended_config(&extended_path)?;
+            if seen_source_files.insert(entry.file_name.clone()) {
+                extended_source_files.push(entry.file_name);
             }
-            let text = match self.host.read_file(&extended_path) {
-                Ok(Some(text)) => text,
-                Ok(None) => {
-                    self.errors.push(config_diagnostic(
-                        &gen::Cannot_read_file_0,
-                        std::slice::from_ref(&extended_path),
-                        None,
-                    ));
-                    continue;
+            if let Some(source) = entry.source {
+                if seen_sources.insert(source.file_name.clone()) {
+                    extended_sources.push(source);
                 }
-                Err(error) => {
-                    self.errors.push(config_diagnostic(
-                        &gen::Cannot_read_file_0_1,
-                        &[extended_path.clone(), error.detail().to_owned()],
-                        None,
-                    ));
-                    continue;
-                }
-            };
-            let extended_base = directory_name(&extended_path);
-            let extended_source = ConfigSourceText::new(extended_path.clone(), text);
-            if seen_sources.insert(extended_path.clone()) {
-                extended_sources.push(extended_source.clone());
             }
-            let Some(extended) =
-                self.parse_node(extended_source, &extended_path, &extended_base, false)?
-            else {
+            let Some(extended) = entry.node else {
                 continue;
             };
             inherited_options.extend_from(&extended.options);

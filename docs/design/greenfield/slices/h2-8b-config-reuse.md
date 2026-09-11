@@ -17,3 +17,8 @@ observer事前確認でcacheを9番目に渡してしまい、hitが起きてい
 検出した。8番目へ訂正し、未到達だったdirectory faultと合法trailing commaの入力も訂正。
 初期の未登録試行3ファイルはrun dir/reuse-observer-preflightに保存した。登録する観測は
 正しいsignatureでfresh/cached差とfault到達を確認済み。native結果に合わせた変更ではない。
+
+530794920のnative baselineは18/26一致×2。既存APIにはcache引数が無いため、要求された
+cached caseも全件uncachedとして実行した。8不一致はcache hit、変換診断の重複、case aliasの
+source表記、呼出間変更の保持であり、fresh/host-fault/path/package対照はすべて一致した。
+基準ログと各actualをrun dirのreuse-baselineへ保存した。

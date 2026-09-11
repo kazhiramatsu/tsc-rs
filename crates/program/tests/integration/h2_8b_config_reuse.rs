@@ -5,8 +5,9 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use tsc_diagnostics::{Diagnostic, DiagnosticCategory};
 use tsc_program::{
-    parse_config_root_plan, ConfigHostError, ConfigHostOperation, ConfigOptionBag,
-    ConfigOptionValueState, ConfigParseHost, ConfigRootPlanRequest, ConfigTypedListElement,
+    parse_config_root_plan, parse_config_root_plan_with_cache, ConfigExtendedCache,
+    ConfigHostError, ConfigHostOperation, ConfigOptionBag, ConfigOptionValueState, ConfigParseHost,
+    ConfigRootPlanRequest, ConfigTypedListElement,
 };
 
 fn diagnostic(d: &Diagnostic) -> Value {
@@ -128,6 +129,7 @@ fn observe(case: &Value) -> Value {
         .borrow_mut()
         .insert(host.key(config_path), text.to_owned());
     let mut results = Vec::new();
+    let mut cache = ConfigExtendedCache::default();
     for step in case["steps"].as_array().unwrap() {
         for update in step["updates"].as_array().into_iter().flatten() {
             host.files.borrow_mut().insert(
@@ -136,21 +138,24 @@ fn observe(case: &Value) -> Value {
             );
         }
         host.calls.borrow_mut().clear();
-        // Baseline uses the existing uncached API. Requested cache cases are
-        // still compared and recorded as failures until that API is ported.
-        let plan = parse_config_root_plan(
-            &host,
-            ConfigRootPlanRequest {
-                file_name: config_path.to_owned(),
-                text: text.to_owned(),
-                base_path: Path::new(config_path)
-                    .parent()
-                    .unwrap()
-                    .to_str()
-                    .unwrap()
-                    .to_owned(),
-            },
-        );
+        if step["clear_cache"] == true {
+            cache.clear();
+        }
+        let request = ConfigRootPlanRequest {
+            file_name: config_path.to_owned(),
+            text: text.to_owned(),
+            base_path: Path::new(config_path)
+                .parent()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_owned(),
+        };
+        let plan = if case["cache"] == true {
+            parse_config_root_plan_with_cache(&host, request, &mut cache)
+        } else {
+            parse_config_root_plan(&host, request)
+        };
         let actual = match plan {
             Ok(plan) => {
                 let mut converted = options(plan.options());
