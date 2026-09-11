@@ -1767,12 +1767,12 @@ fn derive_wildcard_directories(
     discovery: &ConfigDiscoveryOptions,
     case_sensitive: bool,
 ) -> Result<Vec<ConfigWildcardDirectory>, ConfigParseError> {
-    // A `files` property disables wildcard discovery.  Otherwise TypeScript
-    // supplies the implicit `**/*` include when `include` is absent.
-    let includes = if config.files.is_some() {
-        Vec::new()
-    } else if let Some(includes) = &config.include {
+    // getWildcardDirectories consumes validated include specs even when
+    // `files` is present. Only the implicit **/* depends on files being absent.
+    let includes = if let Some(includes) = &config.include {
         includes.clone()
+    } else if config.files.is_some() {
+        Vec::new()
     } else {
         vec![ConfigSpec {
             text: "**/*".to_owned(),
