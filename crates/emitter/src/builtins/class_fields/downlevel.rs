@@ -7875,6 +7875,17 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         self.prepend_function_prelude_to_block(block, bindings, Vec::new())
     }
 
+    /// tsc-port: mergeLexicalEnvironment @6.0.3 for the declarations this
+    /// pass hoists into a block (visitFunctionBody, transformConstructorBody):
+    /// the hoisted `var` statement splices at `leftHoistedFunctionsEnd`, after
+    /// the standard prologue directives and the custom-prologue hoisted
+    /// function declarations of earlier passes, and the initialization
+    /// statements (custom prologues) at `leftHoistedVariablesEnd`, after any
+    /// hoisted `var` statement an earlier pass already declared there (the
+    /// decorators pass marks its hoists `CustomPrologue`, as
+    /// endLexicalEnvironment does). The custom prologues splice first, so the
+    /// new `var` statement precedes both the existing hoisted `var`
+    /// statements and the new custom prologues.
     fn prepend_function_prelude_to_block(
         &mut self,
         block: TransformNode,
@@ -7894,16 +7905,29 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             .statements
             .and_then(|array| self.context.arena().node_array_ref(self.source, array));
         let mut statements = self.array_nodes(data.statements)?;
-        let mut insertion = statements
-            .iter()
-            .take_while(|statement| self.is_prologue_statement(**statement).unwrap_or(false))
-            .count();
+        let mut left_directives = 0;
+        while left_directives < statements.len()
+            && self.is_prologue_statement(statements[left_directives])?
+        {
+            left_directives += 1;
+        }
+        let mut left_functions = left_directives;
+        while left_functions < statements.len()
+            && self.is_hoisted_function(statements[left_functions])?
+        {
+            left_functions += 1;
+        }
+        let mut left_variables = left_functions;
+        while left_variables < statements.len()
+            && self.is_hoisted_variable_statement(statements[left_variables])?
+        {
+            left_variables += 1;
+        }
+        statements.splice(left_variables..left_variables, initialization_statements);
         if !bindings.is_empty() {
             let statement = self.create_generated_variable_statement(&bindings)?;
-            statements.insert(insertion, statement);
-            insertion += 1;
+            statements.insert(left_functions, statement);
         }
-        statements.splice(insertion..insertion, initialization_statements);
         let array = if let Some(original) = original_statements {
             self.context
                 .factory()?
@@ -8336,6 +8360,65 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 .node(self.node(expression))
                 .is_ok_and(|node| matches!(node.data, NodeData::StringLiteral(_)))
         }))
+    }
+
+    /// `isCustomPrologue` — `getEmitFlags(node) & EmitFlags.CustomPrologue`.
+    fn is_custom_prologue(&self, statement: TransformNode) -> bool {
+        self.context
+            .arena()
+            .metadata(statement)
+            .is_some_and(|metadata| metadata.flags().contains(EmitFlags::CUSTOM_PROLOGUE))
+    }
+
+    /// tsc-port: isHoistedFunction @6.0.3
+    fn is_hoisted_function(&self, statement: TransformNode) -> Result<bool, TransformError> {
+        Ok(self.is_custom_prologue(statement)
+            && matches!(
+                self.context.arena().node(statement)?.data,
+                NodeData::FunctionDeclaration(_)
+            ))
+    }
+
+    /// tsc-port: isHoistedVariableStatement @6.0.3 — a custom-prologue
+    /// `var` statement whose declarations are bare identifiers.
+    fn is_hoisted_variable_statement(
+        &self,
+        statement: TransformNode,
+    ) -> Result<bool, TransformError> {
+        if !self.is_custom_prologue(statement) {
+            return Ok(false);
+        }
+        let NodeData::VariableStatement(data) = &self.context.arena().node(statement)?.data else {
+            return Ok(false);
+        };
+        let Some(list) = data.declaration_list else {
+            return Ok(false);
+        };
+        let NodeData::VariableDeclarationList(list) =
+            &self.context.arena().node(self.node(list))?.data
+        else {
+            return Ok(false);
+        };
+        for declaration in self.array_nodes(list.declarations)? {
+            let NodeData::VariableDeclaration(declaration) =
+                &self.context.arena().node(declaration)?.data
+            else {
+                return Ok(false);
+            };
+            if declaration.initializer.is_some() {
+                return Ok(false);
+            }
+            let Some(name) = declaration.name else {
+                return Ok(false);
+            };
+            if !matches!(
+                self.context.arena().node(self.node(name))?.data,
+                NodeData::Identifier(_)
+            ) {
+                return Ok(false);
+            }
+        }
+        Ok(true)
     }
 
     fn original_kind(&self, node: TransformNode) -> Option<SyntaxKind> {
