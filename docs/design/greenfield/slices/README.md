@@ -17,6 +17,7 @@ invitation to fill in the answer during implementation.
 
 | Packet | Status | Authorized work |
 | --- | --- | --- |
+| [H2.8b–e design sequence](h2-8b-e-design-plan.md) | Design only; 24 units, first LR1 ready for baseline | Frozen 12-case upstream library-replacement observations and native comparison instructions; no production or profile activation. |
 | [H2.8a retained field and accessor producers](h2-8a-retained-field-producers.md) | A6-39 focused producer prerequisite qualified; H2.8 remains open | 360/454 complete commands exact twice:132 repairs including all127 required,228 unchanged prior positives;94 successor failures retain actual exit101.494 units/451 contracts and1350 declaration reprints pass. |
 | [H2.8a object property output owners](h2-8a-object-property-owners.md) | A6-38 focused printer prerequisite qualified; H2.8 remains open | 128/128 complete commands exact twice: 32 repairs/96 prior positives. All 4 original grammar commands exact twice (1 repair/3 preserved);494 units/451 contracts and 1350 declaration reprints pass. Full global checkpoint remains A37. |
 | [H2.8a ellipsis comment owners](h2-8a-ellipsis-comment-owners.md) | A6-37 focused printer/admission prerequisite qualified; H2.8 remains open | 390/398 complete commands exact twice independently repeated:97 repairs/293 prior positives/8 unchanged outside failures. All144 new and96/32 prior metadata controls exact twice;494 units/451 contracts with1350 declaration reprints pass. |

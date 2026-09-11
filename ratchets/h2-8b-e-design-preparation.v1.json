@@ -1,0 +1,383 @@
+{
+  "version": 1,
+  "kind": "design-and-upstream-observation-only",
+  "recorded_at_utc": "2026-09-11T10:54:11.315388+00:00",
+  "workspace": "/Users/hiramatsu/dev/tsc-rs-h2-8-design",
+  "branch": "design/h2-8b-e-slices",
+  "production_base": {
+    "head": "5134bb0187f9f3f6ac2a0218f8d8e98859cf4fea",
+    "tree": "1e632db73fbcd8e37a6e3c63b03daf57dfbdafdc",
+    "typescript": "6.0.3",
+    "typescript_source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8"
+  },
+  "merged_prs": [
+    {
+      "number": 512,
+      "merge_commit": "720f2d4b9df77f82e472157b9768d6826164e0ee"
+    },
+    {
+      "number": 513,
+      "merge_commit": "9806a4cb967a6b4e4336c2108c2c28edd54813b0",
+      "merged_at": "2026-09-11T10:50:45Z"
+    }
+  ],
+  "candidate_ci": {
+    "run": 34587126551,
+    "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/34587126551",
+    "head": "5134bb0187f9f3f6ac2a0218f8d8e98859cf4fea",
+    "conclusion": "success",
+    "started_at": "2026-09-11T10:01:24Z",
+    "completed_at": "2026-09-11T10:46:57Z",
+    "command": "cargo xtask acceptance",
+    "log_sha256": "854e7af1f902ba5963d8723bac7f8a982faf99edcc9d417438708b54b36ea8bd",
+    "bands": {
+      "H2.5h": [
+        932,
+        860,
+        28,
+        44
+      ],
+      "H2.6a": [
+        177,
+        171,
+        4,
+        2
+      ],
+      "H2.6b": [
+        6,
+        6,
+        0,
+        0
+      ],
+      "H2.6c": [
+        643,
+        631,
+        8,
+        4
+      ],
+      "H2.7b": [
+        1593,
+        1557,
+        0,
+        36
+      ]
+    },
+    "note": "This CI ran the integrated decorator candidate; it did not run the new library baseline."
+  },
+  "environment": {
+    "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+    "python": "3.14.2",
+    "node": "v25.2.1"
+  },
+  "registry": {
+    "path": "docs/design/greenfield/slices/h2-8b-e-design-registry.v1.json",
+    "sha256": "7e3be1a8431101975dab9c4ec361248c775c4e5369a440e2b2531517d4c863aa"
+  },
+  "checks": [
+    {
+      "command": "python3 scripts/check-h2-8-design-plan.py",
+      "exit_code": 0,
+      "result": {
+        "slices": 24,
+        "outline": 23,
+        "ready_for_baseline": [
+          "H2.8b-LR1"
+        ],
+        "runtime_ready": 0,
+        "pinned_files": 134,
+        "source_anchors": 38,
+        "upstream_cases": 12,
+        "upstream_program_executions": 24,
+        "native_executions": 0,
+        "status": "pass"
+      },
+      "log_sha256": "8a021eb5d222366250b541cc9c31a3c62ae9b91d8b0402e496a7ce514b8e76f5"
+    },
+    {
+      "command": "node --check scripts/observe-h2-8b-library-replacement.mjs",
+      "exit_code": 0
+    }
+  ],
+  "negative_checks": [
+    {
+      "name": "cycle",
+      "exit_code": 1,
+      "diagnostic": "FAIL: dependency cycle: H2.8b-LR1"
+    },
+    {
+      "name": "dropped-witness",
+      "exit_code": 1,
+      "diagnostic": "FAIL: witness membership/order mismatch"
+    },
+    {
+      "name": "stale-source",
+      "exit_code": 1,
+      "diagnostic": "FAIL: stale file: crates/compiler/src/cli.rs"
+    },
+    {
+      "name": "runtime-promotion",
+      "exit_code": 1,
+      "diagnostic": "FAIL: unsupported readiness promotion"
+    }
+  ],
+  "upstream_runs": [
+    {
+      "command": "taskpolicy -b nice -n 15 node scripts/observe-h2-8b-library-replacement.mjs library-replacement --write",
+      "exit_code": 0,
+      "log_sha256": "18bef558b9daba23b1532a9f1f1869e69184e578f79042585a55ab24e3114fbd",
+      "cases": [
+        {
+          "case_id": "h2-8b-library-replacement/enabled-package",
+          "attempts": 2,
+          "complete_observations": 2,
+          "exception_observations": 0,
+          "diagnostics": 0,
+          "writes": 4,
+          "exit_code": 0
+        },
+        {
+          "case_id": "h2-8b-library-replacement/disabled-package",
+          "attempts": 2,
+          "complete_observations": 2,
+          "exception_observations": 0,
+          "diagnostics": 0,
+          "writes": 4,
+          "exit_code": 0
+        },
+        {
+          "case_id": "h2-8b-library-replacement/omitted-option",
+          "attempts": 2,
+          "complete_observations": 2,
+          "exception_observations": 0,
+          "diagnostics": 0,
+          "writes": 4,
+          "exit_code": 0
+        },
+        {
+          "case_id": "h2-8b-library-replacement/missing-package-fallback",
+          "attempts": 2,
+          "complete_observations": 2,
+          "exception_observations": 0,
+          "diagnostics": 0,
+          "writes": 4,
+          "exit_code": 0
+        },
+        {
+          "case_id": "h2-8b-library-replacement/duplicate-lib-reference",
+          "attempts": 2,
+          "complete_observations": 2,
+          "exception_observations": 0,
+          "diagnostics": 0,
+          "writes": 4,
+          "exit_code": 0
+        },
+        {
+          "case_id": "h2-8b-library-replacement/config-directory-anchor",
+          "attempts": 2,
+          "complete_observations": 2,
+          "exception_observations": 0,
+          "diagnostics": 2,
+          "writes": 4,
+          "exit_code": 2
+        },
+        {
+          "case_id": "h2-8b-library-replacement/package-subpath",
+          "attempts": 2,
+          "complete_observations": 2,
+          "exception_observations": 0,
+          "diagnostics": 0,
+          "writes": 4,
+          "exit_code": 0
+        },
+        {
+          "case_id": "h2-8b-library-replacement/module-suffixes-isolated",
+          "attempts": 2,
+          "complete_observations": 2,
+          "exception_observations": 0,
+          "diagnostics": 0,
+          "writes": 4,
+          "exit_code": 0
+        },
+        {
+          "case_id": "h2-8b-library-replacement/package-exports-isolated",
+          "attempts": 2,
+          "complete_observations": 2,
+          "exception_observations": 0,
+          "diagnostics": 0,
+          "writes": 4,
+          "exit_code": 0
+        },
+        {
+          "case_id": "h2-8b-library-replacement/root-promoted-to-library",
+          "attempts": 2,
+          "complete_observations": 2,
+          "exception_observations": 0,
+          "diagnostics": 0,
+          "writes": 4,
+          "exit_code": 0
+        },
+        {
+          "case_id": "h2-8b-library-replacement/missing-subpath-fallback",
+          "attempts": 2,
+          "complete_observations": 2,
+          "exception_observations": 0,
+          "diagnostics": 0,
+          "writes": 4,
+          "exit_code": 0
+        },
+        {
+          "case_id": "h2-8b-library-replacement/no-lib-gate",
+          "attempts": 2,
+          "complete_observations": 2,
+          "exception_observations": 0,
+          "diagnostics": 0,
+          "writes": 4,
+          "exit_code": 0
+        }
+      ],
+      "summary": {
+        "destination": "/Users/hiramatsu/dev/tsc-rs-h2-8-design/crates/compiler/tests/fixtures/h2-8b-library-replacement.json",
+        "cases": 12,
+        "upstream_failure_cases": 0,
+        "complete_program_executions": 24,
+        "program_attempts": 24,
+        "exception_attempts": 0,
+        "native_executions": 0,
+        "sha256": "32ee0d8204de1def87d953c685c448467bb9d403080881b7e93c5ca72e48de2d"
+      }
+    },
+    {
+      "command": "taskpolicy -b nice -n 15 node scripts/observe-h2-8b-library-replacement.mjs library-replacement --check",
+      "exit_code": 0,
+      "log_sha256": "18bef558b9daba23b1532a9f1f1869e69184e578f79042585a55ab24e3114fbd",
+      "cases": [
+        {
+          "case_id": "h2-8b-library-replacement/enabled-package",
+          "attempts": 2,
+          "complete_observations": 2,
+          "exception_observations": 0,
+          "diagnostics": 0,
+          "writes": 4,
+          "exit_code": 0
+        },
+        {
+          "case_id": "h2-8b-library-replacement/disabled-package",
+          "attempts": 2,
+          "complete_observations": 2,
+          "exception_observations": 0,
+          "diagnostics": 0,
+          "writes": 4,
+          "exit_code": 0
+        },
+        {
+          "case_id": "h2-8b-library-replacement/omitted-option",
+          "attempts": 2,
+          "complete_observations": 2,
+          "exception_observations": 0,
+          "diagnostics": 0,
+          "writes": 4,
+          "exit_code": 0
+        },
+        {
+          "case_id": "h2-8b-library-replacement/missing-package-fallback",
+          "attempts": 2,
+          "complete_observations": 2,
+          "exception_observations": 0,
+          "diagnostics": 0,
+          "writes": 4,
+          "exit_code": 0
+        },
+        {
+          "case_id": "h2-8b-library-replacement/duplicate-lib-reference",
+          "attempts": 2,
+          "complete_observations": 2,
+          "exception_observations": 0,
+          "diagnostics": 0,
+          "writes": 4,
+          "exit_code": 0
+        },
+        {
+          "case_id": "h2-8b-library-replacement/config-directory-anchor",
+          "attempts": 2,
+          "complete_observations": 2,
+          "exception_observations": 0,
+          "diagnostics": 2,
+          "writes": 4,
+          "exit_code": 2
+        },
+        {
+          "case_id": "h2-8b-library-replacement/package-subpath",
+          "attempts": 2,
+          "complete_observations": 2,
+          "exception_observations": 0,
+          "diagnostics": 0,
+          "writes": 4,
+          "exit_code": 0
+        },
+        {
+          "case_id": "h2-8b-library-replacement/module-suffixes-isolated",
+          "attempts": 2,
+          "complete_observations": 2,
+          "exception_observations": 0,
+          "diagnostics": 0,
+          "writes": 4,
+          "exit_code": 0
+        },
+        {
+          "case_id": "h2-8b-library-replacement/package-exports-isolated",
+          "attempts": 2,
+          "complete_observations": 2,
+          "exception_observations": 0,
+          "diagnostics": 0,
+          "writes": 4,
+          "exit_code": 0
+        },
+        {
+          "case_id": "h2-8b-library-replacement/root-promoted-to-library",
+          "attempts": 2,
+          "complete_observations": 2,
+          "exception_observations": 0,
+          "diagnostics": 0,
+          "writes": 4,
+          "exit_code": 0
+        },
+        {
+          "case_id": "h2-8b-library-replacement/missing-subpath-fallback",
+          "attempts": 2,
+          "complete_observations": 2,
+          "exception_observations": 0,
+          "diagnostics": 0,
+          "writes": 4,
+          "exit_code": 0
+        },
+        {
+          "case_id": "h2-8b-library-replacement/no-lib-gate",
+          "attempts": 2,
+          "complete_observations": 2,
+          "exception_observations": 0,
+          "diagnostics": 0,
+          "writes": 4,
+          "exit_code": 0
+        }
+      ],
+      "summary": {
+        "destination": "/Users/hiramatsu/dev/tsc-rs-h2-8-design/crates/compiler/tests/fixtures/h2-8b-library-replacement.json",
+        "cases": 12,
+        "upstream_failure_cases": 0,
+        "complete_program_executions": 24,
+        "program_attempts": 24,
+        "exception_attempts": 0,
+        "native_executions": 0,
+        "sha256": "32ee0d8204de1def87d953c685c448467bb9d403080881b7e93c5ca72e48de2d"
+      }
+    }
+  ],
+  "native_executions": 0,
+  "production_changes": 0,
+  "profile_activation": false,
+  "limitations": [
+    "23 successor units are outlines with unresolved design questions.",
+    "LR1 is ready for evidence collection only; no runtime-ready slice exists in this design registry.",
+    "Native comparison and its receipt are work for LR1, not performed in this preparation."
+  ]
+}
