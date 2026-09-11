@@ -2849,6 +2849,56 @@ fn ordinary_detached_comment_uses_the_same_relocated_statement_list_contract() {
 }
 
 #[test]
+fn hoisted_exports_leave_detached_comments_for_the_function_declaration() {
+    for module in [ModuleKind::COMMON_JS, ModuleKind::AMD, ModuleKind::UMD] {
+        for (declaration, publication, function) in [
+            (
+                "export default function () {}\n",
+                "exports.default = default_1;",
+                "function default_1()",
+            ),
+            (
+                "export function named() {}\n",
+                "exports.named = named;",
+                "function named()",
+            ),
+        ] {
+            for detached in [false, true] {
+                let header = if detached {
+                    "// detached header\n\n"
+                } else {
+                    ""
+                };
+                let source = format!("{header}// attached function\n{declaration}");
+                let output = transform_and_print_module(&source, module);
+                let publication = output
+                    .find(publication)
+                    .expect("hoisted export publication");
+                let function = output
+                    .find(function)
+                    .expect("retained function declaration");
+                let attached = output
+                    .find("// attached function")
+                    .expect("attached comment");
+                assert_eq!(
+                    output.matches("// attached function").count(),
+                    1,
+                    "{output}"
+                );
+                assert!(publication < attached && attached < function, "{output}");
+                if detached {
+                    assert_eq!(output.matches("// detached header").count(), 1, "{output}");
+                    assert!(
+                        output.find("// detached header").unwrap() < publication,
+                        "{output}"
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn amd_import_re_exports_are_published_at_their_import_source_positions() {
     let output = transform_and_print_module(
         concat!(

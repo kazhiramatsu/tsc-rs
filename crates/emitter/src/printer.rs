@@ -1916,7 +1916,7 @@ impl Printer {
             let detached_resume = self.take_detached_comment_resume_for_node(
                 transformation,
                 &mut pending_detached_comments,
-                original,
+                emitted,
             )?;
             if let Some(detached_resume) = detached_resume {
                 self.emit_leading_comments_for_node_worker(
@@ -14893,12 +14893,21 @@ impl Printer {
         pending: &mut PendingDetachedComments,
         node: TransformNode,
     ) -> Result<Option<CommentResume>, PrinterError> {
-        let comment_range = self.comment_range_for_node(transformation, node)?;
-        let comment_source = comment_range.source();
-        let Some(start) = comment_range.range().start() else {
+        let owner = self.expression_comment_phase_owner_for_node(transformation, node)?;
+        // tsc consumes detachedCommentsInfo only from the leading-comment
+        // phase. A hoisted export can share the declaration's range while
+        // NoComments leaves that phase for the later declaration to visit.
+        if self.options.remove_comments
+            || owner.flags.intersects(EmitFlags::NO_LEADING_COMMENTS)
+            || owner.kind == SyntaxKind::JsxText
+            || !owner.range.range().has_nonempty_extent()
+        {
+            return Ok(None);
+        }
+        let Some(start) = owner.range.range().start() else {
             return Ok(None);
         };
-        Ok(pending.take_for(CommentCursor::new(comment_source, start)))
+        Ok(pending.take_for(CommentCursor::new(owner.range.source(), start)))
     }
 
     fn emit_trailing_comments_for_node(

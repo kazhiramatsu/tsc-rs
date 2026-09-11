@@ -854,3 +854,55 @@ change (exit 0, log SHA-256
 method calls/tags, assignments/updates, destructuring setter wrappers and
 comment ownership. The complete H2.5b projection is checked separately in
 `target/dec-next-runs/pr-private-receiver-r1/`.
+
+### PR admission design: detached prefix consumption by hoisted exports
+
+Hosted `34558385633` at `8aa39f277` passed through H2.5f. H2.5g index 1700,
+`exportDefaultDuplicateCrash.ts#default`, duplicated the source header
+`// #38214` before the anonymous default function (614 bytes instead of 603).
+The header had already been emitted before the import helper. The historical
+complete TypeScript observation remains unchanged; the diagnostic count and
+exit code are part of the required comparison, even for this invalid program.
+
+Before editing production, the reachable source/Rust/witness map is:
+
+| Upstream source in pinned `_tsc.js` | Current Rust gap and implementation step | Validation |
+| --- | --- | --- |
+| `appendExportsOfHoistedDeclaration` 111722–111742 and `createExportStatement` 111791–111804 position the hoisted assignment at the declaration, with `NoComments` | `materialize_hoisted_declaration_exports` already has the correct range and flags; preserve this transform owner | Original H2.5g index 1700, plus named/anonymous function controls |
+| `emitLeadingCommentsOfNode` 121006–121035 calls the leading phase only for an eligible range without `NoLeadingComments`; `forEachLeadingCommentWithoutDetachedComments` 121241–121257 consumes the detached state only when that phase runs | `take_detached_comment_resume_for_node` currently consumes solely on matching position, even when the emitted node suppresses the phase. Check the emitted node's comment range and flags before taking the pending resume | Detached header followed by attached function comment, across CommonJS/AMD/UMD |
+| `getCommentRange` uses current emit metadata, independently of semantic original provenance | Source-file statement dispatch currently passes `original` to the pending-resume lookup. Pass the emitted node, as the relocated block route already does | Attached-only controls retain the declaration comment, including a named export |
+
+The change belongs in `printer.rs` and its existing local
+`PendingDetachedComments` protocol. Architecture `E-COMMENT-SCOPE-H` and
+`E-COMMENT-PHASES-A36` retain immutable container scope and transform metadata
+ownership; the detached-consumption subpath is `modified-requalify` for this
+candidate. No transform flags, lexical receiver context, generated bindings,
+map ranges, statement order or printer-global state change. A suppressed
+hoisted assignment leaves the pending resume available; the first eligible
+statement at the same comment boundary consumes it once. Nonmatching and
+synthetic boundaries retain the pending state. Range/flag eligibility follows
+the existing ordinary leading-comment phase.
+
+Readiness is bounded to these three reachable rows: the module transform is
+already exact, the two printer gaps map to the named implementation steps,
+and the original frozen command plus adjacent controls cover the transition.
+There are no unresolved owners in this repair. Validate the source spans and
+fixture identity before implementation, then run the original complete command
+twice and focused detached-comment controls; requalify the existing decorator
+126/530 commands after the final printer change. Historical v2 and earlier PR
+receipts keep their recorded heads. The lightweight CI remains hosted
+`cargo xtask acceptance`.
+
+Detached-prefix repair validation (`target/dec-next-runs/pr-detached-export-r1/`):
+three emitter unit tests pass, including the new 12-condition
+CommonJS/AMD/UMD named/anonymous, detached/attached matrix (exit 0, log SHA-256
+`39f072fde5f0c58c5920aa816e41d7480c03fc28900992aa68391e7314361f34`).
+Eight existing detached-comment emitter contracts pass (exit 0, log SHA-256
+`510dbe70befc087bade57eebb6d9775fcf1169a61aeffd41345af2c9f628101f`).
+The original `exportDefaultDuplicateCrash.ts` command and adjacent
+`exportDefaultAsyncFunction.ts` and `exportDefaultInterfaceAndFunctionOverloads.ts`
+commands match their unchanged complete observations twice (exit 0, log SHA-256
+`623a465b194e85e5fc81d365b32d6415e3a27023f7641978b5f045e5d2cf8ac0`).
+Prelaunch source/fixture hashes, candidate diff, actual exits and archived test
+binaries are retained in that run directory. Final 126/530 measurements and
+hosted acceptance still determine the candidate's landing status.
