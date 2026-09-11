@@ -2,6 +2,34 @@ use super::{replacement_package_name, LibraryCatalog};
 use tsc_types::CompilerOptions;
 
 #[test]
+fn resolved_source_priorities_match_typescript_path_boundaries() {
+    let artifact: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../../fixtures/h2-8b-library-priority.json"))
+            .expect("frozen upstream library priorities");
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    let cases = artifact["cases"].as_array().expect("priority cases");
+    assert_eq!(cases.len(), 15);
+    let path = |text: &str| {
+        crate::ProgramPath::from_trusted_parts(text, tsc_host::to_file_name_lower_case(text))
+            .expect("normalized witness path")
+    };
+    for case in cases {
+        let directory = path(case["directory"].as_str().unwrap());
+        let source = path(case["file"].as_str().unwrap());
+        let catalog = LibraryCatalog::typescript_6_0_3(directory.display());
+        for _ in 0..2 {
+            assert_eq!(
+                catalog.source_file_priority(&source, &directory),
+                case["priority"].as_u64().unwrap() as usize,
+                "{}",
+                case["case_id"],
+            );
+        }
+    }
+}
+
+#[test]
 fn typescript_6_0_3_catalog_pins_aliases_counts_and_target_defaults() {
     let catalog = LibraryCatalog::typescript_6_0_3("/vendor/lib");
     assert_eq!(catalog.logical_entry_count(), 107);

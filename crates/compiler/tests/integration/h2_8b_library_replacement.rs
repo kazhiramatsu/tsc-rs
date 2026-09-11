@@ -26,6 +26,27 @@ fn library_replacement_matches_program_membership() {
     assert_cases_with_inspection(&frozen_observations(), true, inspect_program_facts);
 }
 
+fn order_observations() -> Value {
+    let artifact: Value =
+        serde_json::from_slice(include_bytes!("../fixtures/h2-8b-library-order.json"))
+            .expect("frozen library order observations");
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    assert_eq!(artifact["cases"].as_array().expect("cases").len(), 6);
+    assert_eq!(artifact["upstream_failures"], json!([]));
+    artifact
+}
+
+#[test]
+fn library_order_controls_match_complete_typescript_observations() {
+    assert_cases_with_inspection(&order_observations(), true, record_attempt);
+}
+
+#[test]
+fn library_order_controls_match_program_membership() {
+    assert_cases_with_inspection(&order_observations(), true, inspect_program_facts);
+}
+
 fn record_attempt(case_id: &str, _: &PreparedProgram, _: &Value) {
     eprintln!(
         "H2.8b-LR1 {}",

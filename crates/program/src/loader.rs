@@ -1724,7 +1724,10 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     0,
                     DiscoveryReason::dependency(SourceInclusionReason::Library),
                     SourceClass::Library {
-                        priority: catalog.file_name_priority(file_name),
+                        priority: catalog.source_file_priority(
+                            &path,
+                            self.library_directory.as_ref().expect("library directory"),
+                        ),
                         replacement: path.canonical() != catalog_path.canonical(),
                     },
                 )?
@@ -2566,7 +2569,10 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 node_modules_depth,
                 DiscoveryReason::dependency(SourceInclusionReason::Library),
                 SourceClass::Library {
-                    priority: catalog.file_name_priority(file_name),
+                    priority: catalog.source_file_priority(
+                        &target,
+                        self.library_directory.as_ref().expect("library directory"),
+                    ),
                     replacement: target.canonical() != catalog_path.canonical(),
                 },
             )? {

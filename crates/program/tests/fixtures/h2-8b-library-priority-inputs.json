@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "case_id": "priority-01",
+      "directory": "/lib",
+      "file": "/lib/lib.es5.d.ts"
+    },
+    {
+      "case_id": "priority-02",
+      "directory": "/lib",
+      "file": "/lib/nested/lib.dom.d.ts"
+    },
+    {
+      "case_id": "priority-03",
+      "directory": "/lib",
+      "file": "/other/lib.es5.d.ts"
+    },
+    {
+      "case_id": "priority-04",
+      "directory": "/lib",
+      "file": "/lib-extra/lib.es5.d.ts"
+    },
+    {
+      "case_id": "priority-05",
+      "directory": "/lib",
+      "file": "/Lib/lib.es5.d.ts"
+    },
+    {
+      "case_id": "priority-06",
+      "directory": "/lib",
+      "file": "/lib/LIB.es5.d.ts"
+    },
+    {
+      "case_id": "priority-07",
+      "directory": "/lib",
+      "file": "/lib/lib.unknown.d.ts"
+    },
+    {
+      "case_id": "priority-08",
+      "directory": "/lib",
+      "file": "/lib/lib.d.ts"
+    },
+    {
+      "case_id": "priority-09",
+      "directory": "/lib",
+      "file": "/lib/lib.es6.d.ts"
+    },
+    {
+      "case_id": "priority-10",
+      "directory": "/",
+      "file": "/lib.es5.d.ts"
+    },
+    {
+      "case_id": "priority-11",
+      "directory": "C:/lib",
+      "file": "c:/lib/lib.es5.d.ts"
+    },
+    {
+      "case_id": "priority-12",
+      "directory": "C:/lib",
+      "file": "c:/Lib/lib.es5.d.ts"
+    },
+    {
+      "case_id": "priority-13",
+      "directory": "//server/share/lib",
+      "file": "//SERVER/share/lib/lib.dom.d.ts"
+    },
+    {
+      "case_id": "priority-14",
+      "directory": "//server/share/lib",
+      "file": "//server/Share/lib/lib.dom.d.ts"
+    },
+    {
+      "case_id": "priority-15",
+      "directory": "file:///c:/lib",
+      "file": "file:///C:/lib/lib.es5.d.ts"
+    }
+  ]
+}

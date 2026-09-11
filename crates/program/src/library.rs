@@ -4,6 +4,8 @@ use tsc_host::to_file_name_lower_case;
 use tsc_types::CompilerOptions;
 
 use crate::config_options::{typescript_6_0_3_libraries, typescript_6_0_3_library_value};
+use crate::module_resolution::normalized_root_parts;
+use crate::path::ProgramPath;
 
 /// Translate one catalog basename into the package request used by
 /// TypeScript's library-replacement resolver.
@@ -129,14 +131,44 @@ impl LibraryCatalog {
         }
     }
 
-    /// Return the stable default-library order for a logical catalog
-    /// basename, independently of the physical file selected by lib
-    /// replacement.
+    /// Rank the resolved source's display path, including replacement files.
+    /// Both paths have already been normalized by the Program loader.
     ///
     /// tsc-port: getDefaultLibFilePriority @6.0.3
     /// tsc-hash: 76ba34e95562034f7cf2bde179f09ddac57adf36e403e26a589c8575d3759ae5
     /// tsc-span: _tsc.js:123124-123138
-    pub(crate) fn file_name_priority(&self, basename: &str) -> usize {
+    pub(crate) fn source_file_priority(
+        &self,
+        source: &ProgramPath,
+        default_library_directory: &ProgramPath,
+    ) -> usize {
+        let source = source.display().to_str().expect("Unicode source path");
+        let directory = default_library_directory
+            .display()
+            .to_str()
+            .expect("Unicode library directory");
+        let (source_root, source_tail) =
+            normalized_root_parts(source).expect("normalized source path is rooted");
+        let (directory_root, directory_tail) =
+            normalized_root_parts(directory).expect("normalized library directory is rooted");
+        // containsPath(..., false) still compares the root without case;
+        // subsequent components use the display spelling, not the host key.
+        let same_root = source_root == directory_root
+            || source_root.to_uppercase() == directory_root.to_uppercase();
+        let mut source_components = source_tail.split('/').filter(|part| !part.is_empty());
+        let contained = same_root
+            && directory_tail
+                .split('/')
+                .filter(|part| !part.is_empty())
+                .all(|part| source_components.next() == Some(part));
+        if !contained {
+            return self.logical_entry_count() + 2;
+        }
+        self.file_name_priority(source.rsplit('/').next().expect("source basename"))
+    }
+
+    /// Rank a basename after confirming it lies inside the library directory.
+    fn file_name_priority(&self, basename: &str) -> usize {
         if matches!(basename, "lib.d.ts" | "lib.es6.d.ts") {
             return 0;
         }
