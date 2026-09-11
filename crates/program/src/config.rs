@@ -3134,13 +3134,21 @@ fn option_relationship_diagnostics(
     let parsed =
         tsc_syntax::parse_json_text_from_snapshot(&source.file_name, Arc::clone(source.snapshot()));
     let compiler_properties = config_compiler_option_properties(&parsed);
-    // Relationship diagnostics whose option is absent are compiler-level
-    // rows in TypeScript, not diagnostics attached to the compilerOptions
-    // object. Property-backed rows still use their exact value/key span.
-    let no_fallback = None;
+    // createCompilerOptionsDiagnostic falls back to the root compilerOptions
+    // property name when an effective (possibly inherited) option is absent.
+    let fallback = config_property(&parsed, "compilerOptions")
+        .and_then(|property| config_location(&parsed, property.name_node));
     let projected = CompilerOptions {
         allow_js: config_option_bool(options, "allowJs")
             .unwrap_or_else(|| config_option_bool(options, "checkJs").unwrap_or(false)),
+        check_js: config_option_bool(options, "checkJs"),
+        isolated_modules: config_option_bool(options, "isolatedModules"),
+        verbatim_module_syntax: config_option_bool(options, "verbatimModuleSyntax"),
+        preserve_const_enums: config_option_bool(options, "preserveConstEnums"),
+        incremental: config_option_bool(options, "incremental"),
+        emit_decorator_metadata: config_option_bool(options, "emitDecoratorMetadata"),
+        experimental_decorators: config_option_bool(options, "experimentalDecorators")
+            == Some(true),
         target: config_option_i32(options, "target"),
         module: config_option_i32(options, "module"),
         module_resolution: config_option_i32(options, "moduleResolution"),
@@ -3177,7 +3185,7 @@ fn option_relationship_diagnostics(
             &mut diagnostics,
             &parsed,
             &compiler_properties,
-            &no_fallback,
+            &fallback,
             &violation,
         );
     }
@@ -3187,7 +3195,7 @@ fn option_relationship_diagnostics(
             &mut diagnostics,
             &parsed,
             &compiler_properties,
-            &no_fallback,
+            &fallback,
             "moduleResolution",
             false,
             &gen::Option_0_can_only_be_used_when_module_is_set_to_preserve_commonjs_or_es2015_or_later,
@@ -3205,7 +3213,7 @@ fn option_relationship_diagnostics(
             &mut diagnostics,
             &parsed,
             &compiler_properties,
-            &no_fallback,
+            &fallback,
             "module",
             false,
             &gen::Option_module_must_be_set_to_0_when_option_moduleResolution_is_set_to_1,
@@ -3218,7 +3226,13 @@ fn option_relationship_diagnostics(
         && options.typed_value("moduleResolution").is_some()
         && !(3..=99).contains(&module_resolution)
     {
-        let module_kind_name = if module_kind == 199 {
+        let module_kind_name = match module_kind {
+            101 => "Node18",
+            102 => "Node20",
+            199 => "NodeNext",
+            _ => "Node16",
+        };
+        let resolution_name = if module_kind == 199 {
             "NodeNext"
         } else {
             "Node16"
@@ -3227,12 +3241,12 @@ fn option_relationship_diagnostics(
             &mut diagnostics,
             &parsed,
             &compiler_properties,
-            &no_fallback,
+            &fallback,
             "moduleResolution",
             false,
             &gen::Option_moduleResolution_must_be_set_to_0_or_left_unspecified_when_option_module_is_set_to_1,
             &[
-                module_kind_name.to_owned(),
+                resolution_name.to_owned(),
                 module_kind_name.to_owned(),
             ],
         );
@@ -3246,7 +3260,7 @@ fn option_relationship_diagnostics(
                     &mut diagnostics,
                     &parsed,
                     &compiler_properties,
-                    &no_fallback,
+                    &fallback,
                     name,
                     true,
                     &gen::Option_0_can_only_be_used_when_moduleResolution_is_set_to_node16_nodenext_or_bundler,
@@ -3262,7 +3276,7 @@ fn option_relationship_diagnostics(
                 &mut diagnostics,
                 &parsed,
                 &compiler_properties,
-                &no_fallback,
+                &fallback,
                 "customConditions",
                 true,
                 &gen::Option_0_can_only_be_used_when_moduleResolution_is_set_to_node16_nodenext_or_bundler,
@@ -3272,13 +3286,13 @@ fn option_relationship_diagnostics(
     }
 
     if config_option_bool(options, "verbatimModuleSyntax") == Some(true)
-        && matches!(module_kind, 0 | 2..=4)
+        && matches!(module_kind, 2..=4)
     {
         emit_option_diagnostic_for_properties(
             &mut diagnostics,
             &parsed,
             &compiler_properties,
-            &no_fallback,
+            &fallback,
             "verbatimModuleSyntax",
             true,
             &gen::Option_verbatimModuleSyntax_cannot_be_used_when_module_is_set_to_UMD_AMD_or_System,
@@ -3288,15 +3302,16 @@ fn option_relationship_diagnostics(
 
     if config_option_bool(options, "allowImportingTsExtensions") == Some(true)
         && config_option_bool(options, "noEmit") != Some(true)
+        && config_option_bool(options, "emitDeclarationOnly") != Some(true)
         && config_option_bool(options, "rewriteRelativeImportExtensions") != Some(true)
     {
         emit_option_diagnostic_for_properties(
             &mut diagnostics,
             &parsed,
             &compiler_properties,
-            &no_fallback,
+            &fallback,
             "allowImportingTsExtensions",
-            true,
+            false,
             &gen::Option_allowImportingTsExtensions_can_only_be_used_when_one_of_noEmit_emitDeclarationOnly_or_rewriteRelativeImportExtensions_is_set,
             &[],
         );
@@ -3345,7 +3360,8 @@ fn config_compiler_option_properties(source: &SourceFile) -> Vec<ConfigPropertyN
     };
     config_object_properties(source, root)
         .into_iter()
-        .filter(|property| property.name == "compilerOptions")
+        .find(|property| property.name == "compilerOptions")
+        .into_iter()
         .flat_map(|property| config_object_properties(source, property.initializer))
         .collect()
 }

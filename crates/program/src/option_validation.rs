@@ -32,6 +32,13 @@ pub enum CompilerOptionValidationLocation {
 pub enum CompilerOptionViolation {
     StrictPropertyInitializationRequiresStrictNullChecks,
     ExactOptionalPropertyTypesRequiresStrictNullChecks,
+    OutFileConflictsWithIsolation { verbatim: bool },
+    CompositeRequiresDeclaration,
+    CompositeRequiresIncremental,
+    IsolatedModulesRequiresModuleOrEs2015,
+    PreserveConstEnumsRequiredByIsolation { verbatim: bool },
+    CheckJsRequiresAllowJs,
+    DecoratorMetadataRequiresExperimentalDecorators,
     IsolatedDeclarationsConflictsWithAllowJs,
     IsolatedDeclarationsRequiresDeclaration,
     EmitDeclarationOnlyRequiresDeclaration,
@@ -63,6 +70,28 @@ impl CompilerOptionViolation {
     /// same relationship at every matching property in source order.
     pub const fn option_names(&self) -> &'static [&'static str] {
         match self {
+            Self::OutFileConflictsWithIsolation { verbatim: true } => {
+                &["outFile", "verbatimModuleSyntax"]
+            }
+            Self::OutFileConflictsWithIsolation { verbatim: false } => {
+                &["outFile", "isolatedModules"]
+            }
+            // verifyCompilerOptions deliberately locates the incremental
+            // violation on declaration as well (_tsc.js:124783).
+            Self::CompositeRequiresDeclaration | Self::CompositeRequiresIncremental => {
+                &["declaration"]
+            }
+            Self::IsolatedModulesRequiresModuleOrEs2015 => &["isolatedModules", "target"],
+            Self::PreserveConstEnumsRequiredByIsolation { verbatim: true } => {
+                &["verbatimModuleSyntax", "preserveConstEnums"]
+            }
+            Self::PreserveConstEnumsRequiredByIsolation { verbatim: false } => {
+                &["isolatedModules", "preserveConstEnums"]
+            }
+            Self::CheckJsRequiresAllowJs => &["checkJs", "allowJs"],
+            Self::DecoratorMetadataRequiresExperimentalDecorators => {
+                &["emitDecoratorMetadata", "experimentalDecorators"]
+            }
             Self::StrictPropertyInitializationRequiresStrictNullChecks => {
                 &["strictPropertyInitialization", "strictNullChecks"]
             }
@@ -91,9 +120,9 @@ impl CompilerOptionViolation {
             Self::JsxImportSourceConflictsWithClassicRuntime => &["jsxImportSource"],
             Self::InlineSourcesRequiresSourceMap => &["inlineSources"],
             Self::SourceRootRequiresSourceMap => &["sourceRoot"],
-            Self::MapRootConflictsWithInlineSourceMap => &["mapRoot"],
-            Self::SourceMapConflictsWithInlineSourceMap => &["sourceMap"],
-            Self::MapRootRequiresSourceMapOrDeclarationMap => &["mapRoot"],
+            Self::MapRootConflictsWithInlineSourceMap => &["mapRoot", "inlineSourceMap"],
+            Self::SourceMapConflictsWithInlineSourceMap => &["sourceMap", "inlineSourceMap"],
+            Self::MapRootRequiresSourceMapOrDeclarationMap => &["mapRoot", "sourceMap"],
         }
     }
 
@@ -108,6 +137,27 @@ impl CompilerOptionViolation {
 
     pub fn message(&self) -> MessageChain {
         match self {
+            Self::OutFileConflictsWithIsolation { verbatim } => MessageChain::new(
+                &gen::Option_0_cannot_be_specified_with_option_1,
+                &["outFile".to_owned(), if *verbatim { "verbatimModuleSyntax" } else { "isolatedModules" }.to_owned()],
+            ),
+            Self::CompositeRequiresDeclaration => MessageChain::new(&gen::Composite_projects_may_not_disable_declaration_emit, &[]),
+            Self::CompositeRequiresIncremental => MessageChain::new(&gen::Composite_projects_may_not_disable_incremental_compilation, &[]),
+            Self::IsolatedModulesRequiresModuleOrEs2015 => MessageChain::new(
+                &gen::Option_isolatedModules_can_only_be_used_when_either_option_module_is_provided_or_option_target_is_ES2015_or_higher, &[],
+            ),
+            Self::PreserveConstEnumsRequiredByIsolation { verbatim } => MessageChain::new(
+                &gen::Option_preserveConstEnums_cannot_be_disabled_when_0_is_enabled,
+                &[if *verbatim { "verbatimModuleSyntax" } else { "isolatedModules" }.to_owned()],
+            ),
+            Self::CheckJsRequiresAllowJs => MessageChain::new(
+                &gen::Option_0_cannot_be_specified_without_specifying_option_1,
+                &["checkJs".to_owned(), "allowJs".to_owned()],
+            ),
+            Self::DecoratorMetadataRequiresExperimentalDecorators => MessageChain::new(
+                &gen::Option_0_cannot_be_specified_without_specifying_option_1,
+                &["emitDecoratorMetadata".to_owned(), "experimentalDecorators".to_owned()],
+            ),
             Self::StrictPropertyInitializationRequiresStrictNullChecks => MessageChain::new(
                 &gen::Option_0_cannot_be_specified_without_specifying_option_1,
                 &[
@@ -268,6 +318,16 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
         violations
             .push(CompilerOptionViolation::ExactOptionalPropertyTypesRequiresStrictNullChecks);
     }
+    let verbatim = options.verbatim_module_syntax == Some(true);
+    let isolated = options.isolated_modules == Some(true);
+    if (isolated || verbatim)
+        && options
+            .out_file
+            .as_deref()
+            .is_some_and(|path| !path.is_empty())
+    {
+        violations.push(CompilerOptionViolation::OutFileConflictsWithIsolation { verbatim });
+    }
     if options.isolated_declarations == Some(true) {
         if options.allow_js {
             violations.push(CompilerOptionViolation::IsolatedDeclarationsConflictsWithAllowJs);
@@ -298,6 +358,14 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
         }
         if map_root {
             violations.push(CompilerOptionViolation::MapRootConflictsWithInlineSourceMap);
+        }
+    }
+    if options.composite == Some(true) {
+        if options.declaration == Some(false) {
+            violations.push(CompilerOptionViolation::CompositeRequiresDeclaration);
+        }
+        if options.incremental == Some(false) {
+            violations.push(CompilerOptionViolation::CompositeRequiresIncremental);
         }
     }
     if !source_map && !inline_source_map {
@@ -334,6 +402,15 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
     {
         violations.push(CompilerOptionViolation::DeclarationMapRequiresDeclaration);
     }
+    if isolated || verbatim {
+        if isolated && options.module == Some(0) && options.emit_script_target() < 2 {
+            violations.push(CompilerOptionViolation::IsolatedModulesRequiresModuleOrEs2015);
+        }
+        if options.preserve_const_enums == Some(false) {
+            violations
+                .push(CompilerOptionViolation::PreserveConstEnumsRequiredByIsolation { verbatim });
+        }
+    }
     // verifyCompilerOptions (:124891-124894) tests the raw module option,
     // including JavaScript falsiness of None=0. An absent module instead
     // belongs to the source-dependent TS6131 branch, not this relation.
@@ -359,6 +436,9 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
             violations.push(CompilerOptionViolation::ResolveJsonModuleConflictsWithModule);
         }
     }
+    if options.check_js == Some(true) && !options.allow_js {
+        violations.push(CompilerOptionViolation::CheckJsRequiresAllowJs);
+    }
     if options.emit_declaration_only == Some(true)
         && options.declaration != Some(true)
         && options.composite != Some(true)
@@ -366,6 +446,9 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
         violations.push(CompilerOptionViolation::EmitDeclarationOnlyRequiresDeclaration);
     }
 
+    if options.emit_decorator_metadata == Some(true) && !options.experimental_decorators {
+        violations.push(CompilerOptionViolation::DecoratorMetadataRequiresExperimentalDecorators);
+    }
     let target = options.emit_script_target();
     let jsx_factory = options
         .jsx_factory
