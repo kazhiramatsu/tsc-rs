@@ -3764,6 +3764,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
     /// tsc-port: visitClassStaticBlockDeclaration @6.0.3
     /// tsc-hash: 5ba6f2d5e5b218a418e3ca67a6714022b5a77e460c16e042d950b765f0a6504a
     /// tsc-span: _tsc.js:100005-100040
+    ///
+    /// Each pending static initializer becomes its own statement, and the
+    /// statement takes the initializer's source map range
+    /// (`setSourceMapRange(initializerStatement, getSourceMapRange(initializer))`,
+    /// also in transformClassLike's trailing block, _tsc.js:99502-99510): a
+    /// method extra-initializer run carries the class name's range on both
+    /// the call and the statement, so the printer maps the end of the
+    /// statement after its semicolon as well as the end of the call.
     fn materialize_pending_initializer_statements(
         &mut self,
         pending: PendingDecoratorInitializerBatch,
@@ -3771,9 +3779,34 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let expressions = self.materialize_pending_initializer_expressions(pending)?;
         let mut statements = Vec::with_capacity(expressions.len());
         for expression in expressions {
-            statements.push(self.create_expression_statement(expression)?);
+            let statement = self.create_expression_statement(expression)?;
+            let statement = self.copy_source_map_range(statement, expression)?;
+            statements.push(statement);
         }
         Ok(statements)
+    }
+
+    /// `setSourceMapRange(node, getSourceMapRange(source))` for a synthesized
+    /// `source`: only an explicitly set range is copied (a synthesized node
+    /// without one yields a negative position upstream, which the printer
+    /// ignores), so the node stays unmapped otherwise.
+    fn copy_source_map_range(
+        &mut self,
+        node: TransformNode,
+        source: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let range = self
+            .context
+            .arena()
+            .metadata(source)
+            .and_then(crate::EmitMetadata::source_map_range);
+        if let Some(range) = range {
+            self.context
+                .arena_mut()?
+                .metadata_mut(node)
+                .set_source_map_range(range);
+        }
+        Ok(node)
     }
 
     /// tsc-port: prepareConstructor @6.0.3
