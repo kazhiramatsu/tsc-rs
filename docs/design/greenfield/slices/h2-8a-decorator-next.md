@@ -691,3 +691,37 @@ v1 receipts and every referenced fixture hash are unchanged. Root production
 and `~/dev/tsc-rs-dec53` were not edited. The source-level suspicions without
 witnesses remain listed above; these results close the measured 17 failures
 and the three review requests, not all H2.8 research or production admission.
+
+## PR admission follow-up
+
+PR #512 compares the pending H2 train with main; the final integration target
+is still being confirmed. `20be5c767` only formats the source/test candidate.
+The current schedule's header explicitly selects focused verification plus
+the existing hosted acceptance and omits the historical certificate walk and
+full developer CI. Both local and hosted merge CI therefore run exactly
+`cargo xtask acceptance` with the workflow's two-worker environment.
+
+The first local run (`target/dec-next-runs/pr-acceptance-r1/`, exit 1) and
+hosted run `34552670526` fail at the same original H2.1a input,
+`commentsAfterSpread.ts#default`, after 7,691 diagnostic cases pass with
+49,024/49,024 matches and FP/FN zero. That historical row still expects a
+typed refusal although H2.8a's existing ellipsis/comment owners now emit it.
+Its two TypeScript observations already contain the complete original output.
+
+Acceptance-owner correction:
+`crates/xtask/src/h2_1a_acceptance.rs` may register this exact historical case
+and fingerprint as an H2.8a source promotion, execute the existing full
+observable comparator twice, and require the original diagnostics, callback
+bytes/metadata, emit result, exit, and runtime activity. The old 295-row
+qualification and all its input/expected bytes stay immutable. Promotion
+counts are separate from the historical categories, every registered row
+must execute, and all other unpromoted rows retain their typed-refusal gate.
+An emitted result alone cannot pass this promotion. No compiler behavior or
+case-name-dependent production path is changed by this acceptance correction.
+`cargo xtask acceptance-slice h2-1a` now passes all 295 historical rows
+(`target/dec-next-runs/pr-h2-1a-promotion-r1/run.log`, exit 0, SHA-256
+`010430804d73d291e104559acc772c1a19cb2b642894c1f8867f0a7d750326a4`).
+The additional source promotion matches twice with one write and zero
+diagnostics; the old 246 directly exact / 49 source-deferred categories and
+their existing counts remain unchanged. The complete acceptance command is
+still required before reporting the PR gate as passing.

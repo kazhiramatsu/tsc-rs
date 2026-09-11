@@ -70,6 +70,37 @@ static CURRENT_EXACT_DIAGNOSTIC_PROMOTIONS: &[CurrentExactDiagnosticPromotion] =
     },
 ];
 
+// H2.8a source repairs measured against the unchanged historical input and
+// both complete TypeScript observations. Keep the old qualification immutable.
+static CURRENT_EXACT_SOURCE_PROMOTIONS: &[(&str, &str)] = &[(
+    "typescript-6.0.3/compiler/commentsAfterSpread.ts#default",
+    "3f5e9e8bd16bab126774402dea7896f6391aaa67bb4f1952b48811ac3ca1f879",
+)];
+
+fn current_exact_source_promotion(case: &Value) -> Result<bool, Box<dyn Error>> {
+    let case_id = string(case, "case_id")?;
+    let Some((_, fingerprint)) = CURRENT_EXACT_SOURCE_PROMOTIONS
+        .iter()
+        .find(|(id, _)| *id == case_id)
+    else {
+        return Ok(false);
+    };
+    let observations = array(case, "typescript_runs")?;
+    if case["case_fingerprint_sha256"] != *fingerprint
+        || case["disposition"] != "deferred-to-slices"
+        || case["required_slices"] != json!(["H2.8a"])
+        || case["diagnostic_disposition"]["state"] != "not-observed-source-deferred"
+        || case["rust_expectation"] != "typed-failure-before-first-sink-write"
+        || observations.len() != 2
+        || observations[0] != observations[1]
+    {
+        return Err(failure(format!(
+            "{case_id}: current exact source promotion identity changed"
+        )));
+    }
+    Ok(true)
+}
+
 fn failure(message: impl Into<String>) -> Box<dyn Error> {
     std::io::Error::other(message.into()).into()
 }
@@ -343,6 +374,7 @@ enum DiagnosticExpectation {
     Exact,
     HistoricalBaseControl,
     CurrentExactPromotion,
+    CurrentExactSourcePromotion,
 }
 
 impl DiagnosticExpectation {
@@ -393,6 +425,14 @@ fn execute_observed(
             if current_exact_diagnostic_promotion(case)?.is_none() {
                 return Err(failure(format!(
                     "{case_id}: exact diagnostic promotion is not recorded"
+                )));
+            }
+            assert_reported_diagnostics(case_id, expected_reported, &first_reported)?;
+        }
+        DiagnosticExpectation::CurrentExactSourcePromotion => {
+            if !current_exact_source_promotion(case)? {
+                return Err(failure(format!(
+                    "{case_id}: exact source promotion is not recorded"
                 )));
             }
             assert_reported_diagnostics(case_id, expected_reported, &first_reported)?;
@@ -698,6 +738,9 @@ pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
     let mut writes = 0;
     let mut control_writes = 0;
     let mut diagnostics = 0;
+    let mut source_promotions = 0;
+    let mut source_promotion_writes = 0;
+    let mut source_promotion_diagnostics = 0;
     for case in cases {
         match string(case, "disposition")? {
             "admitted-for-execution" => {
@@ -745,7 +788,18 @@ pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
                     && !crate::h2_2d_acceptance::promotes_historical_case(case, h2_2d_cases)?
                     && !promoted_to_h2_4b(case, h2_4b_cases)?
                 {
-                    execute_deferred(workspace, case)?;
+                    if current_exact_source_promotion(case)? {
+                        let (case_writes, case_diagnostics) = execute_observed(
+                            workspace,
+                            case,
+                            DiagnosticExpectation::CurrentExactSourcePromotion,
+                        )?;
+                        source_promotions += 1;
+                        source_promotion_writes += case_writes;
+                        source_promotion_diagnostics += case_diagnostics;
+                    } else {
+                        execute_deferred(workspace, case)?;
+                    }
                 }
             }
             disposition => return Err(failure(format!("unknown H2.1a disposition {disposition}"))),
@@ -757,6 +811,7 @@ pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
         || writes != 256
         || control_writes != 0
         || diagnostics != 704
+        || source_promotions != CURRENT_EXACT_SOURCE_PROMOTIONS.len()
     {
         return Err(failure(format!(
             "H2.1a execution totals differ: admitted={admitted} output_controls={output_controls} source_deferred={source_deferred} writes={writes} control_writes={control_writes} diagnostics={diagnostics}"
@@ -764,6 +819,9 @@ pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
     }
     println!(
         "H2.1a emit acceptance: candidates=295 exact={admitted} diagnostic_controls={output_controls} source_deferred={source_deferred} exact_diagnostics={diagnostics} exact_writes={writes} control_writes={control_writes} repetitions=2"
+    );
+    println!(
+        "H2.1a current H2.8a source promotions: exact={source_promotions} writes={source_promotion_writes} diagnostics={source_promotion_diagnostics}; historical denominator unchanged; repetitions=2"
     );
     Ok(())
 }
