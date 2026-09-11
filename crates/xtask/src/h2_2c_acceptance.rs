@@ -2284,8 +2284,17 @@ pub fn run_h2_5g(workspace: &Path) -> Result<(), Box<dyn Error>> {
             .map_err(|error| format!("H2.5g case index {index}: {error}"))
     })?;
     let mut totals = H2_5gCaseTotals::default();
+    let mut failures = Vec::new();
     for result in results {
-        totals.add_assign(result.map_err(failure)?);
+        match result {
+            Ok(result) => totals.add_assign(result),
+            Err(error) => failures.push(error),
+        }
+    }
+    // The ordered pipeline has already executed every case. Preserve all
+    // failures so another full run is not needed just to reveal the next one.
+    if !failures.is_empty() {
+        return Err(failure(failures.join("\n")));
     }
     let H2_5gCaseTotals {
         admitted,
