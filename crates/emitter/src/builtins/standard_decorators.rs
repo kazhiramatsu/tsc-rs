@@ -5768,6 +5768,15 @@ impl<'context> StandardDecoratorVisitor<'context> {
 
     /// `var` declaration for the temporaries an environment hoisted, in
     /// declaration order.
+    ///
+    /// tsc-port: hoistVariableDeclaration / endLexicalEnvironment @6.0.3 —
+    /// each declaration carries `NoNestedSourceMaps` and the statement
+    /// `CustomPrologue`, whichever environment (source file, function body,
+    /// class IIFE, property-initializer IIFE) declares it. Later passes read
+    /// the flag: the CommonJS/AMD/UMD/System transforms copy the statement as
+    /// a custom prologue before the `__esModule` marker and the export
+    /// pre-initializers, and class-fields' `mergeLexicalEnvironment` places
+    /// its own custom-prologue statements after it (`leftHoistedVariablesEnd`).
     fn create_hoisted_declarations(
         &mut self,
         temporaries: Vec<TargetBinding>,
@@ -5778,12 +5787,20 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let mut declarations = Vec::with_capacity(temporaries.len());
         for binding in &temporaries {
             let identifier = self.create_binding_identifier(binding)?;
-            declarations.push(self.create_variable_declaration_with_name(identifier, None)?);
+            let declaration = self.create_variable_declaration_with_name(identifier, None)?;
+            self.context
+                .arena_mut()?
+                .metadata_mut(declaration)
+                .add_flags(EmitFlags::NO_NESTED_SOURCE_MAPS);
+            declarations.push(declaration);
         }
-        Ok(Some(self.create_variable_statement_from_declarations(
-            declarations,
-            NodeFlags::NONE,
-        )?))
+        let statement =
+            self.create_variable_statement_from_declarations(declarations, NodeFlags::NONE)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(statement)
+            .add_flags(EmitFlags::CUSTOM_PROLOGUE);
+        Ok(Some(statement))
     }
 
     /// tsc-port: mergeLexicalEnvironment @6.0.3 for the source file: the
