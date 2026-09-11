@@ -727,31 +727,34 @@ fn external_module_error_span(source: &SourceFile, id: NodeId) -> (u32, u32) {
         NodeData::TypeAliasDeclaration(data) => data.name,
         _ => Some(id),
     };
-    let (start, end) = if node.kind == SyntaxKind::SourceFile || error_node.is_none() {
-        let position = if node.kind == SyntaxKind::SourceFile {
-            0
-        } else {
-            node.pos as usize
-        };
-        match tsc_syntax::scan_byte_tokens(&source.text()[position..], source.language_variant)
-            .next()
-        {
-            Some(token) => (
-                position + token.start as usize,
-                position + token.end as usize,
-            ),
-            None => (0, 0),
+    let (start, end) = match error_node {
+        Some(error_node) if node.kind != SyntaxKind::SourceFile => {
+            let node = source.arena.node(error_node);
+            (
+                if node.pos == node.end {
+                    node.pos as usize
+                } else {
+                    skip_trivia(source.text(), node.pos as usize)
+                },
+                node.end as usize,
+            )
         }
-    } else {
-        let node = source.arena.node(error_node.expect("name or indicator"));
-        (
-            if node.pos == node.end {
-                node.pos as usize
+        _ => {
+            let position = if node.kind == SyntaxKind::SourceFile {
+                0
             } else {
-                skip_trivia(source.text(), node.pos as usize)
-            },
-            node.end as usize,
-        )
+                node.pos as usize
+            };
+            match tsc_syntax::scan_byte_tokens(&source.text()[position..], source.language_variant)
+                .next()
+            {
+                Some(token) => (
+                    position + token.start as usize,
+                    position + token.end as usize,
+                ),
+                None => (0, 0),
+            }
+        }
     };
     let start_utf16 = byte_to_utf16_offset(source.text(), start);
     (
