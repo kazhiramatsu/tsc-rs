@@ -971,3 +971,103 @@ The workflow comment now describes the current local entrypoint
 (`cargo xtask acceptance` plus focused editing checks); executable CI steps and
 required checks are unchanged. No chain walk or historical certificate refresh
 is part of this repair.
+
+### PR admission: retire 22 stale H2.5h divergence entries
+
+Hosted run `34565157958` at `2953ecb8a` passed all 9,027 H2.5g candidates:
+8,511 exact twice, 6 H2.8a-deferred and 510 H2.9-deferred, with 26,815 exact
+diagnostics and 9,466 exact writes. The four repaired commands pass in hosted
+execution. The next H2.5h stage stopped because an already-exact command was
+still registered as a known divergence.
+
+The existing `h2_slice_ratchet_join` rule requires exact rows to be unlisted;
+`h2-7b-m-2.md` records the same current-manifest shrink procedure for this lane.
+No compiler or comparison code changes are needed. The frozen TypeScript
+qualification and its 932/888/44 denominators remain unchanged. Observation at
+the actual worktree path (`pr-h2-5h-shrink-r2`) executes the original commands
+twice and reports 860 exact, 28 diverging and 44 deferred. Compared with the
+50-row manifest, exactly 22 rows are now exact; there is no added divergence
+and no changed facet among the 28 survivors. Preserve every surviving row and
+owner byte-for-byte as JSON values, and remove only the 22 exact rows below.
+
+An alternate-path symlink view (`pr-h2-5h-shrink-r1`) produced diagnostic
+mismatches even for the hosted-exact command, so none of that observation was
+adopted. The second observation uses the real worktree path and the same
+archived xtask binary. It snapshots the active manifest and restores the
+original bytes before review. Writer-mode exit 0 is observation evidence,
+not normal acceptance; the updated hosted gate must still pass.
+
+Observation log SHA-256:
+`165329b5dd9e692fc70c159d8281faebd867e4a10c587602c62484c76b8215b2`.
+The tracked current-shrink receipt contains the before/after manifest hashes,
+all 22 case IDs, source hashes and actual executed-binary hash. This is a
+current acceptance exception-list contraction, not historical qualification or
+certificate regeneration.
+
+- `typescript-6.0.3/compiler/blockScopedVariablesUseBeforeDef.ts#target%3Des5`
+- `typescript-6.0.3/compiler/classInConvertedLoopES5.ts#target%3Des5`
+- `typescript-6.0.3/compiler/nestedLoops.ts#target%3Des5`
+- `typescript-6.0.3/compiler/newLexicalEnvironmentForConvertedLoop.ts#target%3Des5`
+- `typescript-6.0.3/conformance/classes/classStaticBlock/classStaticBlock5.ts#target%3Des5`
+- `typescript-6.0.3/conformance/classes/classStaticBlock/classStaticBlock9.ts#target%3Des5`
+- `typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers3.ts#target%3Des5`
+- `typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers4.ts#target%3Des5`
+- `typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers7.ts#target%3Des5`
+- `typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers8.ts#target%3Des5`
+- `typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers9.ts#target%3Des5`
+- `typescript-6.0.3/conformance/classes/propertyMemberDeclarations/staticPropertyNameConflicts.ts#target%3Des5%2Cusedefineforclassfields%3Dfalse`
+- `typescript-6.0.3/conformance/classes/propertyMemberDeclarations/staticPropertyNameConflicts.ts#target%3Des5%2Cusedefineforclassfields%3Dtrue`
+- `typescript-6.0.3/conformance/es6/computedProperties/computedPropertyNames12_ES5.ts#target%3Des5`
+- `typescript-6.0.3/conformance/es6/newTarget/invalidNewTarget.es5.ts#target%3Des5`
+- `typescript-6.0.3/conformance/es6/newTarget/newTarget.es5.ts#target%3Des5`
+- `typescript-6.0.3/conformance/externalModules/es6/es6modulekindWithES5Target.ts#target%3Des5`
+- `typescript-6.0.3/conformance/externalModules/es6/es6modulekindWithES5Target2.ts#target%3Des5`
+- `typescript-6.0.3/conformance/externalModules/esnext/esnextmodulekindWithES5Target.ts#target%3Des5`
+- `typescript-6.0.3/conformance/externalModules/esnext/esnextmodulekindWithES5Target2.ts#target%3Des5`
+- `typescript-6.0.3/project/rootDirectoryWithoutOutDir.json#module%3Damd`
+- `typescript-6.0.3/project/rootDirectoryWithoutOutDir.json#module%3Dcommonjs`
+
+### Final compiler regression snapshot after the four H2.5g repairs
+
+At `2953ecb8a8817c623a361a73c8db24780f7945ca`, both normal compiler tests
+exit 0: all 126 decorator-next witnesses and all 530 retained-accessor commands
+match their unchanged complete TypeScript tuples twice. Full62 comparison is
+changed 0 / missing 0 / extra 0, with no inconsistent repeats. The two tests
+use the same archived binary, SHA-256
+`3dd9b7f06c359cfc12d5bf6c2cbacf48a70d5fb8edae3cd2d3bbb2f4b23584c6`.
+All nine recorded production files, fixtures and test sources are unchanged
+after execution. No further compiler source edit accompanies the H2.5h
+manifest contraction.
+
+- [126 receipt](../../../../ratchets/h2-8a-decorator-next-pr-witnesses.v4.json):
+  252 captures; log SHA-256
+  `405b093d76354a9fd21f705e3006ea7aac3cd6c47e70b3daf54b6eda2380ff0d`.
+- [530 receipt](../../../../ratchets/h2-8a-decorator-next-pr-full530.v2.json):
+  1,060 captures; log SHA-256
+  `63e996212fc310a024c37bc73e6400ef34ab590fb0ca9224be0fa3b1aafae04c`.
+- [Full62 comparison](../../../../ratchets/h2-8a-decorator-next-pr-full530-full62.v2.json)
+  also binds the archived reference captures and their per-file manifest.
+- [Four-command and owner-suite receipt](../../../../ratchets/h2-8a-decorator-next-pr-admission-four.v1.json)
+  retains the pre-commit head plus exact source diff, actual exits and binaries;
+  its production bytes match the committed candidate.
+- [Hosted H2.5g receipt](../../../../ratchets/h2-8a-decorator-next-pr-hosted-h2-5g.v1.json)
+  records the full H2.5g pass and the subsequent H2.5h stale-manifest failure;
+  it is not a passing receipt for the whole hosted gate.
+
+The 530 run paused while the follow-up worktree was building, then resumed
+with one test thread at nice 19 when the cross-worktree wait became prolonged.
+`pr-final-full530-r3/coordination-events.jsonl` records those adjustments;
+wall-clock duration is not a performance claim. Raw evidence remains in
+`target/dec-next-runs/pr-final-witnesses-r4/` and `pr-final-full530-r3/`.
+Receipt versions retain their measured heads and are not relabelled after
+later manifest/documentation commits.
+
+The subsequent existing-manifest lanes were checked normally before publishing
+this data-only batch. H2.6a exits 0 (177 candidates: 171 exact twice, 4 unchanged
+known divergences, 2 deferred); H2.6c exits 0 (643 candidates: 631 exact twice,
+8 unchanged known divergences, 4 deferred). Their original qualification and
+manifest hashes are unchanged after execution. The
+[current map-projection receipt](../../../../ratchets/h2-8a-decorator-next-pr-map-projections.v1.json)
+binds both normal commands, their real exits, input hashes and the archived
+xtask binary. No H2.6 manifest is edited. H2.5h normal acceptance is left to the
+next fixed hosted gate; observation-mode success is not substituted for it.
