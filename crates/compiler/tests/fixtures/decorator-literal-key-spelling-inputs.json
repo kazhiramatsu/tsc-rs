@@ -1,0 +1,1350 @@
+{
+  "version": 1,
+  "description": "A6-41 spelling owners of numeric and no-substitution-template computed keys of decorated members (createStringLiteralFromNode's textSourceNode, getLiteralTextOfNode): decimal/hex/separator numerics, plain and escaped templates, the escaped string control, a template-keyed method and its substitution-template control; ES2015/ES2022/ESNext x set/define. TypeScript observations do not imply Rust qualification.",
+  "cases": [
+    {
+      "case_id": "decorator-literal-key-spelling/es2015/esnext/set/field-numeric-decimal",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [16] = 1;\n        @dec static [16] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/es2015/esnext/define/field-numeric-decimal",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [16] = 1;\n        @dec static [16] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/es2022/esnext/set/field-numeric-decimal",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [16] = 1;\n        @dec static [16] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/es2022/esnext/define/field-numeric-decimal",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [16] = 1;\n        @dec static [16] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/esnext/esnext/set/field-numeric-decimal",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [16] = 1;\n        @dec static [16] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/esnext/esnext/define/field-numeric-decimal",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [16] = 1;\n        @dec static [16] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/es2015/esnext/set/field-numeric-hex",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [0x10] = 1;\n        @dec static [0x10] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/es2015/esnext/define/field-numeric-hex",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [0x10] = 1;\n        @dec static [0x10] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/es2022/esnext/set/field-numeric-hex",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [0x10] = 1;\n        @dec static [0x10] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/es2022/esnext/define/field-numeric-hex",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [0x10] = 1;\n        @dec static [0x10] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/esnext/esnext/set/field-numeric-hex",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [0x10] = 1;\n        @dec static [0x10] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/esnext/esnext/define/field-numeric-hex",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [0x10] = 1;\n        @dec static [0x10] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/es2015/esnext/set/field-numeric-separator",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [1_000] = 1;\n        @dec static [1_000] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/es2015/esnext/define/field-numeric-separator",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [1_000] = 1;\n        @dec static [1_000] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/es2022/esnext/set/field-numeric-separator",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [1_000] = 1;\n        @dec static [1_000] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/es2022/esnext/define/field-numeric-separator",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [1_000] = 1;\n        @dec static [1_000] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/esnext/esnext/set/field-numeric-separator",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [1_000] = 1;\n        @dec static [1_000] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/esnext/esnext/define/field-numeric-separator",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [1_000] = 1;\n        @dec static [1_000] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/es2015/esnext/set/field-template-plain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [`x`] = 1;\n        @dec static [`x`] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/es2015/esnext/define/field-template-plain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [`x`] = 1;\n        @dec static [`x`] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/es2022/esnext/set/field-template-plain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [`x`] = 1;\n        @dec static [`x`] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/es2022/esnext/define/field-template-plain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [`x`] = 1;\n        @dec static [`x`] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/esnext/esnext/set/field-template-plain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [`x`] = 1;\n        @dec static [`x`] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/esnext/esnext/define/field-template-plain",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [`x`] = 1;\n        @dec static [`x`] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/es2015/esnext/set/field-template-escaped",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [`x\\u0061`] = 1;\n        @dec static [`x\\u0061`] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/es2015/esnext/define/field-template-escaped",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [`x\\u0061`] = 1;\n        @dec static [`x\\u0061`] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/es2022/esnext/set/field-template-escaped",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [`x\\u0061`] = 1;\n        @dec static [`x\\u0061`] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/es2022/esnext/define/field-template-escaped",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [`x\\u0061`] = 1;\n        @dec static [`x\\u0061`] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/esnext/esnext/set/field-template-escaped",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [`x\\u0061`] = 1;\n        @dec static [`x\\u0061`] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/esnext/esnext/define/field-template-escaped",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [`x\\u0061`] = 1;\n        @dec static [`x\\u0061`] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/es2015/esnext/set/field-string-escaped-control",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [\"x\\u0061\"] = 1;\n        @dec static [\"x\\u0061\"] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/es2015/esnext/define/field-string-escaped-control",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [\"x\\u0061\"] = 1;\n        @dec static [\"x\\u0061\"] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/es2022/esnext/set/field-string-escaped-control",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [\"x\\u0061\"] = 1;\n        @dec static [\"x\\u0061\"] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/es2022/esnext/define/field-string-escaped-control",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [\"x\\u0061\"] = 1;\n        @dec static [\"x\\u0061\"] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/esnext/esnext/set/field-string-escaped-control",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [\"x\\u0061\"] = 1;\n        @dec static [\"x\\u0061\"] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/esnext/esnext/define/field-string-escaped-control",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [\"x\\u0061\"] = 1;\n        @dec static [\"x\\u0061\"] = 1;\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/es2015/esnext/set/method-template-escaped",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [`x\\u0061`](): number { return 1; }\n        @dec static [`x\\u0061`](): number { return 1; }\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/es2015/esnext/define/method-template-escaped",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [`x\\u0061`](): number { return 1; }\n        @dec static [`x\\u0061`](): number { return 1; }\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/es2022/esnext/set/method-template-escaped",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [`x\\u0061`](): number { return 1; }\n        @dec static [`x\\u0061`](): number { return 1; }\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/es2022/esnext/define/method-template-escaped",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [`x\\u0061`](): number { return 1; }\n        @dec static [`x\\u0061`](): number { return 1; }\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/esnext/esnext/set/method-template-escaped",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [`x\\u0061`](): number { return 1; }\n        @dec static [`x\\u0061`](): number { return 1; }\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/esnext/esnext/define/method-template-escaped",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [`x\\u0061`](): number { return 1; }\n        @dec static [`x\\u0061`](): number { return 1; }\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/es2015/esnext/set/method-template-substitution-control",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [`x${suffix}`](): number { return 1; }\n        @dec static [`x${suffix}`](): number { return 1; }\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/es2015/esnext/define/method-template-substitution-control",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [`x${suffix}`](): number { return 1; }\n        @dec static [`x${suffix}`](): number { return 1; }\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 2,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/es2022/esnext/set/method-template-substitution-control",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [`x${suffix}`](): number { return 1; }\n        @dec static [`x${suffix}`](): number { return 1; }\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/es2022/esnext/define/method-template-substitution-control",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [`x${suffix}`](): number { return 1; }\n        @dec static [`x${suffix}`](): number { return 1; }\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 9,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/esnext/esnext/set/method-template-substitution-control",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [`x${suffix}`](): number { return 1; }\n        @dec static [`x${suffix}`](): number { return 1; }\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": false,
+        "removeComments": false
+      }
+    },
+    {
+      "case_id": "decorator-literal-key-spelling/esnext/esnext/define/method-template-substitution-control",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "function dec(value: any, context: any): any { return value; }\nconst key = \"x\";\nconst suffix = \"a\";\nexport function make(): any {\n    class C {\n        @dec [`x${suffix}`](): number { return 1; }\n        @dec static [`x${suffix}`](): number { return 1; }\n    }\n    return C;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "target": 99,
+        "module": 99,
+        "useDefineForClassFields": true,
+        "removeComments": false
+      }
+    }
+  ]
+}

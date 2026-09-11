@@ -3,7 +3,11 @@
 //! follow-up: literal computed names, object-literal computed-name pending
 //! absorption, anonymous classes in decorated computed fields, and
 //! undecorated-outer computed-property hoists, including the source-file
-//! owner of that hoist).
+//! owner of that hoist; and the literal-name/lexical-prologue follow-up:
+//! literal computed names of decorated methods and accessors, numeric and
+//! template key spellings, function-body prologue directives around a
+//! named-evaluation hoist, and the later-pass readers of the hoisted `var`
+//! statement: module transforms and parameter initializers).
 use base64::Engine as _;
 use serde_json::{json, Value};
 use tsc_diagnostics::{Diagnostic, MessageChain};
@@ -34,6 +38,32 @@ const GROUPS: &[(&str, &[u8], usize)] = &[
         "source-followup-top-level",
         include_bytes!("../fixtures/decorator-source-followup-top-level.json"),
         18,
+    ),
+    (
+        "literal-member-kinds",
+        include_bytes!("../fixtures/decorator-literal-member-kinds.json"),
+        48,
+    ),
+    (
+        "literal-key-spelling",
+        include_bytes!("../fixtures/decorator-literal-key-spelling.json"),
+        48,
+    ),
+    (
+        "lexical-prologue",
+        include_bytes!("../fixtures/decorator-lexical-prologue.json"),
+        24,
+    ),
+    // Version 2 of the readers group: the CommonJS/AMD/UMD and
+    // parameter-initializer commands of version 1 (byte-identical inputs and
+    // observations). Version 1's two System commands stay observed in
+    // `decorator-lexical-prologue-readers.json` only: their JavaScript is
+    // exact and their source map is the System module transform's, not the
+    // decorator pass's.
+    (
+        "lexical-prologue-readers-v2",
+        include_bytes!("../fixtures/decorator-lexical-prologue-readers-v2.json"),
+        16,
     ),
 ];
 
