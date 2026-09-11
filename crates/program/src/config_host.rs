@@ -342,9 +342,23 @@ mod tests {
             "../tests/fixtures/h2-8b-config-discovery-paths.json"
         ))
         .expect("frozen base path observations");
+        assert_path_cases(&oracle, 16);
+    }
+
+    #[test]
+    fn config_discovery_spelling_matches_typescript() {
+        let oracle: Value = serde_json::from_slice(include_bytes!(
+            "../tests/fixtures/h2-8b-config-discovery-spelling.json"
+        ))
+        .expect("frozen spelling observations");
+        assert_path_cases(&oracle, 6);
+    }
+
+    fn assert_path_cases(oracle: &Value, count: usize) {
         assert_eq!(oracle["typescript"], "6.0.3");
         let cases = oracle["cases"].as_array().expect("path cases");
-        assert_eq!(cases.len(), 16);
+        assert_eq!(cases.len(), count);
+        let mut failures = Vec::new();
         for case in cases {
             let includes = case["includes"].as_array().map(|values| {
                 values
@@ -359,14 +373,21 @@ mod tests {
                     case["case_sensitive"].as_bool().expect("case policy"),
                 )
                 .expect("valid discovery paths");
+                let exact = json!(actual) == case["base_paths"];
                 eprintln!(
                     "H2.8b-CFG1b-path {}",
                     json!({
-                        "case_id": case["case_id"], "repetition": repetition, "actual": actual,
+                        "case_id": case["case_id"], "repetition": repetition, "actual": actual, "exact": exact,
                     })
                 );
-                assert_eq!(json!(actual), case["base_paths"], "{}", case["case_id"]);
+                if !exact {
+                    failures.push(format!(
+                        "{}: {:?} != {}",
+                        case["case_id"], actual, case["base_paths"]
+                    ));
+                }
             }
         }
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
     }
 }

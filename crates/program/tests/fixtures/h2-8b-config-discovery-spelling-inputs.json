@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "slice": "H2.8b-CFG1b",
+  "cases": [
+    {
+      "case_id": "relative-trailing-directory",
+      "directory": "/project/app",
+      "includes": [
+        "../shared/"
+      ],
+      "case_sensitive": true
+    },
+    {
+      "case_id": "trailing-config-directory",
+      "directory": "/project/app/",
+      "includes": [
+        "../shared/*.ts"
+      ],
+      "case_sensitive": true
+    },
+    {
+      "case_id": "unc-dotted-root",
+      "directory": "/project/app",
+      "includes": [
+        "//server.example"
+      ],
+      "case_sensitive": true
+    },
+    {
+      "case_id": "url-dotted-root",
+      "directory": "/project/app",
+      "includes": [
+        "https://host.example"
+      ],
+      "case_sensitive": true
+    },
+    {
+      "case_id": "relative-double-trailing",
+      "directory": "/project/app",
+      "includes": [
+        "../shared//"
+      ],
+      "case_sensitive": true
+    },
+    {
+      "case_id": "dotted-double-trailing",
+      "directory": "/project/app",
+      "includes": [
+        "../shared.d//"
+      ],
+      "case_sensitive": true
+    }
+  ]
+}
