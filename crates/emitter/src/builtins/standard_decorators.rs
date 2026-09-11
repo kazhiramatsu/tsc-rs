@@ -3579,18 +3579,20 @@ impl<'context> StandardDecoratorVisitor<'context> {
     }
 
     /// tsc-port: createStringLiteralFromNode @6.0.3 for a computed name's
-    /// literal expression: the text is `getTextOfIdentifierOrLiteral`; a
-    /// string-literal source also supplies the emitted spelling
-    /// (`textSourceNode`, the source-string branch of
-    /// `getLiteralTextOfNode`).
+    /// literal expression: the text is `getTextOfIdentifierOrLiteral` (the
+    /// cooked text of a string, numeric or no-substitution template
+    /// literal) and the source literal becomes the `textSourceNode` whatever
+    /// its kind, so the printer's `getLiteralTextOfNode` chooses the
+    /// spelling: a string or template source prints its own token text, a
+    /// numeric source its cooked text quoted.
     fn create_string_literal_from_property_literal(
         &mut self,
         literal: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let (text, is_string) = match &self.context.arena().node(literal)?.data {
-            NodeData::StringLiteral(data) => (data.text.clone(), true),
-            NodeData::NumericLiteral(data) => (data.text.clone(), false),
-            NodeData::NoSubstitutionTemplateLiteral(data) => (data.text.clone(), false),
+        let text = match &self.context.arena().node(literal)?.data {
+            NodeData::StringLiteral(data) => data.text.clone(),
+            NodeData::NumericLiteral(data) => data.text.clone(),
+            NodeData::NoSubstitutionTemplateLiteral(data) => data.text.clone(),
             _ => {
                 return Err(TransformError::RequiredChildRemoved {
                     parent: SyntaxKind::ComputedPropertyName,
@@ -3599,12 +3601,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
             }
         };
         let created = self.create_string_literal(&text)?;
-        if is_string {
-            self.context
-                .arena_mut()?
-                .literal_properties_mut(created)?
-                .set_string_literal_text_source(literal);
-        }
+        self.context
+            .arena_mut()?
+            .literal_properties_mut(created)?
+            .set_string_literal_text_source(literal);
         Ok(created)
     }
 

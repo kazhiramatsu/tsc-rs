@@ -2810,15 +2810,57 @@ impl Printer {
                             );
                             return Ok(());
                         }
-                        if transformation.arena().node(text_source)?.kind
-                            == SyntaxKind::StringLiteral
-                            && self.node_has_source_text_range(transformation, text_source)?
-                        {
-                            return self.write_original_without_leading_trivia_verbatim(
-                                transformation,
-                                text_source,
-                                writer,
+                        if let NodeData::NumericLiteral(numeric) = &source_record.data {
+                            // getLiteralTextOfNode: a numeric text source
+                            // contributes its cooked text
+                            // (`textSourceNode.text`), quoted and escaped like
+                            // an identifier source.
+                            writer.write_string_literal_utf16(
+                                quote_string_literal(&numeric.text, false, no_ascii_escaping)
+                                    .code_units(),
                             );
+                            return Ok(());
+                        }
+                        // Every other source delegates to
+                        // getLiteralTextOfNode(textSourceNode): getLiteralText's
+                        // canUseOriginalText prints a parsed, parented token
+                        // verbatim (string or template source); a template
+                        // without a source range prints through the
+                        // template-token writer (rawText or the escaped cooked
+                        // text between backticks).
+                        match source_record.kind {
+                            SyntaxKind::StringLiteral
+                                if self
+                                    .node_has_source_text_range(transformation, text_source)? =>
+                            {
+                                return self.write_original_without_leading_trivia_verbatim(
+                                    transformation,
+                                    text_source,
+                                    writer,
+                                );
+                            }
+                            SyntaxKind::NoSubstitutionTemplateLiteral => {
+                                if self.node_has_source_text_range(transformation, text_source)? {
+                                    return self.write_original_without_leading_trivia_verbatim(
+                                        transformation,
+                                        text_source,
+                                        writer,
+                                    );
+                                }
+                                if let NodeData::NoSubstitutionTemplateLiteral(template) =
+                                    &source_record.data
+                                {
+                                    return self.emit_template_literal_token(
+                                        transformation,
+                                        text_source,
+                                        SyntaxKind::NoSubstitutionTemplateLiteral,
+                                        &template.text,
+                                        template.raw_text.as_deref(),
+                                        writer,
+                                    );
+                                }
+                            }
+                            _ => {}
                         }
                     }
                     let single_quote = properties
