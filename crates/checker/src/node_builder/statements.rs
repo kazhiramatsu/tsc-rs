@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use tsc_binder::assignment::{get_assignment_declaration_kind, AssignmentDeclarationKind};
 use tsc_binder::{node_util, SymbolId, SymbolTable};
 use tsc_emitter::{
     EmitFlags, EmitInternalNodeBuilderFlags, EmitNodeBuilderFlags, EmitResolverError,
@@ -2960,12 +2961,20 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
     /// tsc-span: _tsc.js:54483-54493
     fn get_signature_text_range_location(&self, signature: SignatureId) -> Option<NodeId> {
         let declaration = self.checker.signature_of(signature).declaration?;
-        let parent = self.checker.parent_of(declaration)?;
-        if self.checker.kind_of(parent) == SyntaxKind::BinaryExpression {
-            return Some(parent);
-        }
-        if self.checker.kind_of(parent) == SyntaxKind::VariableDeclaration {
-            return self.checker.parent_of(parent).or(Some(parent));
+        if let Some(parent) = self.checker.parent_of(declaration) {
+            if self.checker.kind_of(parent) == SyntaxKind::BinaryExpression
+                && get_assignment_declaration_kind(
+                    self.checker.binder.source_of_node(parent),
+                    parent,
+                ) == AssignmentDeclarationKind::Property
+            {
+                return Some(parent);
+            }
+            if self.checker.kind_of(parent) == SyntaxKind::VariableDeclaration {
+                if let Some(list) = self.checker.parent_of(parent) {
+                    return Some(list);
+                }
+            }
         }
         Some(declaration)
     }

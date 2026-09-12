@@ -663,3 +663,22 @@ Implementation order remains G4a, G4b, then the parameter lookup dependency,
 with one commit and focused observations per cause. The final gate is all
 17 original focused commands plus all 12 dependency commands, twice, both
 required original repairs twice, and the unmodified shared G5c strict report.
+
+
+### G4a intermediate observation
+
+`target/declaration-comment-ranges-runs/g4a-20260912-234226` records the G4a
+selector edit. Compiler/checker builds pass; statement controls improve from
+16/19 to 17/19. All G4a location observations and the sentinel test pass; only
+the unedited G4b absent-signature/location assertions remain red. The three
+export-focused commands still fail complete map/type comparisons at the
+already isolated parameter-annotation dependency. Their outer locations and
+ordinary assignment comments are corrected.
+
+The required G4a original still fails twice: its `@param` block is removed,
+but the preceding blank-line-separated `@typedef` block remains before the
+function. No non-write field changes. This is an unresolved residual at this
+intermediate head, not a passing original command or a claimed emitter cause.
+Preserve these captures and recheck it after the independently required
+parameter reuse repair; isolate another owner if it remains. G4a source
+selection alone does not close the full original command.
