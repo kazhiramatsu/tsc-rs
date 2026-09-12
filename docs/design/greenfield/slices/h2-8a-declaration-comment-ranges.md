@@ -682,3 +682,14 @@ intermediate head, not a passing original command or a claimed emitter cause.
 Preserve these captures and recheck it after the independently required
 parameter reuse repair; isolate another owner if it remains. G4a source
 selection alone does not close the full original command.
+
+### G4b intermediate observation
+
+`target/declaration-comment-ranges-runs/g4b-20260912-234707` records the
+prototype-only method location edit and removal of this loop's absent-signature
+fallback. The required G4b original command is exact on both repetitions.
+All 19 statement tests pass, including every source-location trace and the
+absent-signature control. Prototype dot/element commands still fail twice
+with stable declaration-map differences at the parameter lookup dependency;
+the parenthesized prototype control remains exact. Compiler and checker
+builds pass. These focused passes do not change the global A37 count.
