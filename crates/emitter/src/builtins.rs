@@ -13301,7 +13301,22 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         let original = self.node(id);
         match self.context.arena().node(original)?.data.clone() {
             NodeData::Identifier(data) => self.create_string_literal(&data.text),
-            NodeData::StringLiteral(data) => self.create_string_literal(&data.text),
+            // getExpressionForPropertyName clones the string literal name,
+            // whose tsc `text` is lossless; the synthesized literal owns the
+            // parsed spelling's value (an unpaired surrogate is U+FFFD in
+            // the cooked text) and its reverse-mapping clone copies it.
+            NodeData::StringLiteral(data) => {
+                let literal = self.create_string_literal(&data.text)?;
+                if let Some(units) = self.context.arena().literal_code_units(original)? {
+                    self.context
+                        .arena_mut()?
+                        .literal_properties_mut(literal)?
+                        .set_javascript_string_value(crate::JavaScriptString::from_code_units(
+                            units,
+                        ));
+                }
+                Ok(literal)
+            }
             NodeData::NumericLiteral(data) => self.create_numeric_literal(&data.text),
             NodeData::BigIntLiteral(_) => self.context.factory()?.clone_node(original),
             NodeData::ComputedPropertyName(data) => {
