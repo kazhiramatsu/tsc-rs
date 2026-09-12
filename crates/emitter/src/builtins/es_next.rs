@@ -1452,6 +1452,7 @@ impl<'context> EsNextVisitor<'context> {
             metadata.generated_binding_is_file_level_optimistic(),
             metadata.generated_binding_planned_name_is_authoritative(),
             metadata.generated_binding_reserved_in_nested_scopes(),
+            metadata.generated_binding_is_private_temp(),
         ))
     }
 

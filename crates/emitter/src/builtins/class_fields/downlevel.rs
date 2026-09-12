@@ -624,6 +624,10 @@ struct PrivateDeclaration {
     binding_owner: LexicalBindingOwner,
     is_static: bool,
     kind: PrivateDeclarationKind,
+    /// `Some(suffix)` for the generated backing field of an auto accessor
+    /// with a computed name (`#<temp>_accessor_storage`): its hoisted class
+    /// variable is a private temp whose letter is finalized in print order.
+    private_temp_suffix: Option<&'static str>,
 }
 
 /// Side-effect-free declaration scan for one expanded private environment.
@@ -988,6 +992,9 @@ struct DownlevelClassVisitor<'context, 'resolver, 'aliases> {
     loop_binding_scopes: LoopBindingScopes,
     generated_static_auto_accessors: BTreeSet<NodeId>,
     generated_auto_accessor_backings: BTreeSet<NodeId>,
+    /// Backing fields whose private name is a generated temp with a role
+    /// suffix (computed auto-accessor names), by backing node.
+    generated_private_temp_backings: BTreeMap<NodeId, &'static str>,
     generated_auto_accessor_pairs: BTreeMap<NodeId, NodeId>,
     assigned_class_names: BTreeMap<NodeId, AssignedClassName>,
     tree_ownership: OriginalTreeOwnership,
@@ -1033,6 +1040,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             loop_binding_scopes: LoopBindingScopes::default(),
             generated_static_auto_accessors: BTreeSet::new(),
             generated_auto_accessor_backings: BTreeSet::new(),
+            generated_private_temp_backings: BTreeMap::new(),
             generated_auto_accessor_pairs: BTreeMap::new(),
             assigned_class_names: BTreeMap::new(),
             tree_ownership,
@@ -2797,6 +2805,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 metadata.generated_binding_is_file_level_optimistic(),
                 metadata.generated_binding_planned_name_is_authoritative(),
                 metadata.generated_binding_reserved_in_nested_scopes(),
+                metadata.generated_binding_is_private_temp(),
             )),
             None => ClassBinding::Existing(text),
         })
@@ -3068,28 +3077,34 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 parent: SyntaxKind::PropertyDeclaration,
                 field: "auto-accessor name",
             })?;
-            let storage_name = match &self.context.arena().node(self.node(name))?.data {
-                NodeData::Identifier(data) => self
-                    .generated_bindings
-                    .allocate_private_preferred_with_role_suffix(
-                        data.text.trim_start_matches('#'),
-                        "_accessor_storage",
-                        &used_private_names,
+            let (storage_name, private_temp_suffix) =
+                match &self.context.arena().node(self.node(name))?.data {
+                    NodeData::Identifier(data) => (
+                        self.generated_bindings
+                            .allocate_private_preferred_with_role_suffix(
+                                data.text.trim_start_matches('#'),
+                                "_accessor_storage",
+                                &used_private_names,
+                            ),
+                        None,
                     ),
-                NodeData::PrivateIdentifier(data) => self
-                    .generated_bindings
-                    .allocate_private_preferred_with_role_suffix(
-                        data.text.trim_start_matches('#'),
-                        "_accessor_storage",
-                        &used_private_names,
+                    NodeData::PrivateIdentifier(data) => (
+                        self.generated_bindings
+                            .allocate_private_preferred_with_role_suffix(
+                                data.text.trim_start_matches('#'),
+                                "_accessor_storage",
+                                &used_private_names,
+                            ),
+                        None,
                     ),
-                _ => self
-                    .generated_bindings
-                    .allocate_private_temp_with_role_suffix(
-                        "_accessor_storage",
-                        &used_private_names,
+                    _ => (
+                        self.generated_bindings.allocate_private_temp_with_role_suffix(
+                            "_accessor_storage",
+                            &used_private_names,
+                        ),
+                        Some("_accessor_storage"),
                     ),
-            };
+                };
             used_private_names.insert(storage_name.clone());
             let storage_text = format!("#{storage_name}");
             let storage =
@@ -3108,6 +3123,10 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 TransformFlags::CONTAINS_CLASS_FIELDS,
             )?;
             self.generated_auto_accessor_backings.insert(backing.node());
+            if let Some(suffix) = private_temp_suffix {
+                self.generated_private_temp_backings
+                    .insert(backing.node(), suffix);
+            }
             let getter = self.create_auto_accessor_getter(name, storage.node(), modifiers)?;
             let modifier_array = modifiers.map(|modifiers| self.array(modifiers));
             let modifier_flags = self.context.factory()?.modifier_flags(modifier_array)?;
@@ -3701,6 +3720,10 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                     binding_owner,
                     is_static,
                     kind,
+                    private_temp_suffix: self
+                        .generated_private_temp_backings
+                        .get(&member.node())
+                        .copied(),
                 });
                 continue;
             }
@@ -3710,6 +3733,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 binding_owner,
                 is_static,
                 kind,
+                private_temp_suffix: None,
             });
         }
         declarations.extend(auto_accessor_backings);
@@ -3837,6 +3861,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 binding_owner,
                 is_static,
                 kind,
+                private_temp_suffix,
             } = declaration;
             let is_valid =
                 name != "constructor" && !environment.effective_slots.contains_key(&name);
@@ -3848,13 +3873,20 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             // source-order name allocation and the legal accessor-pair case.
             let (slot_index, replaces_effective_slot) = match kind {
                 PrivateDeclarationKind::Field => {
-                    let element = PrivateElement::Field {
-                        value_name: self.allocate_private_name(
+                    let value_name = match private_temp_suffix {
+                        Some(suffix) => self.allocate_private_temp_binding(
+                            class_name,
+                            suffix,
+                            base_name,
+                            binding_owner,
+                        )?,
+                        None => self.allocate_private_name(
                             base_name,
                             PrivateGeneratedNameRole::Storage,
                             binding_owner,
                         )?,
                     };
+                    let element = PrivateElement::Field { value_name };
                     let slot_index = environment.push_slot(PrivateSlot {
                         placement: Self::private_slot_placement(
                             is_static,
@@ -8247,6 +8279,39 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             self.context,
             base,
             role.suffix().to_owned(),
+            provisional,
+        )?;
+        let owner = self.claim_lexical_binding_owner(&binding, owner);
+        self.generated_binding_frames
+            .last_mut()
+            .expect("class lowering owns an active binding frame")
+            .push(PlannedTargetBinding {
+                binding: binding.clone(),
+                owner,
+            });
+        Ok(ClassBinding::Generated(binding))
+    }
+
+    /// The hoisted class variable of a generated private temp
+    /// (`#<temp>_accessor_storage` → `_C__<temp>_accessor_storage`). The
+    /// planned spelling reserves this scope's transform-time sequence; the
+    /// temp letter itself is assigned by the finalizer in print order.
+    fn allocate_private_temp_binding(
+        &mut self,
+        class_name: Option<&str>,
+        role_suffix: &'static str,
+        planned: String,
+        owner: LexicalBindingOwner,
+    ) -> Result<ClassBinding, TransformError> {
+        self.record_generated_binding_origin()?;
+        let prefix = self.private_generated_name(class_name, "");
+        let provisional = self
+            .generated_bindings
+            .allocate_preferred_with_role_suffix(&planned, "");
+        let binding = TargetBinding::allocate_private_temp_reserved_in_nested_scopes(
+            self.context,
+            prefix,
+            role_suffix.to_owned(),
             provisional,
         )?;
         let owner = self.claim_lexical_binding_owner(&binding, owner);

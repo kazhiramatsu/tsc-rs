@@ -20,6 +20,13 @@ pub(super) enum AncestorBindingPolicy {
 struct GeneratedBindingScope {
     owner: GeneratedBindingOwner,
     parent: Option<GeneratedBindingScopeId>,
+    /// A `ReuseTempVariableScope` naming moment: tsc's
+    /// `pushNameGenerationScope` still pushes the private-name state
+    /// (`privateNameTempFlags`, `reservedPrivateNames`) but keeps the
+    /// ordinary temp counters, formatted-name counters and reserved names
+    /// of the enclosing scope. Such a frame resolves those shared parts to
+    /// its nearest non-frame ancestor.
+    shares_parent_counters: bool,
     names: Vec<String>,
     names_reserved_in_descendants: Vec<String>,
     bindings: Vec<String>,
@@ -72,6 +79,7 @@ impl GeneratedBindingScopes {
             scopes: vec![GeneratedBindingScope {
                 owner: GeneratedBindingOwner::Source,
                 parent: None,
+                shares_parent_counters: false,
                 names: Vec::new(),
                 names_reserved_in_descendants: Vec::new(),
                 bindings: Vec::new(),
@@ -95,6 +103,7 @@ impl GeneratedBindingScopes {
         self.scopes.push(GeneratedBindingScope {
             owner,
             parent: Some(previous),
+            shares_parent_counters: false,
             names: Vec::new(),
             names_reserved_in_descendants: Vec::new(),
             bindings: Vec::new(),
@@ -122,6 +131,54 @@ impl GeneratedBindingScopes {
         GeneratedBindings(std::mem::take(&mut self.scopes[completed.0].bindings))
     }
 
+    /// tsc-port: pushNameGenerationScope @6.0.3 (the ReuseTempVariableScope arm)
+    /// tsc-hash: 75e640eff0f9e7b2d16c54e74bb57754277c93c13f82cd2954e427afaad2a1d0
+    /// tsc-span: _tsc.js:120480-120492
+    pub(super) fn enter_naming_moment(&mut self) -> (GeneratedBindingScopeId, GeneratedBindingScopeId) {
+        let previous = self.current;
+        let scope = GeneratedBindingScopeId(self.scopes.len());
+        self.scopes.push(GeneratedBindingScope {
+            owner: self.scopes[previous.0].owner,
+            parent: Some(previous),
+            shares_parent_counters: true,
+            names: Vec::new(),
+            names_reserved_in_descendants: Vec::new(),
+            bindings: Vec::new(),
+            next_temp_ordinal: 0,
+            loop_temp_taken: false,
+            private_names: Vec::new(),
+            private_names_reserved_in_descendants: Vec::new(),
+            private_temp_ordinals: BTreeMap::new(),
+        });
+        self.current = scope;
+        (previous, scope)
+    }
+
+    /// tsc-port: popNameGenerationScope @6.0.3 (the ReuseTempVariableScope arm)
+    /// tsc-hash: a2f730a921200a11f765aa55e960623d4e87c9c1d20b1d78fbb2d9ed6003bb37
+    /// tsc-span: _tsc.js:120493-120502
+    pub(super) fn exit_naming_moment(
+        &mut self,
+        previous: GeneratedBindingScopeId,
+        completed: GeneratedBindingScopeId,
+    ) {
+        debug_assert_eq!(self.current, completed);
+        debug_assert!(self.scopes[completed.0].shares_parent_counters);
+        self.current = previous;
+    }
+
+    /// The scope owning the ordinary temp counters, formatted-name counters
+    /// and reserved names visible from `scope`: the nearest ancestor that is
+    /// not a naming-moment frame.
+    fn counter_owner(&self, mut scope: GeneratedBindingScopeId) -> GeneratedBindingScopeId {
+        while self.scopes[scope.0].shares_parent_counters {
+            scope = self.scopes[scope.0]
+                .parent
+                .expect("a naming-moment frame has an enclosing scope");
+        }
+        scope
+    }
+
     pub(super) fn source_bindings(&mut self) -> GeneratedBindings {
         debug_assert_eq!(self.current, GeneratedBindingScopeId(0));
         GeneratedBindings(std::mem::take(&mut self.scopes[0].bindings))
@@ -129,8 +186,9 @@ impl GeneratedBindingScopes {
 
     pub(super) fn allocate_temp(&mut self) -> String {
         loop {
-            let ordinal = self.scopes[self.current.0].next_temp_ordinal;
-            self.scopes[self.current.0].next_temp_ordinal += 1;
+            let owner = self.counter_owner(self.current);
+            let ordinal = self.scopes[owner.0].next_temp_ordinal;
+            self.scopes[owner.0].next_temp_ordinal += 1;
             let Some(candidate) = Self::temp_candidate(ordinal) else {
                 continue;
             };
@@ -142,8 +200,9 @@ impl GeneratedBindingScopes {
 
     pub(super) fn allocate_temp_with_policy(&mut self, reserve_in_nested_scopes: bool) -> String {
         loop {
-            let ordinal = self.scopes[self.current.0].next_temp_ordinal;
-            self.scopes[self.current.0].next_temp_ordinal += 1;
+            let owner = self.counter_owner(self.current);
+            let ordinal = self.scopes[owner.0].next_temp_ordinal;
+            self.scopes[owner.0].next_temp_ordinal += 1;
             let Some(candidate) = Self::temp_candidate(ordinal) else {
                 continue;
             };
@@ -169,8 +228,9 @@ impl GeneratedBindingScopes {
 
     pub(super) fn allocate_local_temp(&mut self) -> String {
         loop {
-            let ordinal = self.scopes[self.current.0].next_temp_ordinal;
-            self.scopes[self.current.0].next_temp_ordinal += 1;
+            let owner = self.counter_owner(self.current);
+            let ordinal = self.scopes[owner.0].next_temp_ordinal;
+            self.scopes[owner.0].next_temp_ordinal += 1;
             let Some(candidate) = Self::temp_candidate(ordinal) else {
                 continue;
             };
@@ -191,10 +251,11 @@ impl GeneratedBindingScopes {
     /// candidate list already skips the `_i`/`_n` ordinals.
     #[allow(dead_code)] // callers arrive with B-4 loop conversion
     pub(super) fn allocate_loop_variable(&mut self, reserve_in_nested_scopes: bool) -> String {
-        if !self.scopes[self.current.0].loop_temp_taken
+        let owner = self.counter_owner(self.current);
+        if !self.scopes[owner.0].loop_temp_taken
             && self.reserve_in_current("_i".to_owned(), true, reserve_in_nested_scopes)
         {
-            self.scopes[self.current.0].loop_temp_taken = true;
+            self.scopes[owner.0].loop_temp_taken = true;
             return "_i".to_owned();
         }
         self.allocate_temp_with_policy(reserve_in_nested_scopes)
@@ -261,9 +322,17 @@ impl GeneratedBindingScopes {
         role_suffix: &str,
         locally_reserved: &BTreeSet<String>,
     ) -> String {
+        // The formatted-name counter (`#<suffix>` key) is shared with the
+        // enclosing scope by a naming-moment frame; the bare private counter
+        // (`#` key) is frame-local, like tsc's `privateNameTempFlags`.
+        let counter_scope = if role_suffix.is_empty() {
+            self.current
+        } else {
+            self.counter_owner(self.current)
+        };
         loop {
             let ordinal = {
-                let next = self.scopes[self.current.0]
+                let next = self.scopes[counter_scope.0]
                     .private_temp_ordinals
                     .entry(role_suffix.to_owned())
                     .or_default();
@@ -280,6 +349,41 @@ impl GeneratedBindingScopes {
             {
                 return candidate;
             }
+        }
+    }
+
+    /// Names the hoisted class variable of a generated private temp in
+    /// print order: the private name `#<temp><suffix>` comes from this
+    /// scope's per-suffix private temp sequence (reserved in nested scopes,
+    /// so a file-level `#_a_accessor_storage` pushes a nested class to `_b`),
+    /// and `<prefix><temp><suffix>` is then the optimistic scoped unique
+    /// name whose collision ordinal is appended after the whole base.
+    ///
+    /// tsc-port: makeTempVariableName @6.0.3 (privateName)
+    /// tsc-hash: 9b0f57d6a9a21d2fa06328b7cef07d8715e68ca9cb53d9ae5762a323f42cc4bf
+    /// tsc-span: _tsc.js:120703-120740
+    ///
+    /// tsc-port: makeUniqueName @6.0.3 (optimistic, scoped)
+    /// tsc-hash: 24cb46aa2ba811ebf24cee740aa8ca553970a6bd6f18b7b57ae10ea77cb55f03
+    /// tsc-span: _tsc.js:120741-120779
+    pub(super) fn allocate_private_temp_hoisted_name(
+        &mut self,
+        prefix: &str,
+        role_suffix: &str,
+        reserve_in_nested_scopes: bool,
+    ) -> String {
+        let private_name = self.allocate_private_temp_with_role_suffix(role_suffix, &BTreeSet::new());
+        let candidate = format!("{prefix}{private_name}");
+        if self.reserve_in_current(candidate.clone(), true, reserve_in_nested_scopes) {
+            return candidate;
+        }
+        let mut ordinal = 1usize;
+        loop {
+            let numbered = format!("{candidate}_{ordinal}");
+            if self.reserve_in_current(numbered.clone(), true, reserve_in_nested_scopes) {
+                return numbered;
+            }
+            ordinal += 1;
         }
     }
 
@@ -510,14 +614,15 @@ impl GeneratedBindingScopes {
         {
             return false;
         }
-        self.scopes[self.current.0].names.push(candidate.clone());
+        let owner = self.counter_owner(self.current);
+        self.scopes[owner.0].names.push(candidate.clone());
         if reserve_in_nested_scopes {
-            self.scopes[self.current.0]
+            self.scopes[owner.0]
                 .names_reserved_in_descendants
                 .push(candidate.clone());
         }
         if binding {
-            self.scopes[self.current.0].bindings.push(candidate);
+            self.scopes[owner.0].bindings.push(candidate);
         }
         true
     }
@@ -549,14 +654,16 @@ impl GeneratedBindingScopes {
     }
 
     fn current_scope_contains(&self, candidate: &str) -> bool {
-        self.scopes[self.current.0]
+        let owner = self.counter_owner(self.current);
+        self.scopes[owner.0]
             .names
             .iter()
             .any(|name| name == candidate)
     }
 
     fn ancestor_scope_contains(&self, candidate: &str, include_all_names: bool) -> bool {
-        let mut scope = self.scopes[self.current.0].parent;
+        let owner = self.counter_owner(self.current);
+        let mut scope = self.scopes[owner.0].parent;
         while let Some(current) = scope {
             let current = &self.scopes[current.0];
             if current
