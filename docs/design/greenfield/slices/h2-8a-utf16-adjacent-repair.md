@@ -4,8 +4,10 @@ Status (2026-09-13): native before measurement complete; design cross-review
 pending. **No
 production repair in this packet has been implemented.** The user extended
 the scope to all 23 previously recorded adjacent probes, then requested
-cross-review with Claude before proceeding if the checker repair is not
-local. Inspection confirms a binder/checker identity boundary; this packet
+cross-review before proceeding if the checker repair is not local. The
+latest reviewer assignment is **fable-5.1, reasoning effort max**, replacing
+the earlier proposed Claude review. Inspection confirms a binder/checker
+identity boundary; this packet
 is the concrete proposal for that review, not a signed implementation gate.
 
 The integration worktree is
@@ -259,7 +261,8 @@ combined candidate's acceptance requirement.
 
 ## 7. Requested cross-review decision
 
-Claude should review A's representation invariant, operation semantics and
+The requested reviewer, fable-5.1 max, should review A's representation
+invariant, operation semantics and
 type/API choice first, then identify missed consumers or a coherent
 alternative. Scope reduction is acceptable only if it retains the full
 semantic closure; minimizing diff size is not the design criterion.
@@ -273,3 +276,12 @@ additional observations, implement, then request review of the resulting
 diff and repeated evidence. At this checkpoint the implementation writer
 remains Codex; another implementation lane requires an explicit ticket so
 two agents do not edit the same symbol representation concurrently.
+
+Invocation status: the explicitly requested `fable-5.1` / `max` delegation
+was attempted after the user selected it. The session's agent tool returned
+`Unknown model: fable-5.1`; no reviewer agent was created. No substitute model
+has reviewed or approved this packet. Its available model overrides are
+`gpt-6-astra`, `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna` and `gpt-5.5`.
+The handoff for an environment that supports the requested model is
+`/Users/hiramatsu/dev/tsc-rs/target/next-slices-20260913/fable-5.1-max-utf16-adjacent-review.md`.
+Production implementation remains pending the requested design review.

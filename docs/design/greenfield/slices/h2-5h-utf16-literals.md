@@ -14,6 +14,8 @@ probes after this lane completed. The separate
 scope and the requested Codex/Claude cross-review. The out-of-scope record
 below remains the historical result of this lane, not a restriction on the
 new work or a claim that those gaps have now been fixed.
+The user later assigned the design review to fable-5.1 max; the follow-up
+packet owns the current review assignment and invocation status.
 
 ## Start point
 

@@ -865,6 +865,12 @@ The user further clarified that the design must establish correct UTF-16
 representation and TypeScript-equivalent operations, rather than preserve
 incorrect behavior of the old Rust representation.
 
+The user's latest reviewer assignment is fable-5.1 with max reasoning,
+replacing the proposed Claude review. The delegation attempt returned
+`Unknown model: fable-5.1` in this session; no review has run and no substitute
+model has been assigned. The adjacent-repair packet records the prepared
+handoff and the pending review accurately.
+
 PR #520 still has the earlier remote head `e8b8f44a6`. Its old merge watcher
 was stopped before integration. Do not merge the older candidate because its
 hosted check passes: the extended work needs a new final candidate and its
