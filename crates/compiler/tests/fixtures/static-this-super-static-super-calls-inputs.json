@@ -1,0 +1,1126 @@
+{
+  "version": 1,
+  "description": "H2.5h ca-2a-r1: super-property calls, tagged templates and spread calls inside ES5-lowered static initializers and static blocks (the es2015 call receiver `this` must print as the class-fields constructor alias), with ES2015 controls and both class-field semantics.",
+  "cases": [
+    {
+      "case_id": "static-this-super/static-super-calls/es5/set/derived-field-super-call",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport class C extends B {\n    static x = 1;\n    static y = super.f();\n    static z = super[\"f\"]();\n    static w = this.x + super.g;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es5/define/derived-field-super-call",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport class C extends B {\n    static x = 1;\n    static y = super.f();\n    static z = super[\"f\"]();\n    static w = this.x + super.g;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": true
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es2015/set/derived-field-super-call",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport class C extends B {\n    static x = 1;\n    static y = super.f();\n    static z = super[\"f\"]();\n    static w = this.x + super.g;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es2015/define/derived-field-super-call",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport class C extends B {\n    static x = 1;\n    static y = super.f();\n    static z = super[\"f\"]();\n    static w = this.x + super.g;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": true
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es5/set/derived-block-super-call",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport class C extends B {\n    static v = 0;\n    static {\n        var v = super.f();\n        this.v = v + super[\"f\"]();\n    }\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es5/define/derived-block-super-call",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport class C extends B {\n    static v = 0;\n    static {\n        var v = super.f();\n        this.v = v + super[\"f\"]();\n    }\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": true
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es2015/set/derived-block-super-call",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport class C extends B {\n    static v = 0;\n    static {\n        var v = super.f();\n        this.v = v + super[\"f\"]();\n    }\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es2015/define/derived-block-super-call",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport class C extends B {\n    static v = 0;\n    static {\n        var v = super.f();\n        this.v = v + super[\"f\"]();\n    }\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": true
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es5/set/arrow-in-static-field-super-call",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport class C extends B {\n    static y = (() => super.f())();\n    static z = [1].map(() => super.f() + this.y);\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es5/define/arrow-in-static-field-super-call",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport class C extends B {\n    static y = (() => super.f())();\n    static z = [1].map(() => super.f() + this.y);\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": true
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es2015/set/arrow-in-static-field-super-call",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport class C extends B {\n    static y = (() => super.f())();\n    static z = [1].map(() => super.f() + this.y);\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es2015/define/arrow-in-static-field-super-call",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport class C extends B {\n    static y = (() => super.f())();\n    static z = [1].map(() => super.f() + this.y);\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": true
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es5/set/function-boundary-this",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport class C extends B {\n    static a = 1;\n    static ff = function (this: any) { return this.a; };\n    static fm() { return this.a + super.f(); }\n    static y = super.f();\n    static get fa() { return this.a; }\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es5/define/function-boundary-this",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport class C extends B {\n    static a = 1;\n    static ff = function (this: any) { return this.a; };\n    static fm() { return this.a + super.f(); }\n    static y = super.f();\n    static get fa() { return this.a; }\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": true
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es2015/set/function-boundary-this",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport class C extends B {\n    static a = 1;\n    static ff = function (this: any) { return this.a; };\n    static fm() { return this.a + super.f(); }\n    static y = super.f();\n    static get fa() { return this.a; }\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es2015/define/function-boundary-this",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport class C extends B {\n    static a = 1;\n    static ff = function (this: any) { return this.a; };\n    static fm() { return this.a + super.f(); }\n    static y = super.f();\n    static get fa() { return this.a; }\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": true
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es5/set/super-call-arguments-spread",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport class C extends B {\n    static xs = [1, 2];\n    static y = super.f(...C.xs);\n    static z = super.f(1, ...C.xs);\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es5/define/super-call-arguments-spread",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport class C extends B {\n    static xs = [1, 2];\n    static y = super.f(...C.xs);\n    static z = super.f(1, ...C.xs);\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": true
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es2015/set/super-call-arguments-spread",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport class C extends B {\n    static xs = [1, 2];\n    static y = super.f(...C.xs);\n    static z = super.f(1, ...C.xs);\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es2015/define/super-call-arguments-spread",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport class C extends B {\n    static xs = [1, 2];\n    static y = super.f(...C.xs);\n    static z = super.f(1, ...C.xs);\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": true
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es5/set/tagged-template-super",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport class C extends B {\n    static y = super.tag`x${1}y`;\n    static z = super[\"tag\"]`plain`;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es5/define/tagged-template-super",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport class C extends B {\n    static y = super.tag`x${1}y`;\n    static z = super[\"tag\"]`plain`;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": true
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es2015/set/tagged-template-super",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport class C extends B {\n    static y = super.tag`x${1}y`;\n    static z = super[\"tag\"]`plain`;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es2015/define/tagged-template-super",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport class C extends B {\n    static y = super.tag`x${1}y`;\n    static z = super[\"tag\"]`plain`;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": true
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es5/set/nested-class-in-static-block",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport class Outer extends B {\n    static {\n        class Inner extends B {\n            static y = super.f();\n        }\n        super.f();\n    }\n    static z = super.f();\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es5/define/nested-class-in-static-block",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport class Outer extends B {\n    static {\n        class Inner extends B {\n            static y = super.f();\n        }\n        super.f();\n    }\n    static z = super.f();\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": true
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es2015/set/nested-class-in-static-block",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport class Outer extends B {\n    static {\n        class Inner extends B {\n            static y = super.f();\n        }\n        super.f();\n    }\n    static z = super.f();\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es2015/define/nested-class-in-static-block",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport class Outer extends B {\n    static {\n        class Inner extends B {\n            static y = super.f();\n        }\n        super.f();\n    }\n    static z = super.f();\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": true
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es5/set/anonymous-class-expression-static-super",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport const E = class extends B { static y = super.f(); };\nexport const F = class extends B {\n    static {\n        super.f();\n    }\n};\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es5/define/anonymous-class-expression-static-super",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport const E = class extends B { static y = super.f(); };\nexport const F = class extends B {\n    static {\n        super.f();\n    }\n};\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": true
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es2015/set/anonymous-class-expression-static-super",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport const E = class extends B { static y = super.f(); };\nexport const F = class extends B {\n    static {\n        super.f();\n    }\n};\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es2015/define/anonymous-class-expression-static-super",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport const E = class extends B { static y = super.f(); };\nexport const F = class extends B {\n    static {\n        super.f();\n    }\n};\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": true
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es5/set/instance-side-unaffected",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport class C extends B {\n    x = 1;\n    y = this.x;\n    z = super.f();\n    m() { return super.f() + this.x; }\n    static s = super.f();\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es5/define/instance-side-unaffected",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport class C extends B {\n    x = 1;\n    y = this.x;\n    z = super.f();\n    m() { return super.f() + this.x; }\n    static s = super.f();\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": true
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es2015/set/instance-side-unaffected",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport class C extends B {\n    x = 1;\n    y = this.x;\n    z = super.f();\n    m() { return super.f() + this.x; }\n    static s = super.f();\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es2015/define/instance-side-unaffected",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\nexport class C extends B {\n    x = 1;\n    y = this.x;\n    z = super.f();\n    m() { return super.f() + this.x; }\n    static s = super.f();\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": true
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es5/set/computed-static-name-with-super-call",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\ndeclare const k: string;\nexport class C extends B {\n    static y = super.f();\n    static [k] = super.f() + this.y;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es5/define/computed-static-name-with-super-call",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\ndeclare const k: string;\nexport class C extends B {\n    static y = super.f();\n    static [k] = super.f() + this.y;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": true
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es2015/set/computed-static-name-with-super-call",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\ndeclare const k: string;\nexport class C extends B {\n    static y = super.f();\n    static [k] = super.f() + this.y;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/static-super-calls/es2015/define/computed-static-name-with-super-call",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\ndeclare const k: string;\nexport class C extends B {\n    static y = super.f();\n    static [k] = super.f() + this.y;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": true
+      }
+    }
+  ]
+}

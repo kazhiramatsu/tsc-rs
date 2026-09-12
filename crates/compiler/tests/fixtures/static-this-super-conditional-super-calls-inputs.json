@@ -1,0 +1,286 @@
+{
+  "version": 1,
+  "description": "H2.5h ca-2a-r1: derived-class constructors whose super() calls sit in a multi-line conditional expression (the synthesized `_this = _super.call(this, ...) || this` branches carry no source lines), with one-line, plain-conditional and ES2015 controls.",
+  "cases": [
+    {
+      "case_id": "static-this-super/conditional-super-calls/es5/set/conditional-super-multiline",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class Derived extends Object {\n    constructor() {\n        Math.random()\n            ? super(1)\n            : super(0);\n    }\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/conditional-super-calls/es2015/set/conditional-super-multiline",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class Derived extends Object {\n    constructor() {\n        Math.random()\n            ? super(1)\n            : super(0);\n    }\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/conditional-super-calls/es5/set/conditional-super-oneline",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class Derived extends Object {\n    constructor() {\n        Math.random() ? super(1) : super(0);\n    }\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/conditional-super-calls/es2015/set/conditional-super-oneline",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class Derived extends Object {\n    constructor() {\n        Math.random() ? super(1) : super(0);\n    }\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/conditional-super-calls/es5/set/conditional-plain-multiline",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export function pick(x: number) {\n    return x\n        ? 1\n        : 0;\n}\nexport class Plain {\n    prop = 1;\n    constructor(x: number) {\n        this.prop = x\n            ? 1\n            : 0;\n    }\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/conditional-super-calls/es2015/set/conditional-plain-multiline",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export function pick(x: number) {\n    return x\n        ? 1\n        : 0;\n}\nexport class Plain {\n    prop = 1;\n    constructor(x: number) {\n        this.prop = x\n            ? 1\n            : 0;\n    }\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/conditional-super-calls/es5/set/conditional-super-value-used",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class Derived extends Object {\n    constructor() {\n        const r = Math.random()\n            ? super(1)\n            : super(0);\n    }\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/conditional-super-calls/es2015/set/conditional-super-value-used",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class Derived extends Object {\n    constructor() {\n        const r = Math.random()\n            ? super(1)\n            : super(0);\n    }\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/conditional-super-calls/es5/set/conditional-super-parenthesized-branches",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class Derived extends Object {\n    constructor() {\n        Math.random()\n            ? (super(1))\n            : (super(0));\n    }\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/conditional-super-calls/es2015/set/conditional-super-parenthesized-branches",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class Derived extends Object {\n    constructor() {\n        Math.random()\n            ? (super(1))\n            : (super(0));\n    }\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": false
+      }
+    }
+  ]
+}

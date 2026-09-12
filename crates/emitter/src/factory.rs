@@ -648,6 +648,30 @@ impl TransformArena {
         node
     }
 
+    /// Follow tsc's original-node provenance without crossing a Rust-only
+    /// resolver bridge. A hoisted private method/accessor function has a
+    /// semantic link to its erased declaration, but tsc creates its emit
+    /// shell without an original (visitMethodOrAccessorDeclaration,
+    /// `_tsc.js:96194-96228`). It must therefore retain its function boundary
+    /// when class-fields emit notifications look up lexical environments.
+    pub(crate) fn get_emit_original_node(&self, mut node: TransformNode) -> TransformNode {
+        let mut remaining = self.metadata.len().saturating_add(1);
+        while let Some(metadata) = self.metadata.get(&node) {
+            if metadata.original_is_semantic {
+                break;
+            }
+            let Some(original) = metadata.original() else {
+                break;
+            };
+            if remaining == 0 || original == node {
+                break;
+            }
+            node = original;
+            remaining -= 1;
+        }
+        node
+    }
+
     /// Return the first immutable parse-tree identity in an original-node
     /// chain. This is deliberately different from `get_original_node`, which
     /// follows the chain to its semantic endpoint: tsc's `getParseTreeNode`
@@ -702,12 +726,18 @@ impl TransformArena {
             // been validated against this arena; an absent (cross-arena)
             // handle still fails above.
         }
-        if self.metadata.get(&node).and_then(EmitMetadata::original) == original {
+        if self.metadata.get(&node).and_then(EmitMetadata::original) == original
+            && !self
+                .metadata
+                .get(&node)
+                .is_some_and(|metadata| metadata.original_is_semantic)
+        {
             return Ok(());
         }
         let source_metadata = original.and_then(|original| self.metadata.get(&original).cloned());
         let metadata = self.metadata.entry(node).or_default();
         metadata.original = original;
+        metadata.original_is_semantic = false;
         if let Some(source_metadata) = source_metadata {
             metadata.merge_from(&source_metadata);
             metadata.original = original;
@@ -736,10 +766,9 @@ impl TransformArena {
                 actual: original.source,
             });
         }
-        if self.metadata.get(&node).and_then(EmitMetadata::original) == Some(original) {
-            return Ok(());
-        }
-        self.metadata.entry(node).or_default().original = Some(original);
+        let metadata = self.metadata.entry(node).or_default();
+        metadata.original = Some(original);
+        metadata.original_is_semantic = true;
         Ok(())
     }
 

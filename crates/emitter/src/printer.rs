@@ -8155,6 +8155,14 @@ impl Printer {
     /// explicit preserveSourceNewlines printer option is active. That option
     /// is not part of this printer's public contract yet, so this typed helper
     /// returns the exact 0/1 face used by ordinary `tsc` emit.
+    /// tsc-port: getLinesBetweenNodes @6.0.3
+    /// tsc-hash: c5d47a80179fc3b56a4cf499a9133abaec3676a2710aeda024119b26a477524b
+    /// tsc-span: _tsc.js:120408-120432
+    ///
+    /// The nodes' OWN ranges decide: a synthesized parent or operand (an
+    /// es2015 `_this = _super.call(this) || this` branch, for example)
+    /// yields no line break even when its original node spans several
+    /// lines. `preserveSourceNewlines` is never set for this emit.
     fn lines_between_optional_nodes(
         &self,
         transformation: &TransformationResult<'_>,
@@ -8172,6 +8180,9 @@ impl Printer {
         let (Some(left), Some(right)) = (left, right) else {
             return Ok(0);
         };
+        let parent = Self::skip_synthesized_parentheses(transformation, parent)?;
+        let left = Self::skip_synthesized_parentheses(transformation, left)?;
+        let right = Self::skip_synthesized_parentheses(transformation, right)?;
         if transformation
             .arena()
             .metadata(right)
@@ -8180,9 +8191,68 @@ impl Printer {
         {
             return Ok(1);
         }
+        let (Some(left_range), Some(right_range), Some(_)) = (
+            Self::own_original_range(transformation, left)?,
+            Self::own_original_range(transformation, right)?,
+            Self::own_original_range(transformation, parent)?,
+        ) else {
+            return Ok(0);
+        };
+        if left.source() != right.source() {
+            return Ok(0);
+        }
+        let source = transformation.arena().source(left.source())?.syntax();
+        let left_end = left_range.end().value() as usize;
+        let right_start = skip_trivia(source.text(), right_range.start().value() as usize);
+        if left_end > right_start || right_start > source.text().len() {
+            return Ok(0);
+        }
+        let same_line = !source.text()[left_end..right_start]
+            .bytes()
+            .any(|byte| matches!(byte, b'\r' | b'\n'));
+        Ok((!same_line) as u32)
+    }
+
+    /// tsc-port: skipSynthesizedParentheses @6.0.3
+    /// tsc-hash: 2b04356e426016a894f0d80e7a414b37bd567a44b6ef9e5e978f1b71737c5d72
+    /// tsc-span: _tsc.js:120436-120441
+    fn skip_synthesized_parentheses(
+        transformation: &TransformationResult<'_>,
+        mut node: TransformNode,
+    ) -> Result<TransformNode, PrinterError> {
+        loop {
+            let arena = transformation.arena();
+            let record = arena.node(node)?;
+            let NodeData::ParenthesizedExpression(data) = &record.data else {
+                return Ok(node);
+            };
+            if Self::own_original_range(transformation, node)?.is_some() {
+                return Ok(node);
+            }
+            let Some(expression) = data
+                .expression
+                .and_then(|expression| arena.node_ref(node.source(), expression))
+            else {
+                return Ok(node);
+            };
+            node = expression;
+        }
+    }
+
+    /// `!nodeIsSynthesized(node)` projected onto the node's own raw range:
+    /// `Some` carries the parsed byte range, `None` is synthesized.
+    fn own_original_range(
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+    ) -> Result<Option<SourceByteRange>, PrinterError> {
+        let arena = transformation.arena();
+        let record = arena.node(node)?;
+        let source = arena.source(node.source())?.syntax();
         Ok(
-            (!self.source_node_end_and_node_start_are_on_same_line(transformation, left, right)?)
-                as u32,
+            match SourceRange::from_raw(record.pos, record.end, source.positions())? {
+                SourceRange::Original(range) => Some(range),
+                SourceRange::Synthesized => None,
+            },
         )
     }
 

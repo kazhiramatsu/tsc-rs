@@ -484,6 +484,10 @@ impl LiteralNodeProperties {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct EmitMetadata {
     pub(crate) original: Option<TransformNode>,
+    /// This original edge exists only for Rust resolver projection. Emit
+    /// notifications must stop here: tsc leaves this node synthetic. Like
+    /// `original`, this edge property is not inherited by `merge_from`.
+    pub(crate) original_is_semantic: bool,
     pub(crate) flags: EmitFlags,
     pub(crate) internal_flags: InternalEmitFlags,
     pub(crate) leading_comments: Vec<SyntheticComment>,
@@ -570,6 +574,10 @@ pub struct EmitMetadata {
     /// the scope's slot is free, the ordinary temp sequence otherwise
     /// (`makeTempVariableName`, `_tsc.js:120703-120740`).
     pub(crate) generated_binding_loop_variable: bool,
+    /// The binding is a generated private temp (`#_a_accessor_storage`)
+    /// hoisted into a class variable: the finalizer allocates its temp letter
+    /// in the private-name domain of the printing scope, in print order.
+    pub(crate) generated_binding_private_temp: bool,
     /// Whether a class-fields lowering rewrote this class expression's
     /// evaluation into a generated-alias assignment (`class_1 = class ...`):
     /// the assigned-name harvest must then see the GENERATED left-hand side
@@ -680,6 +688,10 @@ impl EmitMetadata {
         self.generated_binding_loop_variable
     }
 
+    pub(crate) const fn generated_binding_is_private_temp(&self) -> bool {
+        self.generated_binding_private_temp
+    }
+
     pub fn set_flags(&mut self, flags: EmitFlags) {
         self.flags = flags;
     }
@@ -775,6 +787,10 @@ impl EmitMetadata {
 
     pub(crate) fn mark_generated_binding_loop_variable(&mut self) {
         self.generated_binding_loop_variable = true;
+    }
+
+    pub(crate) fn mark_generated_binding_private_temp(&mut self) {
+        self.generated_binding_private_temp = true;
     }
 
     pub(crate) const fn class_expression_alias_assigned(&self) -> bool {
@@ -876,6 +892,7 @@ impl EmitMetadata {
             source.generated_binding_file_level_optimistic;
         self.generated_binding_planned_name_authoritative |=
             source.generated_binding_planned_name_authoritative;
+        self.generated_binding_private_temp |= source.generated_binding_private_temp;
         self.generated_binding_reserved_in_nested_scopes |=
             source.generated_binding_reserved_in_nested_scopes;
         if source.referenced_import_declaration.is_some() {

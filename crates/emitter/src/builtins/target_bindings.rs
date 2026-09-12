@@ -30,6 +30,12 @@ use super::generated_bindings::{
 enum PreferredNameDomain {
     ScopedOptimistic,
     FileLevelOptimistic,
+    /// A generated private temp (`getGeneratedPrivateNameForNode` with a
+    /// suffix) hoisted into a class variable: the finalizer allocates the
+    /// temp letter in the private-name domain of the printing scope (its own
+    /// per-suffix counter, reserved in nested scopes), then makes the
+    /// `<prefix><letter><suffix>` class variable optimistically unique.
+    PrivateTemp,
 }
 
 /// Determines when an ordinary (`_a`, `_b`, ...) binding receives its final
@@ -139,8 +145,10 @@ impl TargetBinding {
         file_level_optimistic: bool,
         planned_name_authoritative: bool,
         reserve_in_nested_scopes: bool,
+        private_temp: bool,
     ) -> Self {
         debug_assert!(!file_level_optimistic || preferred_base.is_some());
+        debug_assert!(!private_temp || preferred_base.is_some());
         debug_assert!(
             !planned_name_authoritative
                 || numbered_base.is_none()
@@ -150,6 +158,8 @@ impl TargetBinding {
         let preferred_name_domain = preferred_base.as_ref().map(|_| {
             if file_level_optimistic {
                 PreferredNameDomain::FileLevelOptimistic
+            } else if private_temp {
+                PreferredNameDomain::PrivateTemp
             } else {
                 PreferredNameDomain::ScopedOptimistic
             }
@@ -410,6 +420,34 @@ impl TargetBinding {
         })
     }
 
+    /// A hoisted class variable for a generated private temp name:
+    /// `<prefix>` is the class-derived private prefix (`_C_` or `_`), the
+    /// role suffix the generated private name's suffix
+    /// (`_accessor_storage`); the temp letter between them is assigned by the
+    /// finalizer in print order.
+    ///
+    /// tsc-port: createHoistedVariableForClass @6.0.3
+    /// tsc-hash: edff810d9a41823e089649b66a7eeca72a44a927340eb6a1e3eb2686d42b0eee
+    /// tsc-span: _tsc.js:97772-97789
+    pub(super) fn allocate_private_temp_reserved_in_nested_scopes(
+        context: &mut TransformationContext,
+        prefix: String,
+        role_suffix: String,
+        provisional_name: String,
+    ) -> Result<Self, TransformError> {
+        Ok(Self {
+            id: context.allocate_generated_binding_id()?,
+            provisional_name,
+            numbered_base: None,
+            preferred_base: Some(prefix),
+            preferred_role_suffix: Some(role_suffix),
+            preferred_name_domain: Some(PreferredNameDomain::PrivateTemp),
+            ordinary_temp_name_policy: OrdinaryTempNamePolicy::FinalizerTraversal,
+            reserve_in_nested_scopes: true,
+            derived_from: None,
+        })
+    }
+
     pub(super) const fn id(&self) -> GeneratedBindingId {
         self.id
     }
@@ -456,6 +494,9 @@ impl TargetBinding {
         }
         if self.is_file_level_optimistic() {
             metadata.mark_generated_binding_file_level_optimistic();
+        }
+        if self.preferred_name_domain == Some(PreferredNameDomain::PrivateTemp) {
+            metadata.mark_generated_binding_private_temp();
         }
         if self.ordinary_temp_name_policy == OrdinaryTempNamePolicy::PlannedSpellingAuthoritative {
             metadata.mark_generated_binding_planned_name_authoritative();
@@ -716,9 +757,22 @@ fn finalize_generated_binding_names_with_policy(
             shared_numbered_bindings.insert(entry.binding);
         }
     }
+    let mut naming_moment_stack = Vec::new();
     for event in events {
         match event {
-            BindingNameEvent::EnterNamingMoment | BindingNameEvent::ExitNamingMoment => {}
+            BindingNameEvent::EnterNamingMoment => {
+                naming_moment_stack.push(scopes.enter_naming_moment());
+            }
+            BindingNameEvent::ExitNamingMoment => {
+                let (previous, completed) =
+                    naming_moment_stack
+                        .pop()
+                        .ok_or(TransformError::RequiredChildRemoved {
+                            parent: SyntaxKind::FunctionExpression,
+                            field: "generated-binding naming moment",
+                        })?;
+                scopes.exit_naming_moment(previous, completed);
+            }
             BindingNameEvent::EnterScope(owner) => {
                 scope_stack.push(scopes.enter(owner));
             }
@@ -771,6 +825,16 @@ fn finalize_generated_binding_names_with_policy(
                                 &base,
                                 &role_suffix,
                                 planned_name,
+                                reserve_in_nested_scopes,
+                            ),
+                            (
+                                None,
+                                Some(prefix),
+                                Some(role_suffix),
+                                Some(PreferredNameDomain::PrivateTemp),
+                            ) => scopes.allocate_private_temp_hoisted_name(
+                                &prefix,
+                                &role_suffix,
                                 reserve_in_nested_scopes,
                             ),
                             (
@@ -1232,6 +1296,11 @@ fn collect_binding_name_events(
                 .is_some_and(|metadata| metadata.generated_binding_is_file_level_optimistic())
             {
                 PreferredNameDomain::FileLevelOptimistic
+            } else if arena
+                .metadata(node)
+                .is_some_and(|metadata| metadata.generated_binding_is_private_temp())
+            {
+                PreferredNameDomain::PrivateTemp
             } else {
                 PreferredNameDomain::ScopedOptimistic
             }

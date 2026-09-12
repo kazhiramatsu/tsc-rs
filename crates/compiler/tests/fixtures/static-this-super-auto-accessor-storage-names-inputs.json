@@ -1,0 +1,426 @@
+{
+  "version": 1,
+  "description": "H2.5h ca-2a-r1: generated private temp names of computed auto-accessor backing fields across wrapped and unwrapped classes (`#_a_accessor_storage` is reserved in nested scopes in print order), at ES5, ES2015 and ES2022.",
+  "cases": [
+    {
+      "case_id": "static-this-super/auto-accessor-storage-names/es5/set/wrapped-then-unwrapped",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class C1 {\n    accessor [\"w\"]: any;\n    accessor [\"x\"] = 1;\n    static accessor [\"y\"]: any;\n    static accessor [\"z\"] = 2;\n}\ndeclare const k: \"k\";\nexport class C2 {\n    accessor [k] = 1;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/auto-accessor-storage-names/es2015/set/wrapped-then-unwrapped",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class C1 {\n    accessor [\"w\"]: any;\n    accessor [\"x\"] = 1;\n    static accessor [\"y\"]: any;\n    static accessor [\"z\"] = 2;\n}\ndeclare const k: \"k\";\nexport class C2 {\n    accessor [k] = 1;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/auto-accessor-storage-names/es2022/set/wrapped-then-unwrapped",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class C1 {\n    accessor [\"w\"]: any;\n    accessor [\"x\"] = 1;\n    static accessor [\"y\"]: any;\n    static accessor [\"z\"] = 2;\n}\ndeclare const k: \"k\";\nexport class C2 {\n    accessor [k] = 1;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 9,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/auto-accessor-storage-names/es5/set/unwrapped-then-wrapped",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const k: \"k\";\nexport class C2 {\n    accessor [k] = 1;\n}\nexport class C1 {\n    accessor [\"w\"]: any;\n    accessor [\"x\"] = 1;\n    static accessor [\"y\"]: any;\n    static accessor [\"z\"] = 2;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/auto-accessor-storage-names/es2015/set/unwrapped-then-wrapped",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const k: \"k\";\nexport class C2 {\n    accessor [k] = 1;\n}\nexport class C1 {\n    accessor [\"w\"]: any;\n    accessor [\"x\"] = 1;\n    static accessor [\"y\"]: any;\n    static accessor [\"z\"] = 2;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/auto-accessor-storage-names/es2022/set/unwrapped-then-wrapped",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const k: \"k\";\nexport class C2 {\n    accessor [k] = 1;\n}\nexport class C1 {\n    accessor [\"w\"]: any;\n    accessor [\"x\"] = 1;\n    static accessor [\"y\"]: any;\n    static accessor [\"z\"] = 2;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 9,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/auto-accessor-storage-names/es5/set/two-wrapped",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class C1 {\n    accessor [\"w\"]: any;\n    accessor [\"x\"] = 1;\n    static accessor [\"y\"]: any;\n    static accessor [\"z\"] = 2;\n}\nexport class C3 {\n    accessor [\"w\"]: any;\n    accessor [\"x\"] = 1;\n    static accessor [\"y\"]: any;\n    static accessor [\"z\"] = 2;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/auto-accessor-storage-names/es2015/set/two-wrapped",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class C1 {\n    accessor [\"w\"]: any;\n    accessor [\"x\"] = 1;\n    static accessor [\"y\"]: any;\n    static accessor [\"z\"] = 2;\n}\nexport class C3 {\n    accessor [\"w\"]: any;\n    accessor [\"x\"] = 1;\n    static accessor [\"y\"]: any;\n    static accessor [\"z\"] = 2;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/auto-accessor-storage-names/es2022/set/two-wrapped",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class C1 {\n    accessor [\"w\"]: any;\n    accessor [\"x\"] = 1;\n    static accessor [\"y\"]: any;\n    static accessor [\"z\"] = 2;\n}\nexport class C3 {\n    accessor [\"w\"]: any;\n    accessor [\"x\"] = 1;\n    static accessor [\"y\"]: any;\n    static accessor [\"z\"] = 2;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 9,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/auto-accessor-storage-names/es5/set/nested-function-scope",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class C1 {\n    accessor [\"w\"]: any;\n    accessor [\"x\"] = 1;\n    static accessor [\"y\"]: any;\n    static accessor [\"z\"] = 2;\n}\nexport function make() {\n    class Local {\n        accessor [\"w\"] = 1;\n        static accessor [\"z\"] = 2;\n    }\n    return Local;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/auto-accessor-storage-names/es2015/set/nested-function-scope",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class C1 {\n    accessor [\"w\"]: any;\n    accessor [\"x\"] = 1;\n    static accessor [\"y\"]: any;\n    static accessor [\"z\"] = 2;\n}\nexport function make() {\n    class Local {\n        accessor [\"w\"] = 1;\n        static accessor [\"z\"] = 2;\n    }\n    return Local;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/auto-accessor-storage-names/es2022/set/nested-function-scope",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class C1 {\n    accessor [\"w\"]: any;\n    accessor [\"x\"] = 1;\n    static accessor [\"y\"]: any;\n    static accessor [\"z\"] = 2;\n}\nexport function make() {\n    class Local {\n        accessor [\"w\"] = 1;\n        static accessor [\"z\"] = 2;\n    }\n    return Local;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 9,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/auto-accessor-storage-names/es5/set/anonymous-class-expression",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const A = class {\n    accessor [\"w\"] = 1;\n    static accessor [\"z\"] = 2;\n};\ndeclare const k: \"k\";\nexport class C2 {\n    accessor [k] = 1;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/auto-accessor-storage-names/es2015/set/anonymous-class-expression",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const A = class {\n    accessor [\"w\"] = 1;\n    static accessor [\"z\"] = 2;\n};\ndeclare const k: \"k\";\nexport class C2 {\n    accessor [k] = 1;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": false
+      }
+    },
+    {
+      "case_id": "static-this-super/auto-accessor-storage-names/es2022/set/anonymous-class-expression",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const A = class {\n    accessor [\"w\"] = 1;\n    static accessor [\"z\"] = 2;\n};\ndeclare const k: \"k\";\nexport class C2 {\n    accessor [k] = 1;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 9,
+        "useDefineForClassFields": false
+      }
+    }
+  ]
+}
