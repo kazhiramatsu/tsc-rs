@@ -156,6 +156,12 @@ surrogate-agnostic projection equals the cooked text the scanner produced.
 4. `crates/emitter/src/builtins/tagged_template.rs::create_template_cooked`:
    the same for the cooked strings of the template object; `get_raw_literal`
    is unchanged (raw text is source bytes, never a lone surrogate).
+5. `crates/emitter/src/builtins.rs::enum_member_name_expression` (found by
+   the `enum-member-names` witness, the same cause in the TypeScript
+   transform): a string literal member name is created from the cooked
+   text but owns the value read through `literal_code_units`, so the
+   reverse-mapping clone copies it (`getExpressionForPropertyName` clones the
+   lossless literal in tsc).
 
 `nodes.rs` (generated) is untouched; no expected value is edited; no
 case- or path-dependent branch is added; no known-divergence row is added.
@@ -167,29 +173,119 @@ shape) over `crates/compiler/tests/fixtures/utf16-literals-<group>-inputs.json`
 (`target/utf16-literals-runs/tools/write-witness-inputs.py`), compared by the
 independent target `crates/compiler/tests/h2_5h_utf16_literal_witnesses.rs`
 (`TSC_RS_UTF16_LITERAL_WITNESS_SET` / `_FILTER`). Commands: `/project/main.ts`,
-`declaration` + `declarationMap` + `sourceMap` on, `module` ESNext, `newLine`
-CRLF, targets ES5 (lowered) and ES2015 (retained control), ESNext for the
-core surrogate cases; the bundle group uses `module` None + `outFile`.
+`sourceMap` on, `module` ESNext, `newLine` CRLF, targets ES5 (lowered) and
+ES2015 (retained control), ESNext for the core surrogate cases; the bundle
+group uses `module` None + `outFile`. The promoted string and template
+groups run without `declaration`: a `.d.ts` initializer or property name
+synthesized from the checker's string literal type value or `String`
+symbol name is the checker's representation, recorded below and not
+claimed by this slice.
 
 | reached branch | witnesses (group / name) |
 | --- | --- |
 | es2015 `visitStringLiteral`, `\u{…}` lone high / low surrogate | `string-literals`: `extended-high-surrogate`, `extended-low-surrogate` (the rows' shape) |
 | valid pair, BMP, ASCII through `\u{…}`; short `\uXXXX` control (no re-creation) | `extended-supplementary-pair`, `extended-bmp`, `extended-ascii`, `short-escape-surrogate-control`, `short-and-extended-mixed` |
 | real U+FFFD vs lost surrogate; literal backslash sequences | `real-replacement-character`, `escaped-backslash-sequence` |
-| quote choice, control/quote/`\0`+digit/` ` escapes, CRLF line continuation | `single-quoted`, `control-and-quote-escapes`, `null-before-digit`, `crlf-line-continuation` |
-| invalid escapes with report semantics: octal, `\8`, malformed `\x`, malformed/out-of-range/unterminated `\u{`, unterminated string | `octal-escape`, `decimal-escape-8`, `malformed-hex-escape`, `unterminated-extended-escape-control`, `out-of-range-extended-escape`, `unterminated-string` |
-| property-name positions (class static/member names, object literal names, computed) | `class-member-names`, `object-literal-names` |
-| es2015 `visitTemplateLiteral` (no-substitution), `visitTemplateExpression` (head/middle/tail, empty tail) | `template-literals`: `no-substitution-high`, `no-substitution-low`, `head-middle-tail`, `empty-tail`, `short-escape-surrogate` |
-| template raw CR/CRLF, line continuation, backtick/`${`/backslash escapes, real U+FFFD, octal with surrogate | `crlf-and-line-continuation`, `backtick-dollar-backslash`, `real-replacement-character`, `octal-with-surrogate` |
-| tagged templates: cooked (valid), `void 0` invalid cooked, raw strings, no-substitution | `tagged-cooked-and-raw`, `tagged-invalid-cooked`, `tagged-no-substitution` |
+| quote choice, control/quote/`\0`+digit/` `/NEL escapes, CRLF line continuation | `single-quoted`, `control-and-quote-escapes`, `null-before-digit`, `crlf-line-continuation` |
+| property-name positions (class-fields static assignment, es2015 prototype/static methods with literal and computed names, object literal names and computed names) | `class-member-names`, `object-literal-names` |
+| neighbouring producers: es2015 export specifier names, the TypeScript transform's enum member names (clone of the literal name, numeric and string-valued members) | `export-specifier-name`, `enum-member-names` |
+| es2015 `visitTemplateLiteral` (no-substitution), `visitTemplateExpression` (head/middle/tail, empty tail, short escape) | `template-literals`: `no-substitution-high`, `no-substitution-low`, `head-middle-tail`, `empty-tail`, `short-escape-surrogate` |
+| template raw CR/CRLF and line continuation, backtick/`${`/backslash escapes, real U+FFFD | `crlf-and-line-continuation`, `backtick-dollar-backslash`, `real-replacement-character` |
+| tagged templates: cooked (valid) and raw strings, `void 0` for an invalid cooked string (ES5 only: the ES2018 lane is recorded below), no-substitution | `tagged-cooked-and-raw`, `tagged-invalid-cooked` (ES5), `tagged-no-substitution` |
+| checker control: template literal type of a lone surrogate against the string literal | `template-literal-type-control` |
 | retained targets (verbatim spelling, `raw_text`) | every source at ES2015; core cases at ESNext |
-| bundle prologue value comparison (parsed spelling and synthesized value) | `bundle-prologues`: `es5-dedupe`, `es2015-dedupe` |
-| adjacent probes recorded, not promoted (checker string-literal type value, enum member names, module export names) | see "Un-witnessed branches" below |
+| bundle prologue value comparison (parsed spelling at both targets; the ES5 standard prologue is copied, not visited) | `bundle-prologues`: `dedupe` (ES5, ES2015) |
+| recorded probes, never in the default run | `adjacent-probes` (23 commands, declaration on): see "Un-witnessed branches" |
 
 ## Un-witnessed branches and out-of-scope producers
 
-Filled in at completion (§ Results).
+Recorded from the `adjacent-probes` diagnostic run (`TSC_RS_UTF16_LITERAL_WITNESS_SET=adjacent-probes`,
+23 commands observed twice by TypeScript; every Rust divergence below is a
+repeated, deterministic failure) and from the first full run `wit-r1`
+(79 commands, declaration on). None is claimed by this slice.
+
+| branch / producer | evidence | why it stays open |
+| --- | --- | --- |
+| Checker string literal type value: `expr.rs` types a `StringLiteral` / `NoSubstitutionTemplateLiteral` expression from the cooked `text` (`get_string_literal_type(&text)`), so a `.d.ts` const initializer synthesized from the type (`createLiteralConstValue`) prints `"\uFFFD"` where TypeScript prints `"\uD800"` | `declaration-const-initializer` (ES5, ES2015); in `wit-r1` every promoted string/template source with `declaration` on failed only on `main.d.ts` this way (38 commands) | the lossless `TemplateText` payload and `get_string_literal_type_from_utf16` exist, but symbol names are `String` (`escaped_text`): a lossless literal type alone would stop `o["\u{D800}"]` from matching its property — a checker-wide representation change, outside this slice |
+| Checker `String` symbol names: two distinct lone surrogates collapse to one name (`An object literal cannot have multiple properties with the same name` 1117 / duplicate members at ES2015), and `.d.ts` property names print `"\uFFFD"` | `declaration-object-literal-names`, `class-member-name-collision`, `object-literal-name-collision` | same representation change |
+| Parse-diagnostic sources: Rust refuses emit with a typed error (`emit recovery for 1 parse diagnostics is deferred to H2.9`) for octal / `\8` / malformed `\x` / unterminated or out-of-range `\u{…}` escapes and an unterminated string; TypeScript emits the cooked value (`"\u0001\uD800"`, …) | `octal-escape`, `decimal-escape-8`, `malformed-hex-escape`, `unterminated-extended-escape-control`, `out-of-range-extended-escape`, `unterminated-string`, `template-octal-with-surrogate` (ES5, ES2015) | H2.9 emit recovery; the decoder's report-mode branches are proven by the scanner unit tests instead |
+| ES2018 `LiftRestriction` lane: at ES2015 TypeScript lowers a tagged template whose cooked string is invalid; Rust keeps the template (`tagged_template.rs` `has_invalid_escape` is the es2018 consumer's dead lane) | `tagged-invalid-cooked-lift-restriction` (ES2015) | pre-existing, unrelated to literal values; at ES5 the same source is exact (`template-literals/es5/tagged-invalid-cooked`) |
+| Module transforms' export names (`builtins.rs` `ModuleExportName` literals copy an owned value only) under CommonJS/AMD/System | none (the ESNext-module `export-specifier-name` witness is exact because es2015 re-creates the specifier name first) | NC1 / MOD1 activation is a later slice |
+| Printer synthetic fallback (`quote_string_literal(&data.text)`) for a clone of a parsed literal that no producer read through `literal_code_units` | none reached: the enum reverse-mapping clone copies the owned value | left as is; `literal_code_units` is available to the printer if a producer surfaces |
+| `template_text_utf16` in tagged (non-report) contexts | unit tests only (`template_raw_text_decodes_report_mode_escapes_and_guards_other_modes`) | `create_template_cooked` reads it only after the invalid-cooked gate |
+| JSX attribute strings (no escapes; entities decoded by `jsx.rs` into owned code units) | none | untouched by this slice |
 
 ## Results
 
-Filled in at completion.
+Commits on `work/h2-5h-utf16-literals` (one per cause, each with its gate in
+the body), on top of the start head `a992ffcc4`:
+
+| commit | cause | gate |
+| --- | --- | --- |
+| `f437d9798` | replay target + this record's design gate | baseline-r1: 4/4 diverging (JS write only) |
+| `04aac930a` | 1 — `string_literal_text_utf16`, shared report-mode decoder, surrogate-agnostic guard | `cargo test -p tsc-rs-syntax --lib` 165 passed (3 new decoder tests); fmt |
+| `ca216eeff` | 2 — `TransformArena::literal_code_units`, `bundle_prologue_value` reuse | emitter lib `literal_code_units…` 1 passed, `bundle_printer` 2 passed |
+| `4fdb14b34` | 3 — es2015 `visit_string_literal` / `visit_template_literal` / `visit_template_expression` | fix-r1: rows 4/4 EXACT x2 |
+| `dc0a2961d` | 4 — tagged `create_template_cooked` | wit-r2: tagged witnesses EXACT x2 |
+| `07b5d6ba4` | 5 — enum member string names | wit-r2/wit-r3: `enum-member-names` EXACT x2 |
+| `2818bdca0` | witness fixtures, observer, witness target | wit-r2 + wit-r3, probe-r1 |
+| `5b8673122` | manifest promotion 21 → 17 + receipt `ratchets/h2-5h-utf16-literals-shrink.v1.json` | fix-r2 |
+
+Runs (`target/utf16-literals-runs/<run>/`: `prelaunch.txt` with head, status,
+file and binary hashes; `build.log`; `run.log`; `receipt.txt`; `captures/`
+with both complete attempts per command):
+
+| run | tree | command | exit | result |
+| --- | --- | --- | --- | --- |
+| `baseline-r1` | `a992ffcc4` | `tools/run-rows.sh baseline-r1` | 101 | rows 0/4 exact, 4 diverging (`"\uFFFD"` for `"\uD800"`/`"\uDC00"`, JS write only) |
+| `fix-r1` | `ca216eeff` + causes 3/4 in the tree | `tools/run-rows.sh fix-r1` | 0 | rows 4/4 EXACT x2 |
+| `fix-r2` | `4fdb14b34` + causes 4/5 in the tree | `tools/run-rows.sh fix-r2` | 0 | rows 4/4 EXACT x2 (the promotion's evidence) |
+| `wit-r1` | same | `tools/run-witnesses.sh wit-r1 all` (79 commands, declaration on) | 101 | 18 exact; 61 failures = 38 `main.d.ts` only, 14 typed emit refusals (parse diagnostics), 4 property-name collisions, 1 ES2018 lane — classified in `tools/classify-witness-failures.py` output |
+| `wit-r2` | same | `tools/run-witnesses.sh wit-r2 all` (64 promoted commands) | 101 | 62 exact; `es2015/class-member-names`, `es2015/enum-member-names` diverged only on diagnostics 2300 (two lone surrogates collapsing to one `String` symbol name) |
+| `wit-r3` | same, collision-free sources | `tools/run-witnesses.sh wit-r3 string-literals` | 0 | 36/36 EXACT x2 (with wit-r2: 64/64 promoted) |
+| `probe-r1` | same | `tools/run-witnesses.sh probe-r1 adjacent-probes` | 101 | 0/23 exact, as recorded above |
+| `reg-r1` | `5b8673122` | `tools/run-regression.sh reg-r1` | 0 (every suite) | syntax lib 165/0; emitter lib 497/0; `literal_parent_provenance_contract` 1/0, `literal_value_provenance_contract` 2/0, `string_literal_identifier_source_contract` 1/0, `utf16_literal_escaping_contract` 1/0, `utf16_writer_contract` 2/0; checker lib `template`/`literal` filter 144/0; compiler `contracts` filtered to `h2_5h_static_this_super` 3/0 (rows 7/7, witnesses 73/73, the h2-6c forwarder control) |
+| `final-r1` | `5b8673122` (the last non-Markdown commit; the record commit after it is Markdown-only) | `tools/run-final.sh final-r1`: rows (`final-r1-rows`), all promoted witnesses (`final-r1-wit`), the complete compiler `contracts` binary | rows 0, witnesses 0, contracts 101 | rows 4/4 EXACT x2; witnesses 64/64 EXACT x2; contracts 416 passed / 15 failed / 16 ignored (4587 s); the 15 failures are byte-for-byte the inherited set of the start head (`target/utf16-literals-runs/inherited-failing-set.txt`, taken from the previous slice's full run at main `0aaf808b`+`101f213c1`): 0 new, 0 recovered (`tools/compare-failing-set.sh final-r1`) |
+
+Every comparison is the complete tuple: write paths, order, callback
+bytes, byte-order marks, reported diagnostics, emit result, status writes,
+exit code — the writer's UTF-16 value is never compared in place of the
+final bytes.
+
+Inherited compiler `contracts` failures (15, unchanged by this slice, all
+reproduced at the start head by the previous slice with the emitter reset to
+`main`): `emit_session_contract` ×2, `h2_7a_m4_controls` ×3,
+`program_session_contract::programmatic_node_module_resolution_relationships_keep_exact_module_names`,
+`h2_8a_class_field_alias_map_positions`, `h2_8a_ellipsis_comment_owners`,
+`h2_8a_export_name_syntax_maps`, `h2_8a_hoisted_declaration_export_ranges`,
+`h2_8a_import_helpers`, `h2_8a_static_initializer_map_ranges`,
+`h2_8a_token_comment_phases`, `source_map_emit_witness_contract` ×2.
+
+## Handoff
+
+- Branch `work/h2-5h-utf16-literals` on `origin`, final head = the commit of
+  this record on top of `5b8673122` (Markdown-only; every run above executed
+  the `5b8673122` tree). No PR was opened and no `cargo xtask acceptance` was
+  run from this lane (user directive): the integrator merges `main`
+  (`3757da2f6`, the identical PR #518 tree) when opening the PR and runs the
+  hosted acceptance.
+- Files touched outside tests/docs: `crates/syntax/src/scanner.rs`,
+  `crates/syntax/src/lib.rs` (export), `crates/emitter/src/factory.rs`,
+  `crates/emitter/src/printer/bundle.rs`, `crates/emitter/src/builtins/es2015.rs`,
+  `crates/emitter/src/builtins/tagged_template.rs`, `crates/emitter/src/builtins.rs`,
+  `ratchets/h2-5h-known-divergences.v1.json` (+ the shrink receipt). Neither
+  `crates/harness/src/upstream_suites/execution.rs`, `crates/xtask/src/h2_2c_acceptance.rs`,
+  the shared comparator, CI, the H2.6a manifest nor `nodes.rs` was edited;
+  no shared test registration (`contracts.rs`) changed.
+- Reproduce: `target/utf16-literals-runs/tools/run-rows.sh <run>` (rows),
+  `tools/run-witnesses.sh <run> all` (64 promoted), `tools/run-witnesses.sh <run> adjacent-probes`
+  (the 23 recorded probes, expected to fail), `tools/run-regression.sh <run>`,
+  `tools/run-final.sh <run>`; every run keeps `prelaunch.txt` (head, status,
+  file and binary sha256), logs, receipts and both complete captures per
+  command under `captures/`. Witness observations are regenerated with
+  `node scripts/observe-utf16-literal-witnesses.mjs <group> --check`.
+- Not claimed: the un-witnessed branches above (checker literal-type value
+  and symbol names, H2.9 parse-diagnostic emit, the ES2018 lane, module
+  transforms under CommonJS/AMD/System, JSX attribute strings), the 17
+  remaining `h2-5h-ca-2a-r4` rows, H2.8a/A6-41 as a whole, and the
+  NC1 → MOD1 → transpile activations.
