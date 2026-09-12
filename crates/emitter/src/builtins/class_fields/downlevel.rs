@@ -4967,6 +4967,17 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         &mut self,
         expression: TransformNode,
     ) -> Result<Option<StaticSuperAccessResolution>, TransformError> {
+        // `shouldTransformSuperInStaticInitializers` is
+        // `shouldTransformThisInStaticInitializers && languageVersion >=
+        // ES2015`: below ES2015 every static `super` access (including the
+        // legacy-decorated invalidation) is left to the ES2015 class lowering.
+        //
+        // tsc-port: transformClassFields @6.0.3 (the static-initializer flags)
+        // tsc-hash: f50fa08524ca3b3e4eccf9ed89118e4105f8aed45e116a3484920d86b6885eb7
+        // tsc-span: _tsc.js:95871-95872
+        if self.target < ScriptTarget::ES2015 {
+            return Ok(None);
+        }
         let access = match self.context.arena().node(expression)?.data.clone() {
             NodeData::PropertyAccessExpression(data)
                 if self.property_receiver_is_super(data.expression)? =>
