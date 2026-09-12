@@ -1,0 +1,238 @@
+{
+  "version": 1,
+  "description": "H2.5h ca-2a-r1: legacy-decorated derived classes with static `super` reads and calls at ES5 (class-fields leaves static `super` to the ES2015 lowering below ES2015), with ES2015 controls.",
+  "cases": [
+    {
+      "case_id": "static-this-super/legacy-decorated-static-super/es5/set/decorated-derived-static-super-read-and-call",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const dec: any;\ndeclare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\n@dec\nexport class D extends B {\n    static a = 1;\n    static e = super.g + 1;\n    static y = super.f();\n    static z = super[\"f\"](2);\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": false,
+        "experimentalDecorators": true
+      }
+    },
+    {
+      "case_id": "static-this-super/legacy-decorated-static-super/es5/define/decorated-derived-static-super-read-and-call",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const dec: any;\ndeclare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\n@dec\nexport class D extends B {\n    static a = 1;\n    static e = super.g + 1;\n    static y = super.f();\n    static z = super[\"f\"](2);\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": true,
+        "experimentalDecorators": true
+      }
+    },
+    {
+      "case_id": "static-this-super/legacy-decorated-static-super/es2015/set/decorated-derived-static-super-read-and-call",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const dec: any;\ndeclare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\n@dec\nexport class D extends B {\n    static a = 1;\n    static e = super.g + 1;\n    static y = super.f();\n    static z = super[\"f\"](2);\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": false,
+        "experimentalDecorators": true
+      }
+    },
+    {
+      "case_id": "static-this-super/legacy-decorated-static-super/es2015/define/decorated-derived-static-super-read-and-call",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const dec: any;\ndeclare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\n@dec\nexport class D extends B {\n    static a = 1;\n    static e = super.g + 1;\n    static y = super.f();\n    static z = super[\"f\"](2);\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": true,
+        "experimentalDecorators": true
+      }
+    },
+    {
+      "case_id": "static-this-super/legacy-decorated-static-super/es5/set/decorated-derived-static-block-super",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const dec: any;\ndeclare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\n@dec\nexport class D extends B {\n    static {\n        super.f();\n    }\n    static e = super.g;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": false,
+        "experimentalDecorators": true
+      }
+    },
+    {
+      "case_id": "static-this-super/legacy-decorated-static-super/es5/define/decorated-derived-static-block-super",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const dec: any;\ndeclare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\n@dec\nexport class D extends B {\n    static {\n        super.f();\n    }\n    static e = super.g;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1,
+        "useDefineForClassFields": true,
+        "experimentalDecorators": true
+      }
+    },
+    {
+      "case_id": "static-this-super/legacy-decorated-static-super/es2015/set/decorated-derived-static-block-super",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const dec: any;\ndeclare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\n@dec\nexport class D extends B {\n    static {\n        super.f();\n    }\n    static e = super.g;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": false,
+        "experimentalDecorators": true
+      }
+    },
+    {
+      "case_id": "static-this-super/legacy-decorated-static-super/es2015/define/decorated-derived-static-block-super",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "declare const dec: any;\ndeclare class B { static f(...xs: number[]): number; static g: number; static tag(strings: TemplateStringsArray, ...values: any[]): string; f(): number; }\n@dec\nexport class D extends B {\n    static {\n        super.f();\n    }\n    static e = super.g;\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2,
+        "useDefineForClassFields": true,
+        "experimentalDecorators": true
+      }
+    }
+  ]
+}

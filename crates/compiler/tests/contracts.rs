@@ -24,6 +24,10 @@ mod h1_memory_emit_oracle_contract;
 mod h2_5h_ca2a_promote_contract;
 #[path = "integration/h2_5h_ca2b_seam_contract.rs"]
 mod h2_5h_ca2b_seam_contract;
+#[path = "integration/h2_5h_static_this_super_rows.rs"]
+mod h2_5h_static_this_super_rows;
+#[path = "integration/h2_5h_static_this_super_witnesses.rs"]
+mod h2_5h_static_this_super_witnesses;
 #[path = "integration/h2_7a_ca_controls.rs"]
 mod h2_7a_ca_controls;
 #[path = "integration/h2_7a_m35_controls.rs"]
