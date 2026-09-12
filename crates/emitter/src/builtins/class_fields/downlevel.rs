@@ -3321,6 +3321,15 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
 
         let temporary = self.allocate_temp_name()?;
         let target = self.create_binding_identifier(&temporary)?;
+        // transformAutoAccessor: `setSourceMapRange(temp, name.expression)`
+        // — the temp itself maps to the key expression, so its end emits a
+        // mapping of its own.
+        if let Some(range) = self.source_map_range_of(expression)? {
+            self.context
+                .arena_mut()?
+                .metadata_mut(target)
+                .set_source_map_range(range);
+        }
         let assignment = self.create_assignment(target, expression)?;
         self.context
             .factory()?
@@ -3329,9 +3338,40 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let getter_name = self.update_computed_property_name(original, getter_data)?;
 
         let read = self.create_binding_identifier(&temporary)?;
+        // The setter reads the same `temp` node, so it carries the key
+        // expression's source-map range as well.
+        if let Some(range) = self.source_map_range_of(expression)? {
+            self.context
+                .arena_mut()?
+                .metadata_mut(read)
+                .set_source_map_range(range);
+        }
         setter_data.expression = Some(read.node());
         let setter_name = self.update_computed_property_name(original, setter_data)?;
         Ok((getter_name, setter_name))
+    }
+
+    /// `getSourceMapRange(node)`: the explicit metadata range, else the
+    /// node's own parsed range.
+    fn source_map_range_of(
+        &self,
+        node: TransformNode,
+    ) -> Result<Option<SourceMapRange>, TransformError> {
+        let arena = self.context.arena();
+        if let Some(range) = arena
+            .metadata(node)
+            .and_then(crate::EmitMetadata::source_map_range)
+        {
+            return Ok(Some(range));
+        }
+        let record = arena.node(node)?;
+        let source = arena.source(node.source())?.syntax();
+        let range = SourceRange::from_raw(record.pos, record.end, source.positions())
+            .map_err(|error| TransformError::InvalidSourceRange { node, error })?;
+        Ok(match range {
+            SourceRange::Original(_) => Some(SourceMapRange::new(node.source(), range)),
+            SourceRange::Synthesized => None,
+        })
     }
 
     /// tsc-port: findComputedPropertyNameCacheAssignment @6.0.3
@@ -4782,7 +4822,11 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 StaticSuperAccessResolution::Bound(access) => {
                     let class_receiver = access.class_receiver.clone();
                     let target = self.create_static_super_get(&access)?;
-                    self.set_original_and_range(target, expression_node)?;
+                    // visitCallExpression visits the callee through
+                    // visitPropertyAccessExpression/visitElementAccessExpression,
+                    // whose Reflect.get call is ranged to the `super` keyword.
+                    let receiver = self.super_access_receiver(expression_node)?;
+                    self.set_original_and_range(target, receiver)?;
                     (target, class_receiver)
                 }
                 StaticSuperAccessResolution::InvalidLegacyDecorated {
@@ -4868,7 +4912,10 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 StaticSuperAccessResolution::Bound(access) => {
                     let class_receiver = access.class_receiver.clone();
                     let target = self.create_static_super_get(&access)?;
-                    self.set_original_and_range(target, tag)?;
+                    // The tag is visited through the property/element access
+                    // visitors: the Reflect.get call is ranged to `super`.
+                    let receiver = self.super_access_receiver(tag)?;
+                    self.set_original_and_range(target, receiver)?;
                     (target, class_receiver)
                 }
                 StaticSuperAccessResolution::InvalidLegacyDecorated {
@@ -4889,7 +4936,12 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             };
             let bind = self.create_property_access(target, "bind")?;
             let this_arg = self.create_binding_identifier(&class_receiver)?;
-            data.tag = Some(self.create_call(bind, vec![this_arg])?.node());
+            let invocation = self.create_call(bind, vec![this_arg])?;
+            // visitTaggedTemplateExpression: `setOriginalNode(invocation, node);
+            // setTextRange(invocation, node)` — the bind call spans the whole
+            // tagged template.
+            self.set_original_and_range(invocation, original)?;
+            data.tag = Some(invocation.node());
             data.type_arguments = None;
             data.template = Some(
                 self.visit_required(
@@ -4977,6 +5029,22 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             target,
             this_arg: stabilized.read,
         }))
+    }
+
+    /// The `super` keyword of a super property/element access: the node
+    /// tsc ranges its `Reflect.get` replacement to (`setTextRange(superProperty, node.expression)`).
+    fn super_access_receiver(&self, access: TransformNode) -> Result<TransformNode, TransformError> {
+        let receiver = match &self.context.arena().node(access)?.data {
+            NodeData::PropertyAccessExpression(data) => data.expression,
+            NodeData::ElementAccessExpression(data) => data.expression,
+            _ => None,
+        };
+        receiver
+            .map(|receiver| self.node(receiver))
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::PropertyAccessExpression,
+                field: "super access receiver",
+            })
     }
 
     fn property_receiver_is_super(&self, receiver: Option<NodeId>) -> Result<bool, TransformError> {
