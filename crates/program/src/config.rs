@@ -2833,7 +2833,8 @@ fn config_diagnostic_from_chain(
             Some(location.start),
             Some(location.length),
             message,
-        ),
+        )
+        .with_file_path(""),
         None => Diagnostic::new(None, None, None, message),
     }
 }

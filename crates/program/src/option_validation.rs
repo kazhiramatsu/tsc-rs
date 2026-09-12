@@ -693,7 +693,8 @@ pub fn validate_paths_option_diagnostics(
                 Some(location.span().start()),
                 Some(location.span().length()),
                 message,
-            ),
+            )
+            .with_file_path(""),
             None => Diagnostic::new(None, None, None, message),
         });
     }

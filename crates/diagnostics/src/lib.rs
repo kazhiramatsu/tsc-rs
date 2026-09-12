@@ -151,6 +151,10 @@ pub struct CanonicalHead {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Diagnostic {
     pub file_name: Option<String>,
+    /// SourceFile.path when it differs from the displayed file name.
+    /// Parsed config sources have an empty path until owned by a Program.
+    /// getDiagnosticFilePath compares this identity, not fileName.
+    pub file_path: Option<String>,
     pub start: Option<u32>,
     pub length: Option<u32>,
     pub message: MessageChain,
@@ -183,6 +187,7 @@ impl Diagnostic {
         let metadata = by_code(message.code);
         Self {
             file_name,
+            file_path: None,
             start,
             length,
             message,
@@ -198,6 +203,11 @@ impl Diagnostic {
             source: None,
             skipped_on_no_emit: false,
         }
+    }
+
+    pub fn with_file_path(mut self, path: impl Into<String>) -> Self {
+        self.file_path = Some(path.into());
+        self
     }
 
     pub fn with_reports_unnecessary(mut self, value: Option<bool>) -> Self {
@@ -261,11 +271,14 @@ pub fn sort_and_dedupe_diagnostics(diagnostics: &mut DiagnosticList) {
 }
 
 fn compare_diagnostics_skip_related(left: &Diagnostic, right: &Diagnostic) -> Ordering {
-    compare_optional_strings_case_sensitive(left.file_name.as_deref(), right.file_name.as_deref())
-        .then_with(|| left.start.cmp(&right.start))
-        .then_with(|| left.length.cmp(&right.length))
-        .then_with(|| left.comparison_code().cmp(&right.comparison_code()))
-        .then_with(|| compare_diagnostic_message_text(left, right))
+    compare_optional_strings_case_sensitive(
+        left.file_path.as_deref().or(left.file_name.as_deref()),
+        right.file_path.as_deref().or(right.file_name.as_deref()),
+    )
+    .then_with(|| left.start.cmp(&right.start))
+    .then_with(|| left.length.cmp(&right.length))
+    .then_with(|| left.comparison_code().cmp(&right.comparison_code()))
+    .then_with(|| compare_diagnostic_message_text(left, right))
 }
 
 /// JavaScript relational string comparison is lexicographic over UTF-16
