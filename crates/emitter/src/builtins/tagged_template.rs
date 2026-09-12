@@ -157,7 +157,7 @@ fn create_template_cooked(
     if template_cooked_is_invalid(&raw) {
         host.create_void_zero()
     } else {
-        host.create_string_literal(&text)
+        host.create_string_literal_with_value_of(template, &text)
     }
 }
 

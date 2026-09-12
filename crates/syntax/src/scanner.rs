@@ -2215,22 +2215,92 @@ fn utf16_encode_as_string(value: u32) -> String {
 ///
 /// The scanner's general token-value surface is a Rust `String`, so a
 /// `\uXXXX` escape naming an unpaired surrogate is represented there
-/// as U+FFFD. Template literal types need the original code unit for
-/// matching and synthesized printing. Re-decoding the already stored
-/// raw fragment is lossless and leaves the scanner's UTF-8-facing API
-/// unchanged.
+/// as U+FFFD. Template literal types and the ES2015 template lowering
+/// need the original code unit for matching and synthesized printing.
+/// Re-decoding the already stored raw fragment is lossless and leaves
+/// the scanner's UTF-8-facing API unchanged. The decode replays the
+/// report-mode escape grammar (`scanTemplateAndSetTokenValue` with
+/// `shouldEmitInvalidEscapeError`, the untagged form every caller
+/// observes); it is accepted only when it agrees with `cooked` at every
+/// non-surrogate unit, so a tagged fragment whose cooked text kept an
+/// invalid escape verbatim falls back to that cooked text.
 pub fn template_text_utf16(cooked: &str, raw: Option<&str>) -> Vec<u16> {
-    raw.and_then(try_decode_template_raw_utf16)
+    raw.map(|raw| decode_raw_literal_utf16(raw, RawLiteralGrammar::Template))
+        .filter(|units| cooked_agrees_with_units(cooked, units))
         .unwrap_or_else(|| cooked.encode_utf16().collect())
 }
 
-fn try_decode_template_raw_utf16(raw: &str) -> Option<Vec<u16>> {
-    let mut units = Vec::with_capacity(raw.len());
-    let mut chars = raw.chars().peekable();
-    while let Some(ch) = chars.next() {
-        if ch == '\r' {
-            if chars.peek() == Some(&'\n') {
-                chars.next();
+/// tsrs-native: the string-literal counterpart of [`template_text_utf16`].
+/// `raw` is the token spelling between its quotes (`getTemplateLiteralRawText`
+/// has no string analogue in tsc: `StringLiteral.text` is lossless there).
+/// `scanString` applies `scanEscapeSequence(String | ReportErrors)` and never
+/// normalizes an unescaped line terminator (it ends the token instead), so
+/// the decode differs from the template grammar only there. The result is
+/// the cooked text's own units unless the decode agrees with `cooked` at
+/// every non-surrogate unit.
+pub fn string_literal_text_utf16(cooked: &str, raw: &str) -> Vec<u16> {
+    let units = decode_raw_literal_utf16(raw, RawLiteralGrammar::String);
+    if cooked_agrees_with_units(cooked, &units) {
+        units
+    } else {
+        cooked.encode_utf16().collect()
+    }
+}
+
+/// Escape grammar of the literal whose stored raw spelling is decoded.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum RawLiteralGrammar {
+    /// `scanString`: an unescaped line terminator never occurs inside the
+    /// stored spelling.
+    String,
+    /// `scanTemplateAndSetTokenValue`: an unescaped CR or CRLF cooks to LF.
+    Template,
+}
+
+/// The scanner's `String` projection of a JavaScript string maps every
+/// unpaired surrogate to U+FFFD, and `utf16_encode_as_string` maps each
+/// escape separately (two escapes forming a pair are two U+FFFD). Compare
+/// with every surrogate unit and U+FFFD folded together: a decode that
+/// differs anywhere else came from another escape mode (a tagged template's
+/// verbatim invalid escape) or from a value-changing synthesis.
+fn cooked_agrees_with_units(cooked: &str, units: &[u16]) -> bool {
+    fn fold(unit: u16) -> u16 {
+        if (0xD800..=0xDFFF).contains(&unit) {
+            0xFFFD
+        } else {
+            unit
+        }
+    }
+    units
+        .iter()
+        .copied()
+        .map(fold)
+        .eq(cooked.encode_utf16().map(fold))
+}
+
+/// tsrs-native: `scanEscapeSequence(EscapeSequenceScanningFlags.String |
+/// ReportErrors)` (`_tsc.js:9066-9204`, `scan_escape_sequence` above)
+/// replayed over a stored raw spelling, producing JavaScript UTF-16 code
+/// units instead of a Rust `String`. Every report-mode value branch is
+/// mirrored: `\0` before a digit and octal escapes cook to their code
+/// (`scan_octal_escape`), `\8`/`\9` to the digit, malformed `\x`/`\u` and a
+/// digitless, out-of-range or unterminated `\u{…}` to their raw slice
+/// (`scan_extended_unicode_escape`), line continuations to nothing, a
+/// backslash at the end to nothing, and every other escaped character to
+/// itself. Diagnostics stay with the scanner; only the value is replayed.
+fn decode_raw_literal_utf16(raw: &str, grammar: RawLiteralGrammar) -> Vec<u16> {
+    let bytes = raw.as_bytes();
+    let end = bytes.len();
+    let mut units = Vec::with_capacity(end);
+    let mut pos = 0usize;
+    let char_at = |pos: usize| raw[pos..].chars().next();
+    let is_octal_byte = |byte: &u8| matches!(byte, b'0'..=b'7');
+    while pos < end {
+        let ch = char_at(pos).expect("position is on a scalar boundary");
+        if ch == '\r' && grammar == RawLiteralGrammar::Template {
+            pos += 1;
+            if bytes.get(pos) == Some(&b'\n') {
+                pos += 1;
             }
             units.push(b'\n' as u16);
             continue;
@@ -2238,71 +2308,88 @@ fn try_decode_template_raw_utf16(raw: &str) -> Option<Vec<u16>> {
         if ch != '\\' {
             let mut encoded = [0u16; 2];
             units.extend_from_slice(ch.encode_utf16(&mut encoded));
+            pos += ch.len_utf8();
             continue;
         }
-
-        let escaped = chars.next()?;
+        let start = pos;
+        pos += 1;
+        let Some(escaped) = char_at(pos) else {
+            break;
+        };
+        pos += escaped.len_utf8();
         match escaped {
-            '0' if !chars.peek().is_some_and(char::is_ascii_digit) => units.push(0),
-            '0' => return None,
+            '0' if !bytes.get(pos).is_some_and(u8::is_ascii_digit) => units.push(0),
+            '0'..='7' => {
+                if bytes.get(pos).is_some_and(is_octal_byte) {
+                    pos += 1;
+                }
+                if matches!(escaped, '0'..='3') && bytes.get(pos).is_some_and(is_octal_byte) {
+                    pos += 1;
+                }
+                let value = u32::from_str_radix(&raw[start + 1..pos], 8).unwrap_or(0xfffd);
+                push_code_point_utf16(&mut units, value);
+            }
+            '8' | '9' => units.push(escaped as u16),
             'b' => units.push(0x0008),
             't' => units.push(b'\t' as u16),
             'n' => units.push(b'\n' as u16),
             'v' => units.push(0x000B),
             'f' => units.push(0x000C),
             'r' => units.push(b'\r' as u16),
+            '\'' => units.push(b'\'' as u16),
+            '"' => units.push(b'"' as u16),
+            'u' if bytes.get(pos) == Some(&b'{') => {
+                pos += 1;
+                let digits_start = pos;
+                while bytes.get(pos).is_some_and(u8::is_ascii_hexdigit) {
+                    pos += 1;
+                }
+                let value = (pos > digits_start)
+                    .then(|| u32::from_str_radix(&raw[digits_start..pos], 16).ok())
+                    .flatten();
+                let terminated = bytes.get(pos) == Some(&b'}');
+                if terminated {
+                    pos += 1;
+                }
+                match value {
+                    Some(value) if value <= 0x10FFFF && terminated => {
+                        push_code_point_utf16(&mut units, value);
+                    }
+                    _ => units.extend(raw[start..pos].encode_utf16()),
+                }
+            }
+            'u' | 'x' => {
+                let count = if escaped == 'u' { 4 } else { 2 };
+                let digits_start = pos;
+                let mut valid = true;
+                for _ in 0..count {
+                    if bytes.get(pos).is_some_and(u8::is_ascii_hexdigit) {
+                        pos += 1;
+                    } else {
+                        valid = false;
+                        break;
+                    }
+                }
+                if valid {
+                    let value = u32::from_str_radix(&raw[digits_start..pos], 16).unwrap_or(0xfffd);
+                    push_code_point_utf16(&mut units, value);
+                } else {
+                    units.extend(raw[start..pos].encode_utf16());
+                }
+            }
             '\r' => {
-                if chars.peek() == Some(&'\n') {
-                    chars.next();
+                if bytes.get(pos) == Some(&b'\n') {
+                    pos += 1;
                 }
             }
             '\n' | '\u{2028}' | '\u{2029}' => {}
-            'x' => {
-                let value = take_hex_value(&mut chars, 2)?;
-                units.push(value as u16);
-            }
-            'u' if chars.peek() == Some(&'{') => {
-                chars.next();
-                let mut value = 0u32;
-                let mut count = 0usize;
-                loop {
-                    let digit = chars.next()?;
-                    if digit == '}' {
-                        break;
-                    }
-                    value = value.checked_mul(16)?.checked_add(digit.to_digit(16)?)?;
-                    count += 1;
-                }
-                if count == 0 || value > 0x10FFFF {
-                    return None;
-                }
-                push_code_point_utf16(&mut units, value);
-            }
-            'u' => {
-                let value = take_hex_value(&mut chars, 4)?;
-                units.push(value as u16);
-            }
-            '1'..='9' => return None,
             other => {
                 let mut encoded = [0u16; 2];
                 units.extend_from_slice(other.encode_utf16(&mut encoded));
             }
         }
     }
-    Some(units)
-}
-
-fn take_hex_value(
-    chars: &mut std::iter::Peekable<std::str::Chars<'_>>,
-    count: usize,
-) -> Option<u32> {
-    let mut value = 0u32;
-    for _ in 0..count {
-        value = value
-            .checked_mul(16)?
-            .checked_add(chars.next()?.to_digit(16)?)?;
-    }
-    Some(value)
+    units
 }
 
 fn push_code_point_utf16(units: &mut Vec<u16>, value: u32) {

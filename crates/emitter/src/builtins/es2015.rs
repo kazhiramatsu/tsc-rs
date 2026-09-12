@@ -1325,6 +1325,28 @@ impl Es2015Visitor<'_, '_, '_> {
         )
     }
 
+    /// `factory.createStringLiteral(node.text)` for a string literal or
+    /// template fragment: tsc's `text` is a lossless JavaScript string, so
+    /// the created literal owns the JavaScript value the tree knows for
+    /// `literal` (`TransformArena::literal_code_units`: a node-owned value,
+    /// the parsed spelling, or a clone's original); only a literal without
+    /// any lossless value is created from the cooked `text`.
+    pub(super) fn create_string_literal_with_value_of(
+        &mut self,
+        literal: TransformNode,
+        text: &str,
+    ) -> Result<TransformNode, TransformError> {
+        match self.context.arena().literal_code_units(literal)? {
+            Some(units) => {
+                let source = self.source;
+                self.context
+                    .factory()?
+                    .create_string_literal_from_code_units(source, &units, false)
+            }
+            None => self.create_string_literal(text),
+        }
+    }
+
     fn create_numeric_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
         let source = self.source;
         self.context.factory()?.create_node(
@@ -2761,7 +2783,7 @@ impl Es2015Visitor<'_, '_, '_> {
                 })
             }
         };
-        let created = self.create_string_literal(&text)?;
+        let created = self.create_string_literal_with_value_of(node, &text)?;
         self.set_text_range(created, node)?;
         Ok(created)
     }
@@ -2781,7 +2803,7 @@ impl Es2015Visitor<'_, '_, '_> {
             _ => (false, String::new()),
         };
         if has_escape {
-            let created = self.create_string_literal(&text)?;
+            let created = self.create_string_literal_with_value_of(node, &text)?;
             self.set_text_range(created, node)?;
             return Ok(created);
         }
@@ -6113,7 +6135,7 @@ impl Es2015Visitor<'_, '_, '_> {
         &mut self,
         node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let (head_text, spans) = {
+        let (head, head_text, spans) = {
             let NodeData::TemplateExpression(data) = &self.context.arena().node(node)?.data else {
                 return Err(assembly_kind_error(
                     SyntaxKind::TemplateExpression,
@@ -6130,11 +6152,11 @@ impl Es2015Visitor<'_, '_, '_> {
                     return Err(assembly_kind_error(SyntaxKind::TemplateHead, "head"));
                 }
             };
-            (head_text, self.array_nodes(data.template_spans)?)
+            (head, head_text, self.array_nodes(data.template_spans)?)
         };
-        let mut expression = self.create_string_literal(&head_text)?;
+        let mut expression = self.create_string_literal_with_value_of(head, &head_text)?;
         for span in spans {
-            let (span_expression, literal_text) = {
+            let (span_expression, literal, literal_text) = {
                 let NodeData::TemplateSpan(data) = &self.context.arena().node(span)?.data else {
                     return Err(assembly_kind_error(SyntaxKind::TemplateSpan, "span"));
                 };
@@ -6156,11 +6178,11 @@ impl Es2015Visitor<'_, '_, '_> {
                         ))
                     }
                 };
-                (span_expression, literal_text)
+                (span_expression, literal, literal_text)
             };
             let mut arguments = vec![self.visit_required_expression(span_expression)?];
             if !literal_text.is_empty() {
-                arguments.push(self.create_string_literal(&literal_text)?);
+                arguments.push(self.create_string_literal_with_value_of(literal, &literal_text)?);
             }
             let concat = self.create_property_access_text(expression, "concat")?;
             expression = self.create_call(concat, arguments)?;
