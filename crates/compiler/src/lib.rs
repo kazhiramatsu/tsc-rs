@@ -448,6 +448,10 @@ impl PreparedModuleProvider<'_> {
 }
 
 impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
+    fn program_options_for_module_specifiers(&self) -> Option<&tsc_program::ProgramOptions> {
+        Some(self.prepared.program_options())
+    }
+
     fn resolve_module(
         &self,
         request: AuthoritativeModuleRequest<'_>,
@@ -1012,6 +1016,12 @@ impl ProgramSession {
             failure: RefCell<Option<AuthoritativeModuleFailure>>,
         }
         impl AuthoritativeModuleProvider for ObservedProvider<'_> {
+            fn program_options_for_module_specifiers(
+                &self,
+            ) -> Option<&tsc_program::ProgramOptions> {
+                self.inner.program_options_for_module_specifiers()
+            }
+
             fn resolve_module(
                 &self,
                 request: AuthoritativeModuleRequest<'_>,

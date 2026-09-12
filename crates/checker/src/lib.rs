@@ -274,6 +274,15 @@ pub trait AuthoritativeModuleProvider {
         &self,
         request: AuthoritativeModuleRequest<'_>,
     ) -> Result<AuthoritativeModuleResolution, AuthoritativeModuleLookupFailure>;
+
+    /// Immutable Program-owned fields from TypeScript's effective compiler
+    /// options used when synthesizing a declaration module specifier. These
+    /// accompany the separate `CompilerOptions` bag without reparsing config
+    /// or losing the declaring directory of inherited paths.
+    /// Legacy providers without a Program option bag retain the absent view.
+    fn program_options_for_module_specifiers(&self) -> Option<&tsc_program::ProgramOptions> {
+        None
+    }
 }
 
 /// Fail-closed authoritative execution error. The checker records only the
