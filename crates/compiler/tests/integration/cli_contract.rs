@@ -1279,15 +1279,36 @@ fn filesystem_config_and_source_diagnostic_order_matches_typescript() {
     let case_sensitive = tsc_host::FsCompilerHost::from_process()
         .expect("native filesystem profile")
         .use_case_sensitive_file_names();
-    for (source, module_options, outfile) in [
-        ("main.ts", r#""module":"none""#, false),
-        ("z/main.ts", r#""module":"none""#, false),
-        ("main.ts", r#""outFile":"dist/bundle.js""#, true),
+    for (source, module_options, outfile, text) in [
+        (
+            "main.ts",
+            r#""module":"none""#,
+            false,
+            "export const value = 1;\n",
+        ),
+        (
+            "z/main.ts",
+            r#""module":"none""#,
+            false,
+            "export const value = 1;\n",
+        ),
+        (
+            "z/main.ts",
+            r#""module":"commonjs""#,
+            false,
+            "export const value: string = 1;\n",
+        ),
+        (
+            "main.ts",
+            r#""outFile":"dist/bundle.js""#,
+            true,
+            "export const value = 1;\n",
+        ),
     ] {
         for repetition in 1..=2 {
             let tree = TempTree::new();
             fs::create_dir_all(tree.path(source).parent().unwrap()).unwrap();
-            fs::write(tree.path(source), "export const value = 1;\n").unwrap();
+            fs::write(tree.path(source), text).unwrap();
             fs::write(tree.path("tsconfig.json"), format!(
                 r#"{{"compilerOptions":{{"target":"es5","moduleResolution":"node","lib":["es5"],"types":[],"noEmitOnError":true,"skipLibCheck":true,{module_options}}},"files":["{source}"]}}"#
             )).unwrap();
@@ -1311,7 +1332,10 @@ fn filesystem_config_and_source_diagnostic_order_matches_typescript() {
                     "{}",
                     String::from_utf8_lossy(&native.stderr)
                 );
-                assert_eq!(native.stdout, upstream.stdout);
+                assert_eq!(
+                    String::from_utf8_lossy(&native.stdout),
+                    String::from_utf8_lossy(&upstream.stdout)
+                );
                 assert_eq!(native.stderr, upstream.stderr);
                 eprintln!("CFG diagnostic CLI exact x{repetition}: {source}/{module_options}");
             }
