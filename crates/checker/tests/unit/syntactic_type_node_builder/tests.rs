@@ -1032,3 +1032,93 @@ fn syntactic_jsdoc_type_literal_consults_property_override() {
         },
     );
 }
+
+#[test]
+fn declaration_comment_parameter_lookup_matches_upstream_node_identity() {
+    let fixture: serde_json::Value = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../compiler/tests/fixtures/declaration-comment-parameter-tags.json"
+    )))
+    .unwrap();
+    let cases = fixture["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 12);
+    let mut failures = Vec::new();
+    for case in cases {
+        let id = case["case_id"].as_str().unwrap();
+        for repetition in 0..2 {
+            let result = std::panic::catch_unwind(|| {
+                let events = Rc::new(RefCell::new(Vec::new()));
+                let mut resolver = TestResolver::new(Rc::clone(&events));
+                let mut tracker = TestTracker { events };
+                let options = CompilerOptions {
+                    allow_js: true,
+                    ..CompilerOptions::default()
+                };
+                let file = &case["files"][0];
+                with_case(
+                    file["path"].as_str().unwrap(),
+                    file["text"].as_str().unwrap(),
+                    &options,
+                    &mut resolver,
+                    &mut tracker,
+                    |checker, arena, target, context, resolver| {
+                        let parameters = checker
+                            .binder
+                            .source(0)
+                            .arena
+                            .node_ids()
+                            .filter(|&node| checker.kind_of(node) == SyntaxKind::Parameter)
+                            .map(|node| arena.node_ref(target, node).unwrap())
+                            .collect::<Vec<_>>();
+                        let expected = case["parameter_trace"].as_array().unwrap();
+                        assert_eq!(parameters.len(), expected.len(), "{id}");
+                        let builder = SyntacticTypeNodeBuilder::new(&options);
+                        let session = SyntacticBuildSession::new(
+                            &builder,
+                            resolver,
+                            arena,
+                            target,
+                            context,
+                            EmitResolverMethod::CreateTypeOfDeclaration,
+                        );
+                        let describe = |node: Option<TransformNode>| {
+                            node.map_or(serde_json::Value::Null, |node| {
+                            let record = session.arena.node(node).unwrap();
+                            serde_json::json!({"kind":format!("{:?}",record.kind),
+                                "pos":record.pos as i32,"end":record.end as i32,
+                                "file":session.arena.source(node.source()).unwrap().syntax().file_name})
+                        })
+                        };
+                        for (&parameter, expected) in parameters.iter().zip(expected) {
+                            assert_eq!(
+                                describe(Some(parameter)),
+                                expected["parameter"],
+                                "{id}: input identity"
+                            );
+                            let jsdoc = session.get_jsdoc_type(parameter)?;
+                            assert_eq!(
+                                describe(jsdoc),
+                                expected["jsdoc_type"],
+                                "{id}: JSDoc type identity"
+                            );
+                            let effective = session.effective_type_annotation_node(parameter)?;
+                            assert_eq!(
+                                describe(effective),
+                                expected["effective_type"],
+                                "{id}: effective annotation identity"
+                            );
+                        }
+                        Ok(())
+                    },
+                );
+            });
+            if result.is_err() {
+                failures.push(format!("{id} repetition {repetition}"));
+            }
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "parameter lookup mismatches: {failures:?}"
+    );
+}

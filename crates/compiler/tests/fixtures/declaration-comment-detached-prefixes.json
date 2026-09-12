@@ -1,0 +1,1918 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "repetitions": 2,
+  "cases": [
+    {
+      "case_id": "declaration-comment-detached-prefix/module-header",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "/** file header */\n\nmodule.exports = function api() {};\n"
+        }
+      ],
+      "options": {
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "module": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLGtCQUFrQjtBQUVsQixNQUFNLENBQUMsT0FBTyxHQUFHLFNBQVMsR0FBRyxLQUFJLENBQUMsQ0FBQyJ9",
+            "callback_utf8_bytes": 159,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLGtCQUFrQjtBQUVsQixNQUFNLENBQUMsT0FBTyxHQUFHLFNBQVMsR0FBRyxLQUFJLENBQUMsQ0FBQyJ9",
+            "materialized_utf8_bytes": 159,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLyoqIGZpbGUgaGVhZGVyICovDQptb2R1bGUuZXhwb3J0cyA9IGZ1bmN0aW9uIGFwaSgpIHsgfTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "callback_utf8_bytes": 105,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KLyoqIGZpbGUgaGVhZGVyICovDQptb2R1bGUuZXhwb3J0cyA9IGZ1bmN0aW9uIGFwaSgpIHsgfTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "materialized_utf8_bytes": 105,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 73,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFFaUIsa0NBQWlCIn0=",
+            "callback_utf8_bytes": 110,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFFaUIsa0NBQWlCIn0=",
+            "materialized_utf8_bytes": 110,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBfZXhwb3J0cygpOiB2b2lkOw0KZXhwb3J0ID0gX2V4cG9ydHM7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "callback_utf8_bytes": 90,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBfZXhwb3J0cygpOiB2b2lkOw0KZXhwb3J0ID0gX2V4cG9ydHM7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "materialized_utf8_bytes": 90,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 56,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,kBAAkB;AAElB,MAAM,CAAC,OAAO,GAAG,SAAS,GAAG,KAAI,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAEiB,kCAAiB\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      },
+      "prefix_trace": [
+        {
+          "file": "/project/main.js",
+          "declaration": false,
+          "pos": 0,
+          "end": 55,
+          "enabled": true,
+          "first": {
+            "kind": "ExpressionStatement",
+            "pos": -1,
+            "end": -1,
+            "file": null
+          },
+          "original": {
+            "kind": "ExpressionStatement",
+            "pos": -1,
+            "end": -1,
+            "file": null
+          }
+        },
+        {
+          "file": "/project/main.js",
+          "declaration": true,
+          "pos": -1,
+          "end": -1,
+          "enabled": true,
+          "first": {
+            "kind": "FunctionDeclaration",
+            "pos": 36,
+            "end": 54,
+            "file": null
+          },
+          "original": {
+            "kind": "FunctionExpression",
+            "pos": 36,
+            "end": 54,
+            "file": "/project/main.js"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-comment-detached-prefix/exports-header",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "/** file header */\n\nexports.api = function api() {};\n"
+        }
+      ],
+      "options": {
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "module": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLGtCQUFrQjtBQUVsQixPQUFPLENBQUMsR0FBRyxHQUFHLFNBQVMsR0FBRyxLQUFJLENBQUMsQ0FBQyJ9",
+            "callback_utf8_bytes": 159,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLGtCQUFrQjtBQUVsQixPQUFPLENBQUMsR0FBRyxHQUFHLFNBQVMsR0FBRyxLQUFJLENBQUMsQ0FBQyJ9",
+            "materialized_utf8_bytes": 159,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLyoqIGZpbGUgaGVhZGVyICovDQpleHBvcnRzLmFwaSA9IGZ1bmN0aW9uIGFwaSgpIHsgfTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "callback_utf8_bytes": 102,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KLyoqIGZpbGUgaGVhZGVyICovDQpleHBvcnRzLmFwaSA9IGZ1bmN0aW9uIGFwaSgpIHsgfTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "materialized_utf8_bytes": 102,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 70,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFFYyw0QkFBaUIifQ==",
+            "callback_utf8_bytes": 109,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFFYyw0QkFBaUIifQ==",
+            "materialized_utf8_bytes": 109,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGZ1bmN0aW9uIGFwaSgpOiB2b2lkOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 64,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGZ1bmN0aW9uIGFwaSgpOiB2b2lkOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 64,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 30,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,kBAAkB;AAElB,OAAO,CAAC,GAAG,GAAG,SAAS,GAAG,KAAI,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAEc,4BAAiB\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      },
+      "prefix_trace": [
+        {
+          "file": "/project/main.js",
+          "declaration": false,
+          "pos": 0,
+          "end": 52,
+          "enabled": true,
+          "first": {
+            "kind": "ExpressionStatement",
+            "pos": -1,
+            "end": -1,
+            "file": null
+          },
+          "original": {
+            "kind": "ExpressionStatement",
+            "pos": -1,
+            "end": -1,
+            "file": null
+          }
+        },
+        {
+          "file": "/project/main.js",
+          "declaration": true,
+          "pos": -1,
+          "end": -1,
+          "enabled": true,
+          "first": {
+            "kind": "FunctionDeclaration",
+            "pos": 33,
+            "end": 51,
+            "file": null
+          },
+          "original": {
+            "kind": "FunctionExpression",
+            "pos": 33,
+            "end": 51,
+            "file": "/project/main.js"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-comment-detached-prefix/variable-expando",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "/** file header */\n\nvar api = function() {};\napi.version = 1;\nmodule.exports = api;\n"
+        }
+      ],
+      "options": {
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "module": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLGtCQUFrQjtBQUVsQixJQUFJLEdBQUcsR0FBRyxjQUFZLENBQUMsQ0FBQztBQUN4QixHQUFHLENBQUMsT0FBTyxHQUFHLENBQUMsQ0FBQztBQUNoQixNQUFNLENBQUMsT0FBTyxHQUFHLEdBQUcsQ0FBQyJ9",
+            "callback_utf8_bytes": 216,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLGtCQUFrQjtBQUVsQixJQUFJLEdBQUcsR0FBRyxjQUFZLENBQUMsQ0FBQztBQUN4QixHQUFHLENBQUMsT0FBTyxHQUFHLENBQUMsQ0FBQztBQUNoQixNQUFNLENBQUMsT0FBTyxHQUFHLEdBQUcsQ0FBQyJ9",
+            "materialized_utf8_bytes": 216,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLyoqIGZpbGUgaGVhZGVyICovDQp2YXIgYXBpID0gZnVuY3Rpb24gKCkgeyB9Ow0KYXBpLnZlcnNpb24gPSAxOw0KbW9kdWxlLmV4cG9ydHMgPSBhcGk7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 136,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KLyoqIGZpbGUgaGVhZGVyICovDQp2YXIgYXBpID0gZnVuY3Rpb24gKCkgeyB9Ow0KYXBpLnZlcnNpb24gPSAxOw0KbW9kdWxlLmV4cG9ydHMgPSBhcGk7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 136,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 104,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsa0JBQWtCO0FBRWxCLDZCQUF1QiJ9",
+            "callback_utf8_bytes": 123,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsa0JBQWtCO0FBRWxCLDZCQUF1QiJ9",
+            "materialized_utf8_bytes": 123,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0ID0gYXBpOw0KLyoqIGZpbGUgaGVhZGVyICovDQpkZWNsYXJlIGZ1bmN0aW9uIGFwaSgpOiB2b2lkOw0KZGVjbGFyZSBuYW1lc3BhY2UgYXBpIHsNCiAgICBsZXQgdmVyc2lvbjogbnVtYmVyOw0KfQ0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 154,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0ID0gYXBpOw0KLyoqIGZpbGUgaGVhZGVyICovDQpkZWNsYXJlIGZ1bmN0aW9uIGFwaSgpOiB2b2lkOw0KZGVjbGFyZSBuYW1lc3BhY2UgYXBpIHsNCiAgICBsZXQgdmVyc2lvbjogbnVtYmVyOw0KfQ0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 154,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 120,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,kBAAkB;AAElB,IAAI,GAAG,GAAG,cAAY,CAAC,CAAC;AACxB,GAAG,CAAC,OAAO,GAAG,CAAC,CAAC;AAChB,MAAM,CAAC,OAAO,GAAG,GAAG,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,kBAAkB;AAElB,6BAAuB\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      },
+      "prefix_trace": [
+        {
+          "file": "/project/main.js",
+          "declaration": false,
+          "pos": 0,
+          "end": 83,
+          "enabled": true,
+          "first": {
+            "kind": "ExpressionStatement",
+            "pos": -1,
+            "end": -1,
+            "file": null
+          },
+          "original": {
+            "kind": "ExpressionStatement",
+            "pos": -1,
+            "end": -1,
+            "file": null
+          }
+        },
+        {
+          "file": "/project/main.js",
+          "declaration": true,
+          "pos": -1,
+          "end": -1,
+          "enabled": true,
+          "first": {
+            "kind": "ExportAssignment",
+            "pos": -1,
+            "end": -1,
+            "file": null
+          },
+          "original": {
+            "kind": "ExportAssignment",
+            "pos": -1,
+            "end": -1,
+            "file": null
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-comment-detached-prefix/function-expando",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "/** file header */\n\nfunction api() {}\napi.version = 1;\nmodule.exports = api;\n"
+        }
+      ],
+      "options": {
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "module": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLGtCQUFrQjtBQUVsQixTQUFTLEdBQUcsS0FBSSxDQUFDO0FBQ2pCLEdBQUcsQ0FBQyxPQUFPLEdBQUcsQ0FBQyxDQUFDO0FBQ2hCLE1BQU0sQ0FBQyxPQUFPLEdBQUcsR0FBRyxDQUFDIn0=",
+            "callback_utf8_bytes": 206,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLGtCQUFrQjtBQUVsQixTQUFTLEdBQUcsS0FBSSxDQUFDO0FBQ2pCLEdBQUcsQ0FBQyxPQUFPLEdBQUcsQ0FBQyxDQUFDO0FBQ2hCLE1BQU0sQ0FBQyxPQUFPLEdBQUcsR0FBRyxDQUFDIn0=",
+            "materialized_utf8_bytes": 206,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLyoqIGZpbGUgaGVhZGVyICovDQpmdW5jdGlvbiBhcGkoKSB7IH0NCmFwaS52ZXJzaW9uID0gMTsNCm1vZHVsZS5leHBvcnRzID0gYXBpOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 128,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KLyoqIGZpbGUgaGVhZGVyICovDQpmdW5jdGlvbiBhcGkoKSB7IH0NCmFwaS52ZXJzaW9uID0gMTsNCm1vZHVsZS5leHBvcnRzID0gYXBpOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 128,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 96,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsa0JBQWtCO0FBRWxCLDZCQUFpQiJ9",
+            "callback_utf8_bytes": 123,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsa0JBQWtCO0FBRWxCLDZCQUFpQiJ9",
+            "materialized_utf8_bytes": 123,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0ID0gYXBpOw0KLyoqIGZpbGUgaGVhZGVyICovDQpkZWNsYXJlIGZ1bmN0aW9uIGFwaSgpOiB2b2lkOw0KZGVjbGFyZSBuYW1lc3BhY2UgYXBpIHsNCiAgICBsZXQgdmVyc2lvbjogbnVtYmVyOw0KfQ0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 154,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0ID0gYXBpOw0KLyoqIGZpbGUgaGVhZGVyICovDQpkZWNsYXJlIGZ1bmN0aW9uIGFwaSgpOiB2b2lkOw0KZGVjbGFyZSBuYW1lc3BhY2UgYXBpIHsNCiAgICBsZXQgdmVyc2lvbjogbnVtYmVyOw0KfQ0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 154,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 120,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,kBAAkB;AAElB,SAAS,GAAG,KAAI,CAAC;AACjB,GAAG,CAAC,OAAO,GAAG,CAAC,CAAC;AAChB,MAAM,CAAC,OAAO,GAAG,GAAG,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,kBAAkB;AAElB,6BAAiB\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      },
+      "prefix_trace": [
+        {
+          "file": "/project/main.js",
+          "declaration": false,
+          "pos": 0,
+          "end": 76,
+          "enabled": true,
+          "first": {
+            "kind": "ExpressionStatement",
+            "pos": -1,
+            "end": -1,
+            "file": null
+          },
+          "original": {
+            "kind": "ExpressionStatement",
+            "pos": -1,
+            "end": -1,
+            "file": null
+          }
+        },
+        {
+          "file": "/project/main.js",
+          "declaration": true,
+          "pos": -1,
+          "end": -1,
+          "enabled": true,
+          "first": {
+            "kind": "ExportAssignment",
+            "pos": -1,
+            "end": -1,
+            "file": null
+          },
+          "original": {
+            "kind": "ExportAssignment",
+            "pos": -1,
+            "end": -1,
+            "file": null
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-comment-detached-prefix/class-header",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "/** file header */\n\nclass C {}\nmodule.exports = C;\n"
+        }
+      ],
+      "options": {
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "module": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLGtCQUFrQjtBQUVsQixNQUFNLENBQUM7Q0FBRztBQUNWLE1BQU0sQ0FBQyxPQUFPLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "callback_utf8_bytes": 164,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLGtCQUFrQjtBQUVsQixNQUFNLENBQUM7Q0FBRztBQUNWLE1BQU0sQ0FBQyxPQUFPLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "materialized_utf8_bytes": 164,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLyoqIGZpbGUgaGVhZGVyICovDQpjbGFzcyBDIHsNCn0NCm1vZHVsZS5leHBvcnRzID0gQzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "callback_utf8_bytes": 102,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KLyoqIGZpbGUgaGVhZGVyICovDQpjbGFzcyBDIHsNCn0NCm1vZHVsZS5leHBvcnRzID0gQzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "materialized_utf8_bytes": 102,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 70,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsa0JBQWtCO0FBRWxCO0NBQVUifQ==",
+            "callback_utf8_bytes": 121,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsa0JBQWtCO0FBRWxCO0NBQVUifQ==",
+            "materialized_utf8_bytes": 121,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0ID0gQzsNCi8qKiBmaWxlIGhlYWRlciAqLw0KZGVjbGFyZSBjbGFzcyBDIHsNCn0NCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "callback_utf8_bytes": 89,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0ID0gQzsNCi8qKiBmaWxlIGhlYWRlciAqLw0KZGVjbGFyZSBjbGFzcyBDIHsNCn0NCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "materialized_utf8_bytes": 89,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 55,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,kBAAkB;AAElB,MAAM,CAAC;CAAG;AACV,MAAM,CAAC,OAAO,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,kBAAkB;AAElB;CAAU\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      },
+      "prefix_trace": [
+        {
+          "file": "/project/main.js",
+          "declaration": false,
+          "pos": 0,
+          "end": 50,
+          "enabled": true,
+          "first": {
+            "kind": "ExpressionStatement",
+            "pos": -1,
+            "end": -1,
+            "file": null
+          },
+          "original": {
+            "kind": "ExpressionStatement",
+            "pos": -1,
+            "end": -1,
+            "file": null
+          }
+        },
+        {
+          "file": "/project/main.js",
+          "declaration": true,
+          "pos": -1,
+          "end": -1,
+          "enabled": true,
+          "first": {
+            "kind": "ExportAssignment",
+            "pos": -1,
+            "end": -1,
+            "file": null
+          },
+          "original": {
+            "kind": "ExportAssignment",
+            "pos": -1,
+            "end": -1,
+            "file": null
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-comment-detached-prefix/plain-variable",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "/** file header */\n\nexport const value = 1;\n"
+        }
+      ],
+      "options": {
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "module": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLGtCQUFrQjs7O0FBRUwsUUFBQSxLQUFLLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "callback_utf8_bytes": 140,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLGtCQUFrQjs7O0FBRUwsUUFBQSxLQUFLLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "materialized_utf8_bytes": 140,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLyoqIGZpbGUgaGVhZGVyICovDQpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOw0KZXhwb3J0cy52YWx1ZSA9IHZvaWQgMDsNCmV4cG9ydHMudmFsdWUgPSAxOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 176,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KLyoqIGZpbGUgaGVhZGVyICovDQpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOw0KZXhwb3J0cy52YWx1ZSA9IHZvaWQgMDsNCmV4cG9ydHMudmFsdWUgPSAxOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 176,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 144,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxrQkFBa0I7QUFFbEIsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "callback_utf8_bytes": 140,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxrQkFBa0I7QUFFbEIsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "materialized_utf8_bytes": 140,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "LyoqIGZpbGUgaGVhZGVyICovDQpleHBvcnQgZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "callback_utf8_bytes": 87,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "LyoqIGZpbGUgaGVhZGVyICovDQpleHBvcnQgZGVjbGFyZSBjb25zdCB2YWx1ZSA9IDE7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "materialized_utf8_bytes": 87,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 53,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";AAAA,kBAAkB;;;AAEL,QAAA,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAA,kBAAkB;AAElB,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      },
+      "prefix_trace": [
+        {
+          "file": "/project/main.ts",
+          "declaration": false,
+          "pos": 0,
+          "end": 43,
+          "enabled": true,
+          "first": {
+            "kind": "ExpressionStatement",
+            "pos": -1,
+            "end": -1,
+            "file": null
+          },
+          "original": {
+            "kind": "ExpressionStatement",
+            "pos": -1,
+            "end": -1,
+            "file": null
+          }
+        },
+        {
+          "file": "/project/main.ts",
+          "declaration": true,
+          "pos": 0,
+          "end": 43,
+          "enabled": true,
+          "first": {
+            "kind": "FirstStatement",
+            "pos": 0,
+            "end": 43,
+            "file": null
+          },
+          "original": {
+            "kind": "FirstStatement",
+            "pos": 0,
+            "end": 43,
+            "file": "/project/main.ts"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-comment-detached-prefix/erased-interface",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "/** interface header */\n\ninterface I { value: number }\nexport const value = 1;\n"
+        }
+      ],
+      "options": {
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "module": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLHVCQUF1Qjs7O0FBR1YsUUFBQSxLQUFLLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "callback_utf8_bytes": 140,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLHVCQUF1Qjs7O0FBR1YsUUFBQSxLQUFLLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "materialized_utf8_bytes": 140,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLyoqIGludGVyZmFjZSBoZWFkZXIgKi8NCk9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7DQpleHBvcnRzLnZhbHVlID0gdm9pZCAwOw0KZXhwb3J0cy52YWx1ZSA9IDE7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 181,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KLyoqIGludGVyZmFjZSBoZWFkZXIgKi8NCk9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7DQpleHBvcnRzLnZhbHVlID0gdm9pZCAwOw0KZXhwb3J0cy52YWx1ZSA9IDE7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 181,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 149,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSx1QkFBdUI7QUFHdkIsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "callback_utf8_bytes": 140,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSx1QkFBdUI7QUFHdkIsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "materialized_utf8_bytes": 140,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "LyoqIGludGVyZmFjZSBoZWFkZXIgKi8NCmV4cG9ydCBkZWNsYXJlIGNvbnN0IHZhbHVlID0gMTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "callback_utf8_bytes": 92,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "LyoqIGludGVyZmFjZSBoZWFkZXIgKi8NCmV4cG9ydCBkZWNsYXJlIGNvbnN0IHZhbHVlID0gMTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "materialized_utf8_bytes": 92,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 58,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\";AAAA,uBAAuB;;;AAGV,QAAA,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.ts\"],\"names\":[],\"mappings\":\"AAAA,uBAAuB;AAGvB,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      },
+      "prefix_trace": [
+        {
+          "file": "/project/main.ts",
+          "declaration": false,
+          "pos": 0,
+          "end": 78,
+          "enabled": true,
+          "first": {
+            "kind": "ExpressionStatement",
+            "pos": -1,
+            "end": -1,
+            "file": null
+          },
+          "original": {
+            "kind": "ExpressionStatement",
+            "pos": -1,
+            "end": -1,
+            "file": null
+          }
+        },
+        {
+          "file": "/project/main.ts",
+          "declaration": true,
+          "pos": 0,
+          "end": 78,
+          "enabled": true,
+          "first": {
+            "kind": "FirstStatement",
+            "pos": 54,
+            "end": 78,
+            "file": null
+          },
+          "original": {
+            "kind": "FirstStatement",
+            "pos": 54,
+            "end": 78,
+            "file": "/project/main.ts"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-comment-detached-prefix/typedef-separated",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "/**\n * @typedef Options\n * @property {string} opt\n */\n\n/**\n * @param {Options} options\n */\nmodule.exports = function loader(options) {}\n"
+        }
+      ],
+      "options": {
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "module": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBOzs7R0FHRztBQUVIOztHQUVHO0FBQ0gsTUFBTSxDQUFDLE9BQU8sR0FBRyxTQUFTLE1BQU0sQ0FBQyxPQUFPLElBQUcsQ0FBQyxDQUFBIn0=",
+            "callback_utf8_bytes": 179,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBOzs7R0FHRztBQUVIOztHQUVHO0FBQ0gsTUFBTSxDQUFDLE9BQU8sR0FBRyxTQUFTLE1BQU0sQ0FBQyxPQUFPLElBQUcsQ0FBQyxDQUFBIn0=",
+            "materialized_utf8_bytes": 179,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLyoqDQogKiBAdHlwZWRlZiBPcHRpb25zDQogKiBAcHJvcGVydHkge3N0cmluZ30gb3B0DQogKi8NCi8qKg0KICogQHBhcmFtIHtPcHRpb25zfSBvcHRpb25zDQogKi8NCm1vZHVsZS5leHBvcnRzID0gZnVuY3Rpb24gbG9hZGVyKG9wdGlvbnMpIHsgfTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "callback_utf8_bytes": 192,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KLyoqDQogKiBAdHlwZWRlZiBPcHRpb25zDQogKiBAcHJvcGVydHkge3N0cmluZ30gb3B0DQogKi8NCi8qKg0KICogQHBhcmFtIHtPcHRpb25zfSBvcHRpb25zDQogKi8NCm1vZHVsZS5leHBvcnRzID0gZnVuY3Rpb24gbG9hZGVyKG9wdGlvbnMpIHsgfTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "materialized_utf8_bytes": 192,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 160,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiOzs7QUFRaUIsbUNBRk4sT0FBTyxRQUUwQjs7O1NBTjlCLE1BQU0ifQ==",
+            "callback_utf8_bytes": 136,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiOzs7QUFRaUIsbUNBRk4sT0FBTyxRQUUwQjs7O1NBTjlCLE1BQU0ifQ==",
+            "materialized_utf8_bytes": 136,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBuYW1lc3BhY2UgX2V4cG9ydHMgew0KICAgIGV4cG9ydCB7IE9wdGlvbnMgfTsNCn0NCmRlY2xhcmUgZnVuY3Rpb24gX2V4cG9ydHMob3B0aW9uczogT3B0aW9ucyk6IHZvaWQ7DQpleHBvcnQgPSBfZXhwb3J0czsNCnR5cGUgT3B0aW9ucyA9IHsNCiAgICBvcHQ6IHN0cmluZzsNCn07DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "callback_utf8_bytes": 204,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBuYW1lc3BhY2UgX2V4cG9ydHMgew0KICAgIGV4cG9ydCB7IE9wdGlvbnMgfTsNCn0NCmRlY2xhcmUgZnVuY3Rpb24gX2V4cG9ydHMob3B0aW9uczogT3B0aW9ucyk6IHZvaWQ7DQpleHBvcnQgPSBfZXhwb3J0czsNCnR5cGUgT3B0aW9ucyA9IHsNCiAgICBvcHQ6IHN0cmluZzsNCn07DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "materialized_utf8_bytes": 204,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 170,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA;;;GAGG;AAEH;;GAEG;AACH,MAAM,CAAC,OAAO,GAAG,SAAS,MAAM,CAAC,OAAO,IAAG,CAAC,CAAA\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";;;AAQiB,mCAFN,OAAO,QAE0B;;;SAN9B,MAAM\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      },
+      "prefix_trace": [
+        {
+          "file": "/project/main.js",
+          "declaration": false,
+          "pos": 0,
+          "end": 135,
+          "enabled": true,
+          "first": {
+            "kind": "ExpressionStatement",
+            "pos": -1,
+            "end": -1,
+            "file": null
+          },
+          "original": {
+            "kind": "ExpressionStatement",
+            "pos": -1,
+            "end": -1,
+            "file": null
+          }
+        },
+        {
+          "file": "/project/main.js",
+          "declaration": true,
+          "pos": -1,
+          "end": -1,
+          "enabled": true,
+          "first": {
+            "kind": "ModuleDeclaration",
+            "pos": -1,
+            "end": -1,
+            "file": null
+          },
+          "original": {
+            "kind": "ModuleDeclaration",
+            "pos": -1,
+            "end": -1,
+            "file": null
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-comment-detached-prefix/removed-header",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "/** file header */\n\nmodule.exports = function api() {};\n"
+        }
+      ],
+      "options": {
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "module": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "removeComments": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUVBLE1BQU0sQ0FBQyxPQUFPLEdBQUcsU0FBUyxHQUFHLEtBQUksQ0FBQyxDQUFDIn0=",
+            "callback_utf8_bytes": 146,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUVBLE1BQU0sQ0FBQyxPQUFPLEdBQUcsU0FBUyxHQUFHLEtBQUksQ0FBQyxDQUFDIn0=",
+            "materialized_utf8_bytes": 146,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KbW9kdWxlLmV4cG9ydHMgPSBmdW5jdGlvbiBhcGkoKSB7IH07DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 85,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KbW9kdWxlLmV4cG9ydHMgPSBmdW5jdGlvbiBhcGkoKSB7IH07DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 85,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 53,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFFaUIsa0NBQWlCIn0=",
+            "callback_utf8_bytes": 110,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFFaUIsa0NBQWlCIn0=",
+            "materialized_utf8_bytes": 110,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBfZXhwb3J0cygpOiB2b2lkOw0KZXhwb3J0ID0gX2V4cG9ydHM7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "callback_utf8_bytes": 90,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBfZXhwb3J0cygpOiB2b2lkOw0KZXhwb3J0ID0gX2V4cG9ydHM7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "materialized_utf8_bytes": 90,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 56,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAEA,MAAM,CAAC,OAAO,GAAG,SAAS,GAAG,KAAI,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAEiB,kCAAiB\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      },
+      "prefix_trace": [
+        {
+          "file": "/project/main.js",
+          "declaration": false,
+          "pos": 0,
+          "end": 55,
+          "enabled": true,
+          "first": {
+            "kind": "ExpressionStatement",
+            "pos": -1,
+            "end": -1,
+            "file": null
+          },
+          "original": {
+            "kind": "ExpressionStatement",
+            "pos": -1,
+            "end": -1,
+            "file": null
+          }
+        },
+        {
+          "file": "/project/main.js",
+          "declaration": true,
+          "pos": -1,
+          "end": -1,
+          "enabled": true,
+          "first": {
+            "kind": "FunctionDeclaration",
+            "pos": 36,
+            "end": 54,
+            "file": null
+          },
+          "original": {
+            "kind": "FunctionExpression",
+            "pos": 36,
+            "end": 54,
+            "file": "/project/main.js"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-comment-detached-prefix/pinned-header",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "/*! license */\n\nmodule.exports = function api() {};\n"
+        }
+      ],
+      "options": {
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "module": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLGNBQWM7QUFFZCxNQUFNLENBQUMsT0FBTyxHQUFHLFNBQVMsR0FBRyxLQUFJLENBQUMsQ0FBQyJ9",
+            "callback_utf8_bytes": 156,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLGNBQWM7QUFFZCxNQUFNLENBQUMsT0FBTyxHQUFHLFNBQVMsR0FBRyxLQUFJLENBQUMsQ0FBQyJ9",
+            "materialized_utf8_bytes": 156,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLyohIGxpY2Vuc2UgKi8NCm1vZHVsZS5leHBvcnRzID0gZnVuY3Rpb24gYXBpKCkgeyB9Ow0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 101,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KLyohIGxpY2Vuc2UgKi8NCm1vZHVsZS5leHBvcnRzID0gZnVuY3Rpb24gYXBpKCkgeyB9Ow0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 101,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 69,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFFaUIsa0NBQWlCIn0=",
+            "callback_utf8_bytes": 110,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFFaUIsa0NBQWlCIn0=",
+            "materialized_utf8_bytes": 110,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBfZXhwb3J0cygpOiB2b2lkOw0KZXhwb3J0ID0gX2V4cG9ydHM7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "callback_utf8_bytes": 90,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBfZXhwb3J0cygpOiB2b2lkOw0KZXhwb3J0ID0gX2V4cG9ydHM7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "materialized_utf8_bytes": 90,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 56,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,cAAc;AAEd,MAAM,CAAC,OAAO,GAAG,SAAS,GAAG,KAAI,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAEiB,kCAAiB\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      },
+      "prefix_trace": [
+        {
+          "file": "/project/main.js",
+          "declaration": false,
+          "pos": 0,
+          "end": 51,
+          "enabled": true,
+          "first": {
+            "kind": "ExpressionStatement",
+            "pos": -1,
+            "end": -1,
+            "file": null
+          },
+          "original": {
+            "kind": "ExpressionStatement",
+            "pos": -1,
+            "end": -1,
+            "file": null
+          }
+        },
+        {
+          "file": "/project/main.js",
+          "declaration": true,
+          "pos": -1,
+          "end": -1,
+          "enabled": true,
+          "first": {
+            "kind": "FunctionDeclaration",
+            "pos": 32,
+            "end": 50,
+            "file": null
+          },
+          "original": {
+            "kind": "FunctionExpression",
+            "pos": 32,
+            "end": 50,
+            "file": "/project/main.js"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-comment-detached-prefix/comment-only",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "/** file header */\n"
+        }
+      ],
+      "options": {
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "module": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLGtCQUFrQiJ9",
+            "callback_utf8_bytes": 108,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLGtCQUFrQiJ9",
+            "materialized_utf8_bytes": 108,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLyoqIGZpbGUgaGVhZGVyICovDQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 67,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KLyoqIGZpbGUgaGVhZGVyICovDQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 67,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 35,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiIn0=",
+            "callback_utf8_bytes": 98,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiIn0=",
+            "materialized_utf8_bytes": 98,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "Ly8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 34,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "Ly8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 34,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 0,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,kBAAkB\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      },
+      "prefix_trace": [
+        {
+          "file": "/project/main.js",
+          "declaration": false,
+          "pos": 0,
+          "end": 0,
+          "enabled": true,
+          "first": {
+            "kind": "ExpressionStatement",
+            "pos": -1,
+            "end": -1,
+            "file": null
+          },
+          "original": {
+            "kind": "ExpressionStatement",
+            "pos": -1,
+            "end": -1,
+            "file": null
+          }
+        },
+        {
+          "file": "/project/main.js",
+          "declaration": true,
+          "pos": -1,
+          "end": -1,
+          "enabled": true,
+          "first": null,
+          "original": null
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-comment-detached-prefix/prologue-header",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "/** file header */\n\n\"use strict\";\nmodule.exports = function api() {};\n"
+        }
+      ],
+      "options": {
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "module": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsa0JBQWtCO0FBRWxCLFlBQVksQ0FBQztBQUNiLE1BQU0sQ0FBQyxPQUFPLEdBQUcsU0FBUyxHQUFHLEtBQUksQ0FBQyxDQUFDIn0=",
+            "callback_utf8_bytes": 173,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsa0JBQWtCO0FBRWxCLFlBQVksQ0FBQztBQUNiLE1BQU0sQ0FBQyxPQUFPLEdBQUcsU0FBUyxHQUFHLEtBQUksQ0FBQyxDQUFDIn0=",
+            "materialized_utf8_bytes": 173,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "LyoqIGZpbGUgaGVhZGVyICovDQoidXNlIHN0cmljdCI7DQptb2R1bGUuZXhwb3J0cyA9IGZ1bmN0aW9uIGFwaSgpIHsgfTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "callback_utf8_bytes": 105,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "LyoqIGZpbGUgaGVhZGVyICovDQoidXNlIHN0cmljdCI7DQptb2R1bGUuZXhwb3J0cyA9IGZ1bmN0aW9uIGFwaSgpIHsgfTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "materialized_utf8_bytes": 105,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 73,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFHaUIsa0NBQWlCIn0=",
+            "callback_utf8_bytes": 110,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFHaUIsa0NBQWlCIn0=",
+            "materialized_utf8_bytes": 110,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBfZXhwb3J0cygpOiB2b2lkOw0KZXhwb3J0ID0gX2V4cG9ydHM7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "callback_utf8_bytes": 90,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBfZXhwb3J0cygpOiB2b2lkOw0KZXhwb3J0ID0gX2V4cG9ydHM7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "materialized_utf8_bytes": 90,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 56,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAAA,kBAAkB;AAElB,YAAY,CAAC;AACb,MAAM,CAAC,OAAO,GAAG,SAAS,GAAG,KAAI,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAGiB,kCAAiB\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      },
+      "prefix_trace": [
+        {
+          "file": "/project/main.js",
+          "declaration": false,
+          "pos": 0,
+          "end": 69,
+          "enabled": false,
+          "first": {
+            "kind": "ExpressionStatement",
+            "pos": 0,
+            "end": 33,
+            "file": "/project/main.js"
+          },
+          "original": {
+            "kind": "ExpressionStatement",
+            "pos": 0,
+            "end": 33,
+            "file": "/project/main.js"
+          }
+        },
+        {
+          "file": "/project/main.js",
+          "declaration": true,
+          "pos": -1,
+          "end": -1,
+          "enabled": true,
+          "first": {
+            "kind": "FunctionDeclaration",
+            "pos": 50,
+            "end": 68,
+            "file": null
+          },
+          "original": {
+            "kind": "FunctionExpression",
+            "pos": 50,
+            "end": 68,
+            "file": "/project/main.js"
+          }
+        }
+      ]
+    }
+  ]
+}

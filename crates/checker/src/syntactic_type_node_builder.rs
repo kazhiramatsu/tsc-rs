@@ -3249,28 +3249,9 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
             return self.jsdoc_type_from_tag(TransformNode::new(node.source(), tag));
         }
         if self.kind(node)? == SyntaxKind::Parameter {
-            let name_text = self
-                .name_of(node)?
-                .filter(|name| self.kind(*name).ok() == Some(SyntaxKind::Identifier))
-                .and_then(|name| self.identifier_text(name).ok())
-                .map(str::to_owned);
-            if let Some(parent) = self.parent(node) {
-                for tag in self.direct_jsdoc_tags(parent)? {
-                    let NodeData::JSDocParameterTag(data) = self.node(tag)?.data.clone() else {
-                        continue;
-                    };
-                    let tag_name = self
-                        .child(tag.source(), data.name)
-                        .map(|name| self.rightmost_name(name))
-                        .transpose()?
-                        .filter(|name| self.kind(*name).ok() == Some(SyntaxKind::Identifier))
-                        .and_then(|name| self.identifier_text(name).ok())
-                        .map(str::to_owned);
-                    if name_text.is_some() && name_text == tag_name {
-                        if let Some(r#type) = self.jsdoc_type_from_tag(tag)? {
-                            return Ok(Some(r#type));
-                        }
-                    }
+            for tag in node_util::get_jsdoc_parameter_tags(source, node.node()) {
+                if node_util::jsdoc_type_expression(source, tag).is_some() {
+                    return self.jsdoc_type_from_tag(TransformNode::new(node.source(), tag));
                 }
             }
         }
