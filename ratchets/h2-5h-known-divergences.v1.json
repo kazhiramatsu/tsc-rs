@@ -58,38 +58,6 @@
       "emit_refused": false
     },
     {
-      "case_id": "typescript-6.0.3/conformance/es6/unicodeExtendedEscapes/unicodeExtendedEscapesInStrings10.ts#target%3Des5",
-      "owner": "h2-5h-ca-2a-r2",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/conformance/es6/unicodeExtendedEscapes/unicodeExtendedEscapesInStrings11.ts#target%3Des5",
-      "owner": "h2-5h-ca-2a-r2",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/conformance/es6/unicodeExtendedEscapes/unicodeExtendedEscapesInTemplates10.ts#target%3Des5",
-      "owner": "h2-5h-ca-2a-r2",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/conformance/es6/unicodeExtendedEscapes/unicodeExtendedEscapesInTemplates11.ts#target%3Des5",
-      "owner": "h2-5h-ca-2a-r2",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": false
-    },
-    {
       "case_id": "typescript-6.0.3/conformance/expressions/nullishCoalescingOperator/nullishCoalescingOperatorInParameterBindingPattern.ts#target%3Des5",
       "owner": "h2-5h-ca-2a-r4",
       "writes_diverging": 1,
