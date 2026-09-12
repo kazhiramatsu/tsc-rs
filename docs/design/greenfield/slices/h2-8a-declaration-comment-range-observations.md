@@ -240,3 +240,79 @@ async function main() {
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});
 ```
+
+
+## Parameter-tag dependency observations
+
+The native before run exposed missing JSDoc parameter annotation reuse in
+13 of the original 17 commands. This extension preserves those frozen inputs
+and adds branch controls for the tag lookup dependency; it does not replace
+any expectation. Run the second JavaScript block with the first block's
+prefix through `const defaults` (stop immediately before `const shapes = [`):
+
+```python
+import re, subprocess, tempfile
+from pathlib import Path
+notebook = Path('docs/design/greenfield/slices/h2-8a-declaration-comment-range-observations.md').read_text()
+blocks = re.findall(r'```javascript\n(.*?)\n```', notebook, re.S)
+script = blocks[0].split('const shapes = [', 1)[0] + blocks[1]
+out = Path(tempfile.mkdtemp(prefix='tsc-rs-declaration-parameter-tags-'))
+program = out / 'observe-parameter-tags.cjs'
+program.write_text(script)
+subprocess.run(['taskpolicy', '-b', 'nice', '-n', '15', 'node',
+    str(program), str(Path.cwd()), str(out)], check=True)
+print(out)
+```
+
+```javascript
+const parameterShapes = [
+  ['binding-object', '/** @param {{ x: number }} item */\nexports.f = function({x}) { return x; };\n'],
+  ['binding-array', '/** @param {[number, string]} pair */\nexports.f = function([first, second]) { return first; };\n'],
+  ['binding-index', '/** @param {string} first\n * @param {{ x: number }} second */\nexports.f = function(first, {x}) { return x; };\n'],
+  ['qualified-tag-negative', '/** @param {object} options\n * @param {number} options.value */\nexports.f = function(value) { return value; };\n'],
+  ['missing-name', '/** @param {number} other */\nexports.f = function(value) { return value; };\n'],
+  ['last-block', '/** @param {string} value */\n/** @param {number} value */\nexports.f = function(value) { return value; };\n'],
+  ['first-typed', '/** @param value\n * @param {number} value */\nexports.f = function(value) { return value; };\n'],
+  ['type-tag-precedence', '/** @param {number} value */\nexports.f = function(/** @type {string} */ value) { return value; };\n'],
+  ['inline-function', 'exports.f = /** @param {number} value */ function(value) { return value; };\n'],
+  ['untyped', 'exports.f = function(value) { return value; };\n'],
+  ['ts-direct-type', '/** @param {string} value */\nexport function f(value: number) { return value; }\n', 'ts'],
+  ['parenthesized-function', '/** @param {string} value */\nexports.f = (/** @param {number} value */ function(value) { return value; });\n'],
+];
+async function main() {
+  const {createHermeticDirectoryOverlay} = await import(pathToFileURL(path.join(root,'crates/oracle/vfs-directory-overlay.mjs')));
+  const observer = read('scripts/observe-jsdoc-block-scope-container.mjs');
+  const start = 'function diagnostic(d) {', end = 'const cases = inputs.map(input => {';
+  assert.equal(observer.split(start).length,2); assert.equal(observer.split(end).length,2);
+  const functions = start + observer.split(start)[1].split(end)[0];
+  const observe = new Function('root','ts','fs','path','assert','createHermeticDirectoryOverlay',functions+'\nreturn observe;')(
+    root,ts,fs,path,assert,createHermeticDirectoryOverlay);
+  const cases = [];
+  for (const [name,text,extension='js'] of parameterShapes) {
+    const filename='/project/main.'+extension;
+    const input={case_id:'declaration-comment-parameter-tags/'+name,roots:[filename],files:[{path:filename,text}],options:{...defaults}};
+    const first=observe(input); assert.deepEqual(observe(input),first,name+' complete command repeat');
+    const inspect=()=>{
+      const source=ts.createSourceFile(filename,text,ts.ScriptTarget.ES2015,true);
+      const parameters=[];
+      function visit(node) {
+        if (ts.isParameter(node)) parameters.push({
+          parameter:describe(node), name:node.name?.getText(source) ?? null,
+          tags:ts.getJSDocParameterTags(node).map(tag=>({...describe(tag),name:tag.name?.getText(source) ?? null})),
+          jsdoc_type:describe(ts.getJSDocType(node)), effective_type:describe(ts.getEffectiveTypeAnnotationNode(node)),
+        });
+        ts.forEachChild(node,visit);
+      }
+      visit(source);return parameters;
+    };
+    const parameters=inspect(); assert.deepEqual(inspect(),parameters,name+' parameter lookup repeat');
+    cases.push({...input,typescript_observation:first,parameter_trace:parameters});
+  }
+  write('parameter-tags.json',{version:1,typescript:ts.version,repetitions:2,cases});
+  write('parameter-tags-receipt.json',{kind:'source-observation',repetitions:2,commands:cases.length,
+    fixture_sha256:sha(fs.readFileSync(path.join(out,'parameter-tags.json'))),
+    diagnostics:cases.map(c=>({case_id:c.case_id,codes:c.typescript_observation.reported_diagnostics.map(d=>d.code)}))});
+  console.log(fs.readFileSync(path.join(out,'parameter-tags-receipt.json'),'utf8'));
+}
+main().catch(error=>{console.error(error);process.exitCode=1;});
+```

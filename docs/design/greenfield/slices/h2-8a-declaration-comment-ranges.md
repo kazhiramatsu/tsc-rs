@@ -11,8 +11,8 @@ traces are observed twice. Native before/after execution remains an explicit
 implementation gate, not a result of this design exercise.
 
 The design worktree is `/Users/hiramatsu/dev/tsc-rs-declaration-comment-design`,
-branch `docs/h2-8a-declaration-comment-ranges`. Continue on this isolated
-checkout, or create a runtime branch from the same base and carry these docs.
+runtime branch `work/h2-8a-declaration-comment-ranges` (renamed from the
+design branch after commit `0727677d3`). Continue on this isolated checkout.
 Do not implement against the older `work/h2-8-output-matrix` checkout.
 Revalidate the pins and the parallel file boundary if the base changes.
 
@@ -384,14 +384,17 @@ test name, `original_shared_g5c_complete_command`, independently of the two
 required original repairs. It is never counted as passing from a failed exit.
 The current lightweight workflow is the schedule header's focused loop plus
 hosted acceptance; do not restore historical walks or full developer CI.
-No PR, acceptance run or runtime modification is part of this design delivery.
+The source-design delivery at `0727677d3` contained no PR, acceptance run or
+runtime modification. Execution on the same pinned production base starts
+with the pre-edit work recorded in §11; runtime landing retains the hosted gate.
 
 ## 8. Readiness and remaining execution work
 
 The source design has no unresolved choice about either selector, the binder
 predicate, location identity, missing-parent behavior, edit files or test
-route. The native before observation and test adapters are **not yet executed
-or implemented**. They are mandatory steps 1–2, with explicit failure criteria,
+route. The native before observation is **not yet executed**. Test adapters have
+been drafted in §11 but remain unbuilt. Steps 1–2, including their validation,
+are mandatory, with explicit failure criteria,
 before the design may authorize production edits under schedule §1.1.
 
 | Gate | Status / exact completion condition |
@@ -399,8 +402,8 @@ before the design may authorize production edits under schedule §1.1.
 | Source/Rust decision map and file boundary | Fixed in §§2–4; no extra production owner |
 | Source freeze | 17 commands ×2; instrumented equality ×2; 24 predicate, 4 sentinel and 4 range controls ×2; hashes in §6 |
 | Baseline and architecture pins | Check §9 at the fixed base; fresh source audit does not imply a native qualification |
-| Frozen fixture materialization and test target | Pending step 1; copied fixture hashes must equal §6 |
-| Native pre-edit comparisons | Pending step 2; complete captures and actual repeated failures at the pinned production source |
+| Frozen fixture materialization and test target | All three fixtures materialized and hash checked; compiler and checker adapters built and run (§12) |
+| Native pre-edit comparisons | Complete at the pinned production source: 17 focused, 3 original and 12 dependency commands repeated; actual failures and raw tuples in the before receipt (§12) |
 | Runtime implementation and qualification | Pending steps 3–6; no production file changed in this delivery |
 
 This distinction is intentional: source semantics can be fixed before paying
@@ -447,7 +450,10 @@ assert len(set(ids)) == 17
 assert ids == [c['case_id'] for c in traces['cases']]
 assert len(traces['predicates']) == 24 and len(traces['sentinels']) == len(traces['ranges']) == 4
 assert {t['owner'] for c in traces['cases'] for t in c['trace']} == {'G4a', 'G4b'}
-assert subprocess.check_output(['git', 'diff', base, '--', 'crates', 'scripts', 'ratchets']) == b''
+# Step 1 may add the separately owned fixture/test adapters. They must not
+# alter any production source, oracle, shared comparator or historical ratchet.
+assert subprocess.check_output(['git', 'diff', base, '--',
+    ':(glob)crates/*/src/**', 'scripts', 'ratchets']) == b''
 print('Source design validated; native pre-edit gate PENDING; production unchanged.')
 ```
 
@@ -507,3 +513,153 @@ Whole-file baseline pins used by §9 (the machine-readable copy is `authority.js
 | `docs/design/greenfield/post-h1-completion-slices.md` | `df4e630f4fe348119e43714261d1193a880453fa6847b42c7bf52d086bd840fb` |
 | `ratchets/h2-8a-global-after-a6-37.v1.json` | `528440d00cf5b3c57c7bf815bb9e236fcf1cffc7e19c2756b48cc8c5cd4fee5e` |
 | `ratchets/h2-8a-convergence-causes.v1.json` | `9d5b2a26bb605fd9907b2bff57982ea0c0e6d256b66ccd7e812a2d5c5b82796c` |
+
+
+## 11. Execution record
+
+The pre-edit source freeze was reproduced on 2026-09-12, after the design
+commit, in
+`/var/folders/b7/j_jl1trx4hx0khkxvb84d_jc0000gn/T/tsc-rs-declaration-comments-before-xyg68cop`.
+The notebook and §9 validation both exited 0; all three §6/§9 hashes were
+identical. `commands.json` and `traces.json` were copied byte-for-byte into
+the two admitted compiler fixture paths. The compiler target now provides
+the focused comparison, two separately named required original comparisons,
+and `original_shared_g5c_complete_command`, with supplemental full-command
+captures enabled by `TSC_RS_DECL_COMMENT_CAPTURE_DIR`. The existing original
+loader retains its unchanged `TSC_RS_H2_8A_FAILURE_DIR` capture route.
+
+Checker tests now cover the 24 frozen classifier observations, the four G4a
+internal sentinel shapes, the four mounted-source range observations, and
+serialized locations from all 16 unblocked source Programs. The blocked
+command stays at the compiler boundary. A separately labelled internal G4b
+control removes its signature declaration while preserving the property's
+real assignment declaration. It verifies that the method does not inherit
+`first_property_like`. Generated parameters must retain their names, order and
+type nodes, and each return type must be constructed; full type contents are
+compared by the compiler command tests. No arbitrary parentless G4b Program
+is introduced or claimed as observed.
+
+These adapters have been formatted but **have not been built or run**. The
+native before gate remains pending; the two production selectors are still
+byte-identical to the pinned base. Claude's compiler-contract process was
+still running on this Mac during preparation, so no competing build or native
+test was started. The readiness table in §8 remains the gate; adding tests
+is not evidence that their assertions pass.
+
+The native before runner is queued at
+`target/declaration-comment-ranges-runs/run-before.py`. It waits for existing
+Cargo/Rust/test processes to exit, rechecks the production/test/fixture hashes,
+builds the standalone compiler target once, executes two independent focused
+comparison jobs and each original test (whose loader runs twice), then builds
+and runs checker statement/chain controls. Every heavy command uses the
+bounded background settings in §2. The active output directory is recorded in
+`target/declaration-comment-before-run.txt`; its `receipt.json` records the
+phase and actual command exits. A `waiting-for-local-heavy-job` phase records
+**zero native executions**. No production edit is queued.
+
+On the third consecutive execution turn, the same resource dependency was
+revalidated from live processes: Claude Cargo PID `51408` and compiler-contract
+PID `51414` were still active; the queued before runner PID `54786` was alive
+and its receipt contained zero completed native commands. The thread goal is
+blocked on that external execution slot, not complete. The authorized queued
+runner remains active and may collect the before evidence once the slot is
+free. Resume by inspecting that same runner and its receipt; do not launch a
+duplicate or edit production until the actual before results are reviewed.
+
+
+## 12. Native before evidence and parameter lookup dependency amendment
+
+The execution slot became free and the queued runner completed the compiler
+before comparisons on the unchanged production base. The [before receipt](../../../../ratchets/h2-8a-declaration-comment-ranges-before.v1.json)
+retains the complete captures, binary/input hashes, actual exits, and the
+subsequent checker build/test run. The first checker build failed on a new
+test's ambiguous `impl Into<String>` call; removing redundant `.into()` fixed
+only that adapter. The failed build is retained, not counted as native tests.
+
+Four focused commands were exact: function-declaration, ordinary-method,
+prototype-parenthesized and blocked-semantic. They each ran four primary and
+four supplemental commands across the two jobs. The other 13 each failed two
+primary comparisons with two stable supplemental captures. All three original
+commands failed twice with stable complete captures. The two required original
+differences are precisely the G4a/G4b comment changes. The shared case also
+retains `d`/`e` return types as `any` (G5c). All reported diagnostics, exit codes,
+JS products and non-declaration products matched in the focused population.
+Checker statements: 16 pass / 3 new expected failures; chains: 6 pass. The
+24 classifier observations and four range/provenance controls pass.
+
+The before data disproves the initial assumption that the two location edits
+alone can make all 17 commands exact. Ordinary-property, static-method,
+variable and this-property already choose the correct outer location, but
+lose mappings of the JSDoc parameter type. Module-exports also prints
+`value: number` where the oracle preserves `value: Input`.
+`SyntacticBuildSession::get_jsdoc_type` examines only tags attached directly
+to the parameter's parent and incorrectly matches qualified tag names by
+their last component. Upstream `getJSDocParameterTagsWorker` reads the full
+owned tag chain, matches an identifier's complete escaped name, and selects
+a binding-pattern parameter's tag by parameter index. The semantic checker's
+existing `get_jsdoc_parameter_tags` already models that algorithm; the
+syntactic builder's local copy does not.
+
+This is a required dependency repair, not permission to reduce the 17-command
+gate or normalize maps. Amend the file boundary as follows before editing:
+
+| Added owner | Bounded change |
+| --- | --- |
+| `crates/binder/src/node_util.rs` | Add the AST-only `get_jsdoc_parameter_tags` utility, using the existing `visit_owned_jsdoc_tags` traversal and ownership/filter rules. Preserve traversal order; identifier tags match exact escaped names; destructured parameters select the tag at their immediate parameter-list index. No scanner, binder assignment classifier, symbol binding or semantic type inference changes. |
+| `crates/checker/src/syntactic_type_node_builder.rs` | Replace the local parameter-tag fallback in `SyntacticBuildSession::get_jsdoc_type` with that utility. Preserve the existing `@type` priority, select the first tag having a type expression, and return its existing projected type node. Reuse/tracker/clone/map consumers remain unchanged. |
+| `crates/checker/tests/unit/syntactic_type_node_builder/tests.rs` | Add uniquely prefixed declaration-comment parameter lookup controls against frozen upstream node identities/ranges; existing tests remain unchanged. |
+| `crates/compiler/tests/fixtures/declaration-comment-parameter-tags.json` | New 12-command dependency fixture, with direct parameter/tag/type observations, repeated twice. SHA-256 `7065e771ef7e3686f21e6f81e998bae4afe2b731824caa15740eb0f6b4076ad5`. |
+
+The original binder assignment classifier remains read-only. This introduces
+only a shared Rust AST utility; it adds no Program/emit API, resolver query,
+syntax representation or cache. Claude's current changed paths contain none
+of these files; the declaration-specifier lane also owns none of them.
+The full G5a original population remains a separate claim; the dependency
+controls cover the parameter lookup needed by this slice. G5c return inference
+is still excluded, and its original command remains a strict comparison.
+
+The notebook extension freezes binding-object, binding-array, binding-index,
+qualified-tag-negative, missing-name, last-block, first-typed, @type precedence,
+inline-function, untyped, TS direct-type and parenthesized-function controls.
+It preserves nonzero diagnostics and whole commands. Before editing this new
+dependency, materialize that fixture unchanged and run its native comparison
+twice plus the direct syntactic lookup controls on the old producer. Run all
+12 commands twice and the syntactic-builder suite after the repair. Retain all
+17 original focused expectations and both required original repairs; the
+new controls supplement them. Any diagnostic delta must still follow §7's
+accepted-state investigation rule.
+
+Additional authority pins (whole lines, including the final newline):
+
+| Function | `_tsc.js` lines | SHA-256 |
+| --- | --- | --- |
+| `getJSDocParameterTagsWorker` | 11591–11606 | `c4ae77082ed964a051e20d75c5bc3a2241efe281cb9beccbb1491403bb38c5c4` |
+| `getJSDocType` | 11721–11727 | `efa79a099aea017c5d8dc6abb175c04cc2b22b7c50bfb0f12763e59400778dc6` |
+| `getJSDocTagsWorker` | 11745–11759 | `57325aecd61d6df7de8277e221e63b1ecb7a7f6a3501d999255bc88fb82d81f2` |
+| `getJSDocCommentsAndTags` | 15429–15450 | `06bd3326770ddb5efcb52a26bc02e694410ca4cfc4fdd1b0a5da80215773703d` |
+| `filterOwnedJSDocTags` | 15451–15461 | `4287e545ec38802a2766922acf834c9bd3408679eaeb047278c09528ed924c94` |
+| `ownsJSDocTag` | 15462–15464 | `b2fe170504879c65b19c45cf47f347e85cc00cfb334570284df207ea27b3a651` |
+| `getNextJSDocCommentLocation` | 15465–15474 | `12679e1abba9e5aa883b2cae53161fead29e07485c4853f7e507a7fe5ff433c2` |
+| `getEffectiveTypeAnnotationNode` | 16761–16767 | `bc478fa37f444f4159e1b5e522468db266b4b7e42116029d47eea22c813b3339` |
+| `typeFromParameter` | 133877–133902 | `4c4e99d60e87cd04b1fad244bea00d2bd2044fca6edcb7cb4fd6064528483e58` |
+
+Pre-edit Rust dependency hashes:
+
+- `crates/binder/src/node_util.rs`: `5d3eea9d3dc9a23a6cb4240aaa01cc85f41c1e5b39e0d074f43e36a101f7d551`.
+- `crates/checker/src/syntactic_type_node_builder.rs`: `e510ef0934099e4875256b5595cda5f4005f2b66ea6f32a5846eda8b7fd6c428`.
+- `crates/checker/src/jsdoc.rs`: `6c6b28c7e1a7da50d0852bc3bc04c2c69eafa77c5a9f716cb940585ec6630c6c`.
+- `crates/checker/src/node_builder/serialize.rs`: `0ab71141dac64fdf557c93d30a1a8ed2ce9ccf6c2f10daa5cbba5ea19f053330`.
+
+The dependency before run is now complete at the same unchanged production
+source: 2/12 complete commands exact (TS direct-type and parenthesized-function),
+10/12 failed twice, with stable full captures and unchanged reported
+diagnostics. The new direct lookup control fails twice for binding-object,
+binding-array, binding-index, last-block and first-typed; all eleven existing
+syntactic-builder tests pass. This isolates the annotation source lookup
+before any repair. The before receipt includes this second population and
+its own binary/test hashes; it does not overwrite the first run's inputs.
+
+Implementation order remains G4a, G4b, then the parameter lookup dependency,
+with one commit and focused observations per cause. The final gate is all
+17 original focused commands plus all 12 dependency commands, twice, both
+required original repairs twice, and the unmodified shared G5c strict report.

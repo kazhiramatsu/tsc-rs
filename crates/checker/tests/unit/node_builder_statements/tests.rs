@@ -932,3 +932,432 @@ fn setter_name_serialization_rejects_a_set_accessor_without_a_declaration() {
         },
     );
 }
+
+// These fixtures are the ordinary/instrumented TS commands frozen by the
+// declaration-comment-range observation notebook before native edits.
+fn declaration_comment_range_traces() -> serde_json::Value {
+    serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../compiler/tests/fixtures/declaration-comment-range-traces.json"
+    )))
+    .unwrap()
+}
+
+fn declaration_comment_range_with_context(
+    checker: &mut CheckerState<'_>,
+    run: impl FnOnce(
+        &mut CheckerState<'_>,
+        &mut TransformArena,
+        TransformSourceId,
+        &mut NodeBuilderContext<'_>,
+    ) -> BuildResult<()>,
+) {
+    let root = checker.binder.source(0).root;
+    let mut arena = TransformArena::new();
+    let targets = (0..checker.binder.file_count())
+        .map(|index| {
+            arena.add_source(
+                checker.binder.source(index),
+                Some(SourceFileId::from_raw(index as u32)),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert!(with_context(
+        checker,
+        &mut arena,
+        targets[0],
+        Some(root),
+        None,
+        None,
+        None,
+        None,
+        None,
+        run,
+        None,
+    )
+    .unwrap()
+    .is_some());
+}
+
+fn declaration_comment_range_description(
+    arena: &TransformArena,
+    value: TransformNode,
+) -> serde_json::Value {
+    let value_node = node(arena, value);
+    serde_json::json!({
+        "kind": format!("{:?}", value_node.kind),
+        "pos": value_node.pos as i32,
+        "end": value_node.end as i32,
+        "file": arena.source(value.source()).unwrap().syntax().file_name,
+    })
+}
+
+#[test]
+fn declaration_comment_range_classifier_matches_js_and_ts_observations() {
+    let traces = declaration_comment_range_traces();
+    let cases = traces["predicates"].as_array().unwrap();
+    assert_eq!(cases.len(), 24);
+    for case in cases {
+        let id = case["case_id"].as_str().unwrap();
+        let filename = format!("/project/main.{}", id.rsplit('/').next().unwrap());
+        for _ in 0..2 {
+            with_program_state(
+                &[(filename.as_str(), case["source"].as_str().unwrap())],
+                &CompilerOptions {
+                    allow_js: true,
+                    ..CompilerOptions::default()
+                },
+                |checker| {
+                    let source = checker.binder.source(0);
+                    let expression = source
+                        .arena
+                        .node_ids()
+                        .find(|&id| source.arena.node(id).kind == SyntaxKind::BinaryExpression)
+                        .unwrap();
+                    assert_eq!(
+                        tsc_binder::assignment::get_assignment_declaration_kind(source, expression)
+                            as u32,
+                        case["assignment_kind"].as_u64().unwrap() as u32,
+                        "{id}",
+                    );
+                },
+            );
+        }
+    }
+}
+
+#[test]
+fn declaration_comment_range_g4a_internal_sentinels() {
+    // The upstream sentinel controls construct incomplete topology. Remove
+    // the same edges before binding; ordinary Program topology is untouched.
+    let traces = declaration_comment_range_traces();
+    assert_eq!(traces["sentinels"].as_array().unwrap().len(), 4);
+    for case in traces["sentinels"].as_array().unwrap() {
+        let id = case["case_id"].as_str().unwrap();
+        for _ in 0..2 {
+            let mut source = tsc_syntax::parse_source_file(
+                "/project/main.ts",
+                "const fn = function() {};",
+                tsc_syntax::ParseOptions::default(),
+                None,
+            );
+            let declaration = source
+                .arena
+                .node_ids()
+                .find(|&id| source.arena.node(id).kind == SyntaxKind::FunctionExpression)
+                .unwrap();
+            let variable = source.arena.node(declaration).parent.unwrap();
+            let list = source.arena.node(variable).parent.unwrap();
+            match id {
+                "missing-declaration" | "parentless-declaration" => {
+                    source.arena.node_mut(declaration).parent = None;
+                }
+                "variable-without-list" => source.arena.node_mut(variable).parent = None,
+                "variable-with-list" => {}
+                _ => panic!("unknown sentinel {id}"),
+            }
+            let options = CompilerOptions::default();
+            let mut binder = tsc_binder::Binder::new(&source, &options);
+            binder.bind_source_file();
+            let mut checker = CheckerState::new(&source, &binder, &options);
+            let signature = checker.get_signature_from_declaration(declaration).unwrap();
+            if id == "missing-declaration" {
+                checker.signature_mut(signature).declaration = None;
+            }
+            declaration_comment_range_with_context(
+                &mut checker,
+                |checker, arena, target, context| {
+                    let selected = StatementSerializer::new(checker, arena, target, context)
+                        .get_signature_text_range_location(signature);
+                    let description = match selected {
+                        None => "absent",
+                        Some(node) if node == declaration => "declaration",
+                        Some(node) if node == list => "variable-list",
+                        _ => "unexpected",
+                    };
+                    assert_eq!(description, case["selected"], "{id}");
+                    Ok(())
+                },
+            );
+        }
+    }
+}
+
+#[test]
+fn declaration_comment_range_preserves_range_and_original_identity() {
+    let traces = declaration_comment_range_traces();
+    assert_eq!(traces["ranges"].as_array().unwrap().len(), 4);
+    for case in traces["ranges"].as_array().unwrap() {
+        let id = case["case_id"].as_str().unwrap();
+        for _ in 0..2 {
+            with_program_state(
+                &[
+                    ("/project/a.ts", "type Local = number;"),
+                    ("/project/b.ts", "type Foreign = string;"),
+                ],
+                &CompilerOptions::default(),
+                |checker| {
+                    declaration_comment_range_with_context(
+                        checker,
+                        |checker, arena, target, context| {
+                            let mut names = Vec::new();
+                            for index in 0..2 {
+                                let source = checker.binder.source(index);
+                                let name = source
+                                    .arena
+                                    .nodes()
+                                    .iter()
+                                    .find_map(|node| {
+                                        if let NodeData::TypeAliasDeclaration(data) = &node.data {
+                                            data.name
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                    .unwrap();
+                                names.push(project_parse_node(checker, arena, name)?.unwrap());
+                            }
+                            let input = if id == "parsed-input" {
+                                names[0]
+                            } else {
+                                let input = create_identifier(arena, target, "generated")?;
+                                arena
+                                    .set_original_node(input, Some(names[0]))
+                                    .map_err(factory_error)?;
+                                input
+                            };
+                            let location = match id {
+                                "foreign-source" => Some(names[1]),
+                                "no-location" => None,
+                                _ => Some(names[0]),
+                            };
+                            let result = set_text_range2(checker, arena, context, input, location)?;
+                            let original = arena.get_original_node(result);
+                            let observed = serde_json::json!({
+                                "same_identity": result == input,
+                                "pos": node(arena, result).pos as i32,
+                                "end": node(arena, result).end as i32,
+                                "original": declaration_comment_range_description(arena, original),
+                            });
+                            assert_eq!(observed, case["observation"], "{id}");
+                            let expected_original = if id == "foreign-source" {
+                                names[1]
+                            } else {
+                                names[0]
+                            };
+                            assert_eq!(original, expected_original, "{id}: actual node identity");
+                            assert_eq!(
+                                arena
+                                    .parse_tree_resolver_node(result)
+                                    .map_err(factory_error)?,
+                                arena
+                                    .parse_tree_resolver_node(expected_original)
+                                    .map_err(factory_error)?,
+                                "{id}: mounted source identity",
+                            );
+                            Ok(())
+                        },
+                    )
+                },
+            );
+        }
+    }
+}
+
+fn declaration_comment_range_collect_signatures(
+    arena: &TransformArena,
+    current: TransformNode,
+    signatures: &mut Vec<TransformNode>,
+) {
+    if matches!(
+        node(arena, current).kind,
+        SyntaxKind::FunctionDeclaration | SyntaxKind::MethodDeclaration
+    ) {
+        signatures.push(current);
+    }
+    let source = arena.source(current.source()).unwrap().syntax();
+    tsc_syntax::for_each_child(&source.arena, node(arena, current), |id| {
+        declaration_comment_range_collect_signatures(
+            arena,
+            arena.node_ref(current.source(), id).unwrap(),
+            signatures,
+        );
+        false
+    });
+}
+
+#[test]
+fn declaration_comment_range_serialized_locations_match_upstream_traces() {
+    let artifact: serde_json::Value = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../compiler/tests/fixtures/declaration-comment-ranges.json"
+    )))
+    .unwrap();
+    let traces = declaration_comment_range_traces();
+    let cases = artifact["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 17);
+    let mut failures = Vec::new();
+    for (case, trace) in cases.iter().zip(traces["cases"].as_array().unwrap()) {
+        let id = case["case_id"].as_str().unwrap();
+        assert_eq!(case["case_id"], trace["case_id"]);
+        // Blocking belongs to the ordinary command test. Direct serialization
+        // would bypass that boundary and is not an observation of this case.
+        if id.ends_with("/blocked-semantic") {
+            continue;
+        }
+        for repetition in 0..2 {
+            let result = std::panic::catch_unwind(|| {
+                let files = case["files"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|file| {
+                        (
+                            file["path"].as_str().unwrap(),
+                            file["text"].as_str().unwrap(),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                let options = CompilerOptions {
+                    allow_js: true,
+                    check_js: Some(true),
+                    declaration: Some(true),
+                    target: Some(case["options"]["target"].as_i64().unwrap() as i32),
+                    module: Some(case["options"]["module"].as_i64().unwrap() as i32),
+                    ..CompilerOptions::default()
+                };
+                with_declaration_statements(
+                    &files,
+                    0,
+                    &options,
+                    None,
+                    |checker, arena, _, statements| {
+                        let mut signatures = Vec::new();
+                        for statement in statements {
+                            declaration_comment_range_collect_signatures(
+                                arena,
+                                statement,
+                                &mut signatures,
+                            );
+                        }
+                        let expected = trace["trace"].as_array().unwrap();
+                        assert_eq!(signatures.len(), expected.len(), "{id}: signature count");
+                        for (signature, expected) in signatures.iter().copied().zip(expected) {
+                            let original = arena.get_original_node(signature);
+                            assert_eq!(
+                                declaration_comment_range_description(arena, original),
+                                expected["location"],
+                                "{id}"
+                            );
+                            assert_eq!(
+                                (node(arena, signature).pos, node(arena, signature).end),
+                                (node(arena, original).pos, node(arena, original).end),
+                                "{id}: raw range"
+                            );
+                            let source = checker.binder.source(0);
+                            let declaration = source.arena.node_ids().find(|&id| {
+                            let node = source.arena.node(id);
+                            serde_json::json!({"kind":format!("{:?}",node.kind),"pos":node.pos as i32,"end":node.end as i32,"file":source.file_name}) == expected["declaration"]
+                        }).unwrap();
+                            let (parameters, return_type) = match &node(arena, signature).data {
+                                NodeData::FunctionDeclaration(data) => {
+                                    (data.parameters, data.r#type)
+                                }
+                                NodeData::MethodDeclaration(data) => (data.parameters, data.r#type),
+                                _ => unreachable!(),
+                            };
+                            assert!(
+                                return_type.is_some(),
+                                "{id}: return type constructed before location"
+                            );
+                            let actual_names = array_nodes(arena, signature, parameters)
+                                .iter()
+                                .map(|&parameter| {
+                                    let NodeData::Parameter(data) = &node(arena, parameter).data
+                                    else {
+                                        unreachable!()
+                                    };
+                                    assert!(data.r#type.is_some(), "{id}: parameter type retained");
+                                    name_text(arena, parameter, data.name)
+                                })
+                                .collect::<Vec<_>>();
+                            let expected_names = checker
+                                .parameters_of_function(declaration)
+                                .iter()
+                                .map(|&parameter| {
+                                    let NodeData::Parameter(data) =
+                                        &source.arena.node(parameter).data
+                                    else {
+                                        unreachable!()
+                                    };
+                                    let NodeData::Identifier(data) =
+                                        &source.arena.node(data.name.unwrap()).data
+                                    else {
+                                        unreachable!()
+                                    };
+                                    data.text.clone()
+                                })
+                                .collect::<Vec<_>>();
+                            assert_eq!(actual_names, expected_names, "{id}: parameter order");
+                            let mounted = project_parse_node(checker, arena, original.node())
+                                .unwrap()
+                                .unwrap();
+                            assert_eq!(mounted, original, "{id}: selected source identity");
+                        }
+                    },
+                );
+            });
+            if result.is_err() {
+                failures.push(format!("{id} repetition {repetition}"));
+            }
+        }
+    }
+    assert!(failures.is_empty(), "native trace failures: {failures:?}");
+}
+
+#[test]
+fn declaration_comment_range_g4b_absent_signature_has_no_property_fallback() {
+    // An internal missing-declaration control, distinct from parsed Programs.
+    // Keep the property's real assignment declaration to expose the removed
+    // first_property_like fallback without changing its flags or topology.
+    for _ in 0..2 {
+        with_program_state(
+            &[(
+                "/project/main.js",
+                "function C() {} C.prototype.m = function(value) { return value; };",
+            )],
+            &CompilerOptions {
+                allow_js: true,
+                declaration: Some(true),
+                ..CompilerOptions::default()
+            },
+            |checker| {
+                let root = checker.binder.source(0).root;
+                let class = checker.binder.locals_of(root).unwrap()["C"];
+                let property = checker.binder.symbol(class).members["m"];
+                let method_type = checker.get_type_of_symbol(property).unwrap();
+                let signatures = checker
+                    .get_signatures_of_type(method_type, SignatureKind::Call)
+                    .unwrap();
+                assert_eq!(signatures.len(), 1);
+                let signature = signatures[0];
+                checker.get_return_type_of_signature(signature).unwrap();
+                checker.signature_mut(signature).declaration = None;
+                declaration_comment_range_with_context(
+                    checker,
+                    |checker, arena, target, context| {
+                        let methods = StatementSerializer::new(checker, arena, target, context)
+                            .make_serialize_property_symbol(property, false, None, true, true)?;
+                        assert_eq!(methods.len(), 1);
+                        let method = methods[0];
+                        assert_eq!(node(arena, method).kind, SyntaxKind::MethodDeclaration);
+                        assert_eq!(arena.get_original_node(method), method);
+                        assert_eq!(node(arena, method).pos as i32, -1);
+                        assert_eq!(node(arena, method).end as i32, -1);
+                        Ok(())
+                    },
+                );
+            },
+        );
+    }
+}
