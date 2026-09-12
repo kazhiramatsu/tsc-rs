@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "status": "pre-amendment-native-result",
+  "run_directory": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-substitution-before",
+  "measured_head": "7e652138c5409638c49bb00137030965acc654f4",
+  "execution": {
+    "prelaunch_sha256": "9a5b58ae4abd394ae56b1783ab2eb9cf0de656bdb472067a2e72a80227fe92bc",
+    "actual_exit": 101,
+    "log_sha256": "d2b2544434c20a6d4c1f2a3f8735a95f2de692538677c43837cc41e41d3caa83",
+    "executed_binaries": {
+      "target/dec-next-review-artifacts/debug/deps/h2_8a_require_rewrite-6b5f81603cc2f49a": "80cdff385cd5efccbefdf3fe113908efe90ea376bd9b164547125a9a4d185a3f"
+    },
+    "archived_binaries": {
+      "target/dec-next-runs/require-rewrite-substitution-before/binaries/h2_8a_require_rewrite-6b5f81603cc2f49a": {
+        "executed_path": "target/dec-next-review-artifacts/debug/deps/h2_8a_require_rewrite-6b5f81603cc2f49a",
+        "sha256": "80cdff385cd5efccbefdf3fe113908efe90ea376bd9b164547125a9a4d185a3f"
+      }
+    },
+    "inputs_changed_during_run": []
+  },
+  "count": 4,
+  "exact_twice": 1,
+  "failed": 3,
+  "exact_ids": [
+    "require-rewrite-substitution/esnext/exported-assignment"
+  ],
+  "failed_ids": [
+    "require-rewrite-substitution/amd/exported-assignment",
+    "require-rewrite-substitution/commonjs/exported-assignment",
+    "require-rewrite-substitution/umd/exported-assignment"
+  ],
+  "note": "Supplemental cases are frozen against upstream before the export-assignment substitution repair. Head 7e652138c production; staged test and observation additions are in the immutable prelaunch archive."
+}

@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "case_id": "require-rewrite-dynamic/commonjs/templates-nested",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "export {};\nimport(`./a.ts`);\nimport(`./${\"b\"}.ts`);\nimport(import(\"./c.ts\"));\nrequire(\"./d.ts\");\n"
+        }
+      ],
+      "options": {},
+      "config": "{\"compilerOptions\": {\"target\": \"esnext\", \"module\": \"commonjs\", \"allowJs\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"outDir\": \"out\", \"newLine\": \"lf\", \"ignoreDeprecations\": \"6.0\", \"rewriteRelativeImportExtensions\": true}, \"files\": [\"main.js\"]}"
+    },
+    {
+      "case_id": "require-rewrite-dynamic/nodenext/templates-nested",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "export {};\nimport(`./a.ts`);\nimport(`./${\"b\"}.ts`);\nimport(import(\"./c.ts\"));\nrequire(\"./d.ts\");\n"
+        }
+      ],
+      "options": {},
+      "config": "{\"compilerOptions\": {\"target\": \"esnext\", \"module\": \"nodenext\", \"allowJs\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"outDir\": \"out\", \"newLine\": \"lf\", \"ignoreDeprecations\": \"6.0\", \"rewriteRelativeImportExtensions\": true}, \"files\": [\"main.js\"]}"
+    },
+    {
+      "case_id": "require-rewrite-dynamic/amd/templates-nested",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "export {};\nimport(`./a.ts`);\nimport(`./${\"b\"}.ts`);\nimport(import(\"./c.ts\"));\nrequire(\"./d.ts\");\n"
+        }
+      ],
+      "options": {},
+      "config": "{\"compilerOptions\": {\"target\": \"esnext\", \"module\": \"amd\", \"allowJs\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"outDir\": \"out\", \"newLine\": \"lf\", \"ignoreDeprecations\": \"6.0\", \"rewriteRelativeImportExtensions\": true}, \"files\": [\"main.js\"]}"
+    },
+    {
+      "case_id": "require-rewrite-dynamic/umd/templates-nested",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "export {};\nimport(`./a.ts`);\nimport(`./${\"b\"}.ts`);\nimport(import(\"./c.ts\"));\nrequire(\"./d.ts\");\n"
+        }
+      ],
+      "options": {},
+      "config": "{\"compilerOptions\": {\"target\": \"esnext\", \"module\": \"umd\", \"allowJs\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"outDir\": \"out\", \"newLine\": \"lf\", \"ignoreDeprecations\": \"6.0\", \"rewriteRelativeImportExtensions\": true}, \"files\": [\"main.js\"]}"
+    },
+    {
+      "case_id": "require-rewrite-dynamic/esnext/templates-nested",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "export {};\nimport(`./a.ts`);\nimport(`./${\"b\"}.ts`);\nimport(import(\"./c.ts\"));\nrequire(\"./d.ts\");\n"
+        }
+      ],
+      "options": {},
+      "config": "{\"compilerOptions\": {\"target\": \"esnext\", \"module\": \"esnext\", \"allowJs\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"outDir\": \"out\", \"newLine\": \"lf\", \"ignoreDeprecations\": \"6.0\", \"rewriteRelativeImportExtensions\": true}, \"files\": [\"main.js\"]}"
+    },
+    {
+      "case_id": "require-rewrite-dynamic/preserve/templates-nested",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "export {};\nimport(`./a.ts`);\nimport(`./${\"b\"}.ts`);\nimport(import(\"./c.ts\"));\nrequire(\"./d.ts\");\n"
+        }
+      ],
+      "options": {},
+      "config": "{\"compilerOptions\": {\"target\": \"esnext\", \"module\": \"preserve\", \"allowJs\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"outDir\": \"out\", \"newLine\": \"lf\", \"ignoreDeprecations\": \"6.0\", \"rewriteRelativeImportExtensions\": true}, \"files\": [\"main.js\"]}"
+    }
+  ]
+}

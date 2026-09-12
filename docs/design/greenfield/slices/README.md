@@ -17,6 +17,7 @@ invitation to fill in the answer during implementation.
 
 | Packet | Status | Authorized work |
 | --- | --- | --- |
+| [H2.8a require/import extension rewriting](h2-8a-require-rewrite.md#complete-command-qualification-2026-09-12) | Focused module-transform repair qualified; H2.8a remains open | 60/60 focused commands exact twice: 45 repairs and 15 preserved positives. All 14 composition controls and both original commands exact twice; 495 units, 452 contracts and 2 direct printer/pipeline controls pass. Global A37 checkpoint remains frozen. |
 | [H2.8b-CFG1a config inheritance](h2-8b-config-extends-report.md) | 4 observed differences repaired; CFG1/B remain open | Config plans 28/28 exact twice; 8 new config commands and 18 prior library commands exact twice for full output and ordered Program facts. Program config filter 144 passed / 1 existing ignored; 26 units / 20 library contracts / 6 compiler tests pass. |
 | [H2.8b-LR2 library order repair](h2-8b-library-order-report.md) | Original 7 ordering failures repaired; focused checks pass | Original 12 plus 6 additional cases exact twice for complete commands and ordered Program facts; 5 library units / 20 loader contracts pass. H2.8b and profile activation remain open. |
 | [H2.8b-LR1 library replacement baseline](h2-8b-library-replacement-report.md) | Historical baseline; 7 ordering failures at the LR1 head | Complete commands 12/12 exact twice; ordered Program facts 5/12 exact twice, 7 first-comparison failures; normal test exit101. Retained pre-fix evidence; LR2 repair result above. |

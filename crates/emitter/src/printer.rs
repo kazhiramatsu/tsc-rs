@@ -6479,19 +6479,62 @@ impl Printer {
                     }
                 };
                 let callee_context = expression_context.with_grammar(callee_grammar);
-                self.emit_required_node_with_forwarded_source_comments(
+                let expression = data
+                    .expression
+                    .ok_or(PrinterError::MissingTransformedChild {
+                        parent: SyntaxKind::CallExpression,
+                        field: "expression",
+                    })?;
+                // emitCallExpression's callee owns an ordinary comments phase,
+                // including trailing comments before the argument list. Keep
+                // an inherited leading continuation while completing that phase.
+                // tsc-port: emitCallExpression @6.0.3
+                // tsc-span: _tsc.js:118275-118290
+                if expression_context.nested_comments_suppressed() {
+                    self.emit_node_id_with_forwarded_source_comments(
+                        transformation,
+                        node.source(),
+                        expression,
+                        callee_context,
+                        deferred_source_comments,
+                        writer,
+                    )?;
+                } else {
+                    let pending = deferred_source_comments.take_pending();
+                    let inherited = pending.is_some();
+                    let mut deferred = pending.unwrap_or_else(|| {
+                        DeferredExpressionSourceComments::nested(
+                            expression_context.comments(),
+                            DeferredSourceCommentExtent::LeadingAndTrailing,
+                        )
+                    });
+                    deferred.extent = DeferredSourceCommentExtent::LeadingAndTrailing;
+                    let outcome = self.emit_node_id_with_context_and_source_comments(
+                        transformation,
+                        node.source(),
+                        expression,
+                        callee_context,
+                        deferred,
+                        writer,
+                    )?;
+                    if inherited {
+                        deferred_source_comments.record_outcome(outcome);
+                    } else {
+                        debug_assert!(matches!(
+                            outcome,
+                            ExpressionSourceCommentsOutcome::Complete { .. }
+                        ));
+                    }
+                }
+                self.emit_optional_ordinary_child(
                     transformation,
-                    node.source(),
-                    data.expression,
-                    SyntaxKind::CallExpression,
-                    "expression",
-                    callee_context,
-                    deferred_source_comments,
+                    node,
+                    data.question_dot_token,
+                    EmitHint::Unspecified,
+                    None,
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
-                if data.question_dot_token.is_some() {
-                    writer.write_punctuation("?.");
-                }
                 writer.write_punctuation("(");
                 self.emit_call_arguments(
                     transformation,

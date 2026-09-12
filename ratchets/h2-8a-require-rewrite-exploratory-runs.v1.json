@@ -1,0 +1,502 @@
+{
+  "version": 1,
+  "status": "historical-intermediate-runs-not-final-qualification",
+  "runs": [
+    {
+      "name": "require-rewrite-before",
+      "note": "Trusted base production: 15/60 focused exact twice, 45 differences; both original commands differ.",
+      "run_directory": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-before",
+      "measured_head": "0aaf808bef9b0f5f64737821c63c273056dee2c4",
+      "prelaunch_status": "A  crates/compiler/tests/fixtures/h2-8a-require-rewrite-inputs.json\nA  crates/compiler/tests/fixtures/h2-8a-require-rewrite.json\nA  crates/compiler/tests/h2_8a_require_rewrite.rs\nA  scripts/observe-require-rewrite.mjs",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--manifest-path",
+        "crates/compiler/Cargo.toml",
+        "--test",
+        "h2_8a_require_rewrite",
+        "require_rewrite_",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-review-artifacts",
+        "CARGO_BUILD_JOBS": "2",
+        "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-before/captures"
+      },
+      "archive": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-before/source-and-inputs.tar.gz",
+        "sha256": "cfbd7eed85d60645cac32e6319802eb6b42bd0d95b7920c11ea922771a18e9c2"
+      },
+      "execution": {
+        "prelaunch_sha256": "6320bbfd7fba676a9b9dd4c073a18fe159146c6b728dde45a3c7e4a9b90f5a0f",
+        "actual_exit": 101,
+        "log_sha256": "43e7435b089a6a72611c1413b073f5df4d2190f2e79aac934c6e12131e48073a",
+        "executed_binaries": {
+          "target/dec-next-review-artifacts/debug/deps/h2_8a_require_rewrite-6b5f81603cc2f49a": "e588f62bd11e28d482d14a117c07ba4c59952a9ac571e47614c437015e230776"
+        },
+        "archived_binaries": {
+          "target/dec-next-runs/require-rewrite-before/binaries/h2_8a_require_rewrite-6b5f81603cc2f49a": {
+            "executed_path": "target/dec-next-review-artifacts/debug/deps/h2_8a_require_rewrite-6b5f81603cc2f49a",
+            "sha256": "e588f62bd11e28d482d14a117c07ba4c59952a9ac571e47614c437015e230776"
+          }
+        },
+        "inputs_changed_during_run": []
+      },
+      "supplemental_capture_count": 75,
+      "supplemental_exact": 30
+    },
+    {
+      "name": "require-rewrite-first-commonjs",
+      "note": "Exploratory candidate: 7/10 CommonJS, four import compositions, and both originals exact twice. Readiness checker changed during execution; not final qualification.",
+      "run_directory": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-first-commonjs",
+      "measured_head": "0aaf808bef9b0f5f64737821c63c273056dee2c4",
+      "prelaunch_status": "A  crates/compiler/tests/fixtures/h2-8a-require-rewrite-composition-inputs.json\nA  crates/compiler/tests/fixtures/h2-8a-require-rewrite-composition.json\nA  crates/compiler/tests/fixtures/h2-8a-require-rewrite-inputs.json\nA  crates/compiler/tests/fixtures/h2-8a-require-rewrite.json\nA  crates/compiler/tests/h2_8a_require_rewrite.rs\nM  crates/emitter/src/builtins.rs\nA  crates/emitter/src/builtins/relative_imports.rs\nA  docs/design/greenfield/slices/h2-8a-require-rewrite.md\nA  ratchets/h2-8a-require-rewrite-before.v1.json\nA  ratchets/h2-8a-require-rewrite-readiness.v1.json\nA  scripts/check-require-rewrite-readiness.py\nA  scripts/observe-require-rewrite-composition.mjs\nA  scripts/observe-require-rewrite.mjs",
+      "command": [
+        "env",
+        "TSC_RS_REQUIRE_REWRITE_FILTER=commonjs",
+        "cargo",
+        "test",
+        "--offline",
+        "--manifest-path",
+        "crates/compiler/Cargo.toml",
+        "--test",
+        "h2_8a_require_rewrite",
+        "require_rewrite_",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-review-artifacts",
+        "CARGO_BUILD_JOBS": "2",
+        "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-first-commonjs/captures"
+      },
+      "archive": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-first-commonjs/source-and-inputs.tar.gz",
+        "sha256": "06c9a959770ba40ba7d0106d80c09d93f82ca8ee34dbcefa263c28c5e19eee2f"
+      },
+      "execution": {
+        "prelaunch_sha256": "201893e63168e16932381322c0e7bd7bdd7074b21640c9f2984615c8b1bf139b",
+        "actual_exit": 101,
+        "log_sha256": "8c50b3a28c4e2fa21abbaf997512c6c153a80e4f446dabc9a12c05c3f391da02",
+        "executed_binaries": {
+          "target/dec-next-review-artifacts/debug/deps/h2_8a_require_rewrite-6b5f81603cc2f49a": "4d5dffe8e05380078f7b21da6d23fdcbfd440c0115b6926eadf17d5a1a95f896"
+        },
+        "archived_binaries": {
+          "target/dec-next-runs/require-rewrite-first-commonjs/binaries/h2_8a_require_rewrite-6b5f81603cc2f49a": {
+            "executed_path": "target/dec-next-review-artifacts/debug/deps/h2_8a_require_rewrite-6b5f81603cc2f49a",
+            "sha256": "4d5dffe8e05380078f7b21da6d23fdcbfd440c0115b6926eadf17d5a1a95f896"
+          }
+        },
+        "inputs_changed_during_run": [
+          "scripts/check-require-rewrite-readiness.py"
+        ]
+      },
+      "supplemental_capture_count": 25,
+      "supplemental_exact": 22
+    },
+    {
+      "name": "require-rewrite-commonjs-corrected",
+      "note": "Observed Inactive comment-state assertion; actual failure retained.",
+      "run_directory": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-commonjs-corrected",
+      "measured_head": "0aaf808bef9b0f5f64737821c63c273056dee2c4",
+      "prelaunch_status": "A  crates/compiler/tests/fixtures/h2-8a-require-rewrite-composition-inputs.json\nA  crates/compiler/tests/fixtures/h2-8a-require-rewrite-composition.json\nA  crates/compiler/tests/fixtures/h2-8a-require-rewrite-inputs.json\nA  crates/compiler/tests/fixtures/h2-8a-require-rewrite.json\nA  crates/compiler/tests/h2_8a_require_rewrite.rs\nM  crates/emitter/src/builtins.rs\nA  crates/emitter/src/builtins/relative_imports.rs\nM  crates/emitter/src/printer.rs\nA  docs/design/greenfield/slices/h2-8a-require-rewrite-readiness.schema.json\nA  docs/design/greenfield/slices/h2-8a-require-rewrite.md\nA  ratchets/h2-8a-require-rewrite-before.v1.json\nA  ratchets/h2-8a-require-rewrite-readiness.v1.json\nA  scripts/check-require-rewrite-readiness.py\nA  scripts/observe-require-rewrite-composition.mjs\nA  scripts/observe-require-rewrite.mjs",
+      "command": [
+        "env",
+        "TSC_RS_REQUIRE_REWRITE_FILTER=commonjs",
+        "cargo",
+        "test",
+        "--offline",
+        "--manifest-path",
+        "crates/compiler/Cargo.toml",
+        "--test",
+        "h2_8a_require_rewrite",
+        "require_rewrite_focused_complete_commands",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-review-artifacts",
+        "CARGO_BUILD_JOBS": "2",
+        "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-commonjs-corrected/captures"
+      },
+      "archive": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-commonjs-corrected/source-and-inputs.tar.gz",
+        "sha256": "3215180f2f2ed2ea2232270d3f1f29dc98da18f7c65394532a63be6e3d2c4b8a"
+      },
+      "execution": {
+        "prelaunch_sha256": "3b9403122e0475597e5504bb1d9854384db7eadbd31cf761c56de5007806a3b1",
+        "actual_exit": 101,
+        "log_sha256": "c925ce9a2d3f5d3320ffb4578a72c68ee8fd365d789de1c12eecb1b91db0cf49",
+        "executed_binaries": {
+          "target/dec-next-review-artifacts/debug/deps/h2_8a_require_rewrite-6b5f81603cc2f49a": "0fd6f2439c69e9e2a2131e1ce6cd16ef4bf9b0d4bb68e4ed1c4341fd93120941"
+        },
+        "archived_binaries": {
+          "target/dec-next-runs/require-rewrite-commonjs-corrected/binaries/h2_8a_require_rewrite-6b5f81603cc2f49a": {
+            "executed_path": "target/dec-next-review-artifacts/debug/deps/h2_8a_require_rewrite-6b5f81603cc2f49a",
+            "sha256": "0fd6f2439c69e9e2a2131e1ce6cd16ef4bf9b0d4bb68e4ed1c4341fd93120941"
+          }
+        },
+        "inputs_changed_during_run": []
+      },
+      "supplemental_capture_count": 0,
+      "supplemental_exact": 0
+    },
+    {
+      "name": "require-rewrite-comment-state-fixed",
+      "note": "Corrected local callee phase: all 10 CommonJS focused commands exact twice.",
+      "run_directory": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-comment-state-fixed",
+      "measured_head": "19f5b0a46fc8ee51bc3ccf03b43e40bbb62863fc",
+      "prelaunch_status": "",
+      "command": [
+        "env",
+        "TSC_RS_REQUIRE_REWRITE_FILTER=commonjs",
+        "cargo",
+        "test",
+        "--offline",
+        "--manifest-path",
+        "crates/compiler/Cargo.toml",
+        "--test",
+        "h2_8a_require_rewrite",
+        "require_rewrite_focused_complete_commands",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-review-artifacts",
+        "CARGO_BUILD_JOBS": "2",
+        "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-comment-state-fixed/captures"
+      },
+      "archive": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-comment-state-fixed/source-and-inputs.tar.gz",
+        "sha256": "8868d3750b1be6e0161052dd4b10913b25975dc23ad4218a04bf6986c9ba427c"
+      },
+      "execution": {
+        "prelaunch_sha256": "89eb9befb00d53512c48c2d04f83aa0271babc5a211a8e98abb22563ebd4f10a",
+        "actual_exit": 0,
+        "log_sha256": "5b86fa4735c9cb9df7f027f98eeb4bd38a0aabaf1f0ce16eb22756ab3636f60e",
+        "executed_binaries": {
+          "target/dec-next-review-artifacts/debug/deps/h2_8a_require_rewrite-6b5f81603cc2f49a": "9c089e7f380e27be47e9e5a10bb91b53619a641da46c72168aee61a853147913"
+        },
+        "archived_binaries": {
+          "target/dec-next-runs/require-rewrite-comment-state-fixed/binaries/h2_8a_require_rewrite-6b5f81603cc2f49a": {
+            "executed_path": "target/dec-next-review-artifacts/debug/deps/h2_8a_require_rewrite-6b5f81603cc2f49a",
+            "sha256": "9c089e7f380e27be47e9e5a10bb91b53619a641da46c72168aee61a853147913"
+          }
+        },
+        "inputs_changed_during_run": []
+      },
+      "supplemental_capture_count": 20,
+      "supplemental_exact": 20
+    },
+    {
+      "name": "require-rewrite-clippy",
+      "note": "Three existing class_fields findings plus one owned collapsible-else-if finding.",
+      "run_directory": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-clippy",
+      "measured_head": "19f5b0a46fc8ee51bc3ccf03b43e40bbb62863fc",
+      "prelaunch_status": "A  scripts/analyze-require-rewrite.py",
+      "command": [
+        "cargo",
+        "clippy",
+        "--offline",
+        "--manifest-path",
+        "crates/emitter/Cargo.toml",
+        "--lib",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-review-artifacts",
+        "CARGO_BUILD_JOBS": "2",
+        "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-clippy/captures"
+      },
+      "archive": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-clippy/source-and-inputs.tar.gz",
+        "sha256": "c36cdd086798b2e3733c99900760714a0b966b3b1817428ba0b0ad306fa50e9a"
+      },
+      "execution": {
+        "prelaunch_sha256": "ac0934aa7c50906031d9357f352216471a7e543d69a9d4a96497c61eb7106429",
+        "actual_exit": 101,
+        "log_sha256": "c269e69fdcb832de7a4cf105e98338577c199daa2fb47edcc764b945ead78444",
+        "executed_binaries": {},
+        "archived_binaries": {},
+        "inputs_changed_during_run": []
+      },
+      "supplemental_capture_count": 0,
+      "supplemental_exact": 0
+    },
+    {
+      "name": "require-rewrite-clippy-final",
+      "note": "Owned style finding corrected; three existing class_fields findings remain. This is before the later substitution/dynamic amendments, not final-source lint evidence.",
+      "run_directory": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-clippy-final",
+      "measured_head": "7e652138c5409638c49bb00137030965acc654f4",
+      "prelaunch_status": "",
+      "command": [
+        "cargo",
+        "clippy",
+        "--offline",
+        "--manifest-path",
+        "crates/emitter/Cargo.toml",
+        "--lib",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-review-artifacts",
+        "CARGO_BUILD_JOBS": "2",
+        "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-clippy-final/captures"
+      },
+      "archive": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-clippy-final/source-and-inputs.tar.gz",
+        "sha256": "3436fb4dcb7d3e33a75cb9905ba22a75ed488c5ee4908e0b8304d0f55e8218b4"
+      },
+      "execution": {
+        "prelaunch_sha256": "8c025033396ac28208ab9bf4409c7b52a625a22b3724c30680623559e02d0603",
+        "actual_exit": 101,
+        "log_sha256": "fb88c3c71ce6562f8608b75817813c3c183ac8bc31748dbebf3f22258489aa48",
+        "executed_binaries": {},
+        "archived_binaries": {},
+        "inputs_changed_during_run": []
+      },
+      "supplemental_capture_count": 0,
+      "supplemental_exact": 0
+    },
+    {
+      "name": "require-rewrite-final-complete",
+      "note": "Deliberately terminated the test child with SIGTERM after source review identified an export-assignment substitution omission; cargo returned 101. Not final qualification, despite the original run directory name.",
+      "run_directory": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-final-complete",
+      "measured_head": "7e652138c5409638c49bb00137030965acc654f4",
+      "prelaunch_status": "",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--manifest-path",
+        "crates/compiler/Cargo.toml",
+        "--test",
+        "h2_8a_require_rewrite",
+        "require_rewrite_",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-review-artifacts",
+        "CARGO_BUILD_JOBS": "2",
+        "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-final-complete/captures"
+      },
+      "archive": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-final-complete/source-and-inputs.tar.gz",
+        "sha256": "8b5b14a827858d8e282945da06b3f41eaf48d7c335c07cea90bfd5b55ed27586"
+      },
+      "execution": {
+        "prelaunch_sha256": "4a5a1160207a5ddef2f8cbf43fa15b133bd66cd930e4b7680ba900ac9c6fb0be",
+        "actual_exit": 101,
+        "log_sha256": "ee5171248b99fc4e6b8a1d88a91c3032d0d058a4c70d5ae77935edbddf5bbdf7",
+        "executed_binaries": {
+          "target/dec-next-review-artifacts/debug/deps/h2_8a_require_rewrite-6b5f81603cc2f49a": "4933935d4fdada3e84db54098bd016fda2eda0aa0a891b8973f24db9ea10eac5"
+        },
+        "archived_binaries": {
+          "target/dec-next-runs/require-rewrite-final-complete/binaries/h2_8a_require_rewrite-6b5f81603cc2f49a": {
+            "executed_path": "target/dec-next-review-artifacts/debug/deps/h2_8a_require_rewrite-6b5f81603cc2f49a",
+            "sha256": "4933935d4fdada3e84db54098bd016fda2eda0aa0a891b8973f24db9ea10eac5"
+          }
+        },
+        "inputs_changed_during_run": []
+      },
+      "supplemental_capture_count": 69,
+      "supplemental_exact": 69
+    },
+    {
+      "name": "require-rewrite-substitution-before",
+      "note": "Frozen additional source witnesses: three candidate substitution differences, one ESNext positive.",
+      "run_directory": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-substitution-before",
+      "measured_head": "7e652138c5409638c49bb00137030965acc654f4",
+      "prelaunch_status": "A  crates/compiler/tests/fixtures/h2-8a-require-rewrite-substitution-inputs.json\nA  crates/compiler/tests/fixtures/h2-8a-require-rewrite-substitution.json\nM  crates/compiler/tests/h2_8a_require_rewrite.rs\nM  docs/design/greenfield/slices/h2-8a-require-rewrite-readiness.schema.json\nM  docs/design/greenfield/slices/h2-8a-require-rewrite.md\nM  ratchets/h2-8a-require-rewrite-readiness.v1.json\nM  scripts/analyze-require-rewrite.py\nM  scripts/check-require-rewrite-readiness.py\nA  scripts/observe-require-rewrite-substitution.mjs",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--manifest-path",
+        "crates/compiler/Cargo.toml",
+        "--test",
+        "h2_8a_require_rewrite",
+        "require_rewrite_substitution_complete_commands",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-review-artifacts",
+        "CARGO_BUILD_JOBS": "2",
+        "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-substitution-before/captures"
+      },
+      "archive": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-substitution-before/source-and-inputs.tar.gz",
+        "sha256": "9869f8a6965dc636de61d6f9aa1b8c32b72e9b619d407e8e5942eaa89c627eaa"
+      },
+      "execution": {
+        "prelaunch_sha256": "9a5b58ae4abd394ae56b1783ab2eb9cf0de656bdb472067a2e72a80227fe92bc",
+        "actual_exit": 101,
+        "log_sha256": "d2b2544434c20a6d4c1f2a3f8735a95f2de692538677c43837cc41e41d3caa83",
+        "executed_binaries": {
+          "target/dec-next-review-artifacts/debug/deps/h2_8a_require_rewrite-6b5f81603cc2f49a": "80cdff385cd5efccbefdf3fe113908efe90ea376bd9b164547125a9a4d185a3f"
+        },
+        "archived_binaries": {
+          "target/dec-next-runs/require-rewrite-substitution-before/binaries/h2_8a_require_rewrite-6b5f81603cc2f49a": {
+            "executed_path": "target/dec-next-review-artifacts/debug/deps/h2_8a_require_rewrite-6b5f81603cc2f49a",
+            "sha256": "80cdff385cd5efccbefdf3fe113908efe90ea376bd9b164547125a9a4d185a3f"
+          }
+        },
+        "inputs_changed_during_run": []
+      },
+      "supplemental_capture_count": 5,
+      "supplemental_exact": 2
+    },
+    {
+      "name": "require-rewrite-substitution-fixed",
+      "note": "All four exported-assignment composition commands exact twice.",
+      "run_directory": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-substitution-fixed",
+      "measured_head": "659fbba1c81b7d319caf15f4d257b6d9956aa9f2",
+      "prelaunch_status": "",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--manifest-path",
+        "crates/compiler/Cargo.toml",
+        "--test",
+        "h2_8a_require_rewrite",
+        "require_rewrite_substitution_complete_commands",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-review-artifacts",
+        "CARGO_BUILD_JOBS": "2",
+        "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-substitution-fixed/captures"
+      },
+      "archive": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-substitution-fixed/source-and-inputs.tar.gz",
+        "sha256": "2366343d63fc137a27ea2e19f7bbddf503f96782d778fe9f0a375946a25525c2"
+      },
+      "execution": {
+        "prelaunch_sha256": "57b4f058ba61db8e4c4428b7e36dfe318dcdf759bd3e8d235bee0fd311f26e16",
+        "actual_exit": 0,
+        "log_sha256": "809e82fd7b380a2829f43d41b89fb5da8e11982f2a84538bfca6af9946450327",
+        "executed_binaries": {
+          "target/dec-next-review-artifacts/debug/deps/h2_8a_require_rewrite-6b5f81603cc2f49a": "add4137dd4e91cdf76d2f2356a4133651ce569ec1a2a597e6228f5b5e2658673"
+        },
+        "archived_binaries": {
+          "target/dec-next-runs/require-rewrite-substitution-fixed/binaries/h2_8a_require_rewrite-6b5f81603cc2f49a": {
+            "executed_path": "target/dec-next-review-artifacts/debug/deps/h2_8a_require_rewrite-6b5f81603cc2f49a",
+            "sha256": "add4137dd4e91cdf76d2f2356a4133651ce569ec1a2a597e6228f5b5e2658673"
+          }
+        },
+        "inputs_changed_during_run": []
+      },
+      "supplemental_capture_count": 8,
+      "supplemental_exact": 8
+    },
+    {
+      "name": "require-rewrite-dynamic-before",
+      "note": "Frozen additional source witnesses: four candidate dynamic-import differences, two ESM positives.",
+      "run_directory": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-dynamic-before",
+      "measured_head": "659fbba1c81b7d319caf15f4d257b6d9956aa9f2",
+      "prelaunch_status": "A  crates/compiler/tests/fixtures/h2-8a-require-rewrite-dynamic-inputs.json\nA  crates/compiler/tests/fixtures/h2-8a-require-rewrite-dynamic.json\nM  crates/compiler/tests/h2_8a_require_rewrite.rs\nM  docs/design/greenfield/slices/h2-8a-require-rewrite-readiness.schema.json\nM  docs/design/greenfield/slices/h2-8a-require-rewrite.md\nM  ratchets/h2-8a-require-rewrite-readiness.v1.json\nM  scripts/analyze-require-rewrite.py\nM  scripts/check-require-rewrite-readiness.py\nA  scripts/observe-require-rewrite-dynamic.mjs\n?? ratchets/h2-8a-require-rewrite-substitution-before.v1.json",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--manifest-path",
+        "crates/compiler/Cargo.toml",
+        "--test",
+        "h2_8a_require_rewrite",
+        "require_rewrite_dynamic_complete_commands",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-review-artifacts",
+        "CARGO_BUILD_JOBS": "2",
+        "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-dynamic-before/captures"
+      },
+      "archive": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-dynamic-before/source-and-inputs.tar.gz",
+        "sha256": "9dc3511618d77118dc908dce5e5b1916f88442daaf7a4a22b9a575d0e0a6eb6d"
+      },
+      "execution": {
+        "prelaunch_sha256": "8ef554fceb392204ca58891b63336eb6acd11d52abf78dd7ac04a2097bdaed47",
+        "actual_exit": 101,
+        "log_sha256": "0272184ee7e3efdfcebd4135e7ff2f246e881f85de57a0dd1a96ff89202088e6",
+        "executed_binaries": {
+          "target/dec-next-review-artifacts/debug/deps/h2_8a_require_rewrite-6b5f81603cc2f49a": "c0f63d795ffc63084a75b381ef3787545c2fe3e5bc6d17f0a68587eeb489f5d4"
+        },
+        "archived_binaries": {
+          "target/dec-next-runs/require-rewrite-dynamic-before/binaries/h2_8a_require_rewrite-6b5f81603cc2f49a": {
+            "executed_path": "target/dec-next-review-artifacts/debug/deps/h2_8a_require_rewrite-6b5f81603cc2f49a",
+            "sha256": "c0f63d795ffc63084a75b381ef3787545c2fe3e5bc6d17f0a68587eeb489f5d4"
+          }
+        },
+        "inputs_changed_during_run": []
+      },
+      "supplemental_capture_count": 8,
+      "supplemental_exact": 4
+    },
+    {
+      "name": "require-rewrite-dynamic-fixed",
+      "note": "All six template/nested dynamic-import commands exact twice.",
+      "run_directory": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-dynamic-fixed",
+      "measured_head": "bf7335065bbbe396f0f58f7de75961bddd4f1d11",
+      "prelaunch_status": "",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--manifest-path",
+        "crates/compiler/Cargo.toml",
+        "--test",
+        "h2_8a_require_rewrite",
+        "require_rewrite_dynamic_complete_commands",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-review-artifacts",
+        "CARGO_BUILD_JOBS": "2",
+        "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-dynamic-fixed/captures"
+      },
+      "archive": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-dynamic-fixed/source-and-inputs.tar.gz",
+        "sha256": "be59aed9742a6568747b86ac86843cdf496a99d7c7a83f67ff451b08ea492864"
+      },
+      "execution": {
+        "prelaunch_sha256": "89461c3d044ada7241a73721d9904b981c240b855d1eb8794896b69a87b503d1",
+        "actual_exit": 0,
+        "log_sha256": "9351ceca2db5df616c4e8348fb836b8d96d472a6e2362e70ee281d38c4287b1a",
+        "executed_binaries": {
+          "target/dec-next-review-artifacts/debug/deps/h2_8a_require_rewrite-6b5f81603cc2f49a": "b471ca13553f5a502fd5199a1dffc9305221bcb5dbc87834cceaa6a2994b30d0"
+        },
+        "archived_binaries": {
+          "target/dec-next-runs/require-rewrite-dynamic-fixed/binaries/h2_8a_require_rewrite-6b5f81603cc2f49a": {
+            "executed_path": "target/dec-next-review-artifacts/debug/deps/h2_8a_require_rewrite-6b5f81603cc2f49a",
+            "sha256": "b471ca13553f5a502fd5199a1dffc9305221bcb5dbc87834cceaa6a2994b30d0"
+          }
+        },
+        "inputs_changed_during_run": []
+      },
+      "supplemental_capture_count": 12,
+      "supplemental_exact": 12
+    }
+  ]
+}

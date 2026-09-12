@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "kind": "exploratory-candidate-with-three-observed-failures",
+  "run_directory": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-first-commonjs",
+  "execution": {
+    "prelaunch_sha256": "201893e63168e16932381322c0e7bd7bdd7074b21640c9f2984615c8b1bf139b",
+    "actual_exit": 101,
+    "log_sha256": "8c50b3a28c4e2fa21abbaf997512c6c153a80e4f446dabc9a12c05c3f391da02",
+    "executed_binaries": {
+      "target/dec-next-review-artifacts/debug/deps/h2_8a_require_rewrite-6b5f81603cc2f49a": "4d5dffe8e05380078f7b21da6d23fdcbfd440c0115b6926eadf17d5a1a95f896"
+    },
+    "archived_binaries": {
+      "target/dec-next-runs/require-rewrite-first-commonjs/binaries/h2_8a_require_rewrite-6b5f81603cc2f49a": {
+        "executed_path": "target/dec-next-review-artifacts/debug/deps/h2_8a_require_rewrite-6b5f81603cc2f49a",
+        "sha256": "4d5dffe8e05380078f7b21da6d23fdcbfd440c0115b6926eadf17d5a1a95f896"
+      }
+    },
+    "inputs_changed_during_run": [
+      "scripts/check-require-rewrite-readiness.py"
+    ]
+  },
+  "original_exact_twice": 2,
+  "composition_exact_twice": 4,
+  "commonjs_focused_exact_twice": 7,
+  "commonjs_focused_failed": [
+    "escaped-optional",
+    "nested",
+    "typescript"
+  ],
+  "note": "The readiness checker was amended during this exploratory run; production and fixture hashes were unchanged. This is not final-candidate qualification."
+}

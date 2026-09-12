@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "case_id": "require-rewrite-composition/commonjs/imported-callee",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import { require } from \"./dep.js\"; require(\"./a.ts\");\n"
+        },
+        {
+          "path": "/project/dep.js",
+          "text": "export const path = \"./value.ts\";\nexport function require(path) { return path; }\n"
+        }
+      ],
+      "options": {},
+      "config": "{\"compilerOptions\": {\"target\": \"esnext\", \"module\": \"commonjs\", \"allowJs\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"outDir\": \"out\", \"newLine\": \"lf\", \"ignoreDeprecations\": \"6.0\", \"rewriteRelativeImportExtensions\": true}, \"files\": [\"main.js\"]}"
+    },
+    {
+      "case_id": "require-rewrite-composition/commonjs/imported-path",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import { path } from \"./dep.js\"; require(path);\n"
+        },
+        {
+          "path": "/project/dep.js",
+          "text": "export const path = \"./value.ts\";\nexport function require(path) { return path; }\n"
+        }
+      ],
+      "options": {},
+      "config": "{\"compilerOptions\": {\"target\": \"esnext\", \"module\": \"commonjs\", \"allowJs\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"outDir\": \"out\", \"newLine\": \"lf\", \"ignoreDeprecations\": \"6.0\", \"rewriteRelativeImportExtensions\": true}, \"files\": [\"main.js\"]}"
+    },
+    {
+      "case_id": "require-rewrite-composition/esnext/imported-callee",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import { require } from \"./dep.js\"; require(\"./a.ts\");\n"
+        },
+        {
+          "path": "/project/dep.js",
+          "text": "export const path = \"./value.ts\";\nexport function require(path) { return path; }\n"
+        }
+      ],
+      "options": {},
+      "config": "{\"compilerOptions\": {\"target\": \"esnext\", \"module\": \"esnext\", \"allowJs\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"outDir\": \"out\", \"newLine\": \"lf\", \"ignoreDeprecations\": \"6.0\", \"rewriteRelativeImportExtensions\": true}, \"files\": [\"main.js\"]}"
+    },
+    {
+      "case_id": "require-rewrite-composition/esnext/imported-path",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "import { path } from \"./dep.js\"; require(path);\n"
+        },
+        {
+          "path": "/project/dep.js",
+          "text": "export const path = \"./value.ts\";\nexport function require(path) { return path; }\n"
+        }
+      ],
+      "options": {},
+      "config": "{\"compilerOptions\": {\"target\": \"esnext\", \"module\": \"esnext\", \"allowJs\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"outDir\": \"out\", \"newLine\": \"lf\", \"ignoreDeprecations\": \"6.0\", \"rewriteRelativeImportExtensions\": true}, \"files\": [\"main.js\"]}"
+    }
+  ]
+}
