@@ -1,0 +1,541 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "case_id": "declaration-specifiers/wildcard-base-url",
+      "options": {},
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2015\",\n    \"module\": \"commonjs\",\n    \"moduleResolution\": \"node\",\n    \"declaration\": true,\n    \"rootDir\": \"/project\",\n    \"outDir\": \"/project/dist\",\n    \"ignoreDeprecations\": \"6.0\",\n    \"baseUrl\": \"..\",\n    \"paths\": {\n      \"@lib/*\": [\n        \"lib/*\"\n      ]\n    }\n  },\n  \"files\": [\n    \"src/main.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/app/src/main.ts",
+          "text": "import { make } from \"../../lib/factory\";\nexport const value = make();\n"
+        },
+        {
+          "path": "/project/lib/factory.d.ts",
+          "text": "import { Value } from \"./model\";\nexport declare function make(): Value;\n"
+        },
+        {
+          "path": "/project/lib/model.d.ts",
+          "text": "export interface Value { id: number; }\n"
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/exact-base-url",
+      "options": {},
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2015\",\n    \"module\": \"commonjs\",\n    \"moduleResolution\": \"node\",\n    \"declaration\": true,\n    \"rootDir\": \"/project\",\n    \"outDir\": \"/project/dist\",\n    \"ignoreDeprecations\": \"6.0\",\n    \"baseUrl\": \"..\",\n    \"paths\": {\n      \"@model\": [\n        \"lib/model.d.ts\"\n      ]\n    }\n  },\n  \"files\": [\n    \"src/main.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/app/src/main.ts",
+          "text": "import { make } from \"../../lib/factory\";\nexport const value = make();\n"
+        },
+        {
+          "path": "/project/lib/factory.d.ts",
+          "text": "import { Value } from \"./model\";\nexport declare function make(): Value;\n"
+        },
+        {
+          "path": "/project/lib/model.d.ts",
+          "text": "export interface Value { id: number; }\n"
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/without-base-url",
+      "options": {},
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2015\",\n    \"module\": \"commonjs\",\n    \"moduleResolution\": \"node\",\n    \"declaration\": true,\n    \"rootDir\": \"/project\",\n    \"outDir\": \"/project/dist\",\n    \"ignoreDeprecations\": \"6.0\",\n    \"paths\": {\n      \"@lib/*\": [\n        \"../lib/*\"\n      ]\n    }\n  },\n  \"files\": [\n    \"src/main.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/app/src/main.ts",
+          "text": "import { make } from \"../../lib/factory\";\nexport const value = make();\n"
+        },
+        {
+          "path": "/project/lib/factory.d.ts",
+          "text": "import { Value } from \"./model\";\nexport declare function make(): Value;\n"
+        },
+        {
+          "path": "/project/lib/model.d.ts",
+          "text": "export interface Value { id: number; }\n"
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/empty-paths-control",
+      "options": {},
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2015\",\n    \"module\": \"commonjs\",\n    \"moduleResolution\": \"node\",\n    \"declaration\": true,\n    \"rootDir\": \"/project\",\n    \"outDir\": \"/project/dist\",\n    \"ignoreDeprecations\": \"6.0\",\n    \"paths\": {}\n  },\n  \"files\": [\n    \"src/main.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/app/src/main.ts",
+          "text": "import { make } from \"../../lib/factory\";\nexport const value = make();\n"
+        },
+        {
+          "path": "/project/lib/factory.d.ts",
+          "text": "import { Value } from \"./model\";\nexport declare function make(): Value;\n"
+        },
+        {
+          "path": "/project/lib/model.d.ts",
+          "text": "export interface Value { id: number; }\n"
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/absolute-target",
+      "options": {},
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2015\",\n    \"module\": \"commonjs\",\n    \"moduleResolution\": \"node\",\n    \"declaration\": true,\n    \"rootDir\": \"/project\",\n    \"outDir\": \"/project/dist\",\n    \"ignoreDeprecations\": \"6.0\",\n    \"paths\": {\n      \"@lib/*\": [\n        \"/project/lib/*\"\n      ]\n    }\n  },\n  \"files\": [\n    \"src/main.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/app/src/main.ts",
+          "text": "import { make } from \"../../lib/factory\";\nexport const value = make();\n"
+        },
+        {
+          "path": "/project/lib/factory.d.ts",
+          "text": "import { Value } from \"./model\";\nexport declare function make(): Value;\n"
+        },
+        {
+          "path": "/project/lib/model.d.ts",
+          "text": "export interface Value { id: number; }\n"
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/dot-segment-target",
+      "options": {},
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2015\",\n    \"module\": \"commonjs\",\n    \"moduleResolution\": \"node\",\n    \"declaration\": true,\n    \"rootDir\": \"/project\",\n    \"outDir\": \"/project/dist\",\n    \"ignoreDeprecations\": \"6.0\",\n    \"baseUrl\": \"..\",\n    \"paths\": {\n      \"@lib/*\": [\n        \"./other/../lib/*\"\n      ]\n    }\n  },\n  \"files\": [\n    \"src/main.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/app/src/main.ts",
+          "text": "import { make } from \"../../lib/factory\";\nexport const value = make();\n"
+        },
+        {
+          "path": "/project/lib/factory.d.ts",
+          "text": "import { Value } from \"./model\";\nexport declare function make(): Value;\n"
+        },
+        {
+          "path": "/project/lib/model.d.ts",
+          "text": "export interface Value { id: number; }\n"
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/second-substitution",
+      "options": {},
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2015\",\n    \"module\": \"commonjs\",\n    \"moduleResolution\": \"node\",\n    \"declaration\": true,\n    \"rootDir\": \"/project\",\n    \"outDir\": \"/project/dist\",\n    \"ignoreDeprecations\": \"6.0\",\n    \"paths\": {\n      \"@lib/*\": [\n        \"../unavailable/*\",\n        \"../lib/*\"\n      ]\n    }\n  },\n  \"files\": [\n    \"src/main.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/app/src/main.ts",
+          "text": "import { make } from \"../../lib/factory\";\nexport const value = make();\n"
+        },
+        {
+          "path": "/project/lib/factory.d.ts",
+          "text": "import { Value } from \"./model\";\nexport declare function make(): Value;\n"
+        },
+        {
+          "path": "/project/lib/model.d.ts",
+          "text": "export interface Value { id: number; }\n"
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/mapping-order-z-first",
+      "options": {},
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2015\",\n    \"module\": \"commonjs\",\n    \"moduleResolution\": \"node\",\n    \"declaration\": true,\n    \"rootDir\": \"/project\",\n    \"outDir\": \"/project/dist\",\n    \"ignoreDeprecations\": \"6.0\",\n    \"paths\": {\n      \"zeta/*\": [\n        \"../lib/*\"\n      ],\n      \"alpha/*\": [\n        \"../lib/*\"\n      ]\n    }\n  },\n  \"files\": [\n    \"src/main.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/app/src/main.ts",
+          "text": "import { make } from \"../../lib/factory\";\nexport const value = make();\n"
+        },
+        {
+          "path": "/project/lib/factory.d.ts",
+          "text": "import { Value } from \"./model\";\nexport declare function make(): Value;\n"
+        },
+        {
+          "path": "/project/lib/model.d.ts",
+          "text": "export interface Value { id: number; }\n"
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/mapping-order-a-first",
+      "options": {},
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2015\",\n    \"module\": \"commonjs\",\n    \"moduleResolution\": \"node\",\n    \"declaration\": true,\n    \"rootDir\": \"/project\",\n    \"outDir\": \"/project/dist\",\n    \"ignoreDeprecations\": \"6.0\",\n    \"paths\": {\n      \"alpha/*\": [\n        \"../lib/*\"\n      ],\n      \"zeta/*\": [\n        \"../lib/*\"\n      ]\n    }\n  },\n  \"files\": [\n    \"src/main.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/app/src/main.ts",
+          "text": "import { make } from \"../../lib/factory\";\nexport const value = make();\n"
+        },
+        {
+          "path": "/project/lib/factory.d.ts",
+          "text": "import { Value } from \"./model\";\nexport declare function make(): Value;\n"
+        },
+        {
+          "path": "/project/lib/model.d.ts",
+          "text": "export interface Value { id: number; }\n"
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/project-internal-control",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2015\",\n    \"module\": \"commonjs\",\n    \"moduleResolution\": \"node\",\n    \"declaration\": true,\n    \"rootDir\": \"/project\",\n    \"outDir\": \"/project/dist\",\n    \"ignoreDeprecations\": \"6.0\",\n    \"paths\": {\n      \"@lib/*\": [\n        \"lib/*\"\n      ]\n    }\n  },\n  \"files\": [\n    \"app/src/main.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/app/src/main.ts",
+          "text": "import { make } from \"../../lib/factory\";\nexport const value = make();\n"
+        },
+        {
+          "path": "/project/lib/factory.d.ts",
+          "text": "import { Value } from \"./model\";\nexport declare function make(): Value;\n"
+        },
+        {
+          "path": "/project/lib/model.d.ts",
+          "text": "export interface Value { id: number; }\n"
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/separate-package-scopes",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2015\",\n    \"module\": \"commonjs\",\n    \"moduleResolution\": \"node\",\n    \"declaration\": true,\n    \"rootDir\": \"/project\",\n    \"outDir\": \"/project/dist\",\n    \"ignoreDeprecations\": \"6.0\",\n    \"paths\": {\n      \"@lib/*\": [\n        \"lib/*\"\n      ]\n    }\n  },\n  \"files\": [\n    \"app/src/main.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/app/src/main.ts",
+          "text": "import { make } from \"../../lib/factory\";\nexport const value = make();\n"
+        },
+        {
+          "path": "/project/lib/factory.d.ts",
+          "text": "import { Value } from \"./model\";\nexport declare function make(): Value;\n"
+        },
+        {
+          "path": "/project/lib/model.d.ts",
+          "text": "export interface Value { id: number; }\n"
+        },
+        {
+          "path": "/project/app/package.json",
+          "text": "{\"name\":\"app\"}\n"
+        },
+        {
+          "path": "/project/lib/package.json",
+          "text": "{\"name\":\"lib\"}\n"
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/same-package-control",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2015\",\n    \"module\": \"commonjs\",\n    \"moduleResolution\": \"node\",\n    \"declaration\": true,\n    \"rootDir\": \"/project\",\n    \"outDir\": \"/project/dist\",\n    \"ignoreDeprecations\": \"6.0\",\n    \"paths\": {\n      \"@lib/*\": [\n        \"lib/*\"\n      ]\n    }\n  },\n  \"files\": [\n    \"app/src/main.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/app/src/main.ts",
+          "text": "import { make } from \"../../lib/factory\";\nexport const value = make();\n"
+        },
+        {
+          "path": "/project/lib/factory.d.ts",
+          "text": "import { Value } from \"./model\";\nexport declare function make(): Value;\n"
+        },
+        {
+          "path": "/project/lib/model.d.ts",
+          "text": "export interface Value { id: number; }\n"
+        },
+        {
+          "path": "/project/package.json",
+          "text": "{\"name\":\"project\"}\n"
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/inherited-paths-origin",
+      "options": {},
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2015\",\n    \"module\": \"commonjs\",\n    \"moduleResolution\": \"node\",\n    \"declaration\": true,\n    \"rootDir\": \"/project\",\n    \"outDir\": \"/project/dist\",\n    \"ignoreDeprecations\": \"6.0\"\n  },\n  \"files\": [\n    \"src/main.ts\"\n  ],\n  \"extends\": \"../config/base.json\"\n}\n",
+      "files": [
+        {
+          "path": "/project/app/src/main.ts",
+          "text": "import { make } from \"../../lib/factory\";\nexport const value = make();\n"
+        },
+        {
+          "path": "/project/lib/factory.d.ts",
+          "text": "import { Value } from \"./model\";\nexport declare function make(): Value;\n"
+        },
+        {
+          "path": "/project/lib/model.d.ts",
+          "text": "export interface Value { id: number; }\n"
+        },
+        {
+          "path": "/project/config/base.json",
+          "text": "{\n  \"compilerOptions\": {\n    \"paths\": {\n      \"@base/*\": [\n        \"../lib/*\"\n      ]\n    }\n  }\n}\n"
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/overridden-paths-origin",
+      "options": {},
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2015\",\n    \"module\": \"commonjs\",\n    \"moduleResolution\": \"node\",\n    \"declaration\": true,\n    \"rootDir\": \"/project\",\n    \"outDir\": \"/project/dist\",\n    \"ignoreDeprecations\": \"6.0\",\n    \"paths\": {\n      \"@child/*\": [\n        \"../lib/*\"\n      ]\n    }\n  },\n  \"files\": [\n    \"src/main.ts\"\n  ],\n  \"extends\": \"../config/base.json\"\n}\n",
+      "files": [
+        {
+          "path": "/project/app/src/main.ts",
+          "text": "import { make } from \"../../lib/factory\";\nexport const value = make();\n"
+        },
+        {
+          "path": "/project/lib/factory.d.ts",
+          "text": "import { Value } from \"./model\";\nexport declare function make(): Value;\n"
+        },
+        {
+          "path": "/project/lib/model.d.ts",
+          "text": "export interface Value { id: number; }\n"
+        },
+        {
+          "path": "/project/config/base.json",
+          "text": "{\n  \"compilerOptions\": {\n    \"paths\": {\n      \"@base/*\": [\n        \"../lib/*\"\n      ]\n    }\n  }\n}\n"
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/empty-override-control",
+      "options": {},
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2015\",\n    \"module\": \"commonjs\",\n    \"moduleResolution\": \"node\",\n    \"declaration\": true,\n    \"rootDir\": \"/project\",\n    \"outDir\": \"/project/dist\",\n    \"ignoreDeprecations\": \"6.0\",\n    \"paths\": {}\n  },\n  \"files\": [\n    \"src/main.ts\"\n  ],\n  \"extends\": \"../config/base.json\"\n}\n",
+      "files": [
+        {
+          "path": "/project/app/src/main.ts",
+          "text": "import { make } from \"../../lib/factory\";\nexport const value = make();\n"
+        },
+        {
+          "path": "/project/lib/factory.d.ts",
+          "text": "import { Value } from \"./model\";\nexport declare function make(): Value;\n"
+        },
+        {
+          "path": "/project/lib/model.d.ts",
+          "text": "export interface Value { id: number; }\n"
+        },
+        {
+          "path": "/project/config/base.json",
+          "text": "{\n  \"compilerOptions\": {\n    \"paths\": {\n      \"@base/*\": [\n        \"../lib/*\"\n      ]\n    }\n  }\n}\n"
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/root-dirs-virtual-relative",
+      "options": {},
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2015\",\n    \"module\": \"commonjs\",\n    \"moduleResolution\": \"node\",\n    \"declaration\": true,\n    \"rootDir\": \"/project\",\n    \"outDir\": \"/project/dist\",\n    \"ignoreDeprecations\": \"6.0\",\n    \"rootDirs\": [\n      \"src\",\n      \"../generated\"\n    ]\n  },\n  \"files\": [\n    \"src/main.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/app/src/main.ts",
+          "text": "import { make } from \"./factory\";\nexport const value = make();\n"
+        },
+        {
+          "path": "/project/generated/factory.d.ts",
+          "text": "import { Value } from \"./model\";\nexport declare function make(): Value;\n"
+        },
+        {
+          "path": "/project/generated/model.d.ts",
+          "text": "export interface Value { id: number; }\n"
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/root-dirs-absent-control",
+      "options": {},
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2015\",\n    \"module\": \"commonjs\",\n    \"moduleResolution\": \"node\",\n    \"declaration\": true,\n    \"rootDir\": \"/project\",\n    \"outDir\": \"/project/dist\",\n    \"ignoreDeprecations\": \"6.0\"\n  },\n  \"files\": [\n    \"src/main.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/app/src/main.ts",
+          "text": "import { make } from \"../../generated/factory\";\nexport const value = make();\n"
+        },
+        {
+          "path": "/project/generated/factory.d.ts",
+          "text": "import { Value } from \"./model\";\nexport declare function make(): Value;\n"
+        },
+        {
+          "path": "/project/generated/model.d.ts",
+          "text": "export interface Value { id: number; }\n"
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/declaration-map",
+      "options": {},
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2015\",\n    \"module\": \"commonjs\",\n    \"moduleResolution\": \"node\",\n    \"declaration\": true,\n    \"rootDir\": \"/project\",\n    \"outDir\": \"/project/dist\",\n    \"ignoreDeprecations\": \"6.0\",\n    \"baseUrl\": \"..\",\n    \"paths\": {\n      \"@lib/*\": [\n        \"lib/*\"\n      ]\n    },\n    \"declarationMap\": true,\n    \"sourceMap\": true\n  },\n  \"files\": [\n    \"src/main.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/app/src/main.ts",
+          "text": "import { make } from \"../../lib/factory\";\nexport const value = make();\n"
+        },
+        {
+          "path": "/project/lib/factory.d.ts",
+          "text": "import { Value } from \"./model\";\nexport declare function make(): Value;\n"
+        },
+        {
+          "path": "/project/lib/model.d.ts",
+          "text": "export interface Value { id: number; }\n"
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/declaration-only",
+      "options": {},
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2015\",\n    \"module\": \"commonjs\",\n    \"moduleResolution\": \"node\",\n    \"declaration\": true,\n    \"rootDir\": \"/project\",\n    \"outDir\": \"/project/dist\",\n    \"ignoreDeprecations\": \"6.0\",\n    \"baseUrl\": \"..\",\n    \"paths\": {\n      \"@lib/*\": [\n        \"lib/*\"\n      ]\n    },\n    \"emitDeclarationOnly\": true\n  },\n  \"files\": [\n    \"src/main.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/app/src/main.ts",
+          "text": "import { make } from \"../../lib/factory\";\nexport const value = make();\n"
+        },
+        {
+          "path": "/project/lib/factory.d.ts",
+          "text": "import { Value } from \"./model\";\nexport declare function make(): Value;\n"
+        },
+        {
+          "path": "/project/lib/model.d.ts",
+          "text": "export interface Value { id: number; }\n"
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/no-emit-on-error-control",
+      "options": {},
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2015\",\n    \"module\": \"commonjs\",\n    \"moduleResolution\": \"node\",\n    \"declaration\": true,\n    \"rootDir\": \"/project\",\n    \"outDir\": \"/project/dist\",\n    \"ignoreDeprecations\": \"6.0\",\n    \"baseUrl\": \"..\",\n    \"paths\": {\n      \"@lib/*\": [\n        \"lib/*\"\n      ]\n    },\n    \"noEmitOnError\": true\n  },\n  \"files\": [\n    \"src/main.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/app/src/main.ts",
+          "text": "import { make } from \"../../lib/factory\";\nexport const value = make(1);\n"
+        },
+        {
+          "path": "/project/lib/factory.d.ts",
+          "text": "import { Value } from \"./model\";\nexport declare function make(): Value;\n"
+        },
+        {
+          "path": "/project/lib/model.d.ts",
+          "text": "export interface Value { id: number; }\n"
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/base-url-only",
+      "options": {},
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2015\",\n    \"module\": \"commonjs\",\n    \"moduleResolution\": \"node\",\n    \"declaration\": true,\n    \"rootDir\": \"/project\",\n    \"outDir\": \"/project/dist\",\n    \"ignoreDeprecations\": \"6.0\",\n    \"baseUrl\": \"..\"\n  },\n  \"files\": [\n    \"src/main.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/app/src/main.ts",
+          "text": "import { make } from \"../../lib/factory\";\nexport const value = make();\n"
+        },
+        {
+          "path": "/project/lib/factory.d.ts",
+          "text": "import { Value } from \"./model\";\nexport declare function make(): Value;\n"
+        },
+        {
+          "path": "/project/lib/model.d.ts",
+          "text": "export interface Value { id: number; }\n"
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/unmatched-path-control",
+      "options": {},
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\n  \"compilerOptions\": {\n    \"target\": \"es2015\",\n    \"module\": \"commonjs\",\n    \"moduleResolution\": \"node\",\n    \"declaration\": true,\n    \"rootDir\": \"/project\",\n    \"outDir\": \"/project/dist\",\n    \"ignoreDeprecations\": \"6.0\",\n    \"paths\": {\n      \"@else/*\": [\n        \"../elsewhere/*\"\n      ]\n    }\n  },\n  \"files\": [\n    \"src/main.ts\"\n  ]\n}\n",
+      "files": [
+        {
+          "path": "/project/app/src/main.ts",
+          "text": "import { make } from \"../../lib/factory\";\nexport const value = make();\n"
+        },
+        {
+          "path": "/project/lib/factory.d.ts",
+          "text": "import { Value } from \"./model\";\nexport declare function make(): Value;\n"
+        },
+        {
+          "path": "/project/lib/model.d.ts",
+          "text": "export interface Value { id: number; }\n"
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/direct-program-with-paths",
+      "options": {
+        "target": 2,
+        "module": 1,
+        "moduleResolution": 2,
+        "declaration": true,
+        "rootDir": "/project",
+        "outDir": "/project/dist",
+        "ignoreDeprecations": "6.0",
+        "paths": {
+          "@direct/*": [
+            "lib/*"
+          ]
+        },
+        "configFilePath": "/project/app/tsconfig.json",
+        "baseUrl": "/project"
+      },
+      "roots": [
+        "/project/app/src/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/app/src/main.ts",
+          "text": "import { make } from \"../../lib/factory\";\nexport const value = make();\n"
+        },
+        {
+          "path": "/project/lib/factory.d.ts",
+          "text": "import { Value } from \"./model\";\nexport declare function make(): Value;\n"
+        },
+        {
+          "path": "/project/lib/model.d.ts",
+          "text": "export interface Value { id: number; }\n"
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/direct-program-paths-origin",
+      "options": {
+        "target": 2,
+        "module": 1,
+        "moduleResolution": 2,
+        "declaration": true,
+        "rootDir": "/project",
+        "outDir": "/project/dist",
+        "ignoreDeprecations": "6.0",
+        "paths": {
+          "@direct/*": [
+            "../lib/*"
+          ]
+        },
+        "configFilePath": "/project/app/tsconfig.json",
+        "pathsBasePath": "/project/app"
+      },
+      "roots": [
+        "/project/app/src/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/app/src/main.ts",
+          "text": "import { make } from \"../../lib/factory\";\nexport const value = make();\n"
+        },
+        {
+          "path": "/project/lib/factory.d.ts",
+          "text": "import { Value } from \"./model\";\nexport declare function make(): Value;\n"
+        },
+        {
+          "path": "/project/lib/model.d.ts",
+          "text": "export interface Value { id: number; }\n"
+        }
+      ]
+    }
+  ]
+}
