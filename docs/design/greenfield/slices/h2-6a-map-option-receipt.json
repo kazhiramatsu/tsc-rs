@@ -1,0 +1,2176 @@
+{
+  "schema": 1,
+  "owner": "h2-6a-r7-b6-option-inheritance",
+  "kind": "input-reconstruction-and-reader-qualification-migration",
+  "start_head": "3757da2f6cb78a52531db293bba2f104b0975e02",
+  "baseline": {
+    "head": "3757da2f6cb78a52531db293bba2f104b0975e02",
+    "production_diff": "",
+    "binary_sha256": "02bda3113ec8725021ca324d96401bdb78487baef17da773509371edc27957ef",
+    "commands": [
+      {
+        "case_id": "typescript-6.0.3/compiler/optionsSourcemapInlineSources.ts#default",
+        "attempt": 0,
+        "command": [
+          "nice",
+          "-n",
+          "10",
+          "/Users/hiramatsu/dev/tsc-rs-map-option-projection/target/map-option-build/debug/deps/h2_6a_map_option_projection-423165b9728cb635",
+          "source_map_band_probe::probe_one_band_row",
+          "--ignored",
+          "--exact",
+          "--nocapture",
+          "--test-threads=1"
+        ],
+        "exit_code": 0
+      },
+      {
+        "case_id": "typescript-6.0.3/compiler/optionsSourcemapInlineSources.ts#default",
+        "attempt": 1,
+        "command": [
+          "nice",
+          "-n",
+          "10",
+          "/Users/hiramatsu/dev/tsc-rs-map-option-projection/target/map-option-build/debug/deps/h2_6a_map_option_projection-423165b9728cb635",
+          "source_map_band_probe::probe_one_band_row",
+          "--ignored",
+          "--exact",
+          "--nocapture",
+          "--test-threads=1"
+        ],
+        "exit_code": 0
+      },
+      {
+        "case_id": "typescript-6.0.3/compiler/optionsSourcemapInlineSourcesMapRoot.ts#default",
+        "attempt": 0,
+        "command": [
+          "nice",
+          "-n",
+          "10",
+          "/Users/hiramatsu/dev/tsc-rs-map-option-projection/target/map-option-build/debug/deps/h2_6a_map_option_projection-423165b9728cb635",
+          "source_map_band_probe::probe_one_band_row",
+          "--ignored",
+          "--exact",
+          "--nocapture",
+          "--test-threads=1"
+        ],
+        "exit_code": 0
+      },
+      {
+        "case_id": "typescript-6.0.3/compiler/optionsSourcemapInlineSourcesMapRoot.ts#default",
+        "attempt": 1,
+        "command": [
+          "nice",
+          "-n",
+          "10",
+          "/Users/hiramatsu/dev/tsc-rs-map-option-projection/target/map-option-build/debug/deps/h2_6a_map_option_projection-423165b9728cb635",
+          "source_map_band_probe::probe_one_band_row",
+          "--ignored",
+          "--exact",
+          "--nocapture",
+          "--test-threads=1"
+        ],
+        "exit_code": 0
+      },
+      {
+        "case_id": "typescript-6.0.3/compiler/optionsSourcemapInlineSourcesSourceRoot.ts#default",
+        "attempt": 0,
+        "command": [
+          "nice",
+          "-n",
+          "10",
+          "/Users/hiramatsu/dev/tsc-rs-map-option-projection/target/map-option-build/debug/deps/h2_6a_map_option_projection-423165b9728cb635",
+          "source_map_band_probe::probe_one_band_row",
+          "--ignored",
+          "--exact",
+          "--nocapture",
+          "--test-threads=1"
+        ],
+        "exit_code": 0
+      },
+      {
+        "case_id": "typescript-6.0.3/compiler/optionsSourcemapInlineSourcesSourceRoot.ts#default",
+        "attempt": 1,
+        "command": [
+          "nice",
+          "-n",
+          "10",
+          "/Users/hiramatsu/dev/tsc-rs-map-option-projection/target/map-option-build/debug/deps/h2_6a_map_option_projection-423165b9728cb635",
+          "source_map_band_probe::probe_one_band_row",
+          "--ignored",
+          "--exact",
+          "--nocapture",
+          "--test-threads=1"
+        ],
+        "exit_code": 0
+      },
+      {
+        "command": [
+          "nice",
+          "-n",
+          "10",
+          "/Users/hiramatsu/dev/tsc-rs-map-option-projection/target/map-option-build/debug/deps/h2_6a_map_option_projection-423165b9728cb635",
+          "original_floor_divergence_and_existing_map_family_parity",
+          "--exact",
+          "--nocapture",
+          "--test-threads=1"
+        ],
+        "exit_code": 0
+      },
+      {
+        "command": [
+          "nice",
+          "-n",
+          "10",
+          "/Users/hiramatsu/dev/tsc-rs-map-option-projection/target/map-option-build/debug/deps/h2_6a_map_option_projection-423165b9728cb635",
+          "existing_witness_route_census",
+          "--exact",
+          "--nocapture",
+          "--test-threads=1",
+          "--ignored"
+        ],
+        "exit_code": 0
+      }
+    ]
+  },
+  "manifest": {
+    "path": "ratchets/h2-6a-known-divergences.v1.json",
+    "before_sha256": "4d2e8d9c7b205c97ff81bc32e73285e1a94ad8862b03d1ad2584deb372975697",
+    "after_sha256": "74cc297811dd33c71093a4ed995480e577cccc48828b24f3ee3c282be02db9b0",
+    "before_count": 4,
+    "after_count": 1,
+    "deleted": [
+      {
+        "case_id": "typescript-6.0.3/compiler/optionsSourcemapInlineSources.ts#default",
+        "owner": "h2-6a-r7-b6-option-inheritance",
+        "writes_diverging": 1,
+        "diagnostics_diverging": false,
+        "emit_result_diverging": true,
+        "emit_refused": false
+      },
+      {
+        "case_id": "typescript-6.0.3/compiler/optionsSourcemapInlineSourcesMapRoot.ts#default",
+        "owner": "h2-6a-r7-b6-option-inheritance",
+        "writes_diverging": 2,
+        "diagnostics_diverging": false,
+        "emit_result_diverging": true,
+        "emit_refused": false
+      },
+      {
+        "case_id": "typescript-6.0.3/compiler/optionsSourcemapInlineSourcesSourceRoot.ts#default",
+        "owner": "h2-6a-r7-b6-option-inheritance",
+        "writes_diverging": 1,
+        "diagnostics_diverging": false,
+        "emit_result_diverging": true,
+        "emit_refused": false
+      }
+    ],
+    "retained": [
+      {
+        "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForArrayBindingPattern.ts#target%3Des2015",
+        "owner": "h2-6a-r3-destructuring-binding-ranges",
+        "writes_diverging": 0,
+        "diagnostics_diverging": true,
+        "emit_result_diverging": true,
+        "emit_refused": false
+      }
+    ],
+    "added": [],
+    "modified": []
+  },
+  "unchanged_inputs_and_ci": [
+    {
+      "path": "ratchets/h2-5g-qualification.v1.json",
+      "sha256": "8666e68c50b098fcac015b523307ce71e4f39d689e9cb7f3b31d405cde9cacaa"
+    },
+    {
+      "path": "ratchets/h2-5g-known-divergences.v1.json",
+      "absent": true
+    },
+    {
+      "path": "ratchets/h2-5h-qualification.v1.json",
+      "sha256": "488e9940fcb8b6b359bad5fc9fa822eeae46af59b9aefd2bd5e3a20c37c396a3"
+    },
+    {
+      "path": "ratchets/h2-5h-known-divergences.v1.json",
+      "sha256": "c7d5e5b7edd06e1cce6a24ca4754116c2bfd15a666ff70dab252174d1a195f82"
+    },
+    {
+      "path": "ratchets/h2-6a-qualification.v1.json",
+      "sha256": "35515c5c0fe4c205e0542b79a9f211e6f4081982fdf752381e6a5315ff0cd254"
+    },
+    {
+      "path": "ratchets/h2-6b-qualification.v1.json",
+      "sha256": "2b12683a4057ea3fa2b2c1e78f39129dc6eba38209d731cdf7a31f93602fd853"
+    },
+    {
+      "path": "ratchets/h2-6b-known-divergences.v1.json",
+      "absent": true
+    },
+    {
+      "path": "ratchets/h2-6c-qualification.v1.json",
+      "sha256": "af689ec23311d9cc733f2606e2acfd1d346edbc51bc512bb185c0c3111f1d8ec"
+    },
+    {
+      "path": "ratchets/h2-6c-known-divergences.v1.json",
+      "sha256": "93853b5bb7a9af23f0855b0198f5058f633d60a03e1df429ccc323df6e6eac51"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "de25361a14225b4643672d70d4616d55b193977729d019cda8ba3a1607d486fe"
+    }
+  ],
+  "unchanged_output_comparators": [
+    {
+      "function": "count_diverging_writes_with_data",
+      "sha256": "a1c1452e8f3df071dca50fc9d144ca0b54f9e869e9c689c40ab366b1a6b36630"
+    },
+    {
+      "function": "reported_diagnostics_match",
+      "sha256": "40ba97fe803c449e65628f71723be24fe5d0b907afa7fdd84fdf4a01ceb5ab52"
+    },
+    {
+      "function": "emitted_files_match",
+      "sha256": "bd136537ccc347fecfed12c659f4d23f964832f74a9eca4b3f1f36bb0c3874e0"
+    },
+    {
+      "function": "source_maps_match",
+      "sha256": "a481b7c3d3cf2f2654401b1f52ec0ba55b398edd8c7810939788a02cb7448b33"
+    }
+  ],
+  "selected_rows": [
+    {
+      "case_id": "typescript-6.0.3/compiler/optionsSourcemapInlineSources.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/optionsSourcemapInlineSources.ts"
+        ],
+        "vfs_symlinks": [],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2015"
+          },
+          {
+            "name": "sourcemap",
+            "value": "true"
+          },
+          {
+            "name": "inlineSources",
+            "value": "true"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/optionsSourcemapInlineSources.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ]
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/optionsSourcemapInlineSources.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoib3B0aW9uc1NvdXJjZW1hcElubGluZVNvdXJjZXMuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJvcHRpb25zU291cmNlbWFwSW5saW5lU291cmNlcy50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsSUFBSSxDQUFDLEdBQUcsRUFBRSxDQUFDIiwic291cmNlc0NvbnRlbnQiOlsidmFyIGEgPSAxMDsiXX0=",
+            "callback_utf8_sha256": "8ce6aa0962d4de0460f70b7b56435ba5042ecc04bab444d277e77cf2d735cdc9",
+            "callback_utf8_bytes": 206,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "8ce6aa0962d4de0460f70b7b56435ba5042ecc04bab444d277e77cf2d735cdc9",
+            "materialized_utf8_bytes": 206,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/optionsSourcemapInlineSources.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics_count": null
+          },
+          {
+            "index": 1,
+            "path": "/.src/optionsSourcemapInlineSources.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW9wdGlvbnNTb3VyY2VtYXBJbmxpbmVTb3VyY2VzLmpzLm1hcA==",
+            "callback_utf8_sha256": "235c464d1b89aa08a8671c35cc6283a4508445384d0db035e4f3314d936774ad",
+            "callback_utf8_bytes": 85,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "235c464d1b89aa08a8671c35cc6283a4508445384d0db035e4f3314d936774ad",
+            "materialized_utf8_bytes": 85,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/optionsSourcemapInlineSources.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 28,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/optionsSourcemapInlineSources.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"optionsSourcemapInlineSources.js\",\"sourceRoot\":\"\",\"sources\":[\"optionsSourcemapInlineSources.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\",\"sourcesContent\":[\"var a = 10;\"]}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0,
+        "run_fingerprint_sha256": "1219a1cae8e683b38dc25ea8d94f8c9d72bb37bfa4065ac27886035590c39329"
+      },
+      "typescript_run_fingerprints": [
+        "1219a1cae8e683b38dc25ea8d94f8c9d72bb37bfa4065ac27886035590c39329",
+        "1219a1cae8e683b38dc25ea8d94f8c9d72bb37bfa4065ac27886035590c39329"
+      ],
+      "baseline_source_map": {
+        "repetitions": 2,
+        "actual": {
+          "effective_map_options": {
+            "sourceMap": true,
+            "inlineSourceMap": null,
+            "inlineSources": null,
+            "sourceRoot": null,
+            "mapRoot": null
+          },
+          "observation": {
+            "writes": [
+              {
+                "index": 0,
+                "path": "/.src/optionsSourcemapInlineSources.js.map",
+                "kind": "source-map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoib3B0aW9uc1NvdXJjZW1hcElubGluZVNvdXJjZXMuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJvcHRpb25zU291cmNlbWFwSW5saW5lU291cmNlcy50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsSUFBSSxDQUFDLEdBQUcsRUFBRSxDQUFDIn0=",
+                "callback_utf8_sha256": "c4ceb221843acc563d39ce65128962b3f582f8e2d59315e7878f9a4f0d5b0e11",
+                "callback_utf8_bytes": 173,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "c4ceb221843acc563d39ce65128962b3f582f8e2d59315e7878f9a4f0d5b0e11",
+                "materialized_utf8_bytes": 173,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/.src/optionsSourcemapInlineSources.ts"
+                ],
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 1,
+                "path": "/.src/optionsSourcemapInlineSources.js",
+                "kind": "javascript",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW9wdGlvbnNTb3VyY2VtYXBJbmxpbmVTb3VyY2VzLmpzLm1hcA==",
+                "callback_utf8_sha256": "235c464d1b89aa08a8671c35cc6283a4508445384d0db035e4f3314d936774ad",
+                "callback_utf8_bytes": 85,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "235c464d1b89aa08a8671c35cc6283a4508445384d0db035e4f3314d936774ad",
+                "materialized_utf8_bytes": 85,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/.src/optionsSourcemapInlineSources.ts"
+                ],
+                "data_present": true,
+                "data_source_map_url_pos": 28,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "reported_diagnostics": [],
+            "emit_result": {
+              "emit_skipped": false,
+              "diagnostics": [],
+              "emitted_files": null,
+              "source_maps": [
+                {
+                  "input_source_file_names": [
+                    "/.src/optionsSourcemapInlineSources.ts"
+                  ],
+                  "source_map_json": "{\"version\":3,\"file\":\"optionsSourcemapInlineSources.js\",\"sourceRoot\":\"\",\"sources\":[\"optionsSourcemapInlineSources.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\"}"
+                }
+              ]
+            },
+            "status_writes": [],
+            "exit_code": 0
+          }
+        },
+        "actual_run_sha256": [
+          "690853d2b8380ceec2b927e86b24962ab5b3ad33cde99f526ee255bbcbedcc92",
+          "690853d2b8380ceec2b927e86b24962ab5b3ad33cde99f526ee255bbcbedcc92"
+        ],
+        "exact": false
+      },
+      "existing_map_family": {
+        "repetitions": 2,
+        "actual": {
+          "effective_map_options": {
+            "sourceMap": true,
+            "inlineSourceMap": null,
+            "inlineSources": true,
+            "sourceRoot": null,
+            "mapRoot": null
+          },
+          "observation": {
+            "writes": [
+              {
+                "index": 0,
+                "path": "/.src/optionsSourcemapInlineSources.js.map",
+                "kind": "source-map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoib3B0aW9uc1NvdXJjZW1hcElubGluZVNvdXJjZXMuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJvcHRpb25zU291cmNlbWFwSW5saW5lU291cmNlcy50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsSUFBSSxDQUFDLEdBQUcsRUFBRSxDQUFDIiwic291cmNlc0NvbnRlbnQiOlsidmFyIGEgPSAxMDsiXX0=",
+                "callback_utf8_sha256": "8ce6aa0962d4de0460f70b7b56435ba5042ecc04bab444d277e77cf2d735cdc9",
+                "callback_utf8_bytes": 206,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "8ce6aa0962d4de0460f70b7b56435ba5042ecc04bab444d277e77cf2d735cdc9",
+                "materialized_utf8_bytes": 206,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/.src/optionsSourcemapInlineSources.ts"
+                ],
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 1,
+                "path": "/.src/optionsSourcemapInlineSources.js",
+                "kind": "javascript",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW9wdGlvbnNTb3VyY2VtYXBJbmxpbmVTb3VyY2VzLmpzLm1hcA==",
+                "callback_utf8_sha256": "235c464d1b89aa08a8671c35cc6283a4508445384d0db035e4f3314d936774ad",
+                "callback_utf8_bytes": 85,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "235c464d1b89aa08a8671c35cc6283a4508445384d0db035e4f3314d936774ad",
+                "materialized_utf8_bytes": 85,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/.src/optionsSourcemapInlineSources.ts"
+                ],
+                "data_present": true,
+                "data_source_map_url_pos": 28,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "reported_diagnostics": [],
+            "emit_result": {
+              "emit_skipped": false,
+              "diagnostics": [],
+              "emitted_files": null,
+              "source_maps": [
+                {
+                  "input_source_file_names": [
+                    "/.src/optionsSourcemapInlineSources.ts"
+                  ],
+                  "source_map_json": "{\"version\":3,\"file\":\"optionsSourcemapInlineSources.js\",\"sourceRoot\":\"\",\"sources\":[\"optionsSourcemapInlineSources.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\",\"sourcesContent\":[\"var a = 10;\"]}"
+                }
+              ]
+            },
+            "status_writes": [],
+            "exit_code": 0
+          }
+        },
+        "actual_run_sha256": [
+          "16423b8d8f59c526c1dd832088051aba5746d6417f02f49bee125a49ec0c9562",
+          "16423b8d8f59c526c1dd832088051aba5746d6417f02f49bee125a49ec0c9562"
+        ],
+        "exact": true
+      },
+      "projected": {
+        "repetitions": 2,
+        "actual": {
+          "effective_map_options": {
+            "sourceMap": true,
+            "inlineSourceMap": null,
+            "inlineSources": true,
+            "sourceRoot": null,
+            "mapRoot": null
+          },
+          "map_runtime_activity": {
+            "H2.6a": 0,
+            "H2.6b": 1,
+            "H2.6c": 0
+          },
+          "observation": {
+            "writes": [
+              {
+                "index": 0,
+                "path": "/.src/optionsSourcemapInlineSources.js.map",
+                "kind": "source-map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoib3B0aW9uc1NvdXJjZW1hcElubGluZVNvdXJjZXMuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJvcHRpb25zU291cmNlbWFwSW5saW5lU291cmNlcy50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsSUFBSSxDQUFDLEdBQUcsRUFBRSxDQUFDIiwic291cmNlc0NvbnRlbnQiOlsidmFyIGEgPSAxMDsiXX0=",
+                "callback_utf8_sha256": "8ce6aa0962d4de0460f70b7b56435ba5042ecc04bab444d277e77cf2d735cdc9",
+                "callback_utf8_bytes": 206,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "8ce6aa0962d4de0460f70b7b56435ba5042ecc04bab444d277e77cf2d735cdc9",
+                "materialized_utf8_bytes": 206,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/.src/optionsSourcemapInlineSources.ts"
+                ],
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 1,
+                "path": "/.src/optionsSourcemapInlineSources.js",
+                "kind": "javascript",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW9wdGlvbnNTb3VyY2VtYXBJbmxpbmVTb3VyY2VzLmpzLm1hcA==",
+                "callback_utf8_sha256": "235c464d1b89aa08a8671c35cc6283a4508445384d0db035e4f3314d936774ad",
+                "callback_utf8_bytes": 85,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "235c464d1b89aa08a8671c35cc6283a4508445384d0db035e4f3314d936774ad",
+                "materialized_utf8_bytes": 85,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/.src/optionsSourcemapInlineSources.ts"
+                ],
+                "data_present": true,
+                "data_source_map_url_pos": 28,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "reported_diagnostics": [],
+            "emit_result": {
+              "emit_skipped": false,
+              "diagnostics": [],
+              "emitted_files": null,
+              "source_maps": [
+                {
+                  "input_source_file_names": [
+                    "/.src/optionsSourcemapInlineSources.ts"
+                  ],
+                  "source_map_json": "{\"version\":3,\"file\":\"optionsSourcemapInlineSources.js\",\"sourceRoot\":\"\",\"sources\":[\"optionsSourcemapInlineSources.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\",\"sourcesContent\":[\"var a = 10;\"]}"
+                }
+              ]
+            },
+            "status_writes": [],
+            "exit_code": 0
+          }
+        },
+        "actual_run_sha256": [
+          "1597b82b5ecc4ade5f30ea97f98be656bb2d42f780e749ba9050a7543a36c65c",
+          "1597b82b5ecc4ade5f30ea97f98be656bb2d42f780e749ba9050a7543a36c65c"
+        ],
+        "exact": true
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/optionsSourcemapInlineSourcesMapRoot.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/optionsSourcemapInlineSourcesMapRoot.ts"
+        ],
+        "vfs_symlinks": [],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2015"
+          },
+          {
+            "name": "sourcemap",
+            "value": "true"
+          },
+          {
+            "name": "inlineSources",
+            "value": "true"
+          },
+          {
+            "name": "mapRoot",
+            "value": "local"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/optionsSourcemapInlineSourcesMapRoot.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ]
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/optionsSourcemapInlineSourcesMapRoot.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoib3B0aW9uc1NvdXJjZW1hcElubGluZVNvdXJjZXNNYXBSb290LmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vb3B0aW9uc1NvdXJjZW1hcElubGluZVNvdXJjZXNNYXBSb290LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7QUFBQSxJQUFJLENBQUMsR0FBRyxFQUFFLENBQUMiLCJzb3VyY2VzQ29udGVudCI6WyJ2YXIgYSA9IDEwOyJdfQ==",
+            "callback_utf8_sha256": "7f1536a502b210a1b4fd28d7e5f1616096b8017b0115e91395a2872bea42bcb7",
+            "callback_utf8_bytes": 223,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "7f1536a502b210a1b4fd28d7e5f1616096b8017b0115e91395a2872bea42bcb7",
+            "materialized_utf8_bytes": 223,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/optionsSourcemapInlineSourcesMapRoot.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics_count": null
+          },
+          {
+            "index": 1,
+            "path": "/.src/optionsSourcemapInlineSourcesMapRoot.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWxvY2FsL29wdGlvbnNTb3VyY2VtYXBJbmxpbmVTb3VyY2VzTWFwUm9vdC5qcy5tYXA=",
+            "callback_utf8_sha256": "16ee9a9750608f27b494f385533f75ea78f7edaf87d4cee825e658de7aff7f42",
+            "callback_utf8_bytes": 98,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "16ee9a9750608f27b494f385533f75ea78f7edaf87d4cee825e658de7aff7f42",
+            "materialized_utf8_bytes": 98,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/optionsSourcemapInlineSourcesMapRoot.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 28,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/optionsSourcemapInlineSourcesMapRoot.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"optionsSourcemapInlineSourcesMapRoot.js\",\"sourceRoot\":\"\",\"sources\":[\"../optionsSourcemapInlineSourcesMapRoot.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\",\"sourcesContent\":[\"var a = 10;\"]}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0,
+        "run_fingerprint_sha256": "4e03c0524b37a201d58cdd4cbb12ee34345acc9ff3b854be371a482864a4a562"
+      },
+      "typescript_run_fingerprints": [
+        "4e03c0524b37a201d58cdd4cbb12ee34345acc9ff3b854be371a482864a4a562",
+        "4e03c0524b37a201d58cdd4cbb12ee34345acc9ff3b854be371a482864a4a562"
+      ],
+      "baseline_source_map": {
+        "repetitions": 2,
+        "actual": {
+          "effective_map_options": {
+            "sourceMap": true,
+            "inlineSourceMap": null,
+            "inlineSources": null,
+            "sourceRoot": null,
+            "mapRoot": null
+          },
+          "observation": {
+            "writes": [
+              {
+                "index": 0,
+                "path": "/.src/optionsSourcemapInlineSourcesMapRoot.js.map",
+                "kind": "source-map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoib3B0aW9uc1NvdXJjZW1hcElubGluZVNvdXJjZXNNYXBSb290LmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsib3B0aW9uc1NvdXJjZW1hcElubGluZVNvdXJjZXNNYXBSb290LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7QUFBQSxJQUFJLENBQUMsR0FBRyxFQUFFLENBQUMifQ==",
+                "callback_utf8_sha256": "2ed9e5bd4103eab47008d2860aac94b345019a50bd917614fbbe318f2d5b1a7f",
+                "callback_utf8_bytes": 187,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "2ed9e5bd4103eab47008d2860aac94b345019a50bd917614fbbe318f2d5b1a7f",
+                "materialized_utf8_bytes": 187,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/.src/optionsSourcemapInlineSourcesMapRoot.ts"
+                ],
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 1,
+                "path": "/.src/optionsSourcemapInlineSourcesMapRoot.js",
+                "kind": "javascript",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW9wdGlvbnNTb3VyY2VtYXBJbmxpbmVTb3VyY2VzTWFwUm9vdC5qcy5tYXA=",
+                "callback_utf8_sha256": "63f120cf2a171834b14add0b1ef62937db980acc376729a8ecdbfd459b34e8b2",
+                "callback_utf8_bytes": 92,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "63f120cf2a171834b14add0b1ef62937db980acc376729a8ecdbfd459b34e8b2",
+                "materialized_utf8_bytes": 92,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/.src/optionsSourcemapInlineSourcesMapRoot.ts"
+                ],
+                "data_present": true,
+                "data_source_map_url_pos": 28,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "reported_diagnostics": [],
+            "emit_result": {
+              "emit_skipped": false,
+              "diagnostics": [],
+              "emitted_files": null,
+              "source_maps": [
+                {
+                  "input_source_file_names": [
+                    "/.src/optionsSourcemapInlineSourcesMapRoot.ts"
+                  ],
+                  "source_map_json": "{\"version\":3,\"file\":\"optionsSourcemapInlineSourcesMapRoot.js\",\"sourceRoot\":\"\",\"sources\":[\"optionsSourcemapInlineSourcesMapRoot.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\"}"
+                }
+              ]
+            },
+            "status_writes": [],
+            "exit_code": 0
+          }
+        },
+        "actual_run_sha256": [
+          "2481bc93bd1ef042ec5e96536cc4c1eb1d4e0a9461d93a665e92995e74d602ac",
+          "2481bc93bd1ef042ec5e96536cc4c1eb1d4e0a9461d93a665e92995e74d602ac"
+        ],
+        "exact": false
+      },
+      "existing_map_family": {
+        "repetitions": 2,
+        "actual": {
+          "effective_map_options": {
+            "sourceMap": true,
+            "inlineSourceMap": null,
+            "inlineSources": true,
+            "sourceRoot": null,
+            "mapRoot": "local"
+          },
+          "observation": {
+            "writes": [
+              {
+                "index": 0,
+                "path": "/.src/optionsSourcemapInlineSourcesMapRoot.js.map",
+                "kind": "source-map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoib3B0aW9uc1NvdXJjZW1hcElubGluZVNvdXJjZXNNYXBSb290LmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vb3B0aW9uc1NvdXJjZW1hcElubGluZVNvdXJjZXNNYXBSb290LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7QUFBQSxJQUFJLENBQUMsR0FBRyxFQUFFLENBQUMiLCJzb3VyY2VzQ29udGVudCI6WyJ2YXIgYSA9IDEwOyJdfQ==",
+                "callback_utf8_sha256": "7f1536a502b210a1b4fd28d7e5f1616096b8017b0115e91395a2872bea42bcb7",
+                "callback_utf8_bytes": 223,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "7f1536a502b210a1b4fd28d7e5f1616096b8017b0115e91395a2872bea42bcb7",
+                "materialized_utf8_bytes": 223,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/.src/optionsSourcemapInlineSourcesMapRoot.ts"
+                ],
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 1,
+                "path": "/.src/optionsSourcemapInlineSourcesMapRoot.js",
+                "kind": "javascript",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWxvY2FsL29wdGlvbnNTb3VyY2VtYXBJbmxpbmVTb3VyY2VzTWFwUm9vdC5qcy5tYXA=",
+                "callback_utf8_sha256": "16ee9a9750608f27b494f385533f75ea78f7edaf87d4cee825e658de7aff7f42",
+                "callback_utf8_bytes": 98,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "16ee9a9750608f27b494f385533f75ea78f7edaf87d4cee825e658de7aff7f42",
+                "materialized_utf8_bytes": 98,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/.src/optionsSourcemapInlineSourcesMapRoot.ts"
+                ],
+                "data_present": true,
+                "data_source_map_url_pos": 28,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "reported_diagnostics": [],
+            "emit_result": {
+              "emit_skipped": false,
+              "diagnostics": [],
+              "emitted_files": null,
+              "source_maps": [
+                {
+                  "input_source_file_names": [
+                    "/.src/optionsSourcemapInlineSourcesMapRoot.ts"
+                  ],
+                  "source_map_json": "{\"version\":3,\"file\":\"optionsSourcemapInlineSourcesMapRoot.js\",\"sourceRoot\":\"\",\"sources\":[\"../optionsSourcemapInlineSourcesMapRoot.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\",\"sourcesContent\":[\"var a = 10;\"]}"
+                }
+              ]
+            },
+            "status_writes": [],
+            "exit_code": 0
+          }
+        },
+        "actual_run_sha256": [
+          "522fbb4e56b7c42fce631c8f85cc482f6dd168c934ecd79fb2deef960a6facd4",
+          "522fbb4e56b7c42fce631c8f85cc482f6dd168c934ecd79fb2deef960a6facd4"
+        ],
+        "exact": true
+      },
+      "projected": {
+        "repetitions": 2,
+        "actual": {
+          "effective_map_options": {
+            "sourceMap": true,
+            "inlineSourceMap": null,
+            "inlineSources": true,
+            "sourceRoot": null,
+            "mapRoot": "local"
+          },
+          "map_runtime_activity": {
+            "H2.6a": 0,
+            "H2.6b": 1,
+            "H2.6c": 0
+          },
+          "observation": {
+            "writes": [
+              {
+                "index": 0,
+                "path": "/.src/optionsSourcemapInlineSourcesMapRoot.js.map",
+                "kind": "source-map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoib3B0aW9uc1NvdXJjZW1hcElubGluZVNvdXJjZXNNYXBSb290LmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vb3B0aW9uc1NvdXJjZW1hcElubGluZVNvdXJjZXNNYXBSb290LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7QUFBQSxJQUFJLENBQUMsR0FBRyxFQUFFLENBQUMiLCJzb3VyY2VzQ29udGVudCI6WyJ2YXIgYSA9IDEwOyJdfQ==",
+                "callback_utf8_sha256": "7f1536a502b210a1b4fd28d7e5f1616096b8017b0115e91395a2872bea42bcb7",
+                "callback_utf8_bytes": 223,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "7f1536a502b210a1b4fd28d7e5f1616096b8017b0115e91395a2872bea42bcb7",
+                "materialized_utf8_bytes": 223,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/.src/optionsSourcemapInlineSourcesMapRoot.ts"
+                ],
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 1,
+                "path": "/.src/optionsSourcemapInlineSourcesMapRoot.js",
+                "kind": "javascript",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWxvY2FsL29wdGlvbnNTb3VyY2VtYXBJbmxpbmVTb3VyY2VzTWFwUm9vdC5qcy5tYXA=",
+                "callback_utf8_sha256": "16ee9a9750608f27b494f385533f75ea78f7edaf87d4cee825e658de7aff7f42",
+                "callback_utf8_bytes": 98,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "16ee9a9750608f27b494f385533f75ea78f7edaf87d4cee825e658de7aff7f42",
+                "materialized_utf8_bytes": 98,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/.src/optionsSourcemapInlineSourcesMapRoot.ts"
+                ],
+                "data_present": true,
+                "data_source_map_url_pos": 28,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "reported_diagnostics": [],
+            "emit_result": {
+              "emit_skipped": false,
+              "diagnostics": [],
+              "emitted_files": null,
+              "source_maps": [
+                {
+                  "input_source_file_names": [
+                    "/.src/optionsSourcemapInlineSourcesMapRoot.ts"
+                  ],
+                  "source_map_json": "{\"version\":3,\"file\":\"optionsSourcemapInlineSourcesMapRoot.js\",\"sourceRoot\":\"\",\"sources\":[\"../optionsSourcemapInlineSourcesMapRoot.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\",\"sourcesContent\":[\"var a = 10;\"]}"
+                }
+              ]
+            },
+            "status_writes": [],
+            "exit_code": 0
+          }
+        },
+        "actual_run_sha256": [
+          "d3530dbff640328318e4dfe1a04269777a69f9d207e4c19e7cbc08d4141fd4f1",
+          "d3530dbff640328318e4dfe1a04269777a69f9d207e4c19e7cbc08d4141fd4f1"
+        ],
+        "exact": true
+      }
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/optionsSourcemapInlineSourcesSourceRoot.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/optionsSourcemapInlineSourcesSourceRoot.ts"
+        ],
+        "vfs_symlinks": [],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2015"
+          },
+          {
+            "name": "sourcemap",
+            "value": "true"
+          },
+          {
+            "name": "inlineSources",
+            "value": "true"
+          },
+          {
+            "name": "sourceRoot",
+            "value": "local"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/optionsSourcemapInlineSourcesSourceRoot.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ]
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/optionsSourcemapInlineSourcesSourceRoot.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoib3B0aW9uc1NvdXJjZW1hcElubGluZVNvdXJjZXNTb3VyY2VSb290LmpzIiwic291cmNlUm9vdCI6ImxvY2FsLyIsInNvdXJjZXMiOlsib3B0aW9uc1NvdXJjZW1hcElubGluZVNvdXJjZXNTb3VyY2VSb290LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7QUFBQSxJQUFJLENBQUMsR0FBRyxFQUFFLENBQUMiLCJzb3VyY2VzQ29udGVudCI6WyJ2YXIgYSA9IDEwOyJdfQ==",
+            "callback_utf8_sha256": "39c0668f220d4086d9caedae87e631c9e7a86799bf61977fdb1f4c787e71abb6",
+            "callback_utf8_bytes": 232,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "39c0668f220d4086d9caedae87e631c9e7a86799bf61977fdb1f4c787e71abb6",
+            "materialized_utf8_bytes": 232,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/optionsSourcemapInlineSourcesSourceRoot.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics_count": null
+          },
+          {
+            "index": 1,
+            "path": "/.src/optionsSourcemapInlineSourcesSourceRoot.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW9wdGlvbnNTb3VyY2VtYXBJbmxpbmVTb3VyY2VzU291cmNlUm9vdC5qcy5tYXA=",
+            "callback_utf8_sha256": "f2fb498d9c2ba4eba219bca201291add01f80dee1b1c23e22f0728d6b7bfe082",
+            "callback_utf8_bytes": 95,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "f2fb498d9c2ba4eba219bca201291add01f80dee1b1c23e22f0728d6b7bfe082",
+            "materialized_utf8_bytes": 95,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/optionsSourcemapInlineSourcesSourceRoot.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 28,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/optionsSourcemapInlineSourcesSourceRoot.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"optionsSourcemapInlineSourcesSourceRoot.js\",\"sourceRoot\":\"local/\",\"sources\":[\"optionsSourcemapInlineSourcesSourceRoot.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\",\"sourcesContent\":[\"var a = 10;\"]}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0,
+        "run_fingerprint_sha256": "af25174e5075e944d5df4180a8a692a49ca1d615c38771a5738807d5c33a9ae1"
+      },
+      "typescript_run_fingerprints": [
+        "af25174e5075e944d5df4180a8a692a49ca1d615c38771a5738807d5c33a9ae1",
+        "af25174e5075e944d5df4180a8a692a49ca1d615c38771a5738807d5c33a9ae1"
+      ],
+      "baseline_source_map": {
+        "repetitions": 2,
+        "actual": {
+          "effective_map_options": {
+            "sourceMap": true,
+            "inlineSourceMap": null,
+            "inlineSources": null,
+            "sourceRoot": null,
+            "mapRoot": null
+          },
+          "observation": {
+            "writes": [
+              {
+                "index": 0,
+                "path": "/.src/optionsSourcemapInlineSourcesSourceRoot.js.map",
+                "kind": "source-map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoib3B0aW9uc1NvdXJjZW1hcElubGluZVNvdXJjZXNTb3VyY2VSb290LmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsib3B0aW9uc1NvdXJjZW1hcElubGluZVNvdXJjZXNTb3VyY2VSb290LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7QUFBQSxJQUFJLENBQUMsR0FBRyxFQUFFLENBQUMifQ==",
+                "callback_utf8_sha256": "e152ba0ccdb2fe346de923db8dba51887e6895e2ca7eb017a1ad5c0a21cfc74b",
+                "callback_utf8_bytes": 193,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "e152ba0ccdb2fe346de923db8dba51887e6895e2ca7eb017a1ad5c0a21cfc74b",
+                "materialized_utf8_bytes": 193,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/.src/optionsSourcemapInlineSourcesSourceRoot.ts"
+                ],
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 1,
+                "path": "/.src/optionsSourcemapInlineSourcesSourceRoot.js",
+                "kind": "javascript",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW9wdGlvbnNTb3VyY2VtYXBJbmxpbmVTb3VyY2VzU291cmNlUm9vdC5qcy5tYXA=",
+                "callback_utf8_sha256": "f2fb498d9c2ba4eba219bca201291add01f80dee1b1c23e22f0728d6b7bfe082",
+                "callback_utf8_bytes": 95,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "f2fb498d9c2ba4eba219bca201291add01f80dee1b1c23e22f0728d6b7bfe082",
+                "materialized_utf8_bytes": 95,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/.src/optionsSourcemapInlineSourcesSourceRoot.ts"
+                ],
+                "data_present": true,
+                "data_source_map_url_pos": 28,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "reported_diagnostics": [],
+            "emit_result": {
+              "emit_skipped": false,
+              "diagnostics": [],
+              "emitted_files": null,
+              "source_maps": [
+                {
+                  "input_source_file_names": [
+                    "/.src/optionsSourcemapInlineSourcesSourceRoot.ts"
+                  ],
+                  "source_map_json": "{\"version\":3,\"file\":\"optionsSourcemapInlineSourcesSourceRoot.js\",\"sourceRoot\":\"\",\"sources\":[\"optionsSourcemapInlineSourcesSourceRoot.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\"}"
+                }
+              ]
+            },
+            "status_writes": [],
+            "exit_code": 0
+          }
+        },
+        "actual_run_sha256": [
+          "c17c68332820c39336b02011826dc13fb523a6d3da64f7eddb2de753ca7d34dd",
+          "c17c68332820c39336b02011826dc13fb523a6d3da64f7eddb2de753ca7d34dd"
+        ],
+        "exact": false
+      },
+      "existing_map_family": {
+        "repetitions": 2,
+        "actual": {
+          "effective_map_options": {
+            "sourceMap": true,
+            "inlineSourceMap": null,
+            "inlineSources": true,
+            "sourceRoot": "local",
+            "mapRoot": null
+          },
+          "observation": {
+            "writes": [
+              {
+                "index": 0,
+                "path": "/.src/optionsSourcemapInlineSourcesSourceRoot.js.map",
+                "kind": "source-map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoib3B0aW9uc1NvdXJjZW1hcElubGluZVNvdXJjZXNTb3VyY2VSb290LmpzIiwic291cmNlUm9vdCI6ImxvY2FsLyIsInNvdXJjZXMiOlsib3B0aW9uc1NvdXJjZW1hcElubGluZVNvdXJjZXNTb3VyY2VSb290LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7QUFBQSxJQUFJLENBQUMsR0FBRyxFQUFFLENBQUMiLCJzb3VyY2VzQ29udGVudCI6WyJ2YXIgYSA9IDEwOyJdfQ==",
+                "callback_utf8_sha256": "39c0668f220d4086d9caedae87e631c9e7a86799bf61977fdb1f4c787e71abb6",
+                "callback_utf8_bytes": 232,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "39c0668f220d4086d9caedae87e631c9e7a86799bf61977fdb1f4c787e71abb6",
+                "materialized_utf8_bytes": 232,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/.src/optionsSourcemapInlineSourcesSourceRoot.ts"
+                ],
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 1,
+                "path": "/.src/optionsSourcemapInlineSourcesSourceRoot.js",
+                "kind": "javascript",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW9wdGlvbnNTb3VyY2VtYXBJbmxpbmVTb3VyY2VzU291cmNlUm9vdC5qcy5tYXA=",
+                "callback_utf8_sha256": "f2fb498d9c2ba4eba219bca201291add01f80dee1b1c23e22f0728d6b7bfe082",
+                "callback_utf8_bytes": 95,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "f2fb498d9c2ba4eba219bca201291add01f80dee1b1c23e22f0728d6b7bfe082",
+                "materialized_utf8_bytes": 95,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/.src/optionsSourcemapInlineSourcesSourceRoot.ts"
+                ],
+                "data_present": true,
+                "data_source_map_url_pos": 28,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "reported_diagnostics": [],
+            "emit_result": {
+              "emit_skipped": false,
+              "diagnostics": [],
+              "emitted_files": null,
+              "source_maps": [
+                {
+                  "input_source_file_names": [
+                    "/.src/optionsSourcemapInlineSourcesSourceRoot.ts"
+                  ],
+                  "source_map_json": "{\"version\":3,\"file\":\"optionsSourcemapInlineSourcesSourceRoot.js\",\"sourceRoot\":\"local/\",\"sources\":[\"optionsSourcemapInlineSourcesSourceRoot.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\",\"sourcesContent\":[\"var a = 10;\"]}"
+                }
+              ]
+            },
+            "status_writes": [],
+            "exit_code": 0
+          }
+        },
+        "actual_run_sha256": [
+          "77f79db49d500a3e6b9f1eee37e0966aae3fa0b8417131a1fd0347d1ccd2142c",
+          "77f79db49d500a3e6b9f1eee37e0966aae3fa0b8417131a1fd0347d1ccd2142c"
+        ],
+        "exact": true
+      },
+      "projected": {
+        "repetitions": 2,
+        "actual": {
+          "effective_map_options": {
+            "sourceMap": true,
+            "inlineSourceMap": null,
+            "inlineSources": true,
+            "sourceRoot": "local",
+            "mapRoot": null
+          },
+          "map_runtime_activity": {
+            "H2.6a": 0,
+            "H2.6b": 1,
+            "H2.6c": 0
+          },
+          "observation": {
+            "writes": [
+              {
+                "index": 0,
+                "path": "/.src/optionsSourcemapInlineSourcesSourceRoot.js.map",
+                "kind": "source-map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoib3B0aW9uc1NvdXJjZW1hcElubGluZVNvdXJjZXNTb3VyY2VSb290LmpzIiwic291cmNlUm9vdCI6ImxvY2FsLyIsInNvdXJjZXMiOlsib3B0aW9uc1NvdXJjZW1hcElubGluZVNvdXJjZXNTb3VyY2VSb290LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7QUFBQSxJQUFJLENBQUMsR0FBRyxFQUFFLENBQUMiLCJzb3VyY2VzQ29udGVudCI6WyJ2YXIgYSA9IDEwOyJdfQ==",
+                "callback_utf8_sha256": "39c0668f220d4086d9caedae87e631c9e7a86799bf61977fdb1f4c787e71abb6",
+                "callback_utf8_bytes": 232,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "39c0668f220d4086d9caedae87e631c9e7a86799bf61977fdb1f4c787e71abb6",
+                "materialized_utf8_bytes": 232,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/.src/optionsSourcemapInlineSourcesSourceRoot.ts"
+                ],
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 1,
+                "path": "/.src/optionsSourcemapInlineSourcesSourceRoot.js",
+                "kind": "javascript",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW9wdGlvbnNTb3VyY2VtYXBJbmxpbmVTb3VyY2VzU291cmNlUm9vdC5qcy5tYXA=",
+                "callback_utf8_sha256": "f2fb498d9c2ba4eba219bca201291add01f80dee1b1c23e22f0728d6b7bfe082",
+                "callback_utf8_bytes": 95,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "f2fb498d9c2ba4eba219bca201291add01f80dee1b1c23e22f0728d6b7bfe082",
+                "materialized_utf8_bytes": 95,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/.src/optionsSourcemapInlineSourcesSourceRoot.ts"
+                ],
+                "data_present": true,
+                "data_source_map_url_pos": 28,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "reported_diagnostics": [],
+            "emit_result": {
+              "emit_skipped": false,
+              "diagnostics": [],
+              "emitted_files": null,
+              "source_maps": [
+                {
+                  "input_source_file_names": [
+                    "/.src/optionsSourcemapInlineSourcesSourceRoot.ts"
+                  ],
+                  "source_map_json": "{\"version\":3,\"file\":\"optionsSourcemapInlineSourcesSourceRoot.js\",\"sourceRoot\":\"local/\",\"sources\":[\"optionsSourcemapInlineSourcesSourceRoot.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\",\"sourcesContent\":[\"var a = 10;\"]}"
+                }
+              ]
+            },
+            "status_writes": [],
+            "exit_code": 0
+          }
+        },
+        "actual_run_sha256": [
+          "316d5ce0e78a3b67d97d20685420ed7906e9ec8e79a716e45749e1df97662184",
+          "316d5ce0e78a3b67d97d20685420ed7906e9ec8e79a716e45749e1df97662184"
+        ],
+        "exact": true
+      }
+    }
+  ],
+  "witness_routes": [
+    {
+      "case_id": "qualified/directives/all-false",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "cee94b4fac9cee252199fd703162f329fd6f787194752ef12e262d4f08cda3ea",
+        "cee94b4fac9cee252199fd703162f329fd6f787194752ef12e262d4f08cda3ea"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "f476bcfbb0a9ead50d0d082a4a3eae2762166aec8a3f43f4f5f12d44d9fe264a",
+        "f476bcfbb0a9ead50d0d082a4a3eae2762166aec8a3f43f4f5f12d44d9fe264a"
+      ]
+    },
+    {
+      "case_id": "qualified/directives/conflicting-maps",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "fc4842865991476adddd9b1f7545f015e940023f4f71ad5cb0dacad9efd639af",
+        "fc4842865991476adddd9b1f7545f015e940023f4f71ad5cb0dacad9efd639af"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "d0b770b5ba02f9e68b379ab69a1df6ddf626b894e9af26bd92e3178d7fe68a7d",
+        "d0b770b5ba02f9e68b379ab69a1df6ddf626b894e9af26bd92e3178d7fe68a7d"
+      ]
+    },
+    {
+      "case_id": "qualified/directives/empty-roots",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "66aff8081ad756e7f7c9dc5c0aaa24e7d2cfd20245836ac8b8c0589278902ec4",
+        "66aff8081ad756e7f7c9dc5c0aaa24e7d2cfd20245836ac8b8c0589278902ec4"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "c26aa6879af143462b30a864e16ac8dea3b7a8ddddef16f1a077f3ea78a39230",
+        "c26aa6879af143462b30a864e16ac8dea3b7a8ddddef16f1a077f3ea78a39230"
+      ]
+    },
+    {
+      "case_id": "qualified/directives/external",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "861b6c008eecfc66fe95dd8a29df96802d3963cc49c39abab7c98cbfce323cb6",
+        "861b6c008eecfc66fe95dd8a29df96802d3963cc49c39abab7c98cbfce323cb6"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "04bf70ea670a5539a46b556876ece3cb4dada1ba7467c2450fc4ab18dd20b1aa",
+        "04bf70ea670a5539a46b556876ece3cb4dada1ba7467c2450fc4ab18dd20b1aa"
+      ]
+    },
+    {
+      "case_id": "qualified/directives/external-sources",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "dae09ff4486ed24fdea0cb82978ca73d9bd16ab39dddcbe3cec3b33891d608fc",
+        "dae09ff4486ed24fdea0cb82978ca73d9bd16ab39dddcbe3cec3b33891d608fc"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "cfebe2fd9d798059a959321c878ff00801136af806644ad147dc8938bef57847",
+        "cfebe2fd9d798059a959321c878ff00801136af806644ad147dc8938bef57847"
+      ]
+    },
+    {
+      "case_id": "qualified/directives/false-inline-map",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "d734ae95bf71db13868b92be9a2bb871efdfe4cec722ae1ec36b8022a8acc1e3",
+        "d734ae95bf71db13868b92be9a2bb871efdfe4cec722ae1ec36b8022a8acc1e3"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "caf1fd2437665d161a7711f9751a5e9a1e97d2f1d28942713a515f2a1ebd733b",
+        "caf1fd2437665d161a7711f9751a5e9a1e97d2f1d28942713a515f2a1ebd733b"
+      ]
+    },
+    {
+      "case_id": "qualified/directives/false-inline-sources",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "afd1fc10aa3d84c9d93c8e0e1a50b9fc7ec89cef34160ef2735f7c6e6b6298d5",
+        "afd1fc10aa3d84c9d93c8e0e1a50b9fc7ec89cef34160ef2735f7c6e6b6298d5"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "7e0b95cbe6814c01d7d968524515ec7596982a070caed153250ad475f2067a40",
+        "7e0b95cbe6814c01d7d968524515ec7596982a070caed153250ad475f2067a40"
+      ]
+    },
+    {
+      "case_id": "qualified/directives/inline",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "4146590c0164b642b320d5b566191f08aa730666a08b8b907c64279fe334a1ec",
+        "4146590c0164b642b320d5b566191f08aa730666a08b8b907c64279fe334a1ec"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "9e71ac6d540f79e8852f092e6c5fcd26e8866f0dfb523227d3e5c4a348ded2e9",
+        "9e71ac6d540f79e8852f092e6c5fcd26e8866f0dfb523227d3e5c4a348ded2e9"
+      ]
+    },
+    {
+      "case_id": "qualified/directives/inline-empty-roots",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "5dc3e254540d8fc2af5d56818c4424afb09e6ddbcce27c46be56a1df03ed3b3c",
+        "5dc3e254540d8fc2af5d56818c4424afb09e6ddbcce27c46be56a1df03ed3b3c"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "96742e58f83e245ab3c0d52b01960ceff0d1ca440a97c9add9b1dbaf994aac8c",
+        "96742e58f83e245ab3c0d52b01960ceff0d1ca440a97c9add9b1dbaf994aac8c"
+      ]
+    },
+    {
+      "case_id": "qualified/directives/map-root-with-inline",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "d751fd0e3c6877efeeee1eebe59b87ec24c318860ca3f2800c5a087f51d00391",
+        "d751fd0e3c6877efeeee1eebe59b87ec24c318860ca3f2800c5a087f51d00391"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "46a0c3f558de3cb2f6faf0f9663a0ebb23fc5e508e7b499839a229f1ad36b10c",
+        "46a0c3f558de3cb2f6faf0f9663a0ebb23fc5e508e7b499839a229f1ad36b10c"
+      ]
+    },
+    {
+      "case_id": "qualified/directives/map-root-without-map",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "1438f76cfa8283f0cbc7b41a8fb1f826c640454ad93ff81b97616fff8d88f319",
+        "1438f76cfa8283f0cbc7b41a8fb1f826c640454ad93ff81b97616fff8d88f319"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "9b691a8265d598e1ba4905d6110eec1116e949dea555be675a25c27f0d88c6b7",
+        "9b691a8265d598e1ba4905d6110eec1116e949dea555be675a25c27f0d88c6b7"
+      ]
+    },
+    {
+      "case_id": "qualified/directives/relative-map-root",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "593e0e8cd4114985e57f4090a94b185ae5545d17707578d904b391a456476e25",
+        "593e0e8cd4114985e57f4090a94b185ae5545d17707578d904b391a456476e25"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "c3f42839b5c6e44df840b140ca85c2c4a7543d00df08531b1a5f74fe2475c203",
+        "c3f42839b5c6e44df840b140ca85c2c4a7543d00df08531b1a5f74fe2475c203"
+      ]
+    },
+    {
+      "case_id": "qualified/directives/relative-source-root",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "9e7d5413be89c71af6f5882bc589d608a0d64d675af91253146b8e7c073a36b0",
+        "9e7d5413be89c71af6f5882bc589d608a0d64d675af91253146b8e7c073a36b0"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "a58b1090039d9ed37f900cbfbf585c8c60c5d854e413ee824b04f1e9b5851e9b",
+        "a58b1090039d9ed37f900cbfbf585c8c60c5d854e413ee824b04f1e9b5851e9b"
+      ]
+    },
+    {
+      "case_id": "qualified/directives/source-root-without-map",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "cc38e860b12859320bffe8ace8bdd8c4290adbd08827ecf662aa2b64ffee3b80",
+        "cc38e860b12859320bffe8ace8bdd8c4290adbd08827ecf662aa2b64ffee3b80"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "2d73d6d7885f807d85c02dc502d5b2ba7088a9a771bd6ae7a3064d6695fdc002",
+        "2d73d6d7885f807d85c02dc502d5b2ba7088a9a771bd6ae7a3064d6695fdc002"
+      ]
+    },
+    {
+      "case_id": "qualified/directives/sources-without-map",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "be831fcf744cb7dbc9da686d5e1ad1c1d05ff6e09878fd08dd802b81734b2287",
+        "be831fcf744cb7dbc9da686d5e1ad1c1d05ff6e09878fd08dd802b81734b2287"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "ca71ab1900d3ef51cfb0adc5ec30f81d5bd885aa29193bc2887c67847d14c652",
+        "ca71ab1900d3ef51cfb0adc5ec30f81d5bd885aa29193bc2887c67847d14c652"
+      ]
+    },
+    {
+      "case_id": "qualified/virtual-config/all-false",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "3206c67c78fa9462e3f186d3f29444f0caf60d0821cff121dc861c3390e859ac",
+        "3206c67c78fa9462e3f186d3f29444f0caf60d0821cff121dc861c3390e859ac"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "f476bcfbb0a9ead50d0d082a4a3eae2762166aec8a3f43f4f5f12d44d9fe264a",
+        "f476bcfbb0a9ead50d0d082a4a3eae2762166aec8a3f43f4f5f12d44d9fe264a"
+      ]
+    },
+    {
+      "case_id": "qualified/virtual-config/conflicting-maps",
+      "repetitions": 2,
+      "baseline_exact": false,
+      "baseline_actual_run_sha256": [
+        "3206c67c78fa9462e3f186d3f29444f0caf60d0821cff121dc861c3390e859ac",
+        "3206c67c78fa9462e3f186d3f29444f0caf60d0821cff121dc861c3390e859ac"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "265cd040d2f1efe8b62d12ab4c8ef5b4edf4e225e9cc87e589b6f3c192bd0226",
+        "265cd040d2f1efe8b62d12ab4c8ef5b4edf4e225e9cc87e589b6f3c192bd0226"
+      ]
+    },
+    {
+      "case_id": "qualified/virtual-config/directive-overrides",
+      "repetitions": 2,
+      "baseline_exact": false,
+      "baseline_actual_run_sha256": [
+        "fb925587b925ac578da0b7b8acae1b7ff7277d13d92e92a18fb3265d91f8cc90",
+        "fb925587b925ac578da0b7b8acae1b7ff7277d13d92e92a18fb3265d91f8cc90"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "55a8ee721405d002eeb1cb0467f476560c7ad519228f5fe9bef1732c97840004",
+        "55a8ee721405d002eeb1cb0467f476560c7ad519228f5fe9bef1732c97840004"
+      ]
+    },
+    {
+      "case_id": "qualified/virtual-config/empty-roots",
+      "repetitions": 2,
+      "baseline_exact": false,
+      "baseline_actual_run_sha256": [
+        "3206c67c78fa9462e3f186d3f29444f0caf60d0821cff121dc861c3390e859ac",
+        "3206c67c78fa9462e3f186d3f29444f0caf60d0821cff121dc861c3390e859ac"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "c26aa6879af143462b30a864e16ac8dea3b7a8ddddef16f1a077f3ea78a39230",
+        "c26aa6879af143462b30a864e16ac8dea3b7a8ddddef16f1a077f3ea78a39230"
+      ]
+    },
+    {
+      "case_id": "qualified/virtual-config/external",
+      "repetitions": 2,
+      "baseline_exact": false,
+      "baseline_actual_run_sha256": [
+        "3206c67c78fa9462e3f186d3f29444f0caf60d0821cff121dc861c3390e859ac",
+        "3206c67c78fa9462e3f186d3f29444f0caf60d0821cff121dc861c3390e859ac"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "04bf70ea670a5539a46b556876ece3cb4dada1ba7467c2450fc4ab18dd20b1aa",
+        "04bf70ea670a5539a46b556876ece3cb4dada1ba7467c2450fc4ab18dd20b1aa"
+      ]
+    },
+    {
+      "case_id": "qualified/virtual-config/external-sources",
+      "repetitions": 2,
+      "baseline_exact": false,
+      "baseline_actual_run_sha256": [
+        "3206c67c78fa9462e3f186d3f29444f0caf60d0821cff121dc861c3390e859ac",
+        "3206c67c78fa9462e3f186d3f29444f0caf60d0821cff121dc861c3390e859ac"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "cfebe2fd9d798059a959321c878ff00801136af806644ad147dc8938bef57847",
+        "cfebe2fd9d798059a959321c878ff00801136af806644ad147dc8938bef57847"
+      ]
+    },
+    {
+      "case_id": "qualified/virtual-config/false-inline-map",
+      "repetitions": 2,
+      "baseline_exact": false,
+      "baseline_actual_run_sha256": [
+        "3206c67c78fa9462e3f186d3f29444f0caf60d0821cff121dc861c3390e859ac",
+        "3206c67c78fa9462e3f186d3f29444f0caf60d0821cff121dc861c3390e859ac"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "caf1fd2437665d161a7711f9751a5e9a1e97d2f1d28942713a515f2a1ebd733b",
+        "caf1fd2437665d161a7711f9751a5e9a1e97d2f1d28942713a515f2a1ebd733b"
+      ]
+    },
+    {
+      "case_id": "qualified/virtual-config/false-inline-sources",
+      "repetitions": 2,
+      "baseline_exact": false,
+      "baseline_actual_run_sha256": [
+        "3206c67c78fa9462e3f186d3f29444f0caf60d0821cff121dc861c3390e859ac",
+        "3206c67c78fa9462e3f186d3f29444f0caf60d0821cff121dc861c3390e859ac"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "7e0b95cbe6814c01d7d968524515ec7596982a070caed153250ad475f2067a40",
+        "7e0b95cbe6814c01d7d968524515ec7596982a070caed153250ad475f2067a40"
+      ]
+    },
+    {
+      "case_id": "qualified/virtual-config/inline",
+      "repetitions": 2,
+      "baseline_exact": false,
+      "baseline_actual_run_sha256": [
+        "3206c67c78fa9462e3f186d3f29444f0caf60d0821cff121dc861c3390e859ac",
+        "3206c67c78fa9462e3f186d3f29444f0caf60d0821cff121dc861c3390e859ac"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "9e71ac6d540f79e8852f092e6c5fcd26e8866f0dfb523227d3e5c4a348ded2e9",
+        "9e71ac6d540f79e8852f092e6c5fcd26e8866f0dfb523227d3e5c4a348ded2e9"
+      ]
+    },
+    {
+      "case_id": "qualified/virtual-config/inline-empty-roots",
+      "repetitions": 2,
+      "baseline_exact": false,
+      "baseline_actual_run_sha256": [
+        "3206c67c78fa9462e3f186d3f29444f0caf60d0821cff121dc861c3390e859ac",
+        "3206c67c78fa9462e3f186d3f29444f0caf60d0821cff121dc861c3390e859ac"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "96742e58f83e245ab3c0d52b01960ceff0d1ca440a97c9add9b1dbaf994aac8c",
+        "96742e58f83e245ab3c0d52b01960ceff0d1ca440a97c9add9b1dbaf994aac8c"
+      ]
+    },
+    {
+      "case_id": "qualified/virtual-config/map-root-with-inline",
+      "repetitions": 2,
+      "baseline_exact": false,
+      "baseline_actual_run_sha256": [
+        "3206c67c78fa9462e3f186d3f29444f0caf60d0821cff121dc861c3390e859ac",
+        "3206c67c78fa9462e3f186d3f29444f0caf60d0821cff121dc861c3390e859ac"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "3535eee1c917e433363929f6b7357fd1a6d83cdf01cc12b08fb1d708532b5e8e",
+        "3535eee1c917e433363929f6b7357fd1a6d83cdf01cc12b08fb1d708532b5e8e"
+      ]
+    },
+    {
+      "case_id": "qualified/virtual-config/map-root-without-map",
+      "repetitions": 2,
+      "baseline_exact": false,
+      "baseline_actual_run_sha256": [
+        "3206c67c78fa9462e3f186d3f29444f0caf60d0821cff121dc861c3390e859ac",
+        "3206c67c78fa9462e3f186d3f29444f0caf60d0821cff121dc861c3390e859ac"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "124548b1caaae54d21faf9e40d5090939f0ce8a863c72d5e61e1edeeeb072cdc",
+        "124548b1caaae54d21faf9e40d5090939f0ce8a863c72d5e61e1edeeeb072cdc"
+      ]
+    },
+    {
+      "case_id": "qualified/virtual-config/relative-map-root",
+      "repetitions": 2,
+      "baseline_exact": false,
+      "baseline_actual_run_sha256": [
+        "3206c67c78fa9462e3f186d3f29444f0caf60d0821cff121dc861c3390e859ac",
+        "3206c67c78fa9462e3f186d3f29444f0caf60d0821cff121dc861c3390e859ac"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "c3f42839b5c6e44df840b140ca85c2c4a7543d00df08531b1a5f74fe2475c203",
+        "c3f42839b5c6e44df840b140ca85c2c4a7543d00df08531b1a5f74fe2475c203"
+      ]
+    },
+    {
+      "case_id": "qualified/virtual-config/relative-source-root",
+      "repetitions": 2,
+      "baseline_exact": false,
+      "baseline_actual_run_sha256": [
+        "3206c67c78fa9462e3f186d3f29444f0caf60d0821cff121dc861c3390e859ac",
+        "3206c67c78fa9462e3f186d3f29444f0caf60d0821cff121dc861c3390e859ac"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "a58b1090039d9ed37f900cbfbf585c8c60c5d854e413ee824b04f1e9b5851e9b",
+        "a58b1090039d9ed37f900cbfbf585c8c60c5d854e413ee824b04f1e9b5851e9b"
+      ]
+    },
+    {
+      "case_id": "qualified/virtual-config/source-root-without-map",
+      "repetitions": 2,
+      "baseline_exact": false,
+      "baseline_actual_run_sha256": [
+        "3206c67c78fa9462e3f186d3f29444f0caf60d0821cff121dc861c3390e859ac",
+        "3206c67c78fa9462e3f186d3f29444f0caf60d0821cff121dc861c3390e859ac"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "e4ad2018f89e63ae10f04e9d173d35757cb829009987498e79225c8e33f0b07e",
+        "e4ad2018f89e63ae10f04e9d173d35757cb829009987498e79225c8e33f0b07e"
+      ]
+    },
+    {
+      "case_id": "qualified/virtual-config/sources-without-map",
+      "repetitions": 2,
+      "baseline_exact": false,
+      "baseline_actual_run_sha256": [
+        "3206c67c78fa9462e3f186d3f29444f0caf60d0821cff121dc861c3390e859ac",
+        "3206c67c78fa9462e3f186d3f29444f0caf60d0821cff121dc861c3390e859ac"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "5bad0fc61278ebdc61e083b4aba9fa265f3f5e36ccba8633902a94bde554d1c9",
+        "5bad0fc61278ebdc61e083b4aba9fa265f3f5e36ccba8633902a94bde554d1c9"
+      ]
+    },
+    {
+      "case_id": "recorded/directives/all-false",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "cee94b4fac9cee252199fd703162f329fd6f787194752ef12e262d4f08cda3ea",
+        "cee94b4fac9cee252199fd703162f329fd6f787194752ef12e262d4f08cda3ea"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "f476bcfbb0a9ead50d0d082a4a3eae2762166aec8a3f43f4f5f12d44d9fe264a",
+        "f476bcfbb0a9ead50d0d082a4a3eae2762166aec8a3f43f4f5f12d44d9fe264a"
+      ]
+    },
+    {
+      "case_id": "recorded/directives/conflicting-maps",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "fc4842865991476adddd9b1f7545f015e940023f4f71ad5cb0dacad9efd639af",
+        "fc4842865991476adddd9b1f7545f015e940023f4f71ad5cb0dacad9efd639af"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "d0b770b5ba02f9e68b379ab69a1df6ddf626b894e9af26bd92e3178d7fe68a7d",
+        "d0b770b5ba02f9e68b379ab69a1df6ddf626b894e9af26bd92e3178d7fe68a7d"
+      ]
+    },
+    {
+      "case_id": "recorded/directives/empty-roots",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "66aff8081ad756e7f7c9dc5c0aaa24e7d2cfd20245836ac8b8c0589278902ec4",
+        "66aff8081ad756e7f7c9dc5c0aaa24e7d2cfd20245836ac8b8c0589278902ec4"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "c26aa6879af143462b30a864e16ac8dea3b7a8ddddef16f1a077f3ea78a39230",
+        "c26aa6879af143462b30a864e16ac8dea3b7a8ddddef16f1a077f3ea78a39230"
+      ]
+    },
+    {
+      "case_id": "recorded/directives/external",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "861b6c008eecfc66fe95dd8a29df96802d3963cc49c39abab7c98cbfce323cb6",
+        "861b6c008eecfc66fe95dd8a29df96802d3963cc49c39abab7c98cbfce323cb6"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "04bf70ea670a5539a46b556876ece3cb4dada1ba7467c2450fc4ab18dd20b1aa",
+        "04bf70ea670a5539a46b556876ece3cb4dada1ba7467c2450fc4ab18dd20b1aa"
+      ]
+    },
+    {
+      "case_id": "recorded/directives/external-sources",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "dae09ff4486ed24fdea0cb82978ca73d9bd16ab39dddcbe3cec3b33891d608fc",
+        "dae09ff4486ed24fdea0cb82978ca73d9bd16ab39dddcbe3cec3b33891d608fc"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "cfebe2fd9d798059a959321c878ff00801136af806644ad147dc8938bef57847",
+        "cfebe2fd9d798059a959321c878ff00801136af806644ad147dc8938bef57847"
+      ]
+    },
+    {
+      "case_id": "recorded/directives/false-inline-map",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "d734ae95bf71db13868b92be9a2bb871efdfe4cec722ae1ec36b8022a8acc1e3",
+        "d734ae95bf71db13868b92be9a2bb871efdfe4cec722ae1ec36b8022a8acc1e3"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "caf1fd2437665d161a7711f9751a5e9a1e97d2f1d28942713a515f2a1ebd733b",
+        "caf1fd2437665d161a7711f9751a5e9a1e97d2f1d28942713a515f2a1ebd733b"
+      ]
+    },
+    {
+      "case_id": "recorded/directives/false-inline-sources",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "afd1fc10aa3d84c9d93c8e0e1a50b9fc7ec89cef34160ef2735f7c6e6b6298d5",
+        "afd1fc10aa3d84c9d93c8e0e1a50b9fc7ec89cef34160ef2735f7c6e6b6298d5"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "7e0b95cbe6814c01d7d968524515ec7596982a070caed153250ad475f2067a40",
+        "7e0b95cbe6814c01d7d968524515ec7596982a070caed153250ad475f2067a40"
+      ]
+    },
+    {
+      "case_id": "recorded/directives/inline",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "4146590c0164b642b320d5b566191f08aa730666a08b8b907c64279fe334a1ec",
+        "4146590c0164b642b320d5b566191f08aa730666a08b8b907c64279fe334a1ec"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "9e71ac6d540f79e8852f092e6c5fcd26e8866f0dfb523227d3e5c4a348ded2e9",
+        "9e71ac6d540f79e8852f092e6c5fcd26e8866f0dfb523227d3e5c4a348ded2e9"
+      ]
+    },
+    {
+      "case_id": "recorded/directives/inline-empty-roots",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "5dc3e254540d8fc2af5d56818c4424afb09e6ddbcce27c46be56a1df03ed3b3c",
+        "5dc3e254540d8fc2af5d56818c4424afb09e6ddbcce27c46be56a1df03ed3b3c"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "96742e58f83e245ab3c0d52b01960ceff0d1ca440a97c9add9b1dbaf994aac8c",
+        "96742e58f83e245ab3c0d52b01960ceff0d1ca440a97c9add9b1dbaf994aac8c"
+      ]
+    },
+    {
+      "case_id": "recorded/directives/map-root-with-inline",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "d751fd0e3c6877efeeee1eebe59b87ec24c318860ca3f2800c5a087f51d00391",
+        "d751fd0e3c6877efeeee1eebe59b87ec24c318860ca3f2800c5a087f51d00391"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "46a0c3f558de3cb2f6faf0f9663a0ebb23fc5e508e7b499839a229f1ad36b10c",
+        "46a0c3f558de3cb2f6faf0f9663a0ebb23fc5e508e7b499839a229f1ad36b10c"
+      ]
+    },
+    {
+      "case_id": "recorded/directives/map-root-without-map",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "1438f76cfa8283f0cbc7b41a8fb1f826c640454ad93ff81b97616fff8d88f319",
+        "1438f76cfa8283f0cbc7b41a8fb1f826c640454ad93ff81b97616fff8d88f319"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "9b691a8265d598e1ba4905d6110eec1116e949dea555be675a25c27f0d88c6b7",
+        "9b691a8265d598e1ba4905d6110eec1116e949dea555be675a25c27f0d88c6b7"
+      ]
+    },
+    {
+      "case_id": "recorded/directives/relative-map-root",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "593e0e8cd4114985e57f4090a94b185ae5545d17707578d904b391a456476e25",
+        "593e0e8cd4114985e57f4090a94b185ae5545d17707578d904b391a456476e25"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "c3f42839b5c6e44df840b140ca85c2c4a7543d00df08531b1a5f74fe2475c203",
+        "c3f42839b5c6e44df840b140ca85c2c4a7543d00df08531b1a5f74fe2475c203"
+      ]
+    },
+    {
+      "case_id": "recorded/directives/relative-source-root",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "9e7d5413be89c71af6f5882bc589d608a0d64d675af91253146b8e7c073a36b0",
+        "9e7d5413be89c71af6f5882bc589d608a0d64d675af91253146b8e7c073a36b0"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "a58b1090039d9ed37f900cbfbf585c8c60c5d854e413ee824b04f1e9b5851e9b",
+        "a58b1090039d9ed37f900cbfbf585c8c60c5d854e413ee824b04f1e9b5851e9b"
+      ]
+    },
+    {
+      "case_id": "recorded/directives/source-root-without-map",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "cc38e860b12859320bffe8ace8bdd8c4290adbd08827ecf662aa2b64ffee3b80",
+        "cc38e860b12859320bffe8ace8bdd8c4290adbd08827ecf662aa2b64ffee3b80"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "2d73d6d7885f807d85c02dc502d5b2ba7088a9a771bd6ae7a3064d6695fdc002",
+        "2d73d6d7885f807d85c02dc502d5b2ba7088a9a771bd6ae7a3064d6695fdc002"
+      ]
+    },
+    {
+      "case_id": "recorded/directives/sources-without-map",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "be831fcf744cb7dbc9da686d5e1ad1c1d05ff6e09878fd08dd802b81734b2287",
+        "be831fcf744cb7dbc9da686d5e1ad1c1d05ff6e09878fd08dd802b81734b2287"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "ca71ab1900d3ef51cfb0adc5ec30f81d5bd885aa29193bc2887c67847d14c652",
+        "ca71ab1900d3ef51cfb0adc5ec30f81d5bd885aa29193bc2887c67847d14c652"
+      ]
+    },
+    {
+      "case_id": "recorded/virtual-config/all-false",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "cee94b4fac9cee252199fd703162f329fd6f787194752ef12e262d4f08cda3ea",
+        "cee94b4fac9cee252199fd703162f329fd6f787194752ef12e262d4f08cda3ea"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "f476bcfbb0a9ead50d0d082a4a3eae2762166aec8a3f43f4f5f12d44d9fe264a",
+        "f476bcfbb0a9ead50d0d082a4a3eae2762166aec8a3f43f4f5f12d44d9fe264a"
+      ]
+    },
+    {
+      "case_id": "recorded/virtual-config/conflicting-maps",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "f61fa0d5ca52b511263da0ff9b8a7a69742c054487756e1b549a3b2d92f6c1b1",
+        "f61fa0d5ca52b511263da0ff9b8a7a69742c054487756e1b549a3b2d92f6c1b1"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "265cd040d2f1efe8b62d12ab4c8ef5b4edf4e225e9cc87e589b6f3c192bd0226",
+        "265cd040d2f1efe8b62d12ab4c8ef5b4edf4e225e9cc87e589b6f3c192bd0226"
+      ]
+    },
+    {
+      "case_id": "recorded/virtual-config/directive-overrides",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "323433b0e7b4230cd5c0c02bf4d8691c08f41b674d5533860ca156a2c919eeef",
+        "323433b0e7b4230cd5c0c02bf4d8691c08f41b674d5533860ca156a2c919eeef"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "55a8ee721405d002eeb1cb0467f476560c7ad519228f5fe9bef1732c97840004",
+        "55a8ee721405d002eeb1cb0467f476560c7ad519228f5fe9bef1732c97840004"
+      ]
+    },
+    {
+      "case_id": "recorded/virtual-config/empty-roots",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "66aff8081ad756e7f7c9dc5c0aaa24e7d2cfd20245836ac8b8c0589278902ec4",
+        "66aff8081ad756e7f7c9dc5c0aaa24e7d2cfd20245836ac8b8c0589278902ec4"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "c26aa6879af143462b30a864e16ac8dea3b7a8ddddef16f1a077f3ea78a39230",
+        "c26aa6879af143462b30a864e16ac8dea3b7a8ddddef16f1a077f3ea78a39230"
+      ]
+    },
+    {
+      "case_id": "recorded/virtual-config/external",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "861b6c008eecfc66fe95dd8a29df96802d3963cc49c39abab7c98cbfce323cb6",
+        "861b6c008eecfc66fe95dd8a29df96802d3963cc49c39abab7c98cbfce323cb6"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "04bf70ea670a5539a46b556876ece3cb4dada1ba7467c2450fc4ab18dd20b1aa",
+        "04bf70ea670a5539a46b556876ece3cb4dada1ba7467c2450fc4ab18dd20b1aa"
+      ]
+    },
+    {
+      "case_id": "recorded/virtual-config/external-sources",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "dae09ff4486ed24fdea0cb82978ca73d9bd16ab39dddcbe3cec3b33891d608fc",
+        "dae09ff4486ed24fdea0cb82978ca73d9bd16ab39dddcbe3cec3b33891d608fc"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "cfebe2fd9d798059a959321c878ff00801136af806644ad147dc8938bef57847",
+        "cfebe2fd9d798059a959321c878ff00801136af806644ad147dc8938bef57847"
+      ]
+    },
+    {
+      "case_id": "recorded/virtual-config/false-inline-map",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "d734ae95bf71db13868b92be9a2bb871efdfe4cec722ae1ec36b8022a8acc1e3",
+        "d734ae95bf71db13868b92be9a2bb871efdfe4cec722ae1ec36b8022a8acc1e3"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "caf1fd2437665d161a7711f9751a5e9a1e97d2f1d28942713a515f2a1ebd733b",
+        "caf1fd2437665d161a7711f9751a5e9a1e97d2f1d28942713a515f2a1ebd733b"
+      ]
+    },
+    {
+      "case_id": "recorded/virtual-config/false-inline-sources",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "afd1fc10aa3d84c9d93c8e0e1a50b9fc7ec89cef34160ef2735f7c6e6b6298d5",
+        "afd1fc10aa3d84c9d93c8e0e1a50b9fc7ec89cef34160ef2735f7c6e6b6298d5"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "7e0b95cbe6814c01d7d968524515ec7596982a070caed153250ad475f2067a40",
+        "7e0b95cbe6814c01d7d968524515ec7596982a070caed153250ad475f2067a40"
+      ]
+    },
+    {
+      "case_id": "recorded/virtual-config/inline",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "4146590c0164b642b320d5b566191f08aa730666a08b8b907c64279fe334a1ec",
+        "4146590c0164b642b320d5b566191f08aa730666a08b8b907c64279fe334a1ec"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "9e71ac6d540f79e8852f092e6c5fcd26e8866f0dfb523227d3e5c4a348ded2e9",
+        "9e71ac6d540f79e8852f092e6c5fcd26e8866f0dfb523227d3e5c4a348ded2e9"
+      ]
+    },
+    {
+      "case_id": "recorded/virtual-config/inline-empty-roots",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "5dc3e254540d8fc2af5d56818c4424afb09e6ddbcce27c46be56a1df03ed3b3c",
+        "5dc3e254540d8fc2af5d56818c4424afb09e6ddbcce27c46be56a1df03ed3b3c"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "96742e58f83e245ab3c0d52b01960ceff0d1ca440a97c9add9b1dbaf994aac8c",
+        "96742e58f83e245ab3c0d52b01960ceff0d1ca440a97c9add9b1dbaf994aac8c"
+      ]
+    },
+    {
+      "case_id": "recorded/virtual-config/map-root-with-inline",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "3be5b174c45576e1d1b725d4d9fb49ae762e7f6a854d93a335d192bb27b050df",
+        "3be5b174c45576e1d1b725d4d9fb49ae762e7f6a854d93a335d192bb27b050df"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "3535eee1c917e433363929f6b7357fd1a6d83cdf01cc12b08fb1d708532b5e8e",
+        "3535eee1c917e433363929f6b7357fd1a6d83cdf01cc12b08fb1d708532b5e8e"
+      ]
+    },
+    {
+      "case_id": "recorded/virtual-config/map-root-without-map",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "0619a14f04cef3c20962049fbd47bf6c4475b26e65d981445836d9a82b0a10fa",
+        "0619a14f04cef3c20962049fbd47bf6c4475b26e65d981445836d9a82b0a10fa"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "124548b1caaae54d21faf9e40d5090939f0ce8a863c72d5e61e1edeeeb072cdc",
+        "124548b1caaae54d21faf9e40d5090939f0ce8a863c72d5e61e1edeeeb072cdc"
+      ]
+    },
+    {
+      "case_id": "recorded/virtual-config/relative-map-root",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "593e0e8cd4114985e57f4090a94b185ae5545d17707578d904b391a456476e25",
+        "593e0e8cd4114985e57f4090a94b185ae5545d17707578d904b391a456476e25"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "c3f42839b5c6e44df840b140ca85c2c4a7543d00df08531b1a5f74fe2475c203",
+        "c3f42839b5c6e44df840b140ca85c2c4a7543d00df08531b1a5f74fe2475c203"
+      ]
+    },
+    {
+      "case_id": "recorded/virtual-config/relative-source-root",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "9e7d5413be89c71af6f5882bc589d608a0d64d675af91253146b8e7c073a36b0",
+        "9e7d5413be89c71af6f5882bc589d608a0d64d675af91253146b8e7c073a36b0"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "a58b1090039d9ed37f900cbfbf585c8c60c5d854e413ee824b04f1e9b5851e9b",
+        "a58b1090039d9ed37f900cbfbf585c8c60c5d854e413ee824b04f1e9b5851e9b"
+      ]
+    },
+    {
+      "case_id": "recorded/virtual-config/source-root-without-map",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "e7c6e89cb1950a00065e4f64e57406f4220b9ccff261e92f280dff21b83a91ac",
+        "e7c6e89cb1950a00065e4f64e57406f4220b9ccff261e92f280dff21b83a91ac"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "e4ad2018f89e63ae10f04e9d173d35757cb829009987498e79225c8e33f0b07e",
+        "e4ad2018f89e63ae10f04e9d173d35757cb829009987498e79225c8e33f0b07e"
+      ]
+    },
+    {
+      "case_id": "recorded/virtual-config/sources-without-map",
+      "repetitions": 2,
+      "baseline_exact": true,
+      "baseline_actual_run_sha256": [
+        "78bce763631a84bf17a580d692d140c2d0e56da98f55857c01be41b395231022",
+        "78bce763631a84bf17a580d692d140c2d0e56da98f55857c01be41b395231022"
+      ],
+      "projected_exact": true,
+      "projected_actual_run_sha256": [
+        "5bad0fc61278ebdc61e083b4aba9fa265f3f5e36ccba8633902a94bde554d1c9",
+        "5bad0fc61278ebdc61e083b4aba9fa265f3f5e36ccba8633902a94bde554d1c9"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "tests-final",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "-p",
+        "tsc-rs-compiler",
+        "--test",
+        "h2_6a_map_option_projection",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "log": "target/map-option-evidence/projected/tests-final.log",
+      "log_sha256": "e26497736228af30e48468143772fc8efedb1c2699d09bd4bd5961cba0d7a41f",
+      "summary": [
+        "test result: ok. 3 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 22.01s"
+      ]
+    },
+    {
+      "name": "h2-6a",
+      "command": [
+        "cargo",
+        "xtask",
+        "h2-6a-acceptance"
+      ],
+      "exit_code": 0,
+      "log": "target/map-option-evidence/projected/h2-6a.log",
+      "log_sha256": "770870e6a365ea3d4e9696592dff8e6be7033ae14bdfe9699137c8d3acad9196",
+      "summary": [
+        "H2.6a emit acceptance: candidates=177 exact=174 known_diverging=1 deferred=2 repetitions=2"
+      ]
+    },
+    {
+      "name": "h2-6b",
+      "command": [
+        "cargo",
+        "xtask",
+        "h2-6b-acceptance"
+      ],
+      "exit_code": 0,
+      "log": "target/map-option-evidence/projected/h2-6b.log",
+      "log_sha256": "2603a5d46765ca20d64ae17a1cbf02966e9ae5ed2bfbc29d7331d5dafd4192da",
+      "summary": [
+        "H2.6b emit acceptance: candidates=6 exact=6 known_diverging=0 deferred=0 repetitions=2"
+      ]
+    },
+    {
+      "name": "h2-6c",
+      "command": [
+        "cargo",
+        "xtask",
+        "h2-6c-acceptance"
+      ],
+      "exit_code": 0,
+      "log": "target/map-option-evidence/projected/h2-6c.log",
+      "log_sha256": "50402a82f896db188294ccfe079e13a802e8bde4a277ebd5fc99ebc7bc3f85eb",
+      "summary": [
+        "H2.6c emit acceptance: candidates=643 exact=631 known_diverging=8 deferred=4 current_migrated_refusals=1 repetitions=2"
+      ]
+    },
+    {
+      "name": "witness-freshness",
+      "command": [
+        "node",
+        "crates/oracle/h2-6a-map-option-projection.mjs",
+        "--check"
+      ],
+      "exit_code": 0,
+      "log": "target/map-option-evidence/projected/witness-freshness.log",
+      "log_sha256": "43aa9f694b58d9805e28c98ef7b76032ceaec23379d3d925e5e32f077c8f20d6",
+      "summary": [
+        "--check: 31 option witnesses, two TypeScript observations each"
+      ]
+    },
+    {
+      "name": "harness-execution",
+      "exit_code": 0,
+      "summary": "14 passed; 0 failed",
+      "log_sha256": "f5d39586106ccbab39ceea55941d83b3af84292f00d0034db05df0acf05385bc"
+    }
+  ],
+  "preserved_initial_failure": {
+    "log": "target/map-option-evidence/projected/h2-6a-before-deletion.log",
+    "reason": "unadmitted H2.6b activity after restoring options",
+    "resolution": "reader qualifies existing external-map option activity from PreparedProgram; production admission and counters unchanged"
+  },
+  "pre_deletion_comparison": "   Compiling tsc-rs-xtask v0.1.0 (/Users/hiramatsu/dev/tsc-rs-map-option-projection/crates/xtask)\n    Finished `dev` profile [unoptimized] target(s) in 1.78s\n     Running `target/map-option-build/debug/xtask h2-6a-acceptance`\nH2.6a ordered acceptance pipeline: cases=177 workers=1\nH2.6a stale divergence-manifest entry: typescript-6.0.3/compiler/optionsSourcemapInlineSources.ts#default is exact now (shrink the manifest)\nH2.6a stale divergence-manifest entry: typescript-6.0.3/compiler/optionsSourcemapInlineSourcesMapRoot.ts#default is exact now (shrink the manifest)\nH2.6a stale divergence-manifest entry: typescript-6.0.3/compiler/optionsSourcemapInlineSourcesSourceRoot.ts#default is exact now (shrink the manifest)\n",
+  "integration": {
+    "required": "PR plus successful existing full cargo xtask acceptance before merge",
+    "authority": "PR checks and merge state; separate from this local receipt"
+  }
+}

@@ -268,18 +268,41 @@ fn current_map_floor_preserves_declaration_only_without_changing_earlier_floors(
     // Test both directive and typed-config projection, preserving absent vs false.
     // DeclarationFamily keeps its existing outFile/declarationMap exclusion.
     for declaration_only in [None, Some(false), Some(true)] {
-        for (floor, source_map, map_family, bundle_family, declaration_mode) in [
-            (EmitOptionFloor::Established, false, false, false, false),
-            (EmitOptionFloor::SourceMap, true, false, false, false),
-            (EmitOptionFloor::MapFamily, true, true, true, false),
+        for (floor, source_map, map_family, bom, bundle_family, declaration_mode) in [
+            (
+                EmitOptionFloor::Established,
+                false,
+                false,
+                false,
+                false,
+                false,
+            ),
+            (EmitOptionFloor::SourceMap, true, false, false, false, false),
+            (
+                EmitOptionFloor::SourceMapWithOptions,
+                true,
+                true,
+                false,
+                false,
+                false,
+            ),
+            (EmitOptionFloor::MapFamily, true, true, true, true, false),
             (
                 EmitOptionFloor::MapFamilyWithDeclarationOnly,
                 true,
                 true,
                 true,
                 true,
+                true,
             ),
-            (EmitOptionFloor::DeclarationFamily, true, true, false, true),
+            (
+                EmitOptionFloor::DeclarationFamily,
+                true,
+                true,
+                true,
+                false,
+                true,
+            ),
         ] {
             let mut settings = vec![
                 ("declaration", "true"),
@@ -312,7 +335,7 @@ fn current_map_floor_preserves_declaration_only_without_changing_earlier_floors(
                 inline_sources: map_family.then_some(true),
                 source_root: map_family.then(|| "/sources".to_owned()),
                 map_root: map_family.then(|| "/maps".to_owned()),
-                emit_bom: map_family.then_some(true),
+                emit_bom: bom.then_some(true),
                 out_file: bundle_family.then(|| "bundle.js".to_owned()),
                 declaration_map: bundle_family.then_some(true),
                 emit_declaration_only: declaration_mode.then_some(declaration_only).flatten(),

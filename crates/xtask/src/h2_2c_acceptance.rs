@@ -3616,17 +3616,19 @@ fn expected_declaration_members(case: &Value) -> Result<u64, Box<dyn Error>> {
         .count() as u64)
 }
 
-/// The 6a prepare: the shared 5g plan/VFS reconstruction with the
-/// `sourceMap` floor projected (the ca-1 oracle observed WITH maps; the
-/// established floor would leave every emit mapless — the ca-2 first
-/// sweep proved exactly that as 175 uniform write/emit-result facets).
+/// Reconstruct the map options observed by the frozen H2.6a oracle on both
+/// original routes. The historical SourceMap floor dropped embedded sources
+/// and roots that those inputs already requested; the separate floor keeps
+/// the mapless 5g/5h and broader 6b/6c contracts unchanged.
 fn prepare_h2_6a_case(
     workspace: &Path,
     case: &Value,
     inputs: &H2_5gExecutionInputs,
 ) -> Result<tsc_program::PreparedProgram, Box<dyn Error>> {
     match string(case, "execution_route")? {
-        "qualified-vfs" => case_input_with_floor(workspace, case, EmitOptionFloor::SourceMap),
+        "qualified-vfs" => {
+            case_input_with_floor(workspace, case, EmitOptionFloor::SourceMapWithOptions)
+        }
         "recorded-compiler-plan" => {
             let case_id = string(case, "case_id")?;
             let recorded = inputs
@@ -3644,7 +3646,7 @@ fn prepare_h2_6a_case(
                 workspace,
                 &recorded.plan,
                 limits(),
-                EmitOptionFloor::SourceMap,
+                EmitOptionFloor::SourceMapWithOptions,
             )?)
         }
         route => Err(failure(format!(
@@ -3690,6 +3692,17 @@ fn execute_h2_6a_case(
         }
     }
     let first_program = prepare_h2_6a_case(workspace, case, inputs)?;
+    // The frozen external-map inputs can request embedded sources and roots.
+    // execute.rs records that existing path as H2.6b activity. Reconstruct its
+    // qualification from effective options rather than accepting arbitrary
+    // later-slice activity or introducing a case-ID exception.
+    let options = first_program.compiler_options();
+    let inherits_map_option_activity = options.source_map == Some(true)
+        && options.inline_source_map != Some(true)
+        && options.declaration != Some(true)
+        && (options.inline_sources == Some(true)
+            || options.source_root.is_some()
+            || options.map_root.is_some());
     let second_program = first_program.clone();
     let first_session = ProgramSession::new(first_program);
     let harness_lib_bundle = first_session.prepare_harness_lib_bundle()?;
@@ -3729,10 +3742,14 @@ fn execute_h2_6a_case(
             "{case_id}: repeated Rust emit is not deterministic"
         )));
     }
-    // The unadmitted-runtime-slice guard with the H2.1a..H2.5h ladder plus
-    // H2.6a admitted for this lane.
+    // Keep the H2.1a..H2.6a activity floor, qualifying the already implemented
+    // H2.6b map-option path only when the reconstructed external-map input
+    // requests it. The full output comparator below is unchanged.
     let activity = first.h2_activity();
     for slice in H2RuntimeSlice::ALL {
+        if slice == H2RuntimeSlice::H2_6b && inherits_map_option_activity {
+            continue;
+        }
         if !matches!(
             slice,
             H2RuntimeSlice::H2_1a

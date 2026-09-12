@@ -81,15 +81,18 @@ pub fn load_compiler_no_emit(
 /// Which map-family options the fixture-settings projection admits.
 ///
 /// The established H2.5g/H2.5h acceptance floor DROPS the map family (both
-/// sides of those frozen bands are mapless); the H2.6a band projects only
-/// `sourceMap` (h2-6a-ca-2 — the ca-1 oracle observed WITH maps), and the
-/// H2.6b band projects the complete map family. H2.6c additionally retains
+/// sides of those frozen bands are mapless). H2.6a retains its observed map
+/// options through `SourceMapWithOptions`; `SourceMap` preserves the original
+/// ca-2 projection for its other callers. H2.6b projects the complete map
+/// family, including BOM/bundle options. H2.6c additionally retains
 /// `emitDeclarationOnly`, which its frozen TypeScript input already contains.
 /// Earlier map floors and the H2.7b declaration floor keep their existing scope.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum EmitOptionFloor {
     Established,
     SourceMap,
+    /// H2.6a input reconstruction, without BOM, bundle, or declaration maps.
+    SourceMapWithOptions,
     MapFamily,
     /// Current H2.6c map projection, including the original declaration-only mode.
     MapFamilyWithDeclarationOnly,
@@ -235,7 +238,7 @@ pub fn load_qualified_compiler_emit_with_symlinks(
             "failed to build qualified compiler fixture host: {host_error}"
         ))
     })?;
-    // h2-7b-m-2 fence amendment #3 (and its E14 correction): only the
+    // h2-7b-m-2 fence amendment #3 (and its E14 correction): the
     // declaration-family runner applies a virtual tsconfig found among the
     // case's files — the H2.7b census machine parses it
     // (`h2-7b-qualification.mjs`: parseJsonText + parseJsonSourceFileConfigFileContent
@@ -246,7 +249,13 @@ pub fn load_qualified_compiler_emit_with_symlinks(
     // other floors resolved `types`/`typeRoots` that those observations never
     // requested (hosted 5g: conformance/references/library-reference-13 lost
     // its frozen TS2592).
-    let virtual_config_paths = if floor == EmitOptionFloor::DeclarationFamily {
+    // H2.6a's new reconstruction floor also accepts config options. Its 177
+    // frozen inputs have no virtual config; independent config/directive
+    // witnesses establish this route without changing the historical floors.
+    let virtual_config_paths = if matches!(
+        floor,
+        EmitOptionFloor::DeclarationFamily | EmitOptionFloor::SourceMapWithOptions
+    ) {
         files
             .iter()
             .filter_map(|(path, _)| {
@@ -359,6 +368,7 @@ fn apply_emit_option_floor_to_config(options: &mut CompilerOptions, floor: EmitO
     if !matches!(
         floor,
         EmitOptionFloor::SourceMap
+            | EmitOptionFloor::SourceMapWithOptions
             | EmitOptionFloor::MapFamily
             | EmitOptionFloor::MapFamilyWithDeclarationOnly
             | EmitOptionFloor::DeclarationFamily
@@ -367,7 +377,8 @@ fn apply_emit_option_floor_to_config(options: &mut CompilerOptions, floor: EmitO
     }
     if !matches!(
         floor,
-        EmitOptionFloor::MapFamily
+        EmitOptionFloor::SourceMapWithOptions
+            | EmitOptionFloor::MapFamily
             | EmitOptionFloor::MapFamilyWithDeclarationOnly
             | EmitOptionFloor::DeclarationFamily
     ) {
@@ -375,6 +386,13 @@ fn apply_emit_option_floor_to_config(options: &mut CompilerOptions, floor: EmitO
         options.inline_sources = None;
         options.source_root = None;
         options.map_root = None;
+    }
+    if !matches!(
+        floor,
+        EmitOptionFloor::MapFamily
+            | EmitOptionFloor::MapFamilyWithDeclarationOnly
+            | EmitOptionFloor::DeclarationFamily
+    ) {
         options.emit_bom = None;
     }
     if !matches!(
@@ -776,6 +794,12 @@ fn project_compiler_options(
         })
         .unwrap_or_else(|| (CompilerOptions::default(), ProgramOptions::default(), false));
 
+    // The H2.6a reconstruction applies the same option floor to both input
+    // layers. Historical floors retain their existing config inheritance.
+    if floor == EmitOptionFloor::SourceMapWithOptions {
+        apply_emit_option_floor_to_config(&mut compiler_options, floor);
+    }
+
     // CompilerBaselineRunner's effective-options contract defaults this to
     // true only when the config did not supply a value. Fixture settings are
     // applied below and retain the final override.
@@ -1089,6 +1113,7 @@ fn apply_compiler_setting(
             if matches!(
                 floor,
                 EmitOptionFloor::SourceMap
+                    | EmitOptionFloor::SourceMapWithOptions
                     | EmitOptionFloor::MapFamily
                     | EmitOptionFloor::MapFamilyWithDeclarationOnly
                     | EmitOptionFloor::DeclarationFamily
@@ -1099,7 +1124,8 @@ fn apply_compiler_setting(
         "inlinesourcemap" => {
             if matches!(
                 floor,
-                EmitOptionFloor::MapFamily
+                EmitOptionFloor::SourceMapWithOptions
+                    | EmitOptionFloor::MapFamily
                     | EmitOptionFloor::MapFamilyWithDeclarationOnly
                     | EmitOptionFloor::DeclarationFamily
             ) {
@@ -1109,7 +1135,8 @@ fn apply_compiler_setting(
         "inlinesources" => {
             if matches!(
                 floor,
-                EmitOptionFloor::MapFamily
+                EmitOptionFloor::SourceMapWithOptions
+                    | EmitOptionFloor::MapFamily
                     | EmitOptionFloor::MapFamilyWithDeclarationOnly
                     | EmitOptionFloor::DeclarationFamily
             ) {
@@ -1119,7 +1146,8 @@ fn apply_compiler_setting(
         "sourceroot" => {
             if matches!(
                 floor,
-                EmitOptionFloor::MapFamily
+                EmitOptionFloor::SourceMapWithOptions
+                    | EmitOptionFloor::MapFamily
                     | EmitOptionFloor::MapFamilyWithDeclarationOnly
                     | EmitOptionFloor::DeclarationFamily
             ) {
@@ -1129,7 +1157,8 @@ fn apply_compiler_setting(
         "maproot" => {
             if matches!(
                 floor,
-                EmitOptionFloor::MapFamily
+                EmitOptionFloor::SourceMapWithOptions
+                    | EmitOptionFloor::MapFamily
                     | EmitOptionFloor::MapFamilyWithDeclarationOnly
                     | EmitOptionFloor::DeclarationFamily
             ) {

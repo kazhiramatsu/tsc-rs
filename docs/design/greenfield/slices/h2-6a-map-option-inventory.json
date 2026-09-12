@@ -1,0 +1,2320 @@
+{
+  "schema": 1,
+  "purpose": "Input inventory; no native parity claim",
+  "qualification": "ratchets/h2-6a-qualification.v1.json",
+  "qualification_sha256": "35515c5c0fe4c205e0542b79a9f211e6f4081982fdf752381e6a5315ff0cd254",
+  "count": 177,
+  "additional_map_option_rows": [
+    "typescript-6.0.3/compiler/optionsSourcemapInlineSources.ts#default",
+    "typescript-6.0.3/compiler/optionsSourcemapInlineSourcesMapRoot.ts#default",
+    "typescript-6.0.3/compiler/optionsSourcemapInlineSourcesSourceRoot.ts#default"
+  ],
+  "cases": [
+    {
+      "case_id": "typescript-6.0.3/compiler/contextualTyping.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "f8811d10cfd94f77f443c237028eb989979af81adfda9809a1c2a915e1efa110",
+        "f8811d10cfd94f77f443c237028eb989979af81adfda9809a1c2a915e1efa110"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/derivedClassConstructorWithExplicitReturns01.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "f0aec39a5c99d0c69a3979e48db8d225c117a00421f674b1d43f107f91ea189a",
+        "f0aec39a5c99d0c69a3979e48db8d225c117a00421f674b1d43f107f91ea189a"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/derivedClassConstructorWithExplicitReturns01.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "d7e678b746ce94407d6939b0f84d006cefa218512c048aec2214e8009552bdb1",
+        "d7e678b746ce94407d6939b0f84d006cefa218512c048aec2214e8009552bdb1"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/emptyFile-souremap.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "7948836f0cfce627d5a0ba0f8ac2dea2f870752844a5c067300fef1a166c701a",
+        "7948836f0cfce627d5a0ba0f8ac2dea2f870752844a5c067300fef1a166c701a"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/emptyFile-souremap.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "13cfece936af24fe42871bec6482ed1ffe4cca5369cbeeb43bea653a8454bb0f",
+        "13cfece936af24fe42871bec6482ed1ffe4cca5369cbeeb43bea653a8454bb0f"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/es5-souremap-amd.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "218d872c3ae65e3092bea45f84f2c3ebab19cd59cf5c27cd1244459b9f9a5129",
+        "218d872c3ae65e3092bea45f84f2c3ebab19cd59cf5c27cd1244459b9f9a5129"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/es5-souremap-amd.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "3e198d62e52e4ed2b305ebefa8744beac866954e68355be3f7ff8dd90e414350",
+        "3e198d62e52e4ed2b305ebefa8744beac866954e68355be3f7ff8dd90e414350"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/es6-sourcemap-amd.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "4450e528773221873667930b1f403a981c099ab26489c53ceb62d6d5763ac78a",
+        "4450e528773221873667930b1f403a981c099ab26489c53ceb62d6d5763ac78a"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsFileCompilationWithMapFileAsJs.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "08b1704920702b541d6f7a9c614e07983b38815070a2b13472a4826a569772ba",
+        "08b1704920702b541d6f7a9c614e07983b38815070a2b13472a4826a569772ba"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsxFactoryIdentifier.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "b11f015a5e8fdd99f18f5a8f1873c46f5dcadac2d26a682a9d950dd3a2a4a9ec",
+        "b11f015a5e8fdd99f18f5a8f1873c46f5dcadac2d26a682a9d950dd3a2a4a9ec"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsxFactoryIdentifierAsParameter.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "9b6b2d542d0bb3c7114bd6657519daf8c74d1551e1592ad85f3566f36883852e",
+        "9b6b2d542d0bb3c7114bd6657519daf8c74d1551e1592ad85f3566f36883852e"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsxFactoryIdentifierWithAbsentParameter.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "2f2e0be940348c24831f3de68545637088b0f86679c86cc308fd48d1ee5b8639",
+        "2f2e0be940348c24831f3de68545637088b0f86679c86cc308fd48d1ee5b8639"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsxFactoryQualifiedName.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "29a3b072e18aedecd39cb7d8552fe68948af9a2fe374bb7b638846911332706a",
+        "29a3b072e18aedecd39cb7d8552fe68948af9a2fe374bb7b638846911332706a"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsxFactoryQualifiedNameResolutionError.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "a64738661076b390de2217d99146ade51f56abb6e972e7e54c310ab54c79c8db",
+        "a64738661076b390de2217d99146ade51f56abb6e972e7e54c310ab54c79c8db"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/noCatchBlock.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "09230c7e5bf3c07027bfb945eca99935d4dfa168fb2a29c2a637988eaa676cd2",
+        "09230c7e5bf3c07027bfb945eca99935d4dfa168fb2a29c2a637988eaa676cd2"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/optionsSourcemapInlineSources.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true",
+        "inlinesources": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "1219a1cae8e683b38dc25ea8d94f8c9d72bb37bfa4065ac27886035590c39329",
+        "1219a1cae8e683b38dc25ea8d94f8c9d72bb37bfa4065ac27886035590c39329"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/optionsSourcemapInlineSourcesMapRoot.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true",
+        "inlinesources": "true",
+        "maproot": "local"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "4e03c0524b37a201d58cdd4cbb12ee34345acc9ff3b854be371a482864a4a562",
+        "4e03c0524b37a201d58cdd4cbb12ee34345acc9ff3b854be371a482864a4a562"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/optionsSourcemapInlineSourcesSourceRoot.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true",
+        "inlinesources": "true",
+        "sourceroot": "local"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "af25174e5075e944d5df4180a8a692a49ca1d615c38771a5738807d5c33a9ae1",
+        "af25174e5075e944d5df4180a8a692a49ca1d615c38771a5738807d5c33a9ae1"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/recursiveClassReferenceTest.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "5f24b4841a211d79838778971e0197f7f720dc301b0088221f481e28e2659634",
+        "5f24b4841a211d79838778971e0197f7f720dc301b0088221f481e28e2659634"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/restParameterWithBindingPattern1.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "751de7336d6d8173cdf02c13787042651e1d126ca7349fea8c0b99227b174f65",
+        "751de7336d6d8173cdf02c13787042651e1d126ca7349fea8c0b99227b174f65"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/restParameterWithBindingPattern2.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "ed63935e8136cc26ee06a031454ac97dfed75e3053526ef82e038e7160ec2a16",
+        "ed63935e8136cc26ee06a031454ac97dfed75e3053526ef82e038e7160ec2a16"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMap-Comment1.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "9506c93a4e9e55f7b7f30bbdf5ab71a6d4b5904ac73a9a5c624233f2cc50e565",
+        "9506c93a4e9e55f7b7f30bbdf5ab71a6d4b5904ac73a9a5c624233f2cc50e565"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMap-Comment1.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "2ac1ad415380d8984907244d79bbb711d836b4bf2dff00f2178b2a69a5ac028a",
+        "2ac1ad415380d8984907244d79bbb711d836b4bf2dff00f2178b2a69a5ac028a"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMap-Comments.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "6cc73ccdd87c0bf1ddb952fda58321ce07475b5f2d0c119176c0a4485fba83ab",
+        "6cc73ccdd87c0bf1ddb952fda58321ce07475b5f2d0c119176c0a4485fba83ab"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMap-Comments.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "1e3898eb52a1c658e75a0cedf0dc5382257964f600577409faff46a18daa903c",
+        "1e3898eb52a1c658e75a0cedf0dc5382257964f600577409faff46a18daa903c"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMap-Comments2.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "6d9046e44b313c86b508d9edac50e645f42eddb4874665bb76d481ff29c9291a",
+        "6d9046e44b313c86b508d9edac50e645f42eddb4874665bb76d481ff29c9291a"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMap-Comments2.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "22637e41ed04c8c7576b0b72e097e42396cf70ef72b79051f7f8de7b8832c3e0",
+        "22637e41ed04c8c7576b0b72e097e42396cf70ef72b79051f7f8de7b8832c3e0"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMap-EmptyFile1.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "fb35d7d48c8b817f0ce38fe0fff8cedf8319e92cf552dc5191cbd4ae2635892d",
+        "fb35d7d48c8b817f0ce38fe0fff8cedf8319e92cf552dc5191cbd4ae2635892d"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMap-EmptyFile1.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "614c094caa67859ee3db486100f304b5141d724baa96b3d2d16021b95f76dd2b",
+        "614c094caa67859ee3db486100f304b5141d724baa96b3d2d16021b95f76dd2b"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMap-FileWithComments.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "a8be6ec6d9e3b675f17eec6ceb1e8e2fbe0eede44b33ad24943a5192d443392f",
+        "a8be6ec6d9e3b675f17eec6ceb1e8e2fbe0eede44b33ad24943a5192d443392f"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMap-InterfacePrecedingVariableDeclaration1.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "6e7af041e3e0e3fdf6f826ea62644d94ea285e93118aa0c0ff4c7c8ad5558446",
+        "6e7af041e3e0e3fdf6f826ea62644d94ea285e93118aa0c0ff4c7c8ad5558446"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMap-InterfacePrecedingVariableDeclaration1.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "925d1df821fd8611169a745e59ed3b17ec77a445b102699fee82674ca1129db7",
+        "925d1df821fd8611169a745e59ed3b17ec77a445b102699fee82674ca1129db7"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMap-LineBreaks.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "702263586c1c721e6d4cfe2ece36bcfd4a4d1b29b2d590760bc0765ea1bc0de9",
+        "702263586c1c721e6d4cfe2ece36bcfd4a4d1b29b2d590760bc0765ea1bc0de9"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMap-LineBreaks.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "68ac7e82b541ff46b2fca6607e801025c87d69bb60a2c9eb0d62881495ca39e9",
+        "68ac7e82b541ff46b2fca6607e801025c87d69bb60a2c9eb0d62881495ca39e9"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMap-NewLine1.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "dcf55ecd32ee1cb36d4cc028c6e64314102f5bd393bef15525f7455914b1d126",
+        "dcf55ecd32ee1cb36d4cc028c6e64314102f5bd393bef15525f7455914b1d126"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMap-NewLine1.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "004ef7926cbc578aea255bba44ba9dc868312c68663d611eaeb5b346e449b1ef",
+        "004ef7926cbc578aea255bba44ba9dc868312c68663d611eaeb5b346e449b1ef"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMap-SemiColon1.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "b08128413fcf5d6821213fe89ba3620e669e36d8e1e1fc34efddcdd8ad580fd5",
+        "b08128413fcf5d6821213fe89ba3620e669e36d8e1e1fc34efddcdd8ad580fd5"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMap-SemiColon1.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "f01c70a70b5b861737a7fa926cda7c0732117f9b12a32ea92586909e659cb587",
+        "f01c70a70b5b861737a7fa926cda7c0732117f9b12a32ea92586909e659cb587"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMap-SingleSpace1.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "e07fe5fbe5b56a1444c3971669c985fdf07be25def515290ac9134eeab809650",
+        "e07fe5fbe5b56a1444c3971669c985fdf07be25def515290ac9134eeab809650"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMap-SingleSpace1.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "4c857f95297335e90ef3d1919f0a04f1294ba8f06208ba2b7bf20a5dc4f2099e",
+        "4c857f95297335e90ef3d1919f0a04f1294ba8f06208ba2b7bf20a5dc4f2099e"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMap-SkippedNode.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "500717e3984c28386a931fba0d130dc270f06ff70f90ee32d7965f53cb7ecd7a",
+        "500717e3984c28386a931fba0d130dc270f06ff70f90ee32d7965f53cb7ecd7a"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMap-StringLiteralWithNewLine.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "f4a93838dac34db8716a374cb45a1e0ac3328b011f57c4ac8fd14f8fcf40e37c",
+        "f4a93838dac34db8716a374cb45a1e0ac3328b011f57c4ac8fd14f8fcf40e37c"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMap-StringLiteralWithNewLine.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "610bfb5656fa18a4e2a24e0fb22353779eaf5379c6efe1dd4f967dbd2051e06a",
+        "610bfb5656fa18a4e2a24e0fb22353779eaf5379c6efe1dd4f967dbd2051e06a"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapForFunctionInInternalModuleWithCommentPrecedingStatement01.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "f36d75864629f507830d22ef5fb62c4b29ef0b9f95ab1bed935c38dbaca430b4",
+        "f36d75864629f507830d22ef5fb62c4b29ef0b9f95ab1bed935c38dbaca430b4"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapForFunctionWithCommentPrecedingStatement01.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "d520c4ad88bdefc8a1e697bed0a0fc2644f44d50a6c568dce7d65a2f8b8eaa3d",
+        "d520c4ad88bdefc8a1e697bed0a0fc2644f44d50a6c568dce7d65a2f8b8eaa3d"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapPercentEncoded.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "b4ce811aaebcd13036e7a4c4b5c6e0277cddf0be8391daecd921904852bace50",
+        "b4ce811aaebcd13036e7a4c4b5c6e0277cddf0be8391daecd921904852bace50"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapSample.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "0abb98532357e7dca93975c3513053ec401b530c6513653be9b2f748a16237ee",
+        "0abb98532357e7dca93975c3513053ec401b530c6513653be9b2f748a16237ee"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationClass.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "a708d2b03c76cba77067e8a77ac19c286ae3c7dbc22e50c58ddd8bf7283905be",
+        "a708d2b03c76cba77067e8a77ac19c286ae3c7dbc22e50c58ddd8bf7283905be"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationClass.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "049609e6dc130f25e5cb0b4659a0c76cd359b135e822778bcd0dbb3729c4a605",
+        "049609e6dc130f25e5cb0b4659a0c76cd359b135e822778bcd0dbb3729c4a605"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationClasses.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "3855a8016ce35dd9d99e84c9edcdc32de172479f83e96a08d9a61c6c40fbf854",
+        "3855a8016ce35dd9d99e84c9edcdc32de172479f83e96a08d9a61c6c40fbf854"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationClassWithDefaultConstructor.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "f3b9a6f0c1735e152c90e47f8112a6da232ddb2fe0ea43a5a9906cf004bee55a",
+        "f3b9a6f0c1735e152c90e47f8112a6da232ddb2fe0ea43a5a9906cf004bee55a"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationClassWithDefaultConstructorAndCapturedThisStatement.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "2a799fe1217adc523169b6b6abdc76929896364d6ff24acef674ffa506ea103d",
+        "2a799fe1217adc523169b6b6abdc76929896364d6ff24acef674ffa506ea103d"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationClassWithDefaultConstructorAndExtendsClause.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "f22c43022dfe7605b1194d2f3270ca7dcd8ed8dd588d6b4d59e0382db5b9e0af",
+        "f22c43022dfe7605b1194d2f3270ca7dcd8ed8dd588d6b4d59e0382db5b9e0af"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDebugger.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "abad514c9e1e0c294ed6e584dc11c346500ca3c9fb8d1511300adeacc8c0eb40",
+        "abad514c9e1e0c294ed6e584dc11c346500ca3c9fb8d1511300adeacc8c0eb40"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDecorators.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "c8e85b6d3a207fee0c76bbddd575526882c0e53cc6932bfa8daff30ac72313a5",
+        "c8e85b6d3a207fee0c76bbddd575526882c0e53cc6932bfa8daff30ac72313a5"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDecorators.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "c2fe15c611cf3599947db59c23859a8bdf93859bc156a1c8e1015db613326830",
+        "c2fe15c611cf3599947db59c23859a8bdf93859bc156a1c8e1015db613326830"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForArrayBindingPattern.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "e199af8ea077e2eaee7552630a00692b81a29f1d13f9ce6fadc24763693866b8",
+        "e199af8ea077e2eaee7552630a00692b81a29f1d13f9ce6fadc24763693866b8"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForArrayBindingPattern.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "d6eb8b21c432dde6d896a750ae71611ff87160a128fb4264f133e12c335e9cd7",
+        "d6eb8b21c432dde6d896a750ae71611ff87160a128fb4264f133e12c335e9cd7"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForArrayBindingPattern2.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "58db6f7ad34756b6502b12ee820e0a21ff4ec6c14a9e05bf726875cdbc144c61",
+        "58db6f7ad34756b6502b12ee820e0a21ff4ec6c14a9e05bf726875cdbc144c61"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForArrayBindingPattern2.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "398f3c64e3648bf43f65a23f2a9bac4d0ea72eab8e6eccaf814036de4e2315c0",
+        "398f3c64e3648bf43f65a23f2a9bac4d0ea72eab8e6eccaf814036de4e2315c0"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForArrayBindingPatternDefaultValues.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "13a1d80fa162400b19816a226c88186de96a3f48599f3d2d249e103c56837974",
+        "13a1d80fa162400b19816a226c88186de96a3f48599f3d2d249e103c56837974"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForArrayBindingPatternDefaultValues.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "7fa6fa2c0bafd9274bb6e05b6d8e4333dab81750ad89bdc918f193d12ebeb7e0",
+        "7fa6fa2c0bafd9274bb6e05b6d8e4333dab81750ad89bdc918f193d12ebeb7e0"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForArrayBindingPatternDefaultValues2.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "2b696e7234564396105a679d3252b3ed76888ac23f054932cf90e14a650b95e2",
+        "2b696e7234564396105a679d3252b3ed76888ac23f054932cf90e14a650b95e2"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForArrayBindingPatternDefaultValues2.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "8186a5b7a917edf001de63399efed569eb693caac2b10594d78e63017985ae6c",
+        "8186a5b7a917edf001de63399efed569eb693caac2b10594d78e63017985ae6c"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForObjectBindingPattern.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "a351089aeb3f23f80bb0391bcdeca803008041857c13761ab0c78be59dc2554d",
+        "a351089aeb3f23f80bb0391bcdeca803008041857c13761ab0c78be59dc2554d"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForObjectBindingPattern2.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "0603918164d7452fe1af49abadd7af2962c2aa4134fe5bab724644418a355523",
+        "0603918164d7452fe1af49abadd7af2962c2aa4134fe5bab724644418a355523"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForObjectBindingPatternDefaultValues.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "c9937d48f3f8b7e6d049a6f78dea93c3170610b389d61719ad542abed9c3a399",
+        "c9937d48f3f8b7e6d049a6f78dea93c3170610b389d61719ad542abed9c3a399"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForObjectBindingPatternDefaultValues2.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "1277dbff57f4844367b64cab3455ccfe44c67e1939b5f7b44a9cf586e4e7664a",
+        "1277dbff57f4844367b64cab3455ccfe44c67e1939b5f7b44a9cf586e4e7664a"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForOfArrayBindingPattern.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "ae312f0dfd76794e588f12dc209a405108f102d1d37cedbc1dc6b189bbb4573a",
+        "ae312f0dfd76794e588f12dc209a405108f102d1d37cedbc1dc6b189bbb4573a"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForOfArrayBindingPattern.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "afbc477be69441329e9d0a81685f14be494b05dc074f66bd730329c4f949f991",
+        "afbc477be69441329e9d0a81685f14be494b05dc074f66bd730329c4f949f991"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForOfArrayBindingPattern2.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "d21c0aaa5db4232c6cc2d0ee37fe603e6fb31afad3b380ea58f093de1475115e",
+        "d21c0aaa5db4232c6cc2d0ee37fe603e6fb31afad3b380ea58f093de1475115e"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForOfArrayBindingPattern2.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "6ced7c5792dd0632042efd2c66c6fd083caa00c71be65da969a4ae740430edae",
+        "6ced7c5792dd0632042efd2c66c6fd083caa00c71be65da969a4ae740430edae"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForOfArrayBindingPatternDefaultValues.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "dd105f1384127b76f18e185bc8471f3cc00c343668ab30ded9df850a2a15d970",
+        "dd105f1384127b76f18e185bc8471f3cc00c343668ab30ded9df850a2a15d970"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForOfArrayBindingPatternDefaultValues.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "89bb96033a7d79a4d23ddc1d295fff4a907bdd26b89d4b4f30c0682754406e70",
+        "89bb96033a7d79a4d23ddc1d295fff4a907bdd26b89d4b4f30c0682754406e70"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForOfArrayBindingPatternDefaultValues2.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "9937fb9388ab668b3c52fe3712e80e39523a021655403423d4e013684812202f",
+        "9937fb9388ab668b3c52fe3712e80e39523a021655403423d4e013684812202f"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForOfArrayBindingPatternDefaultValues2.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "7c64968612e5eb2a9a9dd59d5c9e06df6f6143f7ecb8d7260a52fdb79b9569a8",
+        "7c64968612e5eb2a9a9dd59d5c9e06df6f6143f7ecb8d7260a52fdb79b9569a8"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForOfObjectBindingPattern.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "3def9f53efc30a315f9429324f01bee8475196e6cd91e7aa96706a3c664d1fdf",
+        "3def9f53efc30a315f9429324f01bee8475196e6cd91e7aa96706a3c664d1fdf"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForOfObjectBindingPattern.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "f84fcf9f616d9ae366a25713c92d42d245b58436f83b25674493e33f6271598d",
+        "f84fcf9f616d9ae366a25713c92d42d245b58436f83b25674493e33f6271598d"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForOfObjectBindingPattern2.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "bdb463ee8dd3636155d2e8dcae37951c22be8e0f28e2e48bde074c772143b664",
+        "bdb463ee8dd3636155d2e8dcae37951c22be8e0f28e2e48bde074c772143b664"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForOfObjectBindingPattern2.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "a4c74681230f03781a726679d321f902ef556b7de0719623a7d3105059f33271",
+        "a4c74681230f03781a726679d321f902ef556b7de0719623a7d3105059f33271"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForOfObjectBindingPatternDefaultValues.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "47993012084b1e001961f3f49aa86eae23a25fa6333af6ba985703a34e93eadc",
+        "47993012084b1e001961f3f49aa86eae23a25fa6333af6ba985703a34e93eadc"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForOfObjectBindingPatternDefaultValues.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "548859eaaf978e556f24877cdaf440199c591a63d95d79481f240d1a7b8ba8b2",
+        "548859eaaf978e556f24877cdaf440199c591a63d95d79481f240d1a7b8ba8b2"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForOfObjectBindingPatternDefaultValues2.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "5f001fdab599e98ff682632ceaca50090d05c033ece104e072301d8eaca8e1ed",
+        "5f001fdab599e98ff682632ceaca50090d05c033ece104e072301d8eaca8e1ed"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForOfObjectBindingPatternDefaultValues2.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "e7ce7d5c68908d05ba7f81eea383177e4b82b5d687d43d6736e3d3a5072a44e2",
+        "e7ce7d5c68908d05ba7f81eea383177e4b82b5d687d43d6736e3d3a5072a44e2"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringParameterNestedObjectBindingPattern.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "e7a8ea8aea273dba69c40da42ef877dce5470d32c7ab86c9a8646e9473cdd2cf",
+        "e7a8ea8aea273dba69c40da42ef877dce5470d32c7ab86c9a8646e9473cdd2cf"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringParameterNestedObjectBindingPatternDefaultValues.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "cf8251999d1499f2188e6b4f9be9fc3997bd08002ac37de41b29bc9ad9309e03",
+        "cf8251999d1499f2188e6b4f9be9fc3997bd08002ac37de41b29bc9ad9309e03"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringParameterObjectBindingPattern.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "aca8fffc7f019d7e6b30d25ed461cd6aca6d470cfd9780fc6f00012d900bd31d",
+        "aca8fffc7f019d7e6b30d25ed461cd6aca6d470cfd9780fc6f00012d900bd31d"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringParameterObjectBindingPatternDefaultValues.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "b6c48a62a80b0c4a4e2d82d35205f5e4859d306b6f8a56c7526e84fee8f2abf8",
+        "b6c48a62a80b0c4a4e2d82d35205f5e4859d306b6f8a56c7526e84fee8f2abf8"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringParametertArrayBindingPattern.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "7d615aba7e7e9ebbe0cdf1a161016bd2ea1bfda32f6eb4b563188bfb09234d02",
+        "7d615aba7e7e9ebbe0cdf1a161016bd2ea1bfda32f6eb4b563188bfb09234d02"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringParametertArrayBindingPattern.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "1dcffc3e1da8c07f127353df85b77cc9da3a06555d581c6ba9d7a4ed27cf0fd5",
+        "1dcffc3e1da8c07f127353df85b77cc9da3a06555d581c6ba9d7a4ed27cf0fd5"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringParametertArrayBindingPattern2.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "ef58569f7f409ef2fea277dbacca0806db5a4e580a5119f27029dcc61f467c7e",
+        "ef58569f7f409ef2fea277dbacca0806db5a4e580a5119f27029dcc61f467c7e"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringParametertArrayBindingPattern2.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "4adb8a74bc54d764f89b032f16ea3f74772f8e00e04d7cd3d82c19bad4b46afb",
+        "4adb8a74bc54d764f89b032f16ea3f74772f8e00e04d7cd3d82c19bad4b46afb"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringParametertArrayBindingPatternDefaultValues.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "3c811f302b04af18292ed8ccddce8a2788ed82fd7c12da5b553d15302c35ce12",
+        "3c811f302b04af18292ed8ccddce8a2788ed82fd7c12da5b553d15302c35ce12"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringParametertArrayBindingPatternDefaultValues.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "5e96985578a3c02b0ee056fca049192b509e43c1b93c1df0684ef5a92b012335",
+        "5e96985578a3c02b0ee056fca049192b509e43c1b93c1df0684ef5a92b012335"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringParametertArrayBindingPatternDefaultValues2.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "23d88ace1f7bd17f63f6d239f59b4e6ea82dc2ed9178d533790ffdf9ac67e3e7",
+        "23d88ace1f7bd17f63f6d239f59b4e6ea82dc2ed9178d533790ffdf9ac67e3e7"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringParametertArrayBindingPatternDefaultValues2.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "93959310b89b659a2c36054139ff9dea2edb891cf5c096589ba3deff33a6b7fb",
+        "93959310b89b659a2c36054139ff9dea2edb891cf5c096589ba3deff33a6b7fb"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringVariableStatement.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "fceeb9fa2c1f9279f097c2a12db8476d69451815bab7b38582fa864a488bd6e5",
+        "fceeb9fa2c1f9279f097c2a12db8476d69451815bab7b38582fa864a488bd6e5"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringVariableStatement1.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "3cbdc107ff7d1806a93c08f33d6eaeedd9a62538c2101d2e6aa074f6e74cf167",
+        "3cbdc107ff7d1806a93c08f33d6eaeedd9a62538c2101d2e6aa074f6e74cf167"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringVariableStatementArrayBindingPattern.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "4ef887e07522475b631c29ee12ce9147a3d73e5f239e44975017af5b020d801c",
+        "4ef887e07522475b631c29ee12ce9147a3d73e5f239e44975017af5b020d801c"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringVariableStatementArrayBindingPattern.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "a998714e9b65fb7f437e8fd57d70a8b87971cfb5f78f95b5d59d623ecf371069",
+        "a998714e9b65fb7f437e8fd57d70a8b87971cfb5f78f95b5d59d623ecf371069"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringVariableStatementArrayBindingPattern2.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "d048eeb0af02f1be86b798d5718c6aca389015c2ed22986a8263bd2661ba22c7",
+        "d048eeb0af02f1be86b798d5718c6aca389015c2ed22986a8263bd2661ba22c7"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringVariableStatementArrayBindingPattern2.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "660a3062499ed7274af8c58d0d4b02e99d08435a91b15aad4f325924ae2a5a14",
+        "660a3062499ed7274af8c58d0d4b02e99d08435a91b15aad4f325924ae2a5a14"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringVariableStatementArrayBindingPattern3.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "fd4a6d6d83672302313a2c51a4d3f3205172314b72637d9503a9dcd88bf99215",
+        "fd4a6d6d83672302313a2c51a4d3f3205172314b72637d9503a9dcd88bf99215"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringVariableStatementArrayBindingPattern3.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "0d2e6849b2d2221a52a264cbdef0e11168ececa3389666fe0b8851744c4f71e7",
+        "0d2e6849b2d2221a52a264cbdef0e11168ececa3389666fe0b8851744c4f71e7"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringVariableStatementArrayBindingPattern4.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "c4cecd1bfda8a64f7231f6960c26d8f418b71393f4883b5b27b367041660e6f8",
+        "c4cecd1bfda8a64f7231f6960c26d8f418b71393f4883b5b27b367041660e6f8"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringVariableStatementArrayBindingPattern5.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "3a70f765ebd238b0459f8cd28c9986ae634056a01ef811364fe8f58d09758e60",
+        "3a70f765ebd238b0459f8cd28c9986ae634056a01ef811364fe8f58d09758e60"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringVariableStatementArrayBindingPattern6.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "2eb1b7a816597ca8b74b599ff0a409398024df6d424226650b3cb92f183bec59",
+        "2eb1b7a816597ca8b74b599ff0a409398024df6d424226650b3cb92f183bec59"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringVariableStatementArrayBindingPattern7.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "dcc4cd546bc6899fc70c55246ec9e97d8a824277bf0fb10ebdd51270d261ab8f",
+        "dcc4cd546bc6899fc70c55246ec9e97d8a824277bf0fb10ebdd51270d261ab8f"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringVariableStatementArrayBindingPatternDefaultValues.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "369208af2b3bedeae4c4f3e70cfca555ba64bf9ef27a6bd506f4b221759c93b7",
+        "369208af2b3bedeae4c4f3e70cfca555ba64bf9ef27a6bd506f4b221759c93b7"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringVariableStatementArrayBindingPatternDefaultValues.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "e08ddb108a992ca1e5a30bfffc6861d4b17cfc57c06ada5054c33ad656769b9c",
+        "e08ddb108a992ca1e5a30bfffc6861d4b17cfc57c06ada5054c33ad656769b9c"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringVariableStatementArrayBindingPatternDefaultValues2.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "3feacf542f4710e9d1a95e006df2e7c52c324b0ab62929a0f6e04389bb3224b3",
+        "3feacf542f4710e9d1a95e006df2e7c52c324b0ab62929a0f6e04389bb3224b3"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringVariableStatementArrayBindingPatternDefaultValues2.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "7d11dcd00f11d3ab4217740d454dd7993e0f6ce789c2cdad7beb59bfa4382d81",
+        "7d11dcd00f11d3ab4217740d454dd7993e0f6ce789c2cdad7beb59bfa4382d81"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringVariableStatementArrayBindingPatternDefaultValues3.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "c99782ddf7d2a4c44f97cf1ceded9e691bcaaadcfa21528eeea09aae3bbd79d2",
+        "c99782ddf7d2a4c44f97cf1ceded9e691bcaaadcfa21528eeea09aae3bbd79d2"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringVariableStatementArrayBindingPatternDefaultValues3.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "cc55e451de3fba74e1ca78c4bf8212f01932a73e29428dcc2c70fe7125630007",
+        "cc55e451de3fba74e1ca78c4bf8212f01932a73e29428dcc2c70fe7125630007"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringVariableStatementDefaultValues.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "abf86e752a1f7217227b9b0d9e0cb58783a280387a2c90d6b925bb259b5c00fe",
+        "abf86e752a1f7217227b9b0d9e0cb58783a280387a2c90d6b925bb259b5c00fe"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringVariableStatementNestedObjectBindingPattern.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "7e23004f046ddb80e0c3488b35ef2d74a4613f65a6dfcf5e7f124c1f0028c819",
+        "7e23004f046ddb80e0c3488b35ef2d74a4613f65a6dfcf5e7f124c1f0028c819"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringVariableStatementNestedObjectBindingPatternWithDefaultValues.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "f85328cf842e270b56ea3cc79a53667eb0453aa43671dd96200d7cbffc590f5b",
+        "f85328cf842e270b56ea3cc79a53667eb0453aa43671dd96200d7cbffc590f5b"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringVariableStatementObjectBindingPattern1.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "0b5e24190d11767da13f84dc0c529ee2056b8eab4d3f469fb167471ff7253ea5",
+        "0b5e24190d11767da13f84dc0c529ee2056b8eab4d3f469fb167471ff7253ea5"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringVariableStatementObjectBindingPattern2.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "d1c6d6044b48323e595dbcb334421fcbc704c21cfb1c7cfa55eb56df8948d4c3",
+        "d1c6d6044b48323e595dbcb334421fcbc704c21cfb1c7cfa55eb56df8948d4c3"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringVariableStatementObjectBindingPattern3.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "10a7a6e8898b56a0d33e043e655db8177393b7cbaee34cad78deaa29d1cdb129",
+        "10a7a6e8898b56a0d33e043e655db8177393b7cbaee34cad78deaa29d1cdb129"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringVariableStatementObjectBindingPattern4.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "3518aae2f6288ebf68d77919805611e57bf30b9f12f7fe14143ef7a9edcc2c29",
+        "3518aae2f6288ebf68d77919805611e57bf30b9f12f7fe14143ef7a9edcc2c29"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDo.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "ad3499c261de16d6d9011fb3f11c4b6089bb6446f69a35a5868aa38e38671e2d",
+        "ad3499c261de16d6d9011fb3f11c4b6089bb6446f69a35a5868aa38e38671e2d"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourcemapValidationDuplicateNames.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "071322e81409da78b6f2a66e0053b8e4e976c8c17512bd019b9cc4b9ae2fb3f2",
+        "071322e81409da78b6f2a66e0053b8e4e976c8c17512bd019b9cc4b9ae2fb3f2"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationEnums.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "1a19b0178ca4179de1d653f1f2bb5d06eade6bc502e615a5cb56f9092ea6d3b9",
+        "1a19b0178ca4179de1d653f1f2bb5d06eade6bc502e615a5cb56f9092ea6d3b9"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationExportAssignment.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "bef11c761df788059eef7c56f6bf6e0c68952d7f542ab05bd245974d3da2918a",
+        "bef11c761df788059eef7c56f6bf6e0c68952d7f542ab05bd245974d3da2918a"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationExportAssignmentCommonjs.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "3cb7be7b93660d25e84027406a7896155653efb89ceb95de1fc21fd169aa43a2",
+        "3cb7be7b93660d25e84027406a7896155653efb89ceb95de1fc21fd169aa43a2"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationFor.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "b370eaeca71221e08bba9a51fe1fef6ccd408a7a3be1b4a16d11e7056bb2b87b",
+        "b370eaeca71221e08bba9a51fe1fef6ccd408a7a3be1b4a16d11e7056bb2b87b"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationForIn.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "b4ee3cb9374b7cb77b014496b3701ac302df594377d8737ec34461775625bbf5",
+        "b4ee3cb9374b7cb77b014496b3701ac302df594377d8737ec34461775625bbf5"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationFunctionExpressions.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "710427576cc8e877064853df139531b8eea9d3ac4b062148da9fa758a5288342",
+        "710427576cc8e877064853df139531b8eea9d3ac4b062148da9fa758a5288342"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationFunctionPropertyAssignment.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "f09215987c9eef7e45f0897bfe7d544e05fdca4123b804c9bd4ada41a14f573b",
+        "f09215987c9eef7e45f0897bfe7d544e05fdca4123b804c9bd4ada41a14f573b"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationFunctions.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "36c3f6971ee0a3f5e44d6ec8066a6ed67bb94e45b7b3b6cb43e588a6b3ff209b",
+        "36c3f6971ee0a3f5e44d6ec8066a6ed67bb94e45b7b3b6cb43e588a6b3ff209b"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationIfElse.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "0e9f19d25952f3171a5c0ab58dfcc365417955eff14b29324200c23fd48dbfc9",
+        "0e9f19d25952f3171a5c0ab58dfcc365417955eff14b29324200c23fd48dbfc9"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationImport.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "8e9765cb1c04e7e2b9e57b0184fd2500ddbc89e28cf3d72c52e5eede10fa3cf8",
+        "8e9765cb1c04e7e2b9e57b0184fd2500ddbc89e28cf3d72c52e5eede10fa3cf8"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationLabeled.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "cb259227e1b12b6f80724f029fc477a62c297ce4e6ecb1cc24aa9c3fb2a8d76c",
+        "cb259227e1b12b6f80724f029fc477a62c297ce4e6ecb1cc24aa9c3fb2a8d76c"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationLambdaSpanningMultipleLines.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "60214cbcafca885afd4a9c840876baa054dcfca1f9df8525af677a33f57f52d9",
+        "60214cbcafca885afd4a9c840876baa054dcfca1f9df8525af677a33f57f52d9"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationModule.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "cab8854377b2568cbf4f1bea3a3041a06264fd01307c8d4c8d160bc81268ad4f",
+        "cab8854377b2568cbf4f1bea3a3041a06264fd01307c8d4c8d160bc81268ad4f"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationStatements.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "8f591bb0f13f2141526e31001343c61cbfefa7ae93af5eb982989771f06cf10f",
+        "8f591bb0f13f2141526e31001343c61cbfefa7ae93af5eb982989771f06cf10f"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationSwitch.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "9d65a2bcb1873a2ad7776b18c76d310acc7aa231e53305862b649dfcf6a65522",
+        "9d65a2bcb1873a2ad7776b18c76d310acc7aa231e53305862b649dfcf6a65522"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationTryCatchFinally.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "c3fc77717eae44b4c97c73829fcef8c6347fb72577b665ae003026dca2565a3c",
+        "c3fc77717eae44b4c97c73829fcef8c6347fb72577b665ae003026dca2565a3c"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationVariables.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "5c6b0aba1f81539b496b99ea9c55dcec657703279eff4a792074077504fcfbc9",
+        "5c6b0aba1f81539b496b99ea9c55dcec657703279eff4a792074077504fcfbc9"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationWhile.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "fc051912a8b11e630a540cbf56cb8c69c5c6f3e9c5d3500b5d41fd72c0083a80",
+        "fc051912a8b11e630a540cbf56cb8c69c5c6f3e9c5d3500b5d41fd72c0083a80"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationWithComments.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "dbcc6cd8ffa5367fa3cf7d11a156026bd0c496ccfbd4e7af6db06f057c4306e0",
+        "dbcc6cd8ffa5367fa3cf7d11a156026bd0c496ccfbd4e7af6db06f057c4306e0"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/templateLiteralsSourceMap.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "86e1325cb1d52017ed51c7a96520adf71698c27d89321e3a27c185872b172fb2",
+        "86e1325cb1d52017ed51c7a96520adf71698c27d89321e3a27c185872b172fb2"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/ternaryExpressionSourceMap.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "015f019aefece2229cc6092a145684d892aadcb4dec0652a596858eaa50f83d6",
+        "015f019aefece2229cc6092a145684d892aadcb4dec0652a596858eaa50f83d6"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/typeResolution.ts#default",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "15a826e584808d1b376c00bb01dc046dfeea9c930dc64d965c67e615ba45514c",
+        "15a826e584808d1b376c00bb01dc046dfeea9c930dc64d965c67e615ba45514c"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/unicodeEscapesInNames01.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "dbad5e96ed189ab154f2ca3b70d5e7b9306cb9ad7dee53a4850a3cdbbbc5fbc6",
+        "dbad5e96ed189ab154f2ca3b70d5e7b9306cb9ad7dee53a4850a3cdbbbc5fbc6"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/unicodeEscapesInNames01.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "759c3dc6e90d8b5b047d783c48cfdb1ea0b86db7896a9a6777ed1e296af0c009",
+        "759c3dc6e90d8b5b047d783c48cfdb1ea0b86db7896a9a6777ed1e296af0c009"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/unicodeEscapesInNames01.ts#target%3Desnext",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "68eccf994bd8df3ee71a715ce838cb882a6bf56a520065142fb33d68832f24d3",
+        "68eccf994bd8df3ee71a715ce838cb882a6bf56a520065142fb33d68832f24d3"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/unicodeEscapesInNames02.ts#target%3Des2015",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "deferred-to-slices",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "c669755694b5b58d03f6c469823388ac89a9ec8cb69ad3281c7682fd75402033",
+        "c669755694b5b58d03f6c469823388ac89a9ec8cb69ad3281c7682fd75402033"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/unicodeEscapesInNames02.ts#target%3Des5",
+      "execution_route": "recorded-compiler-plan",
+      "disposition": "deferred-to-slices",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "b4d00a71a742c8175d9ae4b2e886b08b989e306fc023fec5d223a792cec1a796",
+        "b4d00a71a742c8175d9ae4b2e886b08b989e306fc023fec5d223a792cec1a796"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es6/computedProperties/computedPropertyNamesSourceMap1_ES5.ts#target%3Des2015",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "1e36470fbe818adea7574d700bf5559e6d53e8af0f4bbcb83585ce92e0c104f4",
+        "1e36470fbe818adea7574d700bf5559e6d53e8af0f4bbcb83585ce92e0c104f4"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es6/computedProperties/computedPropertyNamesSourceMap1_ES5.ts#target%3Des5",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "e1be277ea483957b7292b7b4d7e263431ab485c9795407847cf17d2c65ff563d",
+        "e1be277ea483957b7292b7b4d7e263431ab485c9795407847cf17d2c65ff563d"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es6/computedProperties/computedPropertyNamesSourceMap1_ES6.ts#default",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "7dbacac1bfa06891edbd8738aafe436014224b78f1eba55310e5345e5cc5f835",
+        "7dbacac1bfa06891edbd8738aafe436014224b78f1eba55310e5345e5cc5f835"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es6/computedProperties/computedPropertyNamesSourceMap2_ES5.ts#target%3Des2015",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "c9cff7546aef6c7520ee5d2b58b4d1485f8b7e17c8072e94c17b18d65397fe3b",
+        "c9cff7546aef6c7520ee5d2b58b4d1485f8b7e17c8072e94c17b18d65397fe3b"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es6/computedProperties/computedPropertyNamesSourceMap2_ES5.ts#target%3Des5",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "724d09b3b826e531e03bffb057d18c02f215620d5c08d149d75dae4af17910b9",
+        "724d09b3b826e531e03bffb057d18c02f215620d5c08d149d75dae4af17910b9"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es6/computedProperties/computedPropertyNamesSourceMap2_ES6.ts#default",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "f2cdc7447cb23bd9b15e88a6cb45985fe054b75d55e6998e9f7fd1d3e8178e0b",
+        "f2cdc7447cb23bd9b15e88a6cb45985fe054b75d55e6998e9f7fd1d3e8178e0b"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsx/tsxEmit3.tsx#default",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "f63915348058c1f6f98e100120367e344890452c5234420c47783102fef03563",
+        "f63915348058c1f6f98e100120367e344890452c5234420c47783102fef03563"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of1.ts#target%3Des2015",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "698aeaf39cd44d7c7032367aa65b9823fd2deafcf1da769a85095e6ea8c7c49b",
+        "698aeaf39cd44d7c7032367aa65b9823fd2deafcf1da769a85095e6ea8c7c49b"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of1.ts#target%3Des5",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "1478762d866f2a2948689a3ef476c69c0740a6250681627ae714f9cf5545bfa2",
+        "1478762d866f2a2948689a3ef476c69c0740a6250681627ae714f9cf5545bfa2"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of13.ts#target%3Des2015",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "35bb5faf90ba68cb2021af34bdeaf13276373515278cfd61b83f02f4d71e143a",
+        "35bb5faf90ba68cb2021af34bdeaf13276373515278cfd61b83f02f4d71e143a"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of13.ts#target%3Des5",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "9d816b3704e4b789cf0d870f9ffccd65b528773f94de4a1a877500e3a34338e7",
+        "9d816b3704e4b789cf0d870f9ffccd65b528773f94de4a1a877500e3a34338e7"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of25.ts#target%3Des2015",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "c6a494269878eed1d0e6c5bb2889662dc15611b204480d44421130f4eef6aaa8",
+        "c6a494269878eed1d0e6c5bb2889662dc15611b204480d44421130f4eef6aaa8"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of25.ts#target%3Des5",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "2002e7568616eb782141227f8a1b9040dd7d8780c6e2d2bb344b60c905161614",
+        "2002e7568616eb782141227f8a1b9040dd7d8780c6e2d2bb344b60c905161614"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of26.ts#target%3Des2015",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "406cfff025353be12356ee5a878f912c71a68bfb83a8786874bf20e5b82ebb34",
+        "406cfff025353be12356ee5a878f912c71a68bfb83a8786874bf20e5b82ebb34"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of26.ts#target%3Des5",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "5a6271b6ce43175b22cdff50f8655663eee45198d0786b08d1017268360aa074",
+        "5a6271b6ce43175b22cdff50f8655663eee45198d0786b08d1017268360aa074"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of3.ts#target%3Des2015",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "3384f878dbd1ff2c5ce57da4d6a414e4ebf495283b2662cf98fb7d7c504aa557",
+        "3384f878dbd1ff2c5ce57da4d6a414e4ebf495283b2662cf98fb7d7c504aa557"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of3.ts#target%3Des5",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "9d8249c6906e8395029786d33941c9c296017b3b6c5b17690db8fd9edbed19cf",
+        "9d8249c6906e8395029786d33941c9c296017b3b6c5b17690db8fd9edbed19cf"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of33.ts#target%3Des2015",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "7f147f2b8195ce25e2a9b6e882f6f79182179ae407753ad8f2002a5b9faf4824",
+        "7f147f2b8195ce25e2a9b6e882f6f79182179ae407753ad8f2002a5b9faf4824"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of33.ts#target%3Des5",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "fdf62d1234e49186639bb19e556a7186437afb643d4f8b257c1d6948179ed058",
+        "fdf62d1234e49186639bb19e556a7186437afb643d4f8b257c1d6948179ed058"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of34.ts#target%3Des2015",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "b3c8cc548bb9637dcbbeec055910c23345ada3ecf8f9a3a88d0186b14395a0cc",
+        "b3c8cc548bb9637dcbbeec055910c23345ada3ecf8f9a3a88d0186b14395a0cc"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of34.ts#target%3Des5",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "5bbb5c71e6beb7e4f8361458f2d61749d2ceb7b6ca1aeb6c314afed7dee88c4a",
+        "5bbb5c71e6beb7e4f8361458f2d61749d2ceb7b6ca1aeb6c314afed7dee88c4a"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of35.ts#target%3Des2015",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "16d55340f3dc9a945f2b8b49751b268eec257dfb5c562d3303191fcf351850b6",
+        "16d55340f3dc9a945f2b8b49751b268eec257dfb5c562d3303191fcf351850b6"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of35.ts#target%3Des5",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "639ae2a2ab45d6540f9a4b9c933e22b66d5449c12203253df55215eaed35f763",
+        "639ae2a2ab45d6540f9a4b9c933e22b66d5449c12203253df55215eaed35f763"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of36.ts#target%3Des2015",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "b868dc4b102fd692b322e02a3c3f15c5ca3ee4731b4d9e0d67c6b56feba17782",
+        "b868dc4b102fd692b322e02a3c3f15c5ca3ee4731b4d9e0d67c6b56feba17782"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of36.ts#target%3Des5",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "1ff009ded2686f2967ad77cd75ef6755dbf0e4f216e4080ca30f98fe7794c046",
+        "1ff009ded2686f2967ad77cd75ef6755dbf0e4f216e4080ca30f98fe7794c046"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of8.ts#target%3Des2015",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "b5392dabd24ca05088363e542e42f18ad898ee1fc12269bf16a1e463b15a1efb",
+        "b5392dabd24ca05088363e542e42f18ad898ee1fc12269bf16a1e463b15a1efb"
+      ]
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of8.ts#target%3Des5",
+      "execution_route": "qualified-vfs",
+      "disposition": "admitted-for-execution",
+      "directive_map_options": {
+        "sourcemap": "true"
+      },
+      "virtual_config": null,
+      "frozen_typescript_runs": [
+        "7894bda9bb538d7a850f46a0fd793bb33db91d891ed94ecb342928a277129b62",
+        "7894bda9bb538d7a850f46a0fd793bb33db91d891ed94ecb342928a277129b62"
+      ]
+    }
+  ]
+}
