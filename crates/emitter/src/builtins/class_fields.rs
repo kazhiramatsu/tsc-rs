@@ -1,4 +1,7 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    rc::Rc,
+};
 
 use tsc_syntax::{
     try_visit_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind,
@@ -34,7 +37,21 @@ pub(super) fn transform_class_fields<'resolver>(
         use_define_for_class_fields: options.use_define_for_class_fields_effective(),
         class_aliases: BTreeMap::new(),
         legacy_decorators: options.experimental_decorators,
+        static_emit_environments: BTreeMap::new(),
+        static_this_substitution_enabled: false,
+        emit_environment: None,
+        should_substitute_this_with_class_this: false,
+        previous_should_substitute_this_with_class_this: false,
+        emit_frames: Vec::new(),
     })
+}
+
+/// The print-time state saved by `onEmitNode` for one advised node and
+/// restored when its emission completes.
+struct StaticThisEmitFrame {
+    environment: Option<Rc<downlevel::StaticEmitEnvironment>>,
+    should_substitute_this_with_class_this: bool,
+    previous_should_substitute_this_with_class_this: bool,
 }
 
 struct ClassFieldsTransformer<'resolver> {
@@ -43,6 +60,19 @@ struct ClassFieldsTransformer<'resolver> {
     use_define_for_class_fields: bool,
     class_aliases: BTreeMap<(u32, u32), downlevel::ClassBinding>,
     legacy_decorators: bool,
+    /// tsc's `lexicalEnvironmentMap`: the class environment of every
+    /// relocated static initializer/static block, keyed by its parse-tree
+    /// member (source, node).
+    static_emit_environments: BTreeMap<(u32, u32), Rc<downlevel::StaticEmitEnvironment>>,
+    /// `enabledSubstitutions & ClassStaticThisOrSuperReference`.
+    static_this_substitution_enabled: bool,
+    /// The print-time `lexicalEnvironment`.
+    emit_environment: Option<Rc<downlevel::StaticEmitEnvironment>>,
+    should_substitute_this_with_class_this: bool,
+    previous_should_substitute_this_with_class_this: bool,
+    /// One entry per advised node currently being emitted (`None` when the
+    /// node changed nothing), kept LIFO by the printer's before/after pairing.
+    emit_frames: Vec<Option<StaticThisEmitFrame>>,
 }
 
 impl Transformer for ClassFieldsTransformer<'_> {
@@ -98,7 +128,7 @@ impl Transformer for ClassFieldsTransformer<'_> {
         // every target: a decorated class with static private or
         // auto-accessor members is lowered at ES2022 and ESNext alike.
         if self.target < ScriptTarget::ES2022 || transform_private_static_elements {
-            downlevel::transform_source(
+            let needs_static_this_substitution = downlevel::transform_source(
                 context,
                 source,
                 self.resolver,
@@ -106,7 +136,11 @@ impl Transformer for ClassFieldsTransformer<'_> {
                 self.use_define_for_class_fields,
                 self.target >= ScriptTarget::ES2021,
                 &mut self.class_aliases,
+                &mut self.static_emit_environments,
             )?;
+            if needs_static_this_substitution {
+                self.enable_substitution_for_class_static_this_or_super_reference(context)?;
+            }
             return Ok(TransformRoot::SourceFile(source));
         }
         let mut visitor = ClassFieldsVisitor::new(
@@ -140,6 +174,12 @@ impl Transformer for ClassFieldsTransformer<'_> {
         hint: EmitHint,
         node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
+        // Every `this` token the printer emits is an expression; the harness
+        // passes `Unspecified` for non-identifier expression children, so the
+        // upstream `hint === Expression` routing maps to the token kind.
+        if context.arena().node(node)?.kind == SyntaxKind::ThisKeyword {
+            return self.substitute_this_expression(context, node);
+        }
         if self.class_aliases.is_empty()
             || hint != EmitHint::Expression
             || !matches!(context.arena().node(node)?.data, NodeData::Identifier(_))
@@ -199,8 +239,236 @@ impl Transformer for ClassFieldsTransformer<'_> {
         Ok(replacement)
     }
 
+    /// tsc-port: onEmitNode @6.0.3 (the enter half)
+    /// tsc-hash: 1161b16e8b4442cc1c614d88088cfc2bfa85c76753108d296f9a1572bba4328d
+    /// tsc-span: _tsc.js:97932-97982
+    ///
+    /// Upstream wraps `emitCallback`; the harness decomposes the wrap into
+    /// this before/after pair and keeps the frames LIFO.
+    fn before_emit_node(
+        &mut self,
+        context: &TransformationContext,
+        _hint: EmitHint,
+        node: TransformNode,
+    ) -> Result<(), TransformError> {
+        let arena = context.arena();
+        let original = arena.get_original_node(node);
+        if let Some(environment) = self
+            .static_emit_environments
+            .get(&(original.source().raw(), original.node().0))
+            .cloned()
+        {
+            let original_record = arena.node(original)?;
+            let should_substitute_this_with_class_this = original_record.kind
+                != SyntaxKind::ClassStaticBlockDeclaration
+                || !arena.metadata(original).is_some_and(|metadata| {
+                    metadata
+                        .internal_flags()
+                        .contains(InternalEmitFlags::TRANSFORM_PRIVATE_STATIC_ELEMENTS)
+                });
+            self.push_static_this_emit_frame(
+                Some(environment),
+                should_substitute_this_with_class_this,
+                self.should_substitute_this_with_class_this,
+            );
+            return Ok(());
+        }
+        let record = arena.node(node)?;
+        match record.kind {
+            SyntaxKind::FunctionExpression
+                if arena.node(original)?.kind == SyntaxKind::ArrowFunction
+                    || arena.metadata(node).is_some_and(|metadata| {
+                        metadata.flags().contains(EmitFlags::ASYNC_FUNCTION_BODY)
+                    }) =>
+            {
+                self.emit_frames.push(None);
+            }
+            SyntaxKind::FunctionExpression
+            | SyntaxKind::FunctionDeclaration
+            | SyntaxKind::Constructor
+            | SyntaxKind::GetAccessor
+            | SyntaxKind::SetAccessor
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::PropertyDeclaration => {
+                self.push_static_this_emit_frame(
+                    None,
+                    false,
+                    self.should_substitute_this_with_class_this,
+                );
+            }
+            SyntaxKind::ComputedPropertyName => {
+                // A computed name is evaluated in the enclosing class's
+                // environment; `previousShouldSubstituteThisWithClassThis`
+                // itself is retained.
+                let environment = self
+                    .emit_environment
+                    .as_ref()
+                    .and_then(|environment| environment.previous.clone());
+                self.push_static_this_emit_frame(
+                    environment,
+                    self.previous_should_substitute_this_with_class_this,
+                    self.previous_should_substitute_this_with_class_this,
+                );
+            }
+            _ => self.emit_frames.push(None),
+        }
+        Ok(())
+    }
+
+    /// tsc-port: onEmitNode @6.0.3 (the exit half)
+    /// tsc-hash: 1161b16e8b4442cc1c614d88088cfc2bfa85c76753108d296f9a1572bba4328d
+    /// tsc-span: _tsc.js:97932-97982
+    fn after_emit_node(
+        &mut self,
+        _context: &TransformationContext,
+        _hint: EmitHint,
+        _node: TransformNode,
+    ) -> Result<(), TransformError> {
+        if let Some(Some(frame)) = self.emit_frames.pop() {
+            self.emit_environment = frame.environment;
+            self.should_substitute_this_with_class_this = frame.should_substitute_this_with_class_this;
+            self.previous_should_substitute_this_with_class_this =
+                frame.previous_should_substitute_this_with_class_this;
+        }
+        Ok(())
+    }
+
     fn dispose(&mut self) {
         self.class_aliases.clear();
+        self.static_emit_environments.clear();
+        self.emit_environment = None;
+        self.emit_frames.clear();
+    }
+}
+
+impl ClassFieldsTransformer<'_> {
+    /// tsc-port: enableSubstitutionForClassStaticThisOrSuperReference @6.0.3
+    /// tsc-hash: 93c1b09343b2ae9dcd91cbcea8972a0ce53e0ef88f573cfcc97efb007335bfbd
+    /// tsc-span: _tsc.js:97583-97596
+    fn enable_substitution_for_class_static_this_or_super_reference(
+        &mut self,
+        context: &mut TransformationContext,
+    ) -> Result<(), TransformError> {
+        if self.static_this_substitution_enabled {
+            return Ok(());
+        }
+        self.static_this_substitution_enabled = true;
+        context.enable_substitution(SyntaxKind::ThisKeyword)?;
+        for kind in [
+            SyntaxKind::FunctionDeclaration,
+            SyntaxKind::FunctionExpression,
+            SyntaxKind::Constructor,
+            SyntaxKind::GetAccessor,
+            SyntaxKind::SetAccessor,
+            SyntaxKind::MethodDeclaration,
+            SyntaxKind::PropertyDeclaration,
+            SyntaxKind::ComputedPropertyName,
+        ] {
+            context.enable_emit_notification(kind)?;
+        }
+        Ok(())
+    }
+
+    /// Save the current print-time state and install the advised node's.
+    fn push_static_this_emit_frame(
+        &mut self,
+        environment: Option<Rc<downlevel::StaticEmitEnvironment>>,
+        should_substitute_this_with_class_this: bool,
+        previous_should_substitute_this_with_class_this: bool,
+    ) {
+        self.emit_frames.push(Some(StaticThisEmitFrame {
+            environment: self.emit_environment.take(),
+            should_substitute_this_with_class_this: self.should_substitute_this_with_class_this,
+            previous_should_substitute_this_with_class_this: self
+                .previous_should_substitute_this_with_class_this,
+        }));
+        self.emit_environment = environment;
+        self.should_substitute_this_with_class_this = should_substitute_this_with_class_this;
+        self.previous_should_substitute_this_with_class_this =
+            previous_should_substitute_this_with_class_this;
+    }
+
+    /// tsc-port: substituteThisExpression @6.0.3
+    /// tsc-hash: fe580d6ad40d937b029554021a83349f0de8c2320c6c1b061068e8e1aad1d78c
+    /// tsc-span: _tsc.js:97999-98017
+    ///
+    /// Parse-tree `this` inside relocated static initializers was already
+    /// replaced while visiting (the frame model of the downlevel visitor);
+    /// this print-time arm reaches the `this` a later pass synthesizes there,
+    /// such as the es2015 super-property call receiver, before the es2015
+    /// captured-`this` substitution can see it.
+    fn substitute_this_expression(
+        &mut self,
+        context: &mut TransformationContext,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        if !self.static_this_substitution_enabled {
+            return Ok(node);
+        }
+        let Some(data) = self
+            .emit_environment
+            .as_ref()
+            .and_then(|environment| environment.data.as_ref())
+        else {
+            return Ok(node);
+        };
+        let substitute_this = if self.should_substitute_this_with_class_this {
+            data.class_this.clone().or_else(|| data.class_constructor.clone())
+        } else {
+            data.class_constructor.clone()
+        };
+        if let Some(binding) = substitute_this {
+            let text = binding.printable_text(context).to_owned();
+            let replacement = {
+                let mut factory = context.substitution_factory()?;
+                let replacement = factory.create_node(
+                    node.source(),
+                    NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
+                        escaped_text: tsc_syntax::escape_leading_underscores(&text),
+                        text,
+                    }),
+                    TransformFlags::NONE,
+                )?;
+                factory.set_text_range(replacement, node)?;
+                replacement
+            };
+            context
+                .arena_mut()?
+                .set_original_node(replacement, Some(node))?;
+            binding.write_generated_metadata(context.arena_mut()?, replacement);
+            context
+                .arena_mut()?
+                .metadata_mut(replacement)
+                .add_flags(EmitFlags::NO_SUBSTITUTION);
+            return Ok(replacement);
+        }
+        if data.class_was_decorated && self.legacy_decorators {
+            let mut factory = context.substitution_factory()?;
+            let zero = factory.create_node(
+                node.source(),
+                NodeData::NumericLiteral(tsc_syntax::nodes::NumericLiteralData {
+                    text: "0".to_owned(),
+                }),
+                TransformFlags::NONE,
+            )?;
+            let void_zero = factory.create_node(
+                node.source(),
+                NodeData::VoidExpression(tsc_syntax::nodes::VoidExpressionData {
+                    expression: Some(zero.node()),
+                }),
+                TransformFlags::NONE,
+            )?;
+            return factory.create_node(
+                node.source(),
+                NodeData::ParenthesizedExpression(
+                    tsc_syntax::nodes::ParenthesizedExpressionData {
+                        expression: Some(void_zero.node()),
+                    },
+                ),
+                TransformFlags::NONE,
+            );
+        }
+        Ok(node)
     }
 }
 

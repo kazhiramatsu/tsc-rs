@@ -293,6 +293,8 @@ struct PrivateEnvironment {
     /// enclosing classes, but have no helper-backed slot of their own.
     untransformed_names: BTreeSet<String>,
     class_alias: Option<ClassBinding>,
+    /// `node.emitNode.classThis`: the decorator-supplied class identity.
+    class_this: Option<ClassBinding>,
     instance_brand: Option<ClassBinding>,
     static_receiver: Option<StaticReceiver>,
     static_super_policy: StaticSuperPolicy,
@@ -524,6 +526,35 @@ impl Drop for LoopBindingScopeGuard {
 struct StaticLexicalFacts {
     contains_this: bool,
     contains_super: bool,
+}
+
+/// Emit-time class lexical environment recorded for a relocated static
+/// initializer or static block (tsc's `lexicalEnvironmentMap`). The
+/// print-time `this` substitution clones its receiver for a `this` that a
+/// later pass synthesizes inside the relocated statement (the es2015
+/// super-property call receiver); parse-tree `this` was already replaced
+/// while visiting.
+///
+/// tsc-port: transformProperty @6.0.3
+/// tsc-hash: c4e9fbf0eb6953a64ba8257f83a5a79f3f8d904f06c12336d30b94ad5cdfd847
+/// tsc-span: _tsc.js:97488-97500
+pub(super) struct StaticEmitEnvironment {
+    /// `lexicalEnvironment.data`: absent when the class reached no facts and
+    /// allocated no constructor/class-this identity.
+    pub(super) data: Option<StaticEmitEnvironmentData>,
+    /// `lexicalEnvironment.previous`: the enclosing class's environment,
+    /// selected while a computed property name is printed.
+    pub(super) previous: Option<Rc<StaticEmitEnvironment>>,
+}
+
+#[derive(Clone)]
+pub(super) struct StaticEmitEnvironmentData {
+    pub(super) class_constructor: Option<ClassBinding>,
+    pub(super) class_this: Option<ClassBinding>,
+    pub(super) class_was_decorated: bool,
+    /// `getClassFacts(node) !== 0`: static field statements are recorded
+    /// only when the class has facts; static blocks are always recorded.
+    pub(super) has_class_facts: bool,
 }
 
 #[derive(Clone)]
@@ -896,7 +927,8 @@ pub(super) fn transform_source(
     use_define_for_class_fields: bool,
     finalize_names: bool,
     class_aliases: &mut BTreeMap<(u32, u32), ClassBinding>,
-) -> Result<(), TransformError> {
+    static_emit_environments: &mut BTreeMap<(u32, u32), Rc<StaticEmitEnvironment>>,
+) -> Result<bool, TransformError> {
     let root = context.arena().root(source)?;
     let mode = if use_define_for_class_fields {
         PublicFieldMode::DefineProperty
@@ -912,6 +944,7 @@ pub(super) fn transform_source(
         mode,
         tree_ownership,
         class_aliases,
+        static_emit_environments,
     );
     let transformed = visitor
         .visit(root.node())?
@@ -936,7 +969,7 @@ pub(super) fn transform_source(
         .context
         .arena_mut()?
         .replace_root(source, transformed)?;
-    Ok(())
+    Ok(visitor.static_this_substitution_needed)
 }
 
 struct DownlevelClassVisitor<'context, 'resolver, 'aliases> {
@@ -959,9 +992,18 @@ struct DownlevelClassVisitor<'context, 'resolver, 'aliases> {
     assigned_class_names: BTreeMap<NodeId, AssignedClassName>,
     tree_ownership: OriginalTreeOwnership,
     class_aliases: &'aliases mut BTreeMap<(u32, u32), ClassBinding>,
+    /// Environments of the classes currently being lowered (parallel to
+    /// `private_environments`), innermost last.
+    emit_environments: Vec<Rc<StaticEmitEnvironment>>,
+    /// tsc's `lexicalEnvironmentMap`, keyed by the parse-tree member.
+    static_emit_environments: &'aliases mut BTreeMap<(u32, u32), Rc<StaticEmitEnvironment>>,
+    /// `NeedsSubstitutionForThisInClassStaticField` was reached by a class:
+    /// the transformer enables the print-time `this` substitution.
+    static_this_substitution_needed: bool,
 }
 
 impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, 'aliases> {
+    #[allow(clippy::too_many_arguments)]
     fn new(
         context: &'context mut TransformationContext,
         source: TransformSourceId,
@@ -970,6 +1012,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         mode: PublicFieldMode,
         tree_ownership: OriginalTreeOwnership,
         class_aliases: &'aliases mut BTreeMap<(u32, u32), ClassBinding>,
+        static_emit_environments: &'aliases mut BTreeMap<(u32, u32), Rc<StaticEmitEnvironment>>,
     ) -> Self {
         Self {
             generated_bindings: GeneratedBindingScopes::new(
@@ -994,7 +1037,78 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             assigned_class_names: BTreeMap::new(),
             tree_ownership,
             class_aliases,
+            emit_environments: Vec::new(),
+            static_emit_environments,
+            static_this_substitution_needed: false,
         }
+    }
+
+    /// Enter the emit-time environment of the class whose private
+    /// environment is about to be pushed. The returned handle is recorded for
+    /// each relocated static statement of that class.
+    fn push_static_emit_environment(
+        &mut self,
+        environment: &PrivateEnvironment,
+    ) -> Rc<StaticEmitEnvironment> {
+        let has_data = environment.has_class_facts
+            || environment.class_alias.is_some()
+            || environment.class_this.is_some();
+        let data = has_data.then(|| StaticEmitEnvironmentData {
+            class_constructor: environment.class_alias.clone(),
+            class_this: environment.class_this.clone(),
+            class_was_decorated: environment.is_legacy_decorated,
+            has_class_facts: environment.has_class_facts,
+        });
+        let emit_environment = Rc::new(StaticEmitEnvironment {
+            data,
+            previous: self.emit_environments.last().cloned(),
+        });
+        self.emit_environments.push(Rc::clone(&emit_environment));
+        emit_environment
+    }
+
+    /// tsc-port: transformProperty @6.0.3 (the `lexicalEnvironmentMap` write)
+    /// tsc-hash: c4e9fbf0eb6953a64ba8257f83a5a79f3f8d904f06c12336d30b94ad5cdfd847
+    /// tsc-span: _tsc.js:97488-97500
+    ///
+    /// tsc-port: transformClassStaticBlockDeclaration @6.0.3 (the map write)
+    /// tsc-hash: 4b66f4eb4ef89a401f6a18d7e3e86ea9eae2f9521b1200735b6253d1b6db7240
+    /// tsc-span: _tsc.js:96649-96652
+    fn record_static_emit_environment(
+        &mut self,
+        statement: TransformNode,
+        original: TransformNode,
+        is_field: bool,
+        emit_environment: &Rc<StaticEmitEnvironment>,
+    ) -> Result<(), TransformError> {
+        if is_field {
+            // A static property is mapped only while the class has facts,
+            // and its transformed expression advises the emitter.
+            if !emit_environment
+                .data
+                .as_ref()
+                .is_some_and(|data| data.has_class_facts)
+            {
+                return Ok(());
+            }
+            let expression = match &self.context.arena().node(statement)?.data {
+                NodeData::ExpressionStatement(data) => data.expression,
+                _ => None,
+            };
+            if let Some(expression) = expression {
+                let expression = self.node(expression);
+                self.context
+                    .arena_mut()?
+                    .metadata_mut(expression)
+                    .add_flags(EmitFlags::ADVISE_ON_EMIT_NODE);
+            }
+        }
+        let key = self.context.arena().get_original_node(original);
+        self.static_emit_environments.insert(
+            (key.source().raw(), key.node().0),
+            Rc::clone(emit_environment),
+        );
+        Ok(())
     }
 
     fn visit(&mut self, id: NodeId) -> Result<Option<NodeId>, TransformError> {
@@ -1853,6 +1967,8 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             .name
             .and_then(|name| self.identifier_text(self.node(name)).map(str::to_owned));
         let preferred_class_this = self.class_this_binding(original);
+        let class_this = preferred_class_this.clone();
+        self.static_this_substitution_needed |= class_facts.static_facts.contains_this;
         let heritage_semantics = self.class_heritage_semantics(data.heritage_clauses)?;
         let private_plan = self.scan_private_environment(data.members)?;
         let instance_brand = self.allocate_instance_brand(&private_plan, class_name.as_deref())?;
@@ -1893,12 +2009,14 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         private_environment.has_class_facts = private_environment.is_legacy_decorated
             || reference_plan.needs_identity()
             || class_facts.will_hoist_initializers_to_constructor;
+        private_environment.class_this = class_this;
         data.members = self.stabilize_auto_accessor_names(data.members)?;
         if !self.selectively_transforms_private_static_elements() {
             if let Some(alias) = private_environment.class_alias.as_ref() {
                 self.register_class_alias(original, alias)?;
             }
         }
+        let emit_environment = self.push_static_emit_environment(&private_environment);
         self.private_environments.push(private_environment);
 
         let mut operations = self.plan_members(data.members)?;
@@ -1944,6 +2062,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             .private_environments
             .pop()
             .expect("class private environment remains balanced");
+        self.emit_environments.pop();
 
         if has_trailing_operations {
             let binding = match &class_name {
@@ -1958,7 +2077,11 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             )? {
                 trailing.push(pending);
             }
-            trailing.extend(self.materialize_static_operations(&binding, operations.static_)?);
+            trailing.extend(self.materialize_static_operations(
+                &binding,
+                operations.static_,
+                &emit_environment,
+            )?);
             if split_default_export {
                 let local_name =
                     class_name
@@ -2011,6 +2134,8 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             None
         };
         let preferred_class_this = self.class_this_binding(original);
+        let class_this = preferred_class_this.clone();
+        self.static_this_substitution_needed |= class_facts.static_facts.contains_this;
         let has_transformable_static_member =
             self.class_has_transformable_static_member(data.members)?;
         let already_has_named_evaluation = self.class_has_named_evaluation_member(data.members)?;
@@ -2090,8 +2215,10 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         private_environment.has_class_facts = private_environment.is_legacy_decorated
             || reference_plan.needs_identity()
             || class_facts.will_hoist_initializers_to_constructor;
+        private_environment.class_this = class_this;
         data.members = self.stabilize_auto_accessor_names(data.members)?;
         let private_expression_binding = private_environment.class_alias.clone();
+        let emit_environment = self.push_static_emit_environment(&private_environment);
         self.private_environments.push(private_environment);
         let mut operations = self.plan_members(data.members)?;
         let needs_expression_binding = (!self.selectively_transforms_private_static_elements()
@@ -2149,6 +2276,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             .private_environments
             .pop()
             .expect("class private environment remains balanced");
+        self.emit_environments.pop();
 
         // Named evaluation belongs to the same class-definition plan as
         // static fields. Legacy-decorator provenance can carry a runtime name
@@ -2212,9 +2340,11 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             };
             let mut trailing =
                 self.materialize_class_pending_statements(&mut operations.pending)?;
-            trailing.extend(
-                self.materialize_static_operations(&decorated.public_receiver, operations.static_)?,
-            );
+            trailing.extend(self.materialize_static_operations(
+                &decorated.public_receiver,
+                operations.static_,
+                &emit_environment,
+            )?);
             self.expanded_statements
                 .entry(decorated.owner.0)
                 .or_default()
@@ -2250,7 +2380,11 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 let initializer = self.set_original_and_range(assign_class, original)?;
                 let mut trailing =
                     self.materialize_class_pending_statements(&mut operations.pending)?;
-                trailing.extend(self.materialize_static_operations(&binding, operations.static_)?);
+                trailing.extend(self.materialize_static_operations(
+                    &binding,
+                    operations.static_,
+                    &emit_environment,
+                )?);
                 self.expanded_statements
                     .entry(owner.0)
                     .or_default()
@@ -2260,7 +2394,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         }
         let mut expressions = vec![assign_class];
         expressions.extend(self.materialize_class_pending_expressions(&mut operations.pending)?);
-        for statement in self.materialize_static_operations(&binding, operations.static_)? {
+        for statement in
+            self.materialize_static_operations(&binding, operations.static_, &emit_environment)?
+        {
             let NodeData::ExpressionStatement(data) =
                 self.context.arena().node(statement)?.data.clone()
             else {
@@ -3686,6 +3822,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             declarations: Vec::with_capacity(declarations.len()),
             untransformed_names,
             class_alias: class_alias.clone(),
+            class_this: None,
             instance_brand: instance_brand.clone(),
             static_receiver,
             static_super_policy,
@@ -6211,9 +6348,18 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         &mut self,
         class_name: &ClassBinding,
         operations: Vec<StaticOperation>,
+        emit_environment: &Rc<StaticEmitEnvironment>,
     ) -> Result<Vec<TransformNode>, TransformError> {
         let mut statements = Vec::with_capacity(operations.len());
         for operation in operations {
+            let recorded_original = match &operation {
+                StaticOperation::Field(operation) => Some((operation.original, true)),
+                StaticOperation::PrivateField(operation) => Some((operation.original, true)),
+                StaticOperation::NamedEvaluation { original, .. } => {
+                    original.map(|original| (original, false))
+                }
+                StaticOperation::Block { original, .. } => Some((*original, false)),
+            };
             let statement = match operation {
                 StaticOperation::Field(operation) => {
                     self.materialize_field_operation(&operation, Some(class_name))?
@@ -6263,6 +6409,14 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                     statement
                 }
             };
+            if let Some((original, is_field)) = recorded_original {
+                self.record_static_emit_environment(
+                    statement,
+                    original,
+                    is_field,
+                    emit_environment,
+                )?;
+            }
             statements.push(statement);
         }
         Ok(statements)
