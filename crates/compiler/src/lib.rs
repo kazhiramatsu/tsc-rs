@@ -2206,7 +2206,7 @@ fn push_programmatic_option_diagnostic(
             Some(location.length()),
             message.clone(),
         )
-        .with_file_path("")
+        .with_file_path(config_file.diagnostic_file_path())
     }));
 }
 

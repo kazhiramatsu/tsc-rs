@@ -694,7 +694,12 @@ pub fn validate_paths_option_diagnostics(
                 Some(location.span().length()),
                 message,
             )
-            .with_file_path(""),
+            .with_file_path(
+                program_options
+                    .config_file()
+                    .filter(|config| config.diagnostic_file_name() == location.file_name())
+                    .map_or("", |config| config.diagnostic_file_path()),
+            ),
             None => Diagnostic::new(None, None, None, message),
         });
     }
