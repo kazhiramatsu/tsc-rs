@@ -1256,6 +1256,158 @@ fn template_raw_text_decodes_to_lossless_utf16() {
 }
 
 #[test]
+fn template_raw_text_decodes_report_mode_escapes_and_guards_other_modes() {
+    // Two extended escapes forming a pair are two U+FFFD in the cooked
+    // String but one lossless pair (`"\u{D800}\u{DC00}" === "\u{10000}"`).
+    assert_eq!(
+        template_text_utf16("\u{FFFD}\u{FFFD}", Some("\\u{D800}\\u{DC00}")),
+        [0xD800, 0xDC00]
+    );
+    // Report mode (untagged): an octal escape cooks to its code and keeps
+    // the surrogate next to it.
+    assert_eq!(
+        template_text_utf16("\u{1}\u{FFFD}", Some("\\1\\u{D800}")),
+        [0x0001, 0xD800]
+    );
+    assert_eq!(
+        template_text_utf16("\08", Some("\\08")),
+        [0x0000, b'8' as u16]
+    );
+    assert_eq!(template_text_utf16("8", Some("\\8")), [b'8' as u16]);
+    // A tagged fragment kept the invalid escape verbatim: the decode
+    // disagrees outside surrogate positions and the cooked text wins.
+    assert_eq!(
+        template_text_utf16("\\1", Some("\\1")),
+        "\\1".encode_utf16().collect::<Vec<_>>()
+    );
+    assert_eq!(
+        template_text_utf16("\\u{D800}", Some("\\u{D800}\\u{D800}")),
+        "\\u{D800}".encode_utf16().collect::<Vec<_>>()
+    );
+    // Unescaped CR alone also cooks to LF in a template.
+    assert_eq!(
+        template_text_utf16("a\nb", Some("a\rb")),
+        "a\nb".encode_utf16().collect::<Vec<_>>()
+    );
+    // Malformed escapes keep their raw slice (report mode), then scanning
+    // resumes on the next character.
+    assert_eq!(
+        template_text_utf16("\\xZ\u{FFFD}", Some("\\xZ\\u{D800}")),
+        [b'\\' as u16, b'x' as u16, b'Z' as u16, 0xD800]
+    );
+}
+
+#[test]
+fn string_literal_raw_text_decodes_to_lossless_utf16() {
+    // The rows' shape: an extended escape naming a lone surrogate.
+    assert_eq!(string_literal_text_utf16("\u{FFFD}", "\\u{D800}"), [0xD800]);
+    assert_eq!(string_literal_text_utf16("\u{FFFD}", "\\u{DC00}"), [0xDC00]);
+    assert_eq!(string_literal_text_utf16("\u{FFFD}", "\\uD800"), [0xD800]);
+    assert_eq!(
+        string_literal_text_utf16("😀", "\\u{1F600}"),
+        [0xD83D, 0xDE00]
+    );
+    assert_eq!(
+        string_literal_text_utf16("\u{FFFD}\u{FFFD}", "\\uD800\\u{DC00}"),
+        [0xD800, 0xDC00]
+    );
+    // A real U+FFFD, spelled or literal, stays U+FFFD.
+    assert_eq!(string_literal_text_utf16("\u{FFFD}", "\\uFFFD"), [0xFFFD]);
+    assert_eq!(string_literal_text_utf16("\u{FFFD}", "\u{FFFD}"), [0xFFFD]);
+    // An escaped backslash is text, not an escape.
+    assert_eq!(
+        string_literal_text_utf16("\\u{D800}\u{FFFD}", "\\\\u{D800}\\u{D800}"),
+        "\\u{D800}"
+            .encode_utf16()
+            .chain([0xD800])
+            .collect::<Vec<_>>()
+    );
+    // Single-character escapes, quotes and `\0` before a digit.
+    assert_eq!(
+        string_literal_text_utf16(
+            "\u{8}\t\n\u{B}\u{C}\r'\"\0\u{0}1",
+            "\\b\\t\\n\\v\\f\\r\\'\\\"\\0\\u{0}1"
+        ),
+        [
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            b'\'' as u16,
+            b'"' as u16,
+            0,
+            0,
+            b'1' as u16
+        ]
+    );
+    // Line continuations cook to nothing (CRLF, LF, LS, PS).
+    assert_eq!(
+        string_literal_text_utf16("ab", "a\\\r\nb"),
+        "ab".encode_utf16().collect::<Vec<_>>()
+    );
+    assert_eq!(
+        string_literal_text_utf16("ab", "a\\\nb"),
+        "ab".encode_utf16().collect::<Vec<_>>()
+    );
+    assert_eq!(
+        string_literal_text_utf16("ab", "a\\\u{2028}b"),
+        "ab".encode_utf16().collect::<Vec<_>>()
+    );
+    // Report-mode invalid escapes: octal, decimal, malformed hex, digitless,
+    // out-of-range and unterminated extended escapes.
+    assert_eq!(
+        string_literal_text_utf16("\u{1}\u{FFFD}", "\\1\\u{D800}"),
+        [0x0001, 0xD800]
+    );
+    assert_eq!(string_literal_text_utf16("\u{FF}", "\\377"), [0o377]);
+    assert_eq!(
+        string_literal_text_utf16("\u{3F}7", "\\777"),
+        [0o77, b'7' as u16]
+    );
+    assert_eq!(string_literal_text_utf16("9", "\\9"), [b'9' as u16]);
+    assert_eq!(
+        string_literal_text_utf16("\\xZ\u{FFFD}", "\\xZ\\u{D800}"),
+        [b'\\' as u16, b'x' as u16, b'Z' as u16, 0xD800]
+    );
+    assert_eq!(
+        string_literal_text_utf16("\\u12G\u{FFFD}", "\\u12G\\u{D800}"),
+        "\\u12G".encode_utf16().chain([0xD800]).collect::<Vec<_>>()
+    );
+    assert_eq!(
+        string_literal_text_utf16("\\u{}", "\\u{}"),
+        "\\u{}".encode_utf16().collect::<Vec<_>>()
+    );
+    assert_eq!(
+        string_literal_text_utf16("\\u{110000}\u{FFFD}", "\\u{110000}\\u{D800}"),
+        "\\u{110000}"
+            .encode_utf16()
+            .chain([0xD800])
+            .collect::<Vec<_>>()
+    );
+    assert_eq!(
+        string_literal_text_utf16("\\u{D800", "\\u{D800"),
+        "\\u{D800".encode_utf16().collect::<Vec<_>>()
+    );
+    // A backslash at the end of the spelling (unterminated token) is nothing.
+    assert_eq!(
+        string_literal_text_utf16("a", "a\\"),
+        "a".encode_utf16().collect::<Vec<_>>()
+    );
+    // A value-changing synthesis never borrows the spelling.
+    assert_eq!(
+        string_literal_text_utf16("other", "\\u{D800}"),
+        "other".encode_utf16().collect::<Vec<_>>()
+    );
+    // The string grammar keeps an unescaped CR (only templates cook it).
+    assert_eq!(
+        string_literal_text_utf16("a\rb", "a\rb"),
+        "a\rb".encode_utf16().collect::<Vec<_>>()
+    );
+}
+
+#[test]
 fn jsdoc_parsing_mode_controls_preceding_comment_flag() {
     fn has_jsdoc_flag(text: &str, mode: JSDocParsingMode, is_typescript: bool) -> bool {
         let mut scanner = Scanner::new(text, LanguageVariant::Standard);

@@ -45,9 +45,9 @@ pub use parser::{
 };
 pub use scanner::{
     is_js_whitespace, is_line_break, is_whitespace_like, js_trim_start, scan_big_int_string,
-    scan_byte_tokens, scan_token_kinds, scan_tokens, skip_trivia, template_text_utf16,
-    BigIntStringScan, ByteTokenIter, ByteTokenRecord, CommentDirective, CommentDirectiveKind,
-    LanguageVariant, TokenRecord,
+    scan_byte_tokens, scan_token_kinds, scan_tokens, skip_trivia, string_literal_text_utf16,
+    template_text_utf16, BigIntStringScan, ByteTokenIter, ByteTokenRecord, CommentDirective,
+    CommentDirectiveKind, LanguageVariant, TokenRecord,
 };
 
 /// Return the keyword kind represented by an identifier's escaped text.
