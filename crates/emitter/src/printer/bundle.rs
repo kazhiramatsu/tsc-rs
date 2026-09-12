@@ -197,6 +197,9 @@ impl Printer {
         })
     }
 
+    /// The prologue directive's JavaScript value: the arena's lossless
+    /// literal reader (a node-owned value, the parsed spelling, or a clone's
+    /// original), else the cooked text.
     fn bundle_prologue_value(
         &self,
         transformation: &TransformationResult<'_>,
@@ -215,39 +218,12 @@ impl Printer {
         let NodeData::StringLiteral(data) = &transformation.arena().node(expression)?.data else {
             return Ok(None);
         };
-        if let Some(value) = transformation
-            .arena()
-            .literal_properties(expression)
-            .and_then(crate::LiteralNodeProperties::javascript_string_value)
-        {
-            return Ok(Some(value.code_units().to_vec()));
-        }
-        // The parser's UTF-8-facing token value cannot retain surrogate code
-        // units. A valid string literal has the same raw escape decoding as
-        // the existing lossless template-fragment side channel. Only borrow
-        // the original spelling when this literal retains its original value.
-        let original = transformation.arena().get_original_node(expression);
-        let record = transformation.arena().node(original)?;
-        if matches!(&record.data, NodeData::StringLiteral(original) if original.text == data.text) {
-            let source = transformation.arena().source(original.source())?.syntax();
-            if let SourceRange::Original(range) =
-                SourceRange::from_raw(record.pos, record.end, source.positions())?
-            {
-                let start = skip_trivia(source.text(), range.start().value() as usize);
-                if let Some(raw) = source.text().get(start..range.end().value() as usize) {
-                    if raw.len() >= 2
-                        && matches!(raw.as_bytes()[0], b'\'' | b'"')
-                        && raw.as_bytes().last() == raw.as_bytes().first()
-                    {
-                        return Ok(Some(tsc_syntax::template_text_utf16(
-                            &data.text,
-                            Some(&raw[1..raw.len() - 1]),
-                        )));
-                    }
-                }
-            }
-        }
-        Ok(Some(data.text.encode_utf16().collect()))
+        Ok(Some(
+            transformation
+                .arena()
+                .literal_code_units(expression)?
+                .unwrap_or_else(|| data.text.encode_utf16().collect()),
+        ))
     }
 
     fn write_bundle_prologue(

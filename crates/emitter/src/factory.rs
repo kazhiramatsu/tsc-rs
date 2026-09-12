@@ -566,6 +566,122 @@ impl TransformArena {
         Ok(self.literal_properties.entry(node).or_default())
     }
 
+    /// The JavaScript UTF-16 value of a string literal or template
+    /// fragment, lossless wherever the tree still knows it.
+    ///
+    /// tsc's `node.text` is a lossless JavaScript string. The Rust parse tree
+    /// stores the scanner's `String` (an unpaired surrogate is U+FFFD there,
+    /// `scanner.rs::utf16_encode_as_string`) and keeps the lossless
+    /// information in the source spelling, which the printer copies verbatim
+    /// for positioned parsed nodes. Producers that synthesize a literal from
+    /// another literal's value (`createStringLiteral(node.text)`) read the
+    /// value here instead of `text`. In order:
+    /// 1. a node-owned `javascript_string_value` (synthetic lossless nodes
+    ///    and their clones);
+    /// 2. a positioned string literal's own token spelling, decoded again
+    ///    with the string grammar (`string_literal_text_utf16`);
+    /// 3. a template fragment's stored `raw_text` (`template_text_utf16`);
+    /// 4. a synthesized string literal whose `original` is a parsed string
+    ///    literal with the same cooked `text` (the `cloneNode` shape: tsc
+    ///    copies `text` losslessly): that original's value;
+    /// 5. `None`: the cooked `text` is all the tree knows. A value-changing
+    ///    synthesis (a different `text`) never borrows a spelling, and every
+    ///    decode is accepted only where it agrees with the cooked text at
+    ///    each non-surrogate unit; nothing is inferred from a U+FFFD.
+    pub fn literal_code_units(
+        &self,
+        node: TransformNode,
+    ) -> Result<Option<Vec<u16>>, TransformError> {
+        if let Some(value) = self
+            .literal_properties(node)
+            .and_then(LiteralNodeProperties::javascript_string_value)
+        {
+            return Ok(Some(value.code_units().to_vec()));
+        }
+        let cooked = match &self.node(node)?.data {
+            NodeData::StringLiteral(data) => &data.text,
+            NodeData::NoSubstitutionTemplateLiteral(NoSubstitutionTemplateLiteralData {
+                text,
+                raw_text,
+            })
+            | NodeData::TemplateHead(TemplateHeadData { text, raw_text })
+            | NodeData::TemplateMiddle(TemplateMiddleData { text, raw_text })
+            | NodeData::TemplateTail(TemplateTailData { text, raw_text }) => {
+                return Ok(raw_text
+                    .as_deref()
+                    .map(|raw| tsc_syntax::template_text_utf16(text, Some(raw))));
+            }
+            _ => return Ok(None),
+        };
+        if let Some(units) = self.spelled_string_literal_units(node, cooked)? {
+            return Ok(Some(units));
+        }
+        let original = self.get_original_node(node);
+        if original == node {
+            return Ok(None);
+        }
+        let NodeData::StringLiteral(data) = &self.node(original)?.data else {
+            return Ok(None);
+        };
+        if data.text != *cooked {
+            return Ok(None);
+        }
+        if let Some(value) = self
+            .literal_properties(original)
+            .and_then(LiteralNodeProperties::javascript_string_value)
+        {
+            return Ok(Some(value.code_units().to_vec()));
+        }
+        self.spelled_string_literal_units(original, cooked)
+    }
+
+    /// Branch 2 of [`Self::literal_code_units`]: the token spelling of a
+    /// positioned string literal (leading trivia skipped; the closing quote
+    /// is stripped only when the token has one, so an unterminated literal
+    /// decodes its whole tail), replayed with the string grammar and
+    /// accepted only where it agrees with `cooked`.
+    fn spelled_string_literal_units(
+        &self,
+        node: TransformNode,
+        cooked: &str,
+    ) -> Result<Option<Vec<u16>>, TransformError> {
+        let record = self.node(node)?;
+        if !matches!(record.data, NodeData::StringLiteral(_)) {
+            return Ok(None);
+        }
+        let source = self.source(node.source())?.syntax();
+        let Ok(SourceRange::Original(range)) =
+            SourceRange::from_raw(record.pos, record.end, source.positions())
+        else {
+            return Ok(None);
+        };
+        let Ok(range) = range.without_leading_trivia(source.text(), source.positions()) else {
+            return Ok(None);
+        };
+        let Some(token) = source
+            .text()
+            .get(range.start().value() as usize..range.end().value() as usize)
+        else {
+            return Ok(None);
+        };
+        let bytes = token.as_bytes();
+        let Some(&quote) = bytes.first() else {
+            return Ok(None);
+        };
+        if !matches!(quote, b'"' | b'\'') {
+            return Ok(None);
+        }
+        let end = if bytes.len() >= 2 && bytes[bytes.len() - 1] == quote {
+            bytes.len() - 1
+        } else {
+            bytes.len()
+        };
+        Ok(Some(tsc_syntax::string_literal_text_utf16(
+            cooked,
+            &token[1..end],
+        )))
+    }
+
     /// cloneNode copies own properties after setOriginalNode merges emitNode.
     fn copy_literal_properties(&mut self, original: TransformNode, cloned: TransformNode) {
         if let Some(properties) = self.literal_properties.get(&original).cloned() {
