@@ -326,7 +326,8 @@ impl Transformer for ClassFieldsTransformer<'_> {
     ) -> Result<(), TransformError> {
         if let Some(Some(frame)) = self.emit_frames.pop() {
             self.emit_environment = frame.environment;
-            self.should_substitute_this_with_class_this = frame.should_substitute_this_with_class_this;
+            self.should_substitute_this_with_class_this =
+                frame.should_substitute_this_with_class_this;
             self.previous_should_substitute_this_with_class_this =
                 frame.previous_should_substitute_this_with_class_this;
         }
@@ -413,7 +414,9 @@ impl ClassFieldsTransformer<'_> {
             return Ok(node);
         };
         let substitute_this = if self.should_substitute_this_with_class_this {
-            data.class_this.clone().or_else(|| data.class_constructor.clone())
+            data.class_this
+                .clone()
+                .or_else(|| data.class_constructor.clone())
         } else {
             data.class_constructor.clone()
         };
@@ -460,11 +463,9 @@ impl ClassFieldsTransformer<'_> {
             )?;
             return factory.create_node(
                 node.source(),
-                NodeData::ParenthesizedExpression(
-                    tsc_syntax::nodes::ParenthesizedExpressionData {
-                        expression: Some(void_zero.node()),
-                    },
-                ),
+                NodeData::ParenthesizedExpression(tsc_syntax::nodes::ParenthesizedExpressionData {
+                    expression: Some(void_zero.node()),
+                }),
                 TransformFlags::NONE,
             );
         }

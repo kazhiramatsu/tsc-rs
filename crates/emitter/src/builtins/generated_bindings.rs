@@ -134,7 +134,9 @@ impl GeneratedBindingScopes {
     /// tsc-port: pushNameGenerationScope @6.0.3 (the ReuseTempVariableScope arm)
     /// tsc-hash: 75e640eff0f9e7b2d16c54e74bb57754277c93c13f82cd2954e427afaad2a1d0
     /// tsc-span: _tsc.js:120480-120492
-    pub(super) fn enter_naming_moment(&mut self) -> (GeneratedBindingScopeId, GeneratedBindingScopeId) {
+    pub(super) fn enter_naming_moment(
+        &mut self,
+    ) -> (GeneratedBindingScopeId, GeneratedBindingScopeId) {
         let previous = self.current;
         let scope = GeneratedBindingScopeId(self.scopes.len());
         self.scopes.push(GeneratedBindingScope {
@@ -372,7 +374,8 @@ impl GeneratedBindingScopes {
         role_suffix: &str,
         reserve_in_nested_scopes: bool,
     ) -> String {
-        let private_name = self.allocate_private_temp_with_role_suffix(role_suffix, &BTreeSet::new());
+        let private_name =
+            self.allocate_private_temp_with_role_suffix(role_suffix, &BTreeSet::new());
         let candidate = format!("{prefix}{private_name}");
         if self.reserve_in_current(candidate.clone(), true, reserve_in_nested_scopes) {
             return candidate;

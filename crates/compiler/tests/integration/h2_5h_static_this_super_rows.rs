@@ -52,7 +52,10 @@ fn static_this_super_rows_match_frozen_h2_5h_observations() {
     let mut failures = Vec::new();
     let mut executed = 0usize;
     for row in ROWS {
-        if filter.as_deref().is_some_and(|filter| !row.contains(filter)) {
+        if filter
+            .as_deref()
+            .is_some_and(|filter| !row.contains(filter))
+        {
             continue;
         }
         executed += 1;
@@ -278,7 +281,11 @@ fn compare(actual: &Value, expected: &Value) -> Vec<String> {
     }
     let expected_emit_diagnostics = expected_result["diagnostics"]
         .as_array()
-        .map(|list| list.iter().map(project_expected_diagnostic).collect::<Vec<_>>())
+        .map(|list| {
+            list.iter()
+                .map(project_expected_diagnostic)
+                .collect::<Vec<_>>()
+        })
         .unwrap_or_default();
     if actual_result["diagnostics"].as_array().unwrap() != &expected_emit_diagnostics {
         differences.push("emit result diagnostics differ".to_owned());
@@ -328,11 +335,7 @@ fn capture(row: &str, attempt: usize, actual: &Value, expected: &Value) {
             .map(|write| json!({"path": write["path"], "text": decode(write)}))
             .collect::<Vec<_>>())
     };
-    let name = row
-        .rsplit('/')
-        .next()
-        .unwrap()
-        .replace(['#', '%'], "_");
+    let name = row.rsplit('/').next().unwrap().replace(['#', '%'], "_");
     let value = json!({
         "case_id": row,
         "attempt": attempt,

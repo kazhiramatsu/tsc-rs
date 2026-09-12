@@ -3098,10 +3098,11 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                         None,
                     ),
                     _ => (
-                        self.generated_bindings.allocate_private_temp_with_role_suffix(
-                            "_accessor_storage",
-                            &used_private_names,
-                        ),
+                        self.generated_bindings
+                            .allocate_private_temp_with_role_suffix(
+                                "_accessor_storage",
+                                &used_private_names,
+                            ),
                         Some("_accessor_storage"),
                     ),
                 };
@@ -5033,7 +5034,10 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
 
     /// The `super` keyword of a super property/element access: the node
     /// tsc ranges its `Reflect.get` replacement to (`setTextRange(superProperty, node.expression)`).
-    fn super_access_receiver(&self, access: TransformNode) -> Result<TransformNode, TransformError> {
+    fn super_access_receiver(
+        &self,
+        access: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
         let receiver = match &self.context.arena().node(access)?.data {
             NodeData::PropertyAccessExpression(data) => data.expression,
             NodeData::ElementAccessExpression(data) => data.expression,
