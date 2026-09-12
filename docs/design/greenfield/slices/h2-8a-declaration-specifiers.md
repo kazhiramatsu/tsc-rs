@@ -124,9 +124,12 @@ facts, outcome/diagnostic debug representations and the frozen expected tuple;
 they are not a claim that a new shared JSON comparator was implemented. The
 existing complete-command comparator is reused without modification.
 
-Use a dedicated target, CARGO_BUILD_JOBS=2, CARGO_INCREMENTAL=0,
+Use a dedicated target, CARGO_BUILD_JOBS at most 2, CARGO_INCREMENTAL=0,
 CARGO_PROFILE_TEST_DEBUG=0, empty RUSTC_WRAPPER, and taskpolicy -b / nice -n 15.
-Run one heavy local command at a time across both worktrees. The primary command is:
+Run one heavy local command at a time in this worktree. Prefer serial execution
+across worktrees too; when the other independently operated worktree continues
+building without a shared execution lock, reduce this worktree to one build job.
+The receipts retain the actual environment for each run. The primary command is:
 
 ```sh
 cargo test --offline -p tsc-rs-compiler --test h2_8a_declaration_specifiers declaration_specifier -- --test-threads=1 --nocapture
@@ -160,3 +163,7 @@ before comparisons require no algorithm-body correction. There are no unresolved
 design items. Run `python3 scripts/check-h2-8a-declaration-specifiers.py --before-production`
 before step 1, and the same check without that flag after production changes.
 The before-only check additionally rejects any production drift from this base.
+
+Implementation and measurements are recorded separately in
+[the report](h2-8a-declaration-specifiers-report.md); the readiness manifest retains
+its pre-implementation state and authority pins.

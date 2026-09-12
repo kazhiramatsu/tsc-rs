@@ -1,0 +1,390 @@
+{
+  "version": 1,
+  "slice": "H2.8a-DECL-SPEC1",
+  "production_head": "da69d7e4a0cdba5789bf8636195c984c2572d2ca",
+  "passing_runs": {
+    "checker-units-v2": {
+      "head": "da69d7e4a0cdba5789bf8636195c984c2572d2ca",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "--offline",
+        "-p",
+        "tsc-rs-checker",
+        "-p",
+        "tsc-rs-compiler",
+        "--lib",
+        "--",
+        "node_builder::specifier::tests",
+        "node_builder::chains::tests",
+        "node_builder::statements::tests",
+        "--test-threads=1"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-declaration-specifiers/target/declaration-specifier-acceptance",
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_INCREMENTAL": "0",
+        "CARGO_PROFILE_TEST_DEBUG": "0",
+        "RUSTC_WRAPPER": "",
+        "TSRS_H2_5G_WORKERS": "2",
+        "TSRS_CONFORMANCE_WORKERS": "2",
+        "TSC_RS_DECLARATION_SPECIFIER_CAPTURE_DIR": "/Users/hiramatsu/dev/tsc-rs-declaration-specifiers/target/declaration-specifier-runs/checker-units-v2/captures",
+        "TSC_RS_H2_8A_FAILURE_DIR": "/Users/hiramatsu/dev/tsc-rs-declaration-specifiers/target/declaration-specifier-runs/checker-units-v2/original-failures"
+      },
+      "actual_exit": 0,
+      "finished_at": "2026-09-12T03:06:13.509658+00:00",
+      "prelaunch_sha256": "d3b450ec5f2855563151ad904cbb0113c32e688dd56b9854831c1f203cff44b4",
+      "log_sha256": "39ff6c6c059cbc2c0e773aea9bbe6fd301dc09391c8e75b9e294a4b83f6372ec",
+      "suite_results": [
+        [
+          "ok",
+          "28",
+          "0",
+          "0"
+        ],
+        [
+          "ok",
+          "0",
+          "0",
+          "0"
+        ]
+      ],
+      "source_unchanged_after_run": true,
+      "same_source_inputs_as_focused_after": true
+    },
+    "cfg-regressions-v1": {
+      "head": "da69d7e4a0cdba5789bf8636195c984c2572d2ca",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "test",
+        "--offline",
+        "-p",
+        "tsc-rs-compiler",
+        "--test",
+        "contracts",
+        "--",
+        "config_commands_match_complete_typescript_observations",
+        "config_diagnostic_routing_match_complete_typescript_observations",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-declaration-specifiers/target/declaration-specifier-acceptance",
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_INCREMENTAL": "0",
+        "CARGO_PROFILE_TEST_DEBUG": "0",
+        "RUSTC_WRAPPER": "",
+        "TSRS_H2_5G_WORKERS": "2",
+        "TSRS_CONFORMANCE_WORKERS": "2",
+        "TSC_RS_DECLARATION_SPECIFIER_CAPTURE_DIR": "/Users/hiramatsu/dev/tsc-rs-declaration-specifiers/target/declaration-specifier-runs/cfg-regressions-v1/captures",
+        "TSC_RS_H2_8A_FAILURE_DIR": "/Users/hiramatsu/dev/tsc-rs-declaration-specifiers/target/declaration-specifier-runs/cfg-regressions-v1/original-failures"
+      },
+      "actual_exit": 0,
+      "finished_at": "2026-09-12T03:07:53.587419+00:00",
+      "prelaunch_sha256": "c1b9eab8321e41df643f8ba7a05c363d5af01bcc5352d8606766e1358df29288",
+      "log_sha256": "f8e57b397f743bc8aebb7d75fda58f09e3de243dc4c38060837ae0b4addcb82a",
+      "suite_results": [
+        [
+          "ok",
+          "2",
+          "0",
+          "0"
+        ]
+      ],
+      "source_unchanged_after_run": true,
+      "same_source_inputs_as_focused_after": true
+    },
+    "quality-v1": {
+      "head": "da69d7e4a0cdba5789bf8636195c984c2572d2ca",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "python3",
+        "target/declaration-specifier-runs/tools/quality.py"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-declaration-specifiers/target/declaration-specifier-acceptance",
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_INCREMENTAL": "0",
+        "CARGO_PROFILE_TEST_DEBUG": "0",
+        "RUSTC_WRAPPER": "",
+        "TSRS_H2_5G_WORKERS": "2",
+        "TSRS_CONFORMANCE_WORKERS": "2",
+        "TSC_RS_DECLARATION_SPECIFIER_CAPTURE_DIR": "/Users/hiramatsu/dev/tsc-rs-declaration-specifiers/target/declaration-specifier-runs/quality-v1/captures",
+        "TSC_RS_H2_8A_FAILURE_DIR": "/Users/hiramatsu/dev/tsc-rs-declaration-specifiers/target/declaration-specifier-runs/quality-v1/original-failures"
+      },
+      "actual_exit": 0,
+      "finished_at": "2026-09-12T03:00:03.948653+00:00",
+      "prelaunch_sha256": "3f62dca26599e0de134d010bc5ce70ee00aabb3e91df11ef8b7cc6adae09befa",
+      "log_sha256": "b74e6b621aab424506abdd0f834f1d83619ef8ddaa3c6f315003b356fd347ec9",
+      "suite_results": [],
+      "source_unchanged_after_run": true,
+      "same_source_inputs_as_focused_after": true
+    },
+    "clippy-qualified-v1": {
+      "head": "da69d7e4a0cdba5789bf8636195c984c2572d2ca",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "15",
+        "cargo",
+        "clippy",
+        "--offline",
+        "-p",
+        "tsc-rs-checker",
+        "-p",
+        "tsc-rs-compiler",
+        "--lib",
+        "--test",
+        "h2_8a_declaration_specifiers",
+        "--no-deps",
+        "--",
+        "-D",
+        "warnings",
+        "-A",
+        "clippy::large_enum_variant"
+      ],
+      "environment": {
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-declaration-specifiers/target/declaration-specifier-acceptance",
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_INCREMENTAL": "0",
+        "CARGO_PROFILE_TEST_DEBUG": "0",
+        "RUSTC_WRAPPER": "",
+        "TSRS_H2_5G_WORKERS": "2",
+        "TSRS_CONFORMANCE_WORKERS": "2",
+        "TSC_RS_DECLARATION_SPECIFIER_CAPTURE_DIR": "/Users/hiramatsu/dev/tsc-rs-declaration-specifiers/target/declaration-specifier-runs/clippy-qualified-v1/captures",
+        "TSC_RS_H2_8A_FAILURE_DIR": "/Users/hiramatsu/dev/tsc-rs-declaration-specifiers/target/declaration-specifier-runs/clippy-qualified-v1/original-failures"
+      },
+      "actual_exit": 0,
+      "finished_at": "2026-09-12T03:14:17.397225+00:00",
+      "prelaunch_sha256": "acfb4bb2efab40197d1f9363aedb15677480ddf124fdf5bfa32cc01f3d78b56c",
+      "log_sha256": "b20dc3370e35bd4e4bec4bee6821bd402e318a5df4fd3198249eb540f78ff19f",
+      "suite_results": [],
+      "source_unchanged_after_run": true,
+      "same_source_inputs_as_focused_after": true
+    }
+  },
+  "checker_unit_binaries": [
+    {
+      "path": "/Users/hiramatsu/dev/tsc-rs-declaration-specifiers/target/declaration-specifier-runs/checker-units-v2/bin/tsc_checker-3038512b8503b558",
+      "sha256": "b12a44e558b2b5ad3296f7883695abffdea7fb756a92b336eaa6fdd355ae8f3b"
+    },
+    {
+      "path": "/Users/hiramatsu/dev/tsc-rs-declaration-specifiers/target/declaration-specifier-runs/checker-units-v2/bin/tsc_compiler-eeee4ec91abfc1a3",
+      "sha256": "55ae615d83c966ecbde161b1f965b0cdd78a6b1961b618658e43061b768d58b1"
+    }
+  ],
+  "cfg_case_and_binary_identities": {
+    "binary": {
+      "path": "/Users/hiramatsu/dev/tsc-rs-declaration-specifiers/target/declaration-specifier-runs/cfg-regressions-v1/bin/contracts-9e4a06810410a5d6",
+      "sha256": "0a7288b579c62bdf203ae2201ed6cc638c6121b94f6091b836494b6bfa5cbad3"
+    },
+    "case_repetitions": {
+      "h2-8b-config-commands/direct-recursive-order": 2,
+      "h2-8b-config-commands/extends-recursive-order": 2,
+      "h2-8b-config-commands/reversed-include-buckets": 2,
+      "h2-8b-config-commands/explicit-files-keep-order": 2,
+      "h2-8b-config-commands/inherited-config-dir-template": 2,
+      "h2-8b-config-commands/multiple-base-output-origin": 2,
+      "h2-8b-config-commands/inherited-compile-on-save-false": 2,
+      "h2-8b-config-commands/last-base-compile-on-save-false": 2,
+      "h2-8b-config-diagnostic-routing/direct-class": 2,
+      "h2-8b-config-diagnostic-routing/direct-dts-last": 2,
+      "h2-8b-config-diagnostic-routing/direct-dts-first": 2,
+      "h2-8b-config-diagnostic-routing/config-none-deprecated": 2,
+      "h2-8b-config-diagnostic-routing/config-none-semantic": 2,
+      "h2-8b-config-diagnostic-routing/config-outfile-deprecated": 2,
+      "h2-8b-config-diagnostic-routing/config-outfile-semantic": 2,
+      "h2-8b-config-diagnostic-routing/config-none-deprecated-blocked": 2
+    },
+    "complete_commands": 32
+  },
+  "test_target_discovery": {
+    "package": "tsc-rs-compiler",
+    "target": {
+      "kind": [
+        "test"
+      ],
+      "crate_types": [
+        "bin"
+      ],
+      "name": "h2_8a_declaration_specifiers",
+      "src_path": "/Users/hiramatsu/dev/tsc-rs-declaration-specifiers/crates/compiler/tests/h2_8a_declaration_specifiers.rs",
+      "edition": "2021",
+      "doc": false,
+      "doctest": false,
+      "test": true
+    },
+    "automatically_discovered": true
+  },
+  "strict_clippy": {
+    "runs": {
+      "clippy-v1": {
+        "head": "da69d7e4a0cdba5789bf8636195c984c2572d2ca",
+        "command": [
+          "taskpolicy",
+          "-b",
+          "nice",
+          "-n",
+          "15",
+          "cargo",
+          "clippy",
+          "--offline",
+          "-p",
+          "tsc-rs-checker",
+          "-p",
+          "tsc-rs-compiler",
+          "--lib",
+          "--test",
+          "h2_8a_declaration_specifiers",
+          "--no-deps",
+          "--",
+          "-D",
+          "warnings"
+        ],
+        "environment": {
+          "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-declaration-specifiers/target/declaration-specifier-acceptance",
+          "CARGO_BUILD_JOBS": "1",
+          "CARGO_INCREMENTAL": "0",
+          "CARGO_PROFILE_TEST_DEBUG": "0",
+          "RUSTC_WRAPPER": "",
+          "TSRS_H2_5G_WORKERS": "2",
+          "TSRS_CONFORMANCE_WORKERS": "2",
+          "TSC_RS_DECLARATION_SPECIFIER_CAPTURE_DIR": "/Users/hiramatsu/dev/tsc-rs-declaration-specifiers/target/declaration-specifier-runs/clippy-v1/captures",
+          "TSC_RS_H2_8A_FAILURE_DIR": "/Users/hiramatsu/dev/tsc-rs-declaration-specifiers/target/declaration-specifier-runs/clippy-v1/original-failures"
+        },
+        "actual_exit": 101,
+        "finished_at": "2026-09-12T03:09:26.998845+00:00",
+        "prelaunch_sha256": "6b8a0afe4ebd35a911f095eaa4f9c86ccc2ee3b8b97e71509d804d5c93337444",
+        "log_sha256": "38bffe7363f04d3f177b68ad0daf949bbbf9211b400d7a57e5ae975ed384879b",
+        "suite_results": [],
+        "source_unchanged_after_run": true
+      },
+      "clippy-base-v1": {
+        "head": "da69d7e4a0cdba5789bf8636195c984c2572d2ca",
+        "command": [
+          "taskpolicy",
+          "-b",
+          "nice",
+          "-n",
+          "15",
+          "cargo",
+          "clippy",
+          "--offline",
+          "-p",
+          "tsc-rs-checker",
+          "-p",
+          "tsc-rs-compiler",
+          "--lib",
+          "--test",
+          "h2_8a_declaration_specifiers",
+          "--no-deps",
+          "--",
+          "-D",
+          "warnings"
+        ],
+        "environment": {
+          "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-declaration-specifiers/target/declaration-specifier-acceptance",
+          "CARGO_BUILD_JOBS": "1",
+          "CARGO_INCREMENTAL": "0",
+          "CARGO_PROFILE_TEST_DEBUG": "0",
+          "RUSTC_WRAPPER": "",
+          "TSRS_H2_5G_WORKERS": "2",
+          "TSRS_CONFORMANCE_WORKERS": "2",
+          "TSC_RS_DECLARATION_SPECIFIER_CAPTURE_DIR": "/Users/hiramatsu/dev/tsc-rs-declaration-specifiers/target/declaration-specifier-runs/clippy-base-v1/captures",
+          "TSC_RS_H2_8A_FAILURE_DIR": "/Users/hiramatsu/dev/tsc-rs-declaration-specifiers/target/declaration-specifier-runs/clippy-base-v1/original-failures"
+        },
+        "actual_exit": 101,
+        "finished_at": "2026-09-12T03:12:19.159077+00:00",
+        "prelaunch_sha256": "396a1835be9b3827fd9d3622fa74d6e24953e54e833ff81d7411e8a2800f8895",
+        "log_sha256": "7232cdce7d084331767430c6d7a8a2c30c52984eaeed4c67bf87dec94a93b731",
+        "suite_results": [],
+        "source_unchanged_after_run": true
+      }
+    },
+    "diagnostic_body_sha256": "3f5d7f80a6e0721592a6ee0bb13b512dabf460a5f61eac841d5750325e08f01b",
+    "diagnostic_bodies_identical": true,
+    "lint": "clippy::large_enum_variant",
+    "owner": "crates/checker/src/engine.rs:1038 ExcessPropertyOutcome",
+    "base_projection": {
+      "base": "0aaf808bef9b0f5f64737821c63c273056dee2c4",
+      "files": [
+        {
+          "path": "crates/checker/src/lib.rs",
+          "backup": "target/declaration-specifier-runs/clippy-base-source-backup/0",
+          "candidate_sha256": "db4b16e5a09470933ca9877b39d3585637a7773f0781b54e261f446e5d040d2d",
+          "base_sha256": "c6a81fab3cf83b1fe913f34ddb4d23aa5d6563b0f6db1d29d00378bc232f8fd4"
+        },
+        {
+          "path": "crates/checker/src/node_builder/specifier.rs",
+          "backup": "target/declaration-specifier-runs/clippy-base-source-backup/1",
+          "candidate_sha256": "568a34df0f904e4d32f1e04294aac166bf3876a5968b551b6f11c49caf88e9b7",
+          "base_sha256": "259b03b0d6a124915ef9f4559552243a59a9869b818e208d9944b16f7d3718f8"
+        },
+        {
+          "path": "crates/compiler/src/lib.rs",
+          "backup": "target/declaration-specifier-runs/clippy-base-source-backup/2",
+          "candidate_sha256": "f1f5df8629f5c29b23448b522f24a5c1b4fc76b29a64397ae7efa3aa688c48ee",
+          "base_sha256": "c930107054c3fb3dd9fe146de37488ea4b4f4c891cc538811e9b9c95ede6fad1"
+        }
+      ]
+    },
+    "candidate_restored_byte_identically": true,
+    "scope": "All candidate and base production source equals the respective commits; the same candidate test inputs are retained. Branch history is not rewritten. Strict clippy is not reported as passing."
+  },
+  "aborted_preparation": {
+    "head": "da69d7e4a0cdba5789bf8636195c984c2572d2ca",
+    "command": [
+      "taskpolicy",
+      "-b",
+      "nice",
+      "-n",
+      "15",
+      "cargo",
+      "test",
+      "--offline",
+      "-p",
+      "tsc-rs-checker",
+      "--lib",
+      "--",
+      "node_builder::specifier::tests",
+      "node_builder::chains::tests",
+      "node_builder::statements::tests",
+      "--test-threads=1"
+    ],
+    "environment": {
+      "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-declaration-specifiers/target/declaration-specifier-acceptance",
+      "CARGO_BUILD_JOBS": "1",
+      "CARGO_INCREMENTAL": "0",
+      "CARGO_PROFILE_TEST_DEBUG": "0",
+      "RUSTC_WRAPPER": "",
+      "TSRS_H2_5G_WORKERS": "2",
+      "TSRS_CONFORMANCE_WORKERS": "2",
+      "TSC_RS_DECLARATION_SPECIFIER_CAPTURE_DIR": "/Users/hiramatsu/dev/tsc-rs-declaration-specifiers/target/declaration-specifier-runs/checker-units-v1/captures",
+      "TSC_RS_H2_8A_FAILURE_DIR": "/Users/hiramatsu/dev/tsc-rs-declaration-specifiers/target/declaration-specifier-runs/checker-units-v1/original-failures"
+    },
+    "actual_exit": -15,
+    "finished_at": "2026-09-12T02:56:20.318960+00:00",
+    "prelaunch_sha256": "a9e6dcf768233df4f5eb90ea65ab02956afcd0ccbcbd0e19d5e0d816afbd283a",
+    "log_sha256": "187fcc888b8efa6de39766fe77b27fed682e1490be2dd956bb63b2025b2953a8",
+    "suite_results": [],
+    "source_unchanged_after_run": true,
+    "disposition": "Stopped the checker-only preparation build before tests started; compiler package selection preserves the existing serde feature union and avoids an unrelated emitter rebuild. Not a passing or failing unit-test result."
+  },
+  "hosted_acceptance": "Not run by these local commands; use the pull request gates job for hosted qualification."
+}
