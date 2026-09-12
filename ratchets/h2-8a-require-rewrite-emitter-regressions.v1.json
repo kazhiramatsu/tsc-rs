@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "status": "affected-emitter-suites-passed",
+  "measured_head": "bf7335065bbbe396f0f58f7de75961bddd4f1d11",
+  "run_directory": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-emitter-regressions",
+  "command": [
+    "cargo",
+    "test",
+    "--offline",
+    "--manifest-path",
+    "crates/emitter/Cargo.toml",
+    "--lib",
+    "--test",
+    "contracts",
+    "--test",
+    "comma_list_printer_contract",
+    "--test",
+    "emit_pipeline_phases_contract",
+    "--",
+    "--test-threads=1"
+  ],
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-review-artifacts",
+    "CARGO_BUILD_JOBS": "2",
+    "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-emitter-regressions/captures"
+  },
+  "archive": {
+    "path": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-emitter-regressions/source-and-inputs.tar.gz",
+    "sha256": "feabd961ce7e16fe2fa047b0e0bbbd95fb2edc287ba0d1630d1a05d17e328f24"
+  },
+  "execution": {
+    "prelaunch_sha256": "0c1ff059dcc43468f0ccbb6802ac948ea25df0bc7e759861da3a03ef45d26a1a",
+    "actual_exit": 0,
+    "log_sha256": "2f0a2b2f78f32bb0662012c1f69e716efd5e788f0dc0dd9b20786d513220beb5",
+    "executed_binaries": {
+      "target/dec-next-review-artifacts/debug/deps/tsc_emitter-221a698c259a056a": "3d5d56dccabcf3e0553b4aaff96979f5ab7264680120362c4943edb2dde5d969",
+      "target/dec-next-review-artifacts/debug/deps/comma_list_printer_contract-8791602788c05b2c": "7ab5c67557ae0bba13d9bf18129a0dd760ea5172cf430d60e890ae16dac9fd00",
+      "target/dec-next-review-artifacts/debug/deps/contracts-f64a19b8f0cd5475": "677b28a59a74e2889ece3415df7ad0162bc8c19887e655c95d9bd93002674438",
+      "target/dec-next-review-artifacts/debug/deps/emit_pipeline_phases_contract-a134aef84752e25a": "021e19cf25c4b9f8d3e55e31a3cc083e7b4529b80469f10429f3f9c45e9ce978"
+    },
+    "archived_binaries": {
+      "target/dec-next-runs/require-rewrite-emitter-regressions/binaries/tsc_emitter-221a698c259a056a": {
+        "executed_path": "target/dec-next-review-artifacts/debug/deps/tsc_emitter-221a698c259a056a",
+        "sha256": "3d5d56dccabcf3e0553b4aaff96979f5ab7264680120362c4943edb2dde5d969"
+      },
+      "target/dec-next-runs/require-rewrite-emitter-regressions/binaries/comma_list_printer_contract-8791602788c05b2c": {
+        "executed_path": "target/dec-next-review-artifacts/debug/deps/comma_list_printer_contract-8791602788c05b2c",
+        "sha256": "7ab5c67557ae0bba13d9bf18129a0dd760ea5172cf430d60e890ae16dac9fd00"
+      },
+      "target/dec-next-runs/require-rewrite-emitter-regressions/binaries/contracts-f64a19b8f0cd5475": {
+        "executed_path": "target/dec-next-review-artifacts/debug/deps/contracts-f64a19b8f0cd5475",
+        "sha256": "677b28a59a74e2889ece3415df7ad0162bc8c19887e655c95d9bd93002674438"
+      },
+      "target/dec-next-runs/require-rewrite-emitter-regressions/binaries/emit_pipeline_phases_contract-a134aef84752e25a": {
+        "executed_path": "target/dec-next-review-artifacts/debug/deps/emit_pipeline_phases_contract-a134aef84752e25a",
+        "sha256": "021e19cf25c4b9f8d3e55e31a3cc083e7b4529b80469f10429f3f9c45e9ce978"
+      }
+    },
+    "inputs_changed_during_run": []
+  },
+  "production": {
+    "crates/emitter/src/builtins.rs": "b38610cbd1bf1d1f2e3b8031d692ba219fbd2764dcee849749673e98f9aee948",
+    "crates/emitter/src/builtins/relative_imports.rs": "7e8f1ef6be5c49e74c51eddfa51ad6f22325cb438f3806b0f0b4e438655ee845",
+    "crates/emitter/src/printer.rs": "19e86ada05da10ae20c6d021139c8d6e988085a492bd92117765f6e509a23ea1"
+  },
+  "suites": {
+    "unit": 495,
+    "comma_list_printer_contract": 1,
+    "contracts": 452,
+    "emit_pipeline_phases_contract": 1
+  },
+  "total_passed": 949
+}

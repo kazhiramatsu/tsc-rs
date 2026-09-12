@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "status": "strict-clippy-existing-findings-only",
+  "measured_head": "bf7335065bbbe396f0f58f7de75961bddd4f1d11",
+  "run_directory": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-clippy-qualified",
+  "command": [
+    "cargo",
+    "clippy",
+    "--offline",
+    "--manifest-path",
+    "crates/emitter/Cargo.toml",
+    "--lib",
+    "--",
+    "-D",
+    "warnings"
+  ],
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-review-artifacts",
+    "CARGO_BUILD_JOBS": "2",
+    "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-clippy-qualified/captures"
+  },
+  "archive": {
+    "path": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-clippy-qualified/source-and-inputs.tar.gz",
+    "sha256": "06a767d2b3f65af099d4b599e6cc31cbf288d244fb1497930ecc6f9eaeb2c637"
+  },
+  "execution": {
+    "prelaunch_sha256": "cb7b7c17cae49aa00c1c657a9199e3c04c428fc7a44b6241abfe7ede8e708e98",
+    "actual_exit": 101,
+    "log_sha256": "fb88c3c71ce6562f8608b75817813c3c183ac8bc31748dbebf3f22258489aa48",
+    "executed_binaries": {},
+    "archived_binaries": {},
+    "inputs_changed_during_run": []
+  },
+  "existing_findings": {
+    "path": "crates/emitter/src/builtins/class_fields.rs",
+    "git_blob_at_candidate_and_trusted_base": "9b941a78fd25366702cf3814c22f743c447ee16e",
+    "unnecessary_cast_lines": [
+      254,
+      2013
+    ],
+    "type_complexity_line": 3453,
+    "base_evidence": "ratchets/h2-8b-config-integrated-clippy-emitter-existing.v1.json"
+  },
+  "note": "Strict scoped Clippy did not pass. The only three findings are pre-existing in a file byte-identical to the trusted base; the owned style finding from the earlier candidate was corrected."
+}

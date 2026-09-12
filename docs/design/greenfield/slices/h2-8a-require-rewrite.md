@@ -253,3 +253,55 @@ therefore receive the runtime helper. Extract the existing helper-call producer
 from the shared argument rewrite worker and preserve each caller's exact
 literal predicate. Six independently frozen module-mode commands exercise both
 template forms and nested import/require queue consumption before these edits.
+
+## Complete-command qualification (2026-09-12)
+
+Measured production ref `bf7335065bbbe396f0f58f7de75961bddd4f1d11` passes
+all 76 complete commands twice with real exit0 and no input changes during
+execution. The [final receipt](../../../../ratchets/h2-8a-require-rewrite-final.v1.json)
+records the exact production hashes, binary, prelaunch/archive/log receipts and
+all 148 supplemental capture hashes. Those supplemental commands are separate
+executions and do not inflate the 76-case denominator.
+
+| Frozen group | Native result |
+| --- | --- |
+| Original focused 60 | 60/60 exact twice: 45 baseline differences repaired; all 15 earlier positive command payloads unchanged against retained captures |
+| Imported-name composition | 4/4 exact twice |
+| Export-assignment substitution | 4/4 exact twice, including direct/compound assignments, skipped destructuring and postfix lowering |
+| Native/lowered dynamic imports | 6/6 exact twice, including template arguments and nested queue blocking |
+| Unchanged original output-matrix commands | Both CommonJS and NodeNext commands exact twice |
+
+The final capture analyzer verified these counts, all retained
+payloads, the unchanged source/input extent and the executed binary. The analyzer
+refuses to overwrite an existing result; requalification requires a new run and
+destination. The [historical run index](../../../../ratchets/h2-8a-require-rewrite-exploratory-runs.v1.json)
+retains actual failed and interrupted runs with their original heads and dirty
+patch extents; none is relabeled as final qualification.
+
+Current private runtime seams are `ImportCallRewrites::{append,take}`,
+`relative_imports::{rewrite_literal,rewrite_argument,create_rewrite_helper_call}`,
+`CommonJsVisitor::substitute_expression` and its `CommonJsVisitPhase`, plus the
+existing CallExpression printer worker. The later documentation/evidence commit
+must retain these exact three production files; hosted acceptance must succeed
+at that PR head before merge. This qualifies the listed source owners only.
+H2.8a, cross-output-unit queue reuse and the frozen A37 global checkpoint remain
+separate: no new global 769-case total or profile activation is inferred.
+
+The affected emitter suites pass at the same production ref: 495 unit tests,
+452 existing contracts, one comma-list printer contract and one emit-pipeline
+phase contract, totaling 949. The [regression receipt](../../../../ratchets/h2-8a-require-rewrite-emitter-regressions.v1.json)
+retains all four executed binaries, real exit0, complete command and immutable
+source/archive/log hashes; no inputs changed during execution. These qualify
+the shared R5 comment/token consumer as well as the R2 module visitors.
+
+Final scoped strict Clippy returns exit101 for the same three pre-existing
+`class_fields.rs` findings: `unnecessary_cast` at lines254/2013 and
+`type_complexity` at line3453. That file is byte-identical to trusted base
+`0aaf808be` (git blob `9b941a78fd25366702cf3814c22f743c447ee16e`), whose existing
+config-integration Clippy receipt already records the same three findings.
+The [final Clippy receipt](../../../../ratchets/h2-8a-require-rewrite-clippy.v1.json)
+retains the actual failure; strict Clippy is not claimed to pass. The candidate's
+own earlier collapsible-else-if finding was corrected. Readiness, formatting,
+observer syntax and whitespace checks pass. The active lightweight schedule
+continues to omit full developer CI and historical certificate regeneration;
+hosted `gates` on the final PR head remains the merge requirement.

@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "status": "pre-amendment-native-result",
+  "run_directory": "/Users/hiramatsu/dev/tsc-rs-output-residual/target/dec-next-runs/require-rewrite-dynamic-before",
+  "measured_head": "659fbba1c81b7d319caf15f4d257b6d9956aa9f2",
+  "execution": {
+    "prelaunch_sha256": "8ef554fceb392204ca58891b63336eb6acd11d52abf78dd7ac04a2097bdaed47",
+    "actual_exit": 101,
+    "log_sha256": "0272184ee7e3efdfcebd4135e7ff2f246e881f85de57a0dd1a96ff89202088e6",
+    "executed_binaries": {
+      "target/dec-next-review-artifacts/debug/deps/h2_8a_require_rewrite-6b5f81603cc2f49a": "c0f63d795ffc63084a75b381ef3787545c2fe3e5bc6d17f0a68587eeb489f5d4"
+    },
+    "archived_binaries": {
+      "target/dec-next-runs/require-rewrite-dynamic-before/binaries/h2_8a_require_rewrite-6b5f81603cc2f49a": {
+        "executed_path": "target/dec-next-review-artifacts/debug/deps/h2_8a_require_rewrite-6b5f81603cc2f49a",
+        "sha256": "c0f63d795ffc63084a75b381ef3787545c2fe3e5bc6d17f0a68587eeb489f5d4"
+      }
+    },
+    "inputs_changed_during_run": []
+  },
+  "count": 6,
+  "exact_twice": 2,
+  "failed": 4,
+  "exact_ids": [
+    "require-rewrite-dynamic/esnext/templates-nested",
+    "require-rewrite-dynamic/preserve/templates-nested"
+  ],
+  "failed_ids": [
+    "require-rewrite-dynamic/amd/templates-nested",
+    "require-rewrite-dynamic/commonjs/templates-nested",
+    "require-rewrite-dynamic/nodenext/templates-nested",
+    "require-rewrite-dynamic/umd/templates-nested"
+  ],
+  "note": "Supplemental cases are frozen against upstream before the native-import boundary and lowered-template repairs. Head 659fbba1c production; staged test and observation additions are in the immutable prelaunch archive."
+}
