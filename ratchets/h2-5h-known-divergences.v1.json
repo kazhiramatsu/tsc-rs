@@ -26,62 +26,6 @@
       "emit_refused": false
     },
     {
-      "case_id": "typescript-6.0.3/conformance/classes/constructorDeclarations/superCalls/derivedClassSuperStatementPosition.ts#target%3Des5",
-      "owner": "h2-5h-ca-2a-r1",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/superInStaticMembers1.ts#target%3Des5",
-      "owner": "h2-5h-ca-2a-r1",
-      "writes_diverging": 47,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/thisAndSuperInStaticMembers3.ts#target%3Des5",
-      "owner": "h2-5h-ca-2a-r1",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/thisAndSuperInStaticMembers4.ts#target%3Des5",
-      "owner": "h2-5h-ca-2a-r1",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers10.ts#target%3Des5",
-      "owner": "h2-5h-ca-2a-r1",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers11.ts#target%3Des5",
-      "owner": "h2-5h-ca-2a-r1",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/conformance/classes/propertyMemberDeclarations/autoAccessor5.ts#target%3Des5",
-      "owner": "h2-5h-ca-2a-r1",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": false
-    },
-    {
       "case_id": "typescript-6.0.3/conformance/decorators/class/decoratedBlockScopedClass2.ts#target%3Des5",
       "owner": "h2-5h-ca-2a-r4",
       "writes_diverging": 1,

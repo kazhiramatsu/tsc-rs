@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "slice": "H2.5h ca-2a-r1 static this/super: known-divergence manifest promotion",
+  "head_before_commit": "f7b465e53797a0243d3191fc1f034788cbe92b28",
+  "evidence_runs": [
+    {
+      "run_dir": "target/static-this-super-runs/stage5",
+      "receipt": "rows exit: 0\nwitnesses exit: 0\nfinished 2026-09-12T04:31:50Z\nrows exact_x2 7 diverging 0\nwitnesses exact_x2 73 repeated_failure 0\n"
+    },
+    {
+      "run_dir": "target/static-this-super-runs/full-r3",
+      "receipt": "rows exit: 0\nwitnesses exit: 0\nfinished 2026-09-12T03:30:03Z\nrows exact_x2 7 diverging 0\nwitnesses exact_x2 73 repeated_failure 0\n"
+    }
+  ],
+  "promoted_rows": [
+    "typescript-6.0.3/conformance/classes/constructorDeclarations/superCalls/derivedClassSuperStatementPosition.ts#target%3Des5",
+    "typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/superInStaticMembers1.ts#target%3Des5",
+    "typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/thisAndSuperInStaticMembers3.ts#target%3Des5",
+    "typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/thisAndSuperInStaticMembers4.ts#target%3Des5",
+    "typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers10.ts#target%3Des5",
+    "typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers11.ts#target%3Des5",
+    "typescript-6.0.3/conformance/classes/propertyMemberDeclarations/autoAccessor5.ts#target%3Des5"
+  ],
+  "rows_before": 28,
+  "rows_after": 21,
+  "owners_after": [
+    "h2-5h-ca-2a-r2",
+    "h2-5h-ca-2a-r4"
+  ],
+  "manifest_sha256": {
+    "before": "c76f400fb70f7918e9e5df33ceb88bc6790d25d3f12310fb66f254ac35fb9ceb",
+    "after": "c7d5e5b7edd06e1cce6a24ca4754116c2bfd15a666ff70dab252174d1a195f82"
+  },
+  "finished_at": "2026-09-12T04:32:19.115502+00:00"
+}
