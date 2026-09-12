@@ -212,3 +212,9 @@ together so successful rewriting does not silently discard the callee comment.
 | `emitCallExpression` | 118275–118290 | `0c5b07dd72b5883ea433bfe104faff0fa6b60b6f9f24b2d8ecc3eefea81be587` | R5 |
 | `writeTokenNode` | 120213–120221 | `04ee5d9812e94e045643f0f4fadc7327cf8c883a3261f0bded2aa14fb847ec80` | R5 |
 | `pipelineEmitWithComments` | 120978–120986 | `263af5299b06aaeca9c4e6397b6013e6b2c465afcab2709d8cbdd5ace688bd34` | R5 |
+
+R5's first execution tripped the existing Inactive-state assertion because a
+locally created callee phase was published as an inherited continuation. The
+corrected consumer records the outcome only when it actually took a pending
+parent phase; otherwise it checks local completion and leaves the caller
+Inactive. The failed run retains actual exit101 and unchanged input hashes.

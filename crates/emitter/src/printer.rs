@@ -6500,13 +6500,14 @@ impl Printer {
                         writer,
                     )?;
                 } else {
-                    let mut deferred =
-                        deferred_source_comments.take_pending().unwrap_or_else(|| {
-                            DeferredExpressionSourceComments::nested(
-                                expression_context.comments(),
-                                DeferredSourceCommentExtent::LeadingAndTrailing,
-                            )
-                        });
+                    let pending = deferred_source_comments.take_pending();
+                    let inherited = pending.is_some();
+                    let mut deferred = pending.unwrap_or_else(|| {
+                        DeferredExpressionSourceComments::nested(
+                            expression_context.comments(),
+                            DeferredSourceCommentExtent::LeadingAndTrailing,
+                        )
+                    });
                     deferred.extent = DeferredSourceCommentExtent::LeadingAndTrailing;
                     let outcome = self.emit_node_id_with_context_and_source_comments(
                         transformation,
@@ -6516,7 +6517,14 @@ impl Printer {
                         deferred,
                         writer,
                     )?;
-                    deferred_source_comments.record_outcome(outcome);
+                    if inherited {
+                        deferred_source_comments.record_outcome(outcome);
+                    } else {
+                        debug_assert!(matches!(
+                            outcome,
+                            ExpressionSourceCommentsOutcome::Complete { .. }
+                        ));
+                    }
                 }
                 self.emit_optional_ordinary_child(
                     transformation,
