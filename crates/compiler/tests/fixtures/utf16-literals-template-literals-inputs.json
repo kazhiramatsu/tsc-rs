@@ -1,0 +1,708 @@
+{
+  "version": 1,
+  "description": "H2.5h ca-2a-r2 (promoted): ES5 template lowering (visitTemplateLiteral, visitTemplateExpression, tagged template cooked/raw strings, invalid cooked strings at ES5) of fragments whose cooked value holds a lone surrogate, plus a template literal type checker control; with ES2015 (and ESNext) retained controls. Declaration emit is off (see adjacent-probes).",
+  "cases": [
+    {
+      "case_id": "utf16-literals/template-literals/es5/no-substitution-high",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = `\\u{D800}`;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/template-literals/es2015/no-substitution-high",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = `\\u{D800}`;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/template-literals/es5/no-substitution-low",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = `\\u{DC00}`;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/template-literals/es2015/no-substitution-low",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = `\\u{DC00}`;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/template-literals/es5/head-middle-tail",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = `\\u{D800}${1}\\u{DC00}${2}\\u{1F600}`;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/template-literals/es2015/head-middle-tail",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = `\\u{D800}${1}\\u{DC00}${2}\\u{1F600}`;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/template-literals/es5/empty-tail",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = `\\u{D800}${1}`;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/template-literals/es2015/empty-tail",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = `\\u{D800}${1}`;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/template-literals/es5/short-escape-surrogate",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = `\\uD800`;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/template-literals/es2015/short-escape-surrogate",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = `\\uD800`;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/template-literals/es5/crlf-and-line-continuation",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = `a\r\nb\\\r\nc\\u{D800}`;\r\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/template-literals/es2015/crlf-and-line-continuation",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = `a\r\nb\\\r\nc\\u{D800}`;\r\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/template-literals/es5/backtick-dollar-backslash",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = `\\`\\${x}\\\\u{D800}\\u{D800}`;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/template-literals/es2015/backtick-dollar-backslash",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = `\\`\\${x}\\\\u{D800}\\u{D800}`;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/template-literals/es5/real-replacement-character",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = `\\u{FFFD}�\\u{D800}`;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/template-literals/es2015/real-replacement-character",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = `\\u{FFFD}�\\u{D800}`;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/template-literals/es5/tagged-cooked-and-raw",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export declare function t(s: TemplateStringsArray, ...v: any[]): string;\nexport const x = t`\\u{D800}${1}\\u{DC00}`;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/template-literals/es2015/tagged-cooked-and-raw",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export declare function t(s: TemplateStringsArray, ...v: any[]): string;\nexport const x = t`\\u{D800}${1}\\u{DC00}`;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/template-literals/es5/tagged-no-substitution",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export declare function t(s: TemplateStringsArray, ...v: any[]): string;\nexport const x = t`\\u{D800}`;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/template-literals/es2015/tagged-no-substitution",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export declare function t(s: TemplateStringsArray, ...v: any[]): string;\nexport const x = t`\\u{D800}`;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/template-literals/es5/template-literal-type-control",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "type T = `\\u{D800}`;\nexport const y: T = \"\\u{D800}\";\nexport const z: \"\\u{D800}\" = `\\u{D800}`;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/template-literals/es2015/template-literal-type-control",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "type T = `\\u{D800}`;\nexport const y: T = \"\\u{D800}\";\nexport const z: \"\\u{D800}\" = `\\u{D800}`;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/template-literals/es5/tagged-invalid-cooked",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export declare function t(s: TemplateStringsArray, ...v: any[]): string;\nexport const x = t`\\u{D800}${1}\\unicode`;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/template-literals/esnext/no-substitution-high",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = `\\u{D800}`;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 99
+      }
+    },
+    {
+      "case_id": "utf16-literals/template-literals/esnext/head-middle-tail",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = `\\u{D800}${1}\\u{DC00}${2}\\u{1F600}`;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 99
+      }
+    },
+    {
+      "case_id": "utf16-literals/template-literals/esnext/tagged-cooked-and-raw",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export declare function t(s: TemplateStringsArray, ...v: any[]): string;\nexport const x = t`\\u{D800}${1}\\u{DC00}`;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 99
+      }
+    }
+  ]
+}

@@ -1,0 +1,354 @@
+{
+  "version": 1,
+  "status": "Complete upstream observations; native qualification is recorded separately",
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "5b8bea4918478be8e2a191e0b7150d3e519e6d8c70e7cfb3e0487c1baafd588e",
+  "inputs": {
+    "path": "crates/compiler/tests/fixtures/utf16-literals-bundle-prologues-inputs.json",
+    "sha256": "d4d35bfeadb1a77a631b9185433cb85e0f8f5b62c19f63a53c9a4cb3998f8638"
+  },
+  "repetitions": 2,
+  "program_attempts": 4,
+  "program_executions": 4,
+  "exception_attempts": 0,
+  "cases": [
+    {
+      "case_id": "utf16-literals/bundle-prologues/es5/dedupe",
+      "roots": [
+        "/project/a.ts",
+        "/project/b.ts",
+        "/project/c.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "\"\\u{D800}\";\nvar a = 1;\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "\"\\uD800\";\nvar b = 2;\n"
+        },
+        {
+          "path": "/project/c.ts",
+          "text": "\"\\u{DC00}\";\nvar c = 3;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "module": 0,
+        "removeComments": false,
+        "target": 1,
+        "outFile": "/project/out/bundle.js"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/bundle.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vYS50cyIsIi4uL2MudHMiLCIuLi9iLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7QUFBQSxVQUFVLENBQUM7QUNBWCxVQUFVLENBQUM7QURDWCxJQUFJLENBQUMsR0FBRyxDQUFDLENBQUM7QUVBVixJQUFJLENBQUMsR0FBRyxDQUFDLENBQUM7QURBVixJQUFJLENBQUMsR0FBRyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 235,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vYS50cyIsIi4uL2MudHMiLCIuLi9iLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7QUFBQSxVQUFVLENBQUM7QUNBWCxVQUFVLENBQUM7QURDWCxJQUFJLENBQUMsR0FBRyxDQUFDLENBQUM7QUVBVixJQUFJLENBQUMsR0FBRyxDQUFDLENBQUM7QURBVixJQUFJLENBQUMsR0FBRyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 235,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts",
+              "/project/c.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/bundle.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KIlx1e0Q4MDB9IjsNCiJcdXtEQzAwfSI7DQp2YXIgYSA9IDE7DQp2YXIgYiA9IDI7DQp2YXIgYyA9IDM7DQovLyMgc291cmNlTWFwcGluZ1VSTD1idW5kbGUuanMubWFw",
+            "callback_utf8_bytes": 111,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KIlx1e0Q4MDB9IjsNCiJcdXtEQzAwfSI7DQp2YXIgYSA9IDE7DQp2YXIgYiA9IDI7DQp2YXIgYyA9IDM7DQovLyMgc291cmNlTWFwcGluZ1VSTD1idW5kbGUuanMubWFw",
+            "materialized_utf8_bytes": 111,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts",
+              "/project/c.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 77,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/bundle.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi9hLnRzIiwiLi4vYi50cyIsIi4uL2MudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQ0EsUUFBQSxJQUFJLENBQUMsUUFBSSxDQUFDO0FDQVYsUUFBQSxJQUFJLENBQUMsUUFBSSxDQUFDO0FDQVYsUUFBQSxJQUFJLENBQUMsUUFBSSxDQUFDIn0=",
+            "callback_utf8_bytes": 206,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi9hLnRzIiwiLi4vYi50cyIsIi4uL2MudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQ0EsUUFBQSxJQUFJLENBQUMsUUFBSSxDQUFDO0FDQVYsUUFBQSxJQUFJLENBQUMsUUFBSSxDQUFDO0FDQVYsUUFBQSxJQUFJLENBQUMsUUFBSSxDQUFDIn0=",
+            "materialized_utf8_bytes": 206,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts",
+              "/project/c.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSB2YXIgYTogbnVtYmVyOw0KZGVjbGFyZSB2YXIgYjogbnVtYmVyOw0KZGVjbGFyZSB2YXIgYzogbnVtYmVyOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmQudHMubWFw",
+            "callback_utf8_bytes": 108,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSB2YXIgYTogbnVtYmVyOw0KZGVjbGFyZSB2YXIgYjogbnVtYmVyOw0KZGVjbGFyZSB2YXIgYzogbnVtYmVyOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmQudHMubWFw",
+            "materialized_utf8_bytes": 108,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts",
+              "/project/c.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 72,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/a.ts",
+                "/project/c.ts",
+                "/project/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"bundle.js\",\"sourceRoot\":\"\",\"sources\":[\"../a.ts\",\"../c.ts\",\"../b.ts\"],\"names\":[],\"mappings\":\";AAAA,UAAU,CAAC;ACAX,UAAU,CAAC;ADCX,IAAI,CAAC,GAAG,CAAC,CAAC;AEAV,IAAI,CAAC,GAAG,CAAC,CAAC;ADAV,IAAI,CAAC,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/a.ts",
+                "/project/b.ts",
+                "/project/c.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"bundle.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../a.ts\",\"../b.ts\",\"../c.ts\"],\"names\":[],\"mappings\":\"AACA,QAAA,IAAI,CAAC,QAAI,CAAC;ACAV,QAAA,IAAI,CAAC,QAAI,CAAC;ACAV,QAAA,IAAI,CAAC,QAAI,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/bundle-prologues/es2015/dedupe",
+      "roots": [
+        "/project/a.ts",
+        "/project/b.ts",
+        "/project/c.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "\"\\u{D800}\";\nvar a = 1;\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "\"\\uD800\";\nvar b = 2;\n"
+        },
+        {
+          "path": "/project/c.ts",
+          "text": "\"\\u{DC00}\";\nvar c = 3;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "module": 0,
+        "removeComments": false,
+        "target": 2,
+        "outFile": "/project/out/bundle.js"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/bundle.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vYS50cyIsIi4uL2MudHMiLCIuLi9iLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7QUFBQSxVQUFVLENBQUM7QUNBWCxVQUFVLENBQUM7QURDWCxJQUFJLENBQUMsR0FBRyxDQUFDLENBQUM7QUVBVixJQUFJLENBQUMsR0FBRyxDQUFDLENBQUM7QURBVixJQUFJLENBQUMsR0FBRyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 235,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vYS50cyIsIi4uL2MudHMiLCIuLi9iLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7QUFBQSxVQUFVLENBQUM7QUNBWCxVQUFVLENBQUM7QURDWCxJQUFJLENBQUMsR0FBRyxDQUFDLENBQUM7QUVBVixJQUFJLENBQUMsR0FBRyxDQUFDLENBQUM7QURBVixJQUFJLENBQUMsR0FBRyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 235,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts",
+              "/project/c.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/bundle.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KIlx1e0Q4MDB9IjsNCiJcdXtEQzAwfSI7DQp2YXIgYSA9IDE7DQp2YXIgYiA9IDI7DQp2YXIgYyA9IDM7DQovLyMgc291cmNlTWFwcGluZ1VSTD1idW5kbGUuanMubWFw",
+            "callback_utf8_bytes": 111,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KIlx1e0Q4MDB9IjsNCiJcdXtEQzAwfSI7DQp2YXIgYSA9IDE7DQp2YXIgYiA9IDI7DQp2YXIgYyA9IDM7DQovLyMgc291cmNlTWFwcGluZ1VSTD1idW5kbGUuanMubWFw",
+            "materialized_utf8_bytes": 111,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts",
+              "/project/c.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 77,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/bundle.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi9hLnRzIiwiLi4vYi50cyIsIi4uL2MudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQ0EsUUFBQSxJQUFJLENBQUMsUUFBSSxDQUFDO0FDQVYsUUFBQSxJQUFJLENBQUMsUUFBSSxDQUFDO0FDQVYsUUFBQSxJQUFJLENBQUMsUUFBSSxDQUFDIn0=",
+            "callback_utf8_bytes": 206,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi9hLnRzIiwiLi4vYi50cyIsIi4uL2MudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQ0EsUUFBQSxJQUFJLENBQUMsUUFBSSxDQUFDO0FDQVYsUUFBQSxJQUFJLENBQUMsUUFBSSxDQUFDO0FDQVYsUUFBQSxJQUFJLENBQUMsUUFBSSxDQUFDIn0=",
+            "materialized_utf8_bytes": 206,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts",
+              "/project/c.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSB2YXIgYTogbnVtYmVyOw0KZGVjbGFyZSB2YXIgYjogbnVtYmVyOw0KZGVjbGFyZSB2YXIgYzogbnVtYmVyOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmQudHMubWFw",
+            "callback_utf8_bytes": 108,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSB2YXIgYTogbnVtYmVyOw0KZGVjbGFyZSB2YXIgYjogbnVtYmVyOw0KZGVjbGFyZSB2YXIgYzogbnVtYmVyOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmQudHMubWFw",
+            "materialized_utf8_bytes": 108,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts",
+              "/project/c.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 72,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/a.ts",
+                "/project/c.ts",
+                "/project/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"bundle.js\",\"sourceRoot\":\"\",\"sources\":[\"../a.ts\",\"../c.ts\",\"../b.ts\"],\"names\":[],\"mappings\":\";AAAA,UAAU,CAAC;ACAX,UAAU,CAAC;ADCX,IAAI,CAAC,GAAG,CAAC,CAAC;AEAV,IAAI,CAAC,GAAG,CAAC,CAAC;ADAV,IAAI,CAAC,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/a.ts",
+                "/project/b.ts",
+                "/project/c.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"bundle.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../a.ts\",\"../b.ts\",\"../c.ts\"],\"names\":[],\"mappings\":\"AACA,QAAA,IAAI,CAAC,QAAI,CAAC;ACAV,QAAA,IAAI,CAAC,QAAI,CAAC;ACAV,QAAA,IAAI,CAAC,QAAI,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    }
+  ],
+  "upstream_failures": []
+}

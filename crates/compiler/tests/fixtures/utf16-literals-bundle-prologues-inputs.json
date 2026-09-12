@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "description": "H2.5h ca-2a-r2 (promoted): bundle prologue directives compared by JavaScript value (parsed spelling at both targets; the ES5 standard prologue is copied, not re-created).",
+  "cases": [
+    {
+      "case_id": "utf16-literals/bundle-prologues/es5/dedupe",
+      "roots": [
+        "/project/a.ts",
+        "/project/b.ts",
+        "/project/c.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "\"\\u{D800}\";\nvar a = 1;\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "\"\\uD800\";\nvar b = 2;\n"
+        },
+        {
+          "path": "/project/c.ts",
+          "text": "\"\\u{DC00}\";\nvar c = 3;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "module": 0,
+        "removeComments": false,
+        "target": 1,
+        "outFile": "/project/out/bundle.js"
+      }
+    },
+    {
+      "case_id": "utf16-literals/bundle-prologues/es2015/dedupe",
+      "roots": [
+        "/project/a.ts",
+        "/project/b.ts",
+        "/project/c.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "\"\\u{D800}\";\nvar a = 1;\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "\"\\uD800\";\nvar b = 2;\n"
+        },
+        {
+          "path": "/project/c.ts",
+          "text": "\"\\u{DC00}\";\nvar c = 3;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "module": 0,
+        "removeComments": false,
+        "target": 2,
+        "outFile": "/project/out/bundle.js"
+      }
+    }
+  ]
+}

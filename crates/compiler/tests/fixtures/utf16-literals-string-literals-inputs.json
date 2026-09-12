@@ -1,0 +1,978 @@
+{
+  "version": 1,
+  "description": "H2.5h ca-2a-r2 (promoted): ES5 re-creation of string literals with extended unicode escapes (visitStringLiteral) and the neighbouring string-literal producers (class/object property names, export specifier names, enum member names): lone surrogates, pairs, BMP/ASCII, short-escape control, real U+FFFD, escaped backslashes, quotes, control escapes, line continuation; with ES2015 (and ESNext) retained controls. Declaration emit is off: the checker's string literal type value is a recorded adjacent gap (adjacent-probes).",
+  "cases": [
+    {
+      "case_id": "utf16-literals/string-literals/es5/extended-high-surrogate",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\u{D800}\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/es2015/extended-high-surrogate",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\u{D800}\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/es5/extended-low-surrogate",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\u{DC00}\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/es2015/extended-low-surrogate",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\u{DC00}\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/es5/extended-supplementary-pair",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\u{1F600}\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/es2015/extended-supplementary-pair",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\u{1F600}\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/es5/extended-bmp",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\u{6587}\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/es2015/extended-bmp",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\u{6587}\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/es5/extended-ascii",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\u{41}\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/es2015/extended-ascii",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\u{41}\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/es5/short-escape-surrogate-control",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\uD800\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/es2015/short-escape-surrogate-control",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\uD800\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/es5/short-and-extended-mixed",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\uD800\\u{DC00}\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/es2015/short-and-extended-mixed",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\uD800\\u{DC00}\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/es5/real-replacement-character",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\u{FFFD}\\uFFFD�\\u{D800}\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/es2015/real-replacement-character",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\u{FFFD}\\uFFFD�\\u{D800}\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/es5/escaped-backslash-sequence",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\\\u{D800}\\u{D800}\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/es2015/escaped-backslash-sequence",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\\\u{D800}\\u{D800}\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/es5/single-quoted",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = '\\u{D800}';\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/es2015/single-quoted",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = '\\u{D800}';\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/es5/control-and-quote-escapes",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\u{D800}\\\"\\t\\n\\0\\x41\\u{2028}\\u{85}\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/es2015/control-and-quote-escapes",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\u{D800}\\\"\\t\\n\\0\\x41\\u{2028}\\u{85}\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/es5/null-before-digit",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\u{D800}\\u{0}1\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/es2015/null-before-digit",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\u{D800}\\u{0}1\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/es5/crlf-line-continuation",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"a\\\r\nb\\u{D800}\";\r\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/es2015/crlf-line-continuation",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"a\\\r\nb\\u{D800}\";\r\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/es5/class-member-names",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class C {\n    static \"\\u{D800}\" = 1;\n    [\"\\u{D800}\"]() { return 1; }\n    static [\"\\u{D800}x\"]() { return 2; }\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/es2015/class-member-names",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class C {\n    static \"\\u{D800}\" = 1;\n    [\"\\u{D800}\"]() { return 1; }\n    static [\"\\u{D800}x\"]() { return 2; }\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/es5/object-literal-names",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const o = { \"\\u{D800}\": 1 };\nexport const p = { [\"\\u{DC00}\"]: 2, q: 3 };\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/es2015/object-literal-names",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const o = { \"\\u{D800}\": 1 };\nexport const p = { [\"\\u{DC00}\"]: 2, q: 3 };\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/es5/export-specifier-name",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const v = 1;\nexport { v as \"\\u{D800}\" };\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/es2015/export-specifier-name",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "const v = 1;\nexport { v as \"\\u{D800}\" };\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/es5/enum-member-names",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export enum E { \"\\u{D800}\" = 1, \"\\uD800x\" = 2, \"\\u{D800}s\" = \"s\" }\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/es2015/enum-member-names",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export enum E { \"\\u{D800}\" = 1, \"\\uD800x\" = 2, \"\\u{D800}s\" = \"s\" }\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/esnext/extended-high-surrogate",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\u{D800}\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 99
+      }
+    },
+    {
+      "case_id": "utf16-literals/string-literals/esnext/extended-low-surrogate",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\u{DC00}\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": false,
+        "declarationMap": false,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 99
+      }
+    }
+  ]
+}
