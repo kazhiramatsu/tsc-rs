@@ -152,11 +152,24 @@ fn focused_declaration_specifiers_match_complete_commands() {
     let artifact: Value =
         serde_json::from_slice(include_bytes!("fixtures/h2-8a-declaration-specifiers.json"))
             .expect("frozen observations");
+    assert_declaration_specifier_commands(&artifact, 24, "focused");
+}
+
+#[test]
+fn composition_declaration_specifiers_match_complete_commands() {
+    let artifact: Value = serde_json::from_slice(include_bytes!(
+        "fixtures/h2-8a-declaration-specifiers-composition.json"
+    ))
+    .expect("frozen composition observations");
+    assert_declaration_specifier_commands(&artifact, 6, "composition");
+}
+
+fn assert_declaration_specifier_commands(artifact: &Value, count: usize, capture_group: &str) {
     assert_eq!(artifact["typescript"], "6.0.3");
     assert_eq!(artifact["repetitions"], 2);
     assert_eq!(artifact["upstream_failures"], json!([]));
     let cases = artifact["cases"].as_array().expect("cases");
-    assert_eq!(cases.len(), 24);
+    assert_eq!(cases.len(), count);
     let mut failures = Vec::new();
     for (index, case) in cases.iter().enumerate() {
         let id = case["case_id"].as_str().unwrap();
@@ -172,7 +185,7 @@ fn focused_declaration_specifiers_match_complete_commands() {
                 if let Some(directory) =
                     std::env::var_os("TSC_RS_DECLARATION_SPECIFIER_CAPTURE_DIR")
                 {
-                    let directory = PathBuf::from(directory);
+                    let directory = PathBuf::from(directory).join(capture_group);
                     std::fs::create_dir_all(&directory).unwrap();
                     let writes = sink.writes().iter().map(|write| json!({
                         "path": write.path().to_str().unwrap(),
