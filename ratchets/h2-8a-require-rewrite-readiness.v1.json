@@ -1,0 +1,237 @@
+{
+  "version": 1,
+  "slice": "H2.8a-require-rewrite",
+  "base": "0aaf808bef9b0f5f64737821c63c273056dee2c4",
+  "unresolved": 0,
+  "undispositioned": 0,
+  "authorities": [
+    {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    {
+      "path": "docs/design/greenfield/post-h1-completion-slices.md",
+      "sha256": "df4e630f4fe348119e43714261d1193a880453fa6847b42c7bf52d086bd840fb"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "87866477f1e3ee90371f0600264540a9688a98b51517e0689926d37ca0f6bfb2"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/h2-8a-require-rewrite-inputs.json",
+      "sha256": "bc5c1fb8db1e5c2d8e621f8dea4cf0470ee9bb52805e1fb1d42d416ed12e835b"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/h2-8a-require-rewrite.json",
+      "sha256": "55697627cd7b2f5392ca560509ecdcb16c5c19422f9ba8e8323f770aaa5576ce"
+    },
+    {
+      "path": "scripts/observe-require-rewrite.mjs",
+      "sha256": "37a323b859a36a5564ccf54150a1772d5c87f1d90d48a8b233c2512fea2f538d"
+    },
+    {
+      "path": "scripts/observe-require-rewrite-composition.mjs",
+      "sha256": "9596fb34a625ec892c37e5d20b34fd7791878adda7cd5d79329c3ad934fd8ec1"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/h2-8a-require-rewrite-composition-inputs.json",
+      "sha256": "08850d138882ce438d227c4e2ddf1fc9b06e3e5e58ed78485f34d7dd7c3c5980"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/h2-8a-require-rewrite-composition.json",
+      "sha256": "3df46d6b1436d760df1d0af7bc212c462c0490ea7f52ce30c0e9f75ddc9200ba"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8a-require-rewrite-readiness.schema.json",
+      "sha256": "da82c93ae0e37140fb9c81b1fa0428576d9deab2654f6c2e0673065866bc6e57"
+    }
+  ],
+  "baseline_rust": [
+    {
+      "path": "crates/emitter/src/builtins.rs",
+      "sha256": "57c4db5034b041493a83d096c482e6fec93c9eeba6ed0b99b2b618a72171f2f5"
+    },
+    {
+      "path": "crates/emitter/src/factory.rs",
+      "sha256": "54260dddd974c07b3638c1bcfb6e6fe8fd1d7da7365f29b5f6cbe6f1e83f4d78"
+    },
+    {
+      "path": "crates/emitter/src/transform.rs",
+      "sha256": "374ed96dc09f518a8f137cf7400e4cc6e634d3427b0b20346698e4b31a11011c"
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "sha256": "f1aed924a08bb162367120102386c76e64ed188c1c080d97181630691415c9f2"
+    }
+  ],
+  "owners": [
+    {
+      "owner": "forEachDynamicImportOrRequireCall",
+      "start": 20016,
+      "end": 20039,
+      "step": "R1",
+      "sha256": "18fad0df970874a5281d71546ad89276245efc168a40dc588e26ae3fee67a42d"
+    },
+    {
+      "owner": "getNodeAtPosition",
+      "start": 20040,
+      "end": 20055,
+      "step": "R1",
+      "sha256": "fc5235720fccffb0238b56e00eae48c726391a7ce760c4560b6ccdf11c4f393c"
+    },
+    {
+      "owner": "isRequireCall",
+      "start": 14901,
+      "end": 14914,
+      "step": "R1",
+      "sha256": "97ce63365149bdbd32198cf0b6527081ed21cc939dcfbe25d0c24caf3aad5077"
+    },
+    {
+      "owner": "transformModule collector",
+      "start": 110130,
+      "end": 110159,
+      "step": "R1",
+      "sha256": "66bd8e6f84739519fd78b12adc9e298efd62d1899b189fad43913b31002198c2"
+    },
+    {
+      "owner": "visitorWorker",
+      "start": 110621,
+      "end": 110658,
+      "step": "R2",
+      "sha256": "e08f1c5ab48313eb69a0f44b9865454e47ae63583899b06df3d34b07d990a8fd"
+    },
+    {
+      "owner": "shimOrRewriteImportOrRequireCall",
+      "start": 110938,
+      "end": 110951,
+      "step": "R2",
+      "sha256": "306616cb5c155e176f85dc5f1ff353bba50813c425194d9adcbc611a13a55208"
+    },
+    {
+      "owner": "ESM collector and visitor",
+      "start": 113391,
+      "end": 113468,
+      "step": "R2",
+      "sha256": "4bc7520bd8667e09178eb242dcad74448e9d8aa2f5f16bce793a372cb515afad"
+    },
+    {
+      "owner": "visitImportOrRequireCall",
+      "start": 113484,
+      "end": 113494,
+      "step": "R2",
+      "sha256": "79b3c28488900eea2aa6d87dc50f2c65acc735a742e247db1e1b29f86f4752a7"
+    },
+    {
+      "owner": "rewriteModuleSpecifier",
+      "start": 93242,
+      "end": 93248,
+      "step": "R3",
+      "sha256": "f922e640861acb3c4f3e223a052ecf480ebdc989e9c1d4b545efca742e40aace"
+    },
+    {
+      "owner": "shouldRewriteModuleSpecifier",
+      "start": 15250,
+      "end": 15252,
+      "step": "R1",
+      "sha256": "a93fcbefd630ae756d3a55367bf8884b7835c8836f7a8c12fec4e489872dfff3"
+    },
+    {
+      "owner": "createRewriteRelativeImportExtensionsHelper",
+      "start": 26013,
+      "end": 26021,
+      "step": "R3",
+      "sha256": "9f8e5ae8ebf093baa14531dc1f3004059db1d12d91bc0e509c9ef8a880761e0a"
+    },
+    {
+      "owner": "visitImportCallExpression",
+      "start": 110952,
+      "end": 110969,
+      "step": "R2",
+      "sha256": "4dd523c5a460cb4c637ef4d4b347f27348bd96434e6f795c25a60c6fd736a147"
+    },
+    {
+      "owner": "createImportCallExpressionAMD",
+      "start": 111009,
+      "end": 111088,
+      "step": "R2",
+      "sha256": "2e0e5aafc7ed719f37491d8cc0e38f92aefb1db526e78a13013372493867e792"
+    },
+    {
+      "owner": "createImportCallExpressionCommonJS",
+      "start": 111089,
+      "end": 111167,
+      "step": "R2",
+      "sha256": "930020af82c4b4af2a8f77820aa26cb50267ff6a5115c17e519ae690cdb14d23"
+    },
+    {
+      "owner": "onSubstituteNode",
+      "start": 111871,
+      "end": 111882,
+      "step": "R2",
+      "sha256": "4275c47c81e1ec247934ac9d79029304a6b07f259ccde7a9036f1bdc3d160a3c"
+    },
+    {
+      "owner": "emitCallExpression",
+      "start": 118275,
+      "end": 118290,
+      "step": "R5",
+      "sha256": "0c5b07dd72b5883ea433bfe104faff0fa6b60b6f9f24b2d8ecc3eefea81be587"
+    },
+    {
+      "owner": "writeTokenNode",
+      "start": 120213,
+      "end": 120221,
+      "step": "R5",
+      "sha256": "04ee5d9812e94e045643f0f4fadc7327cf8c883a3261f0bded2aa14fb847ec80"
+    },
+    {
+      "owner": "pipelineEmitWithComments",
+      "start": 120978,
+      "end": 120986,
+      "step": "R5",
+      "sha256": "263af5299b06aaeca9c4e6397b6013e6b2c465afcab2709d8cbdd5ace688bd34"
+    }
+  ],
+  "architecture": [
+    {
+      "id": "E-CONTEXT",
+      "row": "| `E-CONTEXT` | One per-unit context owns lexical/block environments, hoists, helpers, diagnostics, hooks, initialization, and reverse disposal. | `tsc_emitter::{TransformationContext,Transformer,TransformationResult,transform_nodes}` (public) | `active-qualified`; validation ref `0653e10d` (2026-08-17); candidate audit 2026-08-14. H2.5f protects the predecessor subset. | H2.5g profile and transform lifecycle controls |"
+    },
+    {
+      "id": "E-METADATA-BASE",
+      "row": "| `E-METADATA-BASE` | Transform flags and `emitNode`-equivalent facts are sparse session side tables; there is no standalone Rust `EmitNode` syntax object. Original/map/comment/value identities are separate. CommentRange carries independent source start/end states through CommentSourceRange; paired source slices and source-map ranges keep their existing domains. | Public `tsc_emitter::TransformArena::{transform_flags,set_transform_flags,array_transform_flags,set_array_transform_flags,metadata,metadata_mut,clear_session_metadata,get_original_node,set_original_node}` over private storage in `crates/emitter/src/factory.rs`; public `tsc_emitter::{EmitMetadata,SourceMapRange,CommentRange,CommentSourceRange,JavaScriptString}` defined in `crates/emitter/src/metadata.rs` (`EmitMetadata` storage fields remain `pub(crate)`, with its cross-crate operations exposed by public methods) | `active-qualified`; validation ref `0653e10d` (2026-08-17); candidate audit 2026-08-14; [A6-28-7](slices/h2-8a-one-sided-class-comments.md) qualifies independent comment endpoints on the train candidate: 896/996 complete commands exact twice, all 16 selected repairs and all 880 prior positives, with 494 units/451 contracts passing; historical paired-range qualification remains retained. A6-29 candidate uses existing `EmitMetadata::set_flags` to replace inherited flags on the ES5 accessor receiver clone, retaining its original/text/map ownership. [A6-29](slices/h2-8a-class-helper-accessor-producers.md) qualifies these producers on the train: 1020/1140 complete commands exact twice, all92 repairs and928 prior positives, and unchanged494/451 emitter tests;120 outside cases remain. Prior dated qualifications remain frozen. | H2.5g profile; H2.5h/H2.6 extend rather than infer from text |"
+    },
+    {
+      "id": "E-HELPERS-BASE",
+      "row": "| `E-HELPERS-BASE` | Helpers are typed requests with dependency order and per-unit de-duplication. | `tsc_emitter::EmitHelper`; `TransformationContext::{request_emit_helper,read_emit_helpers}` (public); private `builtins/helpers.rs` | `active-qualified`; validation ref `0653e10d` (2026-08-17); candidate audit 2026-08-14 A6-29 candidate requests setFunctionName at named evaluation before class children while preserving late AST/name allocation and existing per-unit helper ordering/deduplication. [A6-29](slices/h2-8a-class-helper-accessor-producers.md) qualifies these producers on the train: 1020/1140 complete commands exact twice, all92 repairs and928 prior positives, and unchanged494/451 emitter tests;120 outside cases remain. Prior dated qualifications remain frozen. | H2.5g profile and current helper controls |"
+    },
+    {
+      "id": "E-HELPERS-PROVENANCE-G",
+      "row": "| `E-HELPERS-PROVENANCE-G` | Every current AST reference to an unscoped emit helper is created through one typed seam. `EmitHelperName` selects one of the 23 admitted spellings, and the factory atomically creates the identifier with `HELPER_NAME | ADVISE_ON_EMIT_NODE`; helper request/dependency order remains a separate concern. Clone/update propagation follows the existing emit-metadata merge. A consumer that distinguishes a specific helper requires both that provenance and the exact escaped spelling, so parsed and ordinary synthetic same-spelling identifiers remain user code. Category consumers use `HELPER_NAME` to keep helper calls/tags out of ordinary module receiver erasure. The UMD-generated `__syncRequire` binding is deliberately not a helper and never receives these flags. | Private `crate::factory::{EmitHelperName,NodeFactory::create_unscoped_helper_identifier,TransformArena::is_call_to_emit_helper}`; all current AST helper-reference producers in private `builtins.rs`, `class_fields/downlevel.rs`, `es2017.rs`, `es2018.rs`, `es_next.rs`, `system.rs`, `legacy_decorators.rs`, and `standard_decorators.rs`; specific-name consumer in private `class_fields/downlevel.rs`; category consumers in private module-transform call/tagged-template substitution in `builtins.rs` | `active-qualified`; validation ref `0653e10d` (2026-08-17); candidate-only audit 2026-08-14 | Current-code audit and zero plain-helper-producer audit; `emit_helper_name_distinguishes_user_calls_and_survives_factory_updates`; parameter-property source controls; full emitter and H2.5g inventory/profile for observable parity |"
+    },
+    {
+      "id": "E-PROTOCOL",
+      "row": "| `E-PROTOCOL` | Read host, semantic resolver, artifact, sink, and outcome have separate ownership; planning cannot observe syntax, checked syntax exists only within the live checker/resolver scope, and sink errors become diagnostics at the write boundary. | `tsc_emitter::{EmitHost,EmitResolver,EmitArtifact,OutputSink,EmitOutcome}` (public); private `tsc_compiler::{PreparedEmitHost,CheckedEmitHost}`; `tsc_checker::emit::CheckerSession` implementation in `crates/checker/src/emit.rs` | `active-qualified`; validation ref `0653e10d` (2026-08-17); candidate audit 2026-08-14 | H2.5g profile; every output slice preserves this boundary |"
+    },
+    {
+      "id": "E-COMMENTS-G",
+      "row": "| `E-COMMENTS-G` | Parsed ownership, synthetic comments, relocated owners, token progress, and comment progress are distinct typed facts. `TokenEmission` may hand its cursor plus an optional `CommentResume` only to the immediately following token/child; the resume carries both owner start and next position, requires one source and monotone progress, and can merge only with the same owner. A retained arrow anchors trailing comments at its own comment-range end, not semantic-original provenance, so a synthetic token cannot borrow source comments. The simple parameter's list-owned trailing comments and the retained arrow token's trailing comments remain separate phases, including tsc's observable list/leading replay at a shared range start. `SourceLeadingCommentPhaseVisit` distinguishes an absent/suppressed phase from a visited exact range, so a transitional class-field comment anchor is skipped only after that same range was visited; contextless routes retain the anchor. Token/comment ownership performs no source-wide token search; the position-cursor contract keeps local source work linear. H2.5g qualifies only the direct expression and list routes enumerated by its source-comment topology contracts; it does not claim that tsc's enclosing comment-container state already reaches every nested node route. Comment ownership now distinguishes paired, synthesized, start-only and end-only positions; positional readers and ordinary node-phase extent checks remain separate. | Public `tsc_emitter::SyntheticComment`; `crate::metadata::RelocatedStatementListComments` (`pub(crate)`); `crate::comment_cursor::{CommentCursor,CommentResume,CommentResumeError}` and `crate::token_cursor::{TokenCursor,TokenEmission,TokenAnchor,TokenCommentBoundary,FixedToken,TokenWriteKind,TokenLeadingSpace}` (`pub(crate)`); private `crate::printer::SourceLeadingCommentPhaseVisit` and other comment/list workers | `active-qualified`; qualified at validation ref `6acd5d43` (2026-08-21, CS-6 fixture/audit gate); previous ref `0653e10d` (2026-08-17); candidate-only audit 2026-08-14. The H2.5h-a comment-scope packet CS-3 re-expresses the row's qualified expression/list comment projections on the per-side threaded scope (cursor/resume semantics and the token machinery unchanged); requalified at `6acd5d43`; A6-28-5 retires the obsolete initializer trailing-comment marker; [the shared packet](slices/h2-8a-class-field-initializer-comments.md) qualifies all64 new controls and8 prior repairs in434/556 exact complete commands twice, with all490 units/451 contracts passing; subsequent [A6-28-6](slices/h2-8a-promoted-class-export-maps.md) qualifies all100 selected map repairs plus six ES2022 cases in764/868 exact complete commands twice and all490/451 emitter tests, leaving four original A28 comment targets at that prerequisite; subsequent A6-28-7 qualifies all four; [A6-28-7](slices/h2-8a-one-sided-class-comments.md) qualifies independent comment endpoints on the train candidate: 896/996 complete commands exact twice, all 16 selected repairs and all 880 prior positives, with 494 units/451 contracts passing; historical paired-range qualification remains retained. | Current-code audit, token/comment cursor unit contracts, `position_cursor_2727_statement_work_is_linear_and_scan_free`, source-comment topology and relocated class-field contracts, and arrow replay/resume integration contracts; H2.5g inventory/profile for observable parity |"
+    },
+    {
+      "id": "E-COMMENT-PHASES-A36",
+      "row": "| `E-COMMENT-PHASES-A36` | Ordinary modifier node comments precede list spacing; class keyword positional leading comments do not replay the preceding modifier trailing phase; spread fixed tokens hand actual comment progress to their expression. Source-file statements establish their comment range scope before their worker so a child modifier cannot replay the statement prefix. The existing immutable three-sided scope and metadata flags retain their ownership. | Private `crate::printer::{PositionCommentPhase,Printer::{write_transformed_source_file,emit_modifiers,emit_token_with_source_leading_comments,emit_comments_at_cursor_with_phase,emit_spread_expression}}`; existing `DeferredExpressionSourceComments`, `EmitContext`, `TokenEmission`, `CommentResume` | `active-qualified` for the A6-36 focused printer profile (2026-09-10). General ordinary-node phase migration, ESNext ellipsis admission and retained-accessor/module-cursor owners remain open. | [A6-36](slices/h2-8a-token-comment-phases.md):270/293 complete commands exact twice in each of two independent jobs (55 repairs/215 prior positives/23 outside);96 direct metadata controls and3 original commands exact twice;494 emitter units/451 contracts and32 prior direct controls pass. |"
+    }
+  ],
+  "focused_count": 60,
+  "original_count": 2,
+  "production_paths": [
+    "crates/emitter/src/builtins.rs",
+    "crates/emitter/src/builtins/relative_imports.rs",
+    "crates/emitter/src/printer.rs"
+  ],
+  "composition_count": 4
+}

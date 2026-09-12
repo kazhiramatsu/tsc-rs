@@ -45,6 +45,7 @@ mod generators;
 pub(crate) mod helpers;
 mod jsx;
 mod legacy_decorators;
+mod relative_imports;
 mod standard_decorators;
 mod system;
 mod tagged_template;
@@ -484,6 +485,8 @@ pub fn transform_class_fields<'resolver>(
 pub fn transform_ecmascript_module(options: &CompilerOptions) -> Box<dyn Transformer> {
     Box::new(EcmaScriptModuleTransformer {
         module_kind: options.emit_module_kind(),
+        preserve_jsx: options.jsx == Some(1),
+        rewrite_calls: relative_imports::ImportCallRewrites::default(),
         rewrite_relative_import_extensions: options
             .rewrite_relative_import_extensions
             .unwrap_or(false),
@@ -1155,6 +1158,8 @@ fn source_file_has_use_strict_prologue(
 }
 
 struct EcmaScriptModuleTransformer {
+    preserve_jsx: bool,
+    rewrite_calls: relative_imports::ImportCallRewrites,
     module_kind: i32,
     rewrite_relative_import_extensions: bool,
     import_helpers: bool,
@@ -1196,7 +1201,13 @@ impl Transformer for EcmaScriptModuleTransformer {
             .is_some();
         if was_external && self.rewrite_relative_import_extensions {
             let current_root = context.arena().root(source)?;
-            let mut visitor = RelativeModuleSpecifierVisitor::new(context, source);
+            self.rewrite_calls.append(context.arena(), current_root)?;
+            let mut visitor = RelativeModuleSpecifierVisitor::new(
+                context,
+                source,
+                self.preserve_jsx,
+                &mut self.rewrite_calls,
+            );
             let rewritten = visitor.visit(current_root.node())?;
             visitor
                 .context
@@ -1901,6 +1912,8 @@ impl<'context> EcmaScriptModuleEqualsVisitor<'context> {
 }
 
 struct RelativeModuleSpecifierVisitor<'context> {
+    preserve_jsx: bool,
+    rewrite_calls: &'context mut relative_imports::ImportCallRewrites,
     context: &'context mut TransformationContext,
     source: TransformSourceId,
     nodes: BTreeMap<NodeId, NodeId>,
@@ -1908,8 +1921,15 @@ struct RelativeModuleSpecifierVisitor<'context> {
 }
 
 impl<'context> RelativeModuleSpecifierVisitor<'context> {
-    fn new(context: &'context mut TransformationContext, source: TransformSourceId) -> Self {
+    fn new(
+        context: &'context mut TransformationContext,
+        source: TransformSourceId,
+        preserve_jsx: bool,
+        rewrite_calls: &'context mut relative_imports::ImportCallRewrites,
+    ) -> Self {
         Self {
+            preserve_jsx,
+            rewrite_calls,
             context,
             source,
             nodes: BTreeMap::new(),
@@ -1931,6 +1951,32 @@ impl<'context> RelativeModuleSpecifierVisitor<'context> {
             self.nodes.insert(id, original.node());
             return Ok(original);
         }
+        if self.rewrite_calls.take(original) {
+            let NodeData::CallExpression(call) = &mut data else {
+                unreachable!("rewrite queue contains calls");
+            };
+            let original_array = call
+                .arguments
+                .and_then(|array| self.context.arena().node_array_ref(self.source, array))
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::CallExpression,
+                    field: "arguments",
+                })?;
+            let mut arguments =
+                node_array_nodes(self.context.arena(), self.source, call.arguments)?;
+            arguments[0] =
+                relative_imports::rewrite_argument(self.context, arguments[0], self.preserve_jsx)?;
+            call.arguments = Some(
+                self.context
+                    .factory()?
+                    .update_node_array(original_array, arguments)?
+                    .array(),
+            );
+            let flags = flags_after_update(self.context.arena(), original, &data)?;
+            let updated = self.context.factory()?.update_node(original, data, flags)?;
+            self.nodes.insert(id, updated.node());
+            return Ok(updated);
+        }
         try_visit_each_child(&mut data, self)?;
         match &mut data {
             NodeData::ImportDeclaration(declaration) => {
@@ -1945,31 +1991,6 @@ impl<'context> RelativeModuleSpecifierVisitor<'context> {
                     .map(|specifier| self.rewrite_literal(specifier).map(TransformNode::node))
                     .transpose()?;
             }
-            NodeData::CallExpression(call) if self.is_dynamic_import(call.expression) => {
-                if let Some(arguments) = call
-                    .arguments
-                    .and_then(|array| self.context.arena().node_array_ref(self.source, array))
-                {
-                    let original_array = arguments;
-                    let mut arguments = self
-                        .context
-                        .arena()
-                        .node_array(original_array)?
-                        .nodes
-                        .iter()
-                        .filter_map(|id| self.context.arena().node_ref(self.source, *id))
-                        .collect::<Vec<_>>();
-                    if let Some(first) = arguments.first_mut() {
-                        *first = self.rewrite_dynamic_argument(*first)?;
-                    }
-                    call.arguments = Some(
-                        self.context
-                            .factory()?
-                            .update_node_array(original_array, arguments)?
-                            .array(),
-                    );
-                }
-            }
             _ => {}
         }
         let flags = flags_after_update(self.context.arena(), original, &data)?;
@@ -1979,76 +2000,11 @@ impl<'context> RelativeModuleSpecifierVisitor<'context> {
     }
 
     fn rewrite_literal(&mut self, id: NodeId) -> Result<TransformNode, TransformError> {
-        let original = self.node(id);
-        let NodeData::StringLiteral(literal) = self.context.arena().node(original)?.data.clone()
-        else {
-            return Ok(original);
-        };
-        let Some(text) = rewrite_relative_module_specifier(&literal.text) else {
-            return Ok(original);
-        };
-        let flags = self.context.arena().transform_flags(original);
-        self.context.factory()?.update_node(
-            original,
-            NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
-                text,
-                has_extended_unicode_escape: literal.has_extended_unicode_escape,
-            }),
-            flags,
+        relative_imports::rewrite_literal(
+            self.context,
+            TransformNode::new(self.source, id),
+            self.preserve_jsx,
         )
-    }
-
-    fn rewrite_dynamic_argument(
-        &mut self,
-        argument: TransformNode,
-    ) -> Result<TransformNode, TransformError> {
-        if matches!(
-            self.context.arena().node(argument)?.data,
-            NodeData::StringLiteral(_)
-        ) {
-            return self.rewrite_literal(argument.node());
-        }
-        self.request_rewrite_helper()?;
-        let helper = self.context.factory()?.create_unscoped_helper_identifier(
-            self.source,
-            EmitHelperName::RewriteRelativeImportExtension,
-        )?;
-        let arguments = self
-            .context
-            .factory()?
-            .create_node_array(self.source, vec![argument])?;
-        self.context.factory()?.create_node(
-            self.source,
-            NodeData::CallExpression(tsc_syntax::nodes::CallExpressionData {
-                expression: Some(helper.node()),
-                question_dot_token: None,
-                type_arguments: None,
-                arguments: Some(arguments.array()),
-            }),
-            TransformFlags::NONE,
-        )
-    }
-
-    fn request_rewrite_helper(&mut self) -> Result<(), TransformError> {
-        self.context
-            .request_emit_helper(crate::EmitHelper::with_text(
-                "typescript:rewriteRelativeImportExtensions",
-                false,
-                REWRITE_RELATIVE_IMPORT_EXTENSIONS_HELPER_TEXT,
-                None,
-                Vec::new(),
-            ))
-    }
-
-    fn is_dynamic_import(&self, expression: Option<NodeId>) -> bool {
-        expression
-            .and_then(|id| self.context.arena().node_ref(self.source, id))
-            .is_some_and(|expression| {
-                self.context
-                    .arena()
-                    .node(expression)
-                    .is_ok_and(|node| node.kind == SyntaxKind::ImportKeyword)
-            })
     }
 
     const fn node(&self, id: NodeId) -> TransformNode {
@@ -2477,6 +2433,8 @@ fn transform_module_with_optional_host<'resolver>(
     host: Option<&'resolver dyn EmitHost>,
 ) -> Box<dyn Transformer + 'resolver> {
     Box::new(CommonJsModuleTransformer {
+        preserve_jsx: options.jsx == Some(1),
+        rewrite_calls: relative_imports::ImportCallRewrites::default(),
         resolver,
         host,
         module_kind: options.emit_module_kind(),
@@ -2493,6 +2451,8 @@ fn transform_module_with_optional_host<'resolver>(
 }
 
 struct CommonJsModuleTransformer<'resolver> {
+    preserve_jsx: bool,
+    rewrite_calls: relative_imports::ImportCallRewrites,
     resolver: &'resolver dyn EmitResolver,
     host: Option<&'resolver dyn EmitHost>,
     module_kind: i32,
@@ -2607,12 +2567,16 @@ impl Transformer for CommonJsModuleTransformer<'_> {
         if self.import_helpers && is_effective_external {
             self.collect_external_helpers_import(context, source, &mut info)?;
         }
+        if self.rewrite_relative_import_extensions {
+            self.rewrite_calls.append(context.arena(), current_root)?;
+        }
         let mut visitor = CommonJsVisitor::new(
             context,
             source,
             self.resolver,
             self.host,
             CommonJsVisitorOptions {
+                preserve_jsx: self.preserve_jsx,
                 module_kind: self.module_kind,
                 es_module_interop: self.es_module_interop,
                 has_dynamic_import,
@@ -2621,6 +2585,7 @@ impl Transformer for CommonJsModuleTransformer<'_> {
                 target: self.target,
             },
             info,
+            &mut self.rewrite_calls,
         );
         let updated = if json_amd_bundle {
             visitor.transform_amd_json_module(current_root)?
@@ -4770,6 +4735,7 @@ fn is_identifier_export_name(name: &str) -> bool {
 
 #[derive(Clone, Copy)]
 struct CommonJsVisitorOptions {
+    preserve_jsx: bool,
     module_kind: i32,
     es_module_interop: bool,
     has_dynamic_import: bool,
@@ -4927,7 +4893,18 @@ impl StringLiteralQuote {
     }
 }
 
+/// Module lowering and the later emit-time expression substitutions are
+/// distinct upstream phases. A shim argument bypasses only the former.
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum CommonJsVisitPhase {
+    Transform,
+    Substitute,
+}
+
 struct CommonJsVisitor<'context, 'resolver> {
+    visit_phase: CommonJsVisitPhase,
+    preserve_jsx: bool,
+    rewrite_calls: &'context mut relative_imports::ImportCallRewrites,
     context: &'context mut TransformationContext,
     source: TransformSourceId,
     resolver: &'resolver dyn EmitResolver,
@@ -4956,9 +4933,13 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         host: Option<&'resolver dyn EmitHost>,
         options: CommonJsVisitorOptions,
         info: CommonJsModuleInfo,
+        rewrite_calls: &'context mut relative_imports::ImportCallRewrites,
     ) -> Self {
         let used_names = system::collect_identifier_texts(context.arena(), source);
         Self {
+            visit_phase: CommonJsVisitPhase::Transform,
+            preserve_jsx: options.preserve_jsx,
+            rewrite_calls,
             context,
             source,
             resolver,
@@ -7323,6 +7304,21 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         )?])
     }
 
+    fn substitute_expression(
+        &mut self,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let previous_phase = self.visit_phase;
+        let previous_nodes = std::mem::take(&mut self.nodes);
+        let previous_arrays = std::mem::take(&mut self.arrays);
+        self.visit_phase = CommonJsVisitPhase::Substitute;
+        let result = self.visit(node.node());
+        self.visit_phase = previous_phase;
+        self.nodes = previous_nodes;
+        self.arrays = previous_arrays;
+        result
+    }
+
     fn visit(&mut self, id: NodeId) -> Result<TransformNode, TransformError> {
         if let Some(mapped) = self.nodes.get(&id) {
             return Ok(self.node(*mapped));
@@ -7333,74 +7329,93 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             .node_ref(self.source, id)
             .ok_or_else(|| TransformError::UnknownNode(self.node(id)))?;
         let record = self.context.arena().node(original)?.clone();
-        let transformed = match record.data {
-            NodeData::Token => original,
-            // tsc-port: onSubstituteNode @6.0.3
-            // tsc-hash: 4275c47c81e1ec247934ac9d79029304a6b07f259ccde7a9036f1bdc3d160a3c
-            // tsc-span: _tsc.js:111871-111882
-            // emitMetaProperty emits its name with Unspecified. Preserve
-            // that leaf instead of eagerly querying it as a value reference.
-            NodeData::MetaProperty(_) => original,
-            NodeData::Identifier(_)
-                if !is_non_reference_identifier_node(self.context.arena(), original)? =>
-            {
-                self.substitute_identifier(original)?
+        let transformed = if self.visit_phase == CommonJsVisitPhase::Substitute
+            && !matches!(
+                &record.data,
+                NodeData::Token
+                    | NodeData::MetaProperty(_)
+                    | NodeData::Identifier(_)
+                    | NodeData::CallExpression(_)
+                    | NodeData::TaggedTemplateExpression(_)
+                    | NodeData::ShorthandPropertyAssignment(_)
+            ) {
+            self.update_generic(original, record.data)?
+        } else {
+            match record.data {
+                NodeData::Token => original,
+                // tsc-port: onSubstituteNode @6.0.3
+                // tsc-hash: 4275c47c81e1ec247934ac9d79029304a6b07f259ccde7a9036f1bdc3d160a3c
+                // tsc-span: _tsc.js:111871-111882
+                // emitMetaProperty emits its name with Unspecified. Preserve
+                // that leaf instead of eagerly querying it as a value reference.
+                NodeData::MetaProperty(_) => original,
+                NodeData::Identifier(_)
+                    if !is_non_reference_identifier_node(self.context.arena(), original)? =>
+                {
+                    self.substitute_identifier(original)?
+                }
+                NodeData::Identifier(_) => original,
+                NodeData::ExpressionStatement(data) => {
+                    self.visit_expression_statement(original, data)?
+                }
+                NodeData::ParenthesizedExpression(data) => {
+                    self.visit_parenthesized_expression(original, data)?
+                }
+                NodeData::ShorthandPropertyAssignment(data) => {
+                    self.visit_shorthand_property_assignment(original, data)?
+                }
+                NodeData::PropertyAssignment(data) => {
+                    self.visit_property_assignment(original, data)?
+                }
+                NodeData::BinaryExpression(data)
+                    if self.module_destructuring_assignment_needs_flattening(&data)? =>
+                {
+                    self.flatten_module_destructuring_assignment(original, data)?
+                }
+                NodeData::BinaryExpression(data) => self
+                    .with_expression_value_use(CommonJsExpressionValueUse::Required, |visitor| {
+                        visitor.visit_binary_expression(original, data)
+                    })?,
+                NodeData::PrefixUnaryExpression(data) => {
+                    self.visit_prefix_unary_expression(original, data)?
+                }
+                NodeData::PostfixUnaryExpression(data) => {
+                    self.visit_postfix_unary_expression(original, data)?
+                }
+                NodeData::CallExpression(data) => self
+                    .with_expression_value_use(CommonJsExpressionValueUse::Required, |visitor| {
+                        visitor.visit_call_expression(original, data)
+                    })?,
+                NodeData::TaggedTemplateExpression(data) => self
+                    .with_expression_value_use(CommonJsExpressionValueUse::Required, |visitor| {
+                        visitor.visit_tagged_template_expression(original, data)
+                    })?,
+                NodeData::FunctionDeclaration(data) => self.visit_function_declaration(
+                    original,
+                    data,
+                    CommonJsFunctionLexicalOwner::Function {
+                        kind: SyntaxKind::FunctionDeclaration,
+                        concise_body: false,
+                    },
+                )?,
+                NodeData::FunctionExpression(data) => {
+                    self.visit_function_expression(original, data)?
+                }
+                NodeData::ArrowFunction(data) => self.visit_arrow_function(original, data)?,
+                NodeData::MethodDeclaration(data) => {
+                    self.visit_method_declaration(original, data)?
+                }
+                NodeData::GetAccessor(data) => self.visit_get_accessor(original, data)?,
+                NodeData::SetAccessor(data) => self.visit_set_accessor(original, data)?,
+                NodeData::Constructor(data) => self.visit_constructor(original, data)?,
+                NodeData::ClassStaticBlockDeclaration(data) => {
+                    self.visit_class_static_block(original, data)?
+                }
+                data => self
+                    .with_expression_value_use(CommonJsExpressionValueUse::Required, |visitor| {
+                        visitor.update_generic(original, data)
+                    })?,
             }
-            NodeData::Identifier(_) => original,
-            NodeData::ExpressionStatement(data) => {
-                self.visit_expression_statement(original, data)?
-            }
-            NodeData::ParenthesizedExpression(data) => {
-                self.visit_parenthesized_expression(original, data)?
-            }
-            NodeData::ShorthandPropertyAssignment(data) => {
-                self.visit_shorthand_property_assignment(original, data)?
-            }
-            NodeData::PropertyAssignment(data) => self.visit_property_assignment(original, data)?,
-            NodeData::BinaryExpression(data)
-                if self.module_destructuring_assignment_needs_flattening(&data)? =>
-            {
-                self.flatten_module_destructuring_assignment(original, data)?
-            }
-            NodeData::BinaryExpression(data) => self
-                .with_expression_value_use(CommonJsExpressionValueUse::Required, |visitor| {
-                    visitor.visit_binary_expression(original, data)
-                })?,
-            NodeData::PrefixUnaryExpression(data) => {
-                self.visit_prefix_unary_expression(original, data)?
-            }
-            NodeData::PostfixUnaryExpression(data) => {
-                self.visit_postfix_unary_expression(original, data)?
-            }
-            NodeData::CallExpression(data) => self
-                .with_expression_value_use(CommonJsExpressionValueUse::Required, |visitor| {
-                    visitor.visit_call_expression(original, data)
-                })?,
-            NodeData::TaggedTemplateExpression(data) => self
-                .with_expression_value_use(CommonJsExpressionValueUse::Required, |visitor| {
-                    visitor.visit_tagged_template_expression(original, data)
-                })?,
-            NodeData::FunctionDeclaration(data) => self.visit_function_declaration(
-                original,
-                data,
-                CommonJsFunctionLexicalOwner::Function {
-                    kind: SyntaxKind::FunctionDeclaration,
-                    concise_body: false,
-                },
-            )?,
-            NodeData::FunctionExpression(data) => self.visit_function_expression(original, data)?,
-            NodeData::ArrowFunction(data) => self.visit_arrow_function(original, data)?,
-            NodeData::MethodDeclaration(data) => self.visit_method_declaration(original, data)?,
-            NodeData::GetAccessor(data) => self.visit_get_accessor(original, data)?,
-            NodeData::SetAccessor(data) => self.visit_set_accessor(original, data)?,
-            NodeData::Constructor(data) => self.visit_constructor(original, data)?,
-            NodeData::ClassStaticBlockDeclaration(data) => {
-                self.visit_class_static_block(original, data)?
-            }
-            data => self
-                .with_expression_value_use(CommonJsExpressionValueUse::Required, |visitor| {
-                    visitor.update_generic(original, data)
-                })?,
         };
         self.nodes.insert(id, transformed.node());
         Ok(transformed)
@@ -8998,6 +9013,8 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         original: TransformNode,
         mut data: tsc_syntax::nodes::CallExpressionData,
     ) -> Result<TransformNode, TransformError> {
+        let needs_rewrite =
+            self.visit_phase == CommonJsVisitPhase::Transform && self.rewrite_calls.take(original);
         let is_dynamic_import = data
             .expression
             .and_then(|id| self.context.arena().node_ref(self.source, id))
@@ -9007,7 +9024,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     .node(expression)
                     .is_ok_and(|node| node.kind == SyntaxKind::ImportKeyword)
             });
-        if is_dynamic_import {
+        if is_dynamic_import && self.visit_phase == CommonJsVisitPhase::Transform {
             // visitImportCallExpression keeps native import() for module None
             // at ES2020 and later, even when this module visitor is selected
             // (_tsc.js:110952-110955).
@@ -9030,8 +9047,10 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 for argument in arguments {
                     visited.push(self.visit(argument.node())?);
                 }
-                if let Some(argument) = visited.first_mut() {
-                    *argument = self.rewrite_import_argument(*argument)?;
+                if needs_rewrite {
+                    if let Some(argument) = visited.first_mut() {
+                        *argument = self.rewrite_import_argument(*argument)?;
+                    }
                 }
                 data.arguments = Some(
                     self.context
@@ -9084,22 +9103,21 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             }) {
                 Some(self.create_string_literal(&module_name)?)
             } else {
-                argument
-                    .map(|argument| self.rewrite_import_argument(argument))
-                    .transpose()?
+                if needs_rewrite {
+                    argument.map(|argument| self.rewrite_import_argument(argument)).transpose()?
+                } else {
+                    argument
+                }
             };
             if let Some(amd_bindings) = amd_bindings {
                 let transformed = self.create_amd_dynamic_import(argument, amd_bindings)?;
-                self.set_original_and_range(transformed, original)?;
                 return Ok(transformed);
             }
             if self.module_kind == MODULE_UMD {
                 let transformed = self.create_umd_dynamic_import(argument)?;
-                self.set_original_and_range(transformed, original)?;
                 return Ok(transformed);
             }
             let transformed = self.create_common_js_dynamic_import_value(argument, false)?;
-            self.set_original_and_range(transformed, original)?;
             return Ok(transformed);
         }
 
@@ -9123,11 +9141,45 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                         .metadata(callee)
                         .is_some_and(|metadata| metadata.flags().contains(EmitFlags::HELPER_NAME))
             });
-        let mut node_data = NodeData::CallExpression(data);
-        try_visit_each_child(&mut node_data, self)?;
-        let NodeData::CallExpression(mut data) = node_data else {
-            unreachable!("call expression visitor preserves kind")
-        };
+        if needs_rewrite {
+            // shimOrRewriteImportOrRequireCall: the first argument is not
+            // recursively visited. Preserve later emit-time callee substitution.
+            data.expression = data
+                .expression
+                .map(|callee| self.visit(callee).map(TransformNode::node))
+                .transpose()?;
+            let original_array = data
+                .arguments
+                .and_then(|array| self.context.arena().node_array_ref(self.source, array))
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::CallExpression,
+                    field: "arguments",
+                })?;
+            let arguments = node_array_nodes(self.context.arena(), self.source, data.arguments)?;
+            let mut visited = Vec::with_capacity(arguments.len());
+            for (index, argument) in arguments.into_iter().enumerate() {
+                visited.push(if index == 0 {
+                    let argument = self.substitute_expression(argument)?;
+                    self.rewrite_import_argument(argument)?
+                } else {
+                    self.visit(argument.node())?
+                });
+            }
+            data.arguments = Some(
+                self.context
+                    .factory()?
+                    .update_node_array(original_array, visited)?
+                    .array(),
+            );
+            data.type_arguments = None;
+        } else {
+            let mut node_data = NodeData::CallExpression(data);
+            try_visit_each_child(&mut node_data, self)?;
+            let NodeData::CallExpression(visited) = node_data else {
+                unreachable!("call expression visitor preserves kind")
+            };
+            data = visited;
+        }
         let substituted_callee_is_non_identifier = data
             .expression
             .and_then(|id| self.context.arena().node_ref(self.source, id))
@@ -10227,27 +10279,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         if !self.rewrite_relative_import_extensions {
             return Ok(argument);
         }
-        if let NodeData::StringLiteral(literal) = self.context.arena().node(argument)?.data.clone()
-        {
-            let Some(text) = rewrite_relative_module_specifier(&literal.text) else {
-                return Ok(argument);
-            };
-            let flags = self.context.arena().transform_flags(argument);
-            return self.context.factory()?.update_node(
-                argument,
-                NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
-                    text,
-                    has_extended_unicode_escape: literal.has_extended_unicode_escape,
-                }),
-                flags,
-            );
-        }
-        self.request_rewrite_relative_import_extensions_helper()?;
-        let helper = self.context.factory()?.create_unscoped_helper_identifier(
-            self.source,
-            EmitHelperName::RewriteRelativeImportExtension,
-        )?;
-        self.create_call(helper, vec![argument])
+        relative_imports::rewrite_argument(self.context, argument, self.preserve_jsx)
     }
 
     fn create_assignment(
@@ -10649,17 +10681,6 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 EXPORT_STAR_HELPER_TEXT,
                 Some(2),
                 vec![create_binding],
-            ))
-    }
-
-    fn request_rewrite_relative_import_extensions_helper(&mut self) -> Result<(), TransformError> {
-        self.context
-            .request_emit_helper(crate::EmitHelper::with_text(
-                "typescript:rewriteRelativeImportExtensions",
-                false,
-                REWRITE_RELATIVE_IMPORT_EXTENSIONS_HELPER_TEXT,
-                None,
-                Vec::new(),
             ))
     }
 
