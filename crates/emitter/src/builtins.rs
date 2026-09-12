@@ -7338,6 +7338,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     | NodeData::CallExpression(_)
                     | NodeData::TaggedTemplateExpression(_)
                     | NodeData::ShorthandPropertyAssignment(_)
+                    | NodeData::BinaryExpression(_)
             ) {
             self.update_generic(original, record.data)?
         } else {
@@ -7368,7 +7369,8 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     self.visit_property_assignment(original, data)?
                 }
                 NodeData::BinaryExpression(data)
-                    if self.module_destructuring_assignment_needs_flattening(&data)? =>
+                    if self.visit_phase == CommonJsVisitPhase::Transform
+                        && self.module_destructuring_assignment_needs_flattening(&data)? =>
                 {
                     self.flatten_module_destructuring_assignment(original, data)?
                 }

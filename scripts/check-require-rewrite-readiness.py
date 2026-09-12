@@ -31,7 +31,7 @@ for pin in manifest["baseline_rust"]:
     assert digest(original) == pin["sha256"], pin["path"]
 packet = (ROOT / "docs/design/greenfield/slices/h2-8a-require-rewrite.md").read_text()
 source = (ROOT / "vendor/typescript-6.0.3/lib/_tsc.js").read_bytes().splitlines(keepends=True)
-assert len(manifest["owners"]) == 18
+assert len(manifest["owners"]) == 19
 for row in manifest["owners"]:
     assert digest(b"".join(source[row["start"]-1:row["end"]])) == row["sha256"], row["owner"]
     assert row["step"] in packet and row["owner"] in packet
@@ -47,5 +47,9 @@ composition = json.loads((ROOT / "crates/compiler/tests/fixtures/h2-8a-require-r
 assert composition["repetitions"] == 2 and composition["upstream_failures"] == []
 assert len(composition["cases"]) == manifest["composition_count"] == 4
 assert composition["observer_sha256"] == digest((ROOT / "scripts/observe-require-rewrite-composition.mjs").read_bytes())
+substitution = json.loads((ROOT / "crates/compiler/tests/fixtures/h2-8a-require-rewrite-substitution.json").read_text())
+assert substitution["repetitions"] == 2 and substitution["upstream_failures"] == []
+assert len(substitution["cases"]) == manifest["substitution_count"] == 4
+assert substitution["observer_sha256"] == digest((ROOT / "scripts/observe-require-rewrite-substitution.mjs").read_bytes())
 assert (ROOT / "crates/compiler/tests/h2_8a_require_rewrite.rs").is_file()
-print("require rewrite ready: 18 owners, 7 architecture rows, 60 focused + 2 original commands; unresolved=0, undispositioned=0")
+print("require rewrite ready: 19 owners, 7 architecture rows, 60 focused + 8 composition + 2 original commands; unresolved=0, undispositioned=0")

@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "case_id": "require-rewrite-substitution/commonjs/exported-assignment",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "let path = \"./a.ts\";\nexport { path as alias };\nrequire(path = \"./b.ts\");\nrequire(path += \".ts\");\nrequire(({ path } = { path: \"./c.ts\" }));\nrequire(path++);\n"
+        }
+      ],
+      "options": {},
+      "config": "{\"compilerOptions\": {\"target\": \"esnext\", \"module\": \"commonjs\", \"allowJs\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"outDir\": \"out\", \"newLine\": \"lf\", \"ignoreDeprecations\": \"6.0\", \"rewriteRelativeImportExtensions\": true}, \"files\": [\"main.js\"]}"
+    },
+    {
+      "case_id": "require-rewrite-substitution/amd/exported-assignment",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "let path = \"./a.ts\";\nexport { path as alias };\nrequire(path = \"./b.ts\");\nrequire(path += \".ts\");\nrequire(({ path } = { path: \"./c.ts\" }));\nrequire(path++);\n"
+        }
+      ],
+      "options": {},
+      "config": "{\"compilerOptions\": {\"target\": \"esnext\", \"module\": \"amd\", \"allowJs\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"outDir\": \"out\", \"newLine\": \"lf\", \"ignoreDeprecations\": \"6.0\", \"rewriteRelativeImportExtensions\": true}, \"files\": [\"main.js\"]}"
+    },
+    {
+      "case_id": "require-rewrite-substitution/umd/exported-assignment",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "let path = \"./a.ts\";\nexport { path as alias };\nrequire(path = \"./b.ts\");\nrequire(path += \".ts\");\nrequire(({ path } = { path: \"./c.ts\" }));\nrequire(path++);\n"
+        }
+      ],
+      "options": {},
+      "config": "{\"compilerOptions\": {\"target\": \"esnext\", \"module\": \"umd\", \"allowJs\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"outDir\": \"out\", \"newLine\": \"lf\", \"ignoreDeprecations\": \"6.0\", \"rewriteRelativeImportExtensions\": true}, \"files\": [\"main.js\"]}"
+    },
+    {
+      "case_id": "require-rewrite-substitution/esnext/exported-assignment",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "let path = \"./a.ts\";\nexport { path as alias };\nrequire(path = \"./b.ts\");\nrequire(path += \".ts\");\nrequire(({ path } = { path: \"./c.ts\" }));\nrequire(path++);\n"
+        }
+      ],
+      "options": {},
+      "config": "{\"compilerOptions\": {\"target\": \"esnext\", \"module\": \"esnext\", \"allowJs\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"outDir\": \"out\", \"newLine\": \"lf\", \"ignoreDeprecations\": \"6.0\", \"rewriteRelativeImportExtensions\": true}, \"files\": [\"main.js\"]}"
+    }
+  ]
+}

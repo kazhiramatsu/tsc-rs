@@ -218,3 +218,22 @@ locally created callee phase was published as an inherited continuation. The
 corrected consumer records the outcome only when it actually took a pending
 parent phase; otherwise it checks local completion and leaves the caller
 Inactive. The failed run retains actual exit101 and unchanged input hashes.
+
+The unchanged original projection also verifies its transitive corpus/generator
+pins at execution. Its three top-level artifacts are now pinned directly in
+the readiness manifest and verified byte-identical to the trusted base; they
+can be reconstructed from that immutable commit alongside each run's archive.
+
+## R2 exported-assignment substitution amendment
+
+Source review at `7e652138c` found that the new substitution-only phase also
+needs `substituteBinaryExpression` (111990–112028, SHA-256 `fc6c4ddb37ad5d8398d7a3dba5ee822c7dfdad5bf009e78213a47a04f6a0f4e0`).
+The existing `visit_binary_expression` already implements this print-time
+export-alias publication. Retain that worker during substitution, while keeping
+module destructuring flattening and prefix/postfix update lowering restricted
+to Transform. Four separately frozen CommonJS/AMD/UMD/ESNext complete commands
+exercise direct and compound assignments, destructuring and postfix arguments.
+The original 60 focused and four import-composition observations remain frozen.
+The in-flight 7e652138c full run was stopped deliberately before source edits;
+its real cargo exit101 and unchanged input receipt are retained, never counted
+as final qualification.

@@ -16,7 +16,8 @@
     "focused_count",
     "original_count",
     "production_paths",
-    "composition_count"
+    "composition_count",
+    "substitution_count"
   ],
   "properties": {
     "version": {
@@ -77,6 +78,10 @@
       }
     },
     "composition_count": {
+      "type": "integer",
+      "const": 4
+    },
+    "substitution_count": {
       "type": "integer",
       "const": 4
     }

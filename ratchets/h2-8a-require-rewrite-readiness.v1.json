@@ -47,7 +47,31 @@
     },
     {
       "path": "docs/design/greenfield/slices/h2-8a-require-rewrite-readiness.schema.json",
-      "sha256": "da82c93ae0e37140fb9c81b1fa0428576d9deab2654f6c2e0673065866bc6e57"
+      "sha256": "7d3b941fb1bd76060a5bd8794ad4883eaddefb570de0f0352a3e9866ba4425e3"
+    },
+    {
+      "path": "ratchets/h2-8a-candidates.v1.json",
+      "sha256": "e33fbf9b6c7eb96dae5186013e054e57eae371a48fca461a809ae4e6e2a1095c"
+    },
+    {
+      "path": "ratchets/h2-8a-candidate-inputs.v1.json",
+      "sha256": "6ff7ea8d1d986e8a9d833d45ec694ab0b8616604fdf065ba52e24a34ac86759b"
+    },
+    {
+      "path": "ratchets/h2-8a-observations.v1.json",
+      "sha256": "91fc28206d663eab46fef98f72ba296d29e02def72518e012616c4d0d01acc87"
+    },
+    {
+      "path": "scripts/observe-require-rewrite-substitution.mjs",
+      "sha256": "afc856b5248848f136797edc8c52a4f66c36ca65a75ece37245e8f4fe0265cf3"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/h2-8a-require-rewrite-substitution-inputs.json",
+      "sha256": "f29af5f87413c0e972022e1b8582ab694a76202b26ecf5f9a3bcc62b12dd982d"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/h2-8a-require-rewrite-substitution.json",
+      "sha256": "eb55b47abdb63c81197443fd5b166bd00d2c7c684d11cffa46e1ab9ab0cb898c"
     }
   ],
   "baseline_rust": [
@@ -194,6 +218,13 @@
       "end": 120986,
       "step": "R5",
       "sha256": "263af5299b06aaeca9c4e6397b6013e6b2c465afcab2709d8cbdd5ace688bd34"
+    },
+    {
+      "owner": "substituteBinaryExpression",
+      "start": 111990,
+      "end": 112028,
+      "step": "R2",
+      "sha256": "fc6c4ddb37ad5d8398d7a3dba5ee822c7dfdad5bf009e78213a47a04f6a0f4e0"
     }
   ],
   "architecture": [
@@ -233,5 +264,6 @@
     "crates/emitter/src/builtins/relative_imports.rs",
     "crates/emitter/src/printer.rs"
   ],
-  "composition_count": 4
+  "composition_count": 4,
+  "substitution_count": 4
 }
