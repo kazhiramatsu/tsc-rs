@@ -1,0 +1,75 @@
+{
+  "head": "66c42b3a73696ece0c7b91cef077567965f63cf4",
+  "command": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "test",
+    "-p",
+    "tsc-rs-compiler",
+    "--test",
+    "contracts",
+    "cli_contract::filesystem_config_and_source_diagnostic_order_matches_typescript",
+    "--",
+    "--exact",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-dec-literal-prologue/target/decorator-literal-prologue-acceptance",
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "RUSTC_WRAPPER": "",
+    "TSRS_H2_5G_WORKERS": "2",
+    "TSRS_CONFORMANCE_WORKERS": "2",
+    "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-dec-literal-prologue/target/decorator-prologue-followup-runs/final-cfg-cli/captures"
+  },
+  "actual_exit": 101,
+  "finished_at": "2026-09-12T00:38:26.074145+00:00",
+  "prelaunch_sha256": "0225ccc170974f7aee14457dfc4389d36d79ce356b05034fc6710ac52b9f36ac",
+  "log_sha256": "7b27735d643762ccbc4718bf5831a41f13fff4f9dd29eeb1dfd6d4e52fbe16e1",
+  "suite_results": [
+    [
+      "FAILED",
+      "0",
+      "1",
+      "0"
+    ]
+  ],
+  "source_unchanged_after_run": true,
+  "probe_results": [
+    {
+      "case": "none",
+      "runtime": "native",
+      "exit": 1,
+      "stdout": "main.ts(1,1): error TS1148: Cannot use imports, exports, or module augmentations when '--module' is 'none'.\ntsconfig.json(1,30): error TS5107: Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\ntsconfig.json(1,55): error TS5107: Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.\ntsconfig.json(1,137): error TS5107: Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n",
+      "stderr": ""
+    },
+    {
+      "case": "none",
+      "runtime": "typescript",
+      "exit": 1,
+      "stdout": "main.ts(1,1): error TS1148: Cannot use imports, exports, or module augmentations when '--module' is 'none'.\ntsconfig.json(1,30): error TS5107: Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\ntsconfig.json(1,55): error TS5107: Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.\ntsconfig.json(1,137): error TS5107: Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n",
+      "stderr": ""
+    },
+    {
+      "case": "outfile",
+      "runtime": "native",
+      "exit": 2,
+      "stdout": "",
+      "stderr": "tsc-rs: compiler failure: unsupported emit compiler option: useCaseSensitiveFileNames\n"
+    },
+    {
+      "case": "outfile",
+      "runtime": "typescript",
+      "exit": 1,
+      "stdout": "main.ts(1,1): error TS6131: Cannot compile modules using option 'outFile' unless the '--module' flag is 'amd' or 'system'.\ntsconfig.json(1,30): error TS5107: Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\ntsconfig.json(1,55): error TS5107: Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.\ntsconfig.json(1,128): error TS5101: Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n",
+      "stderr": ""
+    }
+  ],
+  "scope": "Existing H2.7d case-insensitive outFile host refusal; no complete-command equality credit."
+}
