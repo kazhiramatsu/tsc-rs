@@ -1,0 +1,2702 @@
+{
+  "schema": 1,
+  "typescript": "6.0.3",
+  "generator_sha256": "0c7a1ea35b8e35823ca41f94163e47d3df01bf8de1c661324b11f9955d9a4605",
+  "typescript_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "cases": [
+    {
+      "case_id": "directives/external",
+      "route": "directives",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/.src/input.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2015"
+          },
+          {
+            "name": "sourceMap",
+            "value": "true"
+          }
+        ],
+        "virtual_config": null
+      },
+      "repetitions": 2,
+      "effective_map_options": {
+        "sourceMap": true,
+        "inlineSourceMap": null,
+        "inlineSources": null,
+        "sourceRoot": null,
+        "mapRoot": null
+      },
+      "observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/input.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJpbnB1dC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsSUFBSSxDQUFDLEdBQUcsRUFBRSxDQUFDIn0=",
+            "callback_utf8_sha256": "f634532015688600e2c22c43749d3113a04752127971c2a615ff610118df0550",
+            "callback_utf8_bytes": 125,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "f634532015688600e2c22c43749d3113a04752127971c2a615ff610118df0550",
+            "materialized_utf8_bytes": 125,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics_count": null
+          },
+          {
+            "index": 1,
+            "path": "/.src/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWlucHV0LmpzLm1hcA==",
+            "callback_utf8_sha256": "2d347aa97ca10a1b3cccc4da9f0ea94d93df3d628e087dc4b4fcef4682d05fa7",
+            "callback_utf8_bytes": 61,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "2d347aa97ca10a1b3cccc4da9f0ea94d93df3d628e087dc4b4fcef4682d05fa7",
+            "materialized_utf8_bytes": 61,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 28,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/input.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "directives/external-sources",
+      "route": "directives",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/.src/input.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2015"
+          },
+          {
+            "name": "sourceMap",
+            "value": "true"
+          },
+          {
+            "name": "inlineSources",
+            "value": "true"
+          }
+        ],
+        "virtual_config": null
+      },
+      "repetitions": 2,
+      "effective_map_options": {
+        "sourceMap": true,
+        "inlineSourceMap": null,
+        "inlineSources": true,
+        "sourceRoot": null,
+        "mapRoot": null
+      },
+      "observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/input.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJpbnB1dC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsSUFBSSxDQUFDLEdBQUcsRUFBRSxDQUFDIiwic291cmNlc0NvbnRlbnQiOlsidmFyIGEgPSAxMDsiXX0=",
+            "callback_utf8_sha256": "b7b4a30e1ac1432095220dcf395130ad07970aeccd0138f5415e52abb320f04c",
+            "callback_utf8_bytes": 158,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "b7b4a30e1ac1432095220dcf395130ad07970aeccd0138f5415e52abb320f04c",
+            "materialized_utf8_bytes": 158,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics_count": null
+          },
+          {
+            "index": 1,
+            "path": "/.src/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWlucHV0LmpzLm1hcA==",
+            "callback_utf8_sha256": "2d347aa97ca10a1b3cccc4da9f0ea94d93df3d628e087dc4b4fcef4682d05fa7",
+            "callback_utf8_bytes": 61,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "2d347aa97ca10a1b3cccc4da9f0ea94d93df3d628e087dc4b4fcef4682d05fa7",
+            "materialized_utf8_bytes": 61,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 28,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/input.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\",\"sourcesContent\":[\"var a = 10;\"]}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "directives/relative-map-root",
+      "route": "directives",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/.src/input.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2015"
+          },
+          {
+            "name": "sourceMap",
+            "value": "true"
+          },
+          {
+            "name": "inlineSources",
+            "value": "true"
+          },
+          {
+            "name": "mapRoot",
+            "value": "local"
+          }
+        ],
+        "virtual_config": null
+      },
+      "repetitions": 2,
+      "effective_map_options": {
+        "sourceMap": true,
+        "inlineSourceMap": null,
+        "inlineSources": true,
+        "sourceRoot": null,
+        "mapRoot": "local"
+      },
+      "observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/input.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi9pbnB1dC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsSUFBSSxDQUFDLEdBQUcsRUFBRSxDQUFDIiwic291cmNlc0NvbnRlbnQiOlsidmFyIGEgPSAxMDsiXX0=",
+            "callback_utf8_sha256": "deeba14ba0d51000b6242622b60ce5aef55153e0f29f2b23c583426a80a364fd",
+            "callback_utf8_bytes": 161,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "deeba14ba0d51000b6242622b60ce5aef55153e0f29f2b23c583426a80a364fd",
+            "materialized_utf8_bytes": 161,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics_count": null
+          },
+          {
+            "index": 1,
+            "path": "/.src/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWxvY2FsL2lucHV0LmpzLm1hcA==",
+            "callback_utf8_sha256": "4782514407074adebf0126f19f619c9660bd554410e9fe2c650934f26cbbb995",
+            "callback_utf8_bytes": 67,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "4782514407074adebf0126f19f619c9660bd554410e9fe2c650934f26cbbb995",
+            "materialized_utf8_bytes": 67,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 28,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/input.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"../input.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\",\"sourcesContent\":[\"var a = 10;\"]}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "directives/relative-source-root",
+      "route": "directives",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/.src/input.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2015"
+          },
+          {
+            "name": "sourceMap",
+            "value": "true"
+          },
+          {
+            "name": "inlineSources",
+            "value": "true"
+          },
+          {
+            "name": "sourceRoot",
+            "value": "local"
+          }
+        ],
+        "virtual_config": null
+      },
+      "repetitions": 2,
+      "effective_map_options": {
+        "sourceMap": true,
+        "inlineSourceMap": null,
+        "inlineSources": true,
+        "sourceRoot": "local",
+        "mapRoot": null
+      },
+      "observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/input.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290IjoibG9jYWwvIiwic291cmNlcyI6WyJpbnB1dC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsSUFBSSxDQUFDLEdBQUcsRUFBRSxDQUFDIiwic291cmNlc0NvbnRlbnQiOlsidmFyIGEgPSAxMDsiXX0=",
+            "callback_utf8_sha256": "922b7371716cdc4e5d15172b0bdc2bacbe6be2acabd71ad8550a9dcad605fbdf",
+            "callback_utf8_bytes": 164,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "922b7371716cdc4e5d15172b0bdc2bacbe6be2acabd71ad8550a9dcad605fbdf",
+            "materialized_utf8_bytes": 164,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics_count": null
+          },
+          {
+            "index": 1,
+            "path": "/.src/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWlucHV0LmpzLm1hcA==",
+            "callback_utf8_sha256": "2d347aa97ca10a1b3cccc4da9f0ea94d93df3d628e087dc4b4fcef4682d05fa7",
+            "callback_utf8_bytes": 61,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "2d347aa97ca10a1b3cccc4da9f0ea94d93df3d628e087dc4b4fcef4682d05fa7",
+            "materialized_utf8_bytes": 61,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 28,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/input.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"local/\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\",\"sourcesContent\":[\"var a = 10;\"]}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "directives/empty-roots",
+      "route": "directives",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/.src/input.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2015"
+          },
+          {
+            "name": "sourceMap",
+            "value": "true"
+          },
+          {
+            "name": "inlineSources",
+            "value": "true"
+          },
+          {
+            "name": "mapRoot",
+            "value": ""
+          },
+          {
+            "name": "sourceRoot",
+            "value": ""
+          }
+        ],
+        "virtual_config": null
+      },
+      "repetitions": 2,
+      "effective_map_options": {
+        "sourceMap": true,
+        "inlineSourceMap": null,
+        "inlineSources": true,
+        "sourceRoot": "",
+        "mapRoot": ""
+      },
+      "observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/input.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJpbnB1dC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsSUFBSSxDQUFDLEdBQUcsRUFBRSxDQUFDIiwic291cmNlc0NvbnRlbnQiOlsidmFyIGEgPSAxMDsiXX0=",
+            "callback_utf8_sha256": "b7b4a30e1ac1432095220dcf395130ad07970aeccd0138f5415e52abb320f04c",
+            "callback_utf8_bytes": 158,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "b7b4a30e1ac1432095220dcf395130ad07970aeccd0138f5415e52abb320f04c",
+            "materialized_utf8_bytes": 158,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics_count": null
+          },
+          {
+            "index": 1,
+            "path": "/.src/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWlucHV0LmpzLm1hcA==",
+            "callback_utf8_sha256": "2d347aa97ca10a1b3cccc4da9f0ea94d93df3d628e087dc4b4fcef4682d05fa7",
+            "callback_utf8_bytes": 61,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "2d347aa97ca10a1b3cccc4da9f0ea94d93df3d628e087dc4b4fcef4682d05fa7",
+            "materialized_utf8_bytes": 61,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 28,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/input.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\",\"sourcesContent\":[\"var a = 10;\"]}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "directives/false-inline-sources",
+      "route": "directives",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/.src/input.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2015"
+          },
+          {
+            "name": "sourceMap",
+            "value": "true"
+          },
+          {
+            "name": "inlineSources",
+            "value": "false"
+          }
+        ],
+        "virtual_config": null
+      },
+      "repetitions": 2,
+      "effective_map_options": {
+        "sourceMap": true,
+        "inlineSourceMap": null,
+        "inlineSources": false,
+        "sourceRoot": null,
+        "mapRoot": null
+      },
+      "observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/input.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJpbnB1dC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsSUFBSSxDQUFDLEdBQUcsRUFBRSxDQUFDIn0=",
+            "callback_utf8_sha256": "f634532015688600e2c22c43749d3113a04752127971c2a615ff610118df0550",
+            "callback_utf8_bytes": 125,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "f634532015688600e2c22c43749d3113a04752127971c2a615ff610118df0550",
+            "materialized_utf8_bytes": 125,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics_count": null
+          },
+          {
+            "index": 1,
+            "path": "/.src/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWlucHV0LmpzLm1hcA==",
+            "callback_utf8_sha256": "2d347aa97ca10a1b3cccc4da9f0ea94d93df3d628e087dc4b4fcef4682d05fa7",
+            "callback_utf8_bytes": 61,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "2d347aa97ca10a1b3cccc4da9f0ea94d93df3d628e087dc4b4fcef4682d05fa7",
+            "materialized_utf8_bytes": 61,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 28,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/input.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "directives/false-inline-map",
+      "route": "directives",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/.src/input.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2015"
+          },
+          {
+            "name": "sourceMap",
+            "value": "true"
+          },
+          {
+            "name": "inlineSourceMap",
+            "value": "false"
+          }
+        ],
+        "virtual_config": null
+      },
+      "repetitions": 2,
+      "effective_map_options": {
+        "sourceMap": true,
+        "inlineSourceMap": false,
+        "inlineSources": null,
+        "sourceRoot": null,
+        "mapRoot": null
+      },
+      "observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/input.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJpbnB1dC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsSUFBSSxDQUFDLEdBQUcsRUFBRSxDQUFDIn0=",
+            "callback_utf8_sha256": "f634532015688600e2c22c43749d3113a04752127971c2a615ff610118df0550",
+            "callback_utf8_bytes": 125,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "f634532015688600e2c22c43749d3113a04752127971c2a615ff610118df0550",
+            "materialized_utf8_bytes": 125,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics_count": null
+          },
+          {
+            "index": 1,
+            "path": "/.src/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWlucHV0LmpzLm1hcA==",
+            "callback_utf8_sha256": "2d347aa97ca10a1b3cccc4da9f0ea94d93df3d628e087dc4b4fcef4682d05fa7",
+            "callback_utf8_bytes": 61,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "2d347aa97ca10a1b3cccc4da9f0ea94d93df3d628e087dc4b4fcef4682d05fa7",
+            "materialized_utf8_bytes": 61,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 28,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/input.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "directives/all-false",
+      "route": "directives",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/.src/input.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2015"
+          },
+          {
+            "name": "sourceMap",
+            "value": "false"
+          },
+          {
+            "name": "inlineSourceMap",
+            "value": "false"
+          },
+          {
+            "name": "inlineSources",
+            "value": "false"
+          },
+          {
+            "name": "mapRoot",
+            "value": ""
+          },
+          {
+            "name": "sourceRoot",
+            "value": ""
+          }
+        ],
+        "virtual_config": null
+      },
+      "repetitions": 2,
+      "effective_map_options": {
+        "sourceMap": false,
+        "inlineSourceMap": false,
+        "inlineSources": false,
+        "sourceRoot": "",
+        "mapRoot": ""
+      },
+      "observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCg==",
+            "callback_utf8_sha256": "db4ec3bb0d5e666731eb62be15f423cc3d9d76803def606087d0ebd5a027912e",
+            "callback_utf8_bytes": 28,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "db4ec3bb0d5e666731eb62be15f423cc3d9d76803def606087d0ebd5a027912e",
+            "materialized_utf8_bytes": 28,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "directives/inline",
+      "route": "directives",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/.src/input.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2015"
+          },
+          {
+            "name": "sourceMap",
+            "value": "false"
+          },
+          {
+            "name": "inlineSourceMap",
+            "value": "true"
+          },
+          {
+            "name": "inlineSources",
+            "value": "true"
+          }
+        ],
+        "virtual_config": null
+      },
+      "repetitions": 2,
+      "effective_map_options": {
+        "sourceMap": false,
+        "inlineSourceMap": true,
+        "inlineSources": true,
+        "sourceRoot": null,
+        "mapRoot": null
+      },
+      "observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWRhdGE6YXBwbGljYXRpb24vanNvbjtiYXNlNjQsZXlKMlpYSnphVzl1SWpvekxDSm1hV3hsSWpvaWFXNXdkWFF1YW5NaUxDSnpiM1Z5WTJWU2IyOTBJam9pSWl3aWMyOTFjbU5sY3lJNld5SnBibkIxZEM1MGN5SmRMQ0p1WVcxbGN5STZXMTBzSW0xaGNIQnBibWR6SWpvaU8wRkJRVUVzU1VGQlNTeERRVUZETEVkQlFVY3NSVUZCUlN4RFFVRkRJaXdpYzI5MWNtTmxjME52Ym5SbGJuUWlPbHNpZG1GeUlHRWdQU0F4TURzaVhYMD0=",
+            "callback_utf8_sha256": "5e5ab3688716cffeebd92d1bb487bd9b1c25bac52538bc75e9d959dc529b519d",
+            "callback_utf8_bytes": 290,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "5e5ab3688716cffeebd92d1bb487bd9b1c25bac52538bc75e9d959dc529b519d",
+            "materialized_utf8_bytes": 290,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 28,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/input.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\",\"sourcesContent\":[\"var a = 10;\"]}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "directives/inline-empty-roots",
+      "route": "directives",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/.src/input.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2015"
+          },
+          {
+            "name": "inlineSourceMap",
+            "value": "true"
+          },
+          {
+            "name": "inlineSources",
+            "value": "true"
+          },
+          {
+            "name": "mapRoot",
+            "value": ""
+          },
+          {
+            "name": "sourceRoot",
+            "value": ""
+          }
+        ],
+        "virtual_config": null
+      },
+      "repetitions": 2,
+      "effective_map_options": {
+        "sourceMap": null,
+        "inlineSourceMap": true,
+        "inlineSources": true,
+        "sourceRoot": "",
+        "mapRoot": ""
+      },
+      "observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWRhdGE6YXBwbGljYXRpb24vanNvbjtiYXNlNjQsZXlKMlpYSnphVzl1SWpvekxDSm1hV3hsSWpvaWFXNXdkWFF1YW5NaUxDSnpiM1Z5WTJWU2IyOTBJam9pSWl3aWMyOTFjbU5sY3lJNld5SnBibkIxZEM1MGN5SmRMQ0p1WVcxbGN5STZXMTBzSW0xaGNIQnBibWR6SWpvaU8wRkJRVUVzU1VGQlNTeERRVUZETEVkQlFVY3NSVUZCUlN4RFFVRkRJaXdpYzI5MWNtTmxjME52Ym5SbGJuUWlPbHNpZG1GeUlHRWdQU0F4TURzaVhYMD0=",
+            "callback_utf8_sha256": "5e5ab3688716cffeebd92d1bb487bd9b1c25bac52538bc75e9d959dc529b519d",
+            "callback_utf8_bytes": 290,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "5e5ab3688716cffeebd92d1bb487bd9b1c25bac52538bc75e9d959dc529b519d",
+            "materialized_utf8_bytes": 290,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 28,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/input.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\",\"sourcesContent\":[\"var a = 10;\"]}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "directives/conflicting-maps",
+      "route": "directives",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/.src/input.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2015"
+          },
+          {
+            "name": "sourceMap",
+            "value": "true"
+          },
+          {
+            "name": "inlineSourceMap",
+            "value": "true"
+          }
+        ],
+        "virtual_config": null
+      },
+      "repetitions": 2,
+      "effective_map_options": {
+        "sourceMap": true,
+        "inlineSourceMap": true,
+        "inlineSources": null,
+        "sourceRoot": null,
+        "mapRoot": null
+      },
+      "observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWRhdGE6YXBwbGljYXRpb24vanNvbjtiYXNlNjQsZXlKMlpYSnphVzl1SWpvekxDSm1hV3hsSWpvaWFXNXdkWFF1YW5NaUxDSnpiM1Z5WTJWU2IyOTBJam9pSWl3aWMyOTFjbU5sY3lJNld5SnBibkIxZEM1MGN5SmRMQ0p1WVcxbGN5STZXMTBzSW0xaGNIQnBibWR6SWpvaU8wRkJRVUVzU1VGQlNTeERRVUZETEVkQlFVY3NSVUZCUlN4RFFVRkRJbjA9",
+            "callback_utf8_sha256": "7b7e6a07f9a519c7b88acaf66e4c2d5cd469d2fb3a5e3636d9379a7a523f41ec",
+            "callback_utf8_bytes": 246,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "7b7e6a07f9a519c7b88acaf66e4c2d5cd469d2fb3a5e3636d9379a7a523f41ec",
+            "materialized_utf8_bytes": 246,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 28,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5053,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'sourceMap' cannot be specified with option 'inlineSourceMap'."
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/input.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "directives/sources-without-map",
+      "route": "directives",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/.src/input.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2015"
+          },
+          {
+            "name": "inlineSources",
+            "value": "true"
+          }
+        ],
+        "virtual_config": null
+      },
+      "repetitions": 2,
+      "effective_map_options": {
+        "sourceMap": null,
+        "inlineSourceMap": null,
+        "inlineSources": true,
+        "sourceRoot": null,
+        "mapRoot": null
+      },
+      "observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCg==",
+            "callback_utf8_sha256": "db4ec3bb0d5e666731eb62be15f423cc3d9d76803def606087d0ebd5a027912e",
+            "callback_utf8_bytes": 28,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "db4ec3bb0d5e666731eb62be15f423cc3d9d76803def606087d0ebd5a027912e",
+            "materialized_utf8_bytes": 28,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5051,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'inlineSources can only be used when either option '--inlineSourceMap' or option '--sourceMap' is provided."
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "directives/map-root-without-map",
+      "route": "directives",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/.src/input.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2015"
+          },
+          {
+            "name": "mapRoot",
+            "value": "local"
+          }
+        ],
+        "virtual_config": null
+      },
+      "repetitions": 2,
+      "effective_map_options": {
+        "sourceMap": null,
+        "inlineSourceMap": null,
+        "inlineSources": null,
+        "sourceRoot": null,
+        "mapRoot": "local"
+      },
+      "observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCg==",
+            "callback_utf8_sha256": "db4ec3bb0d5e666731eb62be15f423cc3d9d76803def606087d0ebd5a027912e",
+            "callback_utf8_bytes": 28,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "db4ec3bb0d5e666731eb62be15f423cc3d9d76803def606087d0ebd5a027912e",
+            "materialized_utf8_bytes": 28,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5069,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'mapRoot' cannot be specified without specifying option 'sourceMap' or option 'declarationMap'."
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "directives/source-root-without-map",
+      "route": "directives",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/.src/input.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2015"
+          },
+          {
+            "name": "sourceRoot",
+            "value": "local"
+          }
+        ],
+        "virtual_config": null
+      },
+      "repetitions": 2,
+      "effective_map_options": {
+        "sourceMap": null,
+        "inlineSourceMap": null,
+        "inlineSources": null,
+        "sourceRoot": "local",
+        "mapRoot": null
+      },
+      "observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCg==",
+            "callback_utf8_sha256": "db4ec3bb0d5e666731eb62be15f423cc3d9d76803def606087d0ebd5a027912e",
+            "callback_utf8_bytes": 28,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "db4ec3bb0d5e666731eb62be15f423cc3d9d76803def606087d0ebd5a027912e",
+            "materialized_utf8_bytes": 28,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5051,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'sourceRoot can only be used when either option '--inlineSourceMap' or option '--sourceMap' is provided."
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "directives/map-root-with-inline",
+      "route": "directives",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/.src/input.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2015"
+          },
+          {
+            "name": "inlineSourceMap",
+            "value": "true"
+          },
+          {
+            "name": "mapRoot",
+            "value": "local"
+          }
+        ],
+        "virtual_config": null
+      },
+      "repetitions": 2,
+      "effective_map_options": {
+        "sourceMap": null,
+        "inlineSourceMap": true,
+        "inlineSources": null,
+        "sourceRoot": null,
+        "mapRoot": "local"
+      },
+      "observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWRhdGE6YXBwbGljYXRpb24vanNvbjtiYXNlNjQsZXlKMlpYSnphVzl1SWpvekxDSm1hV3hsSWpvaWFXNXdkWFF1YW5NaUxDSnpiM1Z5WTJWU2IyOTBJam9pSWl3aWMyOTFjbU5sY3lJNld5SXVMaTlwYm5CMWRDNTBjeUpkTENKdVlXMWxjeUk2VzEwc0ltMWhjSEJwYm1keklqb2lPMEZCUVVFc1NVRkJTU3hEUVVGRExFZEJRVWNzUlVGQlJTeERRVUZESW4wPQ==",
+            "callback_utf8_sha256": "6f2fde540d55c1bcc1eee05f9ab6276f0bef4e39ca0e93c3264bab84127c286e",
+            "callback_utf8_bytes": 250,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "6f2fde540d55c1bcc1eee05f9ab6276f0bef4e39ca0e93c3264bab84127c286e",
+            "materialized_utf8_bytes": 250,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 28,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5053,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'mapRoot' cannot be specified with option 'inlineSourceMap'."
+          },
+          {
+            "code": 5069,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'mapRoot' cannot be specified without specifying option 'sourceMap' or option 'declarationMap'."
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/input.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"../input.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "virtual-config/external",
+      "route": "virtual-config",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/.src/input.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ],
+        "settings": [],
+        "virtual_config": {
+          "path": "/.src/tsconfig.json",
+          "utf8_base64": "ewogICJjb21waWxlck9wdGlvbnMiOiB7CiAgICAidGFyZ2V0IjogImVzMjAxNSIsCiAgICAic291cmNlTWFwIjogdHJ1ZQogIH0sCiAgImZpbGVzIjogWwogICAgImlucHV0LnRzIgogIF0KfQ==",
+          "utf8_sha256": "f0138124ec842a9a3e44af3732bce2f46c2d1dd8193447ee02b81fbcc5cb4db9",
+          "utf8_bytes": 109
+        }
+      },
+      "repetitions": 2,
+      "effective_map_options": {
+        "sourceMap": true,
+        "inlineSourceMap": null,
+        "inlineSources": null,
+        "sourceRoot": null,
+        "mapRoot": null
+      },
+      "observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/input.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJpbnB1dC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsSUFBSSxDQUFDLEdBQUcsRUFBRSxDQUFDIn0=",
+            "callback_utf8_sha256": "f634532015688600e2c22c43749d3113a04752127971c2a615ff610118df0550",
+            "callback_utf8_bytes": 125,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "f634532015688600e2c22c43749d3113a04752127971c2a615ff610118df0550",
+            "materialized_utf8_bytes": 125,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics_count": null
+          },
+          {
+            "index": 1,
+            "path": "/.src/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWlucHV0LmpzLm1hcA==",
+            "callback_utf8_sha256": "2d347aa97ca10a1b3cccc4da9f0ea94d93df3d628e087dc4b4fcef4682d05fa7",
+            "callback_utf8_bytes": 61,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "2d347aa97ca10a1b3cccc4da9f0ea94d93df3d628e087dc4b4fcef4682d05fa7",
+            "materialized_utf8_bytes": 61,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 28,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/input.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "virtual-config/external-sources",
+      "route": "virtual-config",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/.src/input.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ],
+        "settings": [],
+        "virtual_config": {
+          "path": "/.src/tsconfig.json",
+          "utf8_base64": "ewogICJjb21waWxlck9wdGlvbnMiOiB7CiAgICAidGFyZ2V0IjogImVzMjAxNSIsCiAgICAic291cmNlTWFwIjogdHJ1ZSwKICAgICJpbmxpbmVTb3VyY2VzIjogdHJ1ZQogIH0sCiAgImZpbGVzIjogWwogICAgImlucHV0LnRzIgogIF0KfQ==",
+          "utf8_sha256": "3ed4be4c4d41ba71e069d52b504e31f8a7dc3f55f70ec350bdd6301413565bea",
+          "utf8_bytes": 136
+        }
+      },
+      "repetitions": 2,
+      "effective_map_options": {
+        "sourceMap": true,
+        "inlineSourceMap": null,
+        "inlineSources": true,
+        "sourceRoot": null,
+        "mapRoot": null
+      },
+      "observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/input.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJpbnB1dC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsSUFBSSxDQUFDLEdBQUcsRUFBRSxDQUFDIiwic291cmNlc0NvbnRlbnQiOlsidmFyIGEgPSAxMDsiXX0=",
+            "callback_utf8_sha256": "b7b4a30e1ac1432095220dcf395130ad07970aeccd0138f5415e52abb320f04c",
+            "callback_utf8_bytes": 158,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "b7b4a30e1ac1432095220dcf395130ad07970aeccd0138f5415e52abb320f04c",
+            "materialized_utf8_bytes": 158,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics_count": null
+          },
+          {
+            "index": 1,
+            "path": "/.src/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWlucHV0LmpzLm1hcA==",
+            "callback_utf8_sha256": "2d347aa97ca10a1b3cccc4da9f0ea94d93df3d628e087dc4b4fcef4682d05fa7",
+            "callback_utf8_bytes": 61,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "2d347aa97ca10a1b3cccc4da9f0ea94d93df3d628e087dc4b4fcef4682d05fa7",
+            "materialized_utf8_bytes": 61,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 28,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/input.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\",\"sourcesContent\":[\"var a = 10;\"]}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "virtual-config/relative-map-root",
+      "route": "virtual-config",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/.src/input.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ],
+        "settings": [],
+        "virtual_config": {
+          "path": "/.src/tsconfig.json",
+          "utf8_base64": "ewogICJjb21waWxlck9wdGlvbnMiOiB7CiAgICAidGFyZ2V0IjogImVzMjAxNSIsCiAgICAic291cmNlTWFwIjogdHJ1ZSwKICAgICJpbmxpbmVTb3VyY2VzIjogdHJ1ZSwKICAgICJtYXBSb290IjogImxvY2FsIgogIH0sCiAgImZpbGVzIjogWwogICAgImlucHV0LnRzIgogIF0KfQ==",
+          "utf8_sha256": "be710b6803046c73e546d546676f4ff1ae6e487c48d981e5cba3770661643724",
+          "utf8_bytes": 160
+        }
+      },
+      "repetitions": 2,
+      "effective_map_options": {
+        "sourceMap": true,
+        "inlineSourceMap": null,
+        "inlineSources": true,
+        "sourceRoot": null,
+        "mapRoot": "local"
+      },
+      "observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/input.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi9pbnB1dC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsSUFBSSxDQUFDLEdBQUcsRUFBRSxDQUFDIiwic291cmNlc0NvbnRlbnQiOlsidmFyIGEgPSAxMDsiXX0=",
+            "callback_utf8_sha256": "deeba14ba0d51000b6242622b60ce5aef55153e0f29f2b23c583426a80a364fd",
+            "callback_utf8_bytes": 161,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "deeba14ba0d51000b6242622b60ce5aef55153e0f29f2b23c583426a80a364fd",
+            "materialized_utf8_bytes": 161,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics_count": null
+          },
+          {
+            "index": 1,
+            "path": "/.src/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWxvY2FsL2lucHV0LmpzLm1hcA==",
+            "callback_utf8_sha256": "4782514407074adebf0126f19f619c9660bd554410e9fe2c650934f26cbbb995",
+            "callback_utf8_bytes": 67,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "4782514407074adebf0126f19f619c9660bd554410e9fe2c650934f26cbbb995",
+            "materialized_utf8_bytes": 67,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 28,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/input.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"../input.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\",\"sourcesContent\":[\"var a = 10;\"]}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "virtual-config/relative-source-root",
+      "route": "virtual-config",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/.src/input.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ],
+        "settings": [],
+        "virtual_config": {
+          "path": "/.src/tsconfig.json",
+          "utf8_base64": "ewogICJjb21waWxlck9wdGlvbnMiOiB7CiAgICAidGFyZ2V0IjogImVzMjAxNSIsCiAgICAic291cmNlTWFwIjogdHJ1ZSwKICAgICJpbmxpbmVTb3VyY2VzIjogdHJ1ZSwKICAgICJzb3VyY2VSb290IjogImxvY2FsIgogIH0sCiAgImZpbGVzIjogWwogICAgImlucHV0LnRzIgogIF0KfQ==",
+          "utf8_sha256": "c4a98769a9971ef393fa642b30042b2ee4983af9e875df1f6c48d19f556ae85d",
+          "utf8_bytes": 163
+        }
+      },
+      "repetitions": 2,
+      "effective_map_options": {
+        "sourceMap": true,
+        "inlineSourceMap": null,
+        "inlineSources": true,
+        "sourceRoot": "local",
+        "mapRoot": null
+      },
+      "observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/input.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290IjoibG9jYWwvIiwic291cmNlcyI6WyJpbnB1dC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsSUFBSSxDQUFDLEdBQUcsRUFBRSxDQUFDIiwic291cmNlc0NvbnRlbnQiOlsidmFyIGEgPSAxMDsiXX0=",
+            "callback_utf8_sha256": "922b7371716cdc4e5d15172b0bdc2bacbe6be2acabd71ad8550a9dcad605fbdf",
+            "callback_utf8_bytes": 164,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "922b7371716cdc4e5d15172b0bdc2bacbe6be2acabd71ad8550a9dcad605fbdf",
+            "materialized_utf8_bytes": 164,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics_count": null
+          },
+          {
+            "index": 1,
+            "path": "/.src/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWlucHV0LmpzLm1hcA==",
+            "callback_utf8_sha256": "2d347aa97ca10a1b3cccc4da9f0ea94d93df3d628e087dc4b4fcef4682d05fa7",
+            "callback_utf8_bytes": 61,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "2d347aa97ca10a1b3cccc4da9f0ea94d93df3d628e087dc4b4fcef4682d05fa7",
+            "materialized_utf8_bytes": 61,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 28,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/input.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"local/\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\",\"sourcesContent\":[\"var a = 10;\"]}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "virtual-config/empty-roots",
+      "route": "virtual-config",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/.src/input.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ],
+        "settings": [],
+        "virtual_config": {
+          "path": "/.src/tsconfig.json",
+          "utf8_base64": "ewogICJjb21waWxlck9wdGlvbnMiOiB7CiAgICAidGFyZ2V0IjogImVzMjAxNSIsCiAgICAic291cmNlTWFwIjogdHJ1ZSwKICAgICJpbmxpbmVTb3VyY2VzIjogdHJ1ZSwKICAgICJtYXBSb290IjogIiIsCiAgICAic291cmNlUm9vdCI6ICIiCiAgfSwKICAiZmlsZXMiOiBbCiAgICAiaW5wdXQudHMiCiAgXQp9",
+          "utf8_sha256": "3b1a7f2bc57d5a14c6cf6ca2adddd94c81b17fe9e87305d565ad813170650428",
+          "utf8_bytes": 177
+        }
+      },
+      "repetitions": 2,
+      "effective_map_options": {
+        "sourceMap": true,
+        "inlineSourceMap": null,
+        "inlineSources": true,
+        "sourceRoot": "",
+        "mapRoot": ""
+      },
+      "observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/input.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJpbnB1dC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsSUFBSSxDQUFDLEdBQUcsRUFBRSxDQUFDIiwic291cmNlc0NvbnRlbnQiOlsidmFyIGEgPSAxMDsiXX0=",
+            "callback_utf8_sha256": "b7b4a30e1ac1432095220dcf395130ad07970aeccd0138f5415e52abb320f04c",
+            "callback_utf8_bytes": 158,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "b7b4a30e1ac1432095220dcf395130ad07970aeccd0138f5415e52abb320f04c",
+            "materialized_utf8_bytes": 158,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics_count": null
+          },
+          {
+            "index": 1,
+            "path": "/.src/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWlucHV0LmpzLm1hcA==",
+            "callback_utf8_sha256": "2d347aa97ca10a1b3cccc4da9f0ea94d93df3d628e087dc4b4fcef4682d05fa7",
+            "callback_utf8_bytes": 61,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "2d347aa97ca10a1b3cccc4da9f0ea94d93df3d628e087dc4b4fcef4682d05fa7",
+            "materialized_utf8_bytes": 61,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 28,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/input.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\",\"sourcesContent\":[\"var a = 10;\"]}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "virtual-config/false-inline-sources",
+      "route": "virtual-config",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/.src/input.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ],
+        "settings": [],
+        "virtual_config": {
+          "path": "/.src/tsconfig.json",
+          "utf8_base64": "ewogICJjb21waWxlck9wdGlvbnMiOiB7CiAgICAidGFyZ2V0IjogImVzMjAxNSIsCiAgICAic291cmNlTWFwIjogdHJ1ZSwKICAgICJpbmxpbmVTb3VyY2VzIjogZmFsc2UKICB9LAogICJmaWxlcyI6IFsKICAgICJpbnB1dC50cyIKICBdCn0=",
+          "utf8_sha256": "c05a51cb6c8d63fe50dffddcc548c2338912ab68316604f81133cfe4bbedaca0",
+          "utf8_bytes": 137
+        }
+      },
+      "repetitions": 2,
+      "effective_map_options": {
+        "sourceMap": true,
+        "inlineSourceMap": null,
+        "inlineSources": false,
+        "sourceRoot": null,
+        "mapRoot": null
+      },
+      "observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/input.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJpbnB1dC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsSUFBSSxDQUFDLEdBQUcsRUFBRSxDQUFDIn0=",
+            "callback_utf8_sha256": "f634532015688600e2c22c43749d3113a04752127971c2a615ff610118df0550",
+            "callback_utf8_bytes": 125,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "f634532015688600e2c22c43749d3113a04752127971c2a615ff610118df0550",
+            "materialized_utf8_bytes": 125,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics_count": null
+          },
+          {
+            "index": 1,
+            "path": "/.src/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWlucHV0LmpzLm1hcA==",
+            "callback_utf8_sha256": "2d347aa97ca10a1b3cccc4da9f0ea94d93df3d628e087dc4b4fcef4682d05fa7",
+            "callback_utf8_bytes": 61,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "2d347aa97ca10a1b3cccc4da9f0ea94d93df3d628e087dc4b4fcef4682d05fa7",
+            "materialized_utf8_bytes": 61,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 28,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/input.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "virtual-config/false-inline-map",
+      "route": "virtual-config",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/.src/input.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ],
+        "settings": [],
+        "virtual_config": {
+          "path": "/.src/tsconfig.json",
+          "utf8_base64": "ewogICJjb21waWxlck9wdGlvbnMiOiB7CiAgICAidGFyZ2V0IjogImVzMjAxNSIsCiAgICAic291cmNlTWFwIjogdHJ1ZSwKICAgICJpbmxpbmVTb3VyY2VNYXAiOiBmYWxzZQogIH0sCiAgImZpbGVzIjogWwogICAgImlucHV0LnRzIgogIF0KfQ==",
+          "utf8_sha256": "0e560a748edede13f448df6fe881082f17caf54584d1d9e04e3daddf3e458409",
+          "utf8_bytes": 139
+        }
+      },
+      "repetitions": 2,
+      "effective_map_options": {
+        "sourceMap": true,
+        "inlineSourceMap": false,
+        "inlineSources": null,
+        "sourceRoot": null,
+        "mapRoot": null
+      },
+      "observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/input.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJpbnB1dC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsSUFBSSxDQUFDLEdBQUcsRUFBRSxDQUFDIn0=",
+            "callback_utf8_sha256": "f634532015688600e2c22c43749d3113a04752127971c2a615ff610118df0550",
+            "callback_utf8_bytes": 125,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "f634532015688600e2c22c43749d3113a04752127971c2a615ff610118df0550",
+            "materialized_utf8_bytes": 125,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics_count": null
+          },
+          {
+            "index": 1,
+            "path": "/.src/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWlucHV0LmpzLm1hcA==",
+            "callback_utf8_sha256": "2d347aa97ca10a1b3cccc4da9f0ea94d93df3d628e087dc4b4fcef4682d05fa7",
+            "callback_utf8_bytes": 61,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "2d347aa97ca10a1b3cccc4da9f0ea94d93df3d628e087dc4b4fcef4682d05fa7",
+            "materialized_utf8_bytes": 61,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 28,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/input.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "virtual-config/all-false",
+      "route": "virtual-config",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/.src/input.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ],
+        "settings": [],
+        "virtual_config": {
+          "path": "/.src/tsconfig.json",
+          "utf8_base64": "ewogICJjb21waWxlck9wdGlvbnMiOiB7CiAgICAidGFyZ2V0IjogImVzMjAxNSIsCiAgICAic291cmNlTWFwIjogZmFsc2UsCiAgICAiaW5saW5lU291cmNlTWFwIjogZmFsc2UsCiAgICAiaW5saW5lU291cmNlcyI6IGZhbHNlLAogICAgIm1hcFJvb3QiOiAiIiwKICAgICJzb3VyY2VSb290IjogIiIKICB9LAogICJmaWxlcyI6IFsKICAgICJpbnB1dC50cyIKICBdCn0=",
+          "utf8_sha256": "e4f8a0bcb5dccc0e7d1fd30a5ebe206c55c7450cbe10c5bee87ed2bf7319ac0f",
+          "utf8_bytes": 209
+        }
+      },
+      "repetitions": 2,
+      "effective_map_options": {
+        "sourceMap": false,
+        "inlineSourceMap": false,
+        "inlineSources": false,
+        "sourceRoot": "",
+        "mapRoot": ""
+      },
+      "observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCg==",
+            "callback_utf8_sha256": "db4ec3bb0d5e666731eb62be15f423cc3d9d76803def606087d0ebd5a027912e",
+            "callback_utf8_bytes": 28,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "db4ec3bb0d5e666731eb62be15f423cc3d9d76803def606087d0ebd5a027912e",
+            "materialized_utf8_bytes": 28,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "virtual-config/inline",
+      "route": "virtual-config",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/.src/input.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ],
+        "settings": [],
+        "virtual_config": {
+          "path": "/.src/tsconfig.json",
+          "utf8_base64": "ewogICJjb21waWxlck9wdGlvbnMiOiB7CiAgICAidGFyZ2V0IjogImVzMjAxNSIsCiAgICAic291cmNlTWFwIjogZmFsc2UsCiAgICAiaW5saW5lU291cmNlTWFwIjogdHJ1ZSwKICAgICJpbmxpbmVTb3VyY2VzIjogdHJ1ZQogIH0sCiAgImZpbGVzIjogWwogICAgImlucHV0LnRzIgogIF0KfQ==",
+          "utf8_sha256": "3a50bab00fde5673e36cc11edf756892628add13598dd6ea7a44c0e0bc742ff0",
+          "utf8_bytes": 166
+        }
+      },
+      "repetitions": 2,
+      "effective_map_options": {
+        "sourceMap": false,
+        "inlineSourceMap": true,
+        "inlineSources": true,
+        "sourceRoot": null,
+        "mapRoot": null
+      },
+      "observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWRhdGE6YXBwbGljYXRpb24vanNvbjtiYXNlNjQsZXlKMlpYSnphVzl1SWpvekxDSm1hV3hsSWpvaWFXNXdkWFF1YW5NaUxDSnpiM1Z5WTJWU2IyOTBJam9pSWl3aWMyOTFjbU5sY3lJNld5SnBibkIxZEM1MGN5SmRMQ0p1WVcxbGN5STZXMTBzSW0xaGNIQnBibWR6SWpvaU8wRkJRVUVzU1VGQlNTeERRVUZETEVkQlFVY3NSVUZCUlN4RFFVRkRJaXdpYzI5MWNtTmxjME52Ym5SbGJuUWlPbHNpZG1GeUlHRWdQU0F4TURzaVhYMD0=",
+            "callback_utf8_sha256": "5e5ab3688716cffeebd92d1bb487bd9b1c25bac52538bc75e9d959dc529b519d",
+            "callback_utf8_bytes": 290,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "5e5ab3688716cffeebd92d1bb487bd9b1c25bac52538bc75e9d959dc529b519d",
+            "materialized_utf8_bytes": 290,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 28,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/input.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\",\"sourcesContent\":[\"var a = 10;\"]}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "virtual-config/inline-empty-roots",
+      "route": "virtual-config",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/.src/input.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ],
+        "settings": [],
+        "virtual_config": {
+          "path": "/.src/tsconfig.json",
+          "utf8_base64": "ewogICJjb21waWxlck9wdGlvbnMiOiB7CiAgICAidGFyZ2V0IjogImVzMjAxNSIsCiAgICAiaW5saW5lU291cmNlTWFwIjogdHJ1ZSwKICAgICJpbmxpbmVTb3VyY2VzIjogdHJ1ZSwKICAgICJtYXBSb290IjogIiIsCiAgICAic291cmNlUm9vdCI6ICIiCiAgfSwKICAiZmlsZXMiOiBbCiAgICAiaW5wdXQudHMiCiAgXQp9",
+          "utf8_sha256": "eb232ad75605ad734a6845e4a8cd1b31dbabb6b8e79ec9be21ac6b193d9f8a6b",
+          "utf8_bytes": 183
+        }
+      },
+      "repetitions": 2,
+      "effective_map_options": {
+        "sourceMap": null,
+        "inlineSourceMap": true,
+        "inlineSources": true,
+        "sourceRoot": "",
+        "mapRoot": ""
+      },
+      "observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWRhdGE6YXBwbGljYXRpb24vanNvbjtiYXNlNjQsZXlKMlpYSnphVzl1SWpvekxDSm1hV3hsSWpvaWFXNXdkWFF1YW5NaUxDSnpiM1Z5WTJWU2IyOTBJam9pSWl3aWMyOTFjbU5sY3lJNld5SnBibkIxZEM1MGN5SmRMQ0p1WVcxbGN5STZXMTBzSW0xaGNIQnBibWR6SWpvaU8wRkJRVUVzU1VGQlNTeERRVUZETEVkQlFVY3NSVUZCUlN4RFFVRkRJaXdpYzI5MWNtTmxjME52Ym5SbGJuUWlPbHNpZG1GeUlHRWdQU0F4TURzaVhYMD0=",
+            "callback_utf8_sha256": "5e5ab3688716cffeebd92d1bb487bd9b1c25bac52538bc75e9d959dc529b519d",
+            "callback_utf8_bytes": 290,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "5e5ab3688716cffeebd92d1bb487bd9b1c25bac52538bc75e9d959dc529b519d",
+            "materialized_utf8_bytes": 290,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 28,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/input.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\",\"sourcesContent\":[\"var a = 10;\"]}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "virtual-config/conflicting-maps",
+      "route": "virtual-config",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/.src/input.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ],
+        "settings": [],
+        "virtual_config": {
+          "path": "/.src/tsconfig.json",
+          "utf8_base64": "ewogICJjb21waWxlck9wdGlvbnMiOiB7CiAgICAidGFyZ2V0IjogImVzMjAxNSIsCiAgICAic291cmNlTWFwIjogdHJ1ZSwKICAgICJpbmxpbmVTb3VyY2VNYXAiOiB0cnVlCiAgfSwKICAiZmlsZXMiOiBbCiAgICAiaW5wdXQudHMiCiAgXQp9",
+          "utf8_sha256": "d78510addee3fa7fba028f54950fa14c7b13ff6f40349b5a0465cde63961006d",
+          "utf8_bytes": 138
+        }
+      },
+      "repetitions": 2,
+      "effective_map_options": {
+        "sourceMap": true,
+        "inlineSourceMap": true,
+        "inlineSources": null,
+        "sourceRoot": null,
+        "mapRoot": null
+      },
+      "observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWRhdGE6YXBwbGljYXRpb24vanNvbjtiYXNlNjQsZXlKMlpYSnphVzl1SWpvekxDSm1hV3hsSWpvaWFXNXdkWFF1YW5NaUxDSnpiM1Z5WTJWU2IyOTBJam9pSWl3aWMyOTFjbU5sY3lJNld5SnBibkIxZEM1MGN5SmRMQ0p1WVcxbGN5STZXMTBzSW0xaGNIQnBibWR6SWpvaU8wRkJRVUVzU1VGQlNTeERRVUZETEVkQlFVY3NSVUZCUlN4RFFVRkRJbjA9",
+            "callback_utf8_sha256": "7b7e6a07f9a519c7b88acaf66e4c2d5cd469d2fb3a5e3636d9379a7a523f41ec",
+            "callback_utf8_bytes": 246,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "7b7e6a07f9a519c7b88acaf66e4c2d5cd469d2fb3a5e3636d9379a7a523f41ec",
+            "materialized_utf8_bytes": 246,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 28,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5053,
+            "category": "Error",
+            "file": "/.src/tsconfig.json",
+            "start": 53,
+            "length": 11,
+            "message": "Option 'sourceMap' cannot be specified with option 'inlineSourceMap'."
+          },
+          {
+            "code": 5053,
+            "category": "Error",
+            "file": "/.src/tsconfig.json",
+            "start": 76,
+            "length": 17,
+            "message": "Option 'sourceMap' cannot be specified with option 'inlineSourceMap'."
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/input.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "virtual-config/sources-without-map",
+      "route": "virtual-config",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/.src/input.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ],
+        "settings": [],
+        "virtual_config": {
+          "path": "/.src/tsconfig.json",
+          "utf8_base64": "ewogICJjb21waWxlck9wdGlvbnMiOiB7CiAgICAidGFyZ2V0IjogImVzMjAxNSIsCiAgICAiaW5saW5lU291cmNlcyI6IHRydWUKICB9LAogICJmaWxlcyI6IFsKICAgICJpbnB1dC50cyIKICBdCn0=",
+          "utf8_sha256": "92e5329af1eb0c7cdee95d0812a6df45f293b78b6e38920eca48281906b012dd",
+          "utf8_bytes": 113
+        }
+      },
+      "repetitions": 2,
+      "effective_map_options": {
+        "sourceMap": null,
+        "inlineSourceMap": null,
+        "inlineSources": true,
+        "sourceRoot": null,
+        "mapRoot": null
+      },
+      "observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCg==",
+            "callback_utf8_sha256": "db4ec3bb0d5e666731eb62be15f423cc3d9d76803def606087d0ebd5a027912e",
+            "callback_utf8_bytes": 28,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "db4ec3bb0d5e666731eb62be15f423cc3d9d76803def606087d0ebd5a027912e",
+            "materialized_utf8_bytes": 28,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5051,
+            "category": "Error",
+            "file": "/.src/tsconfig.json",
+            "start": 53,
+            "length": 15,
+            "message": "Option 'inlineSources can only be used when either option '--inlineSourceMap' or option '--sourceMap' is provided."
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "virtual-config/map-root-without-map",
+      "route": "virtual-config",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/.src/input.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ],
+        "settings": [],
+        "virtual_config": {
+          "path": "/.src/tsconfig.json",
+          "utf8_base64": "ewogICJjb21waWxlck9wdGlvbnMiOiB7CiAgICAidGFyZ2V0IjogImVzMjAxNSIsCiAgICAibWFwUm9vdCI6ICJsb2NhbCIKICB9LAogICJmaWxlcyI6IFsKICAgICJpbnB1dC50cyIKICBdCn0=",
+          "utf8_sha256": "51345d51a76c391979a07a61192b7afce31aa8ebd1158a204aa71d1daf17bca2",
+          "utf8_bytes": 110
+        }
+      },
+      "repetitions": 2,
+      "effective_map_options": {
+        "sourceMap": null,
+        "inlineSourceMap": null,
+        "inlineSources": null,
+        "sourceRoot": null,
+        "mapRoot": "local"
+      },
+      "observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCg==",
+            "callback_utf8_sha256": "db4ec3bb0d5e666731eb62be15f423cc3d9d76803def606087d0ebd5a027912e",
+            "callback_utf8_bytes": 28,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "db4ec3bb0d5e666731eb62be15f423cc3d9d76803def606087d0ebd5a027912e",
+            "materialized_utf8_bytes": 28,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5069,
+            "category": "Error",
+            "file": "/.src/tsconfig.json",
+            "start": 53,
+            "length": 9,
+            "message": "Option 'mapRoot' cannot be specified without specifying option 'sourceMap' or option 'declarationMap'."
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "virtual-config/source-root-without-map",
+      "route": "virtual-config",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/.src/input.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ],
+        "settings": [],
+        "virtual_config": {
+          "path": "/.src/tsconfig.json",
+          "utf8_base64": "ewogICJjb21waWxlck9wdGlvbnMiOiB7CiAgICAidGFyZ2V0IjogImVzMjAxNSIsCiAgICAic291cmNlUm9vdCI6ICJsb2NhbCIKICB9LAogICJmaWxlcyI6IFsKICAgICJpbnB1dC50cyIKICBdCn0=",
+          "utf8_sha256": "47881110ebf537ce17489e076b2fbd16beba46eb71c30ac88cbbed3ed129a83f",
+          "utf8_bytes": 113
+        }
+      },
+      "repetitions": 2,
+      "effective_map_options": {
+        "sourceMap": null,
+        "inlineSourceMap": null,
+        "inlineSources": null,
+        "sourceRoot": "local",
+        "mapRoot": null
+      },
+      "observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCg==",
+            "callback_utf8_sha256": "db4ec3bb0d5e666731eb62be15f423cc3d9d76803def606087d0ebd5a027912e",
+            "callback_utf8_bytes": 28,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "db4ec3bb0d5e666731eb62be15f423cc3d9d76803def606087d0ebd5a027912e",
+            "materialized_utf8_bytes": 28,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5051,
+            "category": "Error",
+            "file": "/.src/tsconfig.json",
+            "start": 53,
+            "length": 12,
+            "message": "Option 'sourceRoot can only be used when either option '--inlineSourceMap' or option '--sourceMap' is provided."
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "virtual-config/map-root-with-inline",
+      "route": "virtual-config",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/.src/input.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ],
+        "settings": [],
+        "virtual_config": {
+          "path": "/.src/tsconfig.json",
+          "utf8_base64": "ewogICJjb21waWxlck9wdGlvbnMiOiB7CiAgICAidGFyZ2V0IjogImVzMjAxNSIsCiAgICAiaW5saW5lU291cmNlTWFwIjogdHJ1ZSwKICAgICJtYXBSb290IjogImxvY2FsIgogIH0sCiAgImZpbGVzIjogWwogICAgImlucHV0LnRzIgogIF0KfQ==",
+          "utf8_sha256": "86ab2487ed7e638c205ee3cfbf3e1a9353aae24da8aeaaec7e94786ac9e4e5a5",
+          "utf8_bytes": 139
+        }
+      },
+      "repetitions": 2,
+      "effective_map_options": {
+        "sourceMap": null,
+        "inlineSourceMap": true,
+        "inlineSources": null,
+        "sourceRoot": null,
+        "mapRoot": "local"
+      },
+      "observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWRhdGE6YXBwbGljYXRpb24vanNvbjtiYXNlNjQsZXlKMlpYSnphVzl1SWpvekxDSm1hV3hsSWpvaWFXNXdkWFF1YW5NaUxDSnpiM1Z5WTJWU2IyOTBJam9pSWl3aWMyOTFjbU5sY3lJNld5SXVMaTlwYm5CMWRDNTBjeUpkTENKdVlXMWxjeUk2VzEwc0ltMWhjSEJwYm1keklqb2lPMEZCUVVFc1NVRkJTU3hEUVVGRExFZEJRVWNzUlVGQlJTeERRVUZESW4wPQ==",
+            "callback_utf8_sha256": "6f2fde540d55c1bcc1eee05f9ab6276f0bef4e39ca0e93c3264bab84127c286e",
+            "callback_utf8_bytes": 250,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "6f2fde540d55c1bcc1eee05f9ab6276f0bef4e39ca0e93c3264bab84127c286e",
+            "materialized_utf8_bytes": 250,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 28,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5053,
+            "category": "Error",
+            "file": "/.src/tsconfig.json",
+            "start": 53,
+            "length": 17,
+            "message": "Option 'mapRoot' cannot be specified with option 'inlineSourceMap'."
+          },
+          {
+            "code": 5053,
+            "category": "Error",
+            "file": "/.src/tsconfig.json",
+            "start": 82,
+            "length": 9,
+            "message": "Option 'mapRoot' cannot be specified with option 'inlineSourceMap'."
+          },
+          {
+            "code": 5069,
+            "category": "Error",
+            "file": "/.src/tsconfig.json",
+            "start": 82,
+            "length": 9,
+            "message": "Option 'mapRoot' cannot be specified without specifying option 'sourceMap' or option 'declarationMap'."
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/input.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"../input.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "virtual-config/directive-overrides",
+      "route": "virtual-config",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/.src/input.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ],
+        "settings": [
+          {
+            "name": "inlineSources",
+            "value": "false"
+          },
+          {
+            "name": "mapRoot",
+            "value": ""
+          },
+          {
+            "name": "sourceRoot",
+            "value": ""
+          }
+        ],
+        "virtual_config": {
+          "path": "/.src/tsconfig.json",
+          "utf8_base64": "ewogICJjb21waWxlck9wdGlvbnMiOiB7CiAgICAidGFyZ2V0IjogImVzMjAxNSIsCiAgICAic291cmNlTWFwIjogdHJ1ZSwKICAgICJpbmxpbmVTb3VyY2VzIjogdHJ1ZSwKICAgICJtYXBSb290IjogImxvY2FsIgogIH0sCiAgImZpbGVzIjogWwogICAgImlucHV0LnRzIgogIF0KfQ==",
+          "utf8_sha256": "be710b6803046c73e546d546676f4ff1ae6e487c48d981e5cba3770661643724",
+          "utf8_bytes": 160
+        }
+      },
+      "repetitions": 2,
+      "effective_map_options": {
+        "sourceMap": true,
+        "inlineSourceMap": null,
+        "inlineSources": false,
+        "sourceRoot": "",
+        "mapRoot": ""
+      },
+      "observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/input.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJpbnB1dC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsSUFBSSxDQUFDLEdBQUcsRUFBRSxDQUFDIn0=",
+            "callback_utf8_sha256": "f634532015688600e2c22c43749d3113a04752127971c2a615ff610118df0550",
+            "callback_utf8_bytes": 125,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "f634532015688600e2c22c43749d3113a04752127971c2a615ff610118df0550",
+            "materialized_utf8_bytes": 125,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics_count": null
+          },
+          {
+            "index": 1,
+            "path": "/.src/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWlucHV0LmpzLm1hcA==",
+            "callback_utf8_sha256": "2d347aa97ca10a1b3cccc4da9f0ea94d93df3d628e087dc4b4fcef4682d05fa7",
+            "callback_utf8_bytes": 61,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "2d347aa97ca10a1b3cccc4da9f0ea94d93df3d628e087dc4b4fcef4682d05fa7",
+            "materialized_utf8_bytes": 61,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/input.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 28,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/input.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    }
+  ]
+}

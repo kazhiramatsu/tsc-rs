@@ -2,30 +2,6 @@
   "schema": 1,
   "cases": [
     {
-      "case_id": "typescript-6.0.3/compiler/optionsSourcemapInlineSources.ts#default",
-      "owner": "h2-6a-r7-b6-option-inheritance",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": true,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/optionsSourcemapInlineSourcesMapRoot.ts#default",
-      "owner": "h2-6a-r7-b6-option-inheritance",
-      "writes_diverging": 2,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": true,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/optionsSourcemapInlineSourcesSourceRoot.ts#default",
-      "owner": "h2-6a-r7-b6-option-inheritance",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": true,
-      "emit_refused": false
-    },
-    {
       "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForArrayBindingPattern.ts#target%3Des2015",
       "owner": "h2-6a-r3-destructuring-binding-ranges",
       "writes_diverging": 0,
