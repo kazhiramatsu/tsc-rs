@@ -1,9 +1,9 @@
-//! Dormant NodeBuilder module-specifier synthesis.
+//! NodeBuilder module-specifier synthesis.
 //!
-//! This module is deliberately independent of the future
-//! `NodeBuilderContext`: all checker, host, and enclosing-node facts enter
-//! through explicit parameters. It has no production caller before the
-//! declaration-serialization adapter lands.
+//! This module is deliberately independent of
+//! `NodeBuilderContext`: checker, host, and enclosing-node facts enter through
+//! explicit parameters. Authoritative Programs supply the effective path
+//! options owned separately from the checker's `CompilerOptions` bag.
 
 #![allow(dead_code)]
 
@@ -82,6 +82,37 @@ impl SpecifierCompilerOptions {
             root_dirs: Vec::new(),
             config_file_path: None,
         }
+    }
+
+    /// tsrs-native: reassemble the Program-owned part of the upstream
+    /// compilerOptions bag for getSpecifierForModuleSymbol. Preserve raw path
+    /// substitutions and their order; the existing specifier workers own
+    /// normalization, inverse matching, and project-relative selection.
+    fn with_program_options(mut self, program_options: &tsc_program::ProgramOptions) -> Self {
+        self.paths = program_options
+            .paths()
+            .unwrap_or_default()
+            .iter()
+            .map(|mapping| ModulePathMapping {
+                key: mapping.pattern().to_owned(),
+                patterns: mapping.substitutions().to_vec(),
+            })
+            .collect();
+        self.paths_base_path = program_options.paths_base_path().map(str::to_owned);
+        let display_path = |path: &tsc_program::ProgramPath| {
+            path.display()
+                .to_str()
+                .expect("prepared Program paths are Unicode")
+                .to_owned()
+        };
+        self.root_dirs = program_options
+            .root_dirs()
+            .unwrap_or_default()
+            .iter()
+            .map(display_path)
+            .collect();
+        self.config_file_path = program_options.config_file_path().map(display_path);
+        self
     }
 }
 
@@ -259,6 +290,12 @@ pub(crate) fn get_specifier_for_module_symbol(
     }
 
     let mut specifier_options = SpecifierCompilerOptions::new(state.options);
+    if let Some(program_options) = state
+        .authoritative_module_provider
+        .and_then(|provider| provider.program_options_for_module_specifiers())
+    {
+        specifier_options = specifier_options.with_program_options(program_options);
+    }
     if bundled {
         specifier_options.compiler_options.base_url = Some(host.get_common_source_directory());
     }
