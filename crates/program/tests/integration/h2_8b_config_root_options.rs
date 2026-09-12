@@ -155,7 +155,7 @@ fn config_root_options_matches_fresh_typescript_observations() {
         let expected = &expected["typescript_observation"];
         for repetition in 1..=2 {
             let actual = observe(case, option_keys);
-            let exact = json_values_equivalent(&actual, &expected);
+            let exact = json_values_equivalent(&actual, expected);
             eprintln!(
                 "H2.8b-CFG1d {}",
                 json!({"case_id": case_id, "repetition": repetition, "exact": exact, "actual": actual})
