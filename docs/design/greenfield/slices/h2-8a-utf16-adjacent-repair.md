@@ -70,11 +70,11 @@ Evidence audit found that the 4-row target stores only selected native
 fields: its expected JSON includes additional write metadata and status
 fields absent from its actual JSON. The typed comparator tests its defined
 fields and passes; generic JSON equality between these different schemas is
-inapplicable. Do not claim a full command capture for those four rows or
-mistake this audit mismatch for a compiler regression. Before final
-qualification, add an independent complete-command observation for those
-same inputs, without weakening the existing comparator. The 23 requested
-probes and 64+41 controls already use full command captures.
+inapplicable. Do not treat the old projected captures as full command
+captures or mistake this audit mismatch for a compiler regression. Section 8
+now supplies an independent complete-command observation for the same four
+inputs without weakening the existing comparator. The 23 requested probes
+and 64+41 controls already use full command captures.
 
 ## 2. Why a literal-type-only fix is insufficient
 
@@ -285,3 +285,51 @@ has reviewed or approved this packet. Its available model overrides are
 The handoff for an environment that supports the requested model is
 `/Users/hiramatsu/dev/tsc-rs/target/next-slices-20260913/fable-5.1-max-utf16-adjacent-review.md`.
 Production implementation remains pending the requested design review.
+
+## 8. Completed original-row evidence supplement — 2026-09-13
+
+While the user passes the design review to fable-5.1 max, the original four
+rows received a separate complete-command check. This adds evidence and
+tests only; no binder, checker, syntax, emitter or compiler production source
+changed from combined production head `ed6d8073a`.
+
+`scripts/observe-utf16-original-rows-complete.mjs` selects the four exact IDs
+and validates their file hashes, roots, `/.src` working directory, settings,
+absence of virtual config and symlinks against the immutable H2.5h input.
+It reconstructs the existing qualification's option defaults and VFS host
+policy, then invokes TypeScript's full command twice per row. Every field
+present in the older frozen observation must match with no value
+normalization. The separate fixture adds callback data presence/keys,
+source-map URL position and diagnostics, related diagnostic information,
+materialized bytes, command status and the complete emit result. The initial
+write and a subsequent `--check` both succeeded.
+
+New fixture: `crates/compiler/tests/fixtures/utf16-original-rows-complete.json`,
+SHA-256 `0aad290c08c7825cee90bc5bcd96fc7258f020f0ba6f496b7c400be4e825b217`.
+The original qualification artifact, typed comparator, 23 adjacent fixtures
+and earlier before receipts are unchanged.
+
+`crates/compiler/tests/h2_5h_utf16_original_rows_complete.rs` uses the same
+qualified-VFS input loader and `Established` option floor, then invokes
+`emit_command_for_harness` and compares the entire captured value. This
+observes actual command status rather than reconstructing it from emitted
+diagnostics. The older bounded library-bundle/typed-comparator execution
+remains independently tested; its old captures are not retroactively relabeled.
+
+Native run
+`target/declaration-comment-ranges-runs/utf16-original-complete-20260913-011624`
+used base head `ee4a093a2` plus the new hashed test/fixture/observer files.
+The new target built successfully; two separate test jobs passed, each
+executing every case twice. All **16 primary complete captures are exact**,
+with four identical commands per original case. The
+[supplement receipt](../../../../ratchets/h2-8a-utf16-original-complete.v1.json)
+contains all raw captures, source/binary/log hashes and actual exits. It also
+retains the preceding test-build attempt: an E0382 borrow error in the new
+capture helper was corrected before the successful build. No compiler
+behavior failure was hidden by that test-only correction.
+
+This closes the measurement limitation for the current production tree.
+After the requested representation/recovery/ES2018 repairs, rerun this
+complete target alongside the old typed target and the original 23 cases.
+It does not establish that those 23 gaps have been repaired or that the
+pending representation design has been reviewed.
