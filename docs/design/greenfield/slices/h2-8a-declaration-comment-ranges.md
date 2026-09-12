@@ -705,3 +705,62 @@ and 6 chain tests pass. Compiler and checker builds pass. The original G4a
 still retains the same extra detached typedef block; its actual failed exit
 and both complete captures remain recorded. The shared G5c strict comparison
 also remains failed; no expectation or compatibility count is changed.
+
+## 13. Detached source-prefix dependency amendment
+
+The parameter repair leaves the G4a original unchanged at its residual: a
+blank-line-separated typedef comment is still emitted before the generated
+function. The notebook's third block isolates this with 12 complete commands,
+ordinary and printer-instrumented, each repeated twice. The probe is inert
+for all fields and records a synthesized declaration statement-array range
+(`pos = end = -1`) for JS declaration output. The TS declaration controls
+retain a parsed statement-array range. All diagnostics are empty. The fixture
+is `declaration-comment-detached-prefixes.json`, SHA-256
+`73247175cf3b94d0b1f42dab0982119bb0509651e9b655d47e9024db68b0cce6`.
+
+Upstream `emitSourceFile` (`_tsc.js:119710–119720`, whole-function SHA-256
+`c48ffe85d28751904d40654e0d724ef2d90d17ab3c8f9c546426b280bc232034`)
+passes the transformed statement array to `emitBodyWithDetachedComments`
+(`121075–121104`, SHA-256
+`b07b0634586c6da5ba8ad7422074544deef1969168e79789b065a964b86b6ac7`).
+That body skips source-leading comments for a negative range start. Each
+retained node still emits comments from its own selected range. A generated
+function's original expression being inside the first statement does not
+give it the statement's detached prefix.
+
+Rust `Printer::emit_source_file` already applies this array-range rule in
+`source_file_owns_detached_prefix`, but a second path bypasses it when the
+first retained original is contained inside the first source statement.
+That path explains the residual after G4a correctly selects FunctionExpression.
+The empty declaration-body special case also rescans a statementless source
+without consulting the synthesized array's range; the comment-only control
+checks that adjacent branch. Neither path is a new comment ownership rule
+in upstream.
+
+Amend the boundary to allow only `crates/emitter/src/printer.rs` source-file
+comment prefix decisions, plus the new fixture and a uniquely named test in
+the owned compiler target. Preserve valid parsed-array prefixes, per-node
+leading comments, prologues/helpers, ordinary JS output, comment filtering,
+and all other printer consumers. No factory, scanner, bundle or literal edit.
+Before editing, run these 12 commands twice on the unchanged printer, retaining
+all captures and actual exits. Then remove the synthesized-array containment
+exception and qualify the empty-body path from that evidence. Do not special
+case typedef text or case IDs. Add the 12 commands to the final gate and run
+emitter library/contracts and existing source-comment topology regressions.
+
+At amendment time Claude's actual changed files were rechecked at
+`5b8673122957f232a1e48b3f37bd1c382b271a93`: it owns
+`printer/bundle.rs` and literal transforms/factory/scanner, with no change to
+`printer.rs`. The working tree was clean. This narrower file exception
+supersedes §2's conservative emitter-wide exclusion only for `printer.rs`;
+all literal and template ownership remains Claude's. Pre-edit printer SHA-256
+is `ad9413aa7e80915a9e9093b20608a6749c8205e1dbee67de50d84054e97cfbea`.
+
+The pre-edit printer run completed at
+`target/declaration-comment-ranges-runs/detached-before-20260913-000059`.
+The compiler build passed; both 12-command comparison jobs failed. Stable
+complete captures isolate the extra declaration prefix and its mapping in
+module-header, exports-header, typedef-separated and pinned-header, plus the
+comment-only declaration body. The other seven commands are exact, including
+variable/function expandos, class, parsed TS lists, removal and prologue.
+Preserve these positive tuples when repairing the source-file prefix path.

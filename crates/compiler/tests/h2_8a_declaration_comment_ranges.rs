@@ -35,6 +35,22 @@ fn declaration_comment_range_focused_complete_commands() {
 }
 
 #[test]
+fn declaration_comment_detached_prefix_complete_commands() {
+    let artifact: Value = serde_json::from_slice(include_bytes!(
+        "fixtures/declaration-comment-detached-prefixes.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    assert_eq!(artifact["cases"].as_array().unwrap().len(), 12);
+    h2_7c_declaration_blocking::assert_cases_with_inspection(
+        &artifact,
+        true,
+        capture_complete_command,
+    );
+}
+
+#[test]
 fn declaration_comment_parameter_tags_complete_commands() {
     let artifact: Value = serde_json::from_slice(include_bytes!(
         "fixtures/declaration-comment-parameter-tags.json"

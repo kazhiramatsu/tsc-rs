@@ -316,3 +316,68 @@ async function main() {
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});
 ```
+
+## Detached source-prefix dependency observations
+
+This extension isolates the remaining blank-line-separated comment in the
+required G4a original. Reuse the first JavaScript block's prelude before
+`const shapes = [` and append the third JavaScript block below. Run in a new
+external directory with the same command and background settings. The printer
+probe records the actual source-file statement-array range; it must preserve
+the entire ordinary command, twice. Existing fixtures are not regenerated.
+
+```javascript
+const detachedShapes = [
+  ['module-header','/** file header */\n\nmodule.exports = function api() {};\n'],
+  ['exports-header','/** file header */\n\nexports.api = function api() {};\n'],
+  ['variable-expando','/** file header */\n\nvar api = function() {};\napi.version = 1;\nmodule.exports = api;\n'],
+  ['function-expando','/** file header */\n\nfunction api() {}\napi.version = 1;\nmodule.exports = api;\n'],
+  ['class-header','/** file header */\n\nclass C {}\nmodule.exports = C;\n'],
+  ['plain-variable','/** file header */\n\nexport const value = 1;\n','ts'],
+  ['erased-interface','/** interface header */\n\ninterface I { value: number }\nexport const value = 1;\n','ts'],
+  ['typedef-separated','/**\n * @typedef Options\n * @property {string} opt\n */\n\n/**\n * @param {Options} options\n */\nmodule.exports = function loader(options) {}\n'],
+  ['removed-header','/** file header */\n\nmodule.exports = function api() {};\n','js',{removeComments:true}],
+  ['pinned-header','/*! license */\n\nmodule.exports = function api() {};\n'],
+  ['comment-only','/** file header */\n'],
+  ['prologue-header','/** file header */\n\n"use strict";\nmodule.exports = function api() {};\n'],
+];
+const prefixAnchor='const shouldEmitDetachedComment = statements.length === 0 || !isPrologueDirective(statements[0]) || nodeIsSynthesized(statements[0]);';
+const prefixModule={exports:{}};
+let prefixes=[];
+const recordPrefix=(node,statements,enabled)=>prefixes.push({file:node.fileName,
+  declaration:!!node.isDeclarationFile,pos:statements.pos,end:statements.end,enabled,
+  first:describe(statements[0]),original:describe(statements[0] && ts.getOriginalNode(statements[0]))});
+new Function('module','exports','require','__filename','__dirname','recordPrefix',
+  replaceOnce(compilerSource,prefixAnchor,prefixAnchor+' recordPrefix(node, statements, shouldEmitDetachedComment);'))(
+    prefixModule,prefixModule.exports,createRequire(tsPath),tsPath,path.dirname(tsPath),recordPrefix);
+async function main() {
+  const {createHermeticDirectoryOverlay} = await import(pathToFileURL(path.join(root,'crates/oracle/vfs-directory-overlay.mjs')));
+  const observer=read('scripts/observe-jsdoc-block-scope-container.mjs');
+  const start='function diagnostic(d) {',end='const cases = inputs.map(input => {';
+  assert.equal(observer.split(start).length,2); assert.equal(observer.split(end).length,2);
+  const functions=start+observer.split(start)[1].split(end)[0];
+  const makeObserve=api=>new Function('root','ts','fs','path','assert','createHermeticDirectoryOverlay',functions+'\nreturn observe;')(
+    root,api,fs,path,assert,createHermeticDirectoryOverlay);
+  const ordinary=makeObserve(ts), probe=makeObserve(prefixModule.exports), cases=[];
+  for (const [name,text,extension='js',extra={}] of detachedShapes) {
+    const file='/project/main.'+extension;
+    const input={case_id:'declaration-comment-detached-prefix/'+name,roots:[file],files:[{path:file,text}],options:{...defaults,...extra}};
+    const first=ordinary(input); assert.deepEqual(ordinary(input),first,name+' ordinary repeat');
+    prefixes=[]; assert.deepEqual(probe(input),first,name+' printer probe inertness'); const firstTrace=prefixes;
+    prefixes=[]; assert.deepEqual(probe(input),first,name+' second printer probe inertness');
+    assert.deepEqual(prefixes,firstTrace,name+' printer trace repeat');
+    cases.push({...input,typescript_observation:first,prefix_trace:firstTrace});
+  }
+  write('detached-prefixes.json',{version:1,typescript:ts.version,repetitions:2,cases});
+  const lines=upstream.split('\n');
+  write('detached-prefixes-receipt.json',{kind:'source-observation',repetitions:2,commands:cases.length,
+    fixture_sha256:sha(fs.readFileSync(path.join(out,'detached-prefixes.json'))),
+    producer_before_sha256:sha(read('crates/emitter/src/printer.rs')),
+    source: {path:'vendor/typescript-6.0.3/lib/_tsc.js',sha256:sha(upstream),
+      emitSourceFile:{span:[119710,119720],sha256:sha(lines.slice(119709,119720).join('\n')+'\n')},
+      emitBodyWithDetachedComments:{span:[121075,121104],sha256:sha(lines.slice(121074,121104).join('\n')+'\n')}},
+    diagnostics:cases.map(c=>({case_id:c.case_id,codes:c.typescript_observation.reported_diagnostics.map(d=>d.code)}))});
+  console.log(fs.readFileSync(path.join(out,'detached-prefixes-receipt.json'),'utf8'));
+}
+main().catch(error=>{console.error(error);process.exitCode=1;});
+```
