@@ -693,3 +693,15 @@ absent-signature control. Prototype dot/element commands still fail twice
 with stable declaration-map differences at the parameter lookup dependency;
 the parenthesized prototype control remains exact. Compiler and checker
 builds pass. These focused passes do not change the global A37 count.
+
+### Parameter lookup intermediate observation
+
+`target/declaration-comment-ranges-runs/parameter-after-20260912-235710`
+records the AST utility and syntactic fallback repair. All 17 original focused
+commands and all 12 dependency commands pass two independent comparison jobs
+(each case executes twice per job), with stable exact supplemental captures.
+The original G4b remains exact twice. All 12 syntactic-builder, 19 statement
+and 6 chain tests pass. Compiler and checker builds pass. The original G4a
+still retains the same extra detached typedef block; its actual failed exit
+and both complete captures remain recorded. The shared G5c strict comparison
+also remains failed; no expectation or compatibility count is changed.

@@ -361,6 +361,54 @@ pub fn get_jsdoc_type_tag(source: &SourceFile, host: NodeId) -> Option<NodeId> {
     })
 }
 
+/// AST-only parameter lookup through the function's owned JSDoc tag chain.
+/// tsc-port: getJSDocParameterTagsWorker @6.0.3
+/// tsc-hash: c4ae77082ed964a051e20d75c5bc3a2241efe281cb9beccbb1491403bb38c5c4
+/// tsc-span: _tsc.js:11591-11606
+pub fn get_jsdoc_parameter_tags(source: &SourceFile, parameter: NodeId) -> Vec<NodeId> {
+    let NodeData::Parameter(data) = &source.arena.node(parameter).data else {
+        return Vec::new();
+    };
+    let (Some(name), Some(parent)) = (data.name, parent_of(source, parameter)) else {
+        return Vec::new();
+    };
+    let mut tags = Vec::new();
+    visit_owned_jsdoc_tags(source, parent, |tag| {
+        if kind_of(source, tag) == SyntaxKind::JSDocParameterTag {
+            tags.push(tag);
+        }
+        false
+    });
+    if let NodeData::Identifier(name) = &source.arena.node(name).data {
+        return tags
+            .into_iter()
+            .filter(|&tag| {
+                let NodeData::JSDocParameterTag(data) = &source.arena.node(tag).data else {
+                    return false;
+                };
+                data.name.is_some_and(|tag_name| {
+                    matches!(&source.arena.node(tag_name).data,
+                        NodeData::Identifier(tag_name) if tag_name.escaped_text == name.escaped_text)
+                })
+            })
+            .collect();
+    }
+    let mut index = 0;
+    let found = tsc_syntax::for_each_child(&source.arena, source.arena.node(parent), |child| {
+        if child == parameter {
+            return true;
+        }
+        if kind_of(source, child) == SyntaxKind::Parameter {
+            index += 1;
+        }
+        false
+    });
+    found
+        .and_then(|_| tags.get(index).copied())
+        .into_iter()
+        .collect()
+}
+
 pub fn is_jsdoc_type_assertion(source: &SourceFile, node: NodeId) -> bool {
     kind_of(source, node) == SyntaxKind::ParenthesizedExpression
         && node_flags(source, source.root).intersects(NodeFlags::JAVA_SCRIPT_FILE)
