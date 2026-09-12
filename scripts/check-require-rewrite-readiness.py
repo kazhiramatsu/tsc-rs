@@ -51,5 +51,9 @@ substitution = json.loads((ROOT / "crates/compiler/tests/fixtures/h2-8a-require-
 assert substitution["repetitions"] == 2 and substitution["upstream_failures"] == []
 assert len(substitution["cases"]) == manifest["substitution_count"] == 4
 assert substitution["observer_sha256"] == digest((ROOT / "scripts/observe-require-rewrite-substitution.mjs").read_bytes())
+dynamic = json.loads((ROOT / "crates/compiler/tests/fixtures/h2-8a-require-rewrite-dynamic.json").read_text())
+assert dynamic["repetitions"] == 2 and dynamic["upstream_failures"] == []
+assert len(dynamic["cases"]) == manifest["dynamic_count"] == 6
+assert dynamic["observer_sha256"] == digest((ROOT / "scripts/observe-require-rewrite-dynamic.mjs").read_bytes())
 assert (ROOT / "crates/compiler/tests/h2_8a_require_rewrite.rs").is_file()
-print("require rewrite ready: 19 owners, 7 architecture rows, 60 focused + 8 composition + 2 original commands; unresolved=0, undispositioned=0")
+print("require rewrite ready: 19 owners, 7 architecture rows, 60 focused + 14 composition + 2 original commands; unresolved=0, undispositioned=0")

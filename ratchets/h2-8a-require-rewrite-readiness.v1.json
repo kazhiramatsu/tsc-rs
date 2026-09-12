@@ -47,7 +47,7 @@
     },
     {
       "path": "docs/design/greenfield/slices/h2-8a-require-rewrite-readiness.schema.json",
-      "sha256": "7d3b941fb1bd76060a5bd8794ad4883eaddefb570de0f0352a3e9866ba4425e3"
+      "sha256": "b747cb8e232516cd08dfbfae1842c05a5eee8cb154077610ae1fd0e8c49c8b1d"
     },
     {
       "path": "ratchets/h2-8a-candidates.v1.json",
@@ -72,6 +72,18 @@
     {
       "path": "crates/compiler/tests/fixtures/h2-8a-require-rewrite-substitution.json",
       "sha256": "eb55b47abdb63c81197443fd5b166bd00d2c7c684d11cffa46e1ab9ab0cb898c"
+    },
+    {
+      "path": "scripts/observe-require-rewrite-dynamic.mjs",
+      "sha256": "57731b9c57f8ec63354765a5bae2293dbc3dd655dcb379534c66b8877ad95d52"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/h2-8a-require-rewrite-dynamic-inputs.json",
+      "sha256": "0ff6e56d65ea76eea57000699110ec4406de8deee6fbb1d7780c167b56d39883"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/h2-8a-require-rewrite-dynamic.json",
+      "sha256": "36b706283fc57d84504191c77bdffcf4d8a90bcc44d4d4d5703c49d401dd14a3"
     }
   ],
   "baseline_rust": [
@@ -265,5 +277,6 @@
     "crates/emitter/src/printer.rs"
   ],
   "composition_count": 4,
-  "substitution_count": 4
+  "substitution_count": 4,
+  "dynamic_count": 6
 }

@@ -9026,7 +9026,13 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     .node(expression)
                     .is_ok_and(|node| node.kind == SyntaxKind::ImportKeyword)
             });
-        if is_dynamic_import && self.visit_phase == CommonJsVisitPhase::Transform {
+        if is_dynamic_import
+            && self.visit_phase == CommonJsVisitPhase::Transform
+            && !matches!(
+                self.module_kind,
+                MODULE_NODE16 | MODULE_NODE18 | MODULE_NODE20 | MODULE_NODE_NEXT
+            )
+        {
             // visitImportCallExpression keeps native import() for module None
             // at ES2020 and later, even when this module visitor is selected
             // (_tsc.js:110952-110955).
@@ -9034,35 +9040,6 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 return self.update_generic(original, NodeData::CallExpression(data));
             }
             let arguments = node_array_nodes(self.context.arena(), self.source, data.arguments)?;
-            if matches!(
-                self.module_kind,
-                MODULE_NODE16 | MODULE_NODE18 | MODULE_NODE20 | MODULE_NODE_NEXT
-            ) {
-                let original_array = data
-                    .arguments
-                    .and_then(|array| self.context.arena().node_array_ref(self.source, array))
-                    .ok_or(TransformError::RequiredChildRemoved {
-                        parent: SyntaxKind::CallExpression,
-                        field: "arguments",
-                    })?;
-                let mut visited = Vec::with_capacity(arguments.len());
-                for argument in arguments {
-                    visited.push(self.visit(argument.node())?);
-                }
-                if needs_rewrite {
-                    if let Some(argument) = visited.first_mut() {
-                        *argument = self.rewrite_import_argument(*argument)?;
-                    }
-                }
-                data.arguments = Some(
-                    self.context
-                        .factory()?
-                        .update_node_array(original_array, visited)?
-                        .array(),
-                );
-                data.type_arguments = None;
-                return self.update_generic_without_visit(original, NodeData::CallExpression(data));
-            }
             // Resolve literal dynamic imports through the same bundle module
             // identity protocol as static imports (_tsc.js:110956-110958).
             let external_module_name = if arguments.first().is_some_and(|argument| {
@@ -9105,7 +9082,13 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             }) {
                 Some(self.create_string_literal(&module_name)?)
             } else if needs_rewrite {
-                argument.map(|argument| self.rewrite_import_argument(argument)).transpose()?
+                argument.map(|argument| {
+                    if self.context.arena().node(argument)?.kind == SyntaxKind::StringLiteral {
+                        relative_imports::rewrite_literal(self.context, argument, self.preserve_jsx)
+                    } else {
+                        relative_imports::create_rewrite_helper_call(self.context, argument, self.preserve_jsx)
+                    }
+                }).transpose()?
             } else {
                 argument
             };

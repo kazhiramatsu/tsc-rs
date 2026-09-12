@@ -237,3 +237,19 @@ The original 60 focused and four import-composition observations remain frozen.
 The in-flight 7e652138c full run was stopped deliberately before source edits;
 its real cargo exit101 and unchanged input receipt are retained, never counted
 as final qualification.
+
+## R2 native versus lowered dynamic-import amendment
+
+The already pinned `visitorWorker` and `visitImportCallExpression` distinguish
+native calls from lowered imports. Selected native imports (NodeNext) follow
+`shimOrRewriteImportOrRequireCall`, retaining the skipped first-argument
+transform boundary just like selected require calls. Remove the separate
+NodeNext first-argument traversal branch and route it through that shared
+worker. Non-selected native calls retain ordinary child traversal.
+
+Lowered imports use `isStringLiteral`, whereas native-call shimming uses
+`isStringLiteralLike`. A no-substitution template in a lowered import must
+therefore receive the runtime helper. Extract the existing helper-call producer
+from the shared argument rewrite worker and preserve each caller's exact
+literal predicate. Six independently frozen module-mode commands exercise both
+template forms and nested import/require queue consumption before these edits.

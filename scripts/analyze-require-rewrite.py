@@ -20,10 +20,10 @@ assert prelaunch["archive"]["sha256"] == sha(Path(prelaunch["archive"]["path"]))
 for path, record in execution["archived_binaries"].items():
     assert sha(ROOT / path) == record["sha256"]
 expected_ids = set()
-for fixture in ["h2-8a-require-rewrite.json", "h2-8a-require-rewrite-composition.json", "h2-8a-require-rewrite-substitution.json"]:
+for fixture in ["h2-8a-require-rewrite.json", "h2-8a-require-rewrite-composition.json", "h2-8a-require-rewrite-substitution.json", "h2-8a-require-rewrite-dynamic.json"]:
     artifact = json.loads((ROOT / "crates/compiler/tests/fixtures" / fixture).read_text())
     expected_ids.update(case["case_id"] for case in artifact["cases"])
-assert len(expected_ids) == 68
+assert len(expected_ids) == 74
 captures = {}
 by_id = {}
 for path in sorted((run / "captures").glob("*.json")):
@@ -37,7 +37,7 @@ for path in sorted((run / "captures").glob("*.json")):
 assert set(by_id) == expected_ids
 assert all(len(rows) == 2 and rows[0] == rows[1] for rows in by_id.values())
 log = (run / "run.log").read_text()
-assert "test result: ok. 4 passed; 0 failed" in log
+assert "test result: ok. 5 passed; 0 failed" in log
 assert log.count("H2.8a output matrix EXACT x2") == 2
 before = json.loads((ROOT / "ratchets/h2-8a-require-rewrite-before.v1.json").read_text())
 prior = set(before["focused_exact_twice"])
@@ -64,12 +64,13 @@ receipt = {
     "prior_positive_payloads_unchanged": 15,
     "composition_exact_twice": 4,
     "substitution_exact_twice": 4,
+    "dynamic_exact_twice": 6,
     "original_exact_twice": 2,
-    "supplemental_command_executions": 136,
+    "supplemental_command_executions": 148,
     "captures": captures,
     "exact_ids": sorted(expected_ids),
     "analyzer_sha256": sha(Path(__file__).resolve()),
 }
 with destination.open("x") as stream:
     stream.write(json.dumps(receipt, indent=2) + "\n")
-print("68 focused/composition + 2 original commands exact twice; 45 repairs, 15 preserved positives; 136 supplemental captures exact")
+print("74 focused/composition + 2 original commands exact twice; 45 repairs, 15 preserved positives; 148 supplemental captures exact")

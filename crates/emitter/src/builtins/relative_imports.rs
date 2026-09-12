@@ -169,6 +169,16 @@ pub(super) fn rewrite_argument(
     ) {
         return rewrite_literal(context, argument, preserve_jsx);
     }
+    create_rewrite_helper_call(context, argument, preserve_jsx)
+}
+
+/// Lowered imports call this for any non-StringLiteral argument, including
+/// no-substitution templates; native import/require shims exclude both forms.
+pub(super) fn create_rewrite_helper_call(
+    context: &mut TransformationContext,
+    argument: TransformNode,
+    preserve_jsx: bool,
+) -> Result<TransformNode, TransformError> {
     context.request_emit_helper(crate::EmitHelper::with_text(
         "typescript:rewriteRelativeImportExtensions",
         false,

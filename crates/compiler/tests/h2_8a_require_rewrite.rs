@@ -70,6 +70,23 @@ fn require_rewrite_substitution_complete_commands() {
 }
 
 #[test]
+fn require_rewrite_dynamic_complete_commands() {
+    let artifact: Value = serde_json::from_slice(include_bytes!(
+        "fixtures/h2-8a-require-rewrite-dynamic.json"
+    ))
+    .unwrap();
+    assert_eq!(artifact["typescript"], "6.0.3");
+    assert_eq!(artifact["repetitions"], 2);
+    assert_eq!(artifact["cases"].as_array().unwrap().len(), 6);
+    assert_eq!(artifact["upstream_failures"], json!([]));
+    h2_7c_declaration_blocking::assert_cases_with_inspection(
+        &artifact,
+        true,
+        capture_complete_command,
+    );
+}
+
+#[test]
 fn require_rewrite_original_complete_commands() {
     let selected = [
         "typescript-6.0.3/conformance/externalModules/rewriteRelativeImportExtensions/emitModuleCommonJS.ts#module%3Dcommonjs",
