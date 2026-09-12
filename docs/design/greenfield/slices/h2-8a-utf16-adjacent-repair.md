@@ -333,3 +333,101 @@ After the requested representation/recovery/ES2018 repairs, rerun this
 complete target alongside the old typed target and the original 23 cases.
 It does not establish that those 23 gaps have been repaired or that the
 pending representation design has been reviewed.
+
+## 9. Operation and representation audit for the pending review
+
+Read-only source audit at `1effc9100`; production remains `ed6d8073a`.
+This makes the migration questions concrete. It is not an exhaustive caller
+inventory or a signed file-ownership gate. In particular, semantic use of a
+value decides whether its representation must change; Rust's type name
+`String` alone does not decide that question.
+
+### 9.1. Additional identity/value consumers verified in source
+
+| Operation | Current producer/consumer | Required semantic relation |
+| --- | --- | --- |
+| Expression and annotation literal values | `checker/src/expr.rs::check_expression_worker`; separately `annotate.rs::get_type_from_literal_type_node` → `check_literal_expression` | Both construct the same regular/fresh literal types from the same UTF-16 value; the annotation path independently reads lossy `data.text` today |
+| Property name → literal type | `checker/src/indexed.rs::get_literal_type_from_property_name`, `get_literal_type_from_property` | `keyof`, contextual typing and mapped/inferred properties must round-trip the key value. Direct literal names still use `data.text`; the no-declaration fallback currently constructs a literal type from `symbol_display_name` |
+| Syntax name → escaped key | `binder/src/declare.rs::get_declaration_name`, `node_util.rs::get_escaped_text_of_identifier_or_literal`; `checker/src/evaluate.rs::try_get_text_of_property_name` | Declared, computed and assigned names with equivalent spellings must form one canonical escaped key, independently of source spelling |
+| Literal type → member lookup | `checker/src/indexed.rs::property_name_from_type`; `flow.rs::try_get_name_from_type`; `mapped.rs` mapped-member construction | Every usable string literal type has a property name. The current `to_utf8()` → `None` path violates that domain; mapped-member callers even `expect` a name after the usable-type check |
+| Union/intersection property cache | `checker/src/structural.rs::get_union_or_intersection_property`; `links.rs::union_property` / `set_union_property` | Cache key `(TypeId, name, skip)` must use the same name identity as member lookup; retain the meaning of `skip` and the existing speculative publication protocol |
+| Discriminant-property exclusions | `checker/src/structural.rs` excluded-property sets in discriminant relation and property comparison | Set membership uses property identity; distinct surrogate keys must not exclude one another |
+| Export and type-only membership | `checker/src/modules.rs::visit_module_exports` and `get_export_of_module`; `links.rs::type_only_export_star_map`; `modules.rs::ExportLookupTable` and `non_type_only_names` | The auxiliary maps/sets are keyed by exported names, just like `Symbol.exports`. The first field of `ExportLookupTable` is a member name; its stored specifier text is a separate semantic field |
+| Unique-symbol generated name | `checker/src/annotate.rs` `__@{escaped_name}@{symbol_id}` construction; `types/src/ty.rs::TypeData::UniqueESSymbol` and `tables.rs::create_unique_es_symbol_type` | Prefix/name/id concatenation is a JavaScript-string operation; do not route it through a lossy diagnostic `Display` implementation after introducing a typed name |
+| Constant evaluation and enum literal values | `checker/src/evaluate.rs::EvalValue`, literal arms, `+` concatenation and `evaluate_template_expression`; `annotate.rs` enum value → literal type | `EvalValue::Str(String)` and concatenation currently lose units independently of expression typing. Enum literal interning already accepts `TemplateText`; its input producer must preserve the value too |
+| Declaration property name construction | `checker/src/node_builder/chains.rs::chains_get_property_name_node_for_symbol`, `get_property_name_node_for_symbol_from_name_type`, `create_property_name_for_identifier_or_literal` | The name-type branch already uses `create_string_literal_from_code_units` for non-scalar values; the raw symbol-name fallback still takes `&str`. Both must implement the same identifier/numeric/string selection on the new representation |
+
+Verified counterexamples to a blanket cache-key rewrite:
+
+- `types/src/tables.rs::string_literal_types` already uses `TemplateText` as
+  its canonical key. `utf8_string_literal_types` is an exact scalar-only
+  lookup mirror, populated only when lossless `to_utf8()` succeeds.
+- `types/src/tables.rs::template_literal_types` has a Rust `String` key,
+  but constructs it from type IDs, fragment UTF-16 lengths and fixed-width
+  hex for every code unit. It does not collapse surrogate values.
+- `links.rs` alias and conditional instantiation keys come from type-list
+  IDs and alias IDs (`annotate.rs::get_type_alias_instantiation`,
+  `conditional.rs` instantiation). Those fields do not store property names.
+- Despite its name, `NodeLinks::non_existent_prop_check_cache` is keyed by
+  containing type ID and the unchecked-JS boolean within a property-node ID
+  (`access.rs::report_nonexistent_property`). Its speculation rollback log
+  mirrors that same key. It is not a string-name cache.
+
+The reviewer should extend this map through each actual caller and any
+remaining `data.text` use before signing implementation ownership. Preserve
+the upstream operation's meaning, including freshness, cache identity,
+order, speculation and output selection; do not retain an incorrect old
+result merely because it was previously observed.
+
+### 9.2. Diagnostic values also need an explicit representation boundary
+
+The independent design probe
+`scripts/observe-utf16-diagnostic-values.mjs` calls TypeScript 6.0.3
+`getPreEmitDiagnostics` and `flattenDiagnosticMessageText` twice for each
+of three tiny inputs. Its
+[record](../../../../ratchets/h2-8a-utf16-diagnostic-values-design.v1.json)
+stores every message as UTF-16 units, its JSON spelling, and the separate
+Node UTF-8 byte conversion. These are six diagnostic API observations,
+**not** complete-command or native qualification and not new admissions.
+
+| Input | Diagnostic | Surrogates in flattened message value |
+| --- | --- | --- |
+| `export class C { "\u{D800}"=1; "\uD800"=2; }` | 2300 | None; this producer uses escaped source-name spelling |
+| `export const o = {}; export const x = o["\uD800"];` | 7053 | Two D800 units, both unpaired |
+| `export const x: "\uD800" = "\uDC00";` | 2322 | One DC00 and one D800 unit, both unpaired |
+
+`crates/diagnostics/src/lib.rs::MessageChain.text` is currently a Rust
+`String`. That type cannot hold the latter two TypeScript diagnostic values.
+Escaping the value to printable `\\uD800` or replacing it with U+FFFD inside
+the semantic message does not reproduce that API. Conversely, a UTF-8 output
+boundary has its own encoding behavior; it must not be confused with the
+internal diagnostic's JavaScript-string value. The class-duplicate control
+also shows why one blanket escaping policy for all diagnostics is wrong.
+
+The review must therefore settle canonical diagnostic-value ownership and
+the explicit API/rendering/encoding boundaries along with symbol identity.
+For source-observed controls containing these values, the observation
+transport must retain code units: a plain `serde_json::Value::String` field
+cannot represent an isolated surrogate. The design probe uses an explicit
+UTF-16 array instead of silently changing the expected message. Existing
+fixtures and comparators remain unchanged; no diagnostic representation or
+test-protocol migration has been implemented here.
+
+### 9.3. The existing parser error bit does not prove literal-only recovery
+
+`syntax/src/parser.rs::drain_scanner_errors` and
+`parse_error_at_position` both feed the same diagnostic list and set the
+same `parse_error_before_next_finished_node` boolean. `finish_node_at`
+consumes that boolean by marking the next finished node with
+`THIS_NODE_HAS_ERROR`. `push_parse_diagnostic_with_index` also deduplicates
+at the same diagnostic start. The shared bit/list does not carry the
+lexical-versus-structural recovery provenance required by the proposed B
+decision. Untagged invalid templates explicitly rescan with reporting before
+feeding this same mechanism.
+
+Consequently, testing that error bit on a literal, checking a diagnostic
+position, or selecting diagnostic codes is not by itself proof that all
+recovery is confined to a literal value. The reviewer must determine a
+parser-owned representation/proof for the recovered structure or recommend
+the broader recovery design. This audit does not change the existing emit
+refusal or presume that a narrower guard is correct.
