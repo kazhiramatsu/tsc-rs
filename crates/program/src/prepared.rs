@@ -842,6 +842,7 @@ impl ProgramConfigSpan {
 pub struct ProgramConfigFile {
     path: ProgramPath,
     diagnostic_file_name: String,
+    diagnostic_file_path: String,
     snapshot: Arc<TextSnapshot>,
     automatic_type_directive_locations: BTreeMap<String, ProgramConfigSpan>,
     compiler_options_location: Option<ProgramConfigSpan>,
@@ -864,6 +865,7 @@ impl ProgramConfigFile {
         Self {
             path,
             diagnostic_file_name,
+            diagnostic_file_path: String::new(),
             snapshot,
             automatic_type_directive_locations: BTreeMap::new(),
             compiler_options_location: None,
@@ -879,6 +881,17 @@ impl ProgramConfigFile {
     pub fn with_diagnostic_file_name(mut self, file_name: impl Into<String>) -> Self {
         self.diagnostic_file_name = file_name.into();
         self
+    }
+
+    /// SourceFile.path is empty for parseJsonSourceFileConfigFileContent,
+    /// and resolved by getParsedCommandLineOfConfigFile for a CLI config.
+    pub fn with_diagnostic_file_path(mut self, path: impl Into<String>) -> Self {
+        self.diagnostic_file_path = path.into();
+        self
+    }
+
+    pub fn diagnostic_file_path(&self) -> &str {
+        &self.diagnostic_file_path
     }
 
     pub fn with_automatic_type_directive_location(

@@ -1272,3 +1272,27 @@ fn filesystem_cfg_root_conversion_and_cache_match_typescript() {
         }
     }
 }
+
+#[test]
+fn filesystem_config_and_source_diagnostic_order_matches_typescript() {
+    for module_options in [r#""module":"none""#, r#""outFile":"dist/bundle.js""#] {
+        for _ in 0..2 {
+            let tree = TempTree::new();
+            fs::write(tree.path("main.ts"), "export const value = 1;\n").unwrap();
+            fs::write(tree.path("tsconfig.json"), format!(
+                r#"{{"compilerOptions":{{"target":"es5","moduleResolution":"node","lib":["es5"],"types":[],"noEmitOnError":true,"skipLibCheck":true,{module_options}}},"files":["main.ts"]}}"#
+            )).unwrap();
+            let inputs = snapshot_files(&tree.root);
+            assert_typescript_parity(
+                &tree,
+                &["-p", "tsconfig.json", "--pretty", "false"],
+                &["-p", "tsconfig.json", "--pretty", "false"],
+            );
+            assert_eq!(
+                snapshot_files(&tree.root),
+                inputs,
+                "blocked commands write no files"
+            );
+        }
+    }
+}

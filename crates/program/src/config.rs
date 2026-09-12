@@ -959,6 +959,39 @@ pub struct ConfigRootPlan {
 }
 
 impl ConfigRootPlan {
+    /// getParsedCommandLineOfConfigFile assigns the primary config's path
+    /// before parsing (_tsc.js:38311-38334). Direct JSON-source parsing keeps
+    /// the empty path. Extended config sources retain their own identities.
+    pub fn with_resolved_config_source_path(mut self) -> Self {
+        let Some(config_file) = self.program_options().config_file().cloned() else {
+            return self;
+        };
+        let path = config_file.path().canonical().to_string();
+        for diagnostic in self
+            .root_parse_diagnostics
+            .iter_mut()
+            .chain(&mut self.errors)
+            .chain(&mut self.option_diagnostics)
+        {
+            if diagnostic.file_name.as_deref() == Some(self.source.file_name.as_str()) {
+                diagnostic.file_path = Some(path.clone());
+            }
+        }
+        let diagnostics = self
+            .root_parse_diagnostics
+            .iter()
+            .chain(&self.errors)
+            .cloned()
+            .collect();
+        let sources = self.program_options().config_parsing_sources().to_vec();
+        self.module_resolution_options.program_options = self
+            .program_options()
+            .clone()
+            .with_config_file(config_file.with_diagnostic_file_path(path))
+            .with_config_parsing_diagnostics(diagnostics, sources);
+        self
+    }
+
     pub fn config_file_name(&self) -> &str {
         &self.config_file_name
     }
@@ -1731,6 +1764,15 @@ fn parse_config_root_plan_inner(
         .exclude
         .as_ref()
         .map(|specs| specs.iter().map(|spec| spec.text.clone()).collect());
+    for diagnostic in context
+        .root_parse_diagnostics
+        .iter_mut()
+        .chain(&mut context.errors)
+    {
+        if diagnostic.file_name.is_some() {
+            diagnostic.file_path = Some(String::new());
+        }
+    }
     let config_diagnostics = context
         .root_parse_diagnostics
         .iter()

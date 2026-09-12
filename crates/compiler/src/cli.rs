@@ -1599,7 +1599,8 @@ fn parse_config_file(
         },
         &mut ConfigExtendedCache::default(),
     )
-    .map_err(config_error)?;
+    .map_err(config_error)?
+    .with_resolved_config_source_path();
     let mut source_texts = BTreeMap::new();
     source_texts.insert(
         display_file_name.to_owned(),
