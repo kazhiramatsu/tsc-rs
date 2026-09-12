@@ -1796,6 +1796,7 @@ impl Printer {
             )?;
             if self.options.declaration_syntax
                 && original_source_was_statementless
+                && !statement_array_is_synthesized
                 && !self.options.remove_comments
             {
                 let source = transformation.arena().source(source_id)?.syntax();
@@ -1853,47 +1854,10 @@ impl Printer {
             }
             if !accounted_for_original_prefix && emitted_has_original_range {
                 let first_differs = original_first_statement.is_some_and(|first| first != original);
-                let emitted_is_within_first_statement = if statement_array_is_synthesized {
-                    match original_first_statement
-                        .filter(|first| first.source() == original.source())
-                    {
-                        Some(first) => {
-                            let first_record = transformation.arena().node(first)?;
-                            let first_source =
-                                transformation.arena().source(first.source())?.syntax();
-                            matches!(
-                                (
-                                    SourceRange::from_raw(
-                                        first_record.pos,
-                                        first_record.end,
-                                        first_source.positions(),
-                                    )?,
-                                    SourceRange::from_raw(
-                                        original_record.pos,
-                                        original_record.end,
-                                        original_source.positions(),
-                                    )?,
-                                ),
-                                (SourceRange::Original(first), SourceRange::Original(child))
-                                    if skip_trivia(first_source.text(), first.start().value() as usize)
-                                        <= child.start().value() as usize
-                                        && child.end() <= first.end()
-                            )
-                        }
-                        None => false,
-                    }
-                } else {
-                    false
-                };
-                // A synthesized JS list does not restart trivia owned by an
-                // erased earlier statement. A retained declaration component
-                // (for example a VariableDeclarationList original) still owns
-                // the first statement's JSDoc prefix. A node within that
-                // leading trivia (such as a JSDoc overload signature) is not
-                // a statement component and owns its copied comment instead.
-                if first_differs
-                    && (!statement_array_is_synthesized || emitted_is_within_first_statement)
-                {
+                // emitBodyWithDetachedComments skips a synthesized statement
+                // array's prefix. Retained declarations emit their own leading
+                // comments from the selected node range below.
+                if first_differs && !statement_array_is_synthesized {
                     self.emit_detached_comment_prefix(
                         transformation,
                         detached_source_prefix,

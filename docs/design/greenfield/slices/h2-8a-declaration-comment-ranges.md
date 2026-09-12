@@ -764,3 +764,12 @@ module-header, exports-header, typedef-separated and pinned-header, plus the
 comment-only declaration body. The other seven commands are exact, including
 variable/function expandos, class, parsed TS lists, removal and prologue.
 Preserve these positive tuples when repairing the source-file prefix path.
+
+The printer repair is recorded at
+`target/declaration-comment-ranges-runs/detached-after-20260913-000214`.
+Both 12-command jobs now pass, with stable exact complete supplemental
+captures. The required G4a original is exact on both repetitions. Variable and
+function expandos retain their own comments without the removed containment
+exception. The comment-only declaration honors its synthesized array range.
+This closes the intermediate residual; final combined regressions and hosted
+acceptance remain the landing gates.
