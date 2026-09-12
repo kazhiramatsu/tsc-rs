@@ -4,11 +4,15 @@ Design frozen on 2026-09-12 at trusted base
 `f406f12009cd476e28f9e0dcfb3ae4030563fa67` (main after PR #519).
 This is the next Codex slice selected by the user. It repairs the two
 declaration serializers' choice of **source location**, which supplies
-declaration comments and mapping provenance. Production remains unmodified.
-The source decisions, Rust representation, file ownership and implementation
-steps are fixed below. Seventeen source commands and their internal selector
-traces are observed twice. Native before/after execution remains an explicit
-implementation gate, not a result of this design exercise.
+declaration comments and mapping provenance. Runtime implementation is complete
+at `de355f7c5`; final combined native qualification passed on 2026-09-13.
+[PR #520](https://github.com/kazhiramatsu/tsc-rs/pull/520) records the required
+hosted acceptance and landing result.
+Native evidence required two bounded dependencies: parameter annotation lookup
+(§12) and synthesized declaration source-prefix ownership (§13). The final
+population contains 41 complete focused commands plus the two required original
+repairs; the shared G5c original remains a separate strict failure report.
+The original design and pre-edit history are retained below with their dates.
 
 The design worktree is `/Users/hiramatsu/dev/tsc-rs-declaration-comment-design`,
 runtime branch `work/h2-8a-declaration-comment-ranges` (renamed from the
@@ -36,7 +40,9 @@ non-omitted method/function signature loop in `make_serialize_property_symbol`,
 both private methods of `StatementSerializer` in
 `crates/checker/src/node_builder/statements.rs`. It uses the existing binder
 assignment classifier. It adds no checker query, syntax type, emitter metadata,
-shared comment algorithm, source-text scan or output rewrite.
+source-text scan or output rewrite. The dependency amendments in §§12–13
+extend the original two-selector boundary to the existing annotation and
+source-file prefix owners; they add no API or representation.
 
 JSDoc return/type reuse (G5a/G5c), link formatting (G6), declaration specifier
 options (G5d / PR #516), class-expression containers (G5b), literal values,
@@ -216,8 +222,9 @@ No new cache, lifetime, callback, sink operation, lexical environment,
 receiver replacement, generated binding, comment cursor or transform pass is
 introduced. Neither decision changes the signature construction order or
 recomputes node flags. Source/array flags and name finalization remain with
-their existing factories. Comment and map differences follow only from the
-source anchor; their bytes must still be compared independently.
+their existing factories. The selector changes affect the source anchor;
+§12 preserves parameter annotation nodes and §13 respects statement-array
+comment ownership. Every resulting byte and map is compared independently.
 
 ## 5. Architecture and evidence references
 
@@ -388,34 +395,36 @@ The source-design delivery at `0727677d3` contained no PR, acceptance run or
 runtime modification. Execution on the same pinned production base starts
 with the pre-edit work recorded in §11; runtime landing retains the hosted gate.
 
-## 8. Readiness and remaining execution work
+## 8. Implementation readiness and qualification
 
-The source design has no unresolved choice about either selector, the binder
-predicate, location identity, missing-parent behavior, edit files or test
-route. The native before observation is **not yet executed**. Test adapters have
-been drafted in §11 but remain unbuilt. Steps 1–2, including their validation,
-are mandatory, with explicit failure criteria,
-before the design may authorize production edits under schedule §1.1.
+The source decisions, missing-parent behavior, location identity and test
+route are fixed. All native before observations were executed before editing
+their respective owners. Both required originals and all focused populations
+pass the final combined qualification in §14. Hosted acceptance and landing
+are recorded on PR #520.
 
 | Gate | Status / exact completion condition |
 | --- | --- |
-| Source/Rust decision map and file boundary | Fixed in §§2–4; no extra production owner |
-| Source freeze | 17 commands ×2; instrumented equality ×2; 24 predicate, 4 sentinel and 4 range controls ×2; hashes in §6 |
-| Baseline and architecture pins | Check §9 at the fixed base; fresh source audit does not imply a native qualification |
-| Frozen fixture materialization and test target | All three fixtures materialized and hash checked; compiler and checker adapters built and run (§12) |
-| Native pre-edit comparisons | Complete at the pinned production source: 17 focused, 3 original and 12 dependency commands repeated; actual failures and raw tuples in the before receipt (§12) |
-| Runtime implementation and qualification | Pending steps 3–6; no production file changed in this delivery |
+| Source/Rust decisions and file boundary | Implemented in four producer files under §§2–4, 12–13; rechecked disjoint from Claude |
+| Source freeze | 17 original + 12 parameter + 12 prefix commands, each repeated twice; selector/parameter/printer traces frozen independently |
+| Baseline and architecture pins | Trusted base remains `f406f12009cd476e28f9e0dcfb3ae4030563fa67`; original expectation hashes unchanged |
+| Native before | Complete for each producer before editing; original/parameter captures in the before receipt, prefix dependency recorded in §13 |
+| Implementation-stage results | Both required originals exact twice; all 41 focused commands exact in two jobs per population; 19 statement, 12 syntactic-builder and 6 chain tests pass |
+| Final combined gate | Passed at `de355f7c5`: all focused populations and required originals, checker controls, emitter library/contracts/topology and 30 original export/require regressions (§14) |
+| Shared original G5c | Strict comparison remains failed for `d`/`e` return types; preserve actual exit and both complete tuples, never count as exact |
+| Landing | Hosted acceptance must pass before merge; global A37 and full-H2.8 claims remain unchanged |
 
-This distinction is intentional: source semantics can be fixed before paying
-for a native build, while the native evidence gate still prevents speculative
-implementation. There is no user approval dependency for the specified work.
-The implementer must resolve new evidence by the amendment rule rather than
-assuming unknown failures belong to G5c or to Claude.
+There is no user approval dependency for this bounded implementation. New
+findings were resolved through source evidence and documented file-boundary
+amendments before edits, preserving the complete original gate.
 
 ## 9. Source-design validation
 
-After running the notebook, export its output directory as `DECL_COMMENT_OUT`
-and execute the Python block below from this repository root. It checks base
+This historical pre-edit validator applies to the trusted-base checkout before
+production edits, as executed for the source-design freeze. It intentionally
+rejects the implemented tree; final qualification uses the native receipts.
+After running the original notebook block there, export its output directory
+as `DECL_COMMENT_OUT` and execute the Python block below. It checks base
 identity, all pinned files, the exact source spans, the actual frozen outputs,
 case/trace coverage and the absence of production edits. It validates the
 **source design only** and explicitly reports that native readiness is pending.
@@ -516,6 +525,9 @@ Whole-file baseline pins used by §9 (the machine-readable copy is `authority.js
 
 
 ## 11. Execution record
+
+This section is the dated pre-edit execution history. Its pending/blocked
+states ended when the queued run completed (§12); they are not current blockers.
 
 The pre-edit source freeze was reproduced on 2026-09-12, after the design
 commit, in
@@ -773,3 +785,56 @@ function expandos retain their own comments without the removed containment
 exception. The comment-only declaration honors its synthesized array range.
 This closes the intermediate residual; final combined regressions and hosted
 acceptance remain the landing gates.
+
+## 14. Final native qualification — 2026-09-13
+
+The [after receipt](../../../../ratchets/h2-8a-declaration-comment-ranges-after.v1.json)
+records the six implementation/dependency stages, every actual command exit,
+source and binary hashes, and raw complete captures with all differences.
+The final run is
+`target/declaration-comment-ranges-runs/final-20260913-000500` at implementation
+head `de355f7c56ceff98fa0e7f132fe3297ad8591ae4`. Later receipt/document changes
+do not alter any final-run production, test, fixture or comparator input.
+
+| Final check | Result |
+| --- | --- |
+| Original focused population | 17/17 complete commands exact in two independent jobs; each job performs two primary comparisons and two supplemental captures per case |
+| Parameter lookup dependency | 12/12 exact with the same repetitions; identifier/binding-pattern/ownership/precedence and diagnostic controls preserved |
+| Detached-prefix dependency | 12/12 exact with the same repetitions; all seven before-positive commands preserved |
+| Required original G4a and G4b | Both complete commands exact twice; original comparator exit 0 for each |
+| Shared G4a + G5c original | Strict exit 101, two identical failure captures; only `d`/`e` return types remain `any` versus `string` / `T & U` |
+| Checker controls | 19 statement + 12 syntactic-builder + 6 chain tests pass; all frozen source-location/identity and parameter-node controls pass |
+| Emitter regressions | 496 library + 452 contracts + 18 source-comment topology tests pass |
+| Existing original regressions | All 8 export-assignment and 22 require/alias commands exact twice |
+| Builds and formatting | All six target builds and `cargo fmt --all --check` pass |
+
+The supplemental executions are separately counted: each of the 41 focused
+cases has four primary comparisons and four supplemental captures in the
+final run. The unchanged original loader captures failures only; successful
+originals are established by its two strict assertions and exact-ID result.
+No missing capture is treated as success and no successful capture is invented.
+
+All 42 captured final cases retain their before reported/emit diagnostics,
+emission/refusal flags, emitted-file listings, status writes and exit codes.
+The shared G5c case also retains all non-declaration products and non-write
+fields against before. Its comment corrections are visible in the retained
+diff; its return-type failure remains excluded from exact counts. No diagnostic
+accepted-set update is implied. Global A37 remains the historical 755/769.
+
+| Source owner | Rust producer | Frozen witness / commit |
+| --- | --- | --- |
+| `getSignatureTextRangeLocation` | checker statements: `get_signature_text_range_location` | G4a selector/parent sentinels, export originals; `0a18c2227` |
+| `makeSerializePropertySymbol` prototype branch | checker statements: non-omitted method loop | Prototype traces and absent-signature control, G4b original; `35ecd7adc` |
+| `getJSDocParameterTagsWorker` / `getJSDocType` | binder AST utility and syntactic builder fallback | 12 direct-node and complete-command controls; `e6035fd0f` |
+| `emitSourceFile` / `emitBodyWithDetachedComments` | printer source-file prefix decisions | 12 prefix commands with inert upstream printer traces, G4a original; `de355f7c5` |
+
+Final file disjointness was rechecked against Claude's documentation head
+`816b31c2711a144ac379fd0af2db4f02b7aa0525`, whose production files are the
+same as the earlier boundary check. No changed file overlaps. The assignment
+classifier, declaration type/chain consumers, shared comparators, global
+ratchets and CI workflow remain byte-identical to the trusted base.
+
+The current schedule requires hosted `cargo xtask acceptance` before runtime
+landing; PR #520 owns that result. This native receipt is a pre-landing
+snapshot and does not assert hosted success. Historical certificate walks
+and full developer CI were omitted as directed and are not claimed as passing.
