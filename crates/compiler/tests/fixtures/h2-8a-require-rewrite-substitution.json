@@ -1,0 +1,455 @@
+{
+  "version": 1,
+  "status": "Complete upstream observations; native qualification is recorded separately",
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "afc856b5248848f136797edc8c52a4f66c36ca65a75ece37245e8f4fe0265cf3",
+  "inputs": {
+    "path": "crates/compiler/tests/fixtures/h2-8a-require-rewrite-substitution-inputs.json",
+    "sha256": "f29af5f87413c0e972022e1b8582ab694a76202b26ecf5f9a3bcc62b12dd982d"
+  },
+  "repetitions": 2,
+  "program_attempts": 8,
+  "program_executions": 8,
+  "exception_attempts": 0,
+  "cases": [
+    {
+      "case_id": "require-rewrite-substitution/commonjs/exported-assignment",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "let path = \"./a.ts\";\nexport { path as alias };\nrequire(path = \"./b.ts\");\nrequire(path += \".ts\");\nrequire(({ path } = { path: \"./c.ts\" }));\nrequire(path++);\n"
+        }
+      ],
+      "options": {},
+      "config": "{\"compilerOptions\": {\"target\": \"esnext\", \"module\": \"commonjs\", \"allowJs\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"outDir\": \"out\", \"newLine\": \"lf\", \"ignoreDeprecations\": \"6.0\", \"rewriteRelativeImportExtensions\": true}, \"files\": [\"main.js\"]}",
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7QUFBQSxJQUFJLElBQUksR0FBRyxRQUFRLENBQUM7QUFDSCxxQkFBSztBQUN0QixPQUFPLGtDQUFDLGdCQUFBLElBQUksR0FBRyxRQUFRLEVBQUMsQ0FBQztBQUN6QixPQUFPLGtDQUFDLGdCQUFBLElBQUksSUFBSSxLQUFLLEVBQUMsQ0FBQztBQUN2QixPQUFPLGtDQUFDLENBQUMsRUFBRSxJQUFJLEVBQUUsR0FBRyxFQUFFLElBQUksRUFBRSxRQUFRLEVBQUUsQ0FBQyxFQUFDLENBQUM7QUFDekMsT0FBTyxrQ0FBQyxJQUFJLEVBQUUsRUFBQyxDQUFDIn0=",
+            "callback_utf8_bytes": 362,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7QUFBQSxJQUFJLElBQUksR0FBRyxRQUFRLENBQUM7QUFDSCxxQkFBSztBQUN0QixPQUFPLGtDQUFDLGdCQUFBLElBQUksR0FBRyxRQUFRLEVBQUMsQ0FBQztBQUN6QixPQUFPLGtDQUFDLGdCQUFBLElBQUksSUFBSSxLQUFLLEVBQUMsQ0FBQztBQUN2QixPQUFPLGtDQUFDLENBQUMsRUFBRSxJQUFJLEVBQUUsR0FBRyxFQUFFLElBQUksRUFBRSxRQUFRLEVBQUUsQ0FBQyxFQUFDLENBQUM7QUFDekMsT0FBTyxrQ0FBQyxJQUFJLEVBQUUsRUFBQyxDQUFDIn0=",
+            "materialized_utf8_bytes": 362,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19yZXdyaXRlUmVsYXRpdmVJbXBvcnRFeHRlbnNpb24gPSAodGhpcyAmJiB0aGlzLl9fcmV3cml0ZVJlbGF0aXZlSW1wb3J0RXh0ZW5zaW9uKSB8fCBmdW5jdGlvbiAocGF0aCwgcHJlc2VydmVKc3gpIHsKICAgIGlmICh0eXBlb2YgcGF0aCA9PT0gInN0cmluZyIgJiYgL15cLlwuP1wvLy50ZXN0KHBhdGgpKSB7CiAgICAgICAgcmV0dXJuIHBhdGgucmVwbGFjZSgvXC4odHN4KSR8KCg/OlwuZCk/KSgoPzpcLlteLi9dKz8pPylcLihbY21dPyl0cyQvaSwgZnVuY3Rpb24gKG0sIHRzeCwgZCwgZXh0LCBjbSkgewogICAgICAgICAgICByZXR1cm4gdHN4ID8gcHJlc2VydmVKc3ggPyAiLmpzeCIgOiAiLmpzIiA6IGQgJiYgKCFleHQgfHwgIWNtKSA/IG0gOiAoZCArIGV4dCArICIuIiArIGNtLnRvTG93ZXJDYXNlKCkgKyAianMiKTsKICAgICAgICB9KTsKICAgIH0KICAgIHJldHVybiBwYXRoOwp9OwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLmFsaWFzID0gdm9pZCAwOwpsZXQgcGF0aCA9ICIuL2EudHMiOwpleHBvcnRzLmFsaWFzID0gcGF0aDsKcmVxdWlyZShfX3Jld3JpdGVSZWxhdGl2ZUltcG9ydEV4dGVuc2lvbihleHBvcnRzLmFsaWFzID0gcGF0aCA9ICIuL2IudHMiKSk7CnJlcXVpcmUoX19yZXdyaXRlUmVsYXRpdmVJbXBvcnRFeHRlbnNpb24oZXhwb3J0cy5hbGlhcyA9IHBhdGggKz0gIi50cyIpKTsKcmVxdWlyZShfX3Jld3JpdGVSZWxhdGl2ZUltcG9ydEV4dGVuc2lvbigoeyBwYXRoIH0gPSB7IHBhdGg6ICIuL2MudHMiIH0pKSk7CnJlcXVpcmUoX19yZXdyaXRlUmVsYXRpdmVJbXBvcnRFeHRlbnNpb24ocGF0aCsrKSk7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "callback_utf8_bytes": 909,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19yZXdyaXRlUmVsYXRpdmVJbXBvcnRFeHRlbnNpb24gPSAodGhpcyAmJiB0aGlzLl9fcmV3cml0ZVJlbGF0aXZlSW1wb3J0RXh0ZW5zaW9uKSB8fCBmdW5jdGlvbiAocGF0aCwgcHJlc2VydmVKc3gpIHsKICAgIGlmICh0eXBlb2YgcGF0aCA9PT0gInN0cmluZyIgJiYgL15cLlwuP1wvLy50ZXN0KHBhdGgpKSB7CiAgICAgICAgcmV0dXJuIHBhdGgucmVwbGFjZSgvXC4odHN4KSR8KCg/OlwuZCk/KSgoPzpcLlteLi9dKz8pPylcLihbY21dPyl0cyQvaSwgZnVuY3Rpb24gKG0sIHRzeCwgZCwgZXh0LCBjbSkgewogICAgICAgICAgICByZXR1cm4gdHN4ID8gcHJlc2VydmVKc3ggPyAiLmpzeCIgOiAiLmpzIiA6IGQgJiYgKCFleHQgfHwgIWNtKSA/IG0gOiAoZCArIGV4dCArICIuIiArIGNtLnRvTG93ZXJDYXNlKCkgKyAianMiKTsKICAgICAgICB9KTsKICAgIH0KICAgIHJldHVybiBwYXRoOwp9OwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLmFsaWFzID0gdm9pZCAwOwpsZXQgcGF0aCA9ICIuL2EudHMiOwpleHBvcnRzLmFsaWFzID0gcGF0aDsKcmVxdWlyZShfX3Jld3JpdGVSZWxhdGl2ZUltcG9ydEV4dGVuc2lvbihleHBvcnRzLmFsaWFzID0gcGF0aCA9ICIuL2IudHMiKSk7CnJlcXVpcmUoX19yZXdyaXRlUmVsYXRpdmVJbXBvcnRFeHRlbnNpb24oZXhwb3J0cy5hbGlhcyA9IHBhdGggKz0gIi50cyIpKTsKcmVxdWlyZShfX3Jld3JpdGVSZWxhdGl2ZUltcG9ydEV4dGVuc2lvbigoeyBwYXRoIH0gPSB7IHBhdGg6ICIuL2MudHMiIH0pKSk7CnJlcXVpcmUoX19yZXdyaXRlUmVsYXRpdmVJbXBvcnRFeHRlbnNpb24ocGF0aCsrKSk7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "materialized_utf8_bytes": 909,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 877,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEseUJBQW9CIn0=",
+            "callback_utf8_bytes": 110,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEseUJBQW9CIn0=",
+            "materialized_utf8_bytes": 110,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IHsgcGF0aCBhcyBhbGlhcyB9OwpkZWNsYXJlIGxldCBwYXRoOiBzdHJpbmc7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "callback_utf8_bytes": 86,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IHsgcGF0aCBhcyBhbGlhcyB9OwpkZWNsYXJlIGxldCBwYXRoOiBzdHJpbmc7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "materialized_utf8_bytes": 86,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 52,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";;;;;;;;;;;AAAA,IAAI,IAAI,GAAG,QAAQ,CAAC;AACH,qBAAK;AACtB,OAAO,kCAAC,gBAAA,IAAI,GAAG,QAAQ,EAAC,CAAC;AACzB,OAAO,kCAAC,gBAAA,IAAI,IAAI,KAAK,EAAC,CAAC;AACvB,OAAO,kCAAC,CAAC,EAAE,IAAI,EAAE,GAAG,EAAE,IAAI,EAAE,QAAQ,EAAE,CAAC,EAAC,CAAC;AACzC,OAAO,kCAAC,IAAI,EAAE,EAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,yBAAoB\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "require-rewrite-substitution/amd/exported-assignment",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "let path = \"./a.ts\";\nexport { path as alias };\nrequire(path = \"./b.ts\");\nrequire(path += \".ts\");\nrequire(({ path } = { path: \"./c.ts\" }));\nrequire(path++);\n"
+        }
+      ],
+      "options": {},
+      "config": "{\"compilerOptions\": {\"target\": \"esnext\", \"module\": \"amd\", \"allowJs\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"outDir\": \"out\", \"newLine\": \"lf\", \"ignoreDeprecations\": \"6.0\", \"rewriteRelativeImportExtensions\": true}, \"files\": [\"main.js\"]}",
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7O0lBQUEsSUFBSSxJQUFJLEdBQUcsUUFBUSxDQUFDO0lBQ0gscUJBQUs7SUFDdEIsT0FBTyxrQ0FBQyxnQkFBQSxJQUFJLEdBQUcsUUFBUSxFQUFDLENBQUM7SUFDekIsT0FBTyxrQ0FBQyxnQkFBQSxJQUFJLElBQUksS0FBSyxFQUFDLENBQUM7SUFDdkIsT0FBTyxrQ0FBQyxDQUFDLEVBQUUsSUFBSSxFQUFFLEdBQUcsRUFBRSxJQUFJLEVBQUUsUUFBUSxFQUFFLENBQUMsRUFBQyxDQUFDO0lBQ3pDLE9BQU8sa0NBQUMsSUFBSSxFQUFFLEVBQUMsQ0FBQyJ9",
+            "callback_utf8_bytes": 363,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7O0lBQUEsSUFBSSxJQUFJLEdBQUcsUUFBUSxDQUFDO0lBQ0gscUJBQUs7SUFDdEIsT0FBTyxrQ0FBQyxnQkFBQSxJQUFJLEdBQUcsUUFBUSxFQUFDLENBQUM7SUFDekIsT0FBTyxrQ0FBQyxnQkFBQSxJQUFJLElBQUksS0FBSyxFQUFDLENBQUM7SUFDdkIsT0FBTyxrQ0FBQyxDQUFDLEVBQUUsSUFBSSxFQUFFLEdBQUcsRUFBRSxJQUFJLEVBQUUsUUFBUSxFQUFFLENBQUMsRUFBQyxDQUFDO0lBQ3pDLE9BQU8sa0NBQUMsSUFBSSxFQUFFLEVBQUMsQ0FBQyJ9",
+            "materialized_utf8_bytes": 363,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "dmFyIF9fcmV3cml0ZVJlbGF0aXZlSW1wb3J0RXh0ZW5zaW9uID0gKHRoaXMgJiYgdGhpcy5fX3Jld3JpdGVSZWxhdGl2ZUltcG9ydEV4dGVuc2lvbikgfHwgZnVuY3Rpb24gKHBhdGgsIHByZXNlcnZlSnN4KSB7CiAgICBpZiAodHlwZW9mIHBhdGggPT09ICJzdHJpbmciICYmIC9eXC5cLj9cLy8udGVzdChwYXRoKSkgewogICAgICAgIHJldHVybiBwYXRoLnJlcGxhY2UoL1wuKHRzeCkkfCgoPzpcLmQpPykoKD86XC5bXi4vXSs/KT8pXC4oW2NtXT8pdHMkL2ksIGZ1bmN0aW9uIChtLCB0c3gsIGQsIGV4dCwgY20pIHsKICAgICAgICAgICAgcmV0dXJuIHRzeCA/IHByZXNlcnZlSnN4ID8gIi5qc3giIDogIi5qcyIgOiBkICYmICghZXh0IHx8ICFjbSkgPyBtIDogKGQgKyBleHQgKyAiLiIgKyBjbS50b0xvd2VyQ2FzZSgpICsgImpzIik7CiAgICAgICAgfSk7CiAgICB9CiAgICByZXR1cm4gcGF0aDsKfTsKZGVmaW5lKFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwogICAgZXhwb3J0cy5hbGlhcyA9IHZvaWQgMDsKICAgIGxldCBwYXRoID0gIi4vYS50cyI7CiAgICBleHBvcnRzLmFsaWFzID0gcGF0aDsKICAgIHJlcXVpcmUoX19yZXdyaXRlUmVsYXRpdmVJbXBvcnRFeHRlbnNpb24oZXhwb3J0cy5hbGlhcyA9IHBhdGggPSAiLi9iLnRzIikpOwogICAgcmVxdWlyZShfX3Jld3JpdGVSZWxhdGl2ZUltcG9ydEV4dGVuc2lvbihleHBvcnRzLmFsaWFzID0gcGF0aCArPSAiLnRzIikpOwogICAgcmVxdWlyZShfX3Jld3JpdGVSZWxhdGl2ZUltcG9ydEV4dGVuc2lvbigoeyBwYXRoIH0gPSB7IHBhdGg6ICIuL2MudHMiIH0pKSk7CiAgICByZXF1aXJlKF9fcmV3cml0ZVJlbGF0aXZlSW1wb3J0RXh0ZW5zaW9uKHBhdGgrKykpOwp9KTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 1010,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "dmFyIF9fcmV3cml0ZVJlbGF0aXZlSW1wb3J0RXh0ZW5zaW9uID0gKHRoaXMgJiYgdGhpcy5fX3Jld3JpdGVSZWxhdGl2ZUltcG9ydEV4dGVuc2lvbikgfHwgZnVuY3Rpb24gKHBhdGgsIHByZXNlcnZlSnN4KSB7CiAgICBpZiAodHlwZW9mIHBhdGggPT09ICJzdHJpbmciICYmIC9eXC5cLj9cLy8udGVzdChwYXRoKSkgewogICAgICAgIHJldHVybiBwYXRoLnJlcGxhY2UoL1wuKHRzeCkkfCgoPzpcLmQpPykoKD86XC5bXi4vXSs/KT8pXC4oW2NtXT8pdHMkL2ksIGZ1bmN0aW9uIChtLCB0c3gsIGQsIGV4dCwgY20pIHsKICAgICAgICAgICAgcmV0dXJuIHRzeCA/IHByZXNlcnZlSnN4ID8gIi5qc3giIDogIi5qcyIgOiBkICYmICghZXh0IHx8ICFjbSkgPyBtIDogKGQgKyBleHQgKyAiLiIgKyBjbS50b0xvd2VyQ2FzZSgpICsgImpzIik7CiAgICAgICAgfSk7CiAgICB9CiAgICByZXR1cm4gcGF0aDsKfTsKZGVmaW5lKFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwogICAgZXhwb3J0cy5hbGlhcyA9IHZvaWQgMDsKICAgIGxldCBwYXRoID0gIi4vYS50cyI7CiAgICBleHBvcnRzLmFsaWFzID0gcGF0aDsKICAgIHJlcXVpcmUoX19yZXdyaXRlUmVsYXRpdmVJbXBvcnRFeHRlbnNpb24oZXhwb3J0cy5hbGlhcyA9IHBhdGggPSAiLi9iLnRzIikpOwogICAgcmVxdWlyZShfX3Jld3JpdGVSZWxhdGl2ZUltcG9ydEV4dGVuc2lvbihleHBvcnRzLmFsaWFzID0gcGF0aCArPSAiLnRzIikpOwogICAgcmVxdWlyZShfX3Jld3JpdGVSZWxhdGl2ZUltcG9ydEV4dGVuc2lvbigoeyBwYXRoIH0gPSB7IHBhdGg6ICIuL2MudHMiIH0pKSk7CiAgICByZXF1aXJlKF9fcmV3cml0ZVJlbGF0aXZlSW1wb3J0RXh0ZW5zaW9uKHBhdGgrKykpOwp9KTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 1010,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 978,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEseUJBQW9CIn0=",
+            "callback_utf8_bytes": 110,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEseUJBQW9CIn0=",
+            "materialized_utf8_bytes": 110,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IHsgcGF0aCBhcyBhbGlhcyB9OwpkZWNsYXJlIGxldCBwYXRoOiBzdHJpbmc7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "callback_utf8_bytes": 86,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IHsgcGF0aCBhcyBhbGlhcyB9OwpkZWNsYXJlIGxldCBwYXRoOiBzdHJpbmc7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "materialized_utf8_bytes": 86,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 52,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;IAAA,IAAI,IAAI,GAAG,QAAQ,CAAC;IACH,qBAAK;IACtB,OAAO,kCAAC,gBAAA,IAAI,GAAG,QAAQ,EAAC,CAAC;IACzB,OAAO,kCAAC,gBAAA,IAAI,IAAI,KAAK,EAAC,CAAC;IACvB,OAAO,kCAAC,CAAC,EAAE,IAAI,EAAE,GAAG,EAAE,IAAI,EAAE,QAAQ,EAAE,CAAC,EAAC,CAAC;IACzC,OAAO,kCAAC,IAAI,EAAE,EAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,yBAAoB\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "require-rewrite-substitution/umd/exported-assignment",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "let path = \"./a.ts\";\nexport { path as alias };\nrequire(path = \"./b.ts\");\nrequire(path += \".ts\");\nrequire(({ path } = { path: \"./c.ts\" }));\nrequire(path++);\n"
+        }
+      ],
+      "options": {},
+      "config": "{\"compilerOptions\": {\"target\": \"esnext\", \"module\": \"umd\", \"allowJs\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"outDir\": \"out\", \"newLine\": \"lf\", \"ignoreDeprecations\": \"6.0\", \"rewriteRelativeImportExtensions\": true}, \"files\": [\"main.js\"]}",
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7SUFBQSxJQUFJLElBQUksR0FBRyxRQUFRLENBQUM7SUFDSCxxQkFBSztJQUN0QixPQUFPLGtDQUFDLGdCQUFBLElBQUksR0FBRyxRQUFRLEVBQUMsQ0FBQztJQUN6QixPQUFPLGtDQUFDLGdCQUFBLElBQUksSUFBSSxLQUFLLEVBQUMsQ0FBQztJQUN2QixPQUFPLGtDQUFDLENBQUMsRUFBRSxJQUFJLEVBQUUsR0FBRyxFQUFFLElBQUksRUFBRSxRQUFRLEVBQUUsQ0FBQyxFQUFDLENBQUM7SUFDekMsT0FBTyxrQ0FBQyxJQUFJLEVBQUUsRUFBQyxDQUFDIn0=",
+            "callback_utf8_bytes": 371,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7SUFBQSxJQUFJLElBQUksR0FBRyxRQUFRLENBQUM7SUFDSCxxQkFBSztJQUN0QixPQUFPLGtDQUFDLGdCQUFBLElBQUksR0FBRyxRQUFRLEVBQUMsQ0FBQztJQUN6QixPQUFPLGtDQUFDLGdCQUFBLElBQUksSUFBSSxLQUFLLEVBQUMsQ0FBQztJQUN2QixPQUFPLGtDQUFDLENBQUMsRUFBRSxJQUFJLEVBQUUsR0FBRyxFQUFFLElBQUksRUFBRSxRQUFRLEVBQUUsQ0FBQyxFQUFDLENBQUM7SUFDekMsT0FBTyxrQ0FBQyxJQUFJLEVBQUUsRUFBQyxDQUFDIn0=",
+            "materialized_utf8_bytes": 371,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "dmFyIF9fcmV3cml0ZVJlbGF0aXZlSW1wb3J0RXh0ZW5zaW9uID0gKHRoaXMgJiYgdGhpcy5fX3Jld3JpdGVSZWxhdGl2ZUltcG9ydEV4dGVuc2lvbikgfHwgZnVuY3Rpb24gKHBhdGgsIHByZXNlcnZlSnN4KSB7CiAgICBpZiAodHlwZW9mIHBhdGggPT09ICJzdHJpbmciICYmIC9eXC5cLj9cLy8udGVzdChwYXRoKSkgewogICAgICAgIHJldHVybiBwYXRoLnJlcGxhY2UoL1wuKHRzeCkkfCgoPzpcLmQpPykoKD86XC5bXi4vXSs/KT8pXC4oW2NtXT8pdHMkL2ksIGZ1bmN0aW9uIChtLCB0c3gsIGQsIGV4dCwgY20pIHsKICAgICAgICAgICAgcmV0dXJuIHRzeCA/IHByZXNlcnZlSnN4ID8gIi5qc3giIDogIi5qcyIgOiBkICYmICghZXh0IHx8ICFjbSkgPyBtIDogKGQgKyBleHQgKyAiLiIgKyBjbS50b0xvd2VyQ2FzZSgpICsgImpzIik7CiAgICAgICAgfSk7CiAgICB9CiAgICByZXR1cm4gcGF0aDsKfTsKKGZ1bmN0aW9uIChmYWN0b3J5KSB7CiAgICBpZiAodHlwZW9mIG1vZHVsZSA9PT0gIm9iamVjdCIgJiYgdHlwZW9mIG1vZHVsZS5leHBvcnRzID09PSAib2JqZWN0IikgewogICAgICAgIHZhciB2ID0gZmFjdG9yeShyZXF1aXJlLCBleHBvcnRzKTsKICAgICAgICBpZiAodiAhPT0gdW5kZWZpbmVkKSBtb2R1bGUuZXhwb3J0cyA9IHY7CiAgICB9CiAgICBlbHNlIGlmICh0eXBlb2YgZGVmaW5lID09PSAiZnVuY3Rpb24iICYmIGRlZmluZS5hbWQpIHsKICAgICAgICBkZWZpbmUoWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZmFjdG9yeSk7CiAgICB9Cn0pKGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwogICAgZXhwb3J0cy5hbGlhcyA9IHZvaWQgMDsKICAgIGxldCBwYXRoID0gIi4vYS50cyI7CiAgICBleHBvcnRzLmFsaWFzID0gcGF0aDsKICAgIHJlcXVpcmUoX19yZXdyaXRlUmVsYXRpdmVJbXBvcnRFeHRlbnNpb24oZXhwb3J0cy5hbGlhcyA9IHBhdGggPSAiLi9iLnRzIikpOwogICAgcmVxdWlyZShfX3Jld3JpdGVSZWxhdGl2ZUltcG9ydEV4dGVuc2lvbihleHBvcnRzLmFsaWFzID0gcGF0aCArPSAiLnRzIikpOwogICAgcmVxdWlyZShfX3Jld3JpdGVSZWxhdGl2ZUltcG9ydEV4dGVuc2lvbigoeyBwYXRoIH0gPSB7IHBhdGg6ICIuL2MudHMiIH0pKSk7CiAgICByZXF1aXJlKF9fcmV3cml0ZVJlbGF0aXZlSW1wb3J0RXh0ZW5zaW9uKHBhdGgrKykpOwp9KTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 1292,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "dmFyIF9fcmV3cml0ZVJlbGF0aXZlSW1wb3J0RXh0ZW5zaW9uID0gKHRoaXMgJiYgdGhpcy5fX3Jld3JpdGVSZWxhdGl2ZUltcG9ydEV4dGVuc2lvbikgfHwgZnVuY3Rpb24gKHBhdGgsIHByZXNlcnZlSnN4KSB7CiAgICBpZiAodHlwZW9mIHBhdGggPT09ICJzdHJpbmciICYmIC9eXC5cLj9cLy8udGVzdChwYXRoKSkgewogICAgICAgIHJldHVybiBwYXRoLnJlcGxhY2UoL1wuKHRzeCkkfCgoPzpcLmQpPykoKD86XC5bXi4vXSs/KT8pXC4oW2NtXT8pdHMkL2ksIGZ1bmN0aW9uIChtLCB0c3gsIGQsIGV4dCwgY20pIHsKICAgICAgICAgICAgcmV0dXJuIHRzeCA/IHByZXNlcnZlSnN4ID8gIi5qc3giIDogIi5qcyIgOiBkICYmICghZXh0IHx8ICFjbSkgPyBtIDogKGQgKyBleHQgKyAiLiIgKyBjbS50b0xvd2VyQ2FzZSgpICsgImpzIik7CiAgICAgICAgfSk7CiAgICB9CiAgICByZXR1cm4gcGF0aDsKfTsKKGZ1bmN0aW9uIChmYWN0b3J5KSB7CiAgICBpZiAodHlwZW9mIG1vZHVsZSA9PT0gIm9iamVjdCIgJiYgdHlwZW9mIG1vZHVsZS5leHBvcnRzID09PSAib2JqZWN0IikgewogICAgICAgIHZhciB2ID0gZmFjdG9yeShyZXF1aXJlLCBleHBvcnRzKTsKICAgICAgICBpZiAodiAhPT0gdW5kZWZpbmVkKSBtb2R1bGUuZXhwb3J0cyA9IHY7CiAgICB9CiAgICBlbHNlIGlmICh0eXBlb2YgZGVmaW5lID09PSAiZnVuY3Rpb24iICYmIGRlZmluZS5hbWQpIHsKICAgICAgICBkZWZpbmUoWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZmFjdG9yeSk7CiAgICB9Cn0pKGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwogICAgZXhwb3J0cy5hbGlhcyA9IHZvaWQgMDsKICAgIGxldCBwYXRoID0gIi4vYS50cyI7CiAgICBleHBvcnRzLmFsaWFzID0gcGF0aDsKICAgIHJlcXVpcmUoX19yZXdyaXRlUmVsYXRpdmVJbXBvcnRFeHRlbnNpb24oZXhwb3J0cy5hbGlhcyA9IHBhdGggPSAiLi9iLnRzIikpOwogICAgcmVxdWlyZShfX3Jld3JpdGVSZWxhdGl2ZUltcG9ydEV4dGVuc2lvbihleHBvcnRzLmFsaWFzID0gcGF0aCArPSAiLnRzIikpOwogICAgcmVxdWlyZShfX3Jld3JpdGVSZWxhdGl2ZUltcG9ydEV4dGVuc2lvbigoeyBwYXRoIH0gPSB7IHBhdGg6ICIuL2MudHMiIH0pKSk7CiAgICByZXF1aXJlKF9fcmV3cml0ZVJlbGF0aXZlSW1wb3J0RXh0ZW5zaW9uKHBhdGgrKykpOwp9KTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 1292,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 1260,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEseUJBQW9CIn0=",
+            "callback_utf8_bytes": 110,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEseUJBQW9CIn0=",
+            "materialized_utf8_bytes": 110,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IHsgcGF0aCBhcyBhbGlhcyB9OwpkZWNsYXJlIGxldCBwYXRoOiBzdHJpbmc7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "callback_utf8_bytes": 86,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IHsgcGF0aCBhcyBhbGlhcyB9OwpkZWNsYXJlIGxldCBwYXRoOiBzdHJpbmc7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "materialized_utf8_bytes": 86,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 52,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;IAAA,IAAI,IAAI,GAAG,QAAQ,CAAC;IACH,qBAAK;IACtB,OAAO,kCAAC,gBAAA,IAAI,GAAG,QAAQ,EAAC,CAAC;IACzB,OAAO,kCAAC,gBAAA,IAAI,IAAI,KAAK,EAAC,CAAC;IACvB,OAAO,kCAAC,CAAC,EAAE,IAAI,EAAE,GAAG,EAAE,IAAI,EAAE,QAAQ,EAAE,CAAC,EAAC,CAAC;IACzC,OAAO,kCAAC,IAAI,EAAE,EAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,yBAAoB\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "require-rewrite-substitution/esnext/exported-assignment",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "let path = \"./a.ts\";\nexport { path as alias };\nrequire(path = \"./b.ts\");\nrequire(path += \".ts\");\nrequire(({ path } = { path: \"./c.ts\" }));\nrequire(path++);\n"
+        }
+      ],
+      "options": {},
+      "config": "{\"compilerOptions\": {\"target\": \"esnext\", \"module\": \"esnext\", \"allowJs\": true, \"declaration\": true, \"declarationMap\": true, \"sourceMap\": true, \"outDir\": \"out\", \"newLine\": \"lf\", \"ignoreDeprecations\": \"6.0\", \"rewriteRelativeImportExtensions\": true}, \"files\": [\"main.js\"]}",
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7QUFBQSxJQUFJLElBQUksR0FBRyxRQUFRLENBQUM7QUFDcEIsT0FBTyxFQUFFLElBQUksSUFBSSxLQUFLLEVBQUUsQ0FBQztBQUN6QixPQUFPLGtDQUFDLElBQUksR0FBRyxRQUFRLEVBQUMsQ0FBQztBQUN6QixPQUFPLGtDQUFDLElBQUksSUFBSSxLQUFLLEVBQUMsQ0FBQztBQUN2QixPQUFPLGtDQUFDLENBQUMsRUFBRSxJQUFJLEVBQUUsR0FBRyxFQUFFLElBQUksRUFBRSxRQUFRLEVBQUUsQ0FBQyxFQUFDLENBQUM7QUFDekMsT0FBTyxrQ0FBQyxJQUFJLEVBQUUsRUFBQyxDQUFDIn0=",
+            "callback_utf8_bytes": 377,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7QUFBQSxJQUFJLElBQUksR0FBRyxRQUFRLENBQUM7QUFDcEIsT0FBTyxFQUFFLElBQUksSUFBSSxLQUFLLEVBQUUsQ0FBQztBQUN6QixPQUFPLGtDQUFDLElBQUksR0FBRyxRQUFRLEVBQUMsQ0FBQztBQUN6QixPQUFPLGtDQUFDLElBQUksSUFBSSxLQUFLLEVBQUMsQ0FBQztBQUN2QixPQUFPLGtDQUFDLENBQUMsRUFBRSxJQUFJLEVBQUUsR0FBRyxFQUFFLElBQUksRUFBRSxRQUFRLEVBQUUsQ0FBQyxFQUFDLENBQUM7QUFDekMsT0FBTyxrQ0FBQyxJQUFJLEVBQUUsRUFBQyxDQUFDIn0=",
+            "materialized_utf8_bytes": 377,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "dmFyIF9fcmV3cml0ZVJlbGF0aXZlSW1wb3J0RXh0ZW5zaW9uID0gKHRoaXMgJiYgdGhpcy5fX3Jld3JpdGVSZWxhdGl2ZUltcG9ydEV4dGVuc2lvbikgfHwgZnVuY3Rpb24gKHBhdGgsIHByZXNlcnZlSnN4KSB7CiAgICBpZiAodHlwZW9mIHBhdGggPT09ICJzdHJpbmciICYmIC9eXC5cLj9cLy8udGVzdChwYXRoKSkgewogICAgICAgIHJldHVybiBwYXRoLnJlcGxhY2UoL1wuKHRzeCkkfCgoPzpcLmQpPykoKD86XC5bXi4vXSs/KT8pXC4oW2NtXT8pdHMkL2ksIGZ1bmN0aW9uIChtLCB0c3gsIGQsIGV4dCwgY20pIHsKICAgICAgICAgICAgcmV0dXJuIHRzeCA/IHByZXNlcnZlSnN4ID8gIi5qc3giIDogIi5qcyIgOiBkICYmICghZXh0IHx8ICFjbSkgPyBtIDogKGQgKyBleHQgKyAiLiIgKyBjbS50b0xvd2VyQ2FzZSgpICsgImpzIik7CiAgICAgICAgfSk7CiAgICB9CiAgICByZXR1cm4gcGF0aDsKfTsKbGV0IHBhdGggPSAiLi9hLnRzIjsKZXhwb3J0IHsgcGF0aCBhcyBhbGlhcyB9OwpyZXF1aXJlKF9fcmV3cml0ZVJlbGF0aXZlSW1wb3J0RXh0ZW5zaW9uKHBhdGggPSAiLi9iLnRzIikpOwpyZXF1aXJlKF9fcmV3cml0ZVJlbGF0aXZlSW1wb3J0RXh0ZW5zaW9uKHBhdGggKz0gIi50cyIpKTsKcmVxdWlyZShfX3Jld3JpdGVSZWxhdGl2ZUltcG9ydEV4dGVuc2lvbigoeyBwYXRoIH0gPSB7IHBhdGg6ICIuL2MudHMiIH0pKSk7CnJlcXVpcmUoX19yZXdyaXRlUmVsYXRpdmVJbXBvcnRFeHRlbnNpb24ocGF0aCsrKSk7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "callback_utf8_bytes": 780,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "dmFyIF9fcmV3cml0ZVJlbGF0aXZlSW1wb3J0RXh0ZW5zaW9uID0gKHRoaXMgJiYgdGhpcy5fX3Jld3JpdGVSZWxhdGl2ZUltcG9ydEV4dGVuc2lvbikgfHwgZnVuY3Rpb24gKHBhdGgsIHByZXNlcnZlSnN4KSB7CiAgICBpZiAodHlwZW9mIHBhdGggPT09ICJzdHJpbmciICYmIC9eXC5cLj9cLy8udGVzdChwYXRoKSkgewogICAgICAgIHJldHVybiBwYXRoLnJlcGxhY2UoL1wuKHRzeCkkfCgoPzpcLmQpPykoKD86XC5bXi4vXSs/KT8pXC4oW2NtXT8pdHMkL2ksIGZ1bmN0aW9uIChtLCB0c3gsIGQsIGV4dCwgY20pIHsKICAgICAgICAgICAgcmV0dXJuIHRzeCA/IHByZXNlcnZlSnN4ID8gIi5qc3giIDogIi5qcyIgOiBkICYmICghZXh0IHx8ICFjbSkgPyBtIDogKGQgKyBleHQgKyAiLiIgKyBjbS50b0xvd2VyQ2FzZSgpICsgImpzIik7CiAgICAgICAgfSk7CiAgICB9CiAgICByZXR1cm4gcGF0aDsKfTsKbGV0IHBhdGggPSAiLi9hLnRzIjsKZXhwb3J0IHsgcGF0aCBhcyBhbGlhcyB9OwpyZXF1aXJlKF9fcmV3cml0ZVJlbGF0aXZlSW1wb3J0RXh0ZW5zaW9uKHBhdGggPSAiLi9iLnRzIikpOwpyZXF1aXJlKF9fcmV3cml0ZVJlbGF0aXZlSW1wb3J0RXh0ZW5zaW9uKHBhdGggKz0gIi50cyIpKTsKcmVxdWlyZShfX3Jld3JpdGVSZWxhdGl2ZUltcG9ydEV4dGVuc2lvbigoeyBwYXRoIH0gPSB7IHBhdGg6ICIuL2MudHMiIH0pKSk7CnJlcXVpcmUoX19yZXdyaXRlUmVsYXRpdmVJbXBvcnRFeHRlbnNpb24ocGF0aCsrKSk7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "materialized_utf8_bytes": 780,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 748,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEseUJBQW9CIn0=",
+            "callback_utf8_bytes": 110,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEseUJBQW9CIn0=",
+            "materialized_utf8_bytes": 110,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IHsgcGF0aCBhcyBhbGlhcyB9OwpkZWNsYXJlIGxldCBwYXRoOiBzdHJpbmc7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "callback_utf8_bytes": 86,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IHsgcGF0aCBhcyBhbGlhcyB9OwpkZWNsYXJlIGxldCBwYXRoOiBzdHJpbmc7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "materialized_utf8_bytes": 86,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 52,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";;;;;;;;AAAA,IAAI,IAAI,GAAG,QAAQ,CAAC;AACpB,OAAO,EAAE,IAAI,IAAI,KAAK,EAAE,CAAC;AACzB,OAAO,kCAAC,IAAI,GAAG,QAAQ,EAAC,CAAC;AACzB,OAAO,kCAAC,IAAI,IAAI,KAAK,EAAC,CAAC;AACvB,OAAO,kCAAC,CAAC,EAAE,IAAI,EAAE,GAAG,EAAE,IAAI,EAAE,QAAQ,EAAE,CAAC,EAAC,CAAC;AACzC,OAAO,kCAAC,IAAI,EAAE,EAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,yBAAoB\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    }
+  ],
+  "upstream_failures": []
+}

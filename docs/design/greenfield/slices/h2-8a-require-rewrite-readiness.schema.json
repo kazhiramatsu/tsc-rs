@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "H2.8a require rewrite readiness v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "slice",
+    "base",
+    "unresolved",
+    "undispositioned",
+    "authorities",
+    "baseline_rust",
+    "owners",
+    "architecture",
+    "focused_count",
+    "original_count",
+    "production_paths",
+    "composition_count",
+    "substitution_count",
+    "dynamic_count"
+  ],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1
+    },
+    "slice": {
+      "type": "string",
+      "const": "H2.8a-require-rewrite"
+    },
+    "base": {
+      "type": "string"
+    },
+    "unresolved": {
+      "type": "integer",
+      "const": 0
+    },
+    "undispositioned": {
+      "type": "integer",
+      "const": 0
+    },
+    "authorities": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "baseline_rust": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "architecture": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "focused_count": {
+      "type": "integer",
+      "const": 60
+    },
+    "original_count": {
+      "type": "integer",
+      "const": 2
+    },
+    "production_paths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "composition_count": {
+      "type": "integer",
+      "const": 4
+    },
+    "substitution_count": {
+      "type": "integer",
+      "const": 4
+    },
+    "dynamic_count": {
+      "type": "integer",
+      "const": 6
+    }
+  }
+}
