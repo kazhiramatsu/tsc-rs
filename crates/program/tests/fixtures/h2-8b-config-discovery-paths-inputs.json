@@ -1,0 +1,144 @@
+{
+  "version": 1,
+  "slice": "H2.8b-CFG1b",
+  "cases": [
+    {
+      "case_id": "no-includes",
+      "directory": "/project/app",
+      "includes": null,
+      "case_sensitive": true
+    },
+    {
+      "case_id": "empty-includes",
+      "directory": "/project/app",
+      "includes": [],
+      "case_sensitive": true
+    },
+    {
+      "case_id": "parent-preserves-first",
+      "directory": "/project/app",
+      "includes": [
+        "../**/*.ts",
+        "../shared/deep/*.ts"
+      ],
+      "case_sensitive": true
+    },
+    {
+      "case_id": "candidate-prefix-boundary",
+      "directory": "/project/app",
+      "includes": [
+        "../app-extra/*.ts"
+      ],
+      "case_sensitive": true
+    },
+    {
+      "case_id": "sorted-and-covered",
+      "directory": "/project/app",
+      "includes": [
+        "../z/deep/*.ts",
+        "../a/*.ts",
+        "../z/**/*.ts"
+      ],
+      "case_sensitive": true
+    },
+    {
+      "case_id": "utf16-order",
+      "directory": "/project/app",
+      "includes": [
+        "..//*.ts",
+        "../𐀀/*.ts"
+      ],
+      "case_sensitive": true
+    },
+    {
+      "case_id": "sensitive-case",
+      "directory": "/project/app",
+      "includes": [
+        "../Z/*.ts",
+        "../a/*.ts",
+        "../A/*.ts"
+      ],
+      "case_sensitive": true
+    },
+    {
+      "case_id": "insensitive-case",
+      "directory": "/project/app",
+      "includes": [
+        "../Z/*.ts",
+        "../a/*.ts",
+        "../A/*.ts"
+      ],
+      "case_sensitive": false
+    },
+    {
+      "case_id": "insensitive-coverage",
+      "directory": "/project/app",
+      "includes": [
+        "/PROJECT/APP/src/*.ts",
+        "../Shared/*.ts",
+        "../shared/deep/*.ts"
+      ],
+      "case_sensitive": false
+    },
+    {
+      "case_id": "drive-root-case",
+      "directory": "C:/project/app",
+      "includes": [
+        "c:/project/app/src/*.ts",
+        "D:/outside/*.ts"
+      ],
+      "case_sensitive": true
+    },
+    {
+      "case_id": "unc-roots",
+      "directory": "//server/share/app",
+      "includes": [
+        "//SERVER/share/app/src/*.ts",
+        "../shared/*.ts"
+      ],
+      "case_sensitive": true
+    },
+    {
+      "case_id": "url-roots",
+      "directory": "https://host/project/app",
+      "includes": [
+        "../shared/*.ts",
+        "https://other/shared/*.ts"
+      ],
+      "case_sensitive": true
+    },
+    {
+      "case_id": "rooted-dot-spelling",
+      "directory": "/project/app",
+      "includes": [
+        "/project/shared/../other/**/*.ts"
+      ],
+      "case_sensitive": true
+    },
+    {
+      "case_id": "rooted-backslash-spelling",
+      "directory": "/project/app",
+      "includes": [
+        "C:\\shared\\**\\*.ts"
+      ],
+      "case_sensitive": true
+    },
+    {
+      "case_id": "root-wildcard-empty-base",
+      "directory": "/project/app",
+      "includes": [
+        "/*.ts"
+      ],
+      "case_sensitive": true
+    },
+    {
+      "case_id": "dotted-directory-file-rule",
+      "directory": "/project/app",
+      "includes": [
+        "../shared.d",
+        "../shared.d/"
+      ],
+      "case_sensitive": true
+    }
+  ]
+}

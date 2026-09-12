@@ -1,0 +1,43 @@
+{
+  "head": "2d790e26881649d4aeebadae5eaf462567dbe8a2",
+  "command": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "test",
+    "-p",
+    "tsc-rs-compiler",
+    "--test",
+    "contracts",
+    "h2_8b_config_",
+    "--",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-dec-literal-prologue/target/decorator-literal-prologue-acceptance",
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "RUSTC_WRAPPER": "",
+    "TSRS_H2_5G_WORKERS": "2",
+    "TSRS_CONFORMANCE_WORKERS": "2",
+    "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-dec-literal-prologue/target/decorator-prologue-followup-runs/final-cfg-commands-v4/captures"
+  },
+  "actual_exit": 0,
+  "finished_at": "2026-09-12T00:52:17.246394+00:00",
+  "prelaunch_sha256": "6088656dae408fba83675f3690d3e37c97fa6c903751fe29fe2b1351e509d746",
+  "log_sha256": "270d7fae90c3155e7da51a06bf15d963fb8bd8a82eca381d89ae20ea47dcac66",
+  "suite_results": [
+    [
+      "ok",
+      "20",
+      "0",
+      "0"
+    ]
+  ],
+  "source_unchanged_after_run": true
+}

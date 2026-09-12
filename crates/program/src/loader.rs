@@ -1139,6 +1139,7 @@ impl SourceClass {
 
 struct StagedSource {
     prepared: PreparedSourceFile,
+    external_module_diagnostic_span: Option<(u32, u32)>,
     /// Root-file inclusion occurrences are retained separately from the
     /// canonical source identity.  They are observable in the TS1149
     /// program-preprocessing message chain when two root spellings collapse
@@ -1152,6 +1153,9 @@ struct StagedSource {
     /// be an explicit root when a later lib lookup selects the same identity.
     library_priority: Option<usize>,
     library_replacement: bool,
+    /// findSourceFileWorker chooses its processing bucket at first load.
+    /// A root later selected by a lib reference remains in processingOtherFiles.
+    initially_library: bool,
     path_references: Vec<PlannedPathReference>,
     type_reference_directives: Vec<PlannedTypeReferenceDirective>,
     lib_reference_directives: Vec<PlannedLibReferenceDirective>,
@@ -1724,7 +1728,10 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     0,
                     DiscoveryReason::dependency(SourceInclusionReason::Library),
                     SourceClass::Library {
-                        priority: catalog.file_name_priority(file_name),
+                        priority: catalog.source_file_priority(
+                            &path,
+                            self.library_directory.as_ref().expect("library directory"),
+                        ),
                         replacement: path.canonical() != catalog_path.canonical(),
                     },
                 )?
@@ -1802,6 +1809,12 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             .extend(case_sensitive_casing_diagnostics);
         self.propagate_non_external_reachability();
         let (option_diagnostics, root_diagnostics) = self.output_directory_diagnostics();
+        // getOptionsDiagnostics selects only global/config-file rows from
+        // the combined collection (_tsc.js:124024-124036). Source-owned
+        // module constraints instead feed getSemanticDiagnostics, which
+        // command reporting skips after an option/global diagnostic.
+        self.program_diagnostics
+            .extend(self.source_module_option_diagnostics());
         self.program_diagnostics.extend(root_diagnostics);
         let mut library_postorder = self
             .postorder
@@ -1811,9 +1824,20 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             .collect::<Vec<_>>();
         if !library_postorder.is_empty() {
             library_postorder.sort_by_key(|&source| {
-                self.sources[source]
+                let staged = &self.sources[source];
+                let priority = staged
                     .library_priority
-                    .expect("filtered library source has a stable priority")
+                    .expect("filtered library source has a stable priority");
+                // Only processingDefaultLibFiles is sorted upstream. Retain
+                // first-load postorder for roots promoted to lib membership.
+                (
+                    !staged.initially_library,
+                    if staged.initially_library {
+                        priority
+                    } else {
+                        0
+                    },
+                )
             });
         }
         let ordinary_postorder = self
@@ -1832,6 +1856,57 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             program_diagnostics: self.program_diagnostics,
             option_diagnostics,
         }
+    }
+
+    // tsc-port: verifyCompilerOptions (source module constraints) @6.0.3
+    // tsc-hash: 38bf2ea163bba1c3f40bceda14aeb650fd97e8f3893c6e669b2e8a8bca289f78
+    // tsc-span: _tsc.js:124874-124898
+    fn source_module_option_diagnostics(&self) -> Vec<Diagnostic> {
+        let options = self.compiler_options;
+        let message = if options.isolated_modules != Some(true)
+            && options.verbatim_module_syntax != Some(true)
+            && options.module == Some(0)
+            && options.emit_script_target() < tsc_types::ScriptTarget::ES2015
+        {
+            MessageChain::new(
+                &gen::Cannot_use_imports_exports_or_module_augmentations_when_module_is_none,
+                &[],
+            )
+        } else if options
+            .out_file
+            .as_deref()
+            .is_some_and(|path| !path.is_empty())
+            && options.emit_declaration_only != Some(true)
+            && options.module.is_none()
+        {
+            MessageChain::new(
+                &gen::Cannot_compile_modules_using_option_0_unless_the_module_flag_is_amd_or_system,
+                &["outFile".to_owned()],
+            )
+        } else {
+            return Vec::new();
+        };
+        self.postorder
+            .iter()
+            .find_map(|&index| {
+                let source = &self.sources[index];
+                let (start, length) = source.external_module_diagnostic_span?;
+                Some(Diagnostic::new(
+                    Some(
+                        source
+                            .prepared
+                            .path()
+                            .display()
+                            .to_string_lossy()
+                            .into_owned(),
+                    ),
+                    Some(start),
+                    Some(length),
+                    message.clone(),
+                ))
+            })
+            .into_iter()
+            .collect()
     }
 
     /// tsc-port: verifyCompilerOptions @6.0.3 (output directories)
@@ -2175,12 +2250,16 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         let source = self.sources.len();
         self.sources.push(StagedSource {
             prepared,
+            external_module_diagnostic_span: plan
+                .as_ref()
+                .and_then(|plan| plan.external_module_diagnostic_span()),
             root_inclusions: Vec::new(),
             inclusion_reasons: vec![reason.inclusion.clone()],
             alternate_inclusion_reasons: Vec::new(),
             has_non_external_reason: reason.seeds_non_external_reachability,
             library_priority: class.library_priority(),
             library_replacement: class.is_replacement(),
+            initially_library: class.is_library(),
             path_references,
             type_reference_directives,
             lib_reference_directives,
@@ -2566,7 +2645,10 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 node_modules_depth,
                 DiscoveryReason::dependency(SourceInclusionReason::Library),
                 SourceClass::Library {
-                    priority: catalog.file_name_priority(file_name),
+                    priority: catalog.source_file_priority(
+                        &target,
+                        self.library_directory.as_ref().expect("library directory"),
+                    ),
                     replacement: target.canonical() != catalog_path.canonical(),
                 },
             )? {
@@ -3174,6 +3256,14 @@ fn publish_program(
     };
     builder = builder.with_dependency_symlink_resolutions(dependency_symlink_resolutions);
     let config_file = program_options.config_file().cloned();
+    let config_diagnostics = program_options.config_parsing_diagnostics().to_vec();
+    for source in program_options.config_parsing_sources() {
+        builder
+            .add_auxiliary_file(source.clone())
+            .map_err(|error| {
+                ProgramLoadError::preparation(ProgramLoadOperation::BuildPreparedProgram, error)
+            })?;
+    }
     builder.set_program_options(program_options);
 
     if let Some(config_file) = config_file {
@@ -3312,7 +3402,7 @@ fn publish_program(
     }
 
     builder.set_diagnostics(PreparationDiagnostics::new(
-        Vec::new(),
+        config_diagnostics,
         staged.option_diagnostics,
         staged.program_diagnostics,
     ));

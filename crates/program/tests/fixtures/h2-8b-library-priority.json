@@ -1,0 +1,112 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "source": {
+    "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+    "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
+    "start_line": 123124,
+    "end_line": 123138,
+    "owner_sha256": "76ba34e95562034f7cf2bde179f09ddac57adf36e403e26a589c8575d3759ae5"
+  },
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "15352b57a760a2cff481da1eee7b6787ad90f09a091739f5980edf5537cf8dc2",
+  "inputs": {
+    "path": "crates/program/tests/fixtures/h2-8b-library-priority-inputs.json",
+    "sha256": "bea6dd9f80a4a491af9c0715491882f84e9e9efe698c415c004752e3ed0c1404"
+  },
+  "repetitions": 2,
+  "program_executions": 0,
+  "cases": [
+    {
+      "case_id": "priority-01",
+      "directory": "/lib",
+      "file": "/lib/lib.es5.d.ts",
+      "priority": 1
+    },
+    {
+      "case_id": "priority-02",
+      "directory": "/lib",
+      "file": "/lib/nested/lib.dom.d.ts",
+      "priority": 16
+    },
+    {
+      "case_id": "priority-03",
+      "directory": "/lib",
+      "file": "/other/lib.es5.d.ts",
+      "priority": 109
+    },
+    {
+      "case_id": "priority-04",
+      "directory": "/lib",
+      "file": "/lib-extra/lib.es5.d.ts",
+      "priority": 109
+    },
+    {
+      "case_id": "priority-05",
+      "directory": "/lib",
+      "file": "/Lib/lib.es5.d.ts",
+      "priority": 109
+    },
+    {
+      "case_id": "priority-06",
+      "directory": "/lib",
+      "file": "/lib/LIB.es5.d.ts",
+      "priority": 109
+    },
+    {
+      "case_id": "priority-07",
+      "directory": "/lib",
+      "file": "/lib/lib.unknown.d.ts",
+      "priority": 109
+    },
+    {
+      "case_id": "priority-08",
+      "directory": "/lib",
+      "file": "/lib/lib.d.ts",
+      "priority": 0
+    },
+    {
+      "case_id": "priority-09",
+      "directory": "/lib",
+      "file": "/lib/lib.es6.d.ts",
+      "priority": 0
+    },
+    {
+      "case_id": "priority-10",
+      "directory": "/",
+      "file": "/lib.es5.d.ts",
+      "priority": 1
+    },
+    {
+      "case_id": "priority-11",
+      "directory": "C:/lib",
+      "file": "c:/lib/lib.es5.d.ts",
+      "priority": 1
+    },
+    {
+      "case_id": "priority-12",
+      "directory": "C:/lib",
+      "file": "c:/Lib/lib.es5.d.ts",
+      "priority": 109
+    },
+    {
+      "case_id": "priority-13",
+      "directory": "//server/share/lib",
+      "file": "//SERVER/share/lib/lib.dom.d.ts",
+      "priority": 16
+    },
+    {
+      "case_id": "priority-14",
+      "directory": "//server/share/lib",
+      "file": "//server/Share/lib/lib.dom.d.ts",
+      "priority": 109
+    },
+    {
+      "case_id": "priority-15",
+      "directory": "file:///c:/lib",
+      "file": "file:///C:/lib/lib.es5.d.ts",
+      "priority": 1
+    }
+  ]
+}

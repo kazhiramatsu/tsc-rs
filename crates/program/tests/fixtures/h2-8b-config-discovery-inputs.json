@@ -1,0 +1,1256 @@
+{
+  "version": 1,
+  "slice": "H2.8b-CFG1b",
+  "option_probe_keys": [
+    "target",
+    "module",
+    "strict",
+    "outDir",
+    "rootDir",
+    "baseUrl",
+    "paths",
+    "pathsBasePath",
+    "rootDirs",
+    "typeRoots",
+    "moduleSuffixes",
+    "lib",
+    "types",
+    "noEmit",
+    "noLib",
+    "allowJs",
+    "declaration",
+    "sourceMap",
+    "declarationMap",
+    "declarationDir"
+  ],
+  "cases": [
+    {
+      "case_id": "h2-8b-config-discovery/default-inside",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        },
+        {
+          "path": "/project/shared/𐀀.ts",
+          "text": "export const value = 10;\n"
+        },
+        {
+          "path": "/project/shared/.ts",
+          "text": "export const value = 11;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-discovery/explicit-inside",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"src/**/*.ts\"]}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        },
+        {
+          "path": "/project/shared/𐀀.ts",
+          "text": "export const value = 10;\n"
+        },
+        {
+          "path": "/project/shared/.ts",
+          "text": "export const value = 11;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-discovery/empty-include",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[]}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        },
+        {
+          "path": "/project/shared/𐀀.ts",
+          "text": "export const value = 10;\n"
+        },
+        {
+          "path": "/project/shared/.ts",
+          "text": "export const value = 11;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-discovery/explicit-files",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"files\":[\"../shared/z.ts\"]}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        },
+        {
+          "path": "/project/shared/𐀀.ts",
+          "text": "export const value = 10;\n"
+        },
+        {
+          "path": "/project/shared/.ts",
+          "text": "export const value = 11;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-discovery/sibling-recursive",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"../shared/**/*.ts\"]}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        },
+        {
+          "path": "/project/shared/𐀀.ts",
+          "text": "export const value = 10;\n"
+        },
+        {
+          "path": "/project/shared/.ts",
+          "text": "export const value = 11;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-discovery/parent-recursive",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"../**/*.ts\"]}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        },
+        {
+          "path": "/project/shared/𐀀.ts",
+          "text": "export const value = 10;\n"
+        },
+        {
+          "path": "/project/shared/.ts",
+          "text": "export const value = 11;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-discovery/absolute-recursive",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"/project/shared/**/*.ts\"]}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        },
+        {
+          "path": "/project/shared/𐀀.ts",
+          "text": "export const value = 10;\n"
+        },
+        {
+          "path": "/project/shared/.ts",
+          "text": "export const value = 11;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-discovery/sibling-file",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"../shared/z.ts\"]}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        },
+        {
+          "path": "/project/shared/𐀀.ts",
+          "text": "export const value = 10;\n"
+        },
+        {
+          "path": "/project/shared/.ts",
+          "text": "export const value = 11;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-discovery/sibling-directory",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"../shared\"]}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        },
+        {
+          "path": "/project/shared/𐀀.ts",
+          "text": "export const value = 10;\n"
+        },
+        {
+          "path": "/project/shared/.ts",
+          "text": "export const value = 11;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-discovery/wildcard-directory",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"../sh*/**/*.ts\"]}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        },
+        {
+          "path": "/project/shared/𐀀.ts",
+          "text": "export const value = 10;\n"
+        },
+        {
+          "path": "/project/shared/.ts",
+          "text": "export const value = 11;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-discovery/question-directory",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"../sh?red/*.ts\"]}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        },
+        {
+          "path": "/project/shared/𐀀.ts",
+          "text": "export const value = 10;\n"
+        },
+        {
+          "path": "/project/shared/.ts",
+          "text": "export const value = 11;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-discovery/relative-dot-segments",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"./../other/../shared/**/*.ts\"]}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        },
+        {
+          "path": "/project/shared/𐀀.ts",
+          "text": "export const value = 10;\n"
+        },
+        {
+          "path": "/project/shared/.ts",
+          "text": "export const value = 11;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-discovery/backslash-relative",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"..\\\\shared\\\\**\\\\*.ts\"]}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        },
+        {
+          "path": "/project/shared/𐀀.ts",
+          "text": "export const value = 10;\n"
+        },
+        {
+          "path": "/project/shared/.ts",
+          "text": "export const value = 11;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-discovery/absolute-file",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"/project/shared/z.ts\"]}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        },
+        {
+          "path": "/project/shared/𐀀.ts",
+          "text": "export const value = 10;\n"
+        },
+        {
+          "path": "/project/shared/.ts",
+          "text": "export const value = 11;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-discovery/duplicate-bases",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"../shared/**/*.ts\",\"../shared/**/*.ts\"]}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        },
+        {
+          "path": "/project/shared/𐀀.ts",
+          "text": "export const value = 10;\n"
+        },
+        {
+          "path": "/project/shared/.ts",
+          "text": "export const value = 11;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-discovery/child-before-parent",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"../shared/deep/**/*.ts\",\"../**/*.ts\"]}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        },
+        {
+          "path": "/project/shared/𐀀.ts",
+          "text": "export const value = 10;\n"
+        },
+        {
+          "path": "/project/shared/.ts",
+          "text": "export const value = 11;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-discovery/parent-before-child",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"../**/*.ts\",\"../shared/deep/**/*.ts\"]}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        },
+        {
+          "path": "/project/shared/𐀀.ts",
+          "text": "export const value = 10;\n"
+        },
+        {
+          "path": "/project/shared/.ts",
+          "text": "export const value = 11;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-discovery/component-boundary",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"../app-extra/**/*.ts\"]}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        },
+        {
+          "path": "/project/shared/𐀀.ts",
+          "text": "export const value = 10;\n"
+        },
+        {
+          "path": "/project/shared/.ts",
+          "text": "export const value = 11;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-discovery/external-exclude",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"../shared/**/*.ts\"],\"exclude\":[\"../shared/skip.ts\",\"../shared/deep/**/*\"]}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        },
+        {
+          "path": "/project/shared/𐀀.ts",
+          "text": "export const value = 10;\n"
+        },
+        {
+          "path": "/project/shared/.ts",
+          "text": "export const value = 11;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-discovery/explicit-file-and-wildcard",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"files\":[\"../shared/z.ts\"],\"include\":[\"../shared/**/*.ts\"]}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        },
+        {
+          "path": "/project/shared/𐀀.ts",
+          "text": "export const value = 10;\n"
+        },
+        {
+          "path": "/project/shared/.ts",
+          "text": "export const value = 11;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-discovery/inherited-external",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"extends\":\"../base.json\"}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        },
+        {
+          "path": "/project/shared/𐀀.ts",
+          "text": "export const value = 10;\n"
+        },
+        {
+          "path": "/project/shared/.ts",
+          "text": "export const value = 11;\n"
+        },
+        {
+          "path": "/project/base.json",
+          "text": "{\"include\":[\"shared/**/*.ts\"]}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-discovery/config-dir-template",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"${configDir}/../shared/**/*.ts\"]}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        },
+        {
+          "path": "/project/shared/𐀀.ts",
+          "text": "export const value = 10;\n"
+        },
+        {
+          "path": "/project/shared/.ts",
+          "text": "export const value = 11;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-discovery/include-bucket-order",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"../other/**/*.ts\",\"src/**/*.ts\",\"../shared/**/*.ts\"]}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        },
+        {
+          "path": "/project/shared/𐀀.ts",
+          "text": "export const value = 10;\n"
+        },
+        {
+          "path": "/project/shared/.ts",
+          "text": "export const value = 11;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-discovery/missing-external",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"../missing/**/*.ts\"]}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        },
+        {
+          "path": "/project/shared/𐀀.ts",
+          "text": "export const value = 10;\n"
+        },
+        {
+          "path": "/project/shared/.ts",
+          "text": "export const value = 11;\n"
+        }
+      ]
+    }
+  ]
+}

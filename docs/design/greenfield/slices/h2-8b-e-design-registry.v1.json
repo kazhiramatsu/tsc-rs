@@ -1,0 +1,1607 @@
+{
+  "version": 1,
+  "purpose": "Design dependency inventory; never runtime activation authority",
+  "base": {
+    "head": "5134bb0187f9f3f6ac2a0218f8d8e98859cf4fea",
+    "tree": "1e632db73fbcd8e37a6e3c63b03daf57dfbdafdc",
+    "typescript": "6.0.3",
+    "typescript_source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8"
+  },
+  "external_dependencies": {
+    "BASE": "Pinned candidate source; ancestry alone does not replace per-file hash checks",
+    "H2.8a-close": "Pending; current hosted green is not global A-close",
+    "A3-write-contract": "Existing write contract; revalidate its current symbols before SYS1 design completes",
+    "H2.7c-forced-declarations": "Existing forced declaration profile, not ordinary targeted emit",
+    "H2.7d-output-plan": "Existing output-plan profile; revalidate selection caller contract"
+  },
+  "source_anchors": [
+    {
+      "id": "validateLocaleAndSetLanguage",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 11349,
+      "end_line": 11399,
+      "sha256": "56f1dda58e3526e075a635921e0d3022d1db6c14e952cf9f315da4e3f5377fe5"
+    },
+    {
+      "id": "parseCommandLineWorker",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 38104,
+      "end_line": 38179,
+      "sha256": "eae0799b7e0dbe8429b874322aeb47fc64c7b1c9385447030f64de63b3b56965"
+    },
+    {
+      "id": "getParsedCommandLineOfConfigFile",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 38311,
+      "end_line": 38334,
+      "sha256": "22c85e2cf4a63ecef54259d4bc2300a8d20dee77334249b9425dfac5df9d3822"
+    },
+    {
+      "id": "convertToTSConfig",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 38618,
+      "end_line": 38672,
+      "sha256": "2c7686bf37373b4c3c43194257e6f1b5671d3dd91bf46c53c044f8522343e7c5"
+    },
+    {
+      "id": "generateTSConfig",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 38769,
+      "end_line": 38941,
+      "sha256": "5e3110fe72f143639734ad4b29243d15a7140350a4fbca7d56d1ade952b15a7b"
+    },
+    {
+      "id": "parseJsonSourceFileConfigFileContent",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 38973,
+      "end_line": 38991,
+      "sha256": "5562196ffbd81e2c40f410f046ea370539ba34a555ad4f39919ada38ea79a0b2"
+    },
+    {
+      "id": "parseJsonConfigFileContentWorker",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 39004,
+      "end_line": 39171,
+      "sha256": "de61436607132561f752e44ac9170e9a51089bca81f8a0ce594c19473a63e328"
+    },
+    {
+      "id": "getOptionsForLibraryResolution",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 40643,
+      "end_line": 40645,
+      "sha256": "3b43eb2b189d380b2435c8b402269ab0de8b16d3f684a53e3abe441932245750"
+    },
+    {
+      "id": "resolveLibrary",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 40646,
+      "end_line": 40648,
+      "sha256": "1fb522861509a518254a8cc710e71342d7d021f40b738fa390ecd6850880ba41"
+    },
+    {
+      "id": "getScriptTransformers",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 115903,
+      "end_line": 115949,
+      "sha256": "69bdc65a0c428ad5819419fabd0ecd483bb661350434c5ad0ea0bdec15096fd0"
+    },
+    {
+      "id": "createCompilerHostWorker",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 121981,
+      "end_line": 122024,
+      "sha256": "aef839da4bd3a841f0a30a772d746ce7484a6d148e8c77db711f252a786da38b"
+    },
+    {
+      "id": "getInferredLibraryNameResolveFrom",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 122398,
+      "end_line": 122401,
+      "sha256": "3b0042413535c17a745ef10495c1a068db91f949611f8459cc5cf5d678d103b4"
+    },
+    {
+      "id": "getLibraryNameFromLibFileName",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 122402,
+      "end_line": 122411,
+      "sha256": "71a708e558b00692b01d4eff568ffc5dfa83b3d657ead9dc395086665a85a8c5"
+    },
+    {
+      "id": "createProgram",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 122625,
+      "end_line": 125485,
+      "sha256": "2b46b15f59ce9532259d2c51c80db75d8393b091d35c851b17ebf1e930f49f57"
+    },
+    {
+      "id": "actualResolveLibrary",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 122748,
+      "end_line": 122755,
+      "sha256": "d4eeb8b8199c7f9cc3aef8ab012f63e198d875328cadd565f398a7d231014ed4"
+    },
+    {
+      "id": "compareDefaultLibFiles",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 123121,
+      "end_line": 123123,
+      "sha256": "2c416666bf4d4c4889940f12d0db91517c897955bb463776f9ec3c2b4f5e8882"
+    },
+    {
+      "id": "isSourceFileDefaultLibrary",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 123562,
+      "end_line": 123564,
+      "sha256": "f48229e412a4797f592d4593f1bb8da468f2bbce39f1d70851e6964bc477cca3"
+    },
+    {
+      "id": "emit",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 123568,
+      "end_line": 123591,
+      "sha256": "817da867599feae0354527f66e9ce078af199d3d9a09ba1403df5dd1abe3ffe9"
+    },
+    {
+      "id": "emitWorker",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 123595,
+      "end_line": 123624,
+      "sha256": "35aaaad79070003d367403ee2893358aee8480fc38e90b6f7c7d07f647444693"
+    },
+    {
+      "id": "pathForLibFile",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 124518,
+      "end_line": 124525,
+      "sha256": "696f9a411a591eee7e5e9cb3adb428e7f7edeedaa1e0dba069ca0092c4c54ba1"
+    },
+    {
+      "id": "pathForLibFileWorker",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 124526,
+      "end_line": 124573,
+      "sha256": "55c88bbf3d28be6acc2005e67cc61be44ab47825d457b1455253b597d75bb258"
+    },
+    {
+      "id": "processLibReferenceDirectives",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 124574,
+      "end_line": 124591,
+      "sha256": "c0e2b733a78812588184934baa1b478c64db47ea9b670fde3e7fae391dbc7b7f"
+    },
+    {
+      "id": "handleNoEmitOptions",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 125636,
+      "end_line": 125663,
+      "sha256": "a65dad0c78a6053101f588db3b409009ccc6f6a3852b098a19c09074eede5773"
+    },
+    {
+      "id": "parseConfigHostFromCompilerHostLike",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 125667,
+      "end_line": 125683,
+      "sha256": "45002c13a05d3c378b3b3889718f2683d911c61a35f0899df1e3ed726fd453a7"
+    },
+    {
+      "id": "createDiagnosticReporter",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 129063,
+      "end_line": 129078,
+      "sha256": "afea4d02e03ea3c5a62ee3904a6a159e63f003943a4d51d2c63d9a620d9c98f8"
+    },
+    {
+      "id": "emitFilesAndReportErrors",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 129412,
+      "end_line": 129467,
+      "sha256": "9dc0128691c9a1bee5aeae85524cc8e2679b3905a4416a41095452e509951a8d"
+    },
+    {
+      "id": "emitFilesAndReportErrorsAndGetExitStatus",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 129468,
+      "end_line": 129485,
+      "sha256": "accac089a63c276079dd3309c69c617169dac0a0578c1551c8ea8a273d22bb78"
+    },
+    {
+      "id": "printVersion",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 132212,
+      "end_line": 132214,
+      "sha256": "b936ee99c7302086c1ca7d449a27ecfa358ab0df24134b1657d7545451a21880"
+    },
+    {
+      "id": "printHelp",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 132576,
+      "end_line": 132582,
+      "sha256": "bc8d3da85bb8d357b64949c9cd569e825f85e6a997c3f1fb18b46259b7582ceb"
+    },
+    {
+      "id": "executeCommandLineWorker",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 132583,
+      "end_line": 132734,
+      "sha256": "f656ff52d520f440c26cb6ca738e44086025695cba5ced41a0d1d92d760789d7"
+    },
+    {
+      "id": "executeCommandLine",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 132742,
+      "end_line": 132775,
+      "sha256": "53c55593e81069c73029c8b8fe132acd451c29413e5f06557d48837c7093fc6c"
+    },
+    {
+      "id": "performCompilation",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 132859,
+      "end_line": 132899,
+      "sha256": "f613cd473a9f1cf751ee7af20cdd13f8c84eb8c7b5559afa319c77f00ad50b74"
+    },
+    {
+      "id": "reportStatistics",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 133082,
+      "end_line": 133209,
+      "sha256": "540ce07ef354b52c24f3c223f21db6cec65731fe22db86c3304a481aabdc627e"
+    },
+    {
+      "id": "writeConfigFile",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 133238,
+      "end_line": 133252,
+      "sha256": "fcece58139e45e36076d7bf8d53d4294db14e558aa29caccd6ba266d6b1ef51a"
+    },
+    {
+      "id": "transpileModule",
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "start_line": 145985,
+      "end_line": 145992,
+      "sha256": "5be8c9ca2ef415ec3a3d1c814585a44abb6c1c3ce96a52f910ddc132d19b86aa"
+    },
+    {
+      "id": "transpileDeclaration",
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "start_line": 145993,
+      "end_line": 146000,
+      "sha256": "9814448d999703d6fe2557710c5cfe4a13a830b9d68768be3e3ec1bc40ddc1a1"
+    },
+    {
+      "id": "transpileWorker",
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "start_line": 146022,
+      "end_line": 146132,
+      "sha256": "15cd02923bfe29ddb59ffdd59213aaafcd0ae77fabf6d97b87c2b82ee21a17ed"
+    },
+    {
+      "id": "getDefaultLibFilePriority",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start_line": 123124,
+      "end_line": 123138,
+      "sha256": "76ba34e95562034f7cf2bde179f09ddac57adf36e403e26a589c8575d3759ae5"
+    }
+  ],
+  "pinned_files": [
+    {
+      "path": "crates/compiler/src/cli.rs",
+      "sha256": "607e77c0229add802dbd046d2f32dc4881b2cfe3c2fad773a4e6539b456bd6c0"
+    },
+    {
+      "path": "crates/compiler/src/lib.rs",
+      "sha256": "dbb4f77c549791f38b225c3d93305cc311a9bdb75b8560ead8529149e1b40d37"
+    },
+    {
+      "path": "crates/compiler/tests/contracts.rs",
+      "sha256": "3a3fa59757e3f7b8e2a380874a2ebc29dfad892012e84bfc3b060b3e289ae398"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/h2-8b-library-replacement-inputs.json",
+      "sha256": "26cab27f14d09ec3c5a3164c5f050d1e1dbcece56d20f036342e8390189c7089"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/h2-8b-library-replacement.json",
+      "sha256": "32ee0d8204de1def87d953c685c448467bb9d403080881b7e93c5ca72e48de2d"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+      "sha256": "c9332037a63761ae27dfe88c90d865197dbc01b2aa7f7fe6fa11999b9392cd6b"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+      "sha256": "4a9f2b39f4ed1b25a65cee51df2e2d00dd775c05eace957f2db207f45d3bd5fb"
+    },
+    {
+      "path": "crates/emitter/src/execute.rs",
+      "sha256": "6f4007e668fb2e3e2bd9ee9782bb87925f08779ca2b623b438aadf14e71b5ab1"
+    },
+    {
+      "path": "crates/emitter/src/plan.rs",
+      "sha256": "d9d429aa746978a297b6660b751f11bdb0872a9877af8fdcc0c32f3a1d3f4a3e"
+    },
+    {
+      "path": "crates/host/src/lib.rs",
+      "sha256": "2bd253b0e507a392bfcbbbf73a997608b75ac53c2380e1073c0379e7a2ba5b3c"
+    },
+    {
+      "path": "crates/oracle/vfs-directory-overlay.mjs",
+      "sha256": "2868391e75941127f8eb3a352232190fd98c6d794235913e288432e5626aab76"
+    },
+    {
+      "path": "crates/program/src/config.rs",
+      "sha256": "02dd3f88171d88df08ee5fb7ccdf8922afa0326c04e65d1f4d0f58a2757e2bab"
+    },
+    {
+      "path": "crates/program/src/library.rs",
+      "sha256": "46c106aabd109225fcee045fb049d62c7264f5ee62c3fada5d4b4bb6813e709a"
+    },
+    {
+      "path": "crates/program/src/loader.rs",
+      "sha256": "bdae1ac0a665f9dd7889c430940f5eca78c06d324450076509b6dad35441d149"
+    },
+    {
+      "path": "crates/program/src/prepared.rs",
+      "sha256": "c5bc6315e91481c58273bdc926be0459fd877593d34e9467789280b610ed1286"
+    },
+    {
+      "path": "crates/program/tests/integration/library_program_loader_contract.rs",
+      "sha256": "f4464d6e6e8ff149ffd4ad158bf905e98c1c4dce2432ca1c59da7520d7ac43c4"
+    },
+    {
+      "path": "docs/design/greenfield/compiler-compatibility-residual.md",
+      "sha256": "1607ca201fdc4d94a4bcc2e7224997e5825ffe02ebcfe9fc1d54ba7ab66d0014"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "87866477f1e3ee90371f0600264540a9688a98b51517e0689926d37ca0f6bfb2"
+    },
+    {
+      "path": "docs/design/greenfield/post-h1-completion-slices.md",
+      "sha256": "df4e630f4fe348119e43714261d1193a880453fa6847b42c7bf52d086bd840fb"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8b-e-design-plan.md",
+      "sha256": "c29d1faa2511d8e121d88667b7949c80a3c3f4df0cbddfd5e7a3f03aeb7fd0db"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8b-library-replacement-baseline.md",
+      "sha256": "b8ac811be7ffa19501d22e91f5dba248f27d8d72f166916f0a69585f9400dde7"
+    },
+    {
+      "path": "docs/design/greenfield/slices/h2-8b-library-replacement-claude-prompt.md",
+      "sha256": "b0bc061d2ca31bc3ddaeb4beb829eb1324790f1c1eeafc0aa47d6aa381156d3f"
+    },
+    {
+      "path": "scripts/check-h2-8-design-plan.py",
+      "sha256": "74c53ba74902bca6e278dc5943ce5fe59713f742a53034be0a2a08d28c8f43b9"
+    },
+    {
+      "path": "scripts/observe-h2-8b-library-replacement.mjs",
+      "sha256": "a8d9982a704bedaab872d80bae5a80e882e2ce59cc34ebb501cbb1eeca8f4054"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.d.ts",
+      "sha256": "0e6477e5049e579cc5de741a70ac91235252edc0468b2e569f22de9db3357786"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.decorators.d.ts",
+      "sha256": "1ce14b81c5cc821994aa8ec1d42b220dd41b27fcc06373bce3958af7421b77d4"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.decorators.legacy.d.ts",
+      "sha256": "b3a048b3e9302ef9a34ef4ebb9aecfb28b66abb3bce577206a79fee559c230da"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.dom.asynciterable.d.ts",
+      "sha256": "7f57fc4404ff020bc45b9c620aff2b40f700b95fe31164024c453a5e3c163c54"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.dom.d.ts",
+      "sha256": "d6b1eba8496bdd0eed6fc8a685768fe01b2da4a0388b5fe7df558290bffcf32f"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.dom.iterable.d.ts",
+      "sha256": "7f57fc4404ff020bc45b9c620aff2b40f700b95fe31164024c453a5e3c163c54"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2015.collection.d.ts",
+      "sha256": "105ba8ff7ba746404fe1a2e189d1d3d2e0eb29a08c18dded791af02f29fb4711"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2015.core.d.ts",
+      "sha256": "eadcffda2aa84802c73938e589b9e58248d74c59cb7fcbca6474e3435ac15504"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2015.d.ts",
+      "sha256": "3f88bedbeb09c6f5a6645cb24c7c55f1aa22d19ae96c8e6959cbd8b85a707bc6"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2015.generator.d.ts",
+      "sha256": "00343ca5b2e3d48fa5df1db6e32ea2a59afab09590274a6cccb1dbae82e60c7c"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2015.iterable.d.ts",
+      "sha256": "ebd9f816d4002697cb2864bea1f0b70a103124e18a8cd9645eeccc09bdf80ab4"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2015.promise.d.ts",
+      "sha256": "2c1afac30a01772cd2a9a298a7ce7706b5892e447bb46bdbeef720f7b5da77ad"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2015.proxy.d.ts",
+      "sha256": "7b0225f483e4fa685625ebe43dd584bb7973bbd84e66a6ba7bbe175ee1048b4f"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2015.reflect.d.ts",
+      "sha256": "c0a4b8ac6ce74679c1da2b3795296f5896e31c38e888469a8e0f99dc3305de60"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2015.symbol.d.ts",
+      "sha256": "3084a7b5f569088e0146533a00830e206565de65cae2239509168b11434cd84f"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2015.symbol.wellknown.d.ts",
+      "sha256": "c5079c53f0f141a0698faa903e76cb41cd664e3efb01cc17a5c46ec2eb0bef42"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2016.array.include.d.ts",
+      "sha256": "32cafbc484dea6b0ab62cf8473182bbcb23020d70845b406f80b7526f38ae862"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2016.d.ts",
+      "sha256": "7fe93b39b810eadd916be8db880dd7f0f7012a5cc6ffb62de8f62a2117fa6f1f"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2016.full.d.ts",
+      "sha256": "19adadff5144f8f89fef0a10b299d7a96206f4913d4c17d4864171320e9edbd6"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2016.intl.d.ts",
+      "sha256": "fca4cdcb6d6c5ef18a869003d02c9f0fd95df8cfaf6eb431cd3376bc034cad36"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2017.arraybuffer.d.ts",
+      "sha256": "b93ec88115de9a9dc1b602291b85baf825c85666bf25985cc5f698073892b467"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2017.d.ts",
+      "sha256": "bb0074cc08b84a2374af33d8bf044b80851ccc9e719a5e202eacf40db2c31600"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2017.date.d.ts",
+      "sha256": "f5c06dcc3fe849fcb297c247865a161f995cc29de7aa823afdd75aaaddc1419b"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2017.full.d.ts",
+      "sha256": "83635f912d414d0c5a855fba3e18418e9db7e73c2e0e170009c48275cc8c1a36"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2017.intl.d.ts",
+      "sha256": "c7b3542146734342e440a84b213384bfa188835537ddbda50d30766f0593aff9"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2017.object.d.ts",
+      "sha256": "b77e16112127a4b169ef0b8c3a4d730edf459c5f25fe52d5e436a6919206c4d7"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2017.sharedmemory.d.ts",
+      "sha256": "fbffd9337146eff822c7c00acbb78b01ea7ea23987f6c961eba689349e744f8c"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2017.string.d.ts",
+      "sha256": "a995c0e49b721312f74fdfb89e4ba29bd9824c770bbb4021d74d2bf560e4c6bd"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2017.typedarrays.d.ts",
+      "sha256": "ce6180fa19b1cccd07ee7f7dbb9a367ac19c0ed160573e4686425060b6df7f57"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2018.asyncgenerator.d.ts",
+      "sha256": "3f02e2476bccb9dbe21280d6090f0df17d2f66b74711489415a8aa4df73c9675"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2018.asynciterable.d.ts",
+      "sha256": "45e3ab34c1c013c8ab2dc1ba4c80c780744b13b5676800ae2e3be27ae862c40c"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2018.d.ts",
+      "sha256": "1a7daebe4f45fb03d9ec53d60008fbf9ac45a697fdc89e4ce218bc94b94f94d6"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2018.full.d.ts",
+      "sha256": "63787dbe04141f5d3ebce2e08b64bc9bba589beb0a4d22e7994d3005af1e48a6"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2018.intl.d.ts",
+      "sha256": "805c86f6cca8d7702a62a844856dbaa2a3fd2abef0536e65d48732441dde5b5b"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2018.promise.d.ts",
+      "sha256": "e42e397f1a5a77994f0185fd1466520691456c772d06bf843e5084ceb879a0ad"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2018.regexp.d.ts",
+      "sha256": "f4c2b41f90c95b1c532ecc874bd3c111865793b23aebcc1c3cbbabcd5d76ffb0"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2019.array.d.ts",
+      "sha256": "ab26191cfad5b66afa11b8bf935ef1cd88fabfcb28d30b2dfa6fad877d050332"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2019.d.ts",
+      "sha256": "f94b133a3cb14a288803be545ac2683e0d0ff6661bcd37e31aaaec54fc382aed"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2019.full.d.ts",
+      "sha256": "e3de8409485b0c198a5a075bd4a1d06d8f42dc52b377709d33b131b97de56456"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2019.intl.d.ts",
+      "sha256": "689da16f46e647cef0d64b0def88910e818a5877ca5379ede156ca3afb780ac3"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2019.object.d.ts",
+      "sha256": "2088bc26531e38fb05eedac2951480db5309f6be3fa4a08d2221abb0f5b4200d"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2019.string.d.ts",
+      "sha256": "cb9d366c425fea79716a8fb3af0d78e6b22ebbab3bd64d25063b42dc9f531c1e"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2019.symbol.d.ts",
+      "sha256": "500934a8089c26d57ebdb688fc9757389bb6207a3c8f0674d68efa900d2abb34"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2020.bigint.d.ts",
+      "sha256": "bc21cc8b6fee4f4c2440d08035b7ea3c06b3511314c8bab6bef7a92de58a2593"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2020.d.ts",
+      "sha256": "f59d0650799f8782fd74cf73c19223730c6d1b9198671b1c5b3a38e1188b5953"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2020.date.d.ts",
+      "sha256": "7ca53d13d2957003abb47922a71866ba7cb2068f8d154877c596d63c359fed25"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2020.full.d.ts",
+      "sha256": "577cc49be1979782a5a695b46049566d123e2a75382f10bb82f2e5c87e29059a"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2020.intl.d.ts",
+      "sha256": "48915f327cd1dea4d7bd358d9dc7732f58f9e1626a29cc0c05c8c692419d9bb7"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2020.number.d.ts",
+      "sha256": "b7bf9377723203b5a6a4b920164df22d56a43f593269ba6ae1fdc97774b68855"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2020.promise.d.ts",
+      "sha256": "54725f8c4df3d900cb4dac84b64689ce29548da0b4e9b7c2de61d41c79293611"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2020.sharedmemory.d.ts",
+      "sha256": "e5594bc3076ac29e6c1ebda77939bc4c8833de72f654b6e376862c0473199323"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2020.string.d.ts",
+      "sha256": "2f3eb332c2d73e729f3364fcc0c2b375e72a121e8157d25a82d67a138c83a95c"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2020.symbol.wellknown.d.ts",
+      "sha256": "6f4427f9642ce8d500970e4e69d1397f64072ab73b97e476b4002a646ac743b1"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2021.d.ts",
+      "sha256": "8a15b4607d9a499e2dbeed9ec0d3c0d7372c850b2d5f1fb259e8f6d41d468a84"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2021.full.d.ts",
+      "sha256": "e4a70ead7fea07d9abe520cc9e30c04ac035ebceaab28f9e67211610006c65de"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2021.intl.d.ts",
+      "sha256": "a917a49ac94cd26b754ab84e113369a75d1a47a710661d7cd25e961cc797065f"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2021.promise.d.ts",
+      "sha256": "db9709688f82c9e5f65a119c64d835f906efe5f559d08b11642d56eb85b79357"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2021.string.d.ts",
+      "sha256": "4b25b8c874acd1a4cf8444c3617e037d444d19080ac9f634b405583fd10ce1f7"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2021.weakref.d.ts",
+      "sha256": "37be57d7c90cf1f8112ee2636a068d8fd181289f82b744160ec56a7dc158a9f5"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2022.array.d.ts",
+      "sha256": "6d3261badeb7843d157ef3e6f5d1427d0eeb0af0cf9df84a62cfd29fd47ac86e"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2022.d.ts",
+      "sha256": "26e0fe14baee4e127f4365d1ae0b276f400562e45e19e35fd2d4c296684715e6"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2022.error.d.ts",
+      "sha256": "195daca651dde22f2167ac0d0a05e215308119a3100f5e6268e8317d05a92526"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2022.full.d.ts",
+      "sha256": "01a30f9e8582b369075c0808df71121e6855cb06fd8d3d39511d9ebb66405205"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2022.intl.d.ts",
+      "sha256": "8b11e4285cd2bb164a4dc09248bdec69e9842517db4ca47c1ba913011e44ff2f"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2022.object.d.ts",
+      "sha256": "0508571a52475e245b02bc50fa1394065a0a3d05277fbf5120c3784b85651799"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2022.regexp.d.ts",
+      "sha256": "fc611fea8d30ea72c6bbfb599c9b4d393ce22e2f5bfef2172534781e7d138104"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2022.string.d.ts",
+      "sha256": "8f9af488f510c3015af3cc8c267a9e9d96c4dd38a1fdff0e11dc5a544711415b"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2023.array.d.ts",
+      "sha256": "0bd714129fca875f7d4c477a1a392200b0bcd13fb2e80928cd334b63830ea047"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2023.collection.d.ts",
+      "sha256": "e2c9037ae6cd2c52d80ceef0b3c5ffdb488627d71529cf4f63776daf11161c9a"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2023.d.ts",
+      "sha256": "1e9332c23e9a907175e0ffc6a49e236f97b48838cc8aec9ce7e4cec21e544b65"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2023.full.d.ts",
+      "sha256": "821bd6049b8f96b9d24c9fbc49b542dcf7a80d76f9efb330b5ef32c373af83d4"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2023.intl.d.ts",
+      "sha256": "135d5cf4d345f59f1a9caadfafcd858d3d9cc68290db616cc85797224448cccc"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2024.arraybuffer.d.ts",
+      "sha256": "bc238c3f81c2984751932b6aab223cd5b830e0ac6cad76389e5e9d2ffc03287d"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2024.collection.d.ts",
+      "sha256": "4a07f9b76d361f572620927e5735b77d6d2101c23cdd94383eb5b706e7b36357"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2024.d.ts",
+      "sha256": "3753fbc1113dc511214802a2342280a8b284ab9094f6420e7aa171e868679f91"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2024.full.d.ts",
+      "sha256": "b9f65879de79a7647ad2e5b8089277c215911fa99d4b858d78014df6ba2852f3"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2024.object.d.ts",
+      "sha256": "7c4e8dc6ab834cc6baa0227e030606d29e3e8449a9f67cdf5605ea5493c4db29"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2024.promise.d.ts",
+      "sha256": "de7ba0fd02e06cd9a5bd4ab441ed0e122735786e67dde1e849cced1cd8b46b78"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2024.regexp.d.ts",
+      "sha256": "6148e4e88d720a06855071c3db02069434142a8332cf9c182cda551adedf3156"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2024.sharedmemory.d.ts",
+      "sha256": "d63dba625b108316a40c95a4425f8d4294e0deeccfd6c7e59d819efa19e23409"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2024.string.d.ts",
+      "sha256": "0568d6befee03dd435bed4fc25c4e46865b24bdcb8c563fdc21f580a2c301904"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2025.collection.d.ts",
+      "sha256": "30d62269b05b584741f19a5369852d5d34895aa2ac4fd948956f886d15f9cc0d"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2025.d.ts",
+      "sha256": "999ca32883495a866aa5737fe1babc764a469e4cde6ee6b136a4b9ae68853e4b"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2025.float16.d.ts",
+      "sha256": "f128dae7c44d8f35ee42e0a437000a57c9f06cc04f8b4fb42eebf44954d53dc8"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2025.full.d.ts",
+      "sha256": "e03da518b01b46a4c99a1f88cd727ee98ddf14492c43dae1ae7a63e992971bab"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2025.intl.d.ts",
+      "sha256": "ffbe6d7b295306b2ba88030f65b74c107d8d99bdcf596ea99c62a02f606108b0"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2025.iterator.d.ts",
+      "sha256": "996fb27b15277369c68a4ba46ed138b4e9e839a02fb4ec756f7997629242fd9f"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2025.promise.d.ts",
+      "sha256": "79b712591b270d4778c89706ca2cfc56ddb8c3f895840e477388f1710dc5eda9"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es2025.regexp.d.ts",
+      "sha256": "20884846cef428b992b9bd032e70a4ef88e349263f63aeddf04dda837a7dba26"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es5.d.ts",
+      "sha256": "bcd24271a113971ba9eb71ff8cb01bc6b0f872a85c23fdbe5d93065b375933cd"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.es6.d.ts",
+      "sha256": "174a0fa01bb60bcb80e09b0b7bdcdddf688891433d6030244df5b44eb9ebd210"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.esnext.array.d.ts",
+      "sha256": "5fcab789c73a97cd43828ee3cc94a61264cf24d4c44472ce64ced0e0f148bdb2"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.esnext.collection.d.ts",
+      "sha256": "db59a81f070c1880ad645b2c0275022baa6a0c4f0acdc58d29d349c6efcf0903"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.esnext.d.ts",
+      "sha256": "17f13ecb98cbc39243f2eee1f16d45cd8ec4706b03ee314f1915f1a8b42f6984"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.esnext.date.d.ts",
+      "sha256": "673294292640f5722b700e7d814e17aaf7d93f83a48a2c9b38f33cbc940ad8b0"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.esnext.decorators.d.ts",
+      "sha256": "d786b48f934cbca483b3c6d0a798cb43bbb4ada283e76fb22c28e53ae05b9e69"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.esnext.disposable.d.ts",
+      "sha256": "1ecb8e347cb6b2a8927c09b86263663289418df375f5e68e11a0ae683776978f"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.esnext.error.d.ts",
+      "sha256": "142efd4ce210576f777dc34df121777be89eda476942d6d6663b03dcb53be3ff"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.esnext.full.d.ts",
+      "sha256": "ef4a897cd2a3f91000c10264e400b3667c7e51e1b7365f03b62e8081dc53bde6"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.esnext.intl.d.ts",
+      "sha256": "379bc41580c2d774f82e828c70308f24a005b490c25ba34d679d84bcf05c3d9d"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.esnext.sharedmemory.d.ts",
+      "sha256": "ed484fb2aa8a1a23d0277056ec3336e0a0b52f9b8d6a961f338a642faf43235d"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.esnext.temporal.d.ts",
+      "sha256": "4ffedae1d1c2d53fdbca1c96d3c7dda544281f7d262f99b6880634f8fd8d9820"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.esnext.typedarrays.d.ts",
+      "sha256": "83a730b125d477dd264df8ba479afab27a3dae7152b005c214ab94dc7ee44fd3"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.scripthost.d.ts",
+      "sha256": "f13f4b465c99041e912db5c44129a94588e1aafee35a50eab51044833f50b4ee"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.webworker.asynciterable.d.ts",
+      "sha256": "7f57fc4404ff020bc45b9c620aff2b40f700b95fe31164024c453a5e3c163c54"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.webworker.d.ts",
+      "sha256": "d52ed68e7eb5881768a55713c9b5c7c443e6b46de15c04e348928b8efd20b110"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.webworker.importscripts.d.ts",
+      "sha256": "2a2de5b9459b3fc44decd9ce6100b72f1b002ef523126c1d3d8b2a4a63d74d78"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/lib.webworker.iterable.d.ts",
+      "sha256": "7f57fc4404ff020bc45b9c620aff2b40f700b95fe31164024c453a5e3c163c54"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    }
+  ],
+  "first_packet": {
+    "id": "H2.8b-LR1",
+    "inputs": "crates/compiler/tests/fixtures/h2-8b-library-replacement-inputs.json",
+    "observations": "crates/compiler/tests/fixtures/h2-8b-library-replacement.json",
+    "observer": "scripts/observe-h2-8b-library-replacement.mjs",
+    "case_ids": [
+      "h2-8b-library-replacement/enabled-package",
+      "h2-8b-library-replacement/disabled-package",
+      "h2-8b-library-replacement/omitted-option",
+      "h2-8b-library-replacement/missing-package-fallback",
+      "h2-8b-library-replacement/duplicate-lib-reference",
+      "h2-8b-library-replacement/config-directory-anchor",
+      "h2-8b-library-replacement/package-subpath",
+      "h2-8b-library-replacement/module-suffixes-isolated",
+      "h2-8b-library-replacement/package-exports-isolated",
+      "h2-8b-library-replacement/root-promoted-to-library",
+      "h2-8b-library-replacement/missing-subpath-fallback",
+      "h2-8b-library-replacement/no-lib-gate"
+    ],
+    "repetitions": 2,
+    "upstream_program_executions": 24,
+    "native_executions": 0
+  },
+  "slices": [
+    {
+      "id": "H2.8b-LR1",
+      "title": "fresh Program library replacement baseline",
+      "state": "ready-for-baseline",
+      "kind": "evidence-only",
+      "depends_on": [
+        "BASE"
+      ],
+      "writer": "integration",
+      "owner_files": [
+        "crates/program/src/loader.rs",
+        "crates/program/src/library.rs",
+        "crates/program/src/prepared.rs"
+      ],
+      "source_anchor_ids": [
+        "getOptionsForLibraryResolution",
+        "resolveLibrary",
+        "getInferredLibraryNameResolveFrom",
+        "getLibraryNameFromLibFileName",
+        "actualResolveLibrary",
+        "pathForLibFile",
+        "pathForLibFileWorker",
+        "processLibReferenceDirectives",
+        "isSourceFileDefaultLibrary",
+        "getDefaultLibFilePriority",
+        "emitFilesAndReportErrorsAndGetExitStatus"
+      ],
+      "witness_axes": [
+        "option true/false/absent",
+        "package present/missing and subpath",
+        "config directory vs cwd",
+        "moduleSuffixes/exports isolation",
+        "root promotion/duplicate lib refs/noLib",
+        "complete command + ordered source/library/root membership"
+      ],
+      "unresolved": [],
+      "production_edits_authorized": false,
+      "packet": "docs/design/greenfield/slices/h2-8b-library-replacement-baseline.md",
+      "allowed_new_files": [
+        "crates/compiler/tests/integration/h2_8b_library_replacement.rs"
+      ],
+      "allowed_existing_edits": [
+        "crates/compiler/tests/contracts.rs"
+      ],
+      "native_executions": 0
+    },
+    {
+      "id": "H2.8b-LR2",
+      "title": "library residual repair",
+      "state": "outline",
+      "kind": "runtime-design-pending",
+      "depends_on": [
+        "H2.8b-LR1",
+        "H2.8a-close"
+      ],
+      "writer": "program-host",
+      "owner_files": [
+        "crates/program/src/loader.rs",
+        "crates/program/src/library.rs"
+      ],
+      "source_anchor_ids": [
+        "pathForLibFileWorker",
+        "processLibReferenceDirectives",
+        "isSourceFileDefaultLibrary"
+      ],
+      "witness_axes": [
+        "baseline failures by source branch",
+        "missing package vs host fault",
+        "positive fallback and order controls"
+      ],
+      "unresolved": [
+        "LR1 native failures or proven no-op",
+        "exact producer/function changes and fault representation",
+        "whether a reproduced failure belongs to CFG1/HOST1 instead"
+      ],
+      "production_edits_authorized": false
+    },
+    {
+      "id": "H2.8b-CFG1",
+      "title": "config conversion and diagnostic precedence",
+      "state": "outline",
+      "kind": "runtime-design-pending",
+      "depends_on": [
+        "H2.8a-close"
+      ],
+      "writer": "program-host",
+      "owner_files": [
+        "crates/program/src/config.rs"
+      ],
+      "source_anchor_ids": [
+        "getParsedCommandLineOfConfigFile",
+        "parseJsonConfigFileContentWorker",
+        "parseJsonSourceFileConfigFileContent"
+      ],
+      "witness_axes": [
+        "extends and origin",
+        "fileNames/include/exclude/wildcard",
+        "duplicate/invalid and inherited options",
+        "rootDir/outDir intersections"
+      ],
+      "unresolved": [
+        "reconcile current typed options with residual inventory",
+        "split config_host/option_validation owners from actual callers",
+        "freeze config diagnostics and path provenance witnesses"
+      ],
+      "production_edits_authorized": false
+    },
+    {
+      "id": "H2.8b-HOST1",
+      "title": "optional host capability and fallback",
+      "state": "outline",
+      "kind": "runtime-design-pending",
+      "depends_on": [
+        "H2.8a-close",
+        "H2.8b-CFG1"
+      ],
+      "writer": "program-host",
+      "owner_files": [
+        "crates/host/src/lib.rs",
+        "crates/program/src/loader.rs"
+      ],
+      "source_anchor_ids": [
+        "createCompilerHostWorker",
+        "parseConfigHostFromCompilerHostLike",
+        "actualResolveLibrary"
+      ],
+      "witness_axes": [
+        "callback absent/present",
+        "getSourceFile and default library location",
+        "realpath/directory/trace fallback",
+        "returned absence vs fault"
+      ],
+      "unresolved": [
+        "list reachable one-shot hooks and API1 exclusions",
+        "choose capability representation from producer/consumer requirements",
+        "split independently owned callbacks after caller inventory"
+      ],
+      "production_edits_authorized": false
+    },
+    {
+      "id": "H2.8b-SYS1",
+      "title": "one-shot System and filesystem contract",
+      "state": "outline",
+      "kind": "runtime-design-pending",
+      "depends_on": [
+        "H2.8b-HOST1",
+        "A3-write-contract"
+      ],
+      "writer": "program-host",
+      "owner_files": [
+        "crates/host/src/lib.rs",
+        "crates/compiler/src/cli.rs"
+      ],
+      "source_anchor_ids": [
+        "createCompilerHostWorker",
+        "writeConfigFile",
+        "emitFilesAndReportErrors"
+      ],
+      "witness_axes": [
+        "Memory/Fs input parity",
+        "encoding/BOM/newline",
+        "directory creation/write failure",
+        "partial output and ordering"
+      ],
+      "unresolved": [
+        "source System implementation and platform capability matrix",
+        "fault injection adapter and exact Rust sink boundary",
+        "separate implementation owner for shared cli write adapter"
+      ],
+      "production_edits_authorized": false
+    },
+    {
+      "id": "H2.8b-CLOSE",
+      "title": "config and host qualification",
+      "state": "outline",
+      "kind": "runtime-design-pending",
+      "depends_on": [
+        "H2.8b-LR2",
+        "H2.8b-CFG1",
+        "H2.8b-HOST1",
+        "H2.8b-SYS1"
+      ],
+      "writer": "integration",
+      "owner_files": [
+        "crates/program/src/loader.rs",
+        "crates/compiler/src/lib.rs"
+      ],
+      "source_anchor_ids": [
+        "createProgram",
+        "emitFilesAndReportErrorsAndGetExitStatus"
+      ],
+      "witness_axes": [
+        "all B-owned IDs",
+        "cross-band manifests",
+        "Memory/Fs parity"
+      ],
+      "unresolved": [
+        "freeze current full owned-ID set",
+        "profile activation diff and receipt schema"
+      ],
+      "production_edits_authorized": false
+    },
+    {
+      "id": "H2.8c-NC1",
+      "title": "noCheck diagnostic and resolver schedule",
+      "state": "outline",
+      "kind": "runtime-design-pending",
+      "depends_on": [
+        "H2.8a-close",
+        "H2.8b-CFG1"
+      ],
+      "writer": "compiler-entry",
+      "owner_files": [
+        "crates/compiler/src/lib.rs",
+        "crates/emitter/src/execute.rs"
+      ],
+      "source_anchor_ids": [
+        "createProgram",
+        "emitWorker",
+        "emitFilesAndReportErrors"
+      ],
+      "witness_axes": [
+        "noCheck true/false",
+        "JS vs declarations",
+        "linked references and lazy resolver",
+        "noEmitOnError"
+      ],
+      "unresolved": [
+        "inventory resolver reads still required by emit",
+        "typed request and scheduler edits",
+        "freeze skipped-work assertions without weakening output comparison"
+      ],
+      "production_edits_authorized": false
+    },
+    {
+      "id": "H2.8c-MOD1",
+      "title": "single-file module options",
+      "state": "outline",
+      "kind": "runtime-design-pending",
+      "depends_on": [
+        "H2.8c-NC1",
+        "H2.8a-close"
+      ],
+      "writer": "compiler-entry",
+      "owner_files": [
+        "crates/emitter/src/execute.rs",
+        "crates/compiler/src/lib.rs"
+      ],
+      "source_anchor_ids": [
+        "getScriptTransformers",
+        "transpileWorker"
+      ],
+      "witness_axes": [
+        "isolatedModules/verbatimModuleSyntax",
+        "type-only imports and aliases",
+        "CJS/ESM and diagnostics"
+      ],
+      "unresolved": [
+        "current transform/checker gaps by option",
+        "shared option metadata owner",
+        "freeze witnesses before lifting guards"
+      ],
+      "production_edits_authorized": false
+    },
+    {
+      "id": "H2.8c-TM1",
+      "title": "transpileModule entry",
+      "state": "outline",
+      "kind": "runtime-design-pending",
+      "depends_on": [
+        "H2.8c-NC1",
+        "H2.8c-MOD1"
+      ],
+      "writer": "compiler-entry",
+      "owner_files": [
+        "crates/compiler/src/lib.rs"
+      ],
+      "source_anchor_ids": [
+        "transpileModule",
+        "transpileWorker"
+      ],
+      "witness_axes": [
+        "filename/JSX/JSDoc",
+        "option fixup",
+        "reportDiagnostics",
+        "outputText/sourceMapText presence"
+      ],
+      "unresolved": [
+        "adapter request/result/error types",
+        "host lifetime and filename-derived options",
+        "API1 boundary for custom transformers"
+      ],
+      "production_edits_authorized": false
+    },
+    {
+      "id": "H2.8c-TD1",
+      "title": "transpileDeclaration entry",
+      "state": "outline",
+      "kind": "runtime-design-pending",
+      "depends_on": [
+        "H2.8c-TM1",
+        "H2.7c-forced-declarations"
+      ],
+      "writer": "compiler-entry",
+      "owner_files": [
+        "crates/compiler/src/lib.rs",
+        "crates/emitter/src/execute.rs"
+      ],
+      "source_anchor_ids": [
+        "transpileDeclaration",
+        "transpileWorker"
+      ],
+      "witness_axes": [
+        "barebones library",
+        "forced declaration diagnostics",
+        "isolatedDeclarations",
+        "single output and errors"
+      ],
+      "unresolved": [
+        "reuse contract with qualified forced-declaration session",
+        "declaration-specific options/host",
+        "no accidental ordinary Program declaration schedule"
+      ],
+      "production_edits_authorized": false
+    },
+    {
+      "id": "H2.8c-CLOSE",
+      "title": "transpile runner and noCheck qualification",
+      "state": "outline",
+      "kind": "runtime-design-pending",
+      "depends_on": [
+        "H2.8c-TM1",
+        "H2.8c-TD1",
+        "H2.8c-MOD1"
+      ],
+      "writer": "integration",
+      "owner_files": [
+        "crates/compiler/src/lib.rs"
+      ],
+      "source_anchor_ids": [
+        "transpileWorker",
+        "emitFilesAndReportErrorsAndGetExitStatus"
+      ],
+      "witness_axes": [
+        "legacy transpile wrapper rows",
+        "ordinary Program controls",
+        "work counters and full results"
+      ],
+      "unresolved": [
+        "refresh historical runner set/counts",
+        "performance observation contract and activation proof"
+      ],
+      "production_edits_authorized": false
+    },
+    {
+      "id": "H2.8d-SEL1",
+      "title": "target source selection",
+      "state": "outline",
+      "kind": "runtime-design-pending",
+      "depends_on": [
+        "H2.8a-close",
+        "H2.8c-CLOSE",
+        "H2.7d-output-plan"
+      ],
+      "writer": "compiler-entry",
+      "owner_files": [
+        "crates/emitter/src/plan.rs",
+        "crates/compiler/src/lib.rs"
+      ],
+      "source_anchor_ids": [
+        "emit",
+        "emitWorker"
+      ],
+      "witness_axes": [
+        "target TS/JS/d.ts/JSON",
+        "missing/foreign source",
+        "outFile bundle",
+        "selected output vs whole resolver"
+      ],
+      "unresolved": [
+        "target identity/ownership types",
+        "source skip and bundle selection branches",
+        "replace bootstrap shape guard only after witnesses"
+      ],
+      "production_edits_authorized": false
+    },
+    {
+      "id": "H2.8d-MODE1",
+      "title": "emit mode selection",
+      "state": "outline",
+      "kind": "runtime-design-pending",
+      "depends_on": [
+        "H2.8d-SEL1",
+        "H2.8c-NC1"
+      ],
+      "writer": "compiler-entry",
+      "owner_files": [
+        "crates/emitter/src/execute.rs",
+        "crates/compiler/src/lib.rs"
+      ],
+      "source_anchor_ids": [
+        "emitWorker",
+        "handleNoEmitOptions"
+      ],
+      "witness_axes": [
+        "ordinary JS-only/declaration-only",
+        "noEmit/noEmitOnError",
+        "forced declaration controls",
+        "emitBuildInfo owner boundary"
+      ],
+      "unresolved": [
+        "request enum and mode validation",
+        "diagnostic precedence and result presence",
+        "BLD1 controls and public API1 split"
+      ],
+      "production_edits_authorized": false
+    },
+    {
+      "id": "H2.8d-WRITE1",
+      "title": "per-request write callback",
+      "state": "outline",
+      "kind": "runtime-design-pending",
+      "depends_on": [
+        "H2.8d-MODE1",
+        "H2.8b-SYS1"
+      ],
+      "writer": "compiler-entry",
+      "owner_files": [
+        "crates/compiler/src/lib.rs",
+        "crates/host/src/lib.rs"
+      ],
+      "source_anchor_ids": [
+        "emitWorker",
+        "createCompilerHostWorker"
+      ],
+      "witness_axes": [
+        "request callback vs host write",
+        "onError",
+        "partial writes",
+        "diagnostics and callback metadata"
+      ],
+      "unresolved": [
+        "callback borrowing/lifetime and sink adapter",
+        "source fault propagation semantics",
+        "API1 generic callback surface boundary"
+      ],
+      "production_edits_authorized": false
+    },
+    {
+      "id": "H2.8d-CANCEL1",
+      "title": "cancellation and state after failure",
+      "state": "outline",
+      "kind": "runtime-design-pending",
+      "depends_on": [
+        "H2.8d-WRITE1",
+        "H2.8c-NC1"
+      ],
+      "writer": "compiler-entry",
+      "owner_files": [
+        "crates/compiler/src/lib.rs",
+        "crates/emitter/src/execute.rs"
+      ],
+      "source_anchor_ids": [
+        "emit",
+        "emitWorker",
+        "createProgram"
+      ],
+      "witness_axes": [
+        "pre-entry/check/emit/callback cancellation",
+        "partial outputs",
+        "retry same session"
+      ],
+      "unresolved": [
+        "enumerate actual cancellation call sites and checker cleanup",
+        "typed token/error and unwinding boundary",
+        "reuse guarantees from upstream witnesses"
+      ],
+      "production_edits_authorized": false
+    },
+    {
+      "id": "H2.8d-CLOSE",
+      "title": "ordinary emit request qualification",
+      "state": "outline",
+      "kind": "runtime-design-pending",
+      "depends_on": [
+        "H2.8d-MODE1",
+        "H2.8d-WRITE1",
+        "H2.8d-CANCEL1"
+      ],
+      "writer": "integration",
+      "owner_files": [
+        "crates/compiler/src/lib.rs"
+      ],
+      "source_anchor_ids": [
+        "emit",
+        "handleNoEmitOptions"
+      ],
+      "witness_axes": [
+        "whole-Program regression",
+        "ordinary-reference legacy rows",
+        "selection × mode × callback controls"
+      ],
+      "unresolved": [
+        "refresh full request inventory",
+        "activation proof separated from forced declaration tests"
+      ],
+      "production_edits_authorized": false
+    },
+    {
+      "id": "H2.8e-ARGS1",
+      "title": "arguments and command routing",
+      "state": "outline",
+      "kind": "runtime-design-pending",
+      "depends_on": [
+        "H2.8b-CFG1",
+        "H2.8b-HOST1"
+      ],
+      "writer": "cli",
+      "owner_files": [
+        "crates/compiler/src/cli.rs",
+        "crates/program/src/config.rs"
+      ],
+      "source_anchor_ids": [
+        "parseCommandLineWorker",
+        "executeCommandLine",
+        "executeCommandLineWorker"
+      ],
+      "witness_axes": [
+        "response files",
+        "aliases/duplicate booleans",
+        "unknown/missing values",
+        "parse errors before command modes"
+      ],
+      "unresolved": [
+        "argv parse representation and option catalogue owner",
+        "complete precedence table",
+        "BLD1/W1 boundary controls"
+      ],
+      "production_edits_authorized": false
+    },
+    {
+      "id": "H2.8e-INFO1",
+      "title": "version/help/all",
+      "state": "outline",
+      "kind": "runtime-design-pending",
+      "depends_on": [
+        "H2.8e-ARGS1",
+        "H2.8e-TERM1"
+      ],
+      "writer": "cli",
+      "owner_files": [
+        "crates/compiler/src/cli.rs"
+      ],
+      "source_anchor_ids": [
+        "printVersion",
+        "printHelp",
+        "executeCommandLineWorker"
+      ],
+      "witness_axes": [
+        "--version/-v",
+        "--help/--all",
+        "no inputs",
+        "mode conflicts and terminal widths"
+      ],
+      "unresolved": [
+        "source printHelpWorkers and option descriptions inventory",
+        "exact display templates",
+        "Program-not-created work assertions"
+      ],
+      "production_edits_authorized": false
+    },
+    {
+      "id": "H2.8e-INIT1",
+      "title": "init and config generation",
+      "state": "outline",
+      "kind": "runtime-design-pending",
+      "depends_on": [
+        "H2.8e-ARGS1",
+        "H2.8b-SYS1"
+      ],
+      "writer": "cli",
+      "owner_files": [
+        "crates/compiler/src/cli.rs"
+      ],
+      "source_anchor_ids": [
+        "generateTSConfig",
+        "writeConfigFile",
+        "executeCommandLineWorker"
+      ],
+      "witness_axes": [
+        "existing/new config",
+        "option formatting",
+        "write failure",
+        "init/version/help conflicts"
+      ],
+      "unresolved": [
+        "generation templates and comments provenance",
+        "filesystem failure and exit contract"
+      ],
+      "production_edits_authorized": false
+    },
+    {
+      "id": "H2.8e-SHOW1",
+      "title": "showConfig",
+      "state": "outline",
+      "kind": "runtime-design-pending",
+      "depends_on": [
+        "H2.8e-ARGS1",
+        "H2.8b-CFG1"
+      ],
+      "writer": "cli",
+      "owner_files": [
+        "crates/compiler/src/cli.rs",
+        "crates/program/src/config.rs"
+      ],
+      "source_anchor_ids": [
+        "convertToTSConfig",
+        "executeCommandLineWorker"
+      ],
+      "witness_axes": [
+        "extends and paths",
+        "relative/absolute names",
+        "parse errors before output",
+        "no Program emission"
+      ],
+      "unresolved": [
+        "config-to-JSON omission/order rules",
+        "separate parsed config and Program options representation"
+      ],
+      "production_edits_authorized": false
+    },
+    {
+      "id": "H2.8e-LIST1",
+      "title": "file listings and explanations",
+      "state": "outline",
+      "kind": "runtime-design-pending",
+      "depends_on": [
+        "H2.8e-ARGS1",
+        "H2.8d-MODE1",
+        "H2.8b-CFG1"
+      ],
+      "writer": "cli",
+      "owner_files": [
+        "crates/compiler/src/cli.rs",
+        "crates/compiler/src/lib.rs"
+      ],
+      "source_anchor_ids": [
+        "emitFilesAndReportErrors",
+        "executeCommandLineWorker"
+      ],
+      "witness_axes": [
+        "listFilesOnly",
+        "explainFiles",
+        "listEmittedFiles",
+        "noEmit and reported order"
+      ],
+      "unresolved": [
+        "source inclusion-reason printer inventory",
+        "provenance representation in PreparedProgram",
+        "mode-specific scheduling"
+      ],
+      "production_edits_authorized": false
+    },
+    {
+      "id": "H2.8e-OBS1",
+      "title": "diagnostic statistics and tracing",
+      "state": "outline",
+      "kind": "runtime-design-pending",
+      "depends_on": [
+        "H2.8e-ARGS1",
+        "H2.8b-SYS1",
+        "H2.8c-CLOSE",
+        "H2.8d-CLOSE"
+      ],
+      "writer": "cli",
+      "owner_files": [
+        "crates/compiler/src/cli.rs"
+      ],
+      "source_anchor_ids": [
+        "reportStatistics",
+        "executeCommandLine",
+        "performCompilation"
+      ],
+      "witness_axes": [
+        "diagnostics/extendedDiagnostics",
+        "traceResolution",
+        "trace/profile callback absence",
+        "time/memory nondeterminism"
+      ],
+      "unresolved": [
+        "enumerate reachable System capability hooks",
+        "define variable-field contract without masking semantic outputs",
+        "platform and profiling exclusions"
+      ],
+      "production_edits_authorized": false
+    },
+    {
+      "id": "H2.8e-TERM1",
+      "title": "English locale and terminal output",
+      "state": "outline",
+      "kind": "runtime-design-pending",
+      "depends_on": [
+        "H2.8e-ARGS1",
+        "H2.8b-SYS1"
+      ],
+      "writer": "cli",
+      "owner_files": [
+        "crates/compiler/src/cli.rs"
+      ],
+      "source_anchor_ids": [
+        "validateLocaleAndSetLanguage",
+        "createDiagnosticReporter",
+        "executeCommandLineWorker"
+      ],
+      "witness_axes": [
+        "English/invalid locale",
+        "pretty/TTY/non-TTY",
+        "capability absence",
+        "stdout/stderr/newline/exit"
+      ],
+      "unresolved": [
+        "formatter ownership and capability types",
+        "English locale validation vs REL1 catalogs",
+        "freeze diagnostic formatting witnesses"
+      ],
+      "production_edits_authorized": false
+    },
+    {
+      "id": "H2.8e-CLOSE",
+      "title": "CLI qualification",
+      "state": "outline",
+      "kind": "runtime-design-pending",
+      "depends_on": [
+        "H2.8e-INFO1",
+        "H2.8e-INIT1",
+        "H2.8e-SHOW1",
+        "H2.8e-LIST1",
+        "H2.8e-OBS1",
+        "H2.8e-TERM1"
+      ],
+      "writer": "integration",
+      "owner_files": [
+        "crates/compiler/src/cli.rs"
+      ],
+      "source_anchor_ids": [
+        "executeCommandLine",
+        "executeCommandLineWorker"
+      ],
+      "witness_axes": [
+        "all CLI routes",
+        "mode precedence pairs",
+        "ordinary compile regressions"
+      ],
+      "unresolved": [
+        "freeze all owned command IDs",
+        "profile/exit qualification and H2.9 handoff"
+      ],
+      "production_edits_authorized": false
+    }
+  ]
+}

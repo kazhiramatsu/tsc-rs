@@ -29,9 +29,10 @@ use tsc_program::{
     load_config_program_with_no_emit_override,
     load_emitting_config_program_with_no_emit_override_and_overrides,
     load_emitting_config_program_with_overrides, load_emitting_program, load_program,
-    parse_config_root_plan, CompilerConfigHost, CompilerOptions, ConfigEmitOptionOverrides,
-    ConfigParseError, ConfigProgramLoadError, ConfigRootPlan, ConfigRootPlanRequest,
-    LibraryCatalog, PreparedProgramMode, ProgramLoadLimits, ProgramOptions,
+    parse_config_root_plan_with_cache, CompilerConfigHost, CompilerOptions,
+    ConfigEmitOptionOverrides, ConfigExtendedCache, ConfigParseError, ConfigProgramLoadError,
+    ConfigRootPlan, ConfigRootPlanRequest, LibraryCatalog, PreparedProgramMode, ProgramLoadLimits,
+    ProgramOptions,
 };
 
 use crate::no_emit_canary::NoEmitCanary;
@@ -1589,15 +1590,17 @@ fn parse_config_file(
         .to_str()
         .ok_or_else(|| CliError::Config("current directory is not Unicode".to_owned()))?;
     let adapter = CompilerConfigHost::new(host);
-    let plan = parse_config_root_plan(
+    let plan = parse_config_root_plan_with_cache(
         &adapter,
         ConfigRootPlanRequest {
             file_name: display_file_name.to_owned(),
             text,
             base_path: base_path.to_owned(),
         },
+        &mut ConfigExtendedCache::default(),
     )
-    .map_err(config_error)?;
+    .map_err(config_error)?
+    .with_resolved_config_source_path();
     let mut source_texts = BTreeMap::new();
     source_texts.insert(
         display_file_name.to_owned(),

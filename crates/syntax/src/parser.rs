@@ -9820,6 +9820,26 @@ fn parse_source_file(
     )
 }
 
+/// Validate the complete entity-name grammar with the normal JS scanner.
+/// Retaining parser errors rejects malformed escapes and unterminated comments.
+///
+/// tsc-port: parseIsolatedEntityName2 (validity projection) @6.0.3
+/// tsc-hash: 92cfd18e0c60b7d06ba8360b03cbfd7259a3d463273461742c418c6861f6a9d0
+/// tsc-span: _tsc.js:29042-29061
+pub fn is_entity_name_text(text: &str, language_version: ScriptTarget) -> bool {
+    let mut parser = Parser::new_with_target(
+        String::new(),
+        text,
+        Arc::new(PositionIndex::new_static(text)),
+        language_version,
+        LanguageVariant::Standard,
+        true,
+    );
+    parser.next_token();
+    parser.parse_entity_name(true, None);
+    parser.token() == SyntaxKind::EndOfFileToken && parser.parse_diagnostics.is_empty()
+}
+
 pub fn parse_source_file_from_snapshot(
     file_name: String,
     snapshot: Arc<TextSnapshot>,

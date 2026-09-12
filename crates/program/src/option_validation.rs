@@ -7,7 +7,7 @@
 //! fabricating a source location.
 
 use tsc_diagnostics::{gen, sort_and_dedupe_diagnostics, Diagnostic, MessageChain};
-use tsc_syntax::is_identifier_text_for_target;
+use tsc_syntax::{is_entity_name_text, is_identifier_text_for_target};
 use tsc_types::CompilerOptions;
 
 use crate::prepared::{
@@ -32,6 +32,17 @@ pub enum CompilerOptionValidationLocation {
 pub enum CompilerOptionViolation {
     StrictPropertyInitializationRequiresStrictNullChecks,
     ExactOptionalPropertyTypesRequiresStrictNullChecks,
+    OutFileConflictsWithIsolation {
+        verbatim: bool,
+    },
+    CompositeRequiresDeclaration,
+    CompositeRequiresIncremental,
+    IsolatedModulesRequiresModuleOrEs2015,
+    PreserveConstEnumsRequiredByIsolation {
+        verbatim: bool,
+    },
+    CheckJsRequiresAllowJs,
+    DecoratorMetadataRequiresExperimentalDecorators,
     IsolatedDeclarationsConflictsWithAllowJs,
     IsolatedDeclarationsRequiresDeclaration,
     EmitDeclarationOnlyRequiresDeclaration,
@@ -42,19 +53,44 @@ pub enum CompilerOptionViolation {
     ResolveJsonModuleConflictsWithModule,
     OutFileRequiresAmdOrSystemModule,
     ReactNamespaceConflictsWithJsxFactory,
-    JsxFactoryConflictsWithAutomaticRuntime { jsx: &'static str },
-    InvalidJsxFactory { value: String },
-    InvalidReactNamespace { value: String },
+    JsxFactoryConflictsWithAutomaticRuntime {
+        jsx: &'static str,
+    },
+    InvalidJsxFactory {
+        value: String,
+    },
+    InvalidReactNamespace {
+        value: String,
+    },
     JsxFragmentFactoryRequiresJsxFactory,
-    JsxFragmentFactoryConflictsWithAutomaticRuntime { jsx: &'static str },
-    InvalidJsxFragmentFactory { value: String },
-    ReactNamespaceConflictsWithAutomaticRuntime { jsx: &'static str },
+    JsxFragmentFactoryConflictsWithAutomaticRuntime {
+        jsx: &'static str,
+    },
+    InvalidJsxFragmentFactory {
+        value: String,
+    },
+    ReactNamespaceConflictsWithAutomaticRuntime {
+        jsx: &'static str,
+    },
     JsxImportSourceConflictsWithClassicRuntime,
     InlineSourcesRequiresSourceMap,
     SourceRootRequiresSourceMap,
     MapRootConflictsWithInlineSourceMap,
     SourceMapConflictsWithInlineSourceMap,
     MapRootRequiresSourceMapOrDeclarationMap,
+    VerbatimModuleRequiresSupportedModule,
+    AllowImportingTsExtensionsRequiresEmitMode,
+    PackageJsonExportsRequiresModernResolution,
+    PackageJsonImportsRequiresModernResolution,
+    CustomConditionsRequiresModernResolution,
+    BundlerRequiresEsModule,
+    NodeModuleRequiresNodeResolution {
+        module: &'static str,
+        resolution: &'static str,
+    },
+    NodeResolutionRequiresNodeModule {
+        resolution: &'static str,
+    },
 }
 
 impl CompilerOptionViolation {
@@ -63,6 +99,37 @@ impl CompilerOptionViolation {
     /// same relationship at every matching property in source order.
     pub const fn option_names(&self) -> &'static [&'static str] {
         match self {
+            Self::VerbatimModuleRequiresSupportedModule => &["verbatimModuleSyntax"],
+            Self::AllowImportingTsExtensionsRequiresEmitMode => &["allowImportingTsExtensions"],
+            Self::PackageJsonExportsRequiresModernResolution => &["resolvePackageJsonExports"],
+            Self::PackageJsonImportsRequiresModernResolution => &["resolvePackageJsonImports"],
+            Self::CustomConditionsRequiresModernResolution => &["customConditions"],
+            Self::BundlerRequiresEsModule | Self::NodeModuleRequiresNodeResolution { .. } => {
+                &["moduleResolution"]
+            }
+            Self::NodeResolutionRequiresNodeModule { .. } => &["module"],
+            Self::OutFileConflictsWithIsolation { verbatim: true } => {
+                &["outFile", "verbatimModuleSyntax"]
+            }
+            Self::OutFileConflictsWithIsolation { verbatim: false } => {
+                &["outFile", "isolatedModules"]
+            }
+            // verifyCompilerOptions deliberately locates the incremental
+            // violation on declaration as well (_tsc.js:124783).
+            Self::CompositeRequiresDeclaration | Self::CompositeRequiresIncremental => {
+                &["declaration"]
+            }
+            Self::IsolatedModulesRequiresModuleOrEs2015 => &["isolatedModules", "target"],
+            Self::PreserveConstEnumsRequiredByIsolation { verbatim: true } => {
+                &["verbatimModuleSyntax", "preserveConstEnums"]
+            }
+            Self::PreserveConstEnumsRequiredByIsolation { verbatim: false } => {
+                &["isolatedModules", "preserveConstEnums"]
+            }
+            Self::CheckJsRequiresAllowJs => &["checkJs", "allowJs"],
+            Self::DecoratorMetadataRequiresExperimentalDecorators => {
+                &["emitDecoratorMetadata", "experimentalDecorators"]
+            }
             Self::StrictPropertyInitializationRequiresStrictNullChecks => {
                 &["strictPropertyInitialization", "strictNullChecks"]
             }
@@ -91,15 +158,19 @@ impl CompilerOptionViolation {
             Self::JsxImportSourceConflictsWithClassicRuntime => &["jsxImportSource"],
             Self::InlineSourcesRequiresSourceMap => &["inlineSources"],
             Self::SourceRootRequiresSourceMap => &["sourceRoot"],
-            Self::MapRootConflictsWithInlineSourceMap => &["mapRoot"],
-            Self::SourceMapConflictsWithInlineSourceMap => &["sourceMap"],
-            Self::MapRootRequiresSourceMapOrDeclarationMap => &["mapRoot"],
+            Self::MapRootConflictsWithInlineSourceMap => &["mapRoot", "inlineSourceMap"],
+            Self::SourceMapConflictsWithInlineSourceMap => &["sourceMap", "inlineSourceMap"],
+            Self::MapRootRequiresSourceMapOrDeclarationMap => &["mapRoot", "sourceMap"],
         }
     }
 
     pub const fn location(&self) -> CompilerOptionValidationLocation {
         match self {
-            Self::InvalidJsxFactory { .. }
+            Self::AllowImportingTsExtensionsRequiresEmitMode
+            | Self::BundlerRequiresEsModule
+            | Self::NodeModuleRequiresNodeResolution { .. }
+            | Self::NodeResolutionRequiresNodeModule { .. }
+            | Self::InvalidJsxFactory { .. }
             | Self::InvalidReactNamespace { .. }
             | Self::InvalidJsxFragmentFactory { .. } => CompilerOptionValidationLocation::Value,
             _ => CompilerOptionValidationLocation::Name,
@@ -108,6 +179,49 @@ impl CompilerOptionViolation {
 
     pub fn message(&self) -> MessageChain {
         match self {
+            Self::VerbatimModuleRequiresSupportedModule => MessageChain::new(
+                &gen::Option_verbatimModuleSyntax_cannot_be_used_when_module_is_set_to_UMD_AMD_or_System, &[],
+            ),
+            Self::AllowImportingTsExtensionsRequiresEmitMode => MessageChain::new(
+                &gen::Option_allowImportingTsExtensions_can_only_be_used_when_one_of_noEmit_emitDeclarationOnly_or_rewriteRelativeImportExtensions_is_set, &[],
+            ),
+            Self::PackageJsonExportsRequiresModernResolution | Self::PackageJsonImportsRequiresModernResolution | Self::CustomConditionsRequiresModernResolution => MessageChain::new(
+                &gen::Option_0_can_only_be_used_when_moduleResolution_is_set_to_node16_nodenext_or_bundler,
+                &[self.option_names()[0].to_owned()],
+            ),
+            Self::BundlerRequiresEsModule => MessageChain::new(
+                &gen::Option_0_can_only_be_used_when_module_is_set_to_preserve_commonjs_or_es2015_or_later,
+                &["bundler".to_owned()],
+            ),
+            Self::NodeModuleRequiresNodeResolution { module, resolution } => MessageChain::new(
+                &gen::Option_moduleResolution_must_be_set_to_0_or_left_unspecified_when_option_module_is_set_to_1,
+                &[(*resolution).to_owned(), (*module).to_owned()],
+            ),
+            Self::NodeResolutionRequiresNodeModule { resolution } => MessageChain::new(
+                &gen::Option_module_must_be_set_to_0_when_option_moduleResolution_is_set_to_1,
+                &[(*resolution).to_owned(), (*resolution).to_owned()],
+            ),
+            Self::OutFileConflictsWithIsolation { verbatim } => MessageChain::new(
+                &gen::Option_0_cannot_be_specified_with_option_1,
+                &["outFile".to_owned(), if *verbatim { "verbatimModuleSyntax" } else { "isolatedModules" }.to_owned()],
+            ),
+            Self::CompositeRequiresDeclaration => MessageChain::new(&gen::Composite_projects_may_not_disable_declaration_emit, &[]),
+            Self::CompositeRequiresIncremental => MessageChain::new(&gen::Composite_projects_may_not_disable_incremental_compilation, &[]),
+            Self::IsolatedModulesRequiresModuleOrEs2015 => MessageChain::new(
+                &gen::Option_isolatedModules_can_only_be_used_when_either_option_module_is_provided_or_option_target_is_ES2015_or_higher, &[],
+            ),
+            Self::PreserveConstEnumsRequiredByIsolation { verbatim } => MessageChain::new(
+                &gen::Option_preserveConstEnums_cannot_be_disabled_when_0_is_enabled,
+                &[if *verbatim { "verbatimModuleSyntax" } else { "isolatedModules" }.to_owned()],
+            ),
+            Self::CheckJsRequiresAllowJs => MessageChain::new(
+                &gen::Option_0_cannot_be_specified_without_specifying_option_1,
+                &["checkJs".to_owned(), "allowJs".to_owned()],
+            ),
+            Self::DecoratorMetadataRequiresExperimentalDecorators => MessageChain::new(
+                &gen::Option_0_cannot_be_specified_without_specifying_option_1,
+                &["emitDecoratorMetadata".to_owned(), "experimentalDecorators".to_owned()],
+            ),
             Self::StrictPropertyInitializationRequiresStrictNullChecks => MessageChain::new(
                 &gen::Option_0_cannot_be_specified_without_specifying_option_1,
                 &[
@@ -268,6 +382,16 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
         violations
             .push(CompilerOptionViolation::ExactOptionalPropertyTypesRequiresStrictNullChecks);
     }
+    let verbatim = options.verbatim_module_syntax == Some(true);
+    let isolated = options.isolated_modules == Some(true);
+    if (isolated || verbatim)
+        && options
+            .out_file
+            .as_deref()
+            .is_some_and(|path| !path.is_empty())
+    {
+        violations.push(CompilerOptionViolation::OutFileConflictsWithIsolation { verbatim });
+    }
     if options.isolated_declarations == Some(true) {
         if options.allow_js {
             violations.push(CompilerOptionViolation::IsolatedDeclarationsConflictsWithAllowJs);
@@ -298,6 +422,14 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
         }
         if map_root {
             violations.push(CompilerOptionViolation::MapRootConflictsWithInlineSourceMap);
+        }
+    }
+    if options.composite == Some(true) {
+        if options.declaration == Some(false) {
+            violations.push(CompilerOptionViolation::CompositeRequiresDeclaration);
+        }
+        if options.incremental == Some(false) {
+            violations.push(CompilerOptionViolation::CompositeRequiresIncremental);
         }
     }
     if !source_map && !inline_source_map {
@@ -334,6 +466,18 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
     {
         violations.push(CompilerOptionViolation::DeclarationMapRequiresDeclaration);
     }
+    if isolated || verbatim {
+        if isolated
+            && options.module == Some(0)
+            && options.emit_script_target() < tsc_types::ScriptTarget::ES2015
+        {
+            violations.push(CompilerOptionViolation::IsolatedModulesRequiresModuleOrEs2015);
+        }
+        if options.preserve_const_enums == Some(false) {
+            violations
+                .push(CompilerOptionViolation::PreserveConstEnumsRequiredByIsolation { verbatim });
+        }
+    }
     // verifyCompilerOptions (:124891-124894) tests the raw module option,
     // including JavaScript falsiness of None=0. An absent module instead
     // belongs to the source-dependent TS6131 branch, not this relation.
@@ -359,6 +503,9 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
             violations.push(CompilerOptionViolation::ResolveJsonModuleConflictsWithModule);
         }
     }
+    if options.check_js == Some(true) && !options.allow_js {
+        violations.push(CompilerOptionViolation::CheckJsRequiresAllowJs);
+    }
     if options.emit_declaration_only == Some(true)
         && options.declaration != Some(true)
         && options.composite != Some(true)
@@ -366,6 +513,9 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
         violations.push(CompilerOptionViolation::EmitDeclarationOnlyRequiresDeclaration);
     }
 
+    if options.emit_decorator_metadata == Some(true) && !options.experimental_decorators {
+        violations.push(CompilerOptionViolation::DecoratorMetadataRequiresExperimentalDecorators);
+    }
     let target = options.emit_script_target();
     let jsx_factory = options
         .jsx_factory
@@ -392,7 +542,7 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
             violations
                 .push(CompilerOptionViolation::JsxFactoryConflictsWithAutomaticRuntime { jsx });
         }
-        if !is_isolated_entity_name(factory, target) {
+        if !is_entity_name_text(factory, target) {
             violations.push(CompilerOptionViolation::InvalidJsxFactory {
                 value: factory.to_owned(),
             });
@@ -414,7 +564,7 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
                 CompilerOptionViolation::JsxFragmentFactoryConflictsWithAutomaticRuntime { jsx },
             );
         }
-        if !is_isolated_entity_name(fragment_factory, target) {
+        if !is_entity_name_text(fragment_factory, target) {
             violations.push(CompilerOptionViolation::InvalidJsxFragmentFactory {
                 value: fragment_factory.to_owned(),
             });
@@ -428,6 +578,53 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
     }
     if jsx_import_source.is_some() && options.jsx == Some(2) {
         violations.push(CompilerOptionViolation::JsxImportSourceConflictsWithClassicRuntime);
+    }
+    // The option-only tail of verifyCompilerOptions is shared by config and
+    // createProgram, including effective defaults and key/value locations.
+    let module = options.emit_module_kind();
+    let resolution = options.emit_module_resolution_kind();
+    if verbatim && matches!(module, 2..=4) {
+        violations.push(CompilerOptionViolation::VerbatimModuleRequiresSupportedModule);
+    }
+    if options.allow_importing_ts_extensions == Some(true)
+        && options.no_emit != Some(true)
+        && options.emit_declaration_only != Some(true)
+        && options.rewrite_relative_import_extensions != Some(true)
+    {
+        violations.push(CompilerOptionViolation::AllowImportingTsExtensionsRequiresEmitMode);
+    }
+    if !matches!(resolution, 3..=100) {
+        if options.resolve_package_json_exports == Some(true) {
+            violations.push(CompilerOptionViolation::PackageJsonExportsRequiresModernResolution);
+        }
+        if options.resolve_package_json_imports == Some(true) {
+            violations.push(CompilerOptionViolation::PackageJsonImportsRequiresModernResolution);
+        }
+        if options.custom_conditions.is_some() {
+            violations.push(CompilerOptionViolation::CustomConditionsRequiresModernResolution);
+        }
+    }
+    if resolution == 100 && !matches!(module, 1 | 5..=99 | 200) {
+        violations.push(CompilerOptionViolation::BundlerRequiresEsModule);
+    }
+    if matches!(module, 100..=102 | 199) && !matches!(resolution, 3..=99) {
+        violations.push(CompilerOptionViolation::NodeModuleRequiresNodeResolution {
+            module: match module {
+                101 => "Node18",
+                102 => "Node20",
+                199 => "NodeNext",
+                _ => "Node16",
+            },
+            resolution: if module == 199 { "NodeNext" } else { "Node16" },
+        });
+    } else if matches!(resolution, 3 | 99) && !matches!(module, 100..=199) {
+        violations.push(CompilerOptionViolation::NodeResolutionRequiresNodeModule {
+            resolution: if resolution == 99 {
+                "NodeNext"
+            } else {
+                "Node16"
+            },
+        });
     }
     violations
 }
@@ -496,6 +693,12 @@ pub fn validate_paths_option_diagnostics(
                 Some(location.span().start()),
                 Some(location.span().length()),
                 message,
+            )
+            .with_file_path(
+                program_options
+                    .config_file()
+                    .filter(|config| config.diagnostic_file_name() == location.file_name())
+                    .map_or("", |config| config.diagnostic_file_path()),
             ),
             None => Diagnostic::new(None, None, None, message),
         });
@@ -594,16 +797,6 @@ fn automatic_jsx_runtime_name(jsx: Option<i32>) -> Option<&'static str> {
         Some(5) => Some("react-jsxdev"),
         _ => None,
     }
-}
-
-fn is_isolated_entity_name(value: &str, target: tsc_types::ScriptTarget) -> bool {
-    let mut parts = value.split('.').map(str::trim);
-    let Some(first) = parts.next() else {
-        return false;
-    };
-    !first.is_empty()
-        && is_identifier_text_for_target(first, target)
-        && parts.all(|part| !part.is_empty() && is_identifier_text_for_target(part, target))
 }
 
 #[cfg(test)]

@@ -1,0 +1,27 @@
+{
+  "head": "8884fcc05622df73812f9fb73cd51be9d9d67cf2",
+  "command": [
+    "python3",
+    "/Users/hiramatsu/dev/tsc-rs-dec-literal-prologue/target/decorator-literal-prologue-runs/tools/compare-with-full62.py",
+    "/Users/hiramatsu/dev/tsc-rs-dec-literal-prologue/target/decorator-literal-prologue-runs/final-full530/captures",
+    "/Users/hiramatsu/dev/tsc-rs-dec-followup/target/decorator-followup-runs/full62-reference/captures"
+  ],
+  "actual_exit": 0,
+  "comparison": {
+    "cases": 530,
+    "exact_twice": 530,
+    "failed": 0,
+    "inconsistent": 0,
+    "changed_vs_full62": 0,
+    "missing_vs_full62": 0,
+    "extra_vs_full62": 0
+  },
+  "current_run_receipt_sha256": "b00aac565fddaec1c6a75150febaf6156bfc0a1bb717b344bae5b4f34dfab873",
+  "executed_binary_sha256": "4a8e07b7ea03c322ae8edef92452de00dfdd7e6c7b3515c0c1a785c623693c63",
+  "comparison_script_sha256": "23507016ab00deb87fda70080aa926cbeaa90516dd5bc6486a5f760c7af2227f",
+  "log_sha256": "6d510ed86f731eff8c5d817026fda9e10c7ad85faac8811bc6006e5bbb1326f5",
+  "reference_manifest_path": "/Users/hiramatsu/dev/tsc-rs-dec-followup/target/decorator-followup-runs/full62-reference/full62-reference-captures.json",
+  "reference_manifest_sha256": "badaa9c02d9eb7be794eaded51ee368afec574767b2e4c61381695168d1a1e68",
+  "reference_captures_dir": "/Users/hiramatsu/dev/tsc-rs-dec-followup/target/decorator-followup-runs/full62-reference/captures",
+  "finished_at": "2026-09-11T12:16:45.230874+00:00"
+}

@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "slice": "H2.8a decorator literal-name/lexical-prologue follow-up: emitter lib + contracts",
+  "head": "7edf10c5163b69e7ec07fa0bcfddbd4824c5e565",
+  "run_dir": "/Users/hiramatsu/dev/tsc-rs-dec-literal-prologue/target/decorator-prologue-followup-runs/final-emitter",
+  "production_inputs": {
+    "crates/emitter/src/builtins/class_fields.rs": "11417d65891a77644bea11f88fe08c8ae1e6256796a2cb6ec1f1285262255de4",
+    "crates/emitter/src/builtins/class_fields/downlevel.rs": "c8d7f98dbaf39709faca3a4e6a01d7d87310a8ca595a9105d568bb74549c791d",
+    "crates/emitter/src/builtins/es2018.rs": "8af9383eae9996b0a26da549257f0cbaf4108a78377595bb4e3b0bb6d59027cc",
+    "crates/emitter/src/builtins/generated_bindings.rs": "510a111813e241c2f7a8df3b54399a0449929d67781b7da483a31065236b43a7",
+    "crates/emitter/src/builtins/standard_decorators.rs": "14ee9d92657add8cd8c9167ca551c28968d7d1290730ed7be4ecbfd0c45d91e9",
+    "crates/emitter/src/builtins/target_bindings.rs": "613e81d2cd6f09744266ef7126b4eaeb4d555f9ad75cbd57111c3f038c51c23e",
+    "crates/emitter/src/writer.rs": "edcb904411a82b86501b152fae71605e75245ac11fd4300040f7f4ad6bac9c51",
+    "crates/emitter/src/execute.rs": "b9768522486df73b4a75af47186ac6b262e7c6ed340bebea53909841a6be0bb6",
+    "crates/emitter/src/printer.rs": "f1aed924a08bb162367120102386c76e64ed188c1c080d97181630691415c9f2",
+    "crates/emitter/src/builtins/jsx.rs": "0fdc90efc326ba25e6b5f2fe0c2f98f4478ed5422b151a689ed078d8a9664300",
+    "crates/emitter/src/metadata.rs": "117da2d571020007727c6a27c0885c089ac1af368d8f8a1ffe67d0691267e36d",
+    "crates/emitter/src/builtins/es2015.rs": "be0cfa774263d6b67e34c8ff225ac3ff11d3ce321c2d44125b5e566b6cc11d78",
+    "crates/emitter/src/builtins/system.rs": "e41228bd9f7766f6e4d61070ad98ecfe64bdd65c3aa966ddbcea83d7fea48ed1"
+  },
+  "command": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "test",
+    "-p",
+    "tsc-rs-emitter",
+    "--lib",
+    "--test",
+    "contracts",
+    "--",
+    "--test-threads=1"
+  ],
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-dec-literal-prologue/target/decorator-literal-prologue-acceptance",
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "RUSTC_WRAPPER": "",
+    "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-dec-literal-prologue/target/decorator-prologue-followup-runs/final-emitter/captures"
+  },
+  "actual_exit": 0,
+  "finished_at": "2026-09-12T00:06:16.152294+00:00",
+  "log_sha256": "4aab74b5bce3a9a4479bc69d945b43738a69bc8b25127f6fea6984984d495028",
+  "prelaunch_sha256": "8dbe47b2188547c4924ef9190ae1090d4791aa2dc9d6d3da3262853f5a7d4e81",
+  "archive_sha256": "ce0a4668e843acfa410396769c2a3e74790c10d0976f23652f22f0fe2d20459e",
+  "suite_results": [
+    {
+      "status": "ok",
+      "passed": 495,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "status": "ok",
+      "passed": 452,
+      "failed": 0,
+      "ignored": 0
+    }
+  ],
+  "executed_binaries": {
+    "/Users/hiramatsu/dev/tsc-rs-dec-literal-prologue/target/decorator-literal-prologue-acceptance/debug/deps/tsc_emitter-4eacdde07688abea": "bd0e9cd1da5c99429fc09d817e99a571075511b50da8390198c54872bbbb9bd6",
+    "/Users/hiramatsu/dev/tsc-rs-dec-literal-prologue/target/decorator-literal-prologue-acceptance/debug/deps/contracts-ac1b8aeedb2a27c7": "9f7964266646776089534836429c2b5222fd6ded869d68b7bb18228f2296d64c"
+  },
+  "source_unchanged_after_run": true
+}

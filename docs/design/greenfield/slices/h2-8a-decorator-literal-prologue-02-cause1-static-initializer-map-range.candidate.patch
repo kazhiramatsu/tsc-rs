@@ -1,0 +1,340 @@
+From a41921f1a14498c033895f7945bdfd613dbb064a Mon Sep 17 00:00:00 2001
+From: kazhiramatsu <kazutakehiramatsu@gmail.com>
+Date: Fri, 11 Sep 2026 19:49:20 +0900
+Subject: [PATCH] fix(emitter): map the pending static initializer statements
+ of decorated methods to the class name
+
+tsc-port: transformClassLike @6.0.3 (_tsc.js:99502-99510) and
+visitClassStaticBlockDeclaration (100005-100040): each pending static
+initializer (`__runInitializers(classThis, _staticExtraInitializers)`,
+created by createClassInfo with the class name's source map range) is
+wrapped in an expression statement that takes the same range
+(`setSourceMapRange(initializerStatement, getSourceMapRange(initializer))`).
+The Rust statement carried no range, so the printer emitted the end
+mapping only before the semicolon; tsc also maps the end after it.
+
+`materialize_pending_initializer_statements` now copies an explicitly set
+source map range from the initializer onto its statement; an initializer
+without one leaves the statement unmapped (tsc's -1 position).
+
+Focused run (literal-member-kinds, 48 commands): 48 exact twice, exit 0,
+sources and witness inputs unchanged after the run
+(ratchets/h2-8a-decorator-literal-prologue-cause1-focused.v1.json).
+---
+ .../src/builtins/standard_decorators.rs       |  35 ++-
+ ...or-literal-prologue-cause1-focused.v1.json | 246 ++++++++++++++++++
+ 2 files changed, 280 insertions(+), 1 deletion(-)
+ create mode 100644 ratchets/h2-8a-decorator-literal-prologue-cause1-focused.v1.json
+
+diff --git a/crates/emitter/src/builtins/standard_decorators.rs b/crates/emitter/src/builtins/standard_decorators.rs
+index 8cd052bf5..0c66f8cbe 100644
+--- a/crates/emitter/src/builtins/standard_decorators.rs
++++ b/crates/emitter/src/builtins/standard_decorators.rs
+@@ -3764,6 +3764,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
+     /// tsc-port: visitClassStaticBlockDeclaration @6.0.3
+     /// tsc-hash: 5ba6f2d5e5b218a418e3ca67a6714022b5a77e460c16e042d950b765f0a6504a
+     /// tsc-span: _tsc.js:100005-100040
++    ///
++    /// Each pending static initializer becomes its own statement, and the
++    /// statement takes the initializer's source map range
++    /// (`setSourceMapRange(initializerStatement, getSourceMapRange(initializer))`,
++    /// also in transformClassLike's trailing block, _tsc.js:99502-99510): a
++    /// method extra-initializer run carries the class name's range on both
++    /// the call and the statement, so the printer maps the end of the
++    /// statement after its semicolon as well as the end of the call.
+     fn materialize_pending_initializer_statements(
+         &mut self,
+         pending: PendingDecoratorInitializerBatch,
+@@ -3771,11 +3779,36 @@ impl<'context> StandardDecoratorVisitor<'context> {
+         let expressions = self.materialize_pending_initializer_expressions(pending)?;
+         let mut statements = Vec::with_capacity(expressions.len());
+         for expression in expressions {
+-            statements.push(self.create_expression_statement(expression)?);
++            let statement = self.create_expression_statement(expression)?;
++            let statement = self.copy_source_map_range(statement, expression)?;
++            statements.push(statement);
+         }
+         Ok(statements)
+     }
+ 
++    /// `setSourceMapRange(node, getSourceMapRange(source))` for a synthesized
++    /// `source`: only an explicitly set range is copied (a synthesized node
++    /// without one yields a negative position upstream, which the printer
++    /// ignores), so the node stays unmapped otherwise.
++    fn copy_source_map_range(
++        &mut self,
++        node: TransformNode,
++        source: TransformNode,
++    ) -> Result<TransformNode, TransformError> {
++        let range = self
++            .context
++            .arena()
++            .metadata(source)
++            .and_then(crate::EmitMetadata::source_map_range);
++        if let Some(range) = range {
++            self.context
++                .arena_mut()?
++                .metadata_mut(node)
++                .set_source_map_range(range);
++        }
++        Ok(node)
++    }
++
+     /// tsc-port: prepareConstructor @6.0.3
+     /// tsc-hash: 2a79ab99613abecdfd7e854650bbaac5f5b831bde37c6c0a45fd71d923d79954
+     /// tsc-span: _tsc.js:99747-99758
+diff --git a/ratchets/h2-8a-decorator-literal-prologue-cause1-focused.v1.json b/ratchets/h2-8a-decorator-literal-prologue-cause1-focused.v1.json
+new file mode 100644
+index 000000000..639de8377
+--- /dev/null
++++ b/ratchets/h2-8a-decorator-literal-prologue-cause1-focused.v1.json
+@@ -0,0 +1,246 @@
++{
++  "version": 1,
++  "slice": "H2.8a decorator literal-name/lexical-prologue follow-up: cause1-r1: literal-member-kinds",
++  "head": "e8281f286588201707af3db8c6d431201bd8a5bd",
++  "run_dir": "/Users/hiramatsu/dev/tsc-rs-dec-literal-prologue/target/decorator-literal-prologue-runs/cause1-r1-literal-member-kinds",
++  "group": "literal-member-kinds",
++  "case_filter": null,
++  "production_inputs": {
++    "crates/emitter/src/builtins/class_fields.rs": "11417d65891a77644bea11f88fe08c8ae1e6256796a2cb6ec1f1285262255de4",
++    "crates/emitter/src/builtins/class_fields/downlevel.rs": "26e754aef2c85a73e5851a93b045ecfc49d0399cdeceedb4b1050338d019bbc5",
++    "crates/emitter/src/builtins/es2018.rs": "8af9383eae9996b0a26da549257f0cbaf4108a78377595bb4e3b0bb6d59027cc",
++    "crates/emitter/src/builtins/generated_bindings.rs": "510a111813e241c2f7a8df3b54399a0449929d67781b7da483a31065236b43a7",
++    "crates/emitter/src/builtins/standard_decorators.rs": "21e9d078ea84a358e3d17a3ec4c961ed4be14c7c1dffb7756b4ed451782a62e6",
++    "crates/emitter/src/builtins/target_bindings.rs": "613e81d2cd6f09744266ef7126b4eaeb4d555f9ad75cbd57111c3f038c51c23e",
++    "crates/emitter/src/execute.rs": "6f4007e668fb2e3e2bd9ee9782bb87925f08779ca2b623b438aadf14e71b5ab1",
++    "crates/emitter/src/printer.rs": "cd0ba7f9e7c2ff899dbe85ee69939404f4b9b75b18f9414237203389b2db9834",
++    "crates/emitter/src/builtins/jsx.rs": "0fdc90efc326ba25e6b5f2fe0c2f98f4478ed5422b151a689ed078d8a9664300",
++    "crates/emitter/src/metadata.rs": "117da2d571020007727c6a27c0885c089ac1af368d8f8a1ffe67d0691267e36d",
++    "crates/emitter/src/builtins/es2015.rs": "be0cfa774263d6b67e34c8ff225ac3ff11d3ce321c2d44125b5e566b6cc11d78",
++    "crates/emitter/src/builtins/system.rs": "e41228bd9f7766f6e4d61070ad98ecfe64bdd65c3aa966ddbcea83d7fea48ed1"
++  },
++  "fixtures": {
++    "crates/compiler/tests/fixtures/decorator-transform-order.json": "c831b004c92557b383d19e364829ae960f65361a8253a24a1f53aa4248c8a4ae",
++    "crates/compiler/tests/fixtures/decorator-super-paths.json": "7ef1f767d49eb7f3c89008ba1120a4e93f9de2f1c063bd550c9988fdb0e998de",
++    "crates/compiler/tests/fixtures/decorator-name-owners.json": "9cc04b4a69e083a0660f7709b5e84b12a9e3a92acb66744fe23448149905a71e",
++    "crates/compiler/tests/fixtures/decorator-source-followup.json": "483ee859d603819ae6039d7fd743d4bc59e44f886e4787562128a0905a25cc0d",
++    "crates/compiler/tests/fixtures/decorator-source-followup-top-level.json": "70ed0e80735f014779bf06a0fcd9effe72b48aa118ec493896906581f7ce2327",
++    "crates/compiler/tests/fixtures/decorator-literal-member-kinds.json": "775e60a15d2bbc0442e6203b3c8e46297a65359f08bbc2c6f215601fb62ca353",
++    "crates/compiler/tests/fixtures/decorator-literal-key-spelling.json": "eca126749d004b2f5db88f0271368285131b62d7985f3c52700a6a8d3c763243",
++    "crates/compiler/tests/fixtures/decorator-lexical-prologue.json": "8b84990296c7ec1310fb0e27bd5285143a7b2d5d81208374b1968d1222d3d9a5",
++    "crates/compiler/tests/fixtures/decorator-lexical-prologue-readers.json": "097c2489317c13432f6612024e5f30cdfa24db60218b98c0a094419721f3e68f",
++    "crates/compiler/tests/fixtures/decorator-lexical-prologue-readers-v2.json": "8f81436975d2d68d47bbaa81b8c6ab221c2a9cf26ed86dd180c7481461b013fa",
++    "crates/compiler/tests/fixtures/decorator-transform-order-inputs.json": "25afc465f2ea240a23aa40eddcb581eaa7129636fb22d2541ac35d260015cff6",
++    "crates/compiler/tests/fixtures/decorator-super-paths-inputs.json": "185c31d2379924edf965cc9ec618e3978df876a5da48d384549a859cc33321b7",
++    "crates/compiler/tests/fixtures/decorator-name-owners-inputs.json": "c6268e789ceb3a5e3ade3011915a70e03181156d0d3294b2ac5540c8950ea29b",
++    "crates/compiler/tests/fixtures/decorator-source-followup-inputs.json": "21abbe088e9d58a23537db5805fa5d2ec3f1873d3e9070b6c73977e321d93b73",
++    "crates/compiler/tests/fixtures/decorator-source-followup-top-level-inputs.json": "51c180344935e1488f31255fad66a3844f7c73fdc3f1aff43dea15b7ea46693e",
++    "crates/compiler/tests/fixtures/decorator-literal-member-kinds-inputs.json": "08b8acf012e3a3f6bf800e554a770e37e5d0600adf4fad980236992ff8d88667",
++    "crates/compiler/tests/fixtures/decorator-literal-key-spelling-inputs.json": "faef494d45262ad93072d0725d305f70ba2898ed5e93d4598cdddf6e7536efc7",
++    "crates/compiler/tests/fixtures/decorator-lexical-prologue-inputs.json": "edddefe501ca59fe803e70eda21907f86f30cbb7582d0ea9d8a22cf7b859bae4",
++    "crates/compiler/tests/fixtures/decorator-lexical-prologue-readers-inputs.json": "5ded2ea96dbac919507109289d66b17cee5ed6c5aa88006ae25964498d0529c7",
++    "crates/compiler/tests/fixtures/decorator-lexical-prologue-readers-v2-inputs.json": "e83b0ddf6d2415cde84e4a1e6a0ec3ef76d08b3152763efa6ede92dabd3aa321"
++  },
++  "witness_test_path": "crates/compiler/tests/integration/h2_8a_decorator_next_witnesses.rs",
++  "witness_test_sha256": "87d994c86388014656a278c1ebb82a28617dffa9dbf04eb05c0f0cdbb0107ccb",
++  "runner_sha256": "ca8b3950a658fd39212ba3a726013ae18a5fec660f84f548f8e6fbc724573382",
++  "typescript_source_sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
++  "command": [
++    "taskpolicy",
++    "-b",
++    "nice",
++    "-n",
++    "15",
++    "cargo",
++    "test",
++    "-p",
++    "tsc-rs-compiler",
++    "--test",
++    "contracts",
++    "h2_8a_decorator_next_witnesses::decorator_next_witnesses_match_complete_typescript_observations",
++    "--",
++    "--exact",
++    "--nocapture",
++    "--test-threads=1"
++  ],
++  "environment": {
++    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-dec-literal-prologue/target/decorator-literal-prologue-acceptance",
++    "CARGO_BUILD_JOBS": "2",
++    "CARGO_INCREMENTAL": "0",
++    "CARGO_PROFILE_TEST_DEBUG": "0",
++    "RUSTC_WRAPPER": "",
++    "TSRS_H2_5G_WORKERS": "2",
++    "TSRS_CONFORMANCE_WORKERS": "2",
++    "TSC_RS_DECORATOR_NEXT_CASE_SET": "literal-member-kinds",
++    "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-dec-literal-prologue/target/decorator-literal-prologue-runs/cause1-r1-literal-member-kinds/captures"
++  },
++  "actual_exit": 0,
++  "finished_at": "2026-09-11T10:48:20.624340+00:00",
++  "log_sha256": "a7d59e11475cd441b5ff8c44ac34c7b6fdab1842c0b377ac816cc043ca296d0c",
++  "prelaunch_sha256": "e329eb88179cc47b1d28278c1fa77b637c8649ce3e97e89bd8813fe56bfd35e0",
++  "archive_sha256": "5d8cce47db9a8be125785dd8b993842f9d89def9b416790b7b74bcf2dd520ed3",
++  "executed_binary": "/Users/hiramatsu/dev/tsc-rs-dec-literal-prologue/target/decorator-literal-prologue-acceptance/debug/deps/contracts-9e4a06810410a5d6",
++  "executed_binary_sha256": "9a84a263c80d176fc0194dd9e1f1de4284bfd1248cdc82b3ed97ac22266f125c",
++  "archived_binary": "/Users/hiramatsu/dev/tsc-rs-dec-literal-prologue/target/decorator-literal-prologue-runs/cause1-r1-literal-member-kinds/binaries/contracts-9e4a06810410a5d6",
++  "summary": {
++    "cases": 48,
++    "exact_twice": 48,
++    "failed": 0,
++    "inconsistent": 0,
++    "capture_files": 96
++  },
++  "exact_twice": [
++    "decorator-literal-member-kinds/es2015/esnext/define/auto-accessor-identifier-control",
++    "decorator-literal-member-kinds/es2015/esnext/define/auto-accessor-string",
++    "decorator-literal-member-kinds/es2015/esnext/define/getter-identifier-control",
++    "decorator-literal-member-kinds/es2015/esnext/define/getter-string",
++    "decorator-literal-member-kinds/es2015/esnext/define/method-identifier-control",
++    "decorator-literal-member-kinds/es2015/esnext/define/method-string",
++    "decorator-literal-member-kinds/es2015/esnext/define/setter-identifier-control",
++    "decorator-literal-member-kinds/es2015/esnext/define/setter-string",
++    "decorator-literal-member-kinds/es2015/esnext/set/auto-accessor-identifier-control",
++    "decorator-literal-member-kinds/es2015/esnext/set/auto-accessor-string",
++    "decorator-literal-member-kinds/es2015/esnext/set/getter-identifier-control",
++    "decorator-literal-member-kinds/es2015/esnext/set/getter-string",
++    "decorator-literal-member-kinds/es2015/esnext/set/method-identifier-control",
++    "decorator-literal-member-kinds/es2015/esnext/set/method-string",
++    "decorator-literal-member-kinds/es2015/esnext/set/setter-identifier-control",
++    "decorator-literal-member-kinds/es2015/esnext/set/setter-string",
++    "decorator-literal-member-kinds/es2022/esnext/define/auto-accessor-identifier-control",
++    "decorator-literal-member-kinds/es2022/esnext/define/auto-accessor-string",
++    "decorator-literal-member-kinds/es2022/esnext/define/getter-identifier-control",
++    "decorator-literal-member-kinds/es2022/esnext/define/getter-string",
++    "decorator-literal-member-kinds/es2022/esnext/define/method-identifier-control",
++    "decorator-literal-member-kinds/es2022/esnext/define/method-string",
++    "decorator-literal-member-kinds/es2022/esnext/define/setter-identifier-control",
++    "decorator-literal-member-kinds/es2022/esnext/define/setter-string",
++    "decorator-literal-member-kinds/es2022/esnext/set/auto-accessor-identifier-control",
++    "decorator-literal-member-kinds/es2022/esnext/set/auto-accessor-string",
++    "decorator-literal-member-kinds/es2022/esnext/set/getter-identifier-control",
++    "decorator-literal-member-kinds/es2022/esnext/set/getter-string",
++    "decorator-literal-member-kinds/es2022/esnext/set/method-identifier-control",
++    "decorator-literal-member-kinds/es2022/esnext/set/method-string",
++    "decorator-literal-member-kinds/es2022/esnext/set/setter-identifier-control",
++    "decorator-literal-member-kinds/es2022/esnext/set/setter-string",
++    "decorator-literal-member-kinds/esnext/esnext/define/auto-accessor-identifier-control",
++    "decorator-literal-member-kinds/esnext/esnext/define/auto-accessor-string",
++    "decorator-literal-member-kinds/esnext/esnext/define/getter-identifier-control",
++    "decorator-literal-member-kinds/esnext/esnext/define/getter-string",
++    "decorator-literal-member-kinds/esnext/esnext/define/method-identifier-control",
++    "decorator-literal-member-kinds/esnext/esnext/define/method-string",
++    "decorator-literal-member-kinds/esnext/esnext/define/setter-identifier-control",
++    "decorator-literal-member-kinds/esnext/esnext/define/setter-string",
++    "decorator-literal-member-kinds/esnext/esnext/set/auto-accessor-identifier-control",
++    "decorator-literal-member-kinds/esnext/esnext/set/auto-accessor-string",
++    "decorator-literal-member-kinds/esnext/esnext/set/getter-identifier-control",
++    "decorator-literal-member-kinds/esnext/esnext/set/getter-string",
++    "decorator-literal-member-kinds/esnext/esnext/set/method-identifier-control",
++    "decorator-literal-member-kinds/esnext/esnext/set/method-string",
++    "decorator-literal-member-kinds/esnext/esnext/set/setter-identifier-control",
++    "decorator-literal-member-kinds/esnext/esnext/set/setter-string"
++  ],
++  "failed": [],
++  "inconsistent": [],
++  "captures": {
++    "10d5d3acf2d730db761ec49b77ff81856fbe0652f06be6fc1623ac36d44841fe-0.json": "fa00e1f26355d66a8d7e38bac91f1c1738bbd4a1d91777804a2cebcce9ad1870",
++    "10d5d3acf2d730db761ec49b77ff81856fbe0652f06be6fc1623ac36d44841fe-1.json": "995d74473e3c07cdb7bd37b62277c52717be99343c7568462548237508b709fe",
++    "13bac2743ad3e9a748b338f22a4919f7a8789b00923bada4f4da681d66e9ab61-0.json": "0e772d29d9534b04754fba9efc5f3badfd1e50faa14e8b5627ceeb9a0c428705",
++    "13bac2743ad3e9a748b338f22a4919f7a8789b00923bada4f4da681d66e9ab61-1.json": "1d9c0626c44877397e2fae48fd156bfe6e33a4d543dd97e0bcf098358c118896",
++    "14f2ca27200decb5a70863572a2a82299faa1cc7baaad1a17294f6395e52340f-0.json": "1c3afcc6083490ff0295a2c89404281f9ce31bdab911a3c853561806f9f1de24",
++    "14f2ca27200decb5a70863572a2a82299faa1cc7baaad1a17294f6395e52340f-1.json": "e7d4223b677a3299a6b07dadd27f28ffa81f72b69b053da8554a117a3a36eb40",
++    "1978f6e8c6a500fc474b359ec3ec08b773ddb9155fae888bf277e899e6d160a3-0.json": "25edd94639dffd1423034982d28df59c162429b1cc48ffc737c408b4aedf0428",
++    "1978f6e8c6a500fc474b359ec3ec08b773ddb9155fae888bf277e899e6d160a3-1.json": "52d5539bb6049397647e42ba2328a4edc3850816eed0dd96221133f4619e09b5",
++    "1b7343f4df1d94d8a5c264681317c166fe40adcfb5c860f24e982e61b924761c-0.json": "60bbdf0c1e734b7005920f0cc153adeef7e8a59c559740de3ba8399dc982526f",
++    "1b7343f4df1d94d8a5c264681317c166fe40adcfb5c860f24e982e61b924761c-1.json": "057fec65d26710aa5c70db69eb7780780ac831ec83c54a90cec0da27e91ad462",
++    "21d3a34e897cfea3fa7ac4ac9b84e5c115a3ff30ceaa68a194bbe776121b4510-0.json": "7e39a671561068fd28abdfdeeb53315b19c470d13aea4483ac5e5f9b85a61ac6",
++    "21d3a34e897cfea3fa7ac4ac9b84e5c115a3ff30ceaa68a194bbe776121b4510-1.json": "7a98916e9a09ca08262a730d88b4242317129d99400e50436c485670f0cb9e8f",
++    "23597159995ea01a30094de13042ecad0480ca45d9482f76b64cdc529029f735-0.json": "4a168935546007863e096d12c3261f32a9f2779fbc031e6b552eb6e487e778b4",
++    "23597159995ea01a30094de13042ecad0480ca45d9482f76b64cdc529029f735-1.json": "68641155a6c260fcf4d04c01c1d19a4fdb3d7baf659608326684a307c171e108",
++    "248c9ed5e8ffb022d10695c481573d56ea6b61270eae546556a4590e8ad08e56-0.json": "c5997115092e343de835b44e0aeb632bce927275bd9f248f44d68c740846b1ed",
++    "248c9ed5e8ffb022d10695c481573d56ea6b61270eae546556a4590e8ad08e56-1.json": "71725c98839299d066ae0171765b0b095f006a5278c0c1591920ac296e439dad",
++    "2632d9295339e1933551326aab7026d73c28c75504d407278871e89f74e54bda-0.json": "0cb6fb9379083654b5d310f67e498ad65e9871e3cb0699824832078e294badce",
++    "2632d9295339e1933551326aab7026d73c28c75504d407278871e89f74e54bda-1.json": "3d936d2c2d7f05306fc2fde344d694798fd717de5787022a220fcb83ab3751a6",
++    "26add2bb1a7afdc94e2269b07a9669b1cf5d84ddbb9cc0ff568bbbdee17a1b3f-0.json": "f371600ea8aa4caa0838f1bb1a2335cd4a93055dbf500080b2c2f58b65a50916",
++    "26add2bb1a7afdc94e2269b07a9669b1cf5d84ddbb9cc0ff568bbbdee17a1b3f-1.json": "2a29b91988730e2d8a866c1346a87ef5593295362d51ab3e7cfa497ddfdfaf3c",
++    "2a24ea80d05fb9a6f85116671a420e308d37660a4f9e001aed7b2efbd7ffe20b-0.json": "19fb4b0b462dbd86b50ba4cb82129e21115caeee98a1e6c9989cc492917da798",
++    "2a24ea80d05fb9a6f85116671a420e308d37660a4f9e001aed7b2efbd7ffe20b-1.json": "c9d802412e129008a0e7761965c67893d59df906f0c39d9c692534599eaccb60",
++    "2d62033f85be33c0a8b7ada93f9eff4c2e1df18e7697d4075caa3aab27bc3cd1-0.json": "dab728131d6b447b1b4f70bfdd7b9594eaa9617bd1188891352a165dc1d872aa",
++    "2d62033f85be33c0a8b7ada93f9eff4c2e1df18e7697d4075caa3aab27bc3cd1-1.json": "b57f3a77faf02c1ef494e943508a159cd7ed7e378d195c5ba188d22101a24a22",
++    "3a5f4eac2ba205ba0bacd1efb87757f02b78232cab097d83bdb62bde2e32aa2c-0.json": "21614846ccb6105d91766de73b2773eb6e9d8be90c058d2572aa173536a1428a",
++    "3a5f4eac2ba205ba0bacd1efb87757f02b78232cab097d83bdb62bde2e32aa2c-1.json": "9bc0e09d639896450e476f9c0786c8271d94b6df5b5b2b3e01be5f37716c8dbd",
++    "3f4765fac4ac2e076f3f161f51f4e9cece047f5a565cdefb7c22c6c0c3e7a03c-0.json": "99e928a458adf11126d09f828bb2c52b9b68fe98ddb1a517f8c3810d0d843ca7",
++    "3f4765fac4ac2e076f3f161f51f4e9cece047f5a565cdefb7c22c6c0c3e7a03c-1.json": "f9c07e5fa7d2d94026d0533019db7cc5ca11b2c11938889664e8e92f0daeb1f9",
++    "4b4a261a57ecee6f5b7faa91cbfa45c95e5adba8b8089368b2e75e6512032048-0.json": "ed8f66e9c6f545187b6e530a77a454cffae264234a30d7874074fa40d37b8e66",
++    "4b4a261a57ecee6f5b7faa91cbfa45c95e5adba8b8089368b2e75e6512032048-1.json": "e780e3f06f517643d3c366be7c79b5dc57f6ba5c0c473ef5d6b8f47d16edd4ff",
++    "4c78404ce4e59b94a5cfdbcc83a6cc7597b594da1a6647ea57160486ee800db9-0.json": "730757fe583f5d19f6e2c12a9b4464d20846275914061545bbaa38dc527bd4c4",
++    "4c78404ce4e59b94a5cfdbcc83a6cc7597b594da1a6647ea57160486ee800db9-1.json": "7c1d0d73c7f1cd95570acdb6a1c567e33fa01b5e8ef449a8f6b4a6bac461607b",
++    "4f97d43358b46ada2c716eba5efb55396a75015f03c0e135837c76798b6f6f5c-0.json": "98b2e77ed0dad306f561a765f47594fe7da81ae43aa643b9b4ce6b3f5b586f64",
++    "4f97d43358b46ada2c716eba5efb55396a75015f03c0e135837c76798b6f6f5c-1.json": "40e86bfab74a9d94aca4c0dee49f1878b3cdf1729ef0b5bc2edf04baad9c2ce9",
++    "57acb54ee98f7ad9199571e614f0e5c1f6bb2b91b37099434900039e587bfa54-0.json": "732ba13eec98c4b26897d1adf43191ad3edf9dc52b64fd6994e458a297dbea54",
++    "57acb54ee98f7ad9199571e614f0e5c1f6bb2b91b37099434900039e587bfa54-1.json": "74db998f6d6c208d83866b214cf43d015a3a61d8a9f22ec26412b0a7e793c31f",
++    "5e5c9046fa78cd95e98f3c1079c5a8d7161654bafdb287af190d566f13703574-0.json": "8c91b0f8ce6a005bb6df3a48e80b7f6729119a2acc923a7864d64d85eb006725",
++    "5e5c9046fa78cd95e98f3c1079c5a8d7161654bafdb287af190d566f13703574-1.json": "59f529dd240ccd93e97ff2e5f2e181fd4521b5a53d730462404f005cc4fcd40a",
++    "72be90d16765a570eaea9e03c4caca99f7de88f9a289458b0e902082532874a2-0.json": "1890307a84d4a6c2c1e8dc17bb6e4737f93aad3be9b3cc7fb1b5899d9f60ec6b",
++    "72be90d16765a570eaea9e03c4caca99f7de88f9a289458b0e902082532874a2-1.json": "0f445386e1c63aff15a0aa57e52e4cd4ee89552c7111e6479270b2032c910291",
++    "743aee027597406f894d01e72d6293d117a6f41729034caedd054ea48fac3df4-0.json": "1a272eec4c65f1974cc4670e8933702c548811c519c0bf6cc032afb8dce24a3f",
++    "743aee027597406f894d01e72d6293d117a6f41729034caedd054ea48fac3df4-1.json": "b243a5abb9e179b0c1a065be814dd10c9d26fbbfbfa058c05e4e056415390b77",
++    "7b00cf74ba4d6d67a052ed537b9f3765c124944e185044f55ec9bcc8ae164b81-0.json": "c65bfbb80e0c2ce07259a553a0cbf28e36ddcdaa8479838d70fcebad16ba34a8",
++    "7b00cf74ba4d6d67a052ed537b9f3765c124944e185044f55ec9bcc8ae164b81-1.json": "3b95705f8951b8073d2cb6993537681930e85642d88e57309cfe1382fb538742",
++    "84a0e54cb82b4849a6ad4649e9f2ac76925e61ac25c418891b454c17f842b0bc-0.json": "0c402a5a55e47a065639000c3e39f652857e14442aa5180068ba43b07234e39d",
++    "84a0e54cb82b4849a6ad4649e9f2ac76925e61ac25c418891b454c17f842b0bc-1.json": "65db2fb87fb8d3296c044b53cf20d572ec15e6121365e5d7e0878ecfecb1044c",
++    "855a495b99929131887a7689a2a45e27406439e2f2b82303a894386ec697429a-0.json": "59bd9865112e8ed3d86424a962b73dfaf86b8538c90902389628f82f31aa3412",
++    "855a495b99929131887a7689a2a45e27406439e2f2b82303a894386ec697429a-1.json": "369da3de7fc82e1c0ee0158af73a224cf17118e3b040a74cc69d0b9aed7106ed",
++    "9443cb36a2ef5df08ebea71f459bdb0af1f5baebb786f0d9c06479dd51199397-0.json": "79354719a99c1ff4962c4986a23a763cb7bff4d41bb8ae800bfc0c3c44fddaae",
++    "9443cb36a2ef5df08ebea71f459bdb0af1f5baebb786f0d9c06479dd51199397-1.json": "fa4eee5f815a5dc6989347ef5195a75f3909b1b00303d2531fbdb382fd95d07e",
++    "94b957d978a8cb7d1e0a788b08730f6069d6982ba8bd23df8215bcce38eb94e5-0.json": "8a43defb7871df316146907c6b6a793c274cb0ba4b32a6581793020acf617cd1",
++    "94b957d978a8cb7d1e0a788b08730f6069d6982ba8bd23df8215bcce38eb94e5-1.json": "333da23534e24907ba92ce4eedbf4175d036fc53d73699cce39ba6033e695a28",
++    "9acbdce7a4cc9e8654b377c475bcabecbc1b10a06ac4bcaca06b26e7fa2f4138-0.json": "147da3f8a258a3f188ade95fd9f2ffe1fa5d1c0076ee8c9e97b37d0d788b6d4a",
++    "9acbdce7a4cc9e8654b377c475bcabecbc1b10a06ac4bcaca06b26e7fa2f4138-1.json": "bcaa50b422d29cf25cd7f5ff9c7153b96e3385de964dbfa86bed210e1294144c",
++    "9bcc6e283f098a5014b315b4566c9ba29b382bcdfe07c480ddbf7d197d0fd512-0.json": "7b2de90eb6c65f48f038b3b699e1c003bd783f26554eccf9293f33c04664de93",
++    "9bcc6e283f098a5014b315b4566c9ba29b382bcdfe07c480ddbf7d197d0fd512-1.json": "6bda2551d8f377a83886d2c0af9ffba1ad13986344613760dc21dbad9d39a3f8",
++    "9cdbb3b96330f160e26e0dba019bfaea2eb75f25a295c722e6a895ed55bd8a7e-0.json": "f5218bb2d7f98f1250f60249741963d0c23d281c60fbd22c0d7282e3c1910b25",
++    "9cdbb3b96330f160e26e0dba019bfaea2eb75f25a295c722e6a895ed55bd8a7e-1.json": "d40ab733a1b3606b355ea843a4448e2b607b5dd2faf12e03c69e3e126dfc7d37",
++    "a22e3874dbc2927b5c7051e129cdf236327ee5cef42a8384366e43b637ca4255-0.json": "6afacf276e549d558c8c511613af6a58d8b7e8738b2e37b72abb6ff8d8a8d3d8",
++    "a22e3874dbc2927b5c7051e129cdf236327ee5cef42a8384366e43b637ca4255-1.json": "b066e06d7ac7093586f133f5a7994dd04d0a8d94c0b602b6c1eaaaf1458b04c1",
++    "a8f1cfcb8dd3465597591f6bfd23609fd286e25f4011c3f2f18186a3832e1a00-0.json": "b6fb08fbb1145a5d0ded303d2a6cb57aca77e2da3ae96b2e08bde6dc9d1e3590",
++    "a8f1cfcb8dd3465597591f6bfd23609fd286e25f4011c3f2f18186a3832e1a00-1.json": "04a146c7a16147dfa1bdda7285529f8741b99e45858ab7810223888d2cb3bf16",
++    "ada4a3c008212a98013bda549c5b1637186d7691cb824b4ef574a2c8a203639b-0.json": "1d4063a6fb30c79fbb57def3351d1d1b2f8861db51d20807af49f685f8c60fc0",
++    "ada4a3c008212a98013bda549c5b1637186d7691cb824b4ef574a2c8a203639b-1.json": "bb51088aa36502593b92ba526a637b4cfd3fa12efc96e7bab302d7b9fd3653a2",
++    "afc3f21ddd8eaba55c0e105f9830776c9a503098487beeaa0408d3e1680dddea-0.json": "62b826ffebd1fb4ebac2b1d951a83fcf2f0dd61d32d959a2a1e3a64dd3644e66",
++    "afc3f21ddd8eaba55c0e105f9830776c9a503098487beeaa0408d3e1680dddea-1.json": "9ddc848cadef79162d23dd0cb40f44cb903f66d27147ba2d5853838d5baf2d21",
++    "b5b165faeae3859805ef952a9bb93be6a4907a56d0a4b80c9eb639affc5e905e-0.json": "66138f0c8cf646a587cbb18f129ce8f3ea83446197cb2dc6c28323750e95d058",
++    "b5b165faeae3859805ef952a9bb93be6a4907a56d0a4b80c9eb639affc5e905e-1.json": "27c0b6b6821af0fcb99fa137564d4d505297c27489a6d0046cd788c1b1088707",
++    "b9508a4e8b297073a87729b99ed5dae1629185c05e2a448799391c26fc920815-0.json": "e71022a1084dd7e5e50b2a88de0fec91ed9430957441ebacc0d46141c68653e3",
++    "b9508a4e8b297073a87729b99ed5dae1629185c05e2a448799391c26fc920815-1.json": "abffd09fcf13039ff0108018afbf1994ec6728e7090896b3674096470d0a7924",
++    "c0deb279a3f55e8aca130fa4a6dd2eb86ce02744e61b8f1d86a8a819306071c4-0.json": "31ba908d8ba2632652ee4e2a64df8bb1ae9f5d37209731a13992f4cfdd24efd1",
++    "c0deb279a3f55e8aca130fa4a6dd2eb86ce02744e61b8f1d86a8a819306071c4-1.json": "9f32d1eee6dc6488640a073fb15e9b73447bde3bb3afdf4d624fbea8d3640e6d",
++    "c2f259a8eea6a5f858ef06d44431a004865efed4b0bbdf17cddff3ab25b7a555-0.json": "3cdcef194235baf8b3f18756b8d56906d3f41b6d4ab6b32f344e78e20b2389de",
++    "c2f259a8eea6a5f858ef06d44431a004865efed4b0bbdf17cddff3ab25b7a555-1.json": "6729a2ee4ee6d05fc1df37c93b94e6ea17696f710e01080052c9609ffc822aed",
++    "cbba30c4bbaec826c2c69033e38152d3ddd9e88b02ec981b52e3b56ddaab189d-0.json": "61c7434af873a34f75d4c38f72a387698b08551b7d885035fed59832e7f1d87b",
++    "cbba30c4bbaec826c2c69033e38152d3ddd9e88b02ec981b52e3b56ddaab189d-1.json": "71faa589df6f70c0ca9865d82ef82204b237f139555a64bf0efbc818d5503f4e",
++    "cbbeb2d72a8666700f4ba6c67215c57abfbed36ff22e595885634a8bc8c63b6f-0.json": "b44378661cc7f29c2eff8cdba48cefb0cc8fb2c7d261790624f6b9182dbdc7e3",
++    "cbbeb2d72a8666700f4ba6c67215c57abfbed36ff22e595885634a8bc8c63b6f-1.json": "6183c98431043b634579b43c99ad477d698d5787e973b5748796e27c7a4ed68b",
++    "cd8b824774182d6b6cf38f6c971ad7cc3d0cd1562575db6722f38c46226ec8aa-0.json": "10c6b44665c652da44964702696fc1048d0fb008f0ca5a9dd0430ccdb2b4eba4",
++    "cd8b824774182d6b6cf38f6c971ad7cc3d0cd1562575db6722f38c46226ec8aa-1.json": "53b7a2943840e7e639404195fc611c0d99fee4dbce61379490383b4de0784bf3",
++    "d5df225f317e3f289c1bc0dd180f3a91fb2ce49352c773a8be32ca6f86e6229c-0.json": "4700a95022e2337e4cb466184b255feb444ab96c1d520a5843025ff72d500455",
++    "d5df225f317e3f289c1bc0dd180f3a91fb2ce49352c773a8be32ca6f86e6229c-1.json": "20d9d864cb88e4b3a503d86a9cddd345498af3639f4b69276dc67fdfa7b06e87",
++    "dc639a124d93bf9d528c5712c0f9aba6456ff3753c42c61b5b578db6f7150b71-0.json": "2556121a5efd8ab9589377ff317c3371920ccf6288050f6e0f81f6a99f73f972",
++    "dc639a124d93bf9d528c5712c0f9aba6456ff3753c42c61b5b578db6f7150b71-1.json": "37b132f824b393e1c1485e86821289987cba437a0f69fe9dc3982dfc66ae609d",
++    "dca71e5828f327496e9d8729e9ebd0c93945d3d721f0d9e0b739539668bff47e-0.json": "8bef07daa574831ce84dfdc5188d35cafe44228fd13ef2403df64e91d280536c",
++    "dca71e5828f327496e9d8729e9ebd0c93945d3d721f0d9e0b739539668bff47e-1.json": "724744fb85918960067f68f1bfa099933ec76afa5631ed184aa1be504ddb8757",
++    "e38d4bf322acb40bbd988b11c6bfe1a9dc251ddf4dc5afe8a9cba6f1bab1c26d-0.json": "67c86dcdd39223355c58126d45a0853fdb34128583db5d2a03e0197c5d3cdc2b",
++    "e38d4bf322acb40bbd988b11c6bfe1a9dc251ddf4dc5afe8a9cba6f1bab1c26d-1.json": "06045139a2a801b170115097f6bf9319069312db7ef1e34b91d1e3bd2f6e88f8",
++    "e5ebfa8066fd33f255f898d221984998e94e76d595ce66b3f25cb3e0d2674475-0.json": "aaec0fc360adb357ceaa32dc532cf9458507015d464130e57ba7f2adc5678d70",
++    "e5ebfa8066fd33f255f898d221984998e94e76d595ce66b3f25cb3e0d2674475-1.json": "e3c6fc0d8d8fdb0383212db4593e195855da90b104e89f1d2b844517c5060231",
++    "e91029893713297a2b3eff5356de3c50f8a4bdb9d3756266640050408b8ee62e-0.json": "5013f39c8c90d18fe309b52d7a66e5cdcd1bae6ac1b10de70573c6e27be05d23",
++    "e91029893713297a2b3eff5356de3c50f8a4bdb9d3756266640050408b8ee62e-1.json": "5b8d3587427ad46178c3c7bc0935485752fc6d9b7fb03c9e3e09cbc69e16d963",
++    "f3878c03cd8ca2c294c907233717b09de81f33c6726291786359fad95d83e387-0.json": "dfaef3d1097c7da572a97da503ebe17716c93e51002ca24df1650874d87d169f",
++    "f3878c03cd8ca2c294c907233717b09de81f33c6726291786359fad95d83e387-1.json": "2c17adeee1e8fe6040347b5c41f720581ca5a3d181a251134f89857b70c982d5",
++    "f614439766966ccaccaffdf1edbe082ee07144cfee1eeb7f90cdb386a88fb3c8-0.json": "e460f99bd40770b2941ee6ac102c9a88159b86b00d7f6b005af2a9fc9ab93ef7",
++    "f614439766966ccaccaffdf1edbe082ee07144cfee1eeb7f90cdb386a88fb3c8-1.json": "23d25c401abc126c6ec3d3df442a0334028ea50e08f44dc6165bf522f827547d"
++  },
++  "log_exact_marker_count": 48,
++  "log_repeated_failure_count": 0,
++  "source_unchanged_after_run": true,
++  "witness_inputs_unchanged_after_run": true
++}
+-- 
+2.50.1 (Apple Git-155)
+

@@ -1,0 +1,39 @@
+{
+  "head": "2d790e26881649d4aeebadae5eaf462567dbe8a2",
+  "command": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "clippy",
+    "-p",
+    "tsc-rs-diagnostics",
+    "-p",
+    "tsc-rs-program",
+    "-p",
+    "tsc-rs-compiler",
+    "--tests",
+    "--no-deps",
+    "--",
+    "-D",
+    "warnings"
+  ],
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-dec-literal-prologue/target/decorator-literal-prologue-acceptance",
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "RUSTC_WRAPPER": "",
+    "TSRS_H2_5G_WORKERS": "2",
+    "TSRS_CONFORMANCE_WORKERS": "2",
+    "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-dec-literal-prologue/target/decorator-prologue-followup-runs/final-clippy-owned-v2/captures"
+  },
+  "actual_exit": 0,
+  "finished_at": "2026-09-12T01:02:15.596118+00:00",
+  "prelaunch_sha256": "35bacca561c0f11c695fbd7e72e3857a029c493701159d282e862a661603afd7",
+  "log_sha256": "b609c275f8c47f6eca7db8be09e7fc4c746d7f98954cfc80471270535aea4e8f",
+  "suite_results": [],
+  "source_unchanged_after_run": true
+}

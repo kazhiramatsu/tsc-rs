@@ -1,0 +1,158 @@
+{
+  "version": 1,
+  "slice": "H2.8b-CFG1c",
+  "cases": [
+    {
+      "case_id": "h2-8b-config-diagnostic-commands/strict-emit",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true,\"strictPropertyInitialization\":true,\"strictNullChecks\":false},\"files\":[\"src/main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostic-commands/strict-no-emit-on-error",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true,\"strictPropertyInitialization\":true,\"strictNullChecks\":false,\"noEmitOnError\":true},\"files\":[\"src/main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostic-commands/inline-map-emit",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true,\"inlineSourceMap\":true},\"files\":[\"src/main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostic-commands/inline-map-no-emit-on-error",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true,\"inlineSourceMap\":true,\"noEmitOnError\":true},\"files\":[\"src/main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostic-commands/invalid-jsx-factory",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true,\"jsxFactory\":\"h=\"},\"files\":[\"src/main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostic-commands/ts-extensions-declaration-only",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true,\"allowImportingTsExtensions\":true,\"emitDeclarationOnly\":true},\"files\":[\"src/main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostic-commands/ts-extensions-invalid",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true,\"allowImportingTsExtensions\":true},\"files\":[\"src/main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostic-commands/inherited-strict",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"extends\":\"./base.json\",\"compilerOptions\":{},\"files\":[\"src/main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/base.json",
+          "text": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true,\"strictPropertyInitialization\":true,\"strictNullChecks\":false}}"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostic-commands/rootdir-external-file",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true},\"files\":[\"src/main.ts\",\"outside.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/outside.ts",
+          "text": "export const outside = 2;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostic-commands/outdir-input-collision",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"src\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true,\"allowJs\":true},\"files\":[\"src/main.js\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.js",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostic-commands/implicit-root-layout",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true},\"files\":[\"src/main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostic-commands/map-root-inline",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":false,\"declarationMap\":false,\"skipLibCheck\":true,\"inlineSourceMap\":true,\"mapRoot\":\"maps\"},\"files\":[\"src/main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    }
+  ]
+}

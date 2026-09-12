@@ -1024,14 +1024,15 @@ enum ListElementPosition {
     Source(crate::SourceUtf16Position),
 }
 
-/// Immutable structural decisions derived once from the final transformed
-/// tree. Keeping these in the printer avoids rebuilding parent links on
-/// session-owned synthetic nodes and keeps target-specific spelling out of
-/// ECMAScript transformers.
+/// Structural decisions derived from the final transformed tree, with helper
+/// ownership registered for the duration of a source-file print. Keeping these
+/// in the printer avoids rebuilding parent links on session-owned synthetic
+/// nodes and keeps target-specific spelling out of ECMAScript transformers.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 struct EmissionPlan {
     structured_nodes: BTreeSet<TransformNode>,
     function_body_blocks: BTreeSet<TransformNode>,
+    block_helpers: BTreeMap<TransformNode, Vec<EmitHelper>>,
 }
 
 /// tsc-port: createPrinter @6.0.3
@@ -1110,6 +1111,7 @@ impl Printer {
         self.emission_plan = EmissionPlan {
             structured_nodes,
             function_body_blocks,
+            block_helpers: BTreeMap::new(),
         };
         Ok(())
     }
@@ -1583,53 +1585,40 @@ impl Printer {
             self.set_source_map_source(transformation, source_id, &mut writer)?;
         }
         let helpers = self.sorted_source_emit_helpers(transformation, source_id)?;
-        let system_scoped_helpers = !helpers.is_empty()
-            && statements.first().is_some_and(|statement| {
-                transformation
-                    .arena()
-                    .node_ref(source_id, *statement)
-                    .is_some_and(|statement| {
-                        self.is_system_register_statement(transformation, statement)
-                    })
-            });
-        self.write_transformed_source_file(
+        // transformSystemModule moves source helpers to its module body.
+        // Emit them while writing that block so following map positions are
+        // recorded after the helper text, including source prologues/comments.
+        let helper_body = if helpers.is_empty() {
+            None
+        } else {
+            statements
+                .first()
+                .and_then(|statement| transformation.arena().node_ref(source_id, *statement))
+                .and_then(|statement| self.system_register_body(transformation, statement))
+        };
+        if let Some(body) = helper_body {
+            self.emission_plan
+                .block_helpers
+                .insert(body, helpers.clone());
+        }
+        let result = self.write_transformed_source_file(
             transformation,
             SourceFilePrintBody {
                 source_id,
                 root,
                 statement_array,
                 statements,
-                helpers: if system_scoped_helpers { &[] } else { &helpers },
+                helpers: if helper_body.is_some() { &[] } else { &helpers },
                 mode: SourceFileEmitMode::OwnFile,
             },
             &mut writer,
-        )?;
-        let system_helpers = if system_scoped_helpers {
-            helpers
-        } else {
-            Vec::new()
-        };
-        // h2-6a-m-2 §12a: the system-helper splice rewrites finished
-        // output after emission and would invalidate recorded generated
-        // positions; recording under that lane is fail-closed until the
-        // m-3 resolution.
-        if !system_helpers.is_empty() && writer.has_source_map_recording() {
-            return Err(PrinterError::Unsupported(
-                UnsupportedEmitFeature::JavaScriptMap,
-            ));
+        );
+        if let Some(body) = helper_body {
+            self.emission_plan.block_helpers.remove(&body);
         }
-        let text = if !system_helpers.is_empty() {
-            self.insert_system_scoped_helpers(writer.generated_text(), &system_helpers)?
-        } else {
-            writer.generated_text().clone()
-        };
-        let end = if !system_helpers.is_empty() {
-            let mut measured = create_text_writer(self.options.new_line);
-            measured.raw_write_utf16(&text.units());
-            measured.location()
-        } else {
-            writer.location()
-        };
+        result?;
+        let text = writer.generated_text().clone();
+        let end = writer.location();
         let source_map = writer
             .take_source_map_recording()
             .map(crate::source_map::SourceMapRecording::into_generator);
@@ -2097,88 +2086,37 @@ impl Printer {
         }
     }
 
-    fn is_system_register_statement(
+    fn system_register_body(
         &self,
         transformation: &TransformationResult<'_>,
         statement: TransformNode,
-    ) -> bool {
-        let Ok(statement_record) = transformation.arena().node(statement) else {
-            return false;
+    ) -> Option<TransformNode> {
+        let arena = transformation.arena();
+        let source = statement.source();
+        let NodeData::ExpressionStatement(data) = &arena.node(statement).ok()?.data else {
+            return None;
         };
-        let Some(call) = (match &statement_record.data {
-            NodeData::ExpressionStatement(data) => data.expression,
-            _ => None,
-        })
-        .and_then(|expression| {
-            transformation
-                .arena()
-                .node_ref(statement.source(), expression)
-        }) else {
-            return false;
+        let call = arena.node_ref(source, data.expression?)?;
+        let NodeData::CallExpression(data) = &arena.node(call).ok()?.data else {
+            return None;
         };
-        let Ok(call_record) = transformation.arena().node(call) else {
-            return false;
+        let access = arena.node_ref(source, data.expression?)?;
+        let arguments = arena
+            .node_array(arena.node_array_ref(source, data.arguments?)?)
+            .ok()?;
+        let function = arena.node_ref(source, *arguments.nodes.last()?)?;
+        let NodeData::FunctionExpression(function) = &arena.node(function).ok()?.data else {
+            return None;
         };
-        let Some(access) = (match &call_record.data {
-            NodeData::CallExpression(data) => data.expression,
-            _ => None,
-        })
-        .and_then(|expression| {
-            transformation
-                .arena()
-                .node_ref(statement.source(), expression)
-        }) else {
-            return false;
+        let body = arena.node_ref(source, function.body?)?;
+        let NodeData::PropertyAccessExpression(data) = &arena.node(access).ok()?.data else {
+            return None;
         };
-        let Ok(access_record) = transformation.arena().node(access) else {
-            return false;
-        };
-        let NodeData::PropertyAccessExpression(data) = &access_record.data else {
-            return false;
-        };
-        let expression = data.expression.and_then(|expression| {
-            transformation
-                .arena()
-                .node_ref(statement.source(), expression)
-        });
-        let name = data
-            .name
-            .and_then(|name| transformation.arena().node_ref(statement.source(), name));
-        expression
-            .and_then(|node| transformation.arena().node(node).ok())
-            .is_some_and(
-                |node| matches!(&node.data, NodeData::Identifier(data) if data.text == "System"),
-            )
-            && name
-                .and_then(|node| transformation.arena().node(node).ok())
-                .is_some_and(
-                    |node| matches!(&node.data, NodeData::Identifier(data) if data.text == "register"),
-                )
-    }
-
-    fn insert_system_scoped_helpers(
-        &self,
-        text: &GeneratedText,
-        helpers: &[EmitHelper],
-    ) -> Result<GeneratedText, PrinterError> {
-        let new_line = self.options.new_line.text();
-        let projection = text.as_str();
-        let first_line_end = projection
-            .find(new_line)
-            .map(|offset| offset + new_line.len())
-            .unwrap_or(0);
-        let strict = format!("    \"use strict\";{new_line}");
-        let insertion_offset = if projection[first_line_end..].starts_with(&strict) {
-            first_line_end + strict.len()
-        } else {
-            first_line_end
-        };
-        let mut helper_writer = create_text_writer(self.options.new_line);
-        helper_writer.increase_indent();
-        self.emit_helpers(helpers, &mut helper_writer)?;
-        let mut output = text.clone();
-        output.insert_at_utf8_boundary(insertion_offset, helper_writer.generated_text());
-        Ok(output)
+        let expression = arena.node(arena.node_ref(source, data.expression?)?).ok()?;
+        let name = arena.node(arena.node_ref(source, data.name?)?).ok()?;
+        (matches!(&expression.data, NodeData::Identifier(data) if data.text == "System")
+            && matches!(&name.data, NodeData::Identifier(data) if data.text == "register"))
+        .then_some(body)
     }
 
     fn emit_transformed_node(
@@ -2810,15 +2748,57 @@ impl Printer {
                             );
                             return Ok(());
                         }
-                        if transformation.arena().node(text_source)?.kind
-                            == SyntaxKind::StringLiteral
-                            && self.node_has_source_text_range(transformation, text_source)?
-                        {
-                            return self.write_original_without_leading_trivia_verbatim(
-                                transformation,
-                                text_source,
-                                writer,
+                        if let NodeData::NumericLiteral(numeric) = &source_record.data {
+                            // getLiteralTextOfNode: a numeric text source
+                            // contributes its cooked text
+                            // (`textSourceNode.text`), quoted and escaped like
+                            // an identifier source.
+                            writer.write_string_literal_utf16(
+                                quote_string_literal(&numeric.text, false, no_ascii_escaping)
+                                    .code_units(),
                             );
+                            return Ok(());
+                        }
+                        // Every other source delegates to
+                        // getLiteralTextOfNode(textSourceNode): getLiteralText's
+                        // canUseOriginalText prints a parsed, parented token
+                        // verbatim (string or template source); a template
+                        // without a source range prints through the
+                        // template-token writer (rawText or the escaped cooked
+                        // text between backticks).
+                        match source_record.kind {
+                            SyntaxKind::StringLiteral
+                                if self
+                                    .node_has_source_text_range(transformation, text_source)? =>
+                            {
+                                return self.write_original_without_leading_trivia_verbatim(
+                                    transformation,
+                                    text_source,
+                                    writer,
+                                );
+                            }
+                            SyntaxKind::NoSubstitutionTemplateLiteral => {
+                                if self.node_has_source_text_range(transformation, text_source)? {
+                                    return self.write_original_without_leading_trivia_verbatim(
+                                        transformation,
+                                        text_source,
+                                        writer,
+                                    );
+                                }
+                                if let NodeData::NoSubstitutionTemplateLiteral(template) =
+                                    &source_record.data
+                                {
+                                    return self.emit_template_literal_token(
+                                        transformation,
+                                        text_source,
+                                        SyntaxKind::NoSubstitutionTemplateLiteral,
+                                        &template.text,
+                                        template.raw_text.as_deref(),
+                                        writer,
+                                    );
+                                }
+                            }
+                            _ => {}
                         }
                     }
                     let single_quote = properties
@@ -7043,6 +7023,12 @@ impl Printer {
             }
             NodeData::Block(data) => {
                 let function_body = self.is_function_body_block(transformation, node)?;
+                let block_helpers = self
+                    .emission_plan
+                    .block_helpers
+                    .get(&node)
+                    .cloned()
+                    .unwrap_or_default();
                 // h2-6a-m-2 §4 route table: block braces map (upstream
                 // emitBlockStatements emitTokenWithComment pairs), EXCEPT
                 // the function-body open brace (upstream
@@ -7173,12 +7159,14 @@ impl Printer {
                         }
                     }
                 }
-                let multi_line = !force_single_line
-                    && (multi_line
-                        || function_body_has_prologue
-                        || synthesized_statement_break
-                        || function_body
-                            && !self.source_node_range_is_on_single_line(transformation, node)?);
+                let multi_line = !block_helpers.is_empty()
+                    || !force_single_line
+                        && (multi_line
+                            || function_body_has_prologue
+                            || synthesized_statement_break
+                            || function_body
+                                && !self
+                                    .source_node_range_is_on_single_line(transformation, node)?);
                 // tsc-port: emitBlock/emitBlockStatements @6.0.3
                 // tsc-hash: 9c296db81136b7d3b5fb7f0e5d47f750926728a1146ec273677021fd6249e90a
                 // tsc-span: _tsc.js:118579-118601
@@ -7289,6 +7277,7 @@ impl Printer {
                         PendingDetachedComments::from_prefix(detached_body_prefix);
                     let mut has_previous_original_statement = false;
                     let mut in_function_prologue = function_body;
+                    let mut pending_helpers = (!block_helpers.is_empty()).then_some(block_helpers);
                     for statement in statements {
                         let statement = transformation
                             .arena()
@@ -7297,6 +7286,9 @@ impl Printer {
                         in_function_prologue = in_function_prologue
                             && self.is_prologue_statement(transformation, statement);
                         if !in_function_prologue {
+                            if let Some(helpers) = pending_helpers.take() {
+                                self.emit_helpers(&helpers, writer)?;
+                            }
                             self.record_list_element_position(transformation, statement)?;
                         }
                         let original = transformation.arena().get_original_node(statement);
@@ -7383,6 +7375,9 @@ impl Printer {
                             )?;
                         }
                         writer.write_line(false);
+                    }
+                    if let Some(helpers) = pending_helpers {
+                        self.emit_helpers(&helpers, writer)?;
                     }
                     self.emit_comments_before_close_brace(
                         transformation,

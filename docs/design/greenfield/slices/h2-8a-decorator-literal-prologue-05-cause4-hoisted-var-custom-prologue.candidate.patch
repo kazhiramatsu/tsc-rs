@@ -1,0 +1,242 @@
+From 940d62e4ac4841986564c5f635c8eaa4a39e9537 Mon Sep 17 00:00:00 2001
+From: kazhiramatsu <kazutakehiramatsu@gmail.com>
+Date: Fri, 11 Sep 2026 20:22:58 +0900
+Subject: [PATCH] fix(emitter): mark decorator-hoisted var statements as custom
+ prologues
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+tsc-port: hoistVariableDeclaration @6.0.3 (_tsc.js:116104-116116) sets
+NoNestedSourceMaps on each hoisted declaration and endLexicalEnvironment
+(116163-116200) sets CustomPrologue on the `var` statement, whichever
+environment (source file, function body, class IIFE, property-initializer
+IIFE) declares it. Later passes read that flag: the CommonJS/AMD/UMD/System
+transforms copy the statement as a custom prologue before the __esModule
+marker and the export pre-initializers (copyCustomPrologue,
+transformCommonJSModule 110167-110200), and class-fields'
+mergeLexicalEnvironment places its own custom-prologue statements after it
+(leftHoistedVariablesEnd). The decorator transform's
+`create_hoisted_declarations` set neither flag, so a top-level hoist under
+CommonJS printed after `exports.Plain = void 0;`.
+
+Focused run (lexical-prologue-readers-v2, 16 commands): the nine
+CommonJS/AMD/UMD rows and the two native rows exact twice; the five
+parameter-initializer rows still order `var _b;` after class-fields'
+parameter-default statement — the flag is now present on that statement
+(verified with a temporary probe), and the remaining difference is the
+class-fields downlevel prelude installation, which scans only standard
+prologue statements; that reader is the next cause. Exit 101 recorded
+(ratchets/h2-8a-decorator-literal-prologue-cause4-focused.v1.json).
+---
+ .../src/builtins/standard_decorators.rs       |  27 +++-
+ ...or-literal-prologue-cause4-focused.v1.json | 151 ++++++++++++++++++
+ 2 files changed, 173 insertions(+), 5 deletions(-)
+ create mode 100644 ratchets/h2-8a-decorator-literal-prologue-cause4-focused.v1.json
+
+diff --git a/crates/emitter/src/builtins/standard_decorators.rs b/crates/emitter/src/builtins/standard_decorators.rs
+index 71e62e77e..6878bb4cc 100644
+--- a/crates/emitter/src/builtins/standard_decorators.rs
++++ b/crates/emitter/src/builtins/standard_decorators.rs
+@@ -5768,6 +5768,15 @@ impl<'context> StandardDecoratorVisitor<'context> {
+ 
+     /// `var` declaration for the temporaries an environment hoisted, in
+     /// declaration order.
++    ///
++    /// tsc-port: hoistVariableDeclaration / endLexicalEnvironment @6.0.3 —
++    /// each declaration carries `NoNestedSourceMaps` and the statement
++    /// `CustomPrologue`, whichever environment (source file, function body,
++    /// class IIFE, property-initializer IIFE) declares it. Later passes read
++    /// the flag: the CommonJS/AMD/UMD/System transforms copy the statement as
++    /// a custom prologue before the `__esModule` marker and the export
++    /// pre-initializers, and class-fields' `mergeLexicalEnvironment` places
++    /// its own custom-prologue statements after it (`leftHoistedVariablesEnd`).
+     fn create_hoisted_declarations(
+         &mut self,
+         temporaries: Vec<TargetBinding>,
+@@ -5778,12 +5787,20 @@ impl<'context> StandardDecoratorVisitor<'context> {
+         let mut declarations = Vec::with_capacity(temporaries.len());
+         for binding in &temporaries {
+             let identifier = self.create_binding_identifier(binding)?;
+-            declarations.push(self.create_variable_declaration_with_name(identifier, None)?);
++            let declaration = self.create_variable_declaration_with_name(identifier, None)?;
++            self.context
++                .arena_mut()?
++                .metadata_mut(declaration)
++                .add_flags(EmitFlags::NO_NESTED_SOURCE_MAPS);
++            declarations.push(declaration);
+         }
+-        Ok(Some(self.create_variable_statement_from_declarations(
+-            declarations,
+-            NodeFlags::NONE,
+-        )?))
++        let statement =
++            self.create_variable_statement_from_declarations(declarations, NodeFlags::NONE)?;
++        self.context
++            .arena_mut()?
++            .metadata_mut(statement)
++            .add_flags(EmitFlags::CUSTOM_PROLOGUE);
++        Ok(Some(statement))
+     }
+ 
+     /// tsc-port: mergeLexicalEnvironment @6.0.3 for the source file: the
+diff --git a/ratchets/h2-8a-decorator-literal-prologue-cause4-focused.v1.json b/ratchets/h2-8a-decorator-literal-prologue-cause4-focused.v1.json
+new file mode 100644
+index 000000000..9ee895060
+--- /dev/null
++++ b/ratchets/h2-8a-decorator-literal-prologue-cause4-focused.v1.json
+@@ -0,0 +1,151 @@
++{
++  "version": 1,
++  "slice": "H2.8a decorator literal-name/lexical-prologue follow-up: cause4-r1: lexical-prologue-readers-v2",
++  "head": "5bcb2c6007511d649a79336c7bc85c29f358f087",
++  "run_dir": "/Users/hiramatsu/dev/tsc-rs-dec-literal-prologue/target/decorator-literal-prologue-runs/cause4-r1-lexical-prologue-readers-v2",
++  "group": "lexical-prologue-readers-v2",
++  "case_filter": null,
++  "production_inputs": {
++    "crates/emitter/src/builtins/class_fields.rs": "11417d65891a77644bea11f88fe08c8ae1e6256796a2cb6ec1f1285262255de4",
++    "crates/emitter/src/builtins/class_fields/downlevel.rs": "26e754aef2c85a73e5851a93b045ecfc49d0399cdeceedb4b1050338d019bbc5",
++    "crates/emitter/src/builtins/es2018.rs": "8af9383eae9996b0a26da549257f0cbaf4108a78377595bb4e3b0bb6d59027cc",
++    "crates/emitter/src/builtins/generated_bindings.rs": "510a111813e241c2f7a8df3b54399a0449929d67781b7da483a31065236b43a7",
++    "crates/emitter/src/builtins/standard_decorators.rs": "1733e8e542cc26c0ff31873f4ed337754e64d7e7f1b2c899ce1d6fabf503fff5",
++    "crates/emitter/src/builtins/target_bindings.rs": "613e81d2cd6f09744266ef7126b4eaeb4d555f9ad75cbd57111c3f038c51c23e",
++    "crates/emitter/src/execute.rs": "6f4007e668fb2e3e2bd9ee9782bb87925f08779ca2b623b438aadf14e71b5ab1",
++    "crates/emitter/src/printer.rs": "506932da77c798faea0e3369d39ab775084a6ee877bd02106090ca15a54f1a15",
++    "crates/emitter/src/builtins/jsx.rs": "0fdc90efc326ba25e6b5f2fe0c2f98f4478ed5422b151a689ed078d8a9664300",
++    "crates/emitter/src/metadata.rs": "117da2d571020007727c6a27c0885c089ac1af368d8f8a1ffe67d0691267e36d",
++    "crates/emitter/src/builtins/es2015.rs": "be0cfa774263d6b67e34c8ff225ac3ff11d3ce321c2d44125b5e566b6cc11d78",
++    "crates/emitter/src/builtins/system.rs": "e41228bd9f7766f6e4d61070ad98ecfe64bdd65c3aa966ddbcea83d7fea48ed1"
++  },
++  "fixtures": {
++    "crates/compiler/tests/fixtures/decorator-transform-order.json": "c831b004c92557b383d19e364829ae960f65361a8253a24a1f53aa4248c8a4ae",
++    "crates/compiler/tests/fixtures/decorator-super-paths.json": "7ef1f767d49eb7f3c89008ba1120a4e93f9de2f1c063bd550c9988fdb0e998de",
++    "crates/compiler/tests/fixtures/decorator-name-owners.json": "9cc04b4a69e083a0660f7709b5e84b12a9e3a92acb66744fe23448149905a71e",
++    "crates/compiler/tests/fixtures/decorator-source-followup.json": "483ee859d603819ae6039d7fd743d4bc59e44f886e4787562128a0905a25cc0d",
++    "crates/compiler/tests/fixtures/decorator-source-followup-top-level.json": "70ed0e80735f014779bf06a0fcd9effe72b48aa118ec493896906581f7ce2327",
++    "crates/compiler/tests/fixtures/decorator-literal-member-kinds.json": "775e60a15d2bbc0442e6203b3c8e46297a65359f08bbc2c6f215601fb62ca353",
++    "crates/compiler/tests/fixtures/decorator-literal-key-spelling.json": "eca126749d004b2f5db88f0271368285131b62d7985f3c52700a6a8d3c763243",
++    "crates/compiler/tests/fixtures/decorator-lexical-prologue.json": "8b84990296c7ec1310fb0e27bd5285143a7b2d5d81208374b1968d1222d3d9a5",
++    "crates/compiler/tests/fixtures/decorator-lexical-prologue-readers.json": "097c2489317c13432f6612024e5f30cdfa24db60218b98c0a094419721f3e68f",
++    "crates/compiler/tests/fixtures/decorator-lexical-prologue-readers-v2.json": "8f81436975d2d68d47bbaa81b8c6ab221c2a9cf26ed86dd180c7481461b013fa",
++    "crates/compiler/tests/fixtures/decorator-transform-order-inputs.json": "25afc465f2ea240a23aa40eddcb581eaa7129636fb22d2541ac35d260015cff6",
++    "crates/compiler/tests/fixtures/decorator-super-paths-inputs.json": "185c31d2379924edf965cc9ec618e3978df876a5da48d384549a859cc33321b7",
++    "crates/compiler/tests/fixtures/decorator-name-owners-inputs.json": "c6268e789ceb3a5e3ade3011915a70e03181156d0d3294b2ac5540c8950ea29b",
++    "crates/compiler/tests/fixtures/decorator-source-followup-inputs.json": "21abbe088e9d58a23537db5805fa5d2ec3f1873d3e9070b6c73977e321d93b73",
++    "crates/compiler/tests/fixtures/decorator-source-followup-top-level-inputs.json": "51c180344935e1488f31255fad66a3844f7c73fdc3f1aff43dea15b7ea46693e",
++    "crates/compiler/tests/fixtures/decorator-literal-member-kinds-inputs.json": "08b8acf012e3a3f6bf800e554a770e37e5d0600adf4fad980236992ff8d88667",
++    "crates/compiler/tests/fixtures/decorator-literal-key-spelling-inputs.json": "faef494d45262ad93072d0725d305f70ba2898ed5e93d4598cdddf6e7536efc7",
++    "crates/compiler/tests/fixtures/decorator-lexical-prologue-inputs.json": "edddefe501ca59fe803e70eda21907f86f30cbb7582d0ea9d8a22cf7b859bae4",
++    "crates/compiler/tests/fixtures/decorator-lexical-prologue-readers-inputs.json": "5ded2ea96dbac919507109289d66b17cee5ed6c5aa88006ae25964498d0529c7",
++    "crates/compiler/tests/fixtures/decorator-lexical-prologue-readers-v2-inputs.json": "e83b0ddf6d2415cde84e4a1e6a0ec3ef76d08b3152763efa6ede92dabd3aa321"
++  },
++  "witness_test_path": "crates/compiler/tests/integration/h2_8a_decorator_next_witnesses.rs",
++  "witness_test_sha256": "2580ddaa5beec11bb8c68709e7f80c3910b9099406e0eb11c4f0b75c3b30a67a",
++  "runner_sha256": "ca8b3950a658fd39212ba3a726013ae18a5fec660f84f548f8e6fbc724573382",
++  "typescript_source_sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
++  "command": [
++    "taskpolicy",
++    "-b",
++    "nice",
++    "-n",
++    "15",
++    "cargo",
++    "test",
++    "-p",
++    "tsc-rs-compiler",
++    "--test",
++    "contracts",
++    "h2_8a_decorator_next_witnesses::decorator_next_witnesses_match_complete_typescript_observations",
++    "--",
++    "--exact",
++    "--nocapture",
++    "--test-threads=1"
++  ],
++  "environment": {
++    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-dec-literal-prologue/target/decorator-literal-prologue-acceptance",
++    "CARGO_BUILD_JOBS": "2",
++    "CARGO_INCREMENTAL": "0",
++    "CARGO_PROFILE_TEST_DEBUG": "0",
++    "RUSTC_WRAPPER": "",
++    "TSRS_H2_5G_WORKERS": "2",
++    "TSRS_CONFORMANCE_WORKERS": "2",
++    "TSC_RS_DECORATOR_NEXT_CASE_SET": "lexical-prologue-readers-v2",
++    "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-dec-literal-prologue/target/decorator-literal-prologue-runs/cause4-r1-lexical-prologue-readers-v2/captures"
++  },
++  "actual_exit": 101,
++  "finished_at": "2026-09-11T11:12:12.551584+00:00",
++  "log_sha256": "fab2a8f55983c2cc3ef237138c225fd08c8110b12ec0eae55456a8d50c9d9ec5",
++  "prelaunch_sha256": "ba0fdf4ac52d51dc968ba5ca00552f012beced8ed2a0be2788d0d538b7972265",
++  "archive_sha256": "79b070cd02f0be3320f7a0bf5d83b1da54ea129b67220f16d682fc2bf6a4a6f9",
++  "executed_binary": "/Users/hiramatsu/dev/tsc-rs-dec-literal-prologue/target/decorator-literal-prologue-acceptance/debug/deps/contracts-9e4a06810410a5d6",
++  "executed_binary_sha256": "4da04c6adc70694e3a9708efaed97825033b09c86f7c706d662d10d0e073b963",
++  "archived_binary": "/Users/hiramatsu/dev/tsc-rs-dec-literal-prologue/target/decorator-literal-prologue-runs/cause4-r1-lexical-prologue-readers-v2/binaries/contracts-9e4a06810410a5d6",
++  "summary": {
++    "cases": 16,
++    "exact_twice": 11,
++    "failed": 5,
++    "inconsistent": 0,
++    "capture_files": 32
++  },
++  "exact_twice": [
++    "decorator-lexical-prologue-readers-v2/es2015/commonjs/define/top-level-undecorated-property-hoist",
++    "decorator-lexical-prologue-readers-v2/es2015/commonjs/set/top-level-undecorated-property-hoist",
++    "decorator-lexical-prologue-readers-v2/es2022/amd/define/top-level-undecorated-property-hoist",
++    "decorator-lexical-prologue-readers-v2/es2022/amd/set/top-level-undecorated-property-hoist",
++    "decorator-lexical-prologue-readers-v2/es2022/commonjs/define/top-level-undecorated-property-hoist",
++    "decorator-lexical-prologue-readers-v2/es2022/commonjs/set/top-level-undecorated-property-hoist",
++    "decorator-lexical-prologue-readers-v2/es2022/umd/define/top-level-undecorated-property-hoist",
++    "decorator-lexical-prologue-readers-v2/es2022/umd/set/top-level-undecorated-property-hoist",
++    "decorator-lexical-prologue-readers-v2/esnext/commonjs/define/top-level-undecorated-property-hoist",
++    "decorator-lexical-prologue-readers-v2/esnext/commonjs/set/top-level-undecorated-property-hoist",
++    "decorator-lexical-prologue-readers-v2/esnext/esnext/define/parameter-initializer-undecorated-property-hoist"
++  ],
++  "failed": [
++    "decorator-lexical-prologue-readers-v2/es2015/esnext/define/parameter-initializer-undecorated-property-hoist",
++    "decorator-lexical-prologue-readers-v2/es2015/esnext/set/parameter-initializer-undecorated-property-hoist",
++    "decorator-lexical-prologue-readers-v2/es2022/esnext/define/parameter-initializer-undecorated-property-hoist",
++    "decorator-lexical-prologue-readers-v2/es2022/esnext/set/parameter-initializer-undecorated-property-hoist",
++    "decorator-lexical-prologue-readers-v2/esnext/esnext/set/parameter-initializer-undecorated-property-hoist"
++  ],
++  "inconsistent": [],
++  "captures": {
++    "39fb37b889673fda9eb144a7b4060de26cc3871ef6bbfa4bba8a9d8f552cecae-0.json": "6e1e294fc1362771337d9b8f937210f0ca537c1d55a3ab8f28b27e6c9d3df5ef",
++    "39fb37b889673fda9eb144a7b4060de26cc3871ef6bbfa4bba8a9d8f552cecae-1.json": "a48223a18ce83c7624b9f0c82348dad32f4c6debe095b93a14116e2eb240e453",
++    "3f8b5edf3bc54acf886f81c0401466760dbc63c7815e7594dea4ddb8c0bf0b76-0.json": "2a0de9a428246c2311b745183fca0750b5db6d65e56d2ff321dcd8de2a0413ee",
++    "3f8b5edf3bc54acf886f81c0401466760dbc63c7815e7594dea4ddb8c0bf0b76-1.json": "b42818b5c75a0a83738511f9736d243c6f327adbb97b902004d008f334d9b5bc",
++    "501f8b54202b531f2a742082ba2a0ec58e45d88d7af8693e8aa640b1b204382d-0.json": "5eef89d12a24a3dcf4555c702a4e3a1e88ace3ce9c30eb60db16975ac60af5bb",
++    "501f8b54202b531f2a742082ba2a0ec58e45d88d7af8693e8aa640b1b204382d-1.json": "acb7fe791c3465b2eedfe831a0e19e197ae02216111752023fd5de58117bd327",
++    "682d03ce754367ba498f288389a51ec3b2bcda8a3039e8160901cd58968f01fa-0.json": "214148aa3f59136fa8ce0cab518bb48fd5c5452fb2e3af49ed5bc140eaaaad80",
++    "682d03ce754367ba498f288389a51ec3b2bcda8a3039e8160901cd58968f01fa-1.json": "30668e5b72ae242bfe942711a4f61708aadc4942499a181635e8fbffac45f194",
++    "68cffa1d3c2601f2529273115690c85e1dadbdfbf1506e19adbe41870ef4477c-0.json": "d03f07def10209d665e68cb9801c69249f7385252a9d2fb0991fe553d341de75",
++    "68cffa1d3c2601f2529273115690c85e1dadbdfbf1506e19adbe41870ef4477c-1.json": "e001b34c3a0b43bee3eb0ef2016471b86ec8b889b4cf80a828622e16ad715b2b",
++    "733dbba821261d0ce2ef2b73da531faa450dc463a93ad5e42342ecda7d25e22d-0.json": "1f46abba93ecd7672205e553aa6fd930cc462670ee7aa6a379c1ac3cb668ada3",
++    "733dbba821261d0ce2ef2b73da531faa450dc463a93ad5e42342ecda7d25e22d-1.json": "33c4ca9f05f8c78e02058d1561a3277b076a9d5b579b8eaeb84e0efb227bb7d6",
++    "773c3baa43c37cde969ac22f0acdbe0c8b42fa801c8fe0bcf1e9ff6fd544b0ca-0.json": "697475a7bb9691b9cd28543b61a3ea188e9a6351dbe0db9245a4143a9314e3e8",
++    "773c3baa43c37cde969ac22f0acdbe0c8b42fa801c8fe0bcf1e9ff6fd544b0ca-1.json": "89f2f9ba32ea985e80606f6715d089324254361e0000d6fe660eebb536d4f6e0",
++    "79f2bd6b49ff882553eaaaea2f64406f71a6af4f08d95eeba82044d607c077e4-0.json": "7c023b27da8ad058354f88c1e8a76ee33ba62d06c5440566f72f1185b6377076",
++    "79f2bd6b49ff882553eaaaea2f64406f71a6af4f08d95eeba82044d607c077e4-1.json": "44dbc458bd32ccb6e4a1c1fa7d7a8ffcddbc2feec0b20e9006d6287d575cb414",
++    "992070f165a422ef261366090075d8d9a3ee3e15c723da2440556cd4b268ac9a-0.json": "1d86ab26f2997dc6d367c3aabdfa2e3db914df93e4bfec50537465b320881678",
++    "992070f165a422ef261366090075d8d9a3ee3e15c723da2440556cd4b268ac9a-1.json": "aef7c1d9a45788e4ffc3ed45d5688d8c6dc97364239e62698c024dcfe228829b",
++    "9a541f51bf3a7e68ef85c81b6b51b219d26450505381014613be696e13ef2e2c-0.json": "b78141e64b2e3a373622198ddafc91ecd14e46ca5a201b2d79f6f2fb0d3f6915",
++    "9a541f51bf3a7e68ef85c81b6b51b219d26450505381014613be696e13ef2e2c-1.json": "9c086b091b80b05a31f3eab41bf7142cfc489235fa91c8ef51b8dfbf456bdd3d",
++    "aa8a64d02b0a6b7ff18c6fda14e445fc2082ffce9fdbf8fe4cbab8a58bcbf2b9-0.json": "48cc5adbc42d1dc1b935129730e9188b0b7ffc82f9d23104299ab9a0d17e1217",
++    "aa8a64d02b0a6b7ff18c6fda14e445fc2082ffce9fdbf8fe4cbab8a58bcbf2b9-1.json": "b6dd12ec9a231757bceb7cdd585ca05bf42f27a4d26a91f0971b74450d5223c8",
++    "ab1fd22f1d45fb7a3e01bea0450b6f04c52808dfdec04a186db8633b162984e5-0.json": "89c7b07caaeb6620f8274ed3507cb3f00567898aec148ee1090b9a630a10ef3d",
++    "ab1fd22f1d45fb7a3e01bea0450b6f04c52808dfdec04a186db8633b162984e5-1.json": "3c986618f72f228af21d52593c62c935b40e0d53b437b18577266cb40d890ea3",
++    "c2e8cb2a19c63c916012cc0cfcfaf722895c1ffc55852e2e65f6372319aff133-0.json": "451bc2d2426a67f31092b9c4def8f2310af0d0260c0e1d0ce6640dd7f2b6a29b",
++    "c2e8cb2a19c63c916012cc0cfcfaf722895c1ffc55852e2e65f6372319aff133-1.json": "d11ca67d696736f13623a5165bf96bc528061de6fe7917394b37f0e2faaa84d1",
++    "ccbe75090cdadf09a0b47b15a4129a52935953f637f37ac4147575e67d53f3ba-0.json": "02513b56e39f0c52da65bc8a0c1a01ed61ba87aafac00e85aa35de6386bd9406",
++    "ccbe75090cdadf09a0b47b15a4129a52935953f637f37ac4147575e67d53f3ba-1.json": "644b07d7c90df7b84da8b8180c5ddeb0aa816fabc17a94fbda1fd5d1eeff3b63",
++    "e8adff7471fdf6fa7ea44ccb4fb4ad6768c63d0194187cd03b6df371b4e588ac-0.json": "f9d44ccbe3caf71939a97f28452c02f387d4cf4f6846e1e80d7f1ce66f9b75b0",
++    "e8adff7471fdf6fa7ea44ccb4fb4ad6768c63d0194187cd03b6df371b4e588ac-1.json": "cc9a61cf6faab8acc58b1a4a18199aeaaf72223f20504401684610dd9947aef8",
++    "f0a572630028447822fb593768f43ebdd7c59ed096e6d37a5d3ce68c8be2d770-0.json": "2f2faa20ff644036e031ed902dd50bd1ea8ccf4e6e981d416baf12fd84bbdd8f",
++    "f0a572630028447822fb593768f43ebdd7c59ed096e6d37a5d3ce68c8be2d770-1.json": "d28f3519431bb31d8f4c91851befe9405dbbf47b446e7a80a680ea87fb7c739d"
++  },
++  "log_exact_marker_count": 11,
++  "log_repeated_failure_count": 5,
++  "source_unchanged_after_run": true,
++  "witness_inputs_unchanged_after_run": true
++}
+-- 
+2.50.1 (Apple Git-155)
+

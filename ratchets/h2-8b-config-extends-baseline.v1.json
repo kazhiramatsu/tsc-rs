@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "slice": "H2.8b-CFG1a",
+  "status": "pre-fix baseline",
+  "measured_head": "9fb990decb1733be85506c60d9cfa6e45bca9ffe",
+  "exact_cases_twice": 24,
+  "failed_cases_twice": 4,
+  "config_parse_executions": 56,
+  "program_executions": 0,
+  "exit_code": 101,
+  "failed_case_ids": [
+    "h2-8b-config-extends/inherited-include-exclude-outdir",
+    "h2-8b-config-extends/invalid-extends-array-entries",
+    "h2-8b-config-extends/inherited-compile-on-save-false",
+    "h2-8b-config-extends/compile-on-save-true-then-false"
+  ],
+  "run_record": {
+    "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-extends-runs/20260911T135209Z/baseline-r2.run.json",
+    "sha256": "be47a6d0b3609488077862081e2fffdbaec010fb778c1814fcf6095757571ecb"
+  },
+  "log": {
+    "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-extends-runs/20260911T135209Z/baseline-r2.log",
+    "sha256": "7a9bdf6afcf970392b61034202d1290d7124fa4c91adedd6b3533b0f0c1cfe90"
+  },
+  "executables": [
+    {
+      "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1/debug/deps/contracts-49da18f15aea009f",
+      "sha256": "c5ac3d8ae7f060fe40f0eae4c51e9979e51b133c745d7054f61c8e7d3759a2fd",
+      "captured_at_utc": "2026-09-11T14:00:25.938094+00:00"
+    }
+  ],
+  "inputs_unchanged": true,
+  "source_sha256": {
+    "crates/program/src/config.rs": "02dd3f88171d88df08ee5fb7ccdf8922afa0326c04e65d1f4d0f58a2757e2bab",
+    "crates/program/src/config_host.rs": "b6d4f7e5156277f7ef8fbe15d93d09bf6f01cb716a5eeda8aa21e742d6769d2f",
+    "crates/program/src/config_matcher.rs": "a2d900bd9e29bc3c19a4b88be8b874586048f7959e58e48f49564f1b26969dc0",
+    "crates/program/src/config_options.rs": "cd2eb0a3eb971939d2065920ddc9b761b3b62b4324280802e682d6ec83f02270",
+    "crates/program/src/error.rs": "d6228437145384f9f492fb2ad017e3be99b1f44291202ebd2389f72b5b006702",
+    "crates/program/src/json.rs": "276fdb51d175d61fbabb1e84e9aa655158ed73d0fe06b8de314873213422a47f",
+    "crates/program/src/lib.rs": "19ebf13bcfcec8e58b9eff2651d1608ba320c444337b33342038c9dc75f97fff",
+    "crates/program/src/library.rs": "5c9feb7f21ee53c2d7d0bcd2be742611ca7eb8b41e97e98b7c71580e6b07a32d",
+    "crates/program/src/loader.rs": "8b03398eebc467b4940b6fe80e8c851bd715e4777830aa0af9631a917e861e9b",
+    "crates/program/src/module_requests.rs": "1014b13d50ba79336e3ddea487691faa294d5740566b434a57617b8e3e16c855",
+    "crates/program/src/module_resolution.rs": "34eb3a40eb1763f90828ba53a4e9b2710182839d0dee50bca48505a0e1ed733f",
+    "crates/program/src/option_validation.rs": "a22c66489924498e137cad16db64e7922d06940efb2c9fbfed72b0bf8f626cf8",
+    "crates/program/src/output_directories.rs": "8e7ef589c55ab820d99909ea55c5282c953ead7331a078741c0e5868ebf52650",
+    "crates/program/src/path.rs": "2a30d9b4ef3e7d9b6f495b413782c9fdfae28bbc08520450c590cb718df6f499",
+    "crates/program/src/prepared.rs": "c5bc6315e91481c58273bdc926be0459fd877593d34e9467789280b610ed1286",
+    "crates/program/src/resolution.rs": "a8efb67582148d29cd73a735442fc50a66e02b098d1de0c47241f1745a9a18cf",
+    "crates/program/src/symlinks.rs": "8f2569b183b36aa03bf28fce287b9390bfacb17c7be8044a71ea4d0a12f46d6a",
+    "crates/program/src/text.rs": "ca37622822c0b897a8460adbf2880be3e16a94a847ba6b5d736863b71a3ab7bb"
+  },
+  "input_sha256": "5941132c41002e4bc5f554dc4c8c1d1126a4facd50e55274759f016fd97736ff",
+  "oracle_sha256": "6b087138d0494c546e4bdcfe51201273372740f1af051d2e0f8183382df9a2e2",
+  "capture": {
+    "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-extends-runs/20260911T135209Z/baseline-r2-events.json",
+    "sha256": "38bd35e316eea8a5ac982dc608b0545792268bb7c0f23104400c5ca1e077fb71"
+  },
+  "adapter_correction": {
+    "initial_run": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-extends-runs/20260911T135209Z/baseline.run.json",
+    "initial_exact_cases": 23,
+    "spurious_numeric_representation_failure": "own-invalid-masks-inherited-options",
+    "correction_commit": "9fb990dec",
+    "production_changed": false,
+    "expectations_changed": false
+  }
+}

@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "slice": "H2.8b-CFG1f",
+  "cases": [
+    {
+      "case_id": "h2-8b-config-source-commands/none-es5",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"none\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true},\"files\":[\"src/main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-source-commands/none-es2015",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es2015\",\"module\":\"none\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true},\"files\":[\"src/main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-source-commands/none-isolated",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"none\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true,\"isolatedModules\":true},\"files\":[\"src/main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-source-commands/none-verbatim",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"none\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true,\"verbatimModuleSyntax\":true},\"files\":[\"src/main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-source-commands/none-blocked",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"none\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true,\"noEmitOnError\":true},\"files\":[\"src/main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-source-commands/outfile-unspecified-module",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true,\"outFile\":\"dist/bundle.js\"},\"files\":[\"src/main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-source-commands/outfile-declaration-only",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true,\"outFile\":\"dist/bundle.js\",\"emitDeclarationOnly\":true},\"files\":[\"src/main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-source-commands/outfile-blocked",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true,\"outFile\":\"dist/bundle.js\",\"noEmitOnError\":true},\"files\":[\"src/main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    }
+  ]
+}

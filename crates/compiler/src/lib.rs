@@ -1372,6 +1372,7 @@ impl ProgramSession {
         let mut conformance_diagnostics = checked.diagnostics;
         let config_diagnostics = preparation.config().to_vec();
         let mut syntactic_diagnostics = checked.syntactic_diagnostics;
+        retain_source_diagnostic_paths(&self.prepared, &mut syntactic_diagnostics);
         sort_and_dedupe_diagnostics(&mut syntactic_diagnostics);
         let partial_checks = checked.partial_checks;
 
@@ -1414,6 +1415,7 @@ impl ProgramSession {
                 })
                 .cloned(),
         );
+        retain_source_diagnostic_paths(&self.prepared, &mut conformance_diagnostics);
         sort_and_dedupe_diagnostics(&mut conformance_diagnostics);
 
         let mut route_program_diagnostic =
@@ -1432,6 +1434,8 @@ impl ProgramSession {
         for diagnostic in &program_diagnostics {
             route_program_diagnostic(diagnostic);
         }
+        retain_source_diagnostic_paths(&self.prepared, &mut available_options);
+        retain_source_diagnostic_paths(&self.prepared, &mut available_semantic);
         sort_and_dedupe_diagnostics(&mut available_options);
         sort_and_dedupe_diagnostics(&mut available_semantic);
 
@@ -1832,6 +1836,39 @@ const fn checker_resolution_mode(mode: ResolutionMode) -> AuthoritativeResolutio
     }
 }
 
+/// Diagnostic.file.path is the Program's canonical identity, independently
+/// of the display spelling. Config producers retain their separate paths;
+/// checker/source-owned rows inherit the path of their prepared SourceFile.
+fn retain_source_diagnostic_paths(prepared: &PreparedProgram, diagnostics: &mut [Diagnostic]) {
+    if !diagnostics
+        .iter()
+        .any(|d| d.file_name.is_some() && d.file_path.is_none())
+    {
+        return;
+    }
+    let paths = prepared
+        .source_files()
+        .iter()
+        .filter_map(|source| {
+            Some((
+                source.path().display().to_str()?,
+                source.path().canonical().as_path().to_str()?,
+            ))
+        })
+        .collect::<std::collections::BTreeMap<_, _>>();
+    for diagnostic in diagnostics {
+        if diagnostic.file_path.is_some() {
+            continue;
+        }
+        let Some(name) = diagnostic.file_name.as_deref() else {
+            continue;
+        };
+        if let Some(&path) = paths.get(name).filter(|&&path| path != name) {
+            diagnostic.file_path = Some(path.to_owned());
+        }
+    }
+}
+
 /// Assemble the four `handleNoEmitOptions` getter streams in their vendored
 /// order. These diagnostics are returned by `Program.emit` only when
 /// `noEmitOnError` closes the emit path; an ordinary emit with type errors
@@ -1886,9 +1923,12 @@ fn emit_session_diagnostics(
             options.push(diagnostic.clone());
         }
     }
+    retain_source_diagnostic_paths(prepared, &mut options);
+    retain_source_diagnostic_paths(prepared, &mut semantic);
     sort_and_dedupe_diagnostics(&mut options);
     sort_and_dedupe_diagnostics(&mut semantic);
     let mut syntactic = checked.syntactic_diagnostics.clone();
+    retain_source_diagnostic_paths(prepared, &mut syntactic);
     sort_and_dedupe_diagnostics(&mut syntactic);
     let global = if prepared.roots().is_empty() {
         Vec::new()
@@ -1963,72 +2003,6 @@ fn programmatic_option_diagnostics(prepared: &PreparedProgram) -> DiagnosticList
                 MessageChain::new(
                     &gen::Option_0_cannot_be_specified_with_option_1,
                     &["lib".to_owned(), "noLib".to_owned()],
-                ),
-            );
-        }
-        let module_kind = options.emit_module_kind();
-        let module_resolution = options.emit_module_resolution_kind();
-        if module_resolution == 100 && !matches!(module_kind, 1 | 5..=99 | 200) {
-            push_programmatic_option_diagnostic(
-                prepared,
-                &mut diagnostics,
-                &["moduleResolution"],
-                ProgrammaticOptionDiagnosticLocation::Value,
-                false,
-                MessageChain::new(
-                    &gen::Option_0_can_only_be_used_when_module_is_set_to_preserve_commonjs_or_es2015_or_later,
-                    &["bundler".to_owned()],
-                ),
-            );
-        }
-        if (3..=99).contains(&module_resolution) && !(100..=199).contains(&module_kind) {
-            let module_resolution_name = if module_resolution == 99 {
-                "NodeNext"
-            } else {
-                "Node16"
-            };
-            push_programmatic_option_diagnostic(
-                prepared,
-                &mut diagnostics,
-                &["module"],
-                ProgrammaticOptionDiagnosticLocation::Value,
-                false,
-                MessageChain::new(
-                    &gen::Option_module_must_be_set_to_0_when_option_moduleResolution_is_set_to_1,
-                    &[
-                        module_resolution_name.to_owned(),
-                        module_resolution_name.to_owned(),
-                    ],
-                ),
-            );
-        } else if (100..=199).contains(&module_kind)
-            && options.module_resolution.is_some()
-            && !(3..=99).contains(&module_resolution)
-        {
-            let module_kind_name = match module_kind {
-                100 => "Node16",
-                101 => "Node18",
-                102 => "Node20",
-                199 => "NodeNext",
-                _ => "Node16",
-            };
-            let module_resolution_name = if module_kind == 199 {
-                "NodeNext"
-            } else {
-                "Node16"
-            };
-            push_programmatic_option_diagnostic(
-                prepared,
-                &mut diagnostics,
-                &["moduleResolution"],
-                ProgrammaticOptionDiagnosticLocation::Value,
-                false,
-                MessageChain::new(
-                    &gen::Option_moduleResolution_must_be_set_to_0_or_left_unspecified_when_option_module_is_set_to_1,
-                    &[
-                        module_resolution_name.to_owned(),
-                        module_kind_name.to_owned(),
-                    ],
                 ),
             );
         }
@@ -2272,6 +2246,7 @@ fn push_programmatic_option_diagnostic(
             Some(location.length()),
             message.clone(),
         )
+        .with_file_path(config_file.diagnostic_file_path())
     }));
 }
 

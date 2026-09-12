@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "slice": "H2.8b-CFG1 source diagnostic routing",
+  "cases": [
+    {
+      "case_id": "h2-8b-config-diagnostic-routing/direct-class",
+      "roots": [
+        "/project/a.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "export class Foo {\n    foo: string;\n}\n"
+        }
+      ],
+      "options": {
+        "target": 1,
+        "module": 0,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "skipDefaultLibCheck": true
+      }
+    },
+    {
+      "case_id": "h2-8b-config-diagnostic-routing/direct-dts-last",
+      "roots": [
+        "/project/1.ts",
+        "/project/0.d.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/1.ts",
+          "text": "export var j = \"hello\"; // error\n"
+        },
+        {
+          "path": "/project/0.d.ts",
+          "text": "export = a;\ndeclare var a: number;"
+        }
+      ],
+      "options": {
+        "target": 1,
+        "module": 0,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "skipDefaultLibCheck": true
+      }
+    },
+    {
+      "case_id": "h2-8b-config-diagnostic-routing/direct-dts-first",
+      "roots": [
+        "/project/0.d.ts",
+        "/project/1.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/0.d.ts",
+          "text": "export = a;\ndeclare var a: number;\n"
+        },
+        {
+          "path": "/project/1.ts",
+          "text": "export var j = \"hello\";  // error\n"
+        }
+      ],
+      "options": {
+        "target": 1,
+        "module": 0,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "skipDefaultLibCheck": true
+      }
+    },
+    {
+      "case_id": "h2-8b-config-diagnostic-routing/config-none-deprecated",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"none\",\"moduleResolution\":\"node\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true},\"files\":[\"src/main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostic-routing/config-none-semantic",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"none\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true},\"files\":[\"src/main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostic-routing/config-outfile-deprecated",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"moduleResolution\":\"node\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true,\"outFile\":\"dist/bundle.js\"},\"files\":[\"src/main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostic-routing/config-outfile-semantic",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true,\"outFile\":\"dist/bundle.js\"},\"files\":[\"src/main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-diagnostic-routing/config-none-deprecated-blocked",
+      "options": {},
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"compilerOptions\":{\"target\":\"es5\",\"module\":\"none\",\"moduleResolution\":\"node\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"src\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true,\"noEmitOnError\":true},\"files\":[\"src/main.ts\"]}",
+      "files": [
+        {
+          "path": "/project/src/main.ts",
+          "text": "export const value = 1;\n"
+        }
+      ]
+    }
+  ]
+}

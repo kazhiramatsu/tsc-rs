@@ -1,0 +1,1869 @@
+{
+  "version": 1,
+  "slice": "H2.8b-CFG1e",
+  "typescript": "6.0.3",
+  "source": {
+    "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+    "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
+    "anchors": [
+      {
+        "symbol": "getExtendedConfig",
+        "start_line": 39460,
+        "end_line": 39500,
+        "sha256": "545d6ab16e97cc943150aa4dd577a88bb693aa81ca82a86f7a75328b37d9084f"
+      },
+      {
+        "symbol": "performCompilation",
+        "start_line": 132860,
+        "end_line": 132899,
+        "sha256": "9de1e7224a4630e06f3161f7a5d54c05bc8ec06b4b5de77b4d1e4bd55e7488b7"
+      },
+      {
+        "symbol": "executeCommandLineWorker-config-cache",
+        "start_line": 132652,
+        "end_line": 132654,
+        "sha256": "4b1453b132b9c0fb04c485f87da6877934d1eadbfa99e0fc943b4be3672525f5"
+      }
+    ]
+  },
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "1a7e01668ac3e0aa1d2ebd0ec56dd4f3ab858f6286470396f66e66e2e1375b11",
+  "inputs": {
+    "path": "crates/program/tests/fixtures/h2-8b-config-reuse-inputs.json",
+    "sha256": "235c5bc62a47efc8e63dd8451a5cb4fccd4a0d307fa58e84c3536a1b7d3f5b9e"
+  },
+  "repetitions": 2,
+  "program_executions": 0,
+  "config_parse_attempts": 60,
+  "cases": [
+    {
+      "case_id": "h2-8b-config-reuse/duplicate-fresh",
+      "typescript_observation": [
+        {
+          "calls": [
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/base.json"
+            }
+          ],
+          "raw": {
+            "files": [
+              "main.ts"
+            ],
+            "extends": [
+              "./base.json",
+              "./base.json"
+            ]
+          },
+          "options": {
+            "strict": true,
+            "configFilePath": "/project/tsconfig.json"
+          },
+          "watch_options": {
+            "watchFile": 4
+          },
+          "type_acquisition": {
+            "enable": false,
+            "include": [],
+            "exclude": []
+          },
+          "compile_on_save": false,
+          "file_names": [
+            "/project/main.ts"
+          ],
+          "extended_source_files": [
+            "/project/base.json"
+          ],
+          "root_parse_diagnostics": [],
+          "parsed_errors": [],
+          "config_diagnostics": []
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-reuse/diamond-fresh",
+      "typescript_observation": [
+        {
+          "calls": [
+            {
+              "operation": "fileExists",
+              "path": "/project/left.json"
+            },
+            {
+              "operation": "fileExists",
+              "path": "/project/right.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/left.json"
+            },
+            {
+              "operation": "fileExists",
+              "path": "/project/shared.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/shared.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/right.json"
+            },
+            {
+              "operation": "fileExists",
+              "path": "/project/shared.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/shared.json"
+            }
+          ],
+          "raw": {
+            "files": [
+              "main.ts"
+            ],
+            "extends": [
+              "./left.json",
+              "./right.json"
+            ]
+          },
+          "options": {
+            "strict": true,
+            "configFilePath": "/project/tsconfig.json"
+          },
+          "watch_options": {
+            "watchFile": 4
+          },
+          "type_acquisition": {
+            "enable": false,
+            "include": [],
+            "exclude": []
+          },
+          "compile_on_save": false,
+          "file_names": [
+            "/project/main.ts"
+          ],
+          "extended_source_files": [
+            "/project/left.json",
+            "/project/shared.json",
+            "/project/right.json"
+          ],
+          "root_parse_diagnostics": [],
+          "parsed_errors": [],
+          "config_diagnostics": []
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-reuse/conversion-error-fresh",
+      "typescript_observation": [
+        {
+          "calls": [
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/base.json"
+            }
+          ],
+          "raw": {
+            "files": [
+              "main.ts"
+            ],
+            "extends": [
+              "./base.json",
+              "./base.json"
+            ]
+          },
+          "options": {
+            "configFilePath": "/project/tsconfig.json"
+          },
+          "watch_options": null,
+          "type_acquisition": {
+            "enable": false,
+            "include": [],
+            "exclude": []
+          },
+          "compile_on_save": false,
+          "file_names": [
+            "/project/main.ts"
+          ],
+          "extended_source_files": [
+            "/project/base.json"
+          ],
+          "root_parse_diagnostics": [],
+          "parsed_errors": [
+            {
+              "code": 6046,
+              "category": "error",
+              "file": "/project/base.json",
+              "start": 29,
+              "length": 9,
+              "message": "Argument for '--target' option must be: 'es6', 'es2015', 'es2016', 'es2017', 'es2018', 'es2019', 'es2020', 'es2021', 'es2022', 'es2023', 'es2024', 'es2025', 'esnext'.",
+              "related_information": []
+            },
+            {
+              "code": 6046,
+              "category": "error",
+              "file": "/project/base.json",
+              "start": 29,
+              "length": 9,
+              "message": "Argument for '--target' option must be: 'es6', 'es2015', 'es2016', 'es2017', 'es2018', 'es2019', 'es2020', 'es2021', 'es2022', 'es2023', 'es2024', 'es2025', 'esnext'.",
+              "related_information": []
+            }
+          ],
+          "config_diagnostics": [
+            {
+              "code": 6046,
+              "category": "error",
+              "file": "/project/base.json",
+              "start": 29,
+              "length": 9,
+              "message": "Argument for '--target' option must be: 'es6', 'es2015', 'es2016', 'es2017', 'es2018', 'es2019', 'es2020', 'es2021', 'es2022', 'es2023', 'es2024', 'es2025', 'esnext'.",
+              "related_information": []
+            },
+            {
+              "code": 6046,
+              "category": "error",
+              "file": "/project/base.json",
+              "start": 29,
+              "length": 9,
+              "message": "Argument for '--target' option must be: 'es6', 'es2015', 'es2016', 'es2017', 'es2018', 'es2019', 'es2020', 'es2021', 'es2022', 'es2023', 'es2024', 'es2025', 'esnext'.",
+              "related_information": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-reuse/parse-error-fresh",
+      "typescript_observation": [
+        {
+          "calls": [
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/base.json"
+            }
+          ],
+          "raw": {
+            "files": [
+              "main.ts"
+            ],
+            "extends": [
+              "./base.json",
+              "./base.json"
+            ]
+          },
+          "options": {
+            "configFilePath": "/project/tsconfig.json"
+          },
+          "watch_options": null,
+          "type_acquisition": {
+            "enable": false,
+            "include": [],
+            "exclude": []
+          },
+          "compile_on_save": false,
+          "file_names": [
+            "/project/main.ts"
+          ],
+          "extended_source_files": [
+            "/project/base.json"
+          ],
+          "root_parse_diagnostics": [],
+          "parsed_errors": [
+            {
+              "code": 1109,
+              "category": "error",
+              "file": "/project/base.json",
+              "start": 19,
+              "length": 0,
+              "message": "Expression expected.",
+              "related_information": []
+            },
+            {
+              "code": 1109,
+              "category": "error",
+              "file": "/project/base.json",
+              "start": 19,
+              "length": 0,
+              "message": "Expression expected.",
+              "related_information": []
+            }
+          ],
+          "config_diagnostics": [
+            {
+              "code": 1109,
+              "category": "error",
+              "file": "/project/base.json",
+              "start": 19,
+              "length": 0,
+              "message": "Expression expected.",
+              "related_information": []
+            },
+            {
+              "code": 1109,
+              "category": "error",
+              "file": "/project/base.json",
+              "start": 19,
+              "length": 0,
+              "message": "Expression expected.",
+              "related_information": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-reuse/case-alias-fresh",
+      "typescript_observation": [
+        {
+          "calls": [
+            {
+              "operation": "fileExists",
+              "path": "/project/BASE.json"
+            },
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/BASE.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/base.json"
+            }
+          ],
+          "raw": {
+            "files": [
+              "main.ts"
+            ],
+            "extends": [
+              "./BASE.json",
+              "./base.json"
+            ]
+          },
+          "options": {
+            "strict": true,
+            "configFilePath": "/project/tsconfig.json"
+          },
+          "watch_options": {
+            "watchFile": 4
+          },
+          "type_acquisition": {
+            "enable": false,
+            "include": [],
+            "exclude": []
+          },
+          "compile_on_save": false,
+          "file_names": [
+            "/project/main.ts"
+          ],
+          "extended_source_files": [
+            "/project/BASE.json",
+            "/project/base.json"
+          ],
+          "root_parse_diagnostics": [],
+          "parsed_errors": [],
+          "config_diagnostics": []
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-reuse/changing-file-fresh",
+      "typescript_observation": [
+        {
+          "calls": [
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/base.json"
+            }
+          ],
+          "raw": {
+            "files": [
+              "main.ts"
+            ],
+            "extends": "./base.json"
+          },
+          "options": {
+            "strict": true,
+            "configFilePath": "/project/tsconfig.json"
+          },
+          "watch_options": {
+            "watchFile": 4
+          },
+          "type_acquisition": {
+            "enable": false,
+            "include": [],
+            "exclude": []
+          },
+          "compile_on_save": false,
+          "file_names": [
+            "/project/main.ts"
+          ],
+          "extended_source_files": [
+            "/project/base.json"
+          ],
+          "root_parse_diagnostics": [],
+          "parsed_errors": [],
+          "config_diagnostics": []
+        },
+        {
+          "calls": [
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/base.json"
+            }
+          ],
+          "raw": {
+            "files": [
+              "main.ts"
+            ],
+            "extends": "./base.json"
+          },
+          "options": {
+            "strict": false,
+            "configFilePath": "/project/tsconfig.json"
+          },
+          "watch_options": null,
+          "type_acquisition": {
+            "enable": false,
+            "include": [],
+            "exclude": []
+          },
+          "compile_on_save": false,
+          "file_names": [
+            "/project/main.ts"
+          ],
+          "extended_source_files": [
+            "/project/base.json"
+          ],
+          "root_parse_diagnostics": [],
+          "parsed_errors": [],
+          "config_diagnostics": []
+        },
+        {
+          "calls": [
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/base.json"
+            }
+          ],
+          "raw": {
+            "files": [
+              "main.ts"
+            ],
+            "extends": "./base.json"
+          },
+          "options": {
+            "strict": false,
+            "configFilePath": "/project/tsconfig.json"
+          },
+          "watch_options": null,
+          "type_acquisition": {
+            "enable": false,
+            "include": [],
+            "exclude": []
+          },
+          "compile_on_save": false,
+          "file_names": [
+            "/project/main.ts"
+          ],
+          "extended_source_files": [
+            "/project/base.json"
+          ],
+          "root_parse_diagnostics": [],
+          "parsed_errors": [],
+          "config_diagnostics": []
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-reuse/cycle-fresh",
+      "typescript_observation": [
+        {
+          "calls": [
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "fileExists",
+              "path": "/project/tsconfig.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/tsconfig.json"
+            }
+          ],
+          "raw": {
+            "files": [
+              "main.ts"
+            ],
+            "extends": "./base.json"
+          },
+          "options": {
+            "configFilePath": "/project/tsconfig.json"
+          },
+          "watch_options": null,
+          "type_acquisition": {
+            "enable": false,
+            "include": [],
+            "exclude": []
+          },
+          "compile_on_save": false,
+          "file_names": [
+            "/project/main.ts"
+          ],
+          "extended_source_files": [
+            "/project/base.json",
+            "/project/tsconfig.json"
+          ],
+          "root_parse_diagnostics": [],
+          "parsed_errors": [
+            {
+              "code": 18000,
+              "category": "error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Circularity detected while resolving configuration: /project/tsconfig.json -> /project/base.json -> /project/tsconfig.json",
+              "related_information": []
+            }
+          ],
+          "config_diagnostics": [
+            {
+              "code": 18000,
+              "category": "error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Circularity detected while resolving configuration: /project/tsconfig.json -> /project/base.json -> /project/tsconfig.json",
+              "related_information": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-reuse/read-absent-fresh",
+      "typescript_observation": [
+        {
+          "calls": [
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/base.json"
+            }
+          ],
+          "raw": {
+            "files": [
+              "main.ts"
+            ],
+            "extends": [
+              "./base.json",
+              "./base.json"
+            ]
+          },
+          "options": {
+            "configFilePath": "/project/tsconfig.json"
+          },
+          "watch_options": null,
+          "type_acquisition": {
+            "enable": false,
+            "include": [],
+            "exclude": []
+          },
+          "compile_on_save": false,
+          "file_names": [
+            "/project/main.ts"
+          ],
+          "extended_source_files": [
+            "/project/base.json"
+          ],
+          "root_parse_diagnostics": [],
+          "parsed_errors": [
+            {
+              "code": 5083,
+              "category": "error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Cannot read file '/project/base.json'.",
+              "related_information": []
+            },
+            {
+              "code": 5083,
+              "category": "error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Cannot read file '/project/base.json'.",
+              "related_information": []
+            }
+          ],
+          "config_diagnostics": [
+            {
+              "code": 5083,
+              "category": "error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Cannot read file '/project/base.json'.",
+              "related_information": []
+            },
+            {
+              "code": 5083,
+              "category": "error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Cannot read file '/project/base.json'.",
+              "related_information": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-reuse/read-throws-fresh",
+      "typescript_observation": [
+        {
+          "calls": [
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/base.json"
+            }
+          ],
+          "raw": {
+            "files": [
+              "main.ts"
+            ],
+            "extends": [
+              "./base.json",
+              "./base.json"
+            ]
+          },
+          "options": {
+            "configFilePath": "/project/tsconfig.json"
+          },
+          "watch_options": null,
+          "type_acquisition": {
+            "enable": false,
+            "include": [],
+            "exclude": []
+          },
+          "compile_on_save": false,
+          "file_names": [
+            "/project/main.ts"
+          ],
+          "extended_source_files": [
+            "/project/base.json"
+          ],
+          "root_parse_diagnostics": [],
+          "parsed_errors": [
+            {
+              "code": 5012,
+              "category": "error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Cannot read file '/project/base.json': synthetic fault.",
+              "related_information": []
+            },
+            {
+              "code": 5012,
+              "category": "error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Cannot read file '/project/base.json': synthetic fault.",
+              "related_information": []
+            }
+          ],
+          "config_diagnostics": [
+            {
+              "code": 5012,
+              "category": "error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Cannot read file '/project/base.json': synthetic fault.",
+              "related_information": []
+            },
+            {
+              "code": 5012,
+              "category": "error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Cannot read file '/project/base.json': synthetic fault.",
+              "related_information": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-reuse/duplicate-cached",
+      "typescript_observation": [
+        {
+          "calls": [
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/base.json"
+            }
+          ],
+          "raw": {
+            "files": [
+              "main.ts"
+            ],
+            "extends": [
+              "./base.json",
+              "./base.json"
+            ]
+          },
+          "options": {
+            "strict": true,
+            "configFilePath": "/project/tsconfig.json"
+          },
+          "watch_options": {
+            "watchFile": 4
+          },
+          "type_acquisition": {
+            "enable": false,
+            "include": [],
+            "exclude": []
+          },
+          "compile_on_save": false,
+          "file_names": [
+            "/project/main.ts"
+          ],
+          "extended_source_files": [
+            "/project/base.json"
+          ],
+          "root_parse_diagnostics": [],
+          "parsed_errors": [],
+          "config_diagnostics": []
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-reuse/diamond-cached",
+      "typescript_observation": [
+        {
+          "calls": [
+            {
+              "operation": "fileExists",
+              "path": "/project/left.json"
+            },
+            {
+              "operation": "fileExists",
+              "path": "/project/right.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/left.json"
+            },
+            {
+              "operation": "fileExists",
+              "path": "/project/shared.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/shared.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/right.json"
+            },
+            {
+              "operation": "fileExists",
+              "path": "/project/shared.json"
+            }
+          ],
+          "raw": {
+            "files": [
+              "main.ts"
+            ],
+            "extends": [
+              "./left.json",
+              "./right.json"
+            ]
+          },
+          "options": {
+            "strict": true,
+            "configFilePath": "/project/tsconfig.json"
+          },
+          "watch_options": {
+            "watchFile": 4
+          },
+          "type_acquisition": {
+            "enable": false,
+            "include": [],
+            "exclude": []
+          },
+          "compile_on_save": false,
+          "file_names": [
+            "/project/main.ts"
+          ],
+          "extended_source_files": [
+            "/project/left.json",
+            "/project/shared.json",
+            "/project/right.json"
+          ],
+          "root_parse_diagnostics": [],
+          "parsed_errors": [],
+          "config_diagnostics": []
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-reuse/conversion-error-cached",
+      "typescript_observation": [
+        {
+          "calls": [
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/base.json"
+            }
+          ],
+          "raw": {
+            "files": [
+              "main.ts"
+            ],
+            "extends": [
+              "./base.json",
+              "./base.json"
+            ]
+          },
+          "options": {
+            "configFilePath": "/project/tsconfig.json"
+          },
+          "watch_options": null,
+          "type_acquisition": {
+            "enable": false,
+            "include": [],
+            "exclude": []
+          },
+          "compile_on_save": false,
+          "file_names": [
+            "/project/main.ts"
+          ],
+          "extended_source_files": [
+            "/project/base.json"
+          ],
+          "root_parse_diagnostics": [],
+          "parsed_errors": [
+            {
+              "code": 6046,
+              "category": "error",
+              "file": "/project/base.json",
+              "start": 29,
+              "length": 9,
+              "message": "Argument for '--target' option must be: 'es6', 'es2015', 'es2016', 'es2017', 'es2018', 'es2019', 'es2020', 'es2021', 'es2022', 'es2023', 'es2024', 'es2025', 'esnext'.",
+              "related_information": []
+            }
+          ],
+          "config_diagnostics": [
+            {
+              "code": 6046,
+              "category": "error",
+              "file": "/project/base.json",
+              "start": 29,
+              "length": 9,
+              "message": "Argument for '--target' option must be: 'es6', 'es2015', 'es2016', 'es2017', 'es2018', 'es2019', 'es2020', 'es2021', 'es2022', 'es2023', 'es2024', 'es2025', 'esnext'.",
+              "related_information": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-reuse/parse-error-cached",
+      "typescript_observation": [
+        {
+          "calls": [
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/base.json"
+            }
+          ],
+          "raw": {
+            "files": [
+              "main.ts"
+            ],
+            "extends": [
+              "./base.json",
+              "./base.json"
+            ]
+          },
+          "options": {
+            "configFilePath": "/project/tsconfig.json"
+          },
+          "watch_options": null,
+          "type_acquisition": {
+            "enable": false,
+            "include": [],
+            "exclude": []
+          },
+          "compile_on_save": false,
+          "file_names": [
+            "/project/main.ts"
+          ],
+          "extended_source_files": [
+            "/project/base.json"
+          ],
+          "root_parse_diagnostics": [],
+          "parsed_errors": [
+            {
+              "code": 1109,
+              "category": "error",
+              "file": "/project/base.json",
+              "start": 19,
+              "length": 0,
+              "message": "Expression expected.",
+              "related_information": []
+            },
+            {
+              "code": 1109,
+              "category": "error",
+              "file": "/project/base.json",
+              "start": 19,
+              "length": 0,
+              "message": "Expression expected.",
+              "related_information": []
+            }
+          ],
+          "config_diagnostics": [
+            {
+              "code": 1109,
+              "category": "error",
+              "file": "/project/base.json",
+              "start": 19,
+              "length": 0,
+              "message": "Expression expected.",
+              "related_information": []
+            },
+            {
+              "code": 1109,
+              "category": "error",
+              "file": "/project/base.json",
+              "start": 19,
+              "length": 0,
+              "message": "Expression expected.",
+              "related_information": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-reuse/case-alias-cached",
+      "typescript_observation": [
+        {
+          "calls": [
+            {
+              "operation": "fileExists",
+              "path": "/project/BASE.json"
+            },
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/BASE.json"
+            }
+          ],
+          "raw": {
+            "files": [
+              "main.ts"
+            ],
+            "extends": [
+              "./BASE.json",
+              "./base.json"
+            ]
+          },
+          "options": {
+            "strict": true,
+            "configFilePath": "/project/tsconfig.json"
+          },
+          "watch_options": {
+            "watchFile": 4
+          },
+          "type_acquisition": {
+            "enable": false,
+            "include": [],
+            "exclude": []
+          },
+          "compile_on_save": false,
+          "file_names": [
+            "/project/main.ts"
+          ],
+          "extended_source_files": [
+            "/project/BASE.json"
+          ],
+          "root_parse_diagnostics": [],
+          "parsed_errors": [],
+          "config_diagnostics": []
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-reuse/changing-file-cached",
+      "typescript_observation": [
+        {
+          "calls": [
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/base.json"
+            }
+          ],
+          "raw": {
+            "files": [
+              "main.ts"
+            ],
+            "extends": "./base.json"
+          },
+          "options": {
+            "strict": true,
+            "configFilePath": "/project/tsconfig.json"
+          },
+          "watch_options": {
+            "watchFile": 4
+          },
+          "type_acquisition": {
+            "enable": false,
+            "include": [],
+            "exclude": []
+          },
+          "compile_on_save": false,
+          "file_names": [
+            "/project/main.ts"
+          ],
+          "extended_source_files": [
+            "/project/base.json"
+          ],
+          "root_parse_diagnostics": [],
+          "parsed_errors": [],
+          "config_diagnostics": []
+        },
+        {
+          "calls": [
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            }
+          ],
+          "raw": {
+            "files": [
+              "main.ts"
+            ],
+            "extends": "./base.json"
+          },
+          "options": {
+            "strict": true,
+            "configFilePath": "/project/tsconfig.json"
+          },
+          "watch_options": {
+            "watchFile": 4
+          },
+          "type_acquisition": {
+            "enable": false,
+            "include": [],
+            "exclude": []
+          },
+          "compile_on_save": false,
+          "file_names": [
+            "/project/main.ts"
+          ],
+          "extended_source_files": [
+            "/project/base.json"
+          ],
+          "root_parse_diagnostics": [],
+          "parsed_errors": [],
+          "config_diagnostics": []
+        },
+        {
+          "calls": [
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/base.json"
+            }
+          ],
+          "raw": {
+            "files": [
+              "main.ts"
+            ],
+            "extends": "./base.json"
+          },
+          "options": {
+            "strict": false,
+            "configFilePath": "/project/tsconfig.json"
+          },
+          "watch_options": null,
+          "type_acquisition": {
+            "enable": false,
+            "include": [],
+            "exclude": []
+          },
+          "compile_on_save": false,
+          "file_names": [
+            "/project/main.ts"
+          ],
+          "extended_source_files": [
+            "/project/base.json"
+          ],
+          "root_parse_diagnostics": [],
+          "parsed_errors": [],
+          "config_diagnostics": []
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-reuse/cycle-cached",
+      "typescript_observation": [
+        {
+          "calls": [
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "fileExists",
+              "path": "/project/tsconfig.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/tsconfig.json"
+            }
+          ],
+          "raw": {
+            "files": [
+              "main.ts"
+            ],
+            "extends": "./base.json"
+          },
+          "options": {
+            "configFilePath": "/project/tsconfig.json"
+          },
+          "watch_options": null,
+          "type_acquisition": {
+            "enable": false,
+            "include": [],
+            "exclude": []
+          },
+          "compile_on_save": false,
+          "file_names": [
+            "/project/main.ts"
+          ],
+          "extended_source_files": [
+            "/project/base.json",
+            "/project/tsconfig.json"
+          ],
+          "root_parse_diagnostics": [],
+          "parsed_errors": [
+            {
+              "code": 18000,
+              "category": "error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Circularity detected while resolving configuration: /project/tsconfig.json -> /project/base.json -> /project/tsconfig.json",
+              "related_information": []
+            }
+          ],
+          "config_diagnostics": [
+            {
+              "code": 18000,
+              "category": "error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Circularity detected while resolving configuration: /project/tsconfig.json -> /project/base.json -> /project/tsconfig.json",
+              "related_information": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-reuse/read-absent-cached",
+      "typescript_observation": [
+        {
+          "calls": [
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/base.json"
+            }
+          ],
+          "raw": {
+            "files": [
+              "main.ts"
+            ],
+            "extends": [
+              "./base.json",
+              "./base.json"
+            ]
+          },
+          "options": {
+            "configFilePath": "/project/tsconfig.json"
+          },
+          "watch_options": null,
+          "type_acquisition": {
+            "enable": false,
+            "include": [],
+            "exclude": []
+          },
+          "compile_on_save": false,
+          "file_names": [
+            "/project/main.ts"
+          ],
+          "extended_source_files": [
+            "/project/base.json"
+          ],
+          "root_parse_diagnostics": [],
+          "parsed_errors": [
+            {
+              "code": 5083,
+              "category": "error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Cannot read file '/project/base.json'.",
+              "related_information": []
+            },
+            {
+              "code": 5083,
+              "category": "error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Cannot read file '/project/base.json'.",
+              "related_information": []
+            }
+          ],
+          "config_diagnostics": [
+            {
+              "code": 5083,
+              "category": "error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Cannot read file '/project/base.json'.",
+              "related_information": []
+            },
+            {
+              "code": 5083,
+              "category": "error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Cannot read file '/project/base.json'.",
+              "related_information": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-reuse/read-throws-cached",
+      "typescript_observation": [
+        {
+          "calls": [
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/base.json"
+            }
+          ],
+          "raw": {
+            "files": [
+              "main.ts"
+            ],
+            "extends": [
+              "./base.json",
+              "./base.json"
+            ]
+          },
+          "options": {
+            "configFilePath": "/project/tsconfig.json"
+          },
+          "watch_options": null,
+          "type_acquisition": {
+            "enable": false,
+            "include": [],
+            "exclude": []
+          },
+          "compile_on_save": false,
+          "file_names": [
+            "/project/main.ts"
+          ],
+          "extended_source_files": [
+            "/project/base.json"
+          ],
+          "root_parse_diagnostics": [],
+          "parsed_errors": [
+            {
+              "code": 5012,
+              "category": "error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Cannot read file '/project/base.json': synthetic fault.",
+              "related_information": []
+            },
+            {
+              "code": 5012,
+              "category": "error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Cannot read file '/project/base.json': synthetic fault.",
+              "related_information": []
+            }
+          ],
+          "config_diagnostics": [
+            {
+              "code": 5012,
+              "category": "error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Cannot read file '/project/base.json': synthetic fault.",
+              "related_information": []
+            },
+            {
+              "code": 5012,
+              "category": "error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Cannot read file '/project/base.json': synthetic fault.",
+              "related_information": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-reuse/missing-base",
+      "typescript_observation": [
+        {
+          "calls": [
+            {
+              "operation": "fileExists",
+              "path": "/project/missing"
+            },
+            {
+              "operation": "fileExists",
+              "path": "/project/missing.json"
+            },
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/base.json"
+            }
+          ],
+          "raw": {
+            "files": [
+              "main.ts"
+            ],
+            "extends": [
+              "./missing",
+              "./base.json"
+            ]
+          },
+          "options": {
+            "strict": true,
+            "configFilePath": "/project/tsconfig.json"
+          },
+          "watch_options": {
+            "watchFile": 4
+          },
+          "type_acquisition": {
+            "enable": false,
+            "include": [],
+            "exclude": []
+          },
+          "compile_on_save": false,
+          "file_names": [
+            "/project/main.ts"
+          ],
+          "extended_source_files": [
+            "/project/base.json"
+          ],
+          "root_parse_diagnostics": [],
+          "parsed_errors": [
+            {
+              "code": 6053,
+              "category": "error",
+              "file": "/project/tsconfig.json",
+              "start": 32,
+              "length": 11,
+              "message": "File './missing' not found.",
+              "related_information": []
+            }
+          ],
+          "config_diagnostics": [
+            {
+              "code": 6053,
+              "category": "error",
+              "file": "/project/tsconfig.json",
+              "start": 32,
+              "length": 11,
+              "message": "File './missing' not found.",
+              "related_information": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-reuse/exists-throws",
+      "typescript_observation": [
+        {
+          "calls": [
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            }
+          ],
+          "host_failure": {
+            "operation": "fileExists",
+            "path": "/project/base.json",
+            "detail": "synthetic fault"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-reuse/directory-throws",
+      "typescript_observation": [
+        {
+          "calls": [
+            {
+              "operation": "readDirectory",
+              "path": "/project",
+              "extensions": [
+                ".ts",
+                ".tsx",
+                ".d.ts",
+                ".cts",
+                ".d.cts",
+                ".mts",
+                ".d.mts",
+                ".json"
+              ],
+              "excludes": null,
+              "includes": [
+                "**/*"
+              ],
+              "depth": null
+            }
+          ],
+          "host_failure": {
+            "operation": "readDirectory",
+            "path": "/project",
+            "detail": "synthetic fault"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-reuse/root-parse-error",
+      "typescript_observation": [
+        {
+          "calls": [
+            {
+              "operation": "fileExists",
+              "path": "/project/base.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/base.json"
+            }
+          ],
+          "raw": {
+            "files": [
+              "main.ts"
+            ],
+            "extends": "./base.json"
+          },
+          "options": {
+            "strict": true,
+            "configFilePath": "/project/tsconfig.json"
+          },
+          "watch_options": {
+            "watchFile": 4
+          },
+          "type_acquisition": {
+            "enable": false,
+            "include": [],
+            "exclude": []
+          },
+          "compile_on_save": false,
+          "file_names": [
+            "/project/main.ts"
+          ],
+          "extended_source_files": [
+            "/project/base.json"
+          ],
+          "root_parse_diagnostics": [
+            {
+              "code": 1005,
+              "category": "error",
+              "file": "/project/tsconfig.json",
+              "start": 21,
+              "length": 9,
+              "message": "',' expected.",
+              "related_information": []
+            }
+          ],
+          "parsed_errors": [],
+          "config_diagnostics": [
+            {
+              "code": 1005,
+              "category": "error",
+              "file": "/project/tsconfig.json",
+              "start": 21,
+              "length": 9,
+              "message": "',' expected.",
+              "related_information": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-reuse/windows-relative",
+      "typescript_observation": [
+        {
+          "calls": [
+            {
+              "operation": "fileExists",
+              "path": "C:/project/base.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "C:/project/base.json"
+            }
+          ],
+          "raw": {
+            "files": [
+              "main.ts"
+            ],
+            "extends": "./base.json"
+          },
+          "options": {
+            "strict": true,
+            "configFilePath": "C:/project/tsconfig.json"
+          },
+          "watch_options": {
+            "watchFile": 4
+          },
+          "type_acquisition": {
+            "enable": false,
+            "include": [],
+            "exclude": []
+          },
+          "compile_on_save": false,
+          "file_names": [
+            "C:/project/main.ts"
+          ],
+          "extended_source_files": [
+            "C:/project/base.json"
+          ],
+          "root_parse_diagnostics": [],
+          "parsed_errors": [],
+          "config_diagnostics": []
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-reuse/unc-relative",
+      "typescript_observation": [
+        {
+          "calls": [
+            {
+              "operation": "fileExists",
+              "path": "//server/share/project/base.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "//server/share/project/base.json"
+            }
+          ],
+          "raw": {
+            "files": [
+              "main.ts"
+            ],
+            "extends": "./base.json"
+          },
+          "options": {
+            "strict": true,
+            "configFilePath": "//server/share/project/tsconfig.json"
+          },
+          "watch_options": {
+            "watchFile": 4
+          },
+          "type_acquisition": {
+            "enable": false,
+            "include": [],
+            "exclude": []
+          },
+          "compile_on_save": false,
+          "file_names": [
+            "//server/share/project/main.ts"
+          ],
+          "extended_source_files": [
+            "//server/share/project/base.json"
+          ],
+          "root_parse_diagnostics": [],
+          "parsed_errors": [],
+          "config_diagnostics": []
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-reuse/url-relative",
+      "typescript_observation": [
+        {
+          "calls": [
+            {
+              "operation": "fileExists",
+              "path": "https://example.test/project/base.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "https://example.test/project/base.json"
+            }
+          ],
+          "raw": {
+            "files": [
+              "main.ts"
+            ],
+            "extends": "./base.json"
+          },
+          "options": {
+            "strict": true,
+            "configFilePath": "https://example.test/project/tsconfig.json"
+          },
+          "watch_options": {
+            "watchFile": 4
+          },
+          "type_acquisition": {
+            "enable": false,
+            "include": [],
+            "exclude": []
+          },
+          "compile_on_save": false,
+          "file_names": [
+            "https://example.test/project/main.ts"
+          ],
+          "extended_source_files": [
+            "https://example.test/project/base.json"
+          ],
+          "root_parse_diagnostics": [],
+          "parsed_errors": [],
+          "config_diagnostics": []
+        }
+      ]
+    },
+    {
+      "case_id": "h2-8b-config-reuse/package-config",
+      "typescript_observation": [
+        {
+          "calls": [
+            {
+              "operation": "fileExists",
+              "path": "/project/package.json"
+            },
+            {
+              "operation": "fileExists",
+              "path": "/package.json"
+            },
+            {
+              "operation": "fileExists",
+              "path": "/project/node_modules/@scope/config/package.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/node_modules/@scope/config/package.json"
+            },
+            {
+              "operation": "fileExists",
+              "path": "/project/node_modules/@scope/config.json"
+            },
+            {
+              "operation": "fileExists",
+              "path": "/project/node_modules/@scope/config/base.json"
+            },
+            {
+              "operation": "readFile",
+              "path": "/project/node_modules/@scope/config/base.json"
+            }
+          ],
+          "raw": {
+            "files": [
+              "main.ts"
+            ],
+            "extends": "@scope/config"
+          },
+          "options": {
+            "strict": true,
+            "configFilePath": "/project/tsconfig.json"
+          },
+          "watch_options": {
+            "watchFile": 4
+          },
+          "type_acquisition": {
+            "enable": false,
+            "include": [],
+            "exclude": []
+          },
+          "compile_on_save": false,
+          "file_names": [
+            "/project/main.ts"
+          ],
+          "extended_source_files": [
+            "/project/node_modules/@scope/config/base.json"
+          ],
+          "root_parse_diagnostics": [],
+          "parsed_errors": [],
+          "config_diagnostics": []
+        }
+      ]
+    }
+  ]
+}

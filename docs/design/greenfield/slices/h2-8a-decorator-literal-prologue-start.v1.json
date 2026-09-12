@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "created_at": "2026-09-11T10:12:43.092565+00:00",
+  "purpose": "Claude preparation for A6-41 literal computed names and lexical prologues; new observations and native baseline remain unexecuted.",
+  "worktree": "/Users/hiramatsu/dev/tsc-rs-dec-literal-prologue",
+  "branch": "prep/h2-8a-decorator-literal-prologue",
+  "production_base_head": "5134bb0187f9f3f6ac2a0218f8d8e98859cf4fea",
+  "production_base_tree": "1e632db73fbcd8e37a6e3c63b03daf57dfbdafdc",
+  "preparation_note": "The preparation commit adds documentation and proposed JSON inputs only. Its HEAD is not the historical measured compiler head.",
+  "git_objects": {
+    "crates": "0dd4f3c272031dcda6fd8217311b3aa9c5a3a750",
+    "vendor/typescript-6.0.3": "d700adb317c0c9a6c3e72071515f969fb02282c1",
+    "scripts": "9fd7f4eb3a223cb08ac6304f783df11f92e14543",
+    ".github": "0ae0f0449edcf6276e71fa003c6cd3642b844eb4",
+    "ratchets": "0b57148c666749803b2fbac4d57524bcf0af6462"
+  },
+  "pr512": {
+    "state": "MERGED",
+    "merge_commit": "720f2d4b9df77f82e472157b9768d6826164e0ee",
+    "merged_at": "2026-09-11T10:00:07Z"
+  },
+  "pr513_at_preparation": {
+    "state": "OPEN",
+    "head": "5134bb0187f9f3f6ac2a0218f8d8e98859cf4fea",
+    "ci_status": "in_progress",
+    "run_id": 34587126551,
+    "url": "https://github.com/kazhiramatsu/tsc-rs/actions/runs/34587126551",
+    "owner": "Codex monitors and merges; query GitHub for current status."
+  },
+  "production_inputs": {
+    "crates/emitter/src/builtins/class_fields.rs": "11417d65891a77644bea11f88fe08c8ae1e6256796a2cb6ec1f1285262255de4",
+    "crates/emitter/src/builtins/class_fields/downlevel.rs": "26e754aef2c85a73e5851a93b045ecfc49d0399cdeceedb4b1050338d019bbc5",
+    "crates/emitter/src/builtins/es2018.rs": "8af9383eae9996b0a26da549257f0cbaf4108a78377595bb4e3b0bb6d59027cc",
+    "crates/emitter/src/builtins/generated_bindings.rs": "510a111813e241c2f7a8df3b54399a0449929d67781b7da483a31065236b43a7",
+    "crates/emitter/src/builtins/standard_decorators.rs": "47ec5c4afcc703f099acef4e0f7a2f023d5b93d0f62778c5a083d27d79cbaee0",
+    "crates/emitter/src/builtins/target_bindings.rs": "613e81d2cd6f09744266ef7126b4eaeb4d555f9ad75cbd57111c3f038c51c23e",
+    "crates/emitter/src/execute.rs": "6f4007e668fb2e3e2bd9ee9782bb87925f08779ca2b623b438aadf14e71b5ab1",
+    "crates/emitter/src/printer.rs": "cd0ba7f9e7c2ff899dbe85ee69939404f4b9b75b18f9414237203389b2db9834",
+    "crates/emitter/src/builtins/jsx.rs": "0fdc90efc326ba25e6b5f2fe0c2f98f4478ed5422b151a689ed078d8a9664300",
+    "crates/emitter/src/metadata.rs": "117da2d571020007727c6a27c0885c089ac1af368d8f8a1ffe67d0691267e36d",
+    "crates/emitter/src/builtins/es2015.rs": "be0cfa774263d6b67e34c8ff225ac3ff11d3ce321c2d44125b5e566b6cc11d78",
+    "crates/emitter/src/builtins/system.rs": "e41228bd9f7766f6e4d61070ad98ecfe64bdd65c3aa966ddbcea83d7fea48ed1"
+  },
+  "existing_witness_inputs": {
+    "crates/compiler/tests/fixtures/decorator-transform-order.json": "c831b004c92557b383d19e364829ae960f65361a8253a24a1f53aa4248c8a4ae",
+    "crates/compiler/tests/fixtures/decorator-super-paths.json": "7ef1f767d49eb7f3c89008ba1120a4e93f9de2f1c063bd550c9988fdb0e998de",
+    "crates/compiler/tests/fixtures/decorator-name-owners.json": "9cc04b4a69e083a0660f7709b5e84b12a9e3a92acb66744fe23448149905a71e",
+    "crates/compiler/tests/fixtures/decorator-source-followup.json": "483ee859d603819ae6039d7fd743d4bc59e44f886e4787562128a0905a25cc0d",
+    "crates/compiler/tests/fixtures/decorator-source-followup-top-level.json": "70ed0e80735f014779bf06a0fcd9effe72b48aa118ec493896906581f7ce2327",
+    "crates/compiler/tests/fixtures/decorator-transform-order-inputs.json": "25afc465f2ea240a23aa40eddcb581eaa7129636fb22d2541ac35d260015cff6",
+    "crates/compiler/tests/fixtures/decorator-super-paths-inputs.json": "185c31d2379924edf965cc9ec618e3978df876a5da48d384549a859cc33321b7",
+    "crates/compiler/tests/fixtures/decorator-name-owners-inputs.json": "c6268e789ceb3a5e3ade3011915a70e03181156d0d3294b2ac5540c8950ea29b",
+    "crates/compiler/tests/fixtures/decorator-source-followup-inputs.json": "21abbe088e9d58a23537db5805fa5d2ec3f1873d3e9070b6c73977e321d93b73",
+    "crates/compiler/tests/fixtures/decorator-source-followup-top-level-inputs.json": "51c180344935e1488f31255fad66a3844f7c73fdc3f1aff43dea15b7ea46693e",
+    "crates/compiler/tests/integration/h2_8a_decorator_next_witnesses.rs": "49e0c4b2fe4de1fdec189c90c0548a308d8c350510d5f0fe066603ae6e7432a6"
+  },
+  "configuration_and_runners": {
+    "Cargo.toml": "edd7e574f72487c69e900e43346058ce66e4052575bb2c48c3d552ea4db5edd5",
+    "Cargo.lock": "8870eeeeb3b12ba6950d2215858a8b661ddeadc4c38cf948c2e617023091647f",
+    "rust-toolchain.toml": "fbd21d92d7dfb2ec38a4385a7541697d528ddd5dff4695619ba91f66a983f763",
+    ".github/workflows/ci.yml": "de25361a14225b4643672d70d4616d55b193977729d019cda8ba3a1607d486fe",
+    "scripts/observe-decorator-next-witnesses.mjs": "5f0460d3f0b1e9191c84ba1f84b8d32cc66762568da29c2eac2e8ff7bbf267b3",
+    "crates/xtask/src/h2_2c_acceptance.rs": "6109c992885690a0d19af49d3575648040e1dbb4660e0f038f7a8d7af6fbc01b",
+    "crates/xtask/tests/unit/h2_2c_acceptance/tests.rs": "171013f22abc46266449da3124843c14feb8ca163981eb08873f39fbd2dd6acd"
+  },
+  "upstream_inputs": {
+    "vendor/typescript-6.0.3/lib/_tsc.js": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
+    "vendor/typescript-6.0.3/lib/typescript.js": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+  },
+  "historical_receipts": {
+    "ratchets/h2-8a-decorator-followup-final48.v1.json": "e809355d4def98f60aa08855c18258a39ee01961ed53793fd3670ca9bf261afb",
+    "ratchets/h2-8a-decorator-followup-final-top-level.v1.json": "4dfb77f7e2d37d53a6bfc608ac992d16670316981e74c5e7865cdc0b438f95d4",
+    "ratchets/h2-8a-decorator-followup-final530.v1.json": "e841427d3532602312f6fa6a9193eda7ab6a6d3c8c971905132623545e6b26cc",
+    "ratchets/h2-8a-decorator-followup-final530-full62.v1.json": "73731e0b7f1fa874c3aede7d78f358f35716eb689c9dc68cc692395d31853089",
+    "ratchets/h2-8a-decorator-followup-final-emitter-suites.v1.json": "a75513ee6f203344f9c39b4bc8dd4f34d624b9024a5c9a40fa10fbbcff33a012",
+    "ratchets/h2-8a-decorator-followup-hosted-acceptance.v1.json": "367772eba6d7c3c2c6d2ac5c58aaad94e8ae742f9a13fda5346279dc70ce7dd1",
+    "ratchets/h2-8a-decorator-followup-join-fix.v1.json": "f52142793b4228d99f13e4454c639dc08a5e305946a466130dbfc27d70031962"
+  },
+  "preparation_materials": {
+    "docs/design/greenfield/slices/h2-8a-decorator-literal-prologue-claude-prompt.md": "5be3e11bc9c0fe2e996e303cff5f6e4f6aa5f093eaf3f9dfd22cc4e9ac51dff4",
+    "docs/design/greenfield/slices/h2-8a-decorator-literal-prologue-handoff.md": "580469722f3b27a8dcfe7f14c023293d27e0bf7e0c062c740f3421ca8905693b",
+    "docs/design/greenfield/slices/h2-8a-decorator-literal-prologue-proposed-inputs.v1.json": "1e41a785c600a78df33d49d636424d328cd0c78524c0de991e48258c6d4df5eb"
+  },
+  "proposed_cases": 120,
+  "proposed_source_count": 20,
+  "typescript_program_executions": 0,
+  "native_executions": 0,
+  "existing_witness_groups": {
+    "transform-order": 60,
+    "super-paths": 42,
+    "name-owners": 24,
+    "source-followup": 48,
+    "source-followup-top-level": 18
+  },
+  "existing_full_commands": 530,
+  "full62_reference": {
+    "receipt": "ratchets/h2-8a-decorator-followup-final530-full62.v1.json",
+    "run_dir": "/Users/hiramatsu/dev/tsc-rs-dec-followup/target/decorator-followup-runs/full62-reference",
+    "comparison_script": "/Users/hiramatsu/dev/tsc-rs-dec-followup/target/decorator-followup-runs/tools/compare-with-full62.py"
+  }
+}

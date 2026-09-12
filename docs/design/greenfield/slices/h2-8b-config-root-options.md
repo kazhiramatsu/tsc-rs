@@ -1,0 +1,42 @@
+# CFG1d root option変換・継承
+
+CFG全体の残存項目。TypeScript 6.0.3のparseOwnConfigOfJsonSourceFileが生成する
+watchOptions/typeAcquisitionと、raw JSON、compileOnSaveを区別して照合する。
+40入力の上流観測を先に凍結済み。native baselineは既存のconfig projectionを比較し、
+変換後API追加時にwatch/typeAcquisitionの全既知keyのabsent/undefined/value/list状態も比較する。
+型の無い既存APIを変換済みだとみなして件数に加えない。
+
+sourceで確認した境界：watchOptionsは既知propertyを読むときに初めて生成され、extendsでは
+property単位にmergeする。typeAcquisitionはtsconfig/jsconfig別のdefaultを持ち、baseからは継承しない。
+rawにはbaseのwatchOptions/typeAcquisitionをコピーしない。compileOnSaveのparsed値はrawのtruthiness。
+そのbool変換で報告する診断とは別であり、invalid raw valueも消さない。
+
+実装では既存の型付きoption変換・list/prototype/JSONCの仕組みを共有する。
+watchのenum table、path-listのextraValidation、spelling suggestion、configDir置換は
+compilerOptionsとは異なるschemaとして保持する。旧raw accessorと変換済みaccessorの契約を明記し、
+sourceと矛盾する手書き期待値は新しい上流観測を根拠として訂正する。
+
+変換はwatch processやtype acquisition processを起動しない。通常one-shotからは変換済みplanを
+受け取り、watch/build製品側へ渡す契約までを確認する。
+
+最初の実装46be4cd4cでは40件中39件、追加境界32件中30件が各2回一致。残り3件は
+watch/typeAcquisitionのchild propertyを診断順序ownerに登録していないため、変換とnotifierの
+順序が入れ替わる。値・診断集合・spanは一致し、既存のowner方式を両schemaにも適用する。
+旧config_root_plan_contractの2つの手書きassertは、watchを文字列/falseで保持しtypeAcquisitionを
+継承するとしていた。凍結40件のwatch-inheritance、watch-false、typeAcquisition継承対照と
+上記sourceに基づき、変換されたwatch値・非継承の取得既定値・rawのfalse/nullを分けて訂正した。
+凍結oracleは変更していない。
+
+fc03cd859で72/72 projection×2に到達。全Program契約は473通過/1失敗/5既存ignore。
+残る旧H0契約もtypeAcquisitionの継承を仮定していたため、baseにだけ存在する取得設定では
+rootの既定値になりロードできる対照へ訂正。watch/compileOnSaveのH0 gate対照は維持する。
+
+通常command12件は9f3a7b0f3で7一致/5失敗。失敗はすべてconfig conversion診断をloaderが
+Program作成前に返すこと。_tsc.jsのperformCompilationとhandleNoEmitOptionsに従い、
+config診断はPreparationDiagnostics.configへ、対応するbase sourceはauxiliary snapshotへ
+渡す。builderのdiagnostic source検証は維持する。H0は既存gateを保つ。
+さらに型エラー・unknown compiler option・回復可能JSON構文・empty files・missing extends・
+base内診断・invalid filesの8上流commandを固定し、通常emitへの接続を対照する。
+
+最終ec509858eでは72/72 projection×2、追加20通常commandもcomplete tuple/Program facts各2回一致。
+CFG全体の閉じた要件・最終回帰・受領証は[完了報告](h2-8b-config-completion-report.md)を参照。

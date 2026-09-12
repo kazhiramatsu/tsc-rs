@@ -842,6 +842,7 @@ impl ProgramConfigSpan {
 pub struct ProgramConfigFile {
     path: ProgramPath,
     diagnostic_file_name: String,
+    diagnostic_file_path: String,
     snapshot: Arc<TextSnapshot>,
     automatic_type_directive_locations: BTreeMap<String, ProgramConfigSpan>,
     compiler_options_location: Option<ProgramConfigSpan>,
@@ -864,6 +865,7 @@ impl ProgramConfigFile {
         Self {
             path,
             diagnostic_file_name,
+            diagnostic_file_path: String::new(),
             snapshot,
             automatic_type_directive_locations: BTreeMap::new(),
             compiler_options_location: None,
@@ -879,6 +881,17 @@ impl ProgramConfigFile {
     pub fn with_diagnostic_file_name(mut self, file_name: impl Into<String>) -> Self {
         self.diagnostic_file_name = file_name.into();
         self
+    }
+
+    /// SourceFile.path is empty for parseJsonSourceFileConfigFileContent,
+    /// and resolved by getParsedCommandLineOfConfigFile for a CLI config.
+    pub fn with_diagnostic_file_path(mut self, path: impl Into<String>) -> Self {
+        self.diagnostic_file_path = path.into();
+        self
+    }
+
+    pub fn diagnostic_file_path(&self) -> &str {
+        &self.diagnostic_file_path
     }
 
     pub fn with_automatic_type_directive_location(
@@ -1017,6 +1030,10 @@ pub struct ProgramOptions {
     type_roots: Option<Vec<ProgramPath>>,
     config_file_path: Option<ProgramPath>,
     config_file: Option<ProgramConfigFile>,
+    /// Source-file config conversion diagnostics passed to createProgram.
+    /// They remain separate from option diagnostics and noEmitOnError.
+    config_parsing_diagnostics: Vec<Diagnostic>,
+    config_parsing_sources: Vec<PreparedAuxiliaryFile>,
     /// An embedding config parser owns option diagnostics even though it did
     /// not pass TypeScript's optional config-file identity into createProgram.
     external_config_option_diagnostics: bool,
@@ -1030,6 +1047,24 @@ pub struct ProgramOptions {
 }
 
 impl ProgramOptions {
+    pub(crate) fn with_config_parsing_diagnostics(
+        mut self,
+        diagnostics: Vec<Diagnostic>,
+        sources: Vec<PreparedAuxiliaryFile>,
+    ) -> Self {
+        self.config_parsing_diagnostics = diagnostics;
+        self.config_parsing_sources = sources;
+        self
+    }
+
+    pub(crate) fn config_parsing_diagnostics(&self) -> &[Diagnostic] {
+        &self.config_parsing_diagnostics
+    }
+
+    pub(crate) fn config_parsing_sources(&self) -> &[PreparedAuxiliaryFile] {
+        &self.config_parsing_sources
+    }
+
     pub fn with_no_lib(mut self, value: bool) -> Self {
         self.no_lib = Some(value);
         self
@@ -2197,7 +2232,17 @@ impl PreparedProgramBuilder {
             .packages
             .values()
             .any(|package| matches_path(package.package_json(), package.alternate_display_paths()));
-        if has_source || has_auxiliary || has_package {
+        // A config retains its source spelling separately from its absolute
+        // auxiliary identity. Accept that explicit alias only when the
+        // matching auxiliary snapshot is actually owned by this builder.
+        let has_config_alias = self.program_options.config_file().is_some_and(|config| {
+            diagnostic_file_names_equal(config.diagnostic_file_name(), file_name)
+                && self
+                    .auxiliary_files
+                    .get(config.path().canonical())
+                    .is_some_and(|file| file.text() == config.snapshot().text())
+        });
+        if has_source || has_auxiliary || has_package || has_config_alias {
             return Ok(());
         }
         Err(PreparationError::new(

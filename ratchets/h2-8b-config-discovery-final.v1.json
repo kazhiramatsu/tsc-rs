@@ -1,0 +1,1176 @@
+{
+  "version": 1,
+  "slice": "H2.8b-CFG1b",
+  "status": "stated config discovery cases and command controls pass",
+  "recorded_at_utc": "2026-09-11T14:50:26.405323+00:00",
+  "branch": "work/h2-8b-config-discovery",
+  "worktree": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1",
+  "start_head": "e195cdf59e9073233d69e30f85a586499eadc4d6",
+  "measured_head": "3208260fde21bd2b762f359cbfaa55552a3d99d4",
+  "measured_tree": "002feca44d62e1770d16f4e0fd279c3d448e6018",
+  "production_sha256": {
+    "crates/program/src/config.rs": "2a2e7ed05f6e2347c8b247b76366893774f33f69d8eabc9e08debd4e19907469",
+    "crates/program/src/config_host.rs": "52ac65ccba3e703e5ebb9bf177760ad6808b28d8aeda0651d47e63d19d901eb5"
+  },
+  "source_changes": [
+    "crates/compiler/tests/contracts.rs",
+    "crates/compiler/tests/fixtures/h2-8b-config-discovery-commands-inputs.json",
+    "crates/compiler/tests/fixtures/h2-8b-config-discovery-commands.json",
+    "crates/compiler/tests/integration/h2_8b_config_discovery_commands.rs",
+    "crates/program/src/config.rs",
+    "crates/program/src/config_host.rs",
+    "crates/program/tests/contracts.rs",
+    "crates/program/tests/fixtures/h2-8b-config-discovery-inputs.json",
+    "crates/program/tests/fixtures/h2-8b-config-discovery-paths-inputs.json",
+    "crates/program/tests/fixtures/h2-8b-config-discovery-paths.json",
+    "crates/program/tests/fixtures/h2-8b-config-discovery-spelling-inputs.json",
+    "crates/program/tests/fixtures/h2-8b-config-discovery-spelling.json",
+    "crates/program/tests/fixtures/h2-8b-config-discovery.json",
+    "crates/program/tests/integration/h2_8b_config_discovery.rs",
+    "docs/design/greenfield/slices/h2-8b-config-discovery.md",
+    "ratchets/h2-8b-config-discovery-baseline.v1.json",
+    "scripts/observe-h2-8b-config-discovery-commands.mjs",
+    "scripts/observe-h2-8b-config-discovery-paths.mjs",
+    "scripts/observe-h2-8b-config-discovery-spelling.mjs",
+    "scripts/observe-h2-8b-config-discovery.mjs"
+  ],
+  "config_cases": {
+    "total": 24,
+    "baseline_exact_twice": 5,
+    "baseline_failed_twice": 19,
+    "final_exact_twice": 24,
+    "final_fresh_config_parses": 48,
+    "prior_CFG1a_exact_twice": 28
+  },
+  "base_path_cases": {
+    "initial_controls": 16,
+    "spelling_controls": 6,
+    "spelling_baseline_exact_twice": 3,
+    "spelling_baseline_failed_twice": 3,
+    "final_exact_twice": 22,
+    "pure_calculations": 44,
+    "config_parse_executions": 0,
+    "program_executions": 0
+  },
+  "command_cases": {
+    "new": 8,
+    "prior": 26,
+    "total": 34,
+    "complete_commands_exact_twice": 34,
+    "ordered_program_facts_exact_twice": 34,
+    "fresh_prepared_programs": 136,
+    "cases": [
+      {
+        "case_id": "h2-8b-config-discovery-commands/sibling-recursive",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 16,
+        "exit_code": 0
+      },
+      {
+        "case_id": "h2-8b-config-discovery-commands/parent-recursive",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 36,
+        "exit_code": 0
+      },
+      {
+        "case_id": "h2-8b-config-discovery-commands/absolute-recursive",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 16,
+        "exit_code": 0
+      },
+      {
+        "case_id": "h2-8b-config-discovery-commands/sibling-file",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 4,
+        "exit_code": 0
+      },
+      {
+        "case_id": "h2-8b-config-discovery-commands/wildcard-directory",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 16,
+        "exit_code": 0
+      },
+      {
+        "case_id": "h2-8b-config-discovery-commands/child-before-parent",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 36,
+        "exit_code": 0
+      },
+      {
+        "case_id": "h2-8b-config-discovery-commands/external-exclude",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 8,
+        "exit_code": 0
+      },
+      {
+        "case_id": "h2-8b-config-discovery-commands/include-bucket-order",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 28,
+        "exit_code": 0
+      },
+      {
+        "case_id": "h2-8b-config-commands/direct-recursive-order",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 16,
+        "exit_code": 0
+      },
+      {
+        "case_id": "h2-8b-config-commands/extends-recursive-order",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 16,
+        "exit_code": 0
+      },
+      {
+        "case_id": "h2-8b-config-commands/reversed-include-buckets",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 16,
+        "exit_code": 0
+      },
+      {
+        "case_id": "h2-8b-config-commands/explicit-files-keep-order",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 16,
+        "exit_code": 0
+      },
+      {
+        "case_id": "h2-8b-config-commands/inherited-config-dir-template",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 16,
+        "exit_code": 0
+      },
+      {
+        "case_id": "h2-8b-config-commands/multiple-base-output-origin",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 16,
+        "exit_code": 0
+      },
+      {
+        "case_id": "h2-8b-config-commands/inherited-compile-on-save-false",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 16,
+        "exit_code": 0
+      },
+      {
+        "case_id": "h2-8b-config-commands/last-base-compile-on-save-false",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 16,
+        "exit_code": 0
+      },
+      {
+        "case_id": "h2-8b-library-replacement/enabled-package",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 4,
+        "exit_code": 0
+      },
+      {
+        "case_id": "h2-8b-library-replacement/disabled-package",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 4,
+        "exit_code": 0
+      },
+      {
+        "case_id": "h2-8b-library-replacement/omitted-option",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 4,
+        "exit_code": 0
+      },
+      {
+        "case_id": "h2-8b-library-replacement/missing-package-fallback",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 4,
+        "exit_code": 0
+      },
+      {
+        "case_id": "h2-8b-library-replacement/duplicate-lib-reference",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 4,
+        "exit_code": 0
+      },
+      {
+        "case_id": "h2-8b-library-replacement/config-directory-anchor",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 4,
+        "exit_code": 2
+      },
+      {
+        "case_id": "h2-8b-library-replacement/package-subpath",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 4,
+        "exit_code": 0
+      },
+      {
+        "case_id": "h2-8b-library-replacement/module-suffixes-isolated",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 4,
+        "exit_code": 0
+      },
+      {
+        "case_id": "h2-8b-library-replacement/package-exports-isolated",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 4,
+        "exit_code": 0
+      },
+      {
+        "case_id": "h2-8b-library-replacement/root-promoted-to-library",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 4,
+        "exit_code": 0
+      },
+      {
+        "case_id": "h2-8b-library-replacement/missing-subpath-fallback",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 4,
+        "exit_code": 0
+      },
+      {
+        "case_id": "h2-8b-library-replacement/no-lib-gate",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 4,
+        "exit_code": 0
+      },
+      {
+        "case_id": "h2-8b-library-order/two-replacements-forward",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 4,
+        "exit_code": 0
+      },
+      {
+        "case_id": "h2-8b-library-order/two-replacements-reverse",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 4,
+        "exit_code": 0
+      },
+      {
+        "case_id": "h2-8b-library-order/promoted-reference-multiple",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 4,
+        "exit_code": 0
+      },
+      {
+        "case_id": "h2-8b-library-order/outside-catalog-basename",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 4,
+        "exit_code": 0
+      },
+      {
+        "case_id": "h2-8b-library-order/inside-catalog-other-basename",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 4,
+        "exit_code": 0
+      },
+      {
+        "case_id": "h2-8b-library-order/catalog-prefix-neighbor",
+        "complete_command_repetitions": 2,
+        "program_facts_repetitions": 2,
+        "writes": 4,
+        "exit_code": 0
+      }
+    ]
+  },
+  "tests": {
+    "config_contracts": {
+      "passed": 145,
+      "failed": 0,
+      "existing_ignored": 1
+    },
+    "program_unit": {
+      "passed": 28,
+      "failed": 0
+    },
+    "library_contracts": {
+      "passed": 20,
+      "failed": 0
+    },
+    "compiler_commands": {
+      "passed": 8,
+      "failed": 0
+    }
+  },
+  "runs": [
+    {
+      "phase": "baseline",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "19",
+        "cargo",
+        "test",
+        "-p",
+        "tsc_program",
+        "--test",
+        "contracts",
+        "h2_8b_config_discovery",
+        "--",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "head": "925ef9c80834d3cf5ced500aeb16563084822228",
+      "tree": "d7bc80f8e045aa668405e7238bfa63b97d0e0c23",
+      "status": "",
+      "started_at_utc": "2026-09-11T14:40:34.963647+00:00",
+      "environment_overrides": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1"
+      },
+      "completed_at_utc": "2026-09-11T14:40:35.313734+00:00",
+      "exit_code": 101,
+      "log": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/baseline.log",
+        "sha256": "e1193de3b72096fa349c552768f45e6967db156091056b2a9b33d43f4adbf8c7"
+      },
+      "inputs_unchanged": true,
+      "executables": [],
+      "raw_record": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/baseline.run.json",
+        "sha256": "8ce93509d34ac735abb5bff0e187b1e9b231bcbb35bd9259beed80143d157714"
+      }
+    },
+    {
+      "phase": "baseline-native",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "19",
+        "cargo",
+        "test",
+        "-p",
+        "tsc-rs-program",
+        "--test",
+        "contracts",
+        "h2_8b_config_discovery",
+        "--",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "head": "925ef9c80834d3cf5ced500aeb16563084822228",
+      "tree": "d7bc80f8e045aa668405e7238bfa63b97d0e0c23",
+      "status": "",
+      "started_at_utc": "2026-09-11T14:40:49.163298+00:00",
+      "environment_overrides": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1"
+      },
+      "completed_at_utc": "2026-09-11T14:40:54.991408+00:00",
+      "exit_code": 101,
+      "log": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/baseline-native.log",
+        "sha256": "35f8247e2d722d77a3a90d768a573e1d9c3dabbc37804fee77ab6b9055714946"
+      },
+      "inputs_unchanged": true,
+      "executables": [
+        {
+          "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1/debug/deps/contracts-49da18f15aea009f",
+          "sha256": "8f0765d2a030b6a8942a80f180f88a078400555e5a4e8177c9caf9152780b892",
+          "captured_at_utc": "2026-09-11T14:40:55.052812+00:00"
+        }
+      ],
+      "raw_record": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/baseline-native.run.json",
+        "sha256": "9c3ae4a4a00f41ec13c49e5ac1d55c58e24d47a948692eceb23bde9b1c27f09e"
+      }
+    },
+    {
+      "phase": "focused",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "19",
+        "cargo",
+        "test",
+        "-p",
+        "tsc-rs-program",
+        "--test",
+        "contracts",
+        "h2_8b_config_discovery",
+        "--",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "head": "b1614aba2d6b26ff6fddc499e5516648b5b692aa",
+      "tree": "8dbfe93f182d2cb9aa831aef339bcd2fca5ab8d5",
+      "status": "",
+      "started_at_utc": "2026-09-11T14:42:37.919039+00:00",
+      "environment_overrides": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1"
+      },
+      "completed_at_utc": "2026-09-11T14:42:46.741469+00:00",
+      "exit_code": 101,
+      "log": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/focused.log",
+        "sha256": "2add98903b4e14f3a1ea15e1bf1fda21fe6a93dd79e7e269c22775b7d49254d0"
+      },
+      "inputs_unchanged": true,
+      "executables": [
+        {
+          "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1/debug/deps/contracts-49da18f15aea009f",
+          "sha256": "b2fa93659ac6304754390fadc848d2c3609b1ecff185bbe1b0f03cc3f946e067",
+          "captured_at_utc": "2026-09-11T14:42:46.812311+00:00"
+        }
+      ],
+      "raw_record": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/focused.run.json",
+        "sha256": "a0009a9ca64c8a8b5b5ed4b363f2b8375ebe99298103e0678eeeb2b2e9ea3fbe"
+      }
+    },
+    {
+      "phase": "program-unit",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "19",
+        "cargo",
+        "test",
+        "-p",
+        "tsc-rs-program",
+        "--lib",
+        "--",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "head": "d72b576e1b69cbcb356414c1685ed5ab389a06fa",
+      "tree": "c0c38e8a5244c33d9fa47d5ffcd738801bb5b15a",
+      "status": "",
+      "started_at_utc": "2026-09-11T14:44:53.453939+00:00",
+      "environment_overrides": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1"
+      },
+      "completed_at_utc": "2026-09-11T14:44:57.472017+00:00",
+      "exit_code": 0,
+      "log": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/program-unit.log",
+        "sha256": "5c76ee56fc9703b0fead62caddbc4cf9ddfff379ce033a0d4b7202afface9e84"
+      },
+      "inputs_unchanged": true,
+      "executables": [
+        {
+          "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1/debug/deps/tsc_program-7f84b1b1d1568f1b",
+          "sha256": "73b7e0fd313e8fd773b82092b60333a485a043a1d3e254e8dd748a0f0418a675",
+          "captured_at_utc": "2026-09-11T14:44:57.540700+00:00"
+        }
+      ],
+      "raw_record": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/program-unit.run.json",
+        "sha256": "af086e8b094a235352da35239bee664219c3ca24c253d3d96ecc1429d36abd2f"
+      }
+    },
+    {
+      "phase": "config-final",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "19",
+        "cargo",
+        "test",
+        "-p",
+        "tsc-rs-program",
+        "--test",
+        "contracts",
+        "config_",
+        "--",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "head": "d72b576e1b69cbcb356414c1685ed5ab389a06fa",
+      "tree": "c0c38e8a5244c33d9fa47d5ffcd738801bb5b15a",
+      "status": "",
+      "started_at_utc": "2026-09-11T14:45:12.233660+00:00",
+      "environment_overrides": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1"
+      },
+      "completed_at_utc": "2026-09-11T14:45:21.871444+00:00",
+      "exit_code": 0,
+      "log": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/config-final.log",
+        "sha256": "b4961f9427b49922d6df0fac82ad7f4f79292fb6088635eee8a0a0e4b32494f8"
+      },
+      "inputs_unchanged": true,
+      "executables": [
+        {
+          "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1/debug/deps/contracts-49da18f15aea009f",
+          "sha256": "4f6fc19cf3435df61ca3ceb719e8df70bb799712e6662503f07a477366c82392",
+          "captured_at_utc": "2026-09-11T14:45:21.944020+00:00"
+        }
+      ],
+      "raw_record": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/config-final.run.json",
+        "sha256": "325ed3aac8fd0727e1f036f63444f796bc1e4268a206bc0f95f49454d8de6ec8"
+      }
+    },
+    {
+      "phase": "library-contracts",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "19",
+        "cargo",
+        "test",
+        "-p",
+        "tsc-rs-program",
+        "--test",
+        "contracts",
+        "library_program_loader_contract",
+        "--",
+        "--test-threads=1"
+      ],
+      "head": "d72b576e1b69cbcb356414c1685ed5ab389a06fa",
+      "tree": "c0c38e8a5244c33d9fa47d5ffcd738801bb5b15a",
+      "status": "",
+      "started_at_utc": "2026-09-11T14:45:22.075012+00:00",
+      "environment_overrides": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1"
+      },
+      "completed_at_utc": "2026-09-11T14:45:22.269500+00:00",
+      "exit_code": 0,
+      "log": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/library-contracts.log",
+        "sha256": "59a9311486fec41c472324aea20c168400368f7ee707822cc9c1bc0b4035a29a"
+      },
+      "inputs_unchanged": true,
+      "executables": [
+        {
+          "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1/debug/deps/contracts-49da18f15aea009f",
+          "sha256": "4f6fc19cf3435df61ca3ceb719e8df70bb799712e6662503f07a477366c82392",
+          "captured_at_utc": "2026-09-11T14:45:22.316015+00:00"
+        }
+      ],
+      "raw_record": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/library-contracts.run.json",
+        "sha256": "85e5d05fcf0043355c4cbfb9c194d5217a042abf7d4a52f1602c20f6ee427382"
+      }
+    },
+    {
+      "phase": "compiler-commands",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "19",
+        "cargo",
+        "test",
+        "-p",
+        "tsc-rs-compiler",
+        "--test",
+        "contracts",
+        "h2_8b_",
+        "--",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "head": "d72b576e1b69cbcb356414c1685ed5ab389a06fa",
+      "tree": "c0c38e8a5244c33d9fa47d5ffcd738801bb5b15a",
+      "status": "",
+      "started_at_utc": "2026-09-11T14:45:22.437032+00:00",
+      "environment_overrides": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1"
+      },
+      "completed_at_utc": "2026-09-11T14:46:10.992270+00:00",
+      "exit_code": 0,
+      "log": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/compiler-commands.log",
+        "sha256": "2f23633cec66aaff8560c1594873ec219e00ddc9c8082e903f5005c210536ce0"
+      },
+      "inputs_unchanged": true,
+      "executables": [
+        {
+          "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1/debug/deps/contracts-cabf44d19c2beb96",
+          "sha256": "4bdd6611877fcfc0d343aadb07095f1cd3fdab69ef3dd0d58b55d0a3ccd73813",
+          "captured_at_utc": "2026-09-11T14:46:11.165561+00:00"
+        }
+      ],
+      "raw_record": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/compiler-commands.run.json",
+        "sha256": "43c365c3b103f20f070260c4b7f49a5daab1c89bb00674d051ccd6e7137dd58b"
+      }
+    },
+    {
+      "phase": "spelling-baseline",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "19",
+        "cargo",
+        "test",
+        "-p",
+        "tsc-rs-program",
+        "--lib",
+        "config_discovery_spelling",
+        "--",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "head": "fe074e0c6e03bf752fa0e810c97f7b6025c20fa8",
+      "tree": "5cd8274b27820ebc81ea9d5bbd8116e525f4b975",
+      "status": "",
+      "started_at_utc": "2026-09-11T14:46:42.723137+00:00",
+      "environment_overrides": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1"
+      },
+      "completed_at_utc": "2026-09-11T14:46:45.596298+00:00",
+      "exit_code": 101,
+      "log": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/spelling-baseline.log",
+        "sha256": "1652e034a3297cc50bade9468a1fed4451b67a37f21e2d141324c4a386739771"
+      },
+      "inputs_unchanged": true,
+      "executables": [
+        {
+          "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1/debug/deps/tsc_program-7f84b1b1d1568f1b",
+          "sha256": "96cfe5decdcf90c2d85952094901e1918a88e952ce16572ef15b371b6b93f259",
+          "captured_at_utc": "2026-09-11T14:46:45.665144+00:00"
+        }
+      ],
+      "raw_record": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/spelling-baseline.run.json",
+        "sha256": "4825881f8294922e19edd6cdaa7dd63844390abc5532f266a9e11859fb4c2ae8"
+      }
+    },
+    {
+      "phase": "final-program-unit",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "19",
+        "cargo",
+        "test",
+        "-p",
+        "tsc-rs-program",
+        "--lib",
+        "--",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "head": "3208260fde21bd2b762f359cbfaa55552a3d99d4",
+      "tree": "002feca44d62e1770d16f4e0fd279c3d448e6018",
+      "status": "",
+      "started_at_utc": "2026-09-11T14:47:29.986219+00:00",
+      "environment_overrides": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1"
+      },
+      "completed_at_utc": "2026-09-11T14:47:32.851922+00:00",
+      "exit_code": 0,
+      "log": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/final-program-unit.log",
+        "sha256": "f34a7aa0e1d58b441e51cee01f2f28b8ab5e5f9c2077aea6722e3183bab76427"
+      },
+      "inputs_unchanged": true,
+      "executables": [
+        {
+          "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1/debug/deps/tsc_program-7f84b1b1d1568f1b",
+          "sha256": "391df8cb825f8e6ea7f24d2f95a61bad0aaa29b97719199589299a7225cfbbfb",
+          "captured_at_utc": "2026-09-11T14:47:32.896443+00:00"
+        }
+      ],
+      "raw_record": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/final-program-unit.run.json",
+        "sha256": "6c314e77749b0512bb3809e6c5ee39abbbf66ddd967dcae424004d2d5423d579"
+      }
+    },
+    {
+      "phase": "final-config",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "19",
+        "cargo",
+        "test",
+        "-p",
+        "tsc-rs-program",
+        "--test",
+        "contracts",
+        "config_",
+        "--",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "head": "3208260fde21bd2b762f359cbfaa55552a3d99d4",
+      "tree": "002feca44d62e1770d16f4e0fd279c3d448e6018",
+      "status": "",
+      "started_at_utc": "2026-09-11T14:47:50.706111+00:00",
+      "environment_overrides": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1"
+      },
+      "completed_at_utc": "2026-09-11T14:48:01.187552+00:00",
+      "exit_code": 0,
+      "log": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/final-config.log",
+        "sha256": "dcfe909b7d40c065b8bd5afdd1d4c7129272fb59bb54850771336ec1bcaacd7f"
+      },
+      "inputs_unchanged": true,
+      "executables": [
+        {
+          "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1/debug/deps/contracts-49da18f15aea009f",
+          "sha256": "0b79a77c8e81e0cbc8e4f669d10b8f81ab4753c22ab50af6e10deadf1ddc17f4",
+          "captured_at_utc": "2026-09-11T14:48:01.251823+00:00"
+        }
+      ],
+      "raw_record": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/final-config.run.json",
+        "sha256": "a393c166337655a159c18ec83159a98703b0687649f472518d43cf6f2575bef0"
+      }
+    },
+    {
+      "phase": "final-library-contracts",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "19",
+        "cargo",
+        "test",
+        "-p",
+        "tsc-rs-program",
+        "--test",
+        "contracts",
+        "library_program_loader_contract",
+        "--",
+        "--test-threads=1"
+      ],
+      "head": "3208260fde21bd2b762f359cbfaa55552a3d99d4",
+      "tree": "002feca44d62e1770d16f4e0fd279c3d448e6018",
+      "status": "",
+      "started_at_utc": "2026-09-11T14:48:01.383363+00:00",
+      "environment_overrides": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1"
+      },
+      "completed_at_utc": "2026-09-11T14:48:01.631594+00:00",
+      "exit_code": 0,
+      "log": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/final-library-contracts.log",
+        "sha256": "6fec44ab6f86baa7a00dfcd00d4a324269291e76add04fb75d2501593d2752d4"
+      },
+      "inputs_unchanged": true,
+      "executables": [
+        {
+          "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1/debug/deps/contracts-49da18f15aea009f",
+          "sha256": "0b79a77c8e81e0cbc8e4f669d10b8f81ab4753c22ab50af6e10deadf1ddc17f4",
+          "captured_at_utc": "2026-09-11T14:48:01.677416+00:00"
+        }
+      ],
+      "raw_record": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/final-library-contracts.run.json",
+        "sha256": "a065cf5b911c7bc91d968077681eca3158c2777d1aee07df03bfda39faf6bfec"
+      }
+    },
+    {
+      "phase": "final-compiler-commands",
+      "command": [
+        "taskpolicy",
+        "-b",
+        "nice",
+        "-n",
+        "19",
+        "cargo",
+        "test",
+        "-p",
+        "tsc-rs-compiler",
+        "--test",
+        "contracts",
+        "h2_8b_",
+        "--",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "head": "3208260fde21bd2b762f359cbfaa55552a3d99d4",
+      "tree": "002feca44d62e1770d16f4e0fd279c3d448e6018",
+      "status": "",
+      "started_at_utc": "2026-09-11T14:48:01.796768+00:00",
+      "environment_overrides": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1"
+      },
+      "completed_at_utc": "2026-09-11T14:48:39.547531+00:00",
+      "exit_code": 0,
+      "log": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/final-compiler-commands.log",
+        "sha256": "72b9262a682228dd95322fbabf2c863a900cbbb3108d8910aadcce23ee036075"
+      },
+      "inputs_unchanged": true,
+      "executables": [
+        {
+          "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1/debug/deps/contracts-cabf44d19c2beb96",
+          "sha256": "d2fff58f988191f8cd305014a732ff1deb0a63e07e404089f696c08918ff582f",
+          "captured_at_utc": "2026-09-11T14:48:39.681859+00:00"
+        }
+      ],
+      "raw_record": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/final-compiler-commands.run.json",
+        "sha256": "33bc87bb875be2698e82134e6dea374b62a33ab771532298de840772791fe596"
+      }
+    }
+  ],
+  "review_checks": [
+    {
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "exit_code": 0,
+      "log": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/review-0.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "log": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/review-1.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "command": [
+        "node",
+        "scripts/observe-h2-8b-config-discovery.mjs",
+        "--check"
+      ],
+      "exit_code": 0,
+      "log": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/review-2.log",
+        "sha256": "7b228b224b7f535cae02f64530e2cc00b524b65fb6a3d487b37d5119b37a8a8a"
+      }
+    },
+    {
+      "command": [
+        "node",
+        "scripts/observe-h2-8b-config-discovery-paths.mjs",
+        "--check"
+      ],
+      "exit_code": 0,
+      "log": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/review-3.log",
+        "sha256": "c51e831fdd5ddbf60e05cdfaa865157eea9f474b3e8c1745591b74c5739835a1"
+      }
+    },
+    {
+      "command": [
+        "node",
+        "scripts/observe-h2-8b-config-discovery-spelling.mjs",
+        "--check"
+      ],
+      "exit_code": 0,
+      "log": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/review-4.log",
+        "sha256": "927ef2fa9acfcb12b6a174cfc5db6011915813b6b88c8b742f95675b8a34159f"
+      }
+    },
+    {
+      "command": [
+        "node",
+        "scripts/observe-h2-8b-config-discovery-commands.mjs",
+        "config-discovery-commands",
+        "--check"
+      ],
+      "exit_code": 0,
+      "log": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/review-5.log",
+        "sha256": "9dbaf7fab1b604d3889f6657d085b4ba14a57c6994df23df4d58fe03c4731126"
+      }
+    },
+    {
+      "command": [
+        "node",
+        "scripts/observe-h2-8b-config-extends.mjs",
+        "--check"
+      ],
+      "exit_code": 0,
+      "log": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/review-6.log",
+        "sha256": "6087c92e23280b0e2f9248eaced5ab00b05d372f4425d5306a67431958a90cb6"
+      }
+    },
+    {
+      "command": [
+        "node",
+        "scripts/observe-h2-8b-config-commands.mjs",
+        "config-commands",
+        "--check"
+      ],
+      "exit_code": 0,
+      "log": {
+        "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/review-7.log",
+        "sha256": "ba031c8036334fe9a5d6ff51824eef63469b0303794d7c56032d68d48c4e01e3"
+      }
+    }
+  ],
+  "source_anchors": [
+    {
+      "symbol": "getFileMatcherPatterns through getIncludeBasePath",
+      "start_line": 18510,
+      "end_line": 18596,
+      "sha256": "123111a7aecd055f33c692e92853837a3ae8aecbe3142372a0e93529fb2240b4"
+    },
+    {
+      "symbol": "config include default",
+      "start_line": 39052,
+      "end_line": 39070,
+      "sha256": "730941c20b8351fbf35244ec408933a7bf0c5c948f0bf3fce0ce2bd8f754df0d"
+    },
+    {
+      "symbol": "getWildcardDirectories",
+      "start_line": 39719,
+      "end_line": 39757,
+      "sha256": "db83fdef1c428dbcd9d3af75a3d8d5b4113e057513e728f27d746cd9e2188e98"
+    },
+    {
+      "symbol": "normalizePath",
+      "start_line": 5568,
+      "end_line": 5577,
+      "sha256": "f43e600f66519afbd519645cad0b9df80b4115792e44ce0ab1cfed78ace78fa5"
+    },
+    {
+      "symbol": "getBaseFileName",
+      "start_line": 5398,
+      "end_line": 5408,
+      "sha256": "50250fc0e89d6c0200e9a86e2e88517b0f93180cc04f17620acf5257c1ca8d0b"
+    }
+  ],
+  "preserved_sha256": {
+    "crates/program/src/library.rs": "5c9feb7f21ee53c2d7d0bcd2be742611ca7eb8b41e97e98b7c71580e6b07a32d",
+    "crates/program/src/loader.rs": "8b03398eebc467b4940b6fe80e8c851bd715e4777830aa0af9631a917e861e9b",
+    "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs": "4a9f2b39f4ed1b25a65cee51df2e2d00dd775c05eace957f2db207f45d3bd5fb",
+    "crates/compiler/tests/integration/h2_7b_w4a_controls.rs": "c9332037a63761ae27dfe88c90d865197dbc01b2aa7f7fe6fa11999b9392cd6b",
+    "vendor/typescript-6.0.3/lib/_tsc.js": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
+    "vendor/typescript-6.0.3/lib/typescript.js": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+    "crates/program/tests/fixtures/h2-8b-config-discovery-inputs.json": "05e59f75d70c1881e91589fd2aa0aab2254962fe5cf09c7c92a329ac1413f0d4",
+    "crates/program/tests/fixtures/h2-8b-config-discovery.json": "0a773345cc17148038779045480712bd215e43d451b561e1677b056174e59fad"
+  },
+  "artifacts_sha256": {
+    "crates/compiler/tests/fixtures/h2-8b-config-discovery-commands-inputs.json": "140dbe890280e3aeb6814404f86fb6e9543cc8b4d149ddf0da8381b1f828fa8f",
+    "crates/compiler/tests/fixtures/h2-8b-config-discovery-commands.json": "e61ffb7446d83c69d60a762c019bf2cceb214cca64111b5f2e38e7cbb2bd28c5",
+    "crates/program/tests/fixtures/h2-8b-config-discovery-inputs.json": "05e59f75d70c1881e91589fd2aa0aab2254962fe5cf09c7c92a329ac1413f0d4",
+    "crates/program/tests/fixtures/h2-8b-config-discovery-paths-inputs.json": "5734ea516dbedcfac2985efae582e1ed6e41b081ba3c0c221cad0ba3aa3de5f3",
+    "crates/program/tests/fixtures/h2-8b-config-discovery-paths.json": "9e842b59f667c82c0f14be1257b75d7704f2843fd10767e00b2a55e3022d8d64",
+    "crates/program/tests/fixtures/h2-8b-config-discovery-spelling-inputs.json": "9dd46e0cd5b43d065dd26b7018a0135ba8d0f6b00ac465a20d19a062ea59d1ea",
+    "crates/program/tests/fixtures/h2-8b-config-discovery-spelling.json": "70b4f9ab99fab695ff3540ce500b579bd2ab46f82345c6930de242757e62a96d",
+    "crates/program/tests/fixtures/h2-8b-config-discovery.json": "0a773345cc17148038779045480712bd215e43d451b561e1677b056174e59fad",
+    "scripts/observe-h2-8b-config-discovery-commands.mjs": "b39835d8977cb5ba5df65a0abfd0ba33e17a0cd9232a4c467cc634b98baeaaec",
+    "scripts/observe-h2-8b-config-discovery-paths.mjs": "82b2c323bab8ccb8e14c73cf718fcdb773c1a8ecbf3fb5f2269a4c4748a3511c",
+    "scripts/observe-h2-8b-config-discovery-spelling.mjs": "98719ff1df41a1109eeb87e924d51228b12eee6e3f490a3de37e1d144149b31b",
+    "scripts/observe-h2-8b-config-discovery.mjs": "d9d160b95f84e14a76ec26f97fba6b71bc1b91b302ef4085631e7b1bfaab41f3"
+  },
+  "captures": [
+    {
+      "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/final-config-captures.json",
+      "sha256": "d98cc413c65ae63f971e704b9f0b1e59a68f4d22dfce762f793baad0534f524b"
+    },
+    {
+      "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/final-path-captures.json",
+      "sha256": "4b78818ea63a4cbca9fe39d672fb0cfddc2795435770f54144ed99f712456888"
+    },
+    {
+      "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/spelling-baseline-captures.json",
+      "sha256": "0ffe7f442f5260ed4975b565233d8803c2dc381a7f1c5e85fddb7619bcd18469"
+    },
+    {
+      "path": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/config-discovery-runs/20260911T143948Z/final-command-events.json",
+      "sha256": "3893b13ae50e7f33a108e4f5dbffc5be0803fb4f8657efd950e8fa47fc92761d"
+    }
+  ],
+  "spelling_baseline": {
+    "head": "fe074e0c6e03bf752fa0e810c97f7b6025c20fa8",
+    "captures": [
+      {
+        "case_id": "relative-trailing-directory",
+        "repetition": 1,
+        "actual": [
+          "/project/app",
+          "/project/shared"
+        ],
+        "exact": false
+      },
+      {
+        "case_id": "relative-trailing-directory",
+        "repetition": 2,
+        "actual": [
+          "/project/app",
+          "/project/shared"
+        ],
+        "exact": false
+      },
+      {
+        "case_id": "trailing-config-directory",
+        "repetition": 1,
+        "actual": [
+          "/project/app",
+          "/project/shared"
+        ],
+        "exact": false
+      },
+      {
+        "case_id": "trailing-config-directory",
+        "repetition": 2,
+        "actual": [
+          "/project/app",
+          "/project/shared"
+        ],
+        "exact": false
+      },
+      {
+        "case_id": "unc-dotted-root",
+        "repetition": 1,
+        "actual": [
+          "/project/app",
+          "//server.example"
+        ],
+        "exact": true
+      },
+      {
+        "case_id": "unc-dotted-root",
+        "repetition": 2,
+        "actual": [
+          "/project/app",
+          "//server.example"
+        ],
+        "exact": true
+      },
+      {
+        "case_id": "url-dotted-root",
+        "repetition": 1,
+        "actual": [
+          "/project/app",
+          "https://host.example"
+        ],
+        "exact": true
+      },
+      {
+        "case_id": "url-dotted-root",
+        "repetition": 2,
+        "actual": [
+          "/project/app",
+          "https://host.example"
+        ],
+        "exact": true
+      },
+      {
+        "case_id": "relative-double-trailing",
+        "repetition": 1,
+        "actual": [
+          "/project/app",
+          "/project/shared//"
+        ],
+        "exact": true
+      },
+      {
+        "case_id": "relative-double-trailing",
+        "repetition": 2,
+        "actual": [
+          "/project/app",
+          "/project/shared//"
+        ],
+        "exact": true
+      },
+      {
+        "case_id": "dotted-double-trailing",
+        "repetition": 1,
+        "actual": [
+          "/project/app",
+          "/project/shared.d"
+        ],
+        "exact": false
+      },
+      {
+        "case_id": "dotted-double-trailing",
+        "repetition": 2,
+        "actual": [
+          "/project/app",
+          "/project/shared.d"
+        ],
+        "exact": false
+      }
+    ]
+  },
+  "resource_policy": {
+    "background_io": true,
+    "nice": 19,
+    "cargo_build_jobs": 1,
+    "test_threads": 1,
+    "target": "/Users/hiramatsu/dev/tsc-rs-h2-8b-lr1/target/h2-8b-lr1",
+    "heavy_jobs": "one at a time"
+  },
+  "toolchain": {
+    "rustc": "rustc 1.93.0 (254b59607 2026-01-19)",
+    "node": "v25.2.1",
+    "os": "Darwin arm64"
+  },
+  "existing_expectations_changed": false,
+  "shared_comparators_changed": false,
+  "profile_activation": false,
+  "limitations": [
+    "CFG1b covers the stated config projection and controls, not CFG1/B completion.",
+    "Pure base-path cases do not qualify host lookup spelling for case-insensitive, Windows, UNC, or URL profiles.",
+    "The eight complete command controls were observed after the first discovery/watcher fixes; no before/after command mismatch count is claimed.",
+    "One existing config contract remains ignored by its pinned Node audit annotation; no new ignore was added.",
+    "Host callback order/count/faults, cache reuse, watch/typeAcquisition conversion, and option relationship diagnostics remain outside this packet.",
+    "No new hosted acceptance, walk, chain-walk, full cargo xtask ci, or emitter-wide suite was run.",
+    "Complete command tuples are checked by the unchanged comparator; separate native tuple JSON is not captured."
+  ]
+}

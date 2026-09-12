@@ -133,6 +133,7 @@ pub(super) fn assert_cases_with_inspection(
                     "allowJs" => options.allow_js = value.as_bool().unwrap(),
                     "checkJs" => options.check_js = value.as_bool(),
                     "noEmitForJsFiles" => options.no_emit_for_js_files = value.as_bool(),
+                    "noEmitHelpers" => options.no_emit_helpers = value.as_bool(),
                     "resolveJsonModule" => options.resolve_json_module = value.as_bool(),
                     "emitBOM" => options.emit_bom = value.as_bool(),
                     "removeComments" => options.remove_comments = value.as_bool(),

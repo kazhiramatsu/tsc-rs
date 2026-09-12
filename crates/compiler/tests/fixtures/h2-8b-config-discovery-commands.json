@@ -1,0 +1,3883 @@
+{
+  "version": 1,
+  "status": "Complete upstream observations; native qualification is recorded separately",
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "b39835d8977cb5ba5df65a0abfd0ba33e17a0cd9232a4c467cc634b98baeaaec",
+  "inputs": {
+    "path": "crates/compiler/tests/fixtures/h2-8b-config-discovery-commands-inputs.json",
+    "sha256": "140dbe890280e3aeb6814404f86fb6e9543cc8b4d149ddf0da8381b1f828fa8f"
+  },
+  "repetitions": 2,
+  "program_attempts": 16,
+  "program_executions": 16,
+  "exception_attempts": 0,
+  "cases": [
+    {
+      "case_id": "h2-8b-config-discovery-commands/sibling-recursive",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"../shared/**/*.ts\"],\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"..\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true}}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        }
+      ],
+      "options": {},
+      "typescript_observation": {
+        "program_facts": {
+          "source_files": [
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts",
+            "/project/shared/skip.ts",
+            "/project/shared/z.ts",
+            "/project/shared/a/child.ts",
+            "/project/shared/deep/end.ts"
+          ],
+          "library_files": [
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts"
+          ],
+          "root_names": [
+            "/project/shared/skip.ts",
+            "/project/shared/z.ts",
+            "/project/shared/a/child.ts",
+            "/project/shared/deep/end.ts"
+          ]
+        },
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/app/dist/shared/skip.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoic2tpcC5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NoYXJlZC9za2lwLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 148,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoic2tpcC5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NoYXJlZC9za2lwLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 148,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/skip.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/app/dist/shared/skip.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9c2tpcC5qcy5tYXA=",
+            "callback_utf8_bytes": 56,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9c2tpcC5qcy5tYXA=",
+            "materialized_utf8_bytes": 56,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/skip.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/app/dist/shared/skip.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoic2tpcC5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc2hhcmVkL3NraXAudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "callback_utf8_bytes": 140,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoic2tpcC5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc2hhcmVkL3NraXAudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "materialized_utf8_bytes": 140,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/skip.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/app/dist/shared/skip.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA2OwovLyMgc291cmNlTWFwcGluZ1VSTD1za2lwLmQudHMubWFw",
+            "callback_utf8_bytes": 66,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA2OwovLyMgc291cmNlTWFwcGluZ1VSTD1za2lwLmQudHMubWFw",
+            "materialized_utf8_bytes": 66,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/skip.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          },
+          {
+            "index": 4,
+            "path": "/project/app/dist/shared/z.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NoYXJlZC96LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 142,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NoYXJlZC96LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 142,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/z.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 5,
+            "path": "/project/app/dist/shared/z.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNDsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ei5qcy5tYXA=",
+            "callback_utf8_bytes": 53,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNDsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ei5qcy5tYXA=",
+            "materialized_utf8_bytes": 53,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/z.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 6,
+            "path": "/project/app/dist/shared/z.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc2hhcmVkL3oudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "callback_utf8_bytes": 134,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc2hhcmVkL3oudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "materialized_utf8_bytes": 134,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/z.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 7,
+            "path": "/project/app/dist/shared/z.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA0OwovLyMgc291cmNlTWFwcGluZ1VSTD16LmQudHMubWFw",
+            "callback_utf8_bytes": 63,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA0OwovLyMgc291cmNlTWFwcGluZ1VSTD16LmQudHMubWFw",
+            "materialized_utf8_bytes": 63,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/z.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          },
+          {
+            "index": 8,
+            "path": "/project/app/dist/shared/a/child.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zaGFyZWQvYS9jaGlsZC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxNQUFNLENBQUMsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "callback_utf8_bytes": 155,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zaGFyZWQvYS9jaGlsZC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxNQUFNLENBQUMsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "materialized_utf8_bytes": 155,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/a/child.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 9,
+            "path": "/project/app/dist/shared/a/child.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9Y2hpbGQuanMubWFw",
+            "callback_utf8_bytes": 57,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9Y2hpbGQuanMubWFw",
+            "materialized_utf8_bytes": 57,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/a/child.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 10,
+            "path": "/project/app/dist/shared/a/child.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuZC50cyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uLy4uL3NoYXJlZC9hL2NoaWxkLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGVBQU8sTUFBTSxLQUFLLElBQUksQ0FBQyJ9",
+            "callback_utf8_bytes": 147,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuZC50cyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uLy4uL3NoYXJlZC9hL2NoaWxkLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGVBQU8sTUFBTSxLQUFLLElBQUksQ0FBQyJ9",
+            "materialized_utf8_bytes": 147,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/a/child.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 11,
+            "path": "/project/app/dist/shared/a/child.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA1OwovLyMgc291cmNlTWFwcGluZ1VSTD1jaGlsZC5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 67,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA1OwovLyMgc291cmNlTWFwcGluZ1VSTD1jaGlsZC5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 67,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/a/child.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          },
+          {
+            "index": 12,
+            "path": "/project/app/dist/shared/deep/end.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZW5kLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vLi4vc2hhcmVkL2RlZXAvZW5kLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 154,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZW5kLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vLi4vc2hhcmVkL2RlZXAvZW5kLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 154,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/deep/end.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 13,
+            "path": "/project/app/dist/shared/deep/end.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNzsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ZW5kLmpzLm1hcA==",
+            "callback_utf8_bytes": 55,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNzsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ZW5kLmpzLm1hcA==",
+            "materialized_utf8_bytes": 55,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/deep/end.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 14,
+            "path": "/project/app/dist/shared/deep/end.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZW5kLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zaGFyZWQvZGVlcC9lbmQudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "callback_utf8_bytes": 146,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZW5kLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zaGFyZWQvZGVlcC9lbmQudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "materialized_utf8_bytes": 146,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/deep/end.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 15,
+            "path": "/project/app/dist/shared/deep/end.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA3OwovLyMgc291cmNlTWFwcGluZ1VSTD1lbmQuZC50cy5tYXA=",
+            "callback_utf8_bytes": 65,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA3OwovLyMgc291cmNlTWFwcGluZ1VSTD1lbmQuZC50cy5tYXA=",
+            "materialized_utf8_bytes": 65,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/deep/end.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/shared/skip.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"skip.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../shared/skip.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/skip.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"skip.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../shared/skip.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/z.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"z.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../shared/z.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/z.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"z.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../shared/z.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/a/child.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"child.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../../shared/a/child.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/a/child.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"child.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../../shared/a/child.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/deep/end.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"end.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../../shared/deep/end.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/deep/end.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"end.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../../shared/deep/end.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "h2-8b-config-discovery-commands/parent-recursive",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"../**/*.ts\"],\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"..\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true}}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        }
+      ],
+      "options": {},
+      "typescript_observation": {
+        "program_facts": {
+          "source_files": [
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts",
+            "/project/app/main.ts",
+            "/project/app/src/z.ts",
+            "/project/app/src/a/child.ts",
+            "/project/app-extra/edge.ts",
+            "/project/other/other.ts",
+            "/project/shared/skip.ts",
+            "/project/shared/z.ts",
+            "/project/shared/a/child.ts",
+            "/project/shared/deep/end.ts"
+          ],
+          "library_files": [
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts"
+          ],
+          "root_names": [
+            "/project/app/main.ts",
+            "/project/app/src/z.ts",
+            "/project/app/src/a/child.ts",
+            "/project/app-extra/edge.ts",
+            "/project/other/other.ts",
+            "/project/shared/skip.ts",
+            "/project/shared/z.ts",
+            "/project/shared/a/child.ts",
+            "/project/shared/deep/end.ts"
+          ]
+        },
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/app/dist/app/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxDQUFDLE1BQU0sS0FBSyxHQUFHLENBQUMsQ0FBQyJ9",
+            "callback_utf8_bytes": 138,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxDQUFDLE1BQU0sS0FBSyxHQUFHLENBQUMsQ0FBQyJ9",
+            "materialized_utf8_bytes": 138,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/app/dist/app/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 56,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 56,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/app/dist/app/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vbWFpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxlQUFPLE1BQU0sS0FBSyxJQUFJLENBQUMifQ==",
+            "callback_utf8_bytes": 130,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vbWFpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxlQUFPLE1BQU0sS0FBSyxJQUFJLENBQUMifQ==",
+            "materialized_utf8_bytes": 130,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/app/dist/app/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAxOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "callback_utf8_bytes": 66,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAxOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "materialized_utf8_bytes": 66,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          },
+          {
+            "index": 4,
+            "path": "/project/app/dist/app/src/z.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NyYy96LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 139,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NyYy96LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 139,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app/src/z.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 5,
+            "path": "/project/app/dist/app/src/z.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ei5qcy5tYXA=",
+            "callback_utf8_bytes": 53,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ei5qcy5tYXA=",
+            "materialized_utf8_bytes": 53,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app/src/z.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 6,
+            "path": "/project/app/dist/app/src/z.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc3JjL3oudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "callback_utf8_bytes": 131,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc3JjL3oudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "materialized_utf8_bytes": 131,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app/src/z.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 7,
+            "path": "/project/app/dist/app/src/z.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAyOwovLyMgc291cmNlTWFwcGluZ1VSTD16LmQudHMubWFw",
+            "callback_utf8_bytes": 63,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAyOwovLyMgc291cmNlTWFwcGluZ1VSTD16LmQudHMubWFw",
+            "materialized_utf8_bytes": 63,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app/src/z.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          },
+          {
+            "index": 8,
+            "path": "/project/app/dist/app/src/a/child.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zcmMvYS9jaGlsZC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxNQUFNLENBQUMsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "callback_utf8_bytes": 152,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zcmMvYS9jaGlsZC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxNQUFNLENBQUMsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "materialized_utf8_bytes": 152,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app/src/a/child.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 9,
+            "path": "/project/app/dist/app/src/a/child.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMzsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9Y2hpbGQuanMubWFw",
+            "callback_utf8_bytes": 57,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMzsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9Y2hpbGQuanMubWFw",
+            "materialized_utf8_bytes": 57,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app/src/a/child.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 10,
+            "path": "/project/app/dist/app/src/a/child.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuZC50cyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uLy4uL3NyYy9hL2NoaWxkLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGVBQU8sTUFBTSxLQUFLLElBQUksQ0FBQyJ9",
+            "callback_utf8_bytes": 144,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuZC50cyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uLy4uL3NyYy9hL2NoaWxkLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGVBQU8sTUFBTSxLQUFLLElBQUksQ0FBQyJ9",
+            "materialized_utf8_bytes": 144,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app/src/a/child.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 11,
+            "path": "/project/app/dist/app/src/a/child.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAzOwovLyMgc291cmNlTWFwcGluZ1VSTD1jaGlsZC5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 67,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAzOwovLyMgc291cmNlTWFwcGluZ1VSTD1jaGlsZC5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 67,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app/src/a/child.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          },
+          {
+            "index": 12,
+            "path": "/project/app/dist/app-extra/edge.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZWRnZS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL2FwcC1leHRyYS9lZGdlLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 151,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZWRnZS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL2FwcC1leHRyYS9lZGdlLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 151,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app-extra/edge.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 13,
+            "path": "/project/app/dist/app-extra/edge.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gOTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ZWRnZS5qcy5tYXA=",
+            "callback_utf8_bytes": 56,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gOTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ZWRnZS5qcy5tYXA=",
+            "materialized_utf8_bytes": 56,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app-extra/edge.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 14,
+            "path": "/project/app/dist/app-extra/edge.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZWRnZS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vYXBwLWV4dHJhL2VkZ2UudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "callback_utf8_bytes": 143,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZWRnZS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vYXBwLWV4dHJhL2VkZ2UudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "materialized_utf8_bytes": 143,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app-extra/edge.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 15,
+            "path": "/project/app/dist/app-extra/edge.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA5OwovLyMgc291cmNlTWFwcGluZ1VSTD1lZGdlLmQudHMubWFw",
+            "callback_utf8_bytes": 66,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA5OwovLyMgc291cmNlTWFwcGluZ1VSTD1lZGdlLmQudHMubWFw",
+            "materialized_utf8_bytes": 66,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app-extra/edge.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          },
+          {
+            "index": 16,
+            "path": "/project/app/dist/other/other.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoib3RoZXIuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi9vdGhlci9vdGhlci50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxNQUFNLENBQUMsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "callback_utf8_bytes": 149,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoib3RoZXIuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi9vdGhlci9vdGhlci50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxNQUFNLENBQUMsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "materialized_utf8_bytes": 149,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/other/other.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 17,
+            "path": "/project/app/dist/other/other.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gODsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9b3RoZXIuanMubWFw",
+            "callback_utf8_bytes": 57,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gODsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9b3RoZXIuanMubWFw",
+            "materialized_utf8_bytes": 57,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/other/other.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 18,
+            "path": "/project/app/dist/other/other.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoib3RoZXIuZC50cyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL290aGVyL290aGVyLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGVBQU8sTUFBTSxLQUFLLElBQUksQ0FBQyJ9",
+            "callback_utf8_bytes": 141,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoib3RoZXIuZC50cyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL290aGVyL290aGVyLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGVBQU8sTUFBTSxLQUFLLElBQUksQ0FBQyJ9",
+            "materialized_utf8_bytes": 141,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/other/other.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 19,
+            "path": "/project/app/dist/other/other.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA4OwovLyMgc291cmNlTWFwcGluZ1VSTD1vdGhlci5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 67,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA4OwovLyMgc291cmNlTWFwcGluZ1VSTD1vdGhlci5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 67,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/other/other.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          },
+          {
+            "index": 20,
+            "path": "/project/app/dist/shared/skip.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoic2tpcC5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NoYXJlZC9za2lwLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 148,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoic2tpcC5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NoYXJlZC9za2lwLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 148,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/skip.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 21,
+            "path": "/project/app/dist/shared/skip.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9c2tpcC5qcy5tYXA=",
+            "callback_utf8_bytes": 56,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9c2tpcC5qcy5tYXA=",
+            "materialized_utf8_bytes": 56,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/skip.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 22,
+            "path": "/project/app/dist/shared/skip.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoic2tpcC5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc2hhcmVkL3NraXAudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "callback_utf8_bytes": 140,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoic2tpcC5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc2hhcmVkL3NraXAudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "materialized_utf8_bytes": 140,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/skip.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 23,
+            "path": "/project/app/dist/shared/skip.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA2OwovLyMgc291cmNlTWFwcGluZ1VSTD1za2lwLmQudHMubWFw",
+            "callback_utf8_bytes": 66,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA2OwovLyMgc291cmNlTWFwcGluZ1VSTD1za2lwLmQudHMubWFw",
+            "materialized_utf8_bytes": 66,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/skip.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          },
+          {
+            "index": 24,
+            "path": "/project/app/dist/shared/z.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NoYXJlZC96LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 142,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NoYXJlZC96LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 142,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/z.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 25,
+            "path": "/project/app/dist/shared/z.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNDsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ei5qcy5tYXA=",
+            "callback_utf8_bytes": 53,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNDsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ei5qcy5tYXA=",
+            "materialized_utf8_bytes": 53,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/z.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 26,
+            "path": "/project/app/dist/shared/z.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc2hhcmVkL3oudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "callback_utf8_bytes": 134,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc2hhcmVkL3oudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "materialized_utf8_bytes": 134,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/z.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 27,
+            "path": "/project/app/dist/shared/z.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA0OwovLyMgc291cmNlTWFwcGluZ1VSTD16LmQudHMubWFw",
+            "callback_utf8_bytes": 63,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA0OwovLyMgc291cmNlTWFwcGluZ1VSTD16LmQudHMubWFw",
+            "materialized_utf8_bytes": 63,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/z.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          },
+          {
+            "index": 28,
+            "path": "/project/app/dist/shared/a/child.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zaGFyZWQvYS9jaGlsZC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxNQUFNLENBQUMsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "callback_utf8_bytes": 155,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zaGFyZWQvYS9jaGlsZC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxNQUFNLENBQUMsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "materialized_utf8_bytes": 155,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/a/child.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 29,
+            "path": "/project/app/dist/shared/a/child.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9Y2hpbGQuanMubWFw",
+            "callback_utf8_bytes": 57,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9Y2hpbGQuanMubWFw",
+            "materialized_utf8_bytes": 57,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/a/child.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 30,
+            "path": "/project/app/dist/shared/a/child.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuZC50cyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uLy4uL3NoYXJlZC9hL2NoaWxkLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGVBQU8sTUFBTSxLQUFLLElBQUksQ0FBQyJ9",
+            "callback_utf8_bytes": 147,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuZC50cyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uLy4uL3NoYXJlZC9hL2NoaWxkLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGVBQU8sTUFBTSxLQUFLLElBQUksQ0FBQyJ9",
+            "materialized_utf8_bytes": 147,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/a/child.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 31,
+            "path": "/project/app/dist/shared/a/child.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA1OwovLyMgc291cmNlTWFwcGluZ1VSTD1jaGlsZC5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 67,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA1OwovLyMgc291cmNlTWFwcGluZ1VSTD1jaGlsZC5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 67,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/a/child.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          },
+          {
+            "index": 32,
+            "path": "/project/app/dist/shared/deep/end.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZW5kLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vLi4vc2hhcmVkL2RlZXAvZW5kLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 154,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZW5kLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vLi4vc2hhcmVkL2RlZXAvZW5kLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 154,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/deep/end.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 33,
+            "path": "/project/app/dist/shared/deep/end.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNzsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ZW5kLmpzLm1hcA==",
+            "callback_utf8_bytes": 55,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNzsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ZW5kLmpzLm1hcA==",
+            "materialized_utf8_bytes": 55,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/deep/end.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 34,
+            "path": "/project/app/dist/shared/deep/end.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZW5kLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zaGFyZWQvZGVlcC9lbmQudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "callback_utf8_bytes": 146,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZW5kLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zaGFyZWQvZGVlcC9lbmQudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "materialized_utf8_bytes": 146,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/deep/end.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 35,
+            "path": "/project/app/dist/shared/deep/end.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA3OwovLyMgc291cmNlTWFwcGluZ1VSTD1lbmQuZC50cy5tYXA=",
+            "callback_utf8_bytes": 65,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA3OwovLyMgc291cmNlTWFwcGluZ1VSTD1lbmQuZC50cy5tYXA=",
+            "materialized_utf8_bytes": 65,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/deep/end.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/app/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../../main.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/app/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../main.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/app/src/z.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"z.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../src/z.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/app/src/z.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"z.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../src/z.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/app/src/a/child.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"child.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../../src/a/child.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/app/src/a/child.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"child.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../../src/a/child.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/app-extra/edge.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"edge.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../app-extra/edge.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/app-extra/edge.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"edge.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../app-extra/edge.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/other/other.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"other.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../other/other.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/other/other.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"other.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../other/other.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/skip.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"skip.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../shared/skip.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/skip.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"skip.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../shared/skip.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/z.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"z.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../shared/z.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/z.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"z.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../shared/z.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/a/child.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"child.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../../shared/a/child.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/a/child.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"child.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../../shared/a/child.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/deep/end.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"end.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../../shared/deep/end.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/deep/end.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"end.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../../shared/deep/end.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "h2-8b-config-discovery-commands/absolute-recursive",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"/project/shared/**/*.ts\"],\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"..\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true}}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        }
+      ],
+      "options": {},
+      "typescript_observation": {
+        "program_facts": {
+          "source_files": [
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts",
+            "/project/shared/skip.ts",
+            "/project/shared/z.ts",
+            "/project/shared/a/child.ts",
+            "/project/shared/deep/end.ts"
+          ],
+          "library_files": [
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts"
+          ],
+          "root_names": [
+            "/project/shared/skip.ts",
+            "/project/shared/z.ts",
+            "/project/shared/a/child.ts",
+            "/project/shared/deep/end.ts"
+          ]
+        },
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/app/dist/shared/skip.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoic2tpcC5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NoYXJlZC9za2lwLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 148,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoic2tpcC5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NoYXJlZC9za2lwLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 148,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/skip.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/app/dist/shared/skip.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9c2tpcC5qcy5tYXA=",
+            "callback_utf8_bytes": 56,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9c2tpcC5qcy5tYXA=",
+            "materialized_utf8_bytes": 56,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/skip.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/app/dist/shared/skip.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoic2tpcC5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc2hhcmVkL3NraXAudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "callback_utf8_bytes": 140,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoic2tpcC5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc2hhcmVkL3NraXAudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "materialized_utf8_bytes": 140,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/skip.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/app/dist/shared/skip.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA2OwovLyMgc291cmNlTWFwcGluZ1VSTD1za2lwLmQudHMubWFw",
+            "callback_utf8_bytes": 66,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA2OwovLyMgc291cmNlTWFwcGluZ1VSTD1za2lwLmQudHMubWFw",
+            "materialized_utf8_bytes": 66,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/skip.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          },
+          {
+            "index": 4,
+            "path": "/project/app/dist/shared/z.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NoYXJlZC96LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 142,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NoYXJlZC96LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 142,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/z.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 5,
+            "path": "/project/app/dist/shared/z.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNDsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ei5qcy5tYXA=",
+            "callback_utf8_bytes": 53,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNDsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ei5qcy5tYXA=",
+            "materialized_utf8_bytes": 53,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/z.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 6,
+            "path": "/project/app/dist/shared/z.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc2hhcmVkL3oudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "callback_utf8_bytes": 134,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc2hhcmVkL3oudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "materialized_utf8_bytes": 134,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/z.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 7,
+            "path": "/project/app/dist/shared/z.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA0OwovLyMgc291cmNlTWFwcGluZ1VSTD16LmQudHMubWFw",
+            "callback_utf8_bytes": 63,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA0OwovLyMgc291cmNlTWFwcGluZ1VSTD16LmQudHMubWFw",
+            "materialized_utf8_bytes": 63,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/z.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          },
+          {
+            "index": 8,
+            "path": "/project/app/dist/shared/a/child.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zaGFyZWQvYS9jaGlsZC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxNQUFNLENBQUMsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "callback_utf8_bytes": 155,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zaGFyZWQvYS9jaGlsZC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxNQUFNLENBQUMsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "materialized_utf8_bytes": 155,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/a/child.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 9,
+            "path": "/project/app/dist/shared/a/child.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9Y2hpbGQuanMubWFw",
+            "callback_utf8_bytes": 57,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9Y2hpbGQuanMubWFw",
+            "materialized_utf8_bytes": 57,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/a/child.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 10,
+            "path": "/project/app/dist/shared/a/child.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuZC50cyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uLy4uL3NoYXJlZC9hL2NoaWxkLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGVBQU8sTUFBTSxLQUFLLElBQUksQ0FBQyJ9",
+            "callback_utf8_bytes": 147,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuZC50cyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uLy4uL3NoYXJlZC9hL2NoaWxkLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGVBQU8sTUFBTSxLQUFLLElBQUksQ0FBQyJ9",
+            "materialized_utf8_bytes": 147,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/a/child.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 11,
+            "path": "/project/app/dist/shared/a/child.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA1OwovLyMgc291cmNlTWFwcGluZ1VSTD1jaGlsZC5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 67,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA1OwovLyMgc291cmNlTWFwcGluZ1VSTD1jaGlsZC5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 67,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/a/child.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          },
+          {
+            "index": 12,
+            "path": "/project/app/dist/shared/deep/end.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZW5kLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vLi4vc2hhcmVkL2RlZXAvZW5kLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 154,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZW5kLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vLi4vc2hhcmVkL2RlZXAvZW5kLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 154,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/deep/end.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 13,
+            "path": "/project/app/dist/shared/deep/end.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNzsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ZW5kLmpzLm1hcA==",
+            "callback_utf8_bytes": 55,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNzsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ZW5kLmpzLm1hcA==",
+            "materialized_utf8_bytes": 55,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/deep/end.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 14,
+            "path": "/project/app/dist/shared/deep/end.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZW5kLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zaGFyZWQvZGVlcC9lbmQudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "callback_utf8_bytes": 146,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZW5kLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zaGFyZWQvZGVlcC9lbmQudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "materialized_utf8_bytes": 146,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/deep/end.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 15,
+            "path": "/project/app/dist/shared/deep/end.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA3OwovLyMgc291cmNlTWFwcGluZ1VSTD1lbmQuZC50cy5tYXA=",
+            "callback_utf8_bytes": 65,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA3OwovLyMgc291cmNlTWFwcGluZ1VSTD1lbmQuZC50cy5tYXA=",
+            "materialized_utf8_bytes": 65,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/deep/end.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/shared/skip.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"skip.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../shared/skip.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/skip.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"skip.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../shared/skip.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/z.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"z.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../shared/z.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/z.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"z.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../shared/z.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/a/child.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"child.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../../shared/a/child.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/a/child.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"child.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../../shared/a/child.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/deep/end.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"end.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../../shared/deep/end.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/deep/end.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"end.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../../shared/deep/end.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "h2-8b-config-discovery-commands/sibling-file",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"../shared/z.ts\"],\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"..\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true}}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        }
+      ],
+      "options": {},
+      "typescript_observation": {
+        "program_facts": {
+          "source_files": [
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts",
+            "/project/shared/z.ts"
+          ],
+          "library_files": [
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts"
+          ],
+          "root_names": [
+            "/project/shared/z.ts"
+          ]
+        },
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/app/dist/shared/z.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NoYXJlZC96LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 142,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NoYXJlZC96LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 142,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/z.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/app/dist/shared/z.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNDsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ei5qcy5tYXA=",
+            "callback_utf8_bytes": 53,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNDsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ei5qcy5tYXA=",
+            "materialized_utf8_bytes": 53,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/z.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/app/dist/shared/z.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc2hhcmVkL3oudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "callback_utf8_bytes": 134,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc2hhcmVkL3oudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "materialized_utf8_bytes": 134,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/z.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/app/dist/shared/z.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA0OwovLyMgc291cmNlTWFwcGluZ1VSTD16LmQudHMubWFw",
+            "callback_utf8_bytes": 63,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA0OwovLyMgc291cmNlTWFwcGluZ1VSTD16LmQudHMubWFw",
+            "materialized_utf8_bytes": 63,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/z.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/shared/z.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"z.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../shared/z.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/z.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"z.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../shared/z.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "h2-8b-config-discovery-commands/wildcard-directory",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"../sh*/**/*.ts\"],\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"..\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true}}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        }
+      ],
+      "options": {},
+      "typescript_observation": {
+        "program_facts": {
+          "source_files": [
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts",
+            "/project/shared/skip.ts",
+            "/project/shared/z.ts",
+            "/project/shared/a/child.ts",
+            "/project/shared/deep/end.ts"
+          ],
+          "library_files": [
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts"
+          ],
+          "root_names": [
+            "/project/shared/skip.ts",
+            "/project/shared/z.ts",
+            "/project/shared/a/child.ts",
+            "/project/shared/deep/end.ts"
+          ]
+        },
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/app/dist/shared/skip.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoic2tpcC5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NoYXJlZC9za2lwLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 148,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoic2tpcC5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NoYXJlZC9za2lwLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 148,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/skip.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/app/dist/shared/skip.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9c2tpcC5qcy5tYXA=",
+            "callback_utf8_bytes": 56,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9c2tpcC5qcy5tYXA=",
+            "materialized_utf8_bytes": 56,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/skip.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/app/dist/shared/skip.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoic2tpcC5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc2hhcmVkL3NraXAudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "callback_utf8_bytes": 140,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoic2tpcC5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc2hhcmVkL3NraXAudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "materialized_utf8_bytes": 140,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/skip.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/app/dist/shared/skip.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA2OwovLyMgc291cmNlTWFwcGluZ1VSTD1za2lwLmQudHMubWFw",
+            "callback_utf8_bytes": 66,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA2OwovLyMgc291cmNlTWFwcGluZ1VSTD1za2lwLmQudHMubWFw",
+            "materialized_utf8_bytes": 66,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/skip.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          },
+          {
+            "index": 4,
+            "path": "/project/app/dist/shared/z.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NoYXJlZC96LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 142,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NoYXJlZC96LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 142,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/z.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 5,
+            "path": "/project/app/dist/shared/z.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNDsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ei5qcy5tYXA=",
+            "callback_utf8_bytes": 53,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNDsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ei5qcy5tYXA=",
+            "materialized_utf8_bytes": 53,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/z.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 6,
+            "path": "/project/app/dist/shared/z.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc2hhcmVkL3oudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "callback_utf8_bytes": 134,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc2hhcmVkL3oudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "materialized_utf8_bytes": 134,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/z.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 7,
+            "path": "/project/app/dist/shared/z.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA0OwovLyMgc291cmNlTWFwcGluZ1VSTD16LmQudHMubWFw",
+            "callback_utf8_bytes": 63,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA0OwovLyMgc291cmNlTWFwcGluZ1VSTD16LmQudHMubWFw",
+            "materialized_utf8_bytes": 63,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/z.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          },
+          {
+            "index": 8,
+            "path": "/project/app/dist/shared/a/child.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zaGFyZWQvYS9jaGlsZC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxNQUFNLENBQUMsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "callback_utf8_bytes": 155,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zaGFyZWQvYS9jaGlsZC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxNQUFNLENBQUMsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "materialized_utf8_bytes": 155,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/a/child.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 9,
+            "path": "/project/app/dist/shared/a/child.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9Y2hpbGQuanMubWFw",
+            "callback_utf8_bytes": 57,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9Y2hpbGQuanMubWFw",
+            "materialized_utf8_bytes": 57,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/a/child.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 10,
+            "path": "/project/app/dist/shared/a/child.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuZC50cyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uLy4uL3NoYXJlZC9hL2NoaWxkLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGVBQU8sTUFBTSxLQUFLLElBQUksQ0FBQyJ9",
+            "callback_utf8_bytes": 147,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuZC50cyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uLy4uL3NoYXJlZC9hL2NoaWxkLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGVBQU8sTUFBTSxLQUFLLElBQUksQ0FBQyJ9",
+            "materialized_utf8_bytes": 147,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/a/child.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 11,
+            "path": "/project/app/dist/shared/a/child.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA1OwovLyMgc291cmNlTWFwcGluZ1VSTD1jaGlsZC5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 67,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA1OwovLyMgc291cmNlTWFwcGluZ1VSTD1jaGlsZC5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 67,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/a/child.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          },
+          {
+            "index": 12,
+            "path": "/project/app/dist/shared/deep/end.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZW5kLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vLi4vc2hhcmVkL2RlZXAvZW5kLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 154,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZW5kLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vLi4vc2hhcmVkL2RlZXAvZW5kLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 154,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/deep/end.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 13,
+            "path": "/project/app/dist/shared/deep/end.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNzsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ZW5kLmpzLm1hcA==",
+            "callback_utf8_bytes": 55,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNzsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ZW5kLmpzLm1hcA==",
+            "materialized_utf8_bytes": 55,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/deep/end.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 14,
+            "path": "/project/app/dist/shared/deep/end.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZW5kLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zaGFyZWQvZGVlcC9lbmQudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "callback_utf8_bytes": 146,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZW5kLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zaGFyZWQvZGVlcC9lbmQudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "materialized_utf8_bytes": 146,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/deep/end.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 15,
+            "path": "/project/app/dist/shared/deep/end.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA3OwovLyMgc291cmNlTWFwcGluZ1VSTD1lbmQuZC50cy5tYXA=",
+            "callback_utf8_bytes": 65,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA3OwovLyMgc291cmNlTWFwcGluZ1VSTD1lbmQuZC50cy5tYXA=",
+            "materialized_utf8_bytes": 65,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/deep/end.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/shared/skip.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"skip.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../shared/skip.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/skip.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"skip.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../shared/skip.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/z.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"z.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../shared/z.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/z.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"z.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../shared/z.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/a/child.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"child.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../../shared/a/child.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/a/child.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"child.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../../shared/a/child.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/deep/end.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"end.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../../shared/deep/end.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/deep/end.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"end.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../../shared/deep/end.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "h2-8b-config-discovery-commands/child-before-parent",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"../shared/deep/**/*.ts\",\"../**/*.ts\"],\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"..\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true}}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        }
+      ],
+      "options": {},
+      "typescript_observation": {
+        "program_facts": {
+          "source_files": [
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts",
+            "/project/shared/deep/end.ts",
+            "/project/app/main.ts",
+            "/project/app/src/z.ts",
+            "/project/app/src/a/child.ts",
+            "/project/app-extra/edge.ts",
+            "/project/other/other.ts",
+            "/project/shared/skip.ts",
+            "/project/shared/z.ts",
+            "/project/shared/a/child.ts"
+          ],
+          "library_files": [
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts"
+          ],
+          "root_names": [
+            "/project/shared/deep/end.ts",
+            "/project/app/main.ts",
+            "/project/app/src/z.ts",
+            "/project/app/src/a/child.ts",
+            "/project/app-extra/edge.ts",
+            "/project/other/other.ts",
+            "/project/shared/skip.ts",
+            "/project/shared/z.ts",
+            "/project/shared/a/child.ts"
+          ]
+        },
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/app/dist/shared/deep/end.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZW5kLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vLi4vc2hhcmVkL2RlZXAvZW5kLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 154,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZW5kLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vLi4vc2hhcmVkL2RlZXAvZW5kLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 154,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/deep/end.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/app/dist/shared/deep/end.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNzsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ZW5kLmpzLm1hcA==",
+            "callback_utf8_bytes": 55,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNzsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ZW5kLmpzLm1hcA==",
+            "materialized_utf8_bytes": 55,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/deep/end.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/app/dist/shared/deep/end.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZW5kLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zaGFyZWQvZGVlcC9lbmQudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "callback_utf8_bytes": 146,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZW5kLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zaGFyZWQvZGVlcC9lbmQudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "materialized_utf8_bytes": 146,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/deep/end.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/app/dist/shared/deep/end.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA3OwovLyMgc291cmNlTWFwcGluZ1VSTD1lbmQuZC50cy5tYXA=",
+            "callback_utf8_bytes": 65,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA3OwovLyMgc291cmNlTWFwcGluZ1VSTD1lbmQuZC50cy5tYXA=",
+            "materialized_utf8_bytes": 65,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/deep/end.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          },
+          {
+            "index": 4,
+            "path": "/project/app/dist/app/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxDQUFDLE1BQU0sS0FBSyxHQUFHLENBQUMsQ0FBQyJ9",
+            "callback_utf8_bytes": 138,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL21haW4udHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxDQUFDLE1BQU0sS0FBSyxHQUFHLENBQUMsQ0FBQyJ9",
+            "materialized_utf8_bytes": 138,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 5,
+            "path": "/project/app/dist/app/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 56,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 56,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 6,
+            "path": "/project/app/dist/app/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vbWFpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxlQUFPLE1BQU0sS0FBSyxJQUFJLENBQUMifQ==",
+            "callback_utf8_bytes": 130,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vbWFpbi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxlQUFPLE1BQU0sS0FBSyxJQUFJLENBQUMifQ==",
+            "materialized_utf8_bytes": 130,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app/main.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 7,
+            "path": "/project/app/dist/app/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAxOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "callback_utf8_bytes": 66,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAxOwovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "materialized_utf8_bytes": 66,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app/main.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          },
+          {
+            "index": 8,
+            "path": "/project/app/dist/app/src/z.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NyYy96LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 139,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NyYy96LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 139,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app/src/z.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 9,
+            "path": "/project/app/dist/app/src/z.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ei5qcy5tYXA=",
+            "callback_utf8_bytes": 53,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ei5qcy5tYXA=",
+            "materialized_utf8_bytes": 53,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app/src/z.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 10,
+            "path": "/project/app/dist/app/src/z.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc3JjL3oudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "callback_utf8_bytes": 131,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc3JjL3oudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "materialized_utf8_bytes": 131,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app/src/z.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 11,
+            "path": "/project/app/dist/app/src/z.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAyOwovLyMgc291cmNlTWFwcGluZ1VSTD16LmQudHMubWFw",
+            "callback_utf8_bytes": 63,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAyOwovLyMgc291cmNlTWFwcGluZ1VSTD16LmQudHMubWFw",
+            "materialized_utf8_bytes": 63,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app/src/z.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          },
+          {
+            "index": 12,
+            "path": "/project/app/dist/app/src/a/child.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zcmMvYS9jaGlsZC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxNQUFNLENBQUMsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "callback_utf8_bytes": 152,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zcmMvYS9jaGlsZC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxNQUFNLENBQUMsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "materialized_utf8_bytes": 152,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app/src/a/child.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 13,
+            "path": "/project/app/dist/app/src/a/child.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMzsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9Y2hpbGQuanMubWFw",
+            "callback_utf8_bytes": 57,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMzsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9Y2hpbGQuanMubWFw",
+            "materialized_utf8_bytes": 57,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app/src/a/child.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 14,
+            "path": "/project/app/dist/app/src/a/child.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuZC50cyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uLy4uL3NyYy9hL2NoaWxkLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGVBQU8sTUFBTSxLQUFLLElBQUksQ0FBQyJ9",
+            "callback_utf8_bytes": 144,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuZC50cyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uLy4uL3NyYy9hL2NoaWxkLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGVBQU8sTUFBTSxLQUFLLElBQUksQ0FBQyJ9",
+            "materialized_utf8_bytes": 144,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app/src/a/child.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 15,
+            "path": "/project/app/dist/app/src/a/child.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAzOwovLyMgc291cmNlTWFwcGluZ1VSTD1jaGlsZC5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 67,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAzOwovLyMgc291cmNlTWFwcGluZ1VSTD1jaGlsZC5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 67,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app/src/a/child.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          },
+          {
+            "index": 16,
+            "path": "/project/app/dist/app-extra/edge.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZWRnZS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL2FwcC1leHRyYS9lZGdlLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 151,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZWRnZS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL2FwcC1leHRyYS9lZGdlLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 151,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app-extra/edge.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 17,
+            "path": "/project/app/dist/app-extra/edge.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gOTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ZWRnZS5qcy5tYXA=",
+            "callback_utf8_bytes": 56,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gOTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ZWRnZS5qcy5tYXA=",
+            "materialized_utf8_bytes": 56,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app-extra/edge.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 18,
+            "path": "/project/app/dist/app-extra/edge.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZWRnZS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vYXBwLWV4dHJhL2VkZ2UudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "callback_utf8_bytes": 143,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZWRnZS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vYXBwLWV4dHJhL2VkZ2UudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "materialized_utf8_bytes": 143,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app-extra/edge.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 19,
+            "path": "/project/app/dist/app-extra/edge.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA5OwovLyMgc291cmNlTWFwcGluZ1VSTD1lZGdlLmQudHMubWFw",
+            "callback_utf8_bytes": 66,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA5OwovLyMgc291cmNlTWFwcGluZ1VSTD1lZGdlLmQudHMubWFw",
+            "materialized_utf8_bytes": 66,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app-extra/edge.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          },
+          {
+            "index": 20,
+            "path": "/project/app/dist/other/other.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoib3RoZXIuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi9vdGhlci9vdGhlci50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxNQUFNLENBQUMsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "callback_utf8_bytes": 149,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoib3RoZXIuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi9vdGhlci9vdGhlci50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxNQUFNLENBQUMsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "materialized_utf8_bytes": 149,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/other/other.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 21,
+            "path": "/project/app/dist/other/other.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gODsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9b3RoZXIuanMubWFw",
+            "callback_utf8_bytes": 57,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gODsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9b3RoZXIuanMubWFw",
+            "materialized_utf8_bytes": 57,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/other/other.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 22,
+            "path": "/project/app/dist/other/other.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoib3RoZXIuZC50cyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL290aGVyL290aGVyLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGVBQU8sTUFBTSxLQUFLLElBQUksQ0FBQyJ9",
+            "callback_utf8_bytes": 141,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoib3RoZXIuZC50cyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL290aGVyL290aGVyLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGVBQU8sTUFBTSxLQUFLLElBQUksQ0FBQyJ9",
+            "materialized_utf8_bytes": 141,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/other/other.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 23,
+            "path": "/project/app/dist/other/other.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA4OwovLyMgc291cmNlTWFwcGluZ1VSTD1vdGhlci5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 67,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA4OwovLyMgc291cmNlTWFwcGluZ1VSTD1vdGhlci5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 67,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/other/other.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          },
+          {
+            "index": 24,
+            "path": "/project/app/dist/shared/skip.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoic2tpcC5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NoYXJlZC9za2lwLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 148,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoic2tpcC5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NoYXJlZC9za2lwLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 148,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/skip.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 25,
+            "path": "/project/app/dist/shared/skip.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9c2tpcC5qcy5tYXA=",
+            "callback_utf8_bytes": 56,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9c2tpcC5qcy5tYXA=",
+            "materialized_utf8_bytes": 56,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/skip.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 26,
+            "path": "/project/app/dist/shared/skip.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoic2tpcC5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc2hhcmVkL3NraXAudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "callback_utf8_bytes": 140,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoic2tpcC5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc2hhcmVkL3NraXAudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "materialized_utf8_bytes": 140,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/skip.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 27,
+            "path": "/project/app/dist/shared/skip.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA2OwovLyMgc291cmNlTWFwcGluZ1VSTD1za2lwLmQudHMubWFw",
+            "callback_utf8_bytes": 66,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA2OwovLyMgc291cmNlTWFwcGluZ1VSTD1za2lwLmQudHMubWFw",
+            "materialized_utf8_bytes": 66,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/skip.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          },
+          {
+            "index": 28,
+            "path": "/project/app/dist/shared/z.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NoYXJlZC96LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 142,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NoYXJlZC96LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 142,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/z.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 29,
+            "path": "/project/app/dist/shared/z.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNDsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ei5qcy5tYXA=",
+            "callback_utf8_bytes": 53,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNDsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ei5qcy5tYXA=",
+            "materialized_utf8_bytes": 53,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/z.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 30,
+            "path": "/project/app/dist/shared/z.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc2hhcmVkL3oudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "callback_utf8_bytes": 134,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc2hhcmVkL3oudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "materialized_utf8_bytes": 134,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/z.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 31,
+            "path": "/project/app/dist/shared/z.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA0OwovLyMgc291cmNlTWFwcGluZ1VSTD16LmQudHMubWFw",
+            "callback_utf8_bytes": 63,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA0OwovLyMgc291cmNlTWFwcGluZ1VSTD16LmQudHMubWFw",
+            "materialized_utf8_bytes": 63,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/z.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          },
+          {
+            "index": 32,
+            "path": "/project/app/dist/shared/a/child.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zaGFyZWQvYS9jaGlsZC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxNQUFNLENBQUMsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "callback_utf8_bytes": 155,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zaGFyZWQvYS9jaGlsZC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxNQUFNLENBQUMsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "materialized_utf8_bytes": 155,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/a/child.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 33,
+            "path": "/project/app/dist/shared/a/child.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9Y2hpbGQuanMubWFw",
+            "callback_utf8_bytes": 57,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9Y2hpbGQuanMubWFw",
+            "materialized_utf8_bytes": 57,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/a/child.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 34,
+            "path": "/project/app/dist/shared/a/child.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuZC50cyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uLy4uL3NoYXJlZC9hL2NoaWxkLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGVBQU8sTUFBTSxLQUFLLElBQUksQ0FBQyJ9",
+            "callback_utf8_bytes": 147,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuZC50cyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uLy4uL3NoYXJlZC9hL2NoaWxkLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGVBQU8sTUFBTSxLQUFLLElBQUksQ0FBQyJ9",
+            "materialized_utf8_bytes": 147,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/a/child.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 35,
+            "path": "/project/app/dist/shared/a/child.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA1OwovLyMgc291cmNlTWFwcGluZ1VSTD1jaGlsZC5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 67,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA1OwovLyMgc291cmNlTWFwcGluZ1VSTD1jaGlsZC5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 67,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/a/child.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/shared/deep/end.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"end.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../../shared/deep/end.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/deep/end.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"end.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../../shared/deep/end.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/app/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../../main.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/app/main.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../main.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/app/src/z.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"z.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../src/z.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/app/src/z.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"z.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../src/z.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/app/src/a/child.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"child.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../../src/a/child.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/app/src/a/child.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"child.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../../src/a/child.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/app-extra/edge.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"edge.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../app-extra/edge.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/app-extra/edge.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"edge.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../app-extra/edge.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/other/other.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"other.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../other/other.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/other/other.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"other.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../other/other.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/skip.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"skip.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../shared/skip.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/skip.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"skip.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../shared/skip.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/z.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"z.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../shared/z.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/z.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"z.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../shared/z.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/a/child.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"child.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../../shared/a/child.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/a/child.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"child.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../../shared/a/child.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "h2-8b-config-discovery-commands/external-exclude",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"../shared/**/*.ts\"],\"exclude\":[\"../shared/skip.ts\",\"../shared/deep/**/*\"],\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"..\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true}}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        }
+      ],
+      "options": {},
+      "typescript_observation": {
+        "program_facts": {
+          "source_files": [
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts",
+            "/project/shared/z.ts",
+            "/project/shared/a/child.ts"
+          ],
+          "library_files": [
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts"
+          ],
+          "root_names": [
+            "/project/shared/z.ts",
+            "/project/shared/a/child.ts"
+          ]
+        },
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/app/dist/shared/z.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NoYXJlZC96LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 142,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NoYXJlZC96LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 142,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/z.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/app/dist/shared/z.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNDsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ei5qcy5tYXA=",
+            "callback_utf8_bytes": 53,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNDsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ei5qcy5tYXA=",
+            "materialized_utf8_bytes": 53,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/z.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/app/dist/shared/z.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc2hhcmVkL3oudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "callback_utf8_bytes": 134,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc2hhcmVkL3oudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "materialized_utf8_bytes": 134,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/z.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/app/dist/shared/z.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA0OwovLyMgc291cmNlTWFwcGluZ1VSTD16LmQudHMubWFw",
+            "callback_utf8_bytes": 63,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA0OwovLyMgc291cmNlTWFwcGluZ1VSTD16LmQudHMubWFw",
+            "materialized_utf8_bytes": 63,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/z.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          },
+          {
+            "index": 4,
+            "path": "/project/app/dist/shared/a/child.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zaGFyZWQvYS9jaGlsZC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxNQUFNLENBQUMsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "callback_utf8_bytes": 155,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zaGFyZWQvYS9jaGlsZC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxNQUFNLENBQUMsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "materialized_utf8_bytes": 155,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/a/child.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 5,
+            "path": "/project/app/dist/shared/a/child.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9Y2hpbGQuanMubWFw",
+            "callback_utf8_bytes": 57,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9Y2hpbGQuanMubWFw",
+            "materialized_utf8_bytes": 57,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/a/child.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 6,
+            "path": "/project/app/dist/shared/a/child.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuZC50cyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uLy4uL3NoYXJlZC9hL2NoaWxkLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGVBQU8sTUFBTSxLQUFLLElBQUksQ0FBQyJ9",
+            "callback_utf8_bytes": 147,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuZC50cyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uLy4uL3NoYXJlZC9hL2NoaWxkLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGVBQU8sTUFBTSxLQUFLLElBQUksQ0FBQyJ9",
+            "materialized_utf8_bytes": 147,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/a/child.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 7,
+            "path": "/project/app/dist/shared/a/child.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA1OwovLyMgc291cmNlTWFwcGluZ1VSTD1jaGlsZC5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 67,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA1OwovLyMgc291cmNlTWFwcGluZ1VSTD1jaGlsZC5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 67,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/a/child.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/shared/z.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"z.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../shared/z.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/z.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"z.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../shared/z.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/a/child.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"child.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../../shared/a/child.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/a/child.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"child.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../../shared/a/child.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "h2-8b-config-discovery-commands/include-bucket-order",
+      "config_path": "/project/app/tsconfig.json",
+      "config": "{\"include\":[\"../other/**/*.ts\",\"src/**/*.ts\",\"../shared/**/*.ts\"],\"compilerOptions\":{\"target\":\"es2020\",\"module\":\"esnext\",\"moduleResolution\":\"node\",\"ignoreDeprecations\":\"6.0\",\"lib\":[\"es5\"],\"types\":[],\"rootDir\":\"..\",\"outDir\":\"dist\",\"declaration\":true,\"sourceMap\":true,\"declarationMap\":true,\"skipLibCheck\":true}}",
+      "files": [
+        {
+          "path": "/project/app/main.ts",
+          "text": "export const value = 1;\n"
+        },
+        {
+          "path": "/project/app/src/z.ts",
+          "text": "export const value = 2;\n"
+        },
+        {
+          "path": "/project/app/src/a/child.ts",
+          "text": "export const value = 3;\n"
+        },
+        {
+          "path": "/project/shared/z.ts",
+          "text": "export const value = 4;\n"
+        },
+        {
+          "path": "/project/shared/a/child.ts",
+          "text": "export const value = 5;\n"
+        },
+        {
+          "path": "/project/shared/skip.ts",
+          "text": "export const value = 6;\n"
+        },
+        {
+          "path": "/project/shared/deep/end.ts",
+          "text": "export const value = 7;\n"
+        },
+        {
+          "path": "/project/other/other.ts",
+          "text": "export const value = 8;\n"
+        },
+        {
+          "path": "/project/app-extra/edge.ts",
+          "text": "export const value = 9;\n"
+        }
+      ],
+      "options": {},
+      "typescript_observation": {
+        "program_facts": {
+          "source_files": [
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts",
+            "/project/other/other.ts",
+            "/project/app/src/z.ts",
+            "/project/app/src/a/child.ts",
+            "/project/shared/skip.ts",
+            "/project/shared/z.ts",
+            "/project/shared/a/child.ts",
+            "/project/shared/deep/end.ts"
+          ],
+          "library_files": [
+            "/lib/lib.es5.d.ts",
+            "/lib/lib.decorators.d.ts",
+            "/lib/lib.decorators.legacy.d.ts"
+          ],
+          "root_names": [
+            "/project/other/other.ts",
+            "/project/app/src/z.ts",
+            "/project/app/src/a/child.ts",
+            "/project/shared/skip.ts",
+            "/project/shared/z.ts",
+            "/project/shared/a/child.ts",
+            "/project/shared/deep/end.ts"
+          ]
+        },
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/app/dist/other/other.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoib3RoZXIuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi9vdGhlci9vdGhlci50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxNQUFNLENBQUMsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "callback_utf8_bytes": 149,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoib3RoZXIuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi9vdGhlci9vdGhlci50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxNQUFNLENBQUMsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "materialized_utf8_bytes": 149,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/other/other.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/app/dist/other/other.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gODsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9b3RoZXIuanMubWFw",
+            "callback_utf8_bytes": 57,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gODsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9b3RoZXIuanMubWFw",
+            "materialized_utf8_bytes": 57,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/other/other.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/app/dist/other/other.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoib3RoZXIuZC50cyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL290aGVyL290aGVyLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGVBQU8sTUFBTSxLQUFLLElBQUksQ0FBQyJ9",
+            "callback_utf8_bytes": 141,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoib3RoZXIuZC50cyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL290aGVyL290aGVyLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGVBQU8sTUFBTSxLQUFLLElBQUksQ0FBQyJ9",
+            "materialized_utf8_bytes": 141,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/other/other.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/app/dist/other/other.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA4OwovLyMgc291cmNlTWFwcGluZ1VSTD1vdGhlci5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 67,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA4OwovLyMgc291cmNlTWFwcGluZ1VSTD1vdGhlci5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 67,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/other/other.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          },
+          {
+            "index": 4,
+            "path": "/project/app/dist/app/src/z.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NyYy96LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 139,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NyYy96LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 139,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app/src/z.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 5,
+            "path": "/project/app/dist/app/src/z.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ei5qcy5tYXA=",
+            "callback_utf8_bytes": 53,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ei5qcy5tYXA=",
+            "materialized_utf8_bytes": 53,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app/src/z.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 6,
+            "path": "/project/app/dist/app/src/z.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc3JjL3oudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "callback_utf8_bytes": 131,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc3JjL3oudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "materialized_utf8_bytes": 131,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app/src/z.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 7,
+            "path": "/project/app/dist/app/src/z.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAyOwovLyMgc291cmNlTWFwcGluZ1VSTD16LmQudHMubWFw",
+            "callback_utf8_bytes": 63,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAyOwovLyMgc291cmNlTWFwcGluZ1VSTD16LmQudHMubWFw",
+            "materialized_utf8_bytes": 63,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app/src/z.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          },
+          {
+            "index": 8,
+            "path": "/project/app/dist/app/src/a/child.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zcmMvYS9jaGlsZC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxNQUFNLENBQUMsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "callback_utf8_bytes": 152,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zcmMvYS9jaGlsZC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxNQUFNLENBQUMsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "materialized_utf8_bytes": 152,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app/src/a/child.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 9,
+            "path": "/project/app/dist/app/src/a/child.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMzsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9Y2hpbGQuanMubWFw",
+            "callback_utf8_bytes": 57,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gMzsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9Y2hpbGQuanMubWFw",
+            "materialized_utf8_bytes": 57,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app/src/a/child.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 10,
+            "path": "/project/app/dist/app/src/a/child.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuZC50cyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uLy4uL3NyYy9hL2NoaWxkLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGVBQU8sTUFBTSxLQUFLLElBQUksQ0FBQyJ9",
+            "callback_utf8_bytes": 144,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuZC50cyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uLy4uL3NyYy9hL2NoaWxkLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGVBQU8sTUFBTSxLQUFLLElBQUksQ0FBQyJ9",
+            "materialized_utf8_bytes": 144,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app/src/a/child.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 11,
+            "path": "/project/app/dist/app/src/a/child.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAzOwovLyMgc291cmNlTWFwcGluZ1VSTD1jaGlsZC5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 67,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSAzOwovLyMgc291cmNlTWFwcGluZ1VSTD1jaGlsZC5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 67,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/app/src/a/child.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          },
+          {
+            "index": 12,
+            "path": "/project/app/dist/shared/skip.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoic2tpcC5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NoYXJlZC9za2lwLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 148,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoic2tpcC5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NoYXJlZC9za2lwLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 148,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/skip.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 13,
+            "path": "/project/app/dist/shared/skip.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9c2tpcC5qcy5tYXA=",
+            "callback_utf8_bytes": 56,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9c2tpcC5qcy5tYXA=",
+            "materialized_utf8_bytes": 56,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/skip.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 14,
+            "path": "/project/app/dist/shared/skip.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoic2tpcC5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc2hhcmVkL3NraXAudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "callback_utf8_bytes": 140,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoic2tpcC5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc2hhcmVkL3NraXAudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "materialized_utf8_bytes": 140,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/skip.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 15,
+            "path": "/project/app/dist/shared/skip.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA2OwovLyMgc291cmNlTWFwcGluZ1VSTD1za2lwLmQudHMubWFw",
+            "callback_utf8_bytes": 66,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA2OwovLyMgc291cmNlTWFwcGluZ1VSTD1za2lwLmQudHMubWFw",
+            "materialized_utf8_bytes": 66,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/skip.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          },
+          {
+            "index": 16,
+            "path": "/project/app/dist/shared/z.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NoYXJlZC96LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 142,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3NoYXJlZC96LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 142,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/z.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 17,
+            "path": "/project/app/dist/shared/z.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNDsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ei5qcy5tYXA=",
+            "callback_utf8_bytes": 53,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNDsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ei5qcy5tYXA=",
+            "materialized_utf8_bytes": 53,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/z.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 18,
+            "path": "/project/app/dist/shared/z.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc2hhcmVkL3oudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "callback_utf8_bytes": 134,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiei5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vc2hhcmVkL3oudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "materialized_utf8_bytes": 134,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/z.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 19,
+            "path": "/project/app/dist/shared/z.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA0OwovLyMgc291cmNlTWFwcGluZ1VSTD16LmQudHMubWFw",
+            "callback_utf8_bytes": 63,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA0OwovLyMgc291cmNlTWFwcGluZ1VSTD16LmQudHMubWFw",
+            "materialized_utf8_bytes": 63,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/z.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          },
+          {
+            "index": 20,
+            "path": "/project/app/dist/shared/a/child.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zaGFyZWQvYS9jaGlsZC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxNQUFNLENBQUMsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "callback_utf8_bytes": 155,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zaGFyZWQvYS9jaGlsZC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxNQUFNLENBQUMsTUFBTSxLQUFLLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "materialized_utf8_bytes": 155,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/a/child.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 21,
+            "path": "/project/app/dist/shared/a/child.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9Y2hpbGQuanMubWFw",
+            "callback_utf8_bytes": 57,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9Y2hpbGQuanMubWFw",
+            "materialized_utf8_bytes": 57,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/a/child.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 22,
+            "path": "/project/app/dist/shared/a/child.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuZC50cyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uLy4uL3NoYXJlZC9hL2NoaWxkLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGVBQU8sTUFBTSxLQUFLLElBQUksQ0FBQyJ9",
+            "callback_utf8_bytes": 147,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY2hpbGQuZC50cyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uLy4uL3NoYXJlZC9hL2NoaWxkLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGVBQU8sTUFBTSxLQUFLLElBQUksQ0FBQyJ9",
+            "materialized_utf8_bytes": 147,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/a/child.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 23,
+            "path": "/project/app/dist/shared/a/child.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA1OwovLyMgc291cmNlTWFwcGluZ1VSTD1jaGlsZC5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 67,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA1OwovLyMgc291cmNlTWFwcGluZ1VSTD1jaGlsZC5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 67,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/a/child.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          },
+          {
+            "index": 24,
+            "path": "/project/app/dist/shared/deep/end.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZW5kLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vLi4vc2hhcmVkL2RlZXAvZW5kLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 154,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZW5kLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vLi4vLi4vc2hhcmVkL2RlZXAvZW5kLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE1BQU0sQ0FBQyxNQUFNLEtBQUssR0FBRyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 154,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/deep/end.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 25,
+            "path": "/project/app/dist/shared/deep/end.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNzsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ZW5kLmpzLm1hcA==",
+            "callback_utf8_bytes": 55,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGNvbnN0IHZhbHVlID0gNzsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ZW5kLmpzLm1hcA==",
+            "materialized_utf8_bytes": 55,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/deep/end.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 24,
+            "data_diagnostics": []
+          },
+          {
+            "index": 26,
+            "path": "/project/app/dist/shared/deep/end.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZW5kLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zaGFyZWQvZGVlcC9lbmQudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "callback_utf8_bytes": 146,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZW5kLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zaGFyZWQvZGVlcC9lbmQudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBTyxNQUFNLEtBQUssSUFBSSxDQUFDIn0=",
+            "materialized_utf8_bytes": 146,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/deep/end.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 27,
+            "path": "/project/app/dist/shared/deep/end.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA3OwovLyMgc291cmNlTWFwcGluZ1VSTD1lbmQuZC50cy5tYXA=",
+            "callback_utf8_bytes": 65,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWUgPSA3OwovLyMgc291cmNlTWFwcGluZ1VSTD1lbmQuZC50cy5tYXA=",
+            "materialized_utf8_bytes": 65,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/shared/deep/end.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 32,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/other/other.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"other.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../other/other.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/other/other.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"other.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../other/other.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/app/src/z.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"z.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../src/z.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/app/src/z.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"z.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../src/z.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/app/src/a/child.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"child.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../../src/a/child.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/app/src/a/child.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"child.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../../src/a/child.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/skip.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"skip.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../shared/skip.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/skip.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"skip.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../shared/skip.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/z.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"z.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../shared/z.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/z.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"z.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../shared/z.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/a/child.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"child.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../../shared/a/child.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/a/child.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"child.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../../shared/a/child.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/deep/end.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"end.js\",\"sourceRoot\":\"\",\"sources\":[\"../../../../shared/deep/end.ts\"],\"names\":[],\"mappings\":\"AAAA,MAAM,CAAC,MAAM,KAAK,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/shared/deep/end.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"end.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../../../shared/deep/end.ts\"],\"names\":[],\"mappings\":\"AAAA,eAAO,MAAM,KAAK,IAAI,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    }
+  ],
+  "upstream_failures": []
+}

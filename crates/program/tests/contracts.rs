@@ -16,6 +16,8 @@ mod config_pattern_root_contract;
 mod config_program_loader_contract;
 #[path = "integration/config_root_plan_contract.rs"]
 mod config_root_plan_contract;
+#[path = "integration/h2_8b_config_extends.rs"]
+mod h2_8b_config_extends;
 #[path = "integration/host_text_decode_contract.rs"]
 mod host_text_decode_contract;
 #[path = "integration/library_program_loader_contract.rs"]
@@ -36,3 +38,21 @@ mod path_identity_contract;
 mod prepared_program_contract;
 #[path = "integration/typescript_library_catalog_contract.rs"]
 mod typescript_library_catalog_contract;
+
+#[path = "integration/h2_8b_config_discovery.rs"]
+mod h2_8b_config_discovery;
+
+#[path = "integration/h2_8b_config_diagnostics.rs"]
+mod h2_8b_config_diagnostics;
+
+#[path = "integration/h2_8b_config_root_options.rs"]
+mod h2_8b_config_root_options;
+
+#[path = "integration/h2_8b_config_root_boundaries.rs"]
+mod h2_8b_config_root_boundaries;
+
+#[path = "integration/h2_8b_config_reuse.rs"]
+mod h2_8b_config_reuse;
+
+#[path = "integration/h2_8b_config_entity_names.rs"]
+mod h2_8b_config_entity_names;

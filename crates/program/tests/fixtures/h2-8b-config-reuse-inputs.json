@@ -1,0 +1,509 @@
+{
+  "version": 1,
+  "slice": "H2.8b-CFG1e",
+  "cases": [
+    {
+      "case_id": "h2-8b-config-reuse/duplicate-fresh",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"files\":[\"main.ts\"],\"extends\":[\"./base.json\",\"./base.json\"]}",
+      "files": [
+        {
+          "path": "/project/base.json",
+          "text": "{\"compilerOptions\":{\"strict\":true},\"watchOptions\":{\"watchFile\":\"useFsEvents\"}}"
+        }
+      ],
+      "cache": false,
+      "steps": [
+        {}
+      ],
+      "fault": null,
+      "use_case_sensitive_file_names": true
+    },
+    {
+      "case_id": "h2-8b-config-reuse/diamond-fresh",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"files\":[\"main.ts\"],\"extends\":[\"./left.json\",\"./right.json\"]}",
+      "files": [
+        {
+          "path": "/project/left.json",
+          "text": "{\"extends\":\"./shared.json\",\"compilerOptions\":{\"strict\":false}}"
+        },
+        {
+          "path": "/project/right.json",
+          "text": "{\"extends\":\"./shared.json\"}"
+        },
+        {
+          "path": "/project/shared.json",
+          "text": "{\"compilerOptions\":{\"strict\":true},\"watchOptions\":{\"watchFile\":\"useFsEvents\"}}"
+        }
+      ],
+      "cache": false,
+      "steps": [
+        {}
+      ],
+      "fault": null,
+      "use_case_sensitive_file_names": true
+    },
+    {
+      "case_id": "h2-8b-config-reuse/conversion-error-fresh",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"files\":[\"main.ts\"],\"extends\":[\"./base.json\",\"./base.json\"]}",
+      "files": [
+        {
+          "path": "/project/base.json",
+          "text": "{\"compilerOptions\":{\"target\":\"invalid\"}}"
+        }
+      ],
+      "cache": false,
+      "steps": [
+        {}
+      ],
+      "fault": null,
+      "use_case_sensitive_file_names": true
+    },
+    {
+      "case_id": "h2-8b-config-reuse/parse-error-fresh",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"files\":[\"main.ts\"],\"extends\":[\"./base.json\",\"./base.json\"]}",
+      "files": [
+        {
+          "path": "/project/base.json",
+          "text": "{\"compilerOptions\":"
+        }
+      ],
+      "cache": false,
+      "steps": [
+        {}
+      ],
+      "fault": null,
+      "use_case_sensitive_file_names": true
+    },
+    {
+      "case_id": "h2-8b-config-reuse/case-alias-fresh",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"files\":[\"main.ts\"],\"extends\":[\"./BASE.json\",\"./base.json\"]}",
+      "files": [
+        {
+          "path": "/project/base.json",
+          "text": "{\"compilerOptions\":{\"strict\":true},\"watchOptions\":{\"watchFile\":\"useFsEvents\"}}"
+        }
+      ],
+      "cache": false,
+      "steps": [
+        {}
+      ],
+      "fault": null,
+      "use_case_sensitive_file_names": false
+    },
+    {
+      "case_id": "h2-8b-config-reuse/changing-file-fresh",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"files\":[\"main.ts\"],\"extends\":\"./base.json\"}",
+      "files": [
+        {
+          "path": "/project/base.json",
+          "text": "{\"compilerOptions\":{\"strict\":true},\"watchOptions\":{\"watchFile\":\"useFsEvents\"}}"
+        }
+      ],
+      "cache": false,
+      "steps": [
+        {},
+        {
+          "updates": [
+            {
+              "path": "/project/base.json",
+              "text": "{\"compilerOptions\":{\"strict\":false}}"
+            }
+          ]
+        },
+        {
+          "clear_cache": true
+        }
+      ],
+      "fault": null,
+      "use_case_sensitive_file_names": true
+    },
+    {
+      "case_id": "h2-8b-config-reuse/cycle-fresh",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"files\":[\"main.ts\"],\"extends\":\"./base.json\"}",
+      "files": [
+        {
+          "path": "/project/base.json",
+          "text": "{\"extends\":\"./tsconfig.json\"}"
+        }
+      ],
+      "cache": false,
+      "steps": [
+        {}
+      ],
+      "fault": null,
+      "use_case_sensitive_file_names": true
+    },
+    {
+      "case_id": "h2-8b-config-reuse/read-absent-fresh",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"files\":[\"main.ts\"],\"extends\":[\"./base.json\",\"./base.json\"]}",
+      "files": [
+        {
+          "path": "/project/base.json",
+          "text": "{\"compilerOptions\":{\"strict\":true},\"watchOptions\":{\"watchFile\":\"useFsEvents\"}}"
+        }
+      ],
+      "cache": false,
+      "steps": [
+        {}
+      ],
+      "fault": {
+        "operation": "readFile",
+        "path": "/project/base.json",
+        "mode": "absent"
+      },
+      "use_case_sensitive_file_names": true
+    },
+    {
+      "case_id": "h2-8b-config-reuse/read-throws-fresh",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"files\":[\"main.ts\"],\"extends\":[\"./base.json\",\"./base.json\"]}",
+      "files": [
+        {
+          "path": "/project/base.json",
+          "text": "{\"compilerOptions\":{\"strict\":true},\"watchOptions\":{\"watchFile\":\"useFsEvents\"}}"
+        }
+      ],
+      "cache": false,
+      "steps": [
+        {}
+      ],
+      "fault": {
+        "operation": "readFile",
+        "path": "/project/base.json",
+        "mode": "throw"
+      },
+      "use_case_sensitive_file_names": true
+    },
+    {
+      "case_id": "h2-8b-config-reuse/duplicate-cached",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"files\":[\"main.ts\"],\"extends\":[\"./base.json\",\"./base.json\"]}",
+      "files": [
+        {
+          "path": "/project/base.json",
+          "text": "{\"compilerOptions\":{\"strict\":true},\"watchOptions\":{\"watchFile\":\"useFsEvents\"}}"
+        }
+      ],
+      "cache": true,
+      "steps": [
+        {}
+      ],
+      "fault": null,
+      "use_case_sensitive_file_names": true
+    },
+    {
+      "case_id": "h2-8b-config-reuse/diamond-cached",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"files\":[\"main.ts\"],\"extends\":[\"./left.json\",\"./right.json\"]}",
+      "files": [
+        {
+          "path": "/project/left.json",
+          "text": "{\"extends\":\"./shared.json\",\"compilerOptions\":{\"strict\":false}}"
+        },
+        {
+          "path": "/project/right.json",
+          "text": "{\"extends\":\"./shared.json\"}"
+        },
+        {
+          "path": "/project/shared.json",
+          "text": "{\"compilerOptions\":{\"strict\":true},\"watchOptions\":{\"watchFile\":\"useFsEvents\"}}"
+        }
+      ],
+      "cache": true,
+      "steps": [
+        {}
+      ],
+      "fault": null,
+      "use_case_sensitive_file_names": true
+    },
+    {
+      "case_id": "h2-8b-config-reuse/conversion-error-cached",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"files\":[\"main.ts\"],\"extends\":[\"./base.json\",\"./base.json\"]}",
+      "files": [
+        {
+          "path": "/project/base.json",
+          "text": "{\"compilerOptions\":{\"target\":\"invalid\"}}"
+        }
+      ],
+      "cache": true,
+      "steps": [
+        {}
+      ],
+      "fault": null,
+      "use_case_sensitive_file_names": true
+    },
+    {
+      "case_id": "h2-8b-config-reuse/parse-error-cached",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"files\":[\"main.ts\"],\"extends\":[\"./base.json\",\"./base.json\"]}",
+      "files": [
+        {
+          "path": "/project/base.json",
+          "text": "{\"compilerOptions\":"
+        }
+      ],
+      "cache": true,
+      "steps": [
+        {}
+      ],
+      "fault": null,
+      "use_case_sensitive_file_names": true
+    },
+    {
+      "case_id": "h2-8b-config-reuse/case-alias-cached",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"files\":[\"main.ts\"],\"extends\":[\"./BASE.json\",\"./base.json\"]}",
+      "files": [
+        {
+          "path": "/project/base.json",
+          "text": "{\"compilerOptions\":{\"strict\":true},\"watchOptions\":{\"watchFile\":\"useFsEvents\"}}"
+        }
+      ],
+      "cache": true,
+      "steps": [
+        {}
+      ],
+      "fault": null,
+      "use_case_sensitive_file_names": false
+    },
+    {
+      "case_id": "h2-8b-config-reuse/changing-file-cached",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"files\":[\"main.ts\"],\"extends\":\"./base.json\"}",
+      "files": [
+        {
+          "path": "/project/base.json",
+          "text": "{\"compilerOptions\":{\"strict\":true},\"watchOptions\":{\"watchFile\":\"useFsEvents\"}}"
+        }
+      ],
+      "cache": true,
+      "steps": [
+        {},
+        {
+          "updates": [
+            {
+              "path": "/project/base.json",
+              "text": "{\"compilerOptions\":{\"strict\":false}}"
+            }
+          ]
+        },
+        {
+          "clear_cache": true
+        }
+      ],
+      "fault": null,
+      "use_case_sensitive_file_names": true
+    },
+    {
+      "case_id": "h2-8b-config-reuse/cycle-cached",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"files\":[\"main.ts\"],\"extends\":\"./base.json\"}",
+      "files": [
+        {
+          "path": "/project/base.json",
+          "text": "{\"extends\":\"./tsconfig.json\"}"
+        }
+      ],
+      "cache": true,
+      "steps": [
+        {}
+      ],
+      "fault": null,
+      "use_case_sensitive_file_names": true
+    },
+    {
+      "case_id": "h2-8b-config-reuse/read-absent-cached",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"files\":[\"main.ts\"],\"extends\":[\"./base.json\",\"./base.json\"]}",
+      "files": [
+        {
+          "path": "/project/base.json",
+          "text": "{\"compilerOptions\":{\"strict\":true},\"watchOptions\":{\"watchFile\":\"useFsEvents\"}}"
+        }
+      ],
+      "cache": true,
+      "steps": [
+        {}
+      ],
+      "fault": {
+        "operation": "readFile",
+        "path": "/project/base.json",
+        "mode": "absent"
+      },
+      "use_case_sensitive_file_names": true
+    },
+    {
+      "case_id": "h2-8b-config-reuse/read-throws-cached",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"files\":[\"main.ts\"],\"extends\":[\"./base.json\",\"./base.json\"]}",
+      "files": [
+        {
+          "path": "/project/base.json",
+          "text": "{\"compilerOptions\":{\"strict\":true},\"watchOptions\":{\"watchFile\":\"useFsEvents\"}}"
+        }
+      ],
+      "cache": true,
+      "steps": [
+        {}
+      ],
+      "fault": {
+        "operation": "readFile",
+        "path": "/project/base.json",
+        "mode": "throw"
+      },
+      "use_case_sensitive_file_names": true
+    },
+    {
+      "case_id": "h2-8b-config-reuse/missing-base",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"files\":[\"main.ts\"],\"extends\":[\"./missing\",\"./base.json\"]}",
+      "files": [
+        {
+          "path": "/project/base.json",
+          "text": "{\"compilerOptions\":{\"strict\":true},\"watchOptions\":{\"watchFile\":\"useFsEvents\"}}"
+        }
+      ],
+      "cache": false,
+      "steps": [
+        {}
+      ],
+      "fault": null,
+      "use_case_sensitive_file_names": true
+    },
+    {
+      "case_id": "h2-8b-config-reuse/exists-throws",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"files\":[\"main.ts\"],\"extends\":[\"./base.json\",\"./other.json\"]}",
+      "files": [
+        {
+          "path": "/project/base.json",
+          "text": "{\"compilerOptions\":{\"strict\":true},\"watchOptions\":{\"watchFile\":\"useFsEvents\"}}"
+        }
+      ],
+      "cache": false,
+      "steps": [
+        {}
+      ],
+      "fault": {
+        "operation": "fileExists",
+        "path": "/project/base.json",
+        "mode": "throw"
+      },
+      "use_case_sensitive_file_names": true
+    },
+    {
+      "case_id": "h2-8b-config-reuse/directory-throws",
+      "config_path": "/project/tsconfig.json",
+      "config": "{}",
+      "files": [],
+      "cache": false,
+      "steps": [
+        {}
+      ],
+      "fault": {
+        "operation": "readDirectory",
+        "path": "/project",
+        "mode": "throw"
+      },
+      "use_case_sensitive_file_names": true
+    },
+    {
+      "case_id": "h2-8b-config-reuse/root-parse-error",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"files\":[\"main.ts\"] \"extends\":\"./base.json\"}",
+      "files": [
+        {
+          "path": "/project/base.json",
+          "text": "{\"compilerOptions\":{\"strict\":true},\"watchOptions\":{\"watchFile\":\"useFsEvents\"}}"
+        }
+      ],
+      "cache": false,
+      "steps": [
+        {}
+      ],
+      "fault": null,
+      "use_case_sensitive_file_names": true
+    },
+    {
+      "case_id": "h2-8b-config-reuse/windows-relative",
+      "config_path": "C:/project/tsconfig.json",
+      "config": "{\"files\":[\"main.ts\"],\"extends\":\"./base.json\"}",
+      "files": [
+        {
+          "path": "C:/project/base.json",
+          "text": "{\"compilerOptions\":{\"strict\":true},\"watchOptions\":{\"watchFile\":\"useFsEvents\"}}"
+        }
+      ],
+      "cache": false,
+      "steps": [
+        {}
+      ],
+      "fault": null,
+      "use_case_sensitive_file_names": true
+    },
+    {
+      "case_id": "h2-8b-config-reuse/unc-relative",
+      "config_path": "//server/share/project/tsconfig.json",
+      "config": "{\"files\":[\"main.ts\"],\"extends\":\"./base.json\"}",
+      "files": [
+        {
+          "path": "//server/share/project/base.json",
+          "text": "{\"compilerOptions\":{\"strict\":true},\"watchOptions\":{\"watchFile\":\"useFsEvents\"}}"
+        }
+      ],
+      "cache": false,
+      "steps": [
+        {}
+      ],
+      "fault": null,
+      "use_case_sensitive_file_names": true
+    },
+    {
+      "case_id": "h2-8b-config-reuse/url-relative",
+      "config_path": "https://example.test/project/tsconfig.json",
+      "config": "{\"files\":[\"main.ts\"],\"extends\":\"./base.json\"}",
+      "files": [
+        {
+          "path": "https://example.test/project/base.json",
+          "text": "{\"compilerOptions\":{\"strict\":true},\"watchOptions\":{\"watchFile\":\"useFsEvents\"}}"
+        }
+      ],
+      "cache": false,
+      "steps": [
+        {}
+      ],
+      "fault": null,
+      "use_case_sensitive_file_names": true
+    },
+    {
+      "case_id": "h2-8b-config-reuse/package-config",
+      "config_path": "/project/tsconfig.json",
+      "config": "{\"files\":[\"main.ts\"],\"extends\":\"@scope/config\"}",
+      "files": [
+        {
+          "path": "/project/node_modules/@scope/config/package.json",
+          "text": "{\"tsconfig\":\"base.json\"}"
+        },
+        {
+          "path": "/project/node_modules/@scope/config/base.json",
+          "text": "{\"compilerOptions\":{\"strict\":true},\"watchOptions\":{\"watchFile\":\"useFsEvents\"}}"
+        }
+      ],
+      "cache": false,
+      "steps": [
+        {}
+      ],
+      "fault": null,
+      "use_case_sensitive_file_names": true
+    }
+  ]
+}

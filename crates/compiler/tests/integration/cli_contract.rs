@@ -1183,3 +1183,167 @@ fn no_emit_cli_extended_config_matrix_matches_vendored_typescript() {
         &["-p", "tsconfig.json"],
     );
 }
+
+#[test]
+fn filesystem_cfg_root_conversion_and_cache_match_typescript() {
+    for (case_id, settings, base) in [
+        (
+            "root-settings",
+            r#""watchOptions":{"watchFile":"useFsEvents"},"typeAcquisition":{"enable":true},"compileOnSave":true"#,
+            None,
+        ),
+        (
+            "invalid-watch",
+            r#""watchOptions":{"watchFile":"invalid"}"#,
+            None,
+        ),
+        (
+            "duplicate-base-conversion",
+            r#""extends":["./base.json","./base.json"]"#,
+            Some(r#"{"watchOptions":{"watchFile":"invalid"}}"#),
+        ),
+        (
+            "duplicate-base-syntax",
+            r#""extends":["./base.json","./base.json"]"#,
+            Some(r#"{"watchOptions":"#),
+        ),
+        (
+            "inherited-acquisition",
+            r#""extends":"./base.json""#,
+            Some(r#"{"typeAcquisition":{"enable":true,"include":["jest"]}}"#),
+        ),
+        (
+            "inherited-watch",
+            r#""extends":"./base.json","watchOptions":{"watchDirectory":"fixedPollingInterval"}"#,
+            Some(r#"{"watchOptions":{"watchFile":"useFsEvents"},"compileOnSave":true}"#),
+        ),
+    ] {
+        for repetition in 1..=2 {
+            let tree = TempTree::new();
+            fs::write(tree.path("main.ts"), "export const value = 1;\n").unwrap();
+            if let Some(base) = base {
+                fs::write(tree.path("base.json"), base).unwrap();
+            }
+            let config = format!(
+                r#"{{"compilerOptions":{{"target":"es2020","module":"commonjs","lib":["es5"],"types":[],"noEmitOnError":true,"rootDir":".","outDir":"out","declaration":true,"sourceMap":true,"declarationMap":true}},"files":["main.ts"],{settings}}}"#
+            );
+            fs::write(tree.path("tsconfig.json"), config).unwrap();
+            let inputs = snapshot_files(&tree.root);
+            let arguments = ["-p", "tsconfig.json", "--pretty", "false"];
+            let upstream = run_typescript(&tree, &arguments);
+            let expected = if tree.path("out").exists() {
+                let values = snapshot_files(&tree.path("out"));
+                fs::remove_dir_all(tree.path("out")).unwrap();
+                values
+            } else {
+                Vec::new()
+            };
+            assert_eq!(
+                snapshot_files(&tree.root),
+                inputs,
+                "{case_id}: upstream changed inputs"
+            );
+            let native = run(&tree, &arguments);
+            let actual = if tree.path("out").exists() {
+                let values = snapshot_files(&tree.path("out"));
+                fs::remove_dir_all(tree.path("out")).unwrap();
+                values
+            } else {
+                Vec::new()
+            };
+            assert_eq!(
+                snapshot_files(&tree.root),
+                inputs,
+                "{case_id}: native changed inputs"
+            );
+            assert_eq!(
+                native.status.code(),
+                upstream.status.code(),
+                "{case_id}: exit; {}",
+                String::from_utf8_lossy(&native.stderr)
+            );
+            assert_eq!(native.stdout, upstream.stdout, "{case_id}: stdout");
+            assert_eq!(native.stderr, upstream.stderr, "{case_id}: stderr");
+            assert_eq!(actual, expected, "{case_id}: all output paths and bytes");
+            eprintln!(
+                "H2.8b-CFG1e-cli {}",
+                serde_json::json!({"case_id":case_id,"repetition":repetition,"exact":true,"exit":native.status.code(),"output_files":actual.len()})
+            );
+        }
+    }
+}
+
+#[test]
+fn filesystem_config_and_source_diagnostic_order_matches_typescript() {
+    use tsc_host::CompilerHost as _;
+    let case_sensitive = tsc_host::FsCompilerHost::from_process()
+        .expect("native filesystem profile")
+        .use_case_sensitive_file_names();
+    for (source, module_options, outfile, text) in [
+        (
+            "main.ts",
+            r#""module":"none""#,
+            false,
+            "export const value = 1;\n",
+        ),
+        (
+            "z/main.ts",
+            r#""module":"none""#,
+            false,
+            "export const value = 1;\n",
+        ),
+        (
+            "z/main.ts",
+            r#""module":"commonjs""#,
+            false,
+            "export const value: string = 1;\n",
+        ),
+        (
+            "main.ts",
+            r#""outFile":"dist/bundle.js""#,
+            true,
+            "export const value = 1;\n",
+        ),
+    ] {
+        for repetition in 1..=2 {
+            let tree = TempTree::new();
+            fs::create_dir_all(tree.path(source).parent().unwrap()).unwrap();
+            fs::write(tree.path(source), text).unwrap();
+            fs::write(tree.path("tsconfig.json"), format!(
+                r#"{{"compilerOptions":{{"target":"es5","moduleResolution":"node","lib":["es5"],"types":[],"noEmitOnError":true,"skipLibCheck":true,{module_options}}},"files":["{source}"]}}"#
+            )).unwrap();
+            let inputs = snapshot_files(&tree.root);
+            let args = ["-p", "tsconfig.json", "--pretty", "false"];
+            let upstream = run_typescript(&tree, &args);
+            let native = run(&tree, &args);
+            assert_eq!(upstream.status.code(), Some(1));
+            if outfile && !case_sensitive {
+                // H2.7d's existing bundle host gate runs before noEmitOnError.
+                // Preserve this refusal without granting command equality.
+                assert_eq!(native.status.code(), Some(2));
+                assert!(native.stdout.is_empty());
+                assert_eq!(String::from_utf8_lossy(&native.stderr),
+                    "tsc-rs: compiler failure: unsupported emit compiler option: useCaseSensitiveFileNames\n");
+                eprintln!("CFG diagnostic CLI boundary x{repetition}: outFile/case-insensitive");
+            } else {
+                assert_eq!(
+                    native.status.code(),
+                    upstream.status.code(),
+                    "{}",
+                    String::from_utf8_lossy(&native.stderr)
+                );
+                assert_eq!(
+                    String::from_utf8_lossy(&native.stdout),
+                    String::from_utf8_lossy(&upstream.stdout)
+                );
+                assert_eq!(native.stderr, upstream.stderr);
+                eprintln!("CFG diagnostic CLI exact x{repetition}: {source}/{module_options}");
+            }
+            assert_eq!(
+                snapshot_files(&tree.root),
+                inputs,
+                "blocked commands write no files"
+            );
+        }
+    }
+}

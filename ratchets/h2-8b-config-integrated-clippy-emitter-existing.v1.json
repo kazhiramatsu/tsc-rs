@@ -1,0 +1,50 @@
+{
+  "head": "2d790e26881649d4aeebadae5eaf462567dbe8a2",
+  "command": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "clippy",
+    "-p",
+    "tsc-rs-diagnostics",
+    "-p",
+    "tsc-rs-program",
+    "-p",
+    "tsc-rs-emitter",
+    "-p",
+    "tsc-rs-compiler",
+    "--tests",
+    "--",
+    "-D",
+    "warnings"
+  ],
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-dec-literal-prologue/target/decorator-literal-prologue-acceptance",
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "RUSTC_WRAPPER": "",
+    "TSRS_H2_5G_WORKERS": "2",
+    "TSRS_CONFORMANCE_WORKERS": "2",
+    "TSC_RS_H2_8A_CAPTURE_WRITES_DIR": "/Users/hiramatsu/dev/tsc-rs-dec-literal-prologue/target/decorator-prologue-followup-runs/final-clippy/captures"
+  },
+  "actual_exit": 101,
+  "finished_at": "2026-09-12T00:56:39.573034+00:00",
+  "prelaunch_sha256": "3b357ad55be7c18db6d5e3a9fcb3ddb979518a853d6a888178ad3943bcae94fa",
+  "log_sha256": "38743cf81fb035013eae41afeeca8984ad6091e142c5e6ea5af03efb2bfdb6ca",
+  "suite_results": [],
+  "source_unchanged_after_run": true,
+  "existing_findings": {
+    "path": "crates/emitter/src/builtins/class_fields.rs",
+    "git_blob_at_candidate_and_main": "9b941a78fd25366702cf3814c22f743c447ee16e",
+    "unnecessary_cast_lines": [
+      254,
+      2013
+    ],
+    "type_complexity_line": 3453,
+    "note": "File is byte-identical to origin/main. Full four-crate strict clippy did not pass; these three findings remain pre-existing."
+  }
+}

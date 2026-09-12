@@ -209,3 +209,24 @@ fn diagnostic_new_propagates_generated_flags_and_sidecars() {
     assert_eq!(deprecated.reports_deprecated, Some(true));
     assert_eq!(deprecated.source.as_deref(), Some("typescript"));
 }
+
+#[test]
+fn config_source_path_orders_before_program_sources_without_changing_display_name() {
+    // TypeScript 6.0.3 config-none-deprecated-blocked command: the parsed
+    // config SourceFile.path is "", while its fileName is the full path.
+    let config =
+        diagnostic(Some("/project/tsconfig.json"), Some(29), 5107, "deprecated").with_file_path("");
+    let source = diagnostic(Some("/project/src/main.ts"), Some(0), 1148, "module none");
+    let global = diagnostic(None, None, 5000, "global");
+    let mut diagnostics = vec![source, config.clone(), global, config];
+    sort_and_dedupe_diagnostics(&mut diagnostics);
+    assert_eq!(diagnostics.len(), 3);
+    assert_eq!(
+        diagnostics.iter().map(Diagnostic::code).collect::<Vec<_>>(),
+        [5000, 5107, 1148]
+    );
+    assert_eq!(
+        diagnostics[1].file_name.as_deref(),
+        Some("/project/tsconfig.json")
+    );
+}
