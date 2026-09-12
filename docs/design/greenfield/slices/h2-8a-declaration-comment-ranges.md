@@ -838,3 +838,34 @@ The current schedule requires hosted `cargo xtask acceptance` before runtime
 landing; PR #520 owns that result. This native receipt is a pre-landing
 snapshot and does not assert hosted success. Historical certificate walks
 and full developer CI were omitted as directed and are not claimed as passing.
+
+## 15. Claude integration and requested adjacent repair — 2026-09-13
+
+Merge commit `ed6d8073ae0f4f4d307f21a37c21a483e0a41bf0` locally incorporates
+Claude's UTF-16 literal repair at `816b31c2711a144ac379fd0af2db4f02b7aa0525`.
+The merge was clean and the two implementation file sets were disjoint.
+Section 14 and its receipt remain measurements of the earlier declaration
+comment implementation; they do not qualify this combined head.
+
+The user subsequently requested that all 23 recorded UTF-16 adjacent probes
+be repaired, and asked for cross-review with Claude if the checker change
+could not be resolved locally. Inspection confirms that lossless literal
+types alone disagree with the current `String` symbol keys and lookup APIs.
+The [adjacent-repair design for review](h2-8a-utf16-adjacent-repair.md) records
+the evidence, proposed identity boundary, separate parse-recovery decision,
+ES2018 consumer repair and required validation. Those repairs have not been
+implemented; the next checker production edit waits for that requested design
+review. The completed combined before run preserved source/test bytes and
+reproduced 0/23 exact with identical failures twice. The 64 UTF-16 and 41
+declaration-comment complete captures and both required original comparisons
+pass. The 4 original literal rows pass their existing typed comparator; its
+capture projection does not independently prove every command metadata field.
+The new packet records that limitation and the required supplemental evidence.
+The user further clarified that the design must establish correct UTF-16
+representation and TypeScript-equivalent operations, rather than preserve
+incorrect behavior of the old Rust representation.
+
+PR #520 still has the earlier remote head `e8b8f44a6`. Its old merge watcher
+was stopped before integration. Do not merge the older candidate because its
+hosted check passes: the extended work needs a new final candidate and its
+own hosted acceptance. No hosted or local full-CI success is asserted here.

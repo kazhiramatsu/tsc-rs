@@ -8,6 +8,13 @@ reproduce their frozen TypeScript 6.0.3 tuples. It is not a claim that every
 literal-producing transform is lossless, that H2.8a/A6-41 is complete, or that
 NC1 → MOD1 → transpile are unblocked; the A-close dependencies are unchanged.
 
+Follow-up (2026-09-13): the user requested repair of all 23 recorded adjacent
+probes after this lane completed. The separate
+[adjacent-repair review packet](h2-8a-utf16-adjacent-repair.md) owns that expanded
+scope and the requested Codex/Claude cross-review. The out-of-scope record
+below remains the historical result of this lane, not a restriction on the
+new work or a claim that those gaps have now been fixed.
+
 ## Start point
 
 - Worktree `/Users/hiramatsu/dev/tsc-rs-utf16-literals`, branch
@@ -151,8 +158,9 @@ surrogate-agnostic projection equals the cooked text the scanner produced.
 3. `crates/emitter/src/builtins/es2015.rs`: `visit_string_literal`,
    `visit_template_literal`, `visit_template_expression` create their
    literals with `create_string_literal_from_code_units` from
-   `literal_code_units` (falling back to the cooked `text`); the emptiness
-   test of a span literal is on the units.
+   `literal_code_units` (falling back to the cooked `text`); the existing
+   cooked-text emptiness test of a span literal is retained. The guarded
+   decoder preserves emptiness; the code does not test the units directly.
 4. `crates/emitter/src/builtins/tagged_template.rs::create_template_cooked`:
    the same for the cooked strings of the template object; `get_raw_literal`
    is unchanged (raw text is source bytes, never a lone surrogate).
