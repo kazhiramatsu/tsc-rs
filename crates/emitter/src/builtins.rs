@@ -9102,12 +9102,10 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 })
             }) {
                 Some(self.create_string_literal(&module_name)?)
+            } else if needs_rewrite {
+                argument.map(|argument| self.rewrite_import_argument(argument)).transpose()?
             } else {
-                if needs_rewrite {
-                    argument.map(|argument| self.rewrite_import_argument(argument)).transpose()?
-                } else {
-                    argument
-                }
+                argument
             };
             if let Some(amd_bindings) = amd_bindings {
                 let transformed = self.create_amd_dynamic_import(argument, amd_bindings)?;
