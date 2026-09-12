@@ -1111,7 +1111,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                     .add_flags(EmitFlags::ADVISE_ON_EMIT_NODE);
             }
         }
-        let key = self.context.arena().get_original_node(original);
+        let key = self.context.arena().get_emit_original_node(original);
         self.static_emit_environments.insert(
             (key.source().raw(), key.node().0),
             Rc::clone(emit_environment),

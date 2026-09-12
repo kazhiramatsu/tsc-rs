@@ -216,3 +216,39 @@ the existing es2015 port, not changed here.
   frozen upstream tuples.
 - No production file of another lane was edited; the root checkout and
   every other worktree are untouched.
+
+## Merge validation: generated private accessor receivers
+
+[PR #518](https://github.com/kazhiramatsu/tsc-rs/pull/518) combines this slice
+with main `85713fd1b`. Hosted run `34687171001` passed diagnostic conformance
+and every emit band through H2.6b, including H2.5h's expected 867 exact / 21
+known / 44 deferred rows. It then found a new H2.6c regression in the frozen
+ES2015 `esDecorators-classDeclaration-sourceMap.ts` command. Its JS write
+changed `_static_private_z_descriptor.get.call(this)` (and the setter's
+receiver) to `_classThis`; the JS map, declaration, and declaration map
+remained exact. This was a previously exact command, not an inherited
+known divergence.
+
+The new class-fields emit hook followed `set_semantic_original_node`'s
+Rust-only resolver bridge from a generated private accessor function to its
+erased property. That property's initializer was in the lexical environment
+map, so the lookup reinstated static `this` substitution before the ordinary
+function boundary could clear it. TypeScript's
+`visitMethodOrAccessorDeclaration` (`_tsc.js:96194-96228`) creates the
+hoisted function without an original-node link.
+
+The correction records whether an original edge is a resolver-only bridge
+and uses `get_emit_original_node` for class-fields notification identities
+and map keys. Emit provenance stops at that synthetic function; existing
+resolver projections keep their full original chain. The edge marker is
+not inherited by emit-metadata merging, and a real `setOriginalNode` call
+replaces it even when the target node is unchanged.
+
+The row replay now includes the unchanged ES2015, ES2022 and ESNext frozen
+H2.6c commands, comparing ordered write bytes/BOM, diagnostics, result
+presence and exit code twice. A factory test covers the distinction through
+cloning and reattachment while checking that resolver projection still
+works. No frozen observation, manifest or acceptance rule is changed by
+this correction. Merge validation logs and captures are retained in
+`target/merge-validation/` in the `tsc-rs-static-this-super-merge` worktree;
+the PR body records the final gate results.

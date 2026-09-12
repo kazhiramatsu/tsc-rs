@@ -100,6 +100,55 @@ fn static_this_super_rows_match_frozen_h2_5h_observations() {
 }
 
 fn run_case(workspace: &Path, case: &Value) -> Value {
+    run_case_with_floor(workspace, case, EmitOptionFloor::Established)
+}
+
+#[test]
+fn decorated_private_accessor_forwarders_match_frozen_h2_6c_observations() {
+    let workspace = workspace();
+    let artifact: Value = serde_json::from_slice(
+        &std::fs::read(workspace.join("ratchets/h2-6c-qualification.v1.json")).unwrap(),
+    )
+    .unwrap();
+    // The ES2015 regression changed the dynamic receiver of the generated
+    // _C_z_get/_C_z_set forwarders to _classThis. Retained ES2022 and ESNext
+    // forms control the same frozen command through the other target paths.
+    for target in ["es2015", "es2022", "esnext"] {
+        let id = format!(
+            "typescript-6.0.3/conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3D{target}"
+        );
+        let case = artifact["cases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|case| case["case_id"] == id)
+            .unwrap();
+        assert_eq!(case["execution_route"], "qualified-vfs");
+        let expected = &case["typescript_observation"];
+        let fingerprints = case["typescript_run_fingerprints"].as_array().unwrap();
+        assert_eq!(fingerprints.len(), 2);
+        assert!(fingerprints
+            .iter()
+            .all(|fingerprint| fingerprint == &expected["run_fingerprint_sha256"]));
+        let first = run_case_with_floor(
+            &workspace,
+            case,
+            EmitOptionFloor::MapFamilyWithDeclarationOnly,
+        );
+        let second = run_case_with_floor(
+            &workspace,
+            case,
+            EmitOptionFloor::MapFamilyWithDeclarationOnly,
+        );
+        capture(&id, 0, &first, expected);
+        capture(&id, 1, &second, expected);
+        assert_eq!(first, second, "{id}: repeated command");
+        let differences = compare(&first, expected);
+        assert!(differences.is_empty(), "{id}: {differences:#?}");
+    }
+}
+
+fn run_case_with_floor(workspace: &Path, case: &Value, floor: EmitOptionFloor) -> Value {
     let case_id = case["case_id"].as_str().unwrap();
     let input = &case["input"];
     let current_directory = input["current_directory"].as_str().unwrap();
@@ -149,7 +198,7 @@ fn run_case(workspace: &Path, case: &Value) -> Value {
         &roots,
         &settings,
         limits(),
-        EmitOptionFloor::Established,
+        floor,
     )
     .unwrap_or_else(|error| panic!("{case_id}: prepare failed: {error}"));
     let session = ProgramSession::new(prepared);

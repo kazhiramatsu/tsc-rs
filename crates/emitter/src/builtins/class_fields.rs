@@ -252,7 +252,7 @@ impl Transformer for ClassFieldsTransformer<'_> {
         node: TransformNode,
     ) -> Result<(), TransformError> {
         let arena = context.arena();
-        let original = arena.get_original_node(node);
+        let original = arena.get_emit_original_node(node);
         if let Some(environment) = self
             .static_emit_environments
             .get(&(original.source().raw(), original.node().0))

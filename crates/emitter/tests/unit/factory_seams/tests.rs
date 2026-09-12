@@ -5,6 +5,35 @@ fn parsed(name: &str, text: &str) -> SourceFile {
 }
 
 #[test]
+fn emit_original_stops_at_resolver_only_provenance_through_clones() {
+    let source_file = parsed("private.ts", "class C { static accessor z = 1; }\n");
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&source_file, Some(SourceFileId::from_raw(11)));
+    let parsed_root = arena.root(source).unwrap();
+    let synthetic = arena.factory().clone_node(parsed_root).unwrap();
+    arena
+        .set_semantic_original_node(synthetic, parsed_root)
+        .unwrap();
+    let clone = arena.factory().clone_node(synthetic).unwrap();
+    assert_eq!(arena.get_original_node(clone), parsed_root);
+    assert_eq!(arena.get_emit_original_node(clone), synthetic);
+    assert_eq!(
+        arena.parse_tree_resolver_node(clone).unwrap(),
+        Some(EmitResolverNode::new(
+            SourceFileId::from_raw(11),
+            parsed_root.node(),
+        ))
+    );
+
+    // Reattaching the same target with tsc's setOriginalNode changes the
+    // edge's ownership; the early-return path must not retain the bridge.
+    arena
+        .set_original_node(synthetic, Some(parsed_root))
+        .unwrap();
+    assert_eq!(arena.get_emit_original_node(clone), parsed_root);
+}
+
+#[test]
 fn reuse_clone_accepts_cross_source_original_within_one_arena_only() {
     let first = parsed("first.ts", "export const first = 1;\n");
     let second = parsed("second.ts", "export const second = 2;\n");

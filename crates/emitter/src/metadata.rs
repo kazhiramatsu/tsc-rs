@@ -484,6 +484,10 @@ impl LiteralNodeProperties {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct EmitMetadata {
     pub(crate) original: Option<TransformNode>,
+    /// This original edge exists only for Rust resolver projection. Emit
+    /// notifications must stop here: tsc leaves this node synthetic. Like
+    /// `original`, this edge property is not inherited by `merge_from`.
+    pub(crate) original_is_semantic: bool,
     pub(crate) flags: EmitFlags,
     pub(crate) internal_flags: InternalEmitFlags,
     pub(crate) leading_comments: Vec<SyntheticComment>,
