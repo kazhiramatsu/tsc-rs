@@ -76,6 +76,16 @@ impl TemplateText {
         }
     }
 
+    pub fn from_js(text: crate::JsStr<'_>) -> Self {
+        Self {
+            units: text.to_utf16(),
+        }
+    }
+
+    pub fn to_js_string(&self) -> crate::JsString {
+        crate::JsString::from_code_units(&self.units)
+    }
+
     pub fn units(&self) -> &[u16] {
         &self.units
     }

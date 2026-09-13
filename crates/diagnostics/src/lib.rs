@@ -2,12 +2,15 @@
 
 #[allow(non_upper_case_globals)]
 pub mod gen;
+pub mod js_string;
 pub mod line_map;
 /// TypeScript 6.0.3-compatible, deterministic diagnostic rendering.
 pub mod render;
 pub mod text;
 
 use std::cmp::Ordering;
+
+pub use js_string::{CodeUnits, JsStr, JsString};
 
 pub use line_map::{
     compute_line_map, compute_line_starts, get_line_and_character_of_position, LineMap,

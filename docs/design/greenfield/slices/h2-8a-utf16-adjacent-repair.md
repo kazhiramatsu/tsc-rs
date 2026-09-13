@@ -1,14 +1,15 @@
 # UTF-16 adjacent repairs: design for cross-review
 
-Status (2026-09-13): native before measurement complete; design cross-review
-pending. **No
-production repair in this packet has been implemented.** The user extended
+Status (2026-09-13): native before measurement complete; the requested design
+review and §10 follow-up corrections have been accepted. A's representation
+implementation has started (§11). **The 23-probe repair is not yet qualified.** The user extended
 the scope to all 23 previously recorded adjacent probes, then requested
 cross-review before proceeding if the checker repair is not local. The
 latest reviewer assignment is **fable-5.1, reasoning effort max**, replacing
 the earlier proposed Claude review. Inspection confirms a binder/checker
 identity boundary; this packet
-is the concrete proposal for that review, not a signed implementation gate.
+records the proposal and subsequent review decisions, not a qualified repair
+or a completed implementation gate.
 
 The integration worktree is
 `/Users/hiramatsu/dev/tsc-rs-declaration-comment-design`, branch
@@ -277,14 +278,15 @@ diff and repeated evidence. At this checkpoint the implementation writer
 remains Codex; another implementation lane requires an explicit ticket so
 two agents do not edit the same symbol representation concurrently.
 
-Invocation status: the explicitly requested `fable-5.1` / `max` delegation
+Historical invocation status: the explicitly requested `fable-5.1` / `max` delegation
 was attempted after the user selected it. The session's agent tool returned
 `Unknown model: fable-5.1`; no reviewer agent was created. No substitute model
 has reviewed or approved this packet. Its available model overrides are
 `gpt-6-astra`, `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna` and `gpt-5.5`.
 The handoff for an environment that supports the requested model is
 `/Users/hiramatsu/dev/tsc-rs/target/next-slices-20260913/fable-5.1-max-utf16-adjacent-review.md`.
-Production implementation remains pending the requested design review.
+The requested review was subsequently delivered through that handoff; see §10.
+The invocation failure above is historical, not the current review status.
 
 ## 8. Completed original-row evidence supplement — 2026-09-13
 
@@ -431,3 +433,314 @@ recovery is confined to a literal value. The reviewer must determine a
 parser-owned representation/proof for the recovered structure or recommend
 the broader recovery design. This audit does not change the existing emit
 refusal or presume that a narrower guard is correct.
+
+## 10. Delivered review and Codex incorporation — 2026-09-13
+
+The user delivered the 647-line fable-5.1 max response at
+`/Users/hiramatsu/dev/tsc-rs/target/next-slices-20260913/fable-5.1-max-utf16-adjacent-review-response.md`.
+Its SHA-256 is
+`c62b04d60dad64bea70057e54fe70a1b724ce9896f7f728a7f9f2127b1277236`.
+The review request now points to the completed response. Preserve both files;
+the corrections below are an implementer addendum, not edits to the review.
+
+The incorporation source is integration head `f0aaa2de2`. Its production
+sources under `crates/*/src` are unchanged from `ed6d8073a`; the intervening
+original-row fixture/test supplement is described in §8. Both frozen adjacent
+fixture hashes still match §1. The integration worktree was clean before this
+documentation update. No Cargo, native compiler, CI, implementation writer
+agent, or merge was run during incorporation. The only executions were small
+in-memory observations of the pinned TypeScript API, bounded below.
+
+### 10.1. Accepted direction and representation corrections
+
+Accept A's canonical WTF-8 owned JavaScript-string value and branded
+`EscapedName`, with scanner token values and the five string/template literal
+`text` fields owning the value. Keep `TemplateText` for literal type values.
+Accept the producer, lookup, cache and output inventory in response §2 as an
+extension of §9.1, with compiler-enforced classification still outstanding.
+Include lossless diagnostic message ownership when adopting the name-bearing
+diagnostic controls; display spelling is not an identity adapter.
+
+Two details of the suggested Rust API must change before implementation:
+
+1. `crates/diagnostics/src/lib.rs:1` and `crates/types/src/lib.rs:1` both
+   `forbid(unsafe_code)`. Reinterpreting `&str`/`&[u8]` as a custom unsized
+   `&JsStr` ordinarily needs an unsafe reference cast. The review does not
+   supply an implementation compatible with these crate constraints. Use a
+   safe borrowed view by value, `JsStr<'a> { bytes: &'a [u8] }`, with private
+   fields and `from_str(&str)`/owned-value accessors as its public constructors.
+   This retains a zero-copy UTF-8 view without changing either unsafe policy.
+   The owned `JsString(Vec<u8>)` exposes no unchecked mutable byte access.
+2. Canonical byte equality is UTF-16 value equality; byte **ordering** is not
+   JavaScript string ordering. U+E000 is greater than U+10000 under UTF-16
+   lexicographic comparison (`E000 > D800`), but its UTF-8 bytes sort before
+   U+10000's bytes (`EE < F0`). Response R-A1's byte-derived `Ord` cannot
+   stand in for TypeScript's `compareStringsCaseSensitive`/`compareValues`
+   (`_tsc.js:910–935`). Keep `Ord` in byte order to satisfy `Borrow<[u8]>`;
+   document explicitly that this is not JavaScript ordering. Provide
+   `cmp_utf16()` over `code_units()` for explicit upstream string comparers,
+   including on the branded name. Test that byte `Ord` and `cmp_utf16()`
+   differ for this counterexample. Do not introduce identity tables using
+   `BTreeMap<EscapedName, _>` or rely on default sorting for JS semantics.
+
+Concrete proposed lookup contract: owned values and `EscapedName` implement
+`Borrow<[u8]>`, with `Hash` explicitly delegated to the same byte-slice hash.
+Public lookup APIs accept canonical `JsStr` views or already escaped `&str`
+queries, and perform `as_bytes()` internally. Do not expose arbitrary bytes
+as a public query: a noncanonical six-byte surrogate pair would silently
+miss its canonical four-byte key. Both `IndexMap` and existing `HashMap` caches
+with a single name key can use this contract without an unsafe cast or a new
+interner. Tuple keys such as `(TypeId, EscapedName, bool)` cannot borrow
+`(TypeId, &[u8], bool)` this way; retain their owned tuple lookup instead of
+refactoring caches just to obtain heterogeneous borrowing. The view's
+`Hash` delegates to that slice too. Do not mix Rust `str` hashing with slice
+hashing or claim `Borrow<str>` for a value containing non-UTF-8 bytes. Distinct
+UTF-16 values have distinct canonical bytes; this is an encoding property,
+not a claim that a finite hash has no collisions.
+
+Place `JsString`/the borrowed view in `diagnostics/src/js_string.rs` and
+re-export through `tsc-types`; place `EscapedName` in `tsc-types`, where
+`TypeData::UniqueESSymbol` can use it. This settles the dependency direction
+without making diagnostics depend on types. Preserve explicit underscore
+escape/unescape and internal/identifier constructors. Do not implement a
+lossy `Display`, `Deref<Target = str>`, or identity fallback on failed UTF-8
+conversion. The report's round-trip, junction concatenation, exhaustive
+single-unit and selected-pair proofs remain required, now using the byte
+query's actual `Borrow`/hash contract. At design-review time no such Rust
+proof had run; §11 records the subsequent foundation tests.
+
+### 10.2. B: independent recovery events, diagnostic origins and rollback
+
+Accept admission by parser-owned facts: no committed structural recovery,
+and lexical recovery restricted to string/template token kinds outside
+trivia. Retain typed deferral for other recovery and preserve `noEmit` and
+`noEmitOnError` ownership in the command driver. B follows A because its
+declaration values depend on A.
+
+Do not implement R-B1's proposed equality
+`parse_diagnostics.len() == lexical.len() + structural_events`:
+
+- `parser.rs::push_parse_diagnostic_with_index` (9774) suppresses consecutive
+  diagnostics at the same start and returns `None`. A structural event must
+  still prohibit admission when its diagnostic was suppressed.
+- `create_missing_node` (1196) can create a recovery node without emitting a
+  diagnostic. Conversely, wrapper calls such as `parse_expected` and
+  `parse_error_at_current_token` can describe the same recovery. Count at
+  defined producer boundaries, not at every layer of a reporting call chain.
+- `process_leading_reference_directives` (9692) pushes diagnostics directly;
+  the proposed scanner/error-wrapper inventory alone does not classify them.
+  Keep these non-literal origins deferred.
+
+Store a diagnostic-origin entry for each *retained* diagnostic and a separate
+record of committed recovery events, including events with no retained
+diagnostic index. The coverage invariant is
+`diagnostic_origins.len() == parse_diagnostics.len()`, with valid optional
+indices from events into that list. It is independent of event counts.
+Admission examines all committed recovery events and all retained origins;
+an unclassified origin must not pass. Ordinary optional grammar constructs
+must not be mistaken for structural error recovery.
+
+Pass origin explicitly through `push_parse_diagnostic_with_index`, the common
+funnel for all three reporting callers. Only `drain_scanner_errors` constructs
+lexical origins (all eleven drain callers share that path). This gives
+retained diagnostics their parallel origin entry structurally at insertion.
+The invariant covers `parse_diagnostics`, the list inspected by
+`preflight_source` (`builtins.rs:15722`); `js_doc_diagnostics` is a separate
+list outside this admission check.
+
+`try_parse` (1273) rolls state back on failure and `look_ahead` (1293) always
+rolls it back. New provenance vectors and counts must participate in both
+transactions; failed speculative recovery must not contaminate the final
+parse. Cover successful speculation, failed speculation, same-start
+lexical/structural deduplication, silent missing nodes, reference-directive
+errors, untagged template rescans and incremental parsing. Preserve the
+existing separate behavior of source flags, which intentionally survive
+speculation; provenance is not another source flag.
+`Scanner::restore` already truncates `errors` to `error_len` (scanner.rs:514),
+so provenance carried on `ScanError` follows that rollback automatically.
+The parser's retained origins and committed event records still require
+their own corresponding save/truncate state.
+
+Scanner trivia origin must be recorded explicitly at the producer. The
+suggestion to derive it from `pos < token_start` during `error_at` is not a
+general proof: `Scanner::scan` sets `token_start` at each trivia/token loop
+iteration (`scanner.rs:269`), and `error_at_with_args` (2148) can report within
+that current trivia. Associate non-trivia scanner events with the completed
+scan/rescan token kind and retain their original positions. Do not attach
+trivia errors to the subsequent literal merely because they drain together.
+
+### 10.3. C: observed double visit and declaration-driven numbering
+
+Accept the shared host, parser-owned template flags, invalid-escape
+`CONTAINS_ES_2018` propagation, non-hoisted numbered binding, and per-source
+tail declarations. Preserve the separate upstream predicates:
+`hasInvalidEscape` checks `ContainsInvalidEscape` (`_tsc.js:16267–16271`),
+while `createTemplateCooked` tests the broader `IsInvalid` mask (94018).
+Transport scanner template flags without reconstructing them; these two
+predicates inspect different masks on the same field. Only
+`ContainsInvalidEscape` can arise on template fragments; the other bits of
+`IsInvalid` are numeric-literal flags. The current Rust `create_template_cooked`
+and `has_invalid_escape` (`tagged_template.rs:152/216`) share the raw-text
+predicate `template_cooked_is_invalid`, so this is an actual owner/predicate
+migration, not the addition of two raw-text reconstruction functions.
+
+Reuse `Es2018Visitor::allocate_local_numbered_binding` (es2018.rs:1189) and
+ES2015's `allocate_numbered_binding` (es2015.rs:1153): both already allocate
+without hoisting. Only `allocate_hoisted_numbered_binding` hoists. C adds the
+shared host and tail record; no new allocator is required.
+
+The new reproducible observer and JSON receipt are beside the review:
+
+- `codex-utf16-review-followup-probes.mjs`
+- `codex-utf16-review-followup-probes.json`, SHA-256
+  `92fbb23eafa07bfbf8c33de981453f32ee9c7abe8589886f288a3819c35537ca`
+
+Run the script with `--check` to verify its saved observations. It pins both
+TypeScript file hashes from §6 and records all source strings/options and
+two identical `transpileModule` outputs per case. The three cases show:
+
+| Source after `export {};` | Target | Observed output fact |
+| --- | --- | --- |
+| `({...o}).f` followed by a valid tagged template | ES2017 | `Object.assign` tag lowering, no extra `_a` or template-object declaration; this particular example does not witness the review's suggested temp side effect |
+| `a` tagged with invalid `\unicode`, itself the tag of a valid `ok` template | ES2017 | The call uses `templateObject_2`; the tail declares `var templateObject_1, templateObject_2;` |
+| Valid `first`, invalid `\unicode`, valid `last` tagged calls | ES5 | Call bindings occur as `2, 1, 3`; tails are `var templateObject_1;` then `var templateObject_2, templateObject_3;` |
+
+The nested case closes the *upstream observability question* U-C1: both tag
+visits' declaration side effects matter. Rust implementation equivalence is
+still unproved. Do not let `Es2018Visitor::visit_with_value_use`'s NodeId memo
+collapse those effects; choose a bounded revisit mechanism after auditing
+all affected visitor state, with the nested case as its witness. Clearing
+memo entries alone is a proposal, not yet a proved restoration protocol.
+
+The §10 reviewer also supplied a positive *hoisted-temp* witness at ES2017:
+`export {}; ({a, ...r} = f(), r).f` followed by a valid tagged `ok` template
+emits `var _a, _b;` and uses only `_b`; an invalid `\unicode` tagged template
+or the untagged expression emits only `var _a;`. Record these three controls
+separately in the immutable v2 observer/receipt, retaining v1's SHA. Revisit
+must preserve both tail records and `hoist_variable_declaration` effects,
+including bypassing the memo-hit fast path at es2018.rs:355 for the
+preliminary visit. Promote these controls to complete-command evidence.
+
+Correct R-C6's generalization that names follow first textual use. The
+printer's `emitSourceFileWorker` calls `generateNames` on source statements
+*before* printing them (`_tsc.js:119753–119769`). `generateNames`
+(120515–120593) traverses variable declarations, including these tails, and
+`generateName` (120624) allocates/caches their names. That explains why an
+ES2018 tail binding becomes number 1 even when its call is printed second.
+Rust already has this pre-scan for function bodies in
+`target_bindings.rs::collect_function_body_declaration_name_events`.
+`collect_binding_name_events` currently skips it on SourceFile roots:
+the scope branches at 1085/1149/1214/1255 require `!scope_root`, leaving root
+to the child-order traversal at 1349. The ModuleBlock arm at 1255 also omits
+the pre-scan, whereas upstream `emitModuleBlock` runs it (_tsc.js:119167).
+Numbered names are subsequently ordered only by `(moment_path, sequence)`
+(target_bindings.rs:713). Add the same declaration pre-scan at SourceFile
+root and ModuleBlock in the shared collector, preserving function behavior.
+Both ES2015's finalizer (es2015.rs:345) and print finalization
+(transform.rs:986) use this collector; do not patch the consumers separately.
+The predicted pre-repair result after C connection is calls `1,2,3` with
+tails `var templateObject_2;` / `var templateObject_1, templateObject_3;`.
+That prediction is not a native measurement. Use the nested and ES5 mixed
+v1 cases to witness the source-root fix; also cover ModuleBlock behavior.
+
+These six saved API executions establish neither full-command tuples nor
+Rust, declaration, callback, source-map or diagnostic equivalence. The
+ordering control is a JavaScript operation observation, not a Rust WTF-8
+implementation test. Promote relevant cases into separate complete-command
+controls before final qualification; do not change the original 23 fixtures.
+
+### 10.4. Implementation ownership and remaining gate
+
+Codex remains the sole implementation writer. The response's lanes are
+cause groups, not authorization to delegate or concurrently edit shared
+files. Use the following sequential ownership boundaries:
+
+| Stage | Files and ownership constraint |
+| --- | --- |
+| A representation proofs | `diagnostics/src/js_string.rs`, diagnostics/types re-exports, `types` escaped-name type and focused tests; keep unsafe policies intact |
+| A owned values and identity closure | Scanner/parser literal values; xtask generation and generated nodes/observable fields; binder symbol tables; all checker producers/lookups/caches; factory and declaration/property-name outputs; classify every reached consumer |
+| A diagnostic values | Diagnostics message construction, checker display producers and explicit UTF-8/UTF-16 output transport; same writer where checker identity and display share files |
+| B | Scanner provenance, parser transactions/source-file records, emitter preflight/error variants, command gate controls; revisit A-owned scanner/parser files sequentially |
+| C | Parser template flags and their generated schema, transform-flag row, shared tagged-template algorithm, ES2018/ES2015 hosts, target binding finalization; same writer owns parser, codegen and `builtins.rs` overlap |
+
+Keep cause commits reviewable without publishing an incomplete identity
+migration as qualified. The full roughly 300-site escaped-name and literal
+consumer classification remains an implementation prerequisite; the table
+above is not a claim that an exhaustive file map has been completed.
+
+Remaining evidence is response §5 plus the corrections here: canonical
+encoding/concatenation/hash/ordering proofs; complete consumer classification;
+parser transaction/diagnostic coverage controls; declaration literal-type
+`NoAsciiEscaping` callback units versus emitted bytes; full C command/map
+controls; original 23 exact twice; prior 64 + 41 and both original-four
+evidence routes; G4a/G4b and the separately recorded G5c limit. Observe the
+raw UTF-16-source lone-surrogate boundary as a separately scoped limitation.
+No fixture, comparator, manifest, ratchet or CI policy changes are authorized
+as a way to erase a gap. The review delivery is complete; implementation,
+qualification and the final diff review remain open.
+
+### 10.5. §10 review incorporated; implementation entry
+
+The user delivered the §10 review against `f0aaa2de2` and explicitly judged
+implementation ready once its six corrections were reflected here. All six
+are now incorporated: byte `Ord`/explicit UTF-16 comparer and canonical query
+boundary (including the tuple exception); existing finalizer pre-scan gaps;
+the hoisted-temp witness; reuse of the existing local allocator; diagnostic
+origin funnels and rollback/list scope; and the two masks over owned flags.
+This satisfies the stated design-entry condition. Codex starts the single-
+writer implementation with A's representation and contract proofs, followed
+by the full consumer migration, B and C. This agreement does not certify
+implementation behavior or waive any of the evidence requirements above.
+
+## 11. A representation implementation and additional observations
+
+The accepted §10 review is followed by an additive representation foundation:
+
+- `diagnostics/src/js_string.rs`: canonical WTF-8 `JsString`, safe borrowed
+  `JsStr`, UTF-16 iteration, junction-normalizing concatenation, byte `Ord`,
+  explicit `cmp_utf16`, and byte-slice `Borrow`/hash. Explicit lossy output
+  replaces each unpaired surrogate once; debugging preserves its value.
+- `types/src/escaped_name.rs`: branded underscore escape/unescape, internal
+  and already escaped identifier constructors, matching byte lookup/hash
+  and explicit UTF-16 comparison. `TemplateText` gains lossless bridges.
+- The initial focused tests cover all 65,536 single units, every Unicode
+  scalar's exact UTF-8 representation, selected boundary pairs and triples,
+  4,096 deterministic sequence controls, concatenation associativity, borrowed
+  hash input equality/lookup, order differences and escaped-name round trips.
+
+The first run (before import/initializer formatting only) built both library
+test binaries and passed all 10 string and 3 escaped-name tests. Its receipt
+is `target/declaration-comment-ranges-runs/utf16-a-representation-20260913-102128/receipt.json`;
+it records source hashes, binaries, command exits and logs. No scanner,
+parser, binder/checker identity or emitter behavior has been migrated by
+this foundation; it is not evidence that any of the 23 gaps is fixed.
+
+After formatting and adding the explicit `TemplateText`/escaped-name value
+bridge control, the current foundation passed **14 focused tests (10 + 4)**
+at `target/declaration-comment-ranges-runs/utf16-a-representation-20260913-102731/receipt.json`.
+The saved runner is `target/declaration-comment-ranges-runs/run-utf16-a-representation.py`.
+Both build and both test commands exited 0; the recorded source inputs were
+unchanged throughout. Runs used `taskpolicy -b`, `nice -n 15`, two Cargo jobs,
+and one test thread. Formatting and `git diff --check` also passed.
+
+The next migration's search inventory is
+`target/next-slices-20260913/utf16-escaped-name-consumers-before.json` (245
+textual occurrences across binder/types/checker, including declarations and
+imports). It explicitly marks classification pending; a nearest-function
+textual hint is not semantic classification. Scanner/parser ownership,
+identity lookup/cache migration, diagnostic values, B, C and native complete
+comparisons remain open. No full CI or 23-probe rerun is claimed here.
+
+The separately added `codex-utf16-review-followup-probes-v2.mjs` and
+`codex-utf16-review-followup-probes-v2.json` sit beside the immutable v1
+observer. The v2 JSON SHA-256 is
+`28b126f461adf71aa07a199d9cfb21713a78d4e297a7094806f767aba69d0df9`.
+All three rest-assignment controls from §10.3 were observed twice through
+`transpileModule` **and** twice through the complete command driver: 6 direct
+and 6 complete-command executions, exact on repetition. The latter include
+JS, declarations, both maps, write callbacks/data, diagnostic values as UTF-16
+units, status, emit result and actual exit. The sources intentionally retain
+the reviewer's unresolved identifiers; their diagnostics are captured, not
+filtered. The same one-temp/two-temp distinction is present in full-command
+JS output. `--check` passed; v1's SHA remains unchanged. These are upstream
+observations awaiting native comparison, not Rust qualification.
