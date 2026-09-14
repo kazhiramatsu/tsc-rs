@@ -51,6 +51,22 @@ trace は期待値の代用ではない。
 完全 upstream fixture の hash は
 `8cdf5349118b856c7488e1d35a2901acbc1193526c95102309c8cba7873f7145`。
 
+### Target 条件だけを外す切り分け
+
+`target/parameter-temporaries-runs/upstream/counterfactual.mjs` は pinned compiler の
+`visitParameterList` にある target >= ES2015 の条件だけをメモリ上のコピーから除き、
+原12件を各2回実行する調査用 script。無改造 compiler の fixture をそのまま比較基準に使う。
+結果は ES5 の4件だけが変化し、ES2015/ESNext の8件は全 tuple が不変だった。
+
+- initializer 2件: var/default-if を含む関数本体が1行になり、後段の default 処理が立てる multiline が失われる。
+- binding-pattern 2件: 同じ改行差に加え、`var _c = _a` の余分な binding が生じ、後続 temp の名前がずれる。
+- 差分はいずれも write 0 の callback/materialized bytes・hash・length の6 fields に限定される。
+  path、BOM、callback metadata、診断、result、status、exit は不変。
+
+この結果は target 条件が必要であることを上流内で示す。
+Rust の実測ではないため、次の native before と一致するかを確認してから修正原因と結び付ける。
+記録は `target/parameter-temporaries-runs/upstream/counterfactual.json`。
+
 ## 3. Rust に対応させる契約
 
 `TargetTransformer` が保持する `ScriptTarget` は `CompilerOptions::emit_script_target()` に由来する。
@@ -76,6 +92,32 @@ source-wide text scan、printer の temp 名置換、global mutable target、sco
 ES2020 visitor、ES2015 parameter/body workers。production の ledger は既存の
 `visitParameterList` の `tsc-hash` 算法/値と正確な span を使う。
 新たな owner を変更する場合はここに body/caller/callee を追加する。
+
+### 共通 visitor を使う他 pass の閉包
+
+準備時の15 owner pins は保持する。追加で読解した以下の body は同じ `_tsc.js` の
+AST `getStart`〜`end` の UTF-8 SHA-256。詳細 inventory は
+`target/parameter-temporaries-runs/upstream/shared-pass-owners.json` に保存した。
+
+| owner | span | SHA-256 |
+| --- | --- | --- |
+| `transformES2021/visitor` | 103217–103225 | `2417b5d01aa4d4a286dd071e0aaf47d04b76531feb5440be80c50481c95943ca` |
+| `transformES2021/transformLogicalAssignment` | 103226–103274 | `074f1f1a189b018ca1587693664f783c9912d6d8252ea2709b523af01db5b213` |
+| `transformES2016/visitor` | 104658–104668 | `9823071d2d7df2c8752aeddea43c911e73b5f6342d2e2f66bdeeb79ef194ac6c` |
+| `transformES2016/visitBinaryExpression` | 104669–104678 | `91f299e45664e7fe29dcbd6e0e67614b8f0a8dcdf88f0b075e55b7c0d7996bc7` |
+| `transformES2016/visitExponentiationAssignmentExpression` | 104679–104728 | `f24991ddc8f7bda8ce2a626e68f1619310d9f042ca48a799cab9630b6813220d` |
+| `transformES2019/visitor` | 102916–102926 | `636a8b2e2c136373f836ccbcb26c641029ebeb53365df73e5c63215ec4a315de` |
+| `transformES2019/visitCatchClause` | 102927–102939 | `4d8ad35b3a76ff356ca808a361fab50d31c294f77175451839b44174998d49d0` |
+
+ES2021 は assignment の receiver/key が単純でなければ `hoistVariableDeclaration` へ渡す。
+既存 control の `get().value` はこの receiver 分岐に入る。`??=` は後続 ES2020 も通る。
+ES2016 の property `**=` は receiver が identifier でも必ず hoist するため、既存 control の
+`holder.value **= get()` が引数内 hoist を実際に要求する。element access では receiver と key の2個、
+identifier への assignment では0個となるが、その expression lowering 自体は変更しない。
+両 pass とも他 node は `visitEachChild` を通じて同じ `visitParameterList` 条件に達する。
+ES2019 の optional catch は `createTempVariable(undefined)` で宣言し、hoist callback を呼ばない。
+したがって同 pass が単独で parameter-hoisted flag を立てる分岐はない。
+これらの upstream body は修正対象の共通 target 条件の適用範囲を示し、native 成功の代用にはしない。
 
 architecture は `E-CONTEXT` の per-unit context と env lifetime、`E-NAMES-BASE` / `E-NAMES-H` の
 typed identity と completed-tree naming を維持する。今回の修復は既存の target 条件を正しく適用するもの。

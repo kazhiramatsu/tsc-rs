@@ -28,6 +28,7 @@ fixture: `crates/compiler/tests/fixtures/h2-5h-parameter-temporaries.json`。
 | ESNext 原対照 | 元 directive の target を使用した4ケース ×2 |
 | 追加 controls | P2–P6 の56ケース ×2 |
 | 上流 trace | 原12ケース、340 events。instrumented な全 command が無改造 TS の全 tuple と一致 |
+| target 条件だけを外す調査 | 原12ケース ×2。ES5 4件だけで JS bytes が変わり、ES2015/ESNext 8件は完全不変 |
 | preparation verifier | 27 pins、15 upstream owners、原8行、保持12 manifest 行、一致 |
 | scope / syntax / formatting | 許可範囲内。Node syntax、専用 Rust test の rustfmt、diff-check 成功 |
 
@@ -47,6 +48,11 @@ log、trace script、receipt はこの worktree の `target/parameter-temporarie
 上流 trace は、ES5 の ES2020 pass が initializer/pattern を残し、後段 ES2015 が展開することを示した。
 ES2015 では ES2020 pass が展開し、ESNext ではどちらの pass も起動しない。
 Rust 側の first-divergence は native before/trace で確認するため未確定。
+
+`node target/parameter-temporaries-runs/upstream/counterfactual.mjs` は exit 0。
+上流の target 条件のみを外した調査用 compiler の結果を `counterfactual.json` に保存した。
+ES5 initializer では multiline が失われ、binding pattern では余分な binding も発生する。
+これは Rust before と照合する予測であり、native 修復の証拠には算入しない。
 
 ## 3. 未完了の gate と次の実行
 
