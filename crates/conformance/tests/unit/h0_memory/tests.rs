@@ -96,19 +96,14 @@ fn h0_type_reference_binding_accepts_all_typescript_source_extensions() {
         (
             "styles",
             "/work/node_modules/@types/styles/index.d.css.ts",
-            ModuleExtension::Arbitrary(".d.css.ts".to_owned()),
+            ModuleExtension::Arbitrary(".d.css.ts".to_owned().into()),
         ),
     ]
     .into_iter()
     .enumerate()
     {
         let outcome = resolver
-            .resolve_type_reference(
-                Path::new("/work/root.ts"),
-                name,
-                ResolutionMode::EsNext,
-                None,
-            )
+            .resolve_type_reference("/work/root.ts", name, ResolutionMode::EsNext, None)
             .expect("resolve H0 type-reference target");
         let ResolutionOutcome::Resolved(host_directive) = &outcome else {
             panic!("expected resolved type-reference target: {name}");
@@ -119,8 +114,7 @@ fn h0_type_reference_binding_accepts_all_typescript_source_extensions() {
         let source = SourceFileId::from_raw(
             u32::try_from(index + 1).expect("the focused source id fits u32"),
         );
-        let source_by_canonical =
-            BTreeMap::from([(target.canonical().as_path().to_path_buf(), source)]);
+        let source_by_canonical = BTreeMap::from([(target.canonical().as_js().to_owned(), source)]);
         assert!(matches!(
             bind_type_reference_host_outcome(outcome, &source_by_canonical)
                 .expect("bind H0 type-reference target")
@@ -725,18 +719,22 @@ fn program_option_projection_preserves_types_and_normalizes_type_roots() {
         matrix_key: String::new(),
     };
 
-    let options = program_options_from_program(&program, Path::new("/work/project"))
-        .expect("project program options");
+    let options =
+        program_options_from_program(&program, &tsc_diagnostics::JsString::from("/work/project"))
+            .expect("project program options");
     assert_eq!(options.no_lib(), Some(true));
-    let expected_types = vec!["*".to_owned(), "explicit".to_owned()];
+    let expected_types = vec![tsc_diagnostics::JsString::from("*"), "explicit".into()];
     assert_eq!(options.types(), Some(expected_types.as_slice()));
     let roots = options.type_roots().expect("explicit type roots");
     assert_eq!(roots.len(), 2);
     assert_eq!(
-        roots[0].canonical().as_path(),
+        roots[0].canonical().as_js().scalar_test_path(),
         Path::new("/work/project/types")
     );
-    assert_eq!(roots[1].canonical().as_path(), Path::new("/shared/types"));
+    assert_eq!(
+        roots[1].canonical().as_js().scalar_test_path(),
+        Path::new("/shared/types")
+    );
 }
 
 #[test]
@@ -751,11 +749,11 @@ fn package_diagnostic_map_is_a_program_wide_exact_dts_fold() {
         (&types, &ModuleExtension::Dmts),
     ]);
 
-    assert_eq!(map.get("pkg"), Some(&false));
-    assert_eq!(map.get("bundled"), Some(&true));
-    assert_eq!(map.get("@types/pkg"), Some(&false));
-    assert!(map.contains_key(&types_package_name("pkg")));
-    assert_eq!(types_package_name("@scope/pkg"), "@types/scope__pkg");
+    assert_eq!(map.get("pkg".as_bytes()), Some(&false));
+    assert_eq!(map.get("bundled".as_bytes()), Some(&true));
+    assert_eq!(map.get("@types/pkg".as_bytes()), Some(&false));
+    assert!(map.contains_key(&types_package_name("pkg".into())));
+    assert_eq!(types_package_name("@scope/pkg".into()), "@types/scope__pkg");
 }
 
 #[test]
@@ -853,3 +851,7 @@ fn implied_format_uses_explicit_extensions_or_node_package_lookup() {
         Some(ResolutionMode::CommonJs)
     );
 }
+
+#[path = "../../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

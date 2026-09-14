@@ -913,7 +913,7 @@ pub(crate) fn diagnostic_for_source_node(
     source: &SourceFile,
     node: NodeId,
     message: &'static DiagnosticMessage,
-    args: &[String],
+    args: &[tsc_types::JsString],
 ) -> Diagnostic {
     let (start, end) = error_span_for_node(source, node);
     let to_utf16 = |byte: usize| {
@@ -924,11 +924,11 @@ pub(crate) fn diagnostic_for_source_node(
     };
     let start = to_utf16(start);
     let end = to_utf16(end);
-    Diagnostic::new(
+    Diagnostic::new_js(
         Some(source.file_name.clone()),
         Some(start),
         Some(end.saturating_sub(start)),
-        MessageChain::new(message, args),
+        MessageChain::new_js(message, args),
     )
 }
 

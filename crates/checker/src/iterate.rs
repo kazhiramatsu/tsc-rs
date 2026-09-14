@@ -190,16 +190,16 @@ impl<'a> CheckerState<'a> {
         &self,
         target: IterationErrorTarget<'_>,
         message: &'static tsc_diagnostics::DiagnosticMessage,
-        args: &[&str],
+        args: &[tsc_types::JsStr<'_>],
     ) -> Diagnostic {
         match target {
-            IterationErrorTarget::Node(node) => self.create_error(Some(node), message, args),
+            IterationErrorTarget::Node(node) => self.create_error_js(Some(node), message, args),
             IterationErrorTarget::Span(span) => {
                 let args = args
                     .iter()
                     .map(|argument| (*argument).to_owned())
                     .collect::<Vec<_>>();
-                self.diagnostic_at_span(span, MessageChain::new(message, &args))
+                self.diagnostic_at_span(span, MessageChain::new_js(message, &args))
             }
         }
     }
@@ -209,7 +209,7 @@ impl<'a> CheckerState<'a> {
         target: IterationErrorTarget<'_>,
         maybe_missing_await: bool,
         message: &'static tsc_diagnostics::DiagnosticMessage,
-        args: &[&str],
+        args: &[tsc_types::JsStr<'_>],
     ) -> usize {
         if let IterationErrorTarget::Node(node) = target {
             return self.error_and_maybe_suggest_await(node, maybe_missing_await, message, args);
@@ -721,7 +721,7 @@ impl<'a> CheckerState<'a> {
                     error_target,
                     suggest_await,
                     default_diagnostic,
-                    &[&display],
+                    &[(&display).into()],
                 );
             }
             return if has_string_constituent {
@@ -801,7 +801,7 @@ impl<'a> CheckerState<'a> {
             .type_of(input_type)
             .symbol
             .map(|symbol| self.binder.symbol(symbol).escaped_name.clone());
-        if symbol_name.is_some_and(|name| is_es2015_or_later_iterable(&name)) {
+        if symbol_name.is_some_and(|name| name.as_str().is_some_and(is_es2015_or_later_iterable)) {
             return Ok((
                 &diagnostics::Type_0_can_only_be_iterated_through_when_using_the_downlevelIteration_flag_or_with_a_target_of_es2015_or_higher,
                 true,
@@ -1360,7 +1360,7 @@ impl<'a> CheckerState<'a> {
             error_target,
             suggest_await,
             message,
-            &[&display],
+            &[(&display).into()],
         ))
     }
 
@@ -1651,7 +1651,8 @@ impl<'a> CheckerState<'a> {
                 } else {
                     resolver.must_be_a_method_diagnostic()
                 };
-                let built = self.create_iteration_error(error_target, diagnostic, &[method_name]);
+                let built =
+                    self.create_iteration_error(error_target, diagnostic, &[(method_name).into()]);
                 match container {
                     Some(container) => container.errors.push(built),
                     None => {
@@ -1772,7 +1773,7 @@ impl<'a> CheckerState<'a> {
                     let built = self.create_iteration_error(
                         error_target,
                         resolver.must_have_a_value_diagnostic(),
-                        &[method_name],
+                        &[(method_name).into()],
                     );
                     match container {
                         Some(container) => container.errors.push(built),

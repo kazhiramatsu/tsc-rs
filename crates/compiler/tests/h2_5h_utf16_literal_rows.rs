@@ -194,7 +194,7 @@ fn run_case_with_floor(workspace: &Path, case: &Value, floor: EmitOptionFloor) -
         .map(|(index, artifact)| {
             json!({
                 "index": index,
-                "path": artifact.path().to_string_lossy(),
+                "path": artifact.path().as_str().expect("scalar frozen callback filename"),
                 "callback_utf8_base64": base64::engine::general_purpose::STANDARD.encode(artifact.callback_bytes()),
                 "callback_utf8_bytes": artifact.callback_bytes().len(),
                 "write_byte_order_mark": artifact.write_byte_order_mark(),
@@ -219,7 +219,7 @@ fn message(chain: &MessageChain, indent: usize, text: &mut String) {
         text.push('\n');
         text.push_str(&"  ".repeat(indent));
     }
-    text.push_str(&chain.text);
+    text.push_str(chain.text.as_str().expect("scalar frozen diagnostic text"));
     for next in &chain.next {
         message(next, indent + 1, text);
     }
@@ -234,7 +234,7 @@ fn diagnostics(diagnostics: &[Diagnostic]) -> Value {
             json!({
                 "code": diagnostic.code(),
                 "category": format!("{:?}", diagnostic.category()),
-                "file": diagnostic.file_name,
+                "file": diagnostic.file_name.as_ref().map(|value| value.as_str().expect("scalar frozen diagnostic filename")),
                 "start": diagnostic.start,
                 "length": diagnostic.length,
                 "message": text,

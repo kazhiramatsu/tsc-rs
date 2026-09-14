@@ -31,7 +31,10 @@ fn class_property_implicit_any_prints_the_declaration_name() {
         assert!(
             message.text.contains("'#p'"),
             "declaration-name display: {}",
-            message.text
+            message
+                .text
+                .as_str()
+                .expect("scalar diagnostic observation")
         );
     });
 }

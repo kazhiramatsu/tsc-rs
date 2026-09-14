@@ -53,13 +53,16 @@ pub fn audit_source_file(source: &SourceFile, binder: &tsc_binder::Binder<'_>) -
                 Some(symbol) => {
                     let sym = binder.symbols.symbol(symbol);
                     let sorted_keys = |table: &tsc_binder::SymbolTable| {
-                        let mut keys: Vec<&str> = table.keys().map(String::as_str).collect();
-                        keys.sort_unstable();
-                        keys.join(",")
+                        let mut keys = table.keys().collect::<Vec<_>>();
+                        keys.sort_unstable_by(|a, b| a.cmp_utf16(b));
+                        keys.iter()
+                            .map(|key| key.as_str().expect("scalar symbol-audit name"))
+                            .collect::<Vec<_>>()
+                            .join(",")
                     };
                     format!(
                         "{pos}\t{end}\t{}\t{}\t{}\t{}\t{}",
-                        sym.escaped_name,
+                        sym.escaped_name.as_str().expect("scalar symbol-audit name"),
                         sym.flags.bits(),
                         sym.declarations.len(),
                         sorted_keys(&sym.members),

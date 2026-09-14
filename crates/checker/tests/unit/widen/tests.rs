@@ -115,7 +115,13 @@ function g(value) { return value; }
             .diagnostics
             .iter()
             .filter(|diagnostic| diagnostic.code() == 7006)
-            .map(|diagnostic| diagnostic.message_text().to_owned())
+            .map(|diagnostic| {
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation")
+                    .to_owned()
+            })
             .collect::<Vec<_>>();
         assert_eq!(
             messages,
@@ -177,7 +183,11 @@ fn named_parameter_without_type_is_an_error_or_suggestion() {
             (
                 diagnostic.start,
                 diagnostic.length,
-                diagnostic.message.text.as_str()
+                diagnostic
+                    .message
+                    .text
+                    .as_str()
+                    .expect("scalar diagnostic observation")
             ),
             (
                 Some(10),

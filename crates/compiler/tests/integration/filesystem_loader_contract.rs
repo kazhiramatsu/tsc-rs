@@ -144,7 +144,10 @@ fn extensionless_roots_preserve_memory_filesystem_and_session_equivalence() {
     )
     .expect("load extensionless root from FsHost");
     assert_eq!(from_memory, from_filesystem);
-    assert_eq!(from_memory.roots()[0].path().display(), tree.path("entry"));
+    assert_eq!(
+        from_memory.roots()[0].path().display().scalar_test_path(),
+        tree.path("entry")
+    );
     let root_source = from_memory.roots()[0]
         .source()
         .expect("extensionless root has a selected source");
@@ -153,7 +156,8 @@ fn extensionless_roots_preserve_memory_filesystem_and_session_equivalence() {
             .source_file(root_source)
             .unwrap()
             .path()
-            .display(),
+            .display()
+            .scalar_test_path(),
         tree.path("entry.tsx")
     );
 
@@ -290,7 +294,7 @@ fn external_symlink_preserves_memory_filesystem_and_session_equivalence() {
         from_memory
             .source_files()
             .iter()
-            .map(|source| source.path().display().to_path_buf())
+            .map(|source| source.path().display().scalar_test_path().to_path_buf())
             .collect::<Vec<_>>(),
         [
             tree.path("globals.d.ts"),
@@ -302,7 +306,7 @@ fn external_symlink_preserves_memory_filesystem_and_session_equivalence() {
     let root_source = from_memory
         .source_files()
         .iter()
-        .find(|source| source.path().display() == tree.path("root.ts"))
+        .find(|source| source.path().display().scalar_test_path() == tree.path("root.ts"))
         .expect("root source is owned");
     let key = plan_source_requests(root_source, from_memory.compiler_options())
         .expect("plan package request")
@@ -322,13 +326,21 @@ fn external_symlink_preserves_memory_filesystem_and_session_equivalence() {
     else {
         panic!("physical package target must be loaded");
     };
-    assert_eq!(resolved_file.display(), physical_package);
+    assert_eq!(resolved_file.display().scalar_test_path(), physical_package);
     assert_eq!(
-        from_memory.source_file(*source).unwrap().path().display(),
+        from_memory
+            .source_file(*source)
+            .unwrap()
+            .path()
+            .display()
+            .scalar_test_path(),
         physical_package
     );
     assert_eq!(
-        module.original_path().map(ProgramPath::display),
+        module
+            .original_path()
+            .map(ProgramPath::display)
+            .map(|path| path.scalar_test_path()),
         Some(lexical_package.as_path())
     );
 
@@ -383,8 +395,8 @@ fn paths_base_url_and_root_dirs_produce_identical_filesystem_backed_diagnostics(
     let memory = memory.build().expect("construct memory host");
     let compiler_options = CompilerOptions {
         no_emit: Some(true),
-        base_url: Some("base".to_owned()),
-        ignore_deprecations: Some("6.0".to_owned()),
+        base_url: Some("base".to_owned().into()),
+        ignore_deprecations: Some("6.0".to_owned().into()),
         ..CompilerOptions::default()
     };
     let root_dirs = [tree.root().to_path_buf(), tree.path("generated")]
@@ -400,7 +412,7 @@ fn paths_base_url_and_root_dirs_produce_identical_filesystem_backed_diagnostics(
         .with_root_dirs(root_dirs)
         .with_paths(vec![PathMapping::new(
             "@app/*",
-            vec!["../src/*".to_owned()],
+            vec!["../src/*".to_owned().into()],
         )]);
     let roots = [tree.path("root.ts")];
 
@@ -516,7 +528,7 @@ fn allow_js_local_closure_produces_identical_filesystem_backed_diagnostics() {
         from_memory
             .source_files()
             .iter()
-            .map(|source| source.path().display().to_path_buf())
+            .map(|source| source.path().display().scalar_test_path().to_path_buf())
             .collect::<Vec<_>>(),
         [
             tree.path("globals.d.ts"),
@@ -528,7 +540,7 @@ fn allow_js_local_closure_produces_identical_filesystem_backed_diagnostics() {
     let root_source = from_memory
         .source_files()
         .iter()
-        .find(|source| source.path().display() == tree.path("root.ts"))
+        .find(|source| source.path().display().scalar_test_path() == tree.path("root.ts"))
         .expect("root source is owned");
     let root_plan = plan_source_requests(root_source, from_memory.compiler_options())
         .expect("plan root requests");
@@ -640,7 +652,7 @@ fn positive_node_module_js_depth_admits_package_and_gates_its_nested_javascript(
         from_memory
             .source_files()
             .iter()
-            .map(|source| source.path().display().to_path_buf())
+            .map(|source| source.path().display().scalar_test_path().to_path_buf())
             .collect::<Vec<_>>(),
         [
             tree.path("globals.d.ts"),
@@ -652,7 +664,7 @@ fn positive_node_module_js_depth_admits_package_and_gates_its_nested_javascript(
     let root_source = from_memory
         .source_files()
         .iter()
-        .find(|source| source.path().display() == tree.path("root.ts"))
+        .find(|source| source.path().display().scalar_test_path() == tree.path("root.ts"))
         .expect("root source is owned");
     let package_key = plan_source_requests(root_source, from_memory.compiler_options())
         .expect("plan package request")
@@ -673,7 +685,7 @@ fn positive_node_module_js_depth_admits_package_and_gates_its_nested_javascript(
         panic!("depth one admits the package entry point");
     };
     assert_eq!(
-        package_file.display(),
+        package_file.display().scalar_test_path(),
         tree.path("node_modules/pkg/index.js")
     );
 
@@ -699,7 +711,7 @@ fn positive_node_module_js_depth_admits_package_and_gates_its_nested_javascript(
         panic!("depth two remains outside the configured depth one boundary");
     };
     assert_eq!(
-        resolved_file.display(),
+        resolved_file.display().scalar_test_path(),
         tree.path("node_modules/pkg/leaf.js")
     );
     assert_eq!(*reason, UnloadedModuleReason::NodeModulesDepth);
@@ -783,7 +795,7 @@ fn allow_js_false_precedes_positive_node_module_depth_in_both_authoritative_load
         from_memory
             .source_files()
             .iter()
-            .map(|source| source.path().display().to_path_buf())
+            .map(|source| source.path().display().scalar_test_path().to_path_buf())
             .collect::<Vec<_>>(),
         [tree.path("globals.d.ts"), tree.path("root.ts")]
     );
@@ -791,7 +803,7 @@ fn allow_js_false_precedes_positive_node_module_depth_in_both_authoritative_load
     let root_source = from_memory
         .source_files()
         .iter()
-        .find(|source| source.path().display() == tree.path("root.ts"))
+        .find(|source| source.path().display().scalar_test_path() == tree.path("root.ts"))
         .expect("root source is owned");
     let package_key = plan_source_requests(root_source, from_memory.compiler_options())
         .expect("plan non-admitted package request")
@@ -812,7 +824,7 @@ fn allow_js_false_precedes_positive_node_module_depth_in_both_authoritative_load
         panic!("allowJs=false keeps package JavaScript outside source membership");
     };
     assert_eq!(
-        resolved_file.display(),
+        resolved_file.display().scalar_test_path(),
         tree.path("node_modules/pkg/index.js")
     );
     assert_eq!(*reason, UnloadedModuleReason::JavaScriptNotAdmitted);
@@ -894,7 +906,7 @@ fn fractional_and_nan_depths_preserve_elision_precedence_through_program_session
         let root = program
             .source_files()
             .iter()
-            .find(|source| source.path().display() == Path::new("/work/root.ts"))
+            .find(|source| source.path().display().scalar_test_path() == Path::new("/work/root.ts"))
             .expect("root source is owned");
         let key = plan_source_requests(root, program.compiler_options())
             .expect("plan package request")
@@ -994,14 +1006,14 @@ fn jsx_without_mode_flows_from_both_loaders_to_exact_ts6142_diagnostics() {
         from_memory
             .source_files()
             .iter()
-            .map(|source| source.path().display().to_path_buf())
+            .map(|source| source.path().display().scalar_test_path().to_path_buf())
             .collect::<Vec<_>>(),
         [tree.path("globals.d.ts"), tree.path("root.ts")]
     );
     let root_source = from_memory
         .source_files()
         .iter()
-        .find(|source| source.path().display() == tree.path("root.ts"))
+        .find(|source| source.path().display().scalar_test_path() == tree.path("root.ts"))
         .expect("root source is owned");
     let root_plan = plan_source_requests(root_source, from_memory.compiler_options())
         .expect("plan JSX root requests");
@@ -1011,11 +1023,11 @@ fn jsx_without_mode_flows_from_both_loaders_to_exact_ts6142_diagnostics() {
             .require_module(key)
             .expect("JSX request has an authoritative row");
         let ResolutionOutcome::Resolved(module) = resolution.outcome() else {
-            panic!("JSX request must resolve: {}", key.specifier());
+            panic!("JSX request must resolve: {:?}", key.specifier());
         };
         let ResolvedModuleTarget::Unloaded { reason, .. } = module.target() else {
             panic!(
-                "JSX without a mode must remain unloaded: {}",
+                "JSX without a mode must remain unloaded: {:?}",
                 key.specifier()
             );
         };
@@ -1076,7 +1088,7 @@ fn arbitrary_declaration_membership_keeps_importer_specific_ts6263() {
         no_emit: Some(true),
         module: Some(1),
         module_resolution: Some(2),
-        ignore_deprecations: Some("6.0".to_owned()),
+        ignore_deprecations: Some("6.0".to_owned().into()),
         resolve_json_module: Some(false),
         ..CompilerOptions::default()
     };
@@ -1102,14 +1114,13 @@ fn arbitrary_declaration_membership_keeps_importer_specific_ts6263() {
     )
     .expect("load arbitrary rows from FsHost");
     assert_eq!(from_memory, from_filesystem);
-    assert!(from_memory
-        .source_files()
-        .iter()
-        .any(|source| { source.path().display() == tree.path("data.d.json.ts") }));
+    assert!(from_memory.source_files().iter().any(|source| {
+        source.path().display().scalar_test_path() == tree.path("data.d.json.ts")
+    }));
     let root_source = from_memory
         .source_files()
         .iter()
-        .find(|source| source.path().display() == tree.path("root.ts"))
+        .find(|source| source.path().display().scalar_test_path() == tree.path("root.ts"))
         .expect("root source is owned");
     let root_key = plan_source_requests(root_source, from_memory.compiler_options())
         .expect("plan arbitrary root request")
@@ -1196,14 +1207,15 @@ fn declaration_augmentation_allows_a_resolution_only_arbitrary_target() {
     )
     .expect("load declaration augmentation from FsHost");
     assert_eq!(from_memory, from_filesystem);
-    assert!(from_memory
-        .source_files()
-        .iter()
-        .all(|source| source.path().display() != tree.path("data.d.json.ts")));
+    assert!(from_memory.source_files().iter().all(|source| source
+        .path()
+        .display()
+        .scalar_test_path()
+        != tree.path("data.d.json.ts")));
     let root_source = from_memory
         .source_files()
         .iter()
-        .find(|source| source.path().display() == tree.path("root.d.ts"))
+        .find(|source| source.path().display().scalar_test_path() == tree.path("root.d.ts"))
         .expect("declaration root is owned");
     let key = plan_source_requests(root_source, from_memory.compiler_options())
         .expect("plan declaration augmentation")
@@ -1234,3 +1246,7 @@ fn declaration_augmentation_allows_a_resolution_only_arbitrary_target() {
     assert_eq!(memory_outcome, filesystem_outcome);
     assert!(memory_outcome.semantic_diagnostics().is_empty());
 }
+
+#[path = "../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

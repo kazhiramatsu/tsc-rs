@@ -110,7 +110,7 @@ fn utf16_original_rows_match_complete_commands() {
                         maps.iter()
                             .map(|map| {
                                 json!({
-                                    "input_source_file_names": map.input_source_files(),
+                                    "input_source_file_names": map.input_source_files().iter().map(|value| scalar_observation(value.as_js())).collect::<Vec<_>>(),
                                     "source_map_json": map.canonical_json()
                                 })
                             })
@@ -121,8 +121,8 @@ fn utf16_original_rows_match_complete_commands() {
                         "reported_diagnostics": diagnostics(command.diagnostics()),
                         "emit_refused": emit.emit_skipped(), "emit_result": {
                             "emit_skipped": emit.emit_skipped(), "diagnostics": diagnostics(emit.diagnostics()),
-                            "emitted_files": emit.emitted_files(), "source_maps": maps},
-                        "status_writes": command.status_writes(), "exit_code": command.exit_code()})),
+                            "emitted_files": emit.emitted_files().map(|values| values.iter().map(|value| scalar_observation(value.as_js())).collect::<Vec<_>>()), "source_maps": maps},
+                        "status_writes": command.status_writes().iter().map(|value| scalar_observation(value.as_js())).collect::<Vec<_>>(), "exit_code": command.exit_code()})),
                         None,
                     )
                 }
@@ -159,7 +159,7 @@ fn message(chain: &MessageChain, indent: usize, text: &mut String) {
         text.push('\n');
         text.push_str(&"  ".repeat(indent));
     }
-    text.push_str(&chain.text);
+    text.push_str(chain.text.as_str().expect("scalar frozen diagnostic text"));
     for next in &chain.next {
         message(next, indent + 1, text);
     }
@@ -171,9 +171,9 @@ fn diagnostics(diagnostics: &[Diagnostic]) -> Value {
         let related = (d.related_information_present || !d.related.is_empty()).then(|| d.related.iter().map(|r| {
             let mut text = String::new(); message(&r.message, 0, &mut text);
             json!({"code":r.message.code,"category":format!("{:?}",r.message.category),
-                "file":r.file_name,"start":r.start,"length":r.length,"message":text,"related_information":null})
+                "file":r.file_name.as_ref().map(|value| scalar_observation(value.as_js())),"start":r.start,"length":r.length,"message":text,"related_information":null})
         }).collect::<Vec<_>>());
-        json!({"code":d.code(),"category":format!("{:?}",d.category()),"file":d.file_name,
+        json!({"code":d.code(),"category":format!("{:?}",d.category()),"file":d.file_name.as_ref().map(|value| scalar_observation(value.as_js())),
             "start":d.start,"length":d.length,"message":text,"related_information":related})
     }).collect::<Vec<_>>())
 }
@@ -191,14 +191,23 @@ fn captured_write(index: usize, artifact: &EmitArtifact) -> Value {
     };
     let callback = artifact.callback_bytes();
     let materialized = artifact.materialized_bytes();
-    json!({"index": index, "path": artifact.path().to_string_lossy(), "kind": "javascript",
+    json!({"index": index, "path": scalar_observation(artifact.path()), "kind": "javascript",
         "callback_utf8_base64": base64::engine::general_purpose::STANDARD.encode(callback),
         "callback_utf8_sha256": format!("{:x}", Sha256::digest(callback)), "callback_utf8_bytes": callback.len(),
         "write_byte_order_mark": artifact.write_byte_order_mark(),
         "materialized_utf8_base64": base64::engine::general_purpose::STANDARD.encode(&materialized),
         "materialized_utf8_sha256": format!("{:x}", Sha256::digest(&materialized)), "materialized_utf8_bytes": materialized.len(),
         // OutputSink::write's Result is the typed equivalent of onError.
-        "on_error_callback_present": true, "source_files": artifact.source_files(),
+        "on_error_callback_present": true, "source_files": artifact.source_files().map(|values| values.iter().map(|value| scalar_observation(value.as_js())).collect::<Vec<_>>()),
         "data_present": artifact.metadata().is_some(), "data_keys": keys,
         "data_source_map_url_pos": position, "data_diagnostics": data_diagnostics})
+}
+
+// This legacy JSON schema owns scalar strings. Reject unexpected lone units
+// explicitly at the observation boundary instead of changing their identity.
+fn scalar_observation(value: tsc_diagnostics::JsStr<'_>) -> String {
+    value
+        .as_str()
+        .expect("non-scalar JS value cannot match this scalar frozen observation")
+        .to_owned()
 }

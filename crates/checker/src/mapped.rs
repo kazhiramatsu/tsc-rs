@@ -738,10 +738,10 @@ impl<'a> CheckerState<'a> {
                 .set_mapped_contains_error(self.speculation_depth, mapped_type);
             let property_name = self.symbol_name_as_written_slice(symbol);
             let mapped_text = self.type_to_string_slice(mapped_type)?;
-            self.error_at(
+            self.error_at_js(
                 self.current_node,
                 &diagnostics::Type_of_property_0_circularly_references_itself_in_mapped_type_1,
-                &[&property_name, &mapped_text],
+                &[(&property_name).into(), (&mapped_text).into()],
             );
             computed = self.tables.intrinsics.error;
         }

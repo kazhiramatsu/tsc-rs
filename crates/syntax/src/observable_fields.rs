@@ -8,6 +8,7 @@ pub enum ObservableField<'a> {
     NodeArray(NodeArrayId),
     Bool(bool),
     String(&'a str),
+    JsString(tsc_types::JsStr<'a>),
 }
 
 pub fn for_each_observable_field<'a, F>(node: &'a Node, mut cb: F)
@@ -1300,7 +1301,7 @@ where
             if let Some(value) = data.raw_text.as_deref() {
                 cb("rawText", ObservableField::String(value));
             }
-            cb("text", ObservableField::String(&data.text));
+            cb("text", ObservableField::JsString(data.text.as_js()));
         }
         NodeData::NonNullExpression(data) => {
             if let Some(value) = data.expression {
@@ -1534,7 +1535,7 @@ where
             if let Some(value) = data.has_extended_unicode_escape {
                 cb("hasExtendedUnicodeEscape", ObservableField::Bool(value));
             }
-            cb("text", ObservableField::String(&data.text));
+            cb("text", ObservableField::JsString(data.text.as_js()));
         }
         NodeData::SwitchStatement(data) => {
             if let Some(value) = data.case_block {
@@ -1571,7 +1572,7 @@ where
             if let Some(value) = data.raw_text.as_deref() {
                 cb("rawText", ObservableField::String(value));
             }
-            cb("text", ObservableField::String(&data.text));
+            cb("text", ObservableField::JsString(data.text.as_js()));
         }
         NodeData::TemplateLiteralType(data) => {
             if let Some(value) = data.head {
@@ -1593,7 +1594,7 @@ where
             if let Some(value) = data.raw_text.as_deref() {
                 cb("rawText", ObservableField::String(value));
             }
-            cb("text", ObservableField::String(&data.text));
+            cb("text", ObservableField::JsString(data.text.as_js()));
         }
         NodeData::TemplateSpan(data) => {
             if let Some(value) = data.expression {
@@ -1607,7 +1608,7 @@ where
             if let Some(value) = data.raw_text.as_deref() {
                 cb("rawText", ObservableField::String(value));
             }
-            cb("text", ObservableField::String(&data.text));
+            cb("text", ObservableField::JsString(data.text.as_js()));
         }
         NodeData::ThrowStatement(data) => {
             if let Some(value) = data.expression {

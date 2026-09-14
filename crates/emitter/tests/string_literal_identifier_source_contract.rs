@@ -78,7 +78,7 @@ impl Transformer for LiteralTransformer {
             NodeData::Identifier(identifier) => context.factory()?.create_node(
                 source,
                 NodeData::StringLiteral(StringLiteralData {
-                    text: identifier.text,
+                    text: identifier.text.into(),
                     has_extended_unicode_escape: None,
                 }),
                 TransformFlags::NONE,

@@ -43,9 +43,10 @@ fn declarationless_type_alias_caches_error_while_valid_alias_keeps_its_type() {
         state.tables.intrinsics.string
     );
 
-    let recovered = state
-        .binder
-        .create_symbol(SymbolFlags::TYPE_ALIAS, "Recovered".to_owned());
+    let recovered = state.binder.create_symbol(
+        SymbolFlags::TYPE_ALIAS,
+        tsc_types::EscapedName::from_escaped_value(("Recovered".to_owned()).into()),
+    );
     let error = state
         .get_declared_type_of_type_alias(recovered)
         .expect("declarationless recovery alias resolves to errorType");
@@ -126,9 +127,10 @@ fn malformed_annotation_inputs_resolve_to_error_type_without_unwinding() {
     let binder = bind_source_file(&source, &options);
     let mut state = CheckerState::new(&source, &binder, &options);
 
-    let declarationless = state
-        .binder
-        .create_symbol(SymbolFlags::VARIABLE, "Recovered".to_owned());
+    let declarationless = state.binder.create_symbol(
+        SymbolFlags::VARIABLE,
+        tsc_types::EscapedName::from_escaped_value(("Recovered".to_owned()).into()),
+    );
     let recovered_symbol_type = state
         .get_type_of_variable_or_parameter_or_property(declarationless)
         .expect("declarationless variable/property symbol recovers");

@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "scope": "focused ES2015 CommonJS/AMD/System JavaScript emit only; no diagnostics/declaration/complete-command comparison",
+  "typescript": "6.0.3",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "d15477e54fc8a8096e35300ad31dc718a44cb0eaa71b3f85d8f5bc8652ebf317",
+  "repetitions": 2,
+  "cases": [
+    {
+      "case_id": "common-js-quoted-re-export-identities",
+      "module": 1,
+      "source": "export { \"\\ud800\" as \"\\ud800\", \"\\ud801\" as \"\\ud801\", \"\\ufffd\" as \"\\ufffd\" } from \"./dep\";",
+      "expected": "\"use strict\";\nObject.defineProperty(exports, \"__esModule\", { value: true });\nexports[\"\\uFFFD\"] = exports[\"\\uD801\"] = exports[\"\\uD800\"] = void 0;\nvar dep_1 = require(\"./dep\");\nObject.defineProperty(exports, \"\\uD800\", { enumerable: true, get: function () { return dep_1[\"\\ud800\"]; } });\nObject.defineProperty(exports, \"\\uD801\", { enumerable: true, get: function () { return dep_1[\"\\ud801\"]; } });\nObject.defineProperty(exports, \"\\uFFFD\", { enumerable: true, get: function () { return dep_1[\"\\ufffd\"]; } });\n"
+    },
+    {
+      "case_id": "common-js-dependency-group-identities",
+      "module": 1,
+      "source": "export { x as a } from \"./\\ud800\"; export { x as b } from \"./\\ud801\"; export { x as c } from \"./\\ufffd\"; export { y as d } from \"./\\ud800\";",
+      "expected": "\"use strict\";\nObject.defineProperty(exports, \"__esModule\", { value: true });\nexports.d = exports.c = exports.b = exports.a = void 0;\nvar _1 = require(\"./\\uD800\");\nObject.defineProperty(exports, \"a\", { enumerable: true, get: function () { return _1.x; } });\nvar _2 = require(\"./\\uD801\");\nObject.defineProperty(exports, \"b\", { enumerable: true, get: function () { return _2.x; } });\nvar _3 = require(\"./\\uFFFD\");\nObject.defineProperty(exports, \"c\", { enumerable: true, get: function () { return _3.x; } });\nvar _4 = require(\"./\\uD800\");\nObject.defineProperty(exports, \"d\", { enumerable: true, get: function () { return _4.y; } });\n"
+    },
+    {
+      "case_id": "common-js-local-export-alias-identities",
+      "module": 1,
+      "source": "const x = 1; export { x as \"\\ud800\", x as \"\\ud801\", x as \"\\ufffd\" };",
+      "expected": "\"use strict\";\nObject.defineProperty(exports, \"__esModule\", { value: true });\nexports[\"\\uFFFD\"] = exports[\"\\uD801\"] = exports[\"\\uD800\"] = void 0;\nconst x = 1;\nexports[\"\\uD800\"] = x;\nexports[\"\\uD801\"] = x;\nexports[\"\\uFFFD\"] = x;\n"
+    },
+    {
+      "case_id": "common-js-rewritten-relative-identities",
+      "module": 1,
+      "source": "export { x as a } from \"./\\ud800.ts\"; export { x as b } from \"./\\ud801.ts\"; export { x as c } from \"./\\ufffd.ts\"; export { x as d } from \"./\\udc00.mts\";",
+      "expected": "\"use strict\";\nObject.defineProperty(exports, \"__esModule\", { value: true });\nexports.d = exports.c = exports.b = exports.a = void 0;\nvar __ts_1 = require(\"./\\uD800.js\");\nObject.defineProperty(exports, \"a\", { enumerable: true, get: function () { return __ts_1.x; } });\nvar __ts_2 = require(\"./\\uD801.js\");\nObject.defineProperty(exports, \"b\", { enumerable: true, get: function () { return __ts_2.x; } });\nvar __ts_3 = require(\"./\\uFFFD.js\");\nObject.defineProperty(exports, \"c\", { enumerable: true, get: function () { return __ts_3.x; } });\nvar __mts_1 = require(\"./\\uDC00.mjs\");\nObject.defineProperty(exports, \"d\", { enumerable: true, get: function () { return __mts_1.x; } });\n"
+    },
+    {
+      "case_id": "amd-quoted-re-export-identities",
+      "module": 2,
+      "source": "export { \"\\ud800\" as \"\\ud800\", \"\\ud801\" as \"\\ud801\", \"\\ufffd\" as \"\\ufffd\" } from \"./dep\";",
+      "expected": "define([\"require\", \"exports\", \"./dep\"], function (require, exports, dep_1) {\n    \"use strict\";\n    Object.defineProperty(exports, \"__esModule\", { value: true });\n    exports[\"\\uFFFD\"] = exports[\"\\uD801\"] = exports[\"\\uD800\"] = void 0;\n    Object.defineProperty(exports, \"\\uD800\", { enumerable: true, get: function () { return dep_1[\"\\ud800\"]; } });\n    Object.defineProperty(exports, \"\\uD801\", { enumerable: true, get: function () { return dep_1[\"\\ud801\"]; } });\n    Object.defineProperty(exports, \"\\uFFFD\", { enumerable: true, get: function () { return dep_1[\"\\ufffd\"]; } });\n});\n"
+    },
+    {
+      "case_id": "amd-dependency-group-identities",
+      "module": 2,
+      "source": "export { x as a } from \"./\\ud800\"; export { x as b } from \"./\\ud801\"; export { x as c } from \"./\\ufffd\"; export { y as d } from \"./\\ud800\";",
+      "expected": "define([\"require\", \"exports\", \"./\\uD800\", \"./\\uD801\", \"./\\uFFFD\", \"./\\uD800\"], function (require, exports, _1, _2, _3, _4) {\n    \"use strict\";\n    Object.defineProperty(exports, \"__esModule\", { value: true });\n    exports.d = exports.c = exports.b = exports.a = void 0;\n    Object.defineProperty(exports, \"a\", { enumerable: true, get: function () { return _1.x; } });\n    Object.defineProperty(exports, \"b\", { enumerable: true, get: function () { return _2.x; } });\n    Object.defineProperty(exports, \"c\", { enumerable: true, get: function () { return _3.x; } });\n    Object.defineProperty(exports, \"d\", { enumerable: true, get: function () { return _4.y; } });\n});\n"
+    },
+    {
+      "case_id": "amd-local-export-alias-identities",
+      "module": 2,
+      "source": "const x = 1; export { x as \"\\ud800\", x as \"\\ud801\", x as \"\\ufffd\" };",
+      "expected": "define([\"require\", \"exports\"], function (require, exports) {\n    \"use strict\";\n    Object.defineProperty(exports, \"__esModule\", { value: true });\n    exports[\"\\uFFFD\"] = exports[\"\\uD801\"] = exports[\"\\uD800\"] = void 0;\n    const x = 1;\n    exports[\"\\uD800\"] = x;\n    exports[\"\\uD801\"] = x;\n    exports[\"\\uFFFD\"] = x;\n});\n"
+    },
+    {
+      "case_id": "amd-rewritten-relative-identities",
+      "module": 2,
+      "source": "export { x as a } from \"./\\ud800.ts\"; export { x as b } from \"./\\ud801.ts\"; export { x as c } from \"./\\ufffd.ts\"; export { x as d } from \"./\\udc00.mts\";",
+      "expected": "define([\"require\", \"exports\", \"./\\uD800.ts\", \"./\\uD801.ts\", \"./\\uFFFD.ts\", \"./\\uDC00.mts\"], function (require, exports, __ts_1, __ts_2, __ts_3, __mts_1) {\n    \"use strict\";\n    Object.defineProperty(exports, \"__esModule\", { value: true });\n    exports.d = exports.c = exports.b = exports.a = void 0;\n    Object.defineProperty(exports, \"a\", { enumerable: true, get: function () { return __ts_1.x; } });\n    Object.defineProperty(exports, \"b\", { enumerable: true, get: function () { return __ts_2.x; } });\n    Object.defineProperty(exports, \"c\", { enumerable: true, get: function () { return __ts_3.x; } });\n    Object.defineProperty(exports, \"d\", { enumerable: true, get: function () { return __mts_1.x; } });\n});\n"
+    },
+    {
+      "case_id": "system-quoted-re-export-identities",
+      "module": 4,
+      "source": "export { \"\\ud800\" as \"\\ud800\", \"\\ud801\" as \"\\ud801\", \"\\ufffd\" as \"\\ufffd\" } from \"./dep\";",
+      "expected": "System.register([\"./dep\"], function (exports_1, context_1) {\n    \"use strict\";\n    var __moduleName = context_1 && context_1.id;\n    return {\n        setters: [\n            function (dep_1_1) {\n                exports_1({\n                    \"\\uD800\": dep_1_1[\"\\uD800\"],\n                    \"\\uD801\": dep_1_1[\"\\uD801\"],\n                    \"\\uFFFD\": dep_1_1[\"\\uFFFD\"]\n                });\n            }\n        ],\n        execute: function () {\n        }\n    };\n});\n"
+    },
+    {
+      "case_id": "system-dependency-group-identities",
+      "module": 4,
+      "source": "export { x as a } from \"./\\ud800\"; export { x as b } from \"./\\ud801\"; export { x as c } from \"./\\ufffd\"; export { y as d } from \"./\\ud800\";",
+      "expected": "System.register([\"./\\uD800\", \"./\\uD801\", \"./\\uFFFD\"], function (exports_1, context_1) {\n    \"use strict\";\n    var __moduleName = context_1 && context_1.id;\n    return {\n        setters: [\n            function (_1_1) {\n                exports_1({\n                    \"a\": _1_1[\"x\"]\n                });\n                exports_1({\n                    \"d\": _1_1[\"y\"]\n                });\n            },\n            function (_2_1) {\n                exports_1({\n                    \"b\": _2_1[\"x\"]\n                });\n            },\n            function (_3_1) {\n                exports_1({\n                    \"c\": _3_1[\"x\"]\n                });\n            }\n        ],\n        execute: function () {\n        }\n    };\n});\n"
+    },
+    {
+      "case_id": "system-local-export-alias-identities",
+      "module": 4,
+      "source": "const x = 1; export { x as \"\\ud800\", x as \"\\ud801\", x as \"\\ufffd\" };",
+      "expected": "System.register([], function (exports_1, context_1) {\n    \"use strict\";\n    var x;\n    var __moduleName = context_1 && context_1.id;\n    return {\n        setters: [],\n        execute: function () {\n            x = 1;\n            exports_1(\"\\ud800\", x);\n            exports_1(\"\\ud801\", x);\n            exports_1(\"\\ufffd\", x);\n        }\n    };\n});\n"
+    },
+    {
+      "case_id": "system-rewritten-relative-identities",
+      "module": 4,
+      "source": "export { x as a } from \"./\\ud800.ts\"; export { x as b } from \"./\\ud801.ts\"; export { x as c } from \"./\\ufffd.ts\"; export { x as d } from \"./\\udc00.mts\";",
+      "expected": "System.register([\"./\\uD800.ts\", \"./\\uD801.ts\", \"./\\uFFFD.ts\", \"./\\uDC00.mts\"], function (exports_1, context_1) {\n    \"use strict\";\n    var __moduleName = context_1 && context_1.id;\n    return {\n        setters: [\n            function (__ts_1_1) {\n                exports_1({\n                    \"a\": __ts_1_1[\"x\"]\n                });\n            },\n            function (__ts_2_1) {\n                exports_1({\n                    \"b\": __ts_2_1[\"x\"]\n                });\n            },\n            function (__ts_3_1) {\n                exports_1({\n                    \"c\": __ts_3_1[\"x\"]\n                });\n            },\n            function (__mts_1_1) {\n                exports_1({\n                    \"d\": __mts_1_1[\"x\"]\n                });\n            }\n        ],\n        execute: function () {\n        }\n    };\n});\n"
+    }
+  ]
+}

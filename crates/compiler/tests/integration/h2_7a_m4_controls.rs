@@ -102,15 +102,21 @@ impl EmitHost for ControlHost {
         &self.options
     }
 
-    fn current_directory(&self) -> &Path {
-        Path::new("/control")
+    fn current_directory(&self) -> tsc_diagnostics::JsStr<'_> {
+        (Path::new("/control"))
+            .to_str()
+            .expect("scalar mock host directory")
+            .into()
     }
 
-    fn common_source_directory(&self) -> &Path {
-        Path::new("/control")
+    fn common_source_directory(&self) -> tsc_diagnostics::JsStr<'_> {
+        (Path::new("/control"))
+            .to_str()
+            .expect("scalar mock host directory")
+            .into()
     }
 
-    fn config_file_path(&self) -> Option<&Path> {
+    fn config_file_path(&self) -> Option<tsc_diagnostics::JsStr<'_>> {
         None
     }
 
@@ -130,11 +136,11 @@ impl EmitHost for ControlHost {
 struct NoDeclarationPaths;
 
 impl DeclarationPathResolver for NoDeclarationPaths {
-    fn declaration_file_path(&self, _source: SourceFileId) -> Option<PathBuf> {
+    fn declaration_file_path(&self, _source: SourceFileId) -> Option<tsc_diagnostics::JsString> {
         None
     }
 
-    fn reference_target_path(&self, _source: SourceFileId) -> Option<PathBuf> {
+    fn reference_target_path(&self, _source: SourceFileId) -> Option<tsc_diagnostics::JsString> {
         None
     }
 }

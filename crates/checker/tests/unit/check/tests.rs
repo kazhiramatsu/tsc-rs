@@ -6,6 +6,90 @@ use crate::state::test_support::{with_program_state, with_program_state_allow_pa
 use crate::state::CheckerState;
 
 #[test]
+fn literal_type_displays_and_diagnostics_retain_typescript_utf16_values() {
+    let fixture: serde_json::Value = serde_json::from_str(include_str!(
+        "../../fixtures/utf16-literal-type-display.json"
+    ))
+    .unwrap();
+    for case in fixture["cases"].as_array().unwrap() {
+        let units = |field: &str| -> Vec<u16> {
+            case[field]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|value| u16::try_from(value.as_u64().unwrap()).unwrap())
+                .collect()
+        };
+        let text = case["source"].as_str().unwrap();
+        let options = CompilerOptions {
+            target: Some(ScriptTarget::ES_NEXT.bits()),
+            ..Default::default()
+        };
+        with_program_state(&[("/main.ts", text)], &options, |state| {
+            state.check_source_file(0);
+            let symbol = state
+                .resolve_file_scope_name("T", SymbolFlags::TYPE)
+                .unwrap();
+            let ty = state.get_declared_type_of_symbol_slice(symbol).unwrap();
+            assert_eq!(
+                state.type_to_string_slice(ty).unwrap().to_utf16(),
+                units("display"),
+                "{text}"
+            );
+            let diagnostics: Vec<_> = state.diagnostics.iter()
+                .filter(|diagnostic| diagnostic.file_name.as_ref().is_some_and(|name| name == "/main.ts"))
+                .map(|diagnostic| {
+                    assert!(diagnostic.message.next.is_empty(), "this TS control has a flat message");
+                    serde_json::json!({ "code": diagnostic.code(), "start": diagnostic.start,
+                        "length": diagnostic.length, "message": diagnostic.message.text.to_utf16() })
+                }).collect();
+            assert_eq!(
+                serde_json::Value::Array(diagnostics),
+                case["diagnostics"],
+                "{text}"
+            );
+
+            let mut arena = tsc_emitter::TransformArena::new();
+            let source = arena.add_source(state.binder.source(0), None);
+            let literal = arena
+                .factory()
+                .create_string_literal_from_code_units(source, &units("value"), false)
+                .unwrap();
+            arena
+                .metadata_mut(literal)
+                .add_flags(tsc_emitter::EmitFlags::NO_ASCII_ESCAPING);
+            let node = arena
+                .factory()
+                .create_literal_type_node(source, literal)
+                .unwrap();
+            let mut transformed = tsc_emitter::transform_nodes(
+                arena,
+                vec![tsc_emitter::TransformRoot::SourceFile(source)],
+                Vec::new(),
+                false,
+            )
+            .unwrap();
+            for _ in 0..2 {
+                let printed = tsc_emitter::create_printer(
+                    tsc_emitter::PrinterOptions::new(tsc_emitter::NewLineKind::LineFeed)
+                        .with_declaration_syntax(true),
+                )
+                .print(
+                    &mut transformed,
+                    tsc_emitter::PrintRequest::StandaloneNode {
+                        node,
+                        writer: tsc_emitter::StandaloneWriter::MultiLine,
+                    },
+                    None,
+                )
+                .unwrap();
+                assert_eq!(printed.text_utf16().as_ref(), units("printed"), "{text}");
+            }
+        });
+    }
+}
+
+#[test]
 fn recursive_getter_type_survives_completed_overload_trials() {
     // Vendored tsc 6.0.3, strict/noLib/ESNext: selected trial, rejected
     // predecessor, and nested trials all leave this recursive getter clean.
@@ -116,7 +200,11 @@ fn jsdoc_parse_diag_rows(
                     diagnostic.code(),
                     diagnostic.start.unwrap_or(u32::MAX),
                     diagnostic.length.unwrap_or(u32::MAX),
-                    diagnostic.message_text().to_owned(),
+                    diagnostic
+                        .message_text()
+                        .as_str()
+                        .expect("scalar diagnostic observation")
+                        .to_owned(),
                 )
             })
             .collect()
@@ -140,7 +228,10 @@ fn diag_rows(state: &CheckerState) -> Vec<(u32, u32, u32, String)> {
                 diag.code(),
                 diag.start.unwrap_or(u32::MAX),
                 diag.length.unwrap_or(u32::MAX),
-                diag.message_text().to_owned(),
+                diag.message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation")
+                    .to_owned(),
             )
         })
         .collect()
@@ -421,7 +512,10 @@ fn duplicate_recovered_type_parameter_uses_the_missing_name_face() {
                 .find(|diagnostic| diagnostic.code() == 2300)
                 .expect("duplicate recovered type parameter");
             assert_eq!(
-                diagnostic.message_text(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation"),
                 "Duplicate identifier '(Missing)'."
             );
         },
@@ -765,12 +859,21 @@ fn jsdoc_typedef_duplicate_type_reports_8033_with_detached_related() {
             .expect("TS8033");
         assert_eq!((diagnostic.start, diagnostic.length), (Some(54), Some(1)));
         assert_eq!(
-            diagnostic.message_text(),
+            diagnostic
+                .message_text()
+                .as_str()
+                .expect("scalar diagnostic observation"),
             "A JSDoc '@typedef' comment may not contain multiple '@type' tags."
         );
         assert_eq!(diagnostic.related.len(), 1);
         let related = &diagnostic.related[0];
-        assert_eq!(related.file_name.as_deref(), Some("a.js"));
+        assert_eq!(
+            related
+                .file_name
+                .as_ref()
+                .map(|value| value.as_js().as_str().expect("scalar name observation")),
+            Some("a.js")
+        );
         assert_eq!((related.start, related.length), (Some(0), Some(0)));
         assert_eq!(related.message.code, 8034);
         assert_eq!(related.message.text, "The tag was first specified here.");
@@ -826,7 +929,10 @@ fn jsdoc_callback_overload_and_nested_property_report_8039() {
                 (
                     diagnostic.start,
                     diagnostic.length,
-                    diagnostic.message_text(),
+                    diagnostic
+                        .message_text()
+                        .as_str()
+                        .expect("scalar diagnostic observation"),
                     diagnostic.related.len(),
                 )
             })
@@ -1018,7 +1124,11 @@ fn jsdoc_template_modifiers_follow_effective_host_grammar() {
                     diagnostic.code(),
                     diagnostic.start.expect("template modifier start"),
                     diagnostic.length.expect("template modifier length"),
-                    diagnostic.message_text().to_owned(),
+                    diagnostic
+                        .message_text()
+                        .as_str()
+                        .expect("scalar diagnostic observation")
+                        .to_owned(),
                 )
             })
             .collect::<Vec<_>>();
@@ -1120,7 +1230,11 @@ fn jsdoc_satisfies_duplicates_report_every_tag_after_the_first_per_host() {
                 (
                     diagnostic.start.expect("duplicate tag start"),
                     diagnostic.length.expect("duplicate tag length"),
-                    diagnostic.message_text().to_owned(),
+                    diagnostic
+                        .message_text()
+                        .as_str()
+                        .expect("scalar diagnostic observation")
+                        .to_owned(),
                 )
             })
             .collect::<Vec<_>>();
@@ -1194,7 +1308,11 @@ fn jsdoc_variadic_types_require_the_final_host_parameter() {
                 (
                     diagnostic.start.expect("TS1014 start"),
                     diagnostic.length.expect("TS1014 length"),
-                    diagnostic.message_text().to_owned(),
+                    diagnostic
+                        .message_text()
+                        .as_str()
+                        .expect("scalar diagnostic observation")
+                        .to_owned(),
                 )
             })
             .collect::<Vec<_>>();
@@ -1270,7 +1388,11 @@ fn jsdoc_optional_parameters_reject_a_following_required_parameter() {
                 (
                     diagnostic.start.expect("TS1016 start"),
                     diagnostic.length.expect("TS1016 length"),
-                    diagnostic.message_text().to_owned(),
+                    diagnostic
+                        .message_text()
+                        .as_str()
+                        .expect("scalar diagnostic observation")
+                        .to_owned(),
                 )
             })
             .collect::<Vec<_>>();
@@ -1355,7 +1477,11 @@ fn jsdoc_template_constraint_requires_a_parameter_name() {
                 (
                     diagnostic.start.expect("TS1069 start"),
                     diagnostic.length.expect("TS1069 length"),
-                    diagnostic.message_text().to_owned(),
+                    diagnostic
+                        .message_text()
+                        .as_str()
+                        .expect("scalar diagnostic observation")
+                        .to_owned(),
                 )
             })
             .collect::<Vec<_>>();
@@ -1438,7 +1564,11 @@ fn jsdoc_identifier_name_recovery_reports_missing_and_invalid_names() {
                 (
                     diagnostic.start.expect("TS1003 start"),
                     diagnostic.length.expect("TS1003 length"),
-                    diagnostic.message_text().to_owned(),
+                    diagnostic
+                        .message_text()
+                        .as_str()
+                        .expect("scalar diagnostic observation")
+                        .to_owned(),
                 )
             })
             .collect::<Vec<_>>();
@@ -1525,7 +1655,11 @@ fn jsdoc_satisfies_type_expression_requires_braces() {
                 (
                     diagnostic.start.expect("TS1005 start"),
                     diagnostic.length.expect("TS1005 length"),
-                    diagnostic.message_text().to_owned(),
+                    diagnostic
+                        .message_text()
+                        .as_str()
+                        .expect("scalar diagnostic observation")
+                        .to_owned(),
                 )
             })
             .collect::<Vec<_>>();
@@ -1608,7 +1742,11 @@ fn jsdoc_default_import_clause_requires_from_keyword() {
                 (
                     diagnostic.start.expect("TS1005 start"),
                     diagnostic.length.expect("TS1005 length"),
-                    diagnostic.message_text().to_owned(),
+                    diagnostic
+                        .message_text()
+                        .as_str()
+                        .expect("scalar diagnostic observation")
+                        .to_owned(),
                 )
             })
             .collect::<Vec<_>>();
@@ -1686,7 +1824,11 @@ fn jsdoc_import_module_specifier_requires_an_expression() {
                 (
                     diagnostic.start.expect("TS1109 start"),
                     diagnostic.length.expect("TS1109 length"),
-                    diagnostic.message_text().to_owned(),
+                    diagnostic
+                        .message_text()
+                        .as_str()
+                        .expect("scalar diagnostic observation")
+                        .to_owned(),
                 )
             })
             .collect::<Vec<_>>();
@@ -1781,7 +1923,11 @@ fn jsdoc_type_reference_recovery_reports_exact_tokens() {
                 (
                     diagnostic.start.expect("TS1110 start"),
                     diagnostic.length.expect("TS1110 length"),
-                    diagnostic.message_text().to_owned(),
+                    diagnostic
+                        .message_text()
+                        .as_str()
+                        .expect("scalar diagnostic observation")
+                        .to_owned(),
                 )
             })
             .collect::<Vec<_>>();
@@ -1884,7 +2030,11 @@ fn jsdoc_expected_close_brace_reports_exact_recovery_tokens() {
                 (
                     diagnostic.start.expect("TS1005 start"),
                     diagnostic.length.expect("TS1005 length"),
-                    diagnostic.message_text().to_owned(),
+                    diagnostic
+                        .message_text()
+                        .as_str()
+                        .expect("scalar diagnostic observation")
+                        .to_owned(),
                 )
             })
             .collect::<Vec<_>>();
@@ -1992,7 +2142,11 @@ fn jsdoc_template_missing_equals_reports_the_closing_bracket() {
                 (
                     diagnostic.start.expect("TS1005 start"),
                     diagnostic.length.expect("TS1005 length"),
-                    diagnostic.message_text().to_owned(),
+                    diagnostic
+                        .message_text()
+                        .as_str()
+                        .expect("scalar diagnostic observation")
+                        .to_owned(),
                 )
             })
             .collect::<Vec<_>>();
@@ -2100,7 +2254,11 @@ fn jsdoc_satisfies_semantics_reports_named_primitive_and_function_targets() {
                 (
                     diagnostic.start.expect("TS1360 start"),
                     diagnostic.length.expect("TS1360 length"),
-                    diagnostic.message_text().to_owned(),
+                    diagnostic
+                        .message_text()
+                        .as_str()
+                        .expect("scalar diagnostic observation")
+                        .to_owned(),
                 )
             })
             .collect::<Vec<_>>();
@@ -2158,7 +2316,13 @@ fn jsdoc_satisfies_no_lib_rest_array_target_uses_empty_object_face() {
             .diagnostics
             .iter()
             .filter(|diagnostic| diagnostic.code() == 1360)
-            .map(|diagnostic| diagnostic.message_text().to_owned())
+            .map(|diagnostic| {
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation")
+                    .to_owned()
+            })
             .collect::<Vec<_>>();
         assert_eq!(
             diagnostics,
@@ -2201,7 +2365,13 @@ fn jsdoc_satisfies_missing_property_keeps_relation_chain_and_declaration() {
         assert_eq!(codes, [1360, 2741]);
         let related = diagnostic.related.first().expect("TS2728");
         assert_eq!(diagnostic.related.len(), 1);
-        assert_eq!(related.file_name.as_deref(), Some("a.js"));
+        assert_eq!(
+            related
+                .file_name
+                .as_ref()
+                .map(|value| value.as_js().as_str().expect("scalar name observation")),
+            Some("a.js")
+        );
         let property_start = text.find("@property").expect("property tag");
         assert_eq!(
             (related.start, related.length),
@@ -2306,7 +2476,7 @@ fn jsdoc_cast_type_predicate_reports_invalid_return_type_position() {
                 (
                     diagnostic.start,
                     diagnostic.length,
-                    diagnostic.message_text(),
+                    diagnostic.message_text().as_str().expect("scalar diagnostic observation"),
                 ),
                 (
                     Some(start),
@@ -2536,7 +2706,10 @@ fn jsdoc_import_tag_bare_with_reports_parser_and_checker_diagnostics() {
             (
                 diagnostic.start,
                 diagnostic.length,
-                diagnostic.message_text()
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation")
             ),
             (Some(37), Some(0), "'{' expected.")
         );
@@ -3768,7 +3941,7 @@ fn reused_jsdoc_type_nodes_lower_to_typescript_nodes() {
     fn render(annotation: &str) -> String {
         let text =
             format!("/** @typedef {{Object}} Box */\n/** @type {{{annotation}}} */\nlet value;\n");
-        with_program_state_allow_parse_diagnostics(
+        (with_program_state_allow_parse_diagnostics(
             &[("source.js", &text)],
             &CompilerOptions {
                 allow_js: true,
@@ -3793,7 +3966,10 @@ fn reused_jsdoc_type_nodes_lower_to_typescript_nodes() {
                     .type_annotation_text_slice(expression)
                     .expect("reused JSDoc annotation")
             },
-        )
+        ))
+        .as_str()
+        .expect("scalar value observation")
+        .to_owned()
     }
 
     assert_eq!(render("*"), "any");
@@ -5279,13 +5455,7 @@ fn display_composer_synthesizes_class_auto_accessor_pair_and_plain_sibling() {
             state
                 .property_signature_slice(accessor, false, &mut rendered)
                 .expect("auto-accessor display");
-            assert_eq!(
-                rendered,
-                [
-                    "get p(): string".to_owned(),
-                    "set p(arg: string)".to_owned()
-                ]
-            );
+            assert_eq!(rendered, ["get p(): string", "set p(arg: string)"]);
 
             // Nearest non-firing sibling: a plain class field
             // remains one property signature.
@@ -5297,7 +5467,7 @@ fn display_composer_synthesizes_class_auto_accessor_pair_and_plain_sibling() {
             state
                 .property_signature_slice(plain, false, &mut rendered)
                 .expect("plain property display");
-            assert_eq!(rendered, ["q: number".to_owned()]);
+            assert_eq!(rendered, ["q: number"]);
         },
     );
 }
@@ -7132,7 +7302,7 @@ fn program_diags_with(
     cwd: &str,
 ) -> Vec<(String, u32, u32, u32, String)> {
     with_program_state(files, options, |state| {
-        state.host_current_directory = cwd.to_owned();
+        state.host_current_directory = (cwd.to_owned()).into();
         for index in 0..state.binder.files().count() {
             state.check_source_file(index);
         }
@@ -7145,11 +7315,22 @@ fn program_diags_with(
             })
             .map(|diag| {
                 (
-                    diag.file_name.clone().unwrap(),
+                    diag.file_name
+                        .as_ref()
+                        .map(|value| {
+                            value
+                                .as_str()
+                                .expect("scalar filename observation")
+                                .to_owned()
+                        })
+                        .unwrap(),
                     diag.code(),
                     diag.start.unwrap_or(u32::MAX),
                     diag.length.unwrap_or(u32::MAX),
-                    diag.message_text().to_owned(),
+                    diag.message_text()
+                        .as_str()
+                        .expect("scalar diagnostic observation")
+                        .to_owned(),
                 )
             })
             .collect()
@@ -7804,7 +7985,12 @@ fn inherited_signature_type_parameter_collision_keeps_the_2719_chain() {
         texts: &mut Vec<String>,
     ) {
         codes.push(chain.code);
-        texts.push(chain.text.clone());
+        texts.push(
+            (chain.text.clone())
+                .as_str()
+                .expect("scalar value observation")
+                .to_owned(),
+        );
         for child in &chain.next {
             flatten(child, codes, texts);
         }
@@ -7852,7 +8038,12 @@ fn inherited_signature_type_parameter_collision_keeps_the_2719_chain() {
 #[test]
 fn recursive_generic_interface_error_reaches_the_first_non_recursive_property() {
     fn flatten(chain: &tsc_diagnostics::MessageChain, texts: &mut Vec<String>) {
-        texts.push(chain.text.clone());
+        texts.push(
+            (chain.text.clone())
+                .as_str()
+                .expect("scalar value observation")
+                .to_owned(),
+        );
         for child in &chain.next {
             flatten(child, texts);
         }
@@ -7906,7 +8097,12 @@ fn recursive_generic_interface_error_reaches_the_first_non_recursive_property() 
 #[test]
 fn incompatible_constructor_return_path_parenthesizes_before_property_access() {
     fn flatten(chain: &tsc_diagnostics::MessageChain, texts: &mut Vec<String>) {
-        texts.push(chain.text.clone());
+        texts.push(
+            (chain.text.clone())
+                .as_str()
+                .expect("scalar value observation")
+                .to_owned(),
+        );
         for child in &chain.next {
             flatten(child, texts);
         }
@@ -8080,7 +8276,13 @@ fn module_export_alias_over_merged_local_is_a_known_value_property() {
                 .get_properties_of_object_type_owned(module_type)
                 .expect("properties")
                 .into_iter()
-                .map(|p| state.symbol_display_name(p))
+                .map(|p| {
+                    state
+                        .symbol_display_name(p)
+                        .as_str()
+                        .expect("scalar value observation")
+                        .to_owned()
+                })
                 .collect();
             assert_eq!(names, ["A", "B"]);
         },
@@ -8258,7 +8460,9 @@ fn type_parameter_base_reports_2507_with_did_you_mean_related() {
                 .find(|diag| diag.code() == 2507)
                 .expect("2507 emitted");
             assert_eq!(
-                row.message_text(),
+                row.message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation"),
                 "Type 'T' is not a constructor function type."
             );
             assert_eq!(row.start, Some(41));
@@ -8470,7 +8674,7 @@ fn json_declaration_twin_precedes_the_json_resolution() {
         let names: Vec<String> = files.iter().map(|(name, _)| (*name).to_owned()).collect();
         with_program_state(files, options, |state| {
             // The unit harness has no ProgramJson host.
-            state.host_file_paths = names.iter().cloned().collect();
+            state.host_file_paths = names.iter().cloned().map(Into::into).collect();
             state.check_source_file(0);
             diag_rows(state)
         })
@@ -8901,7 +9105,12 @@ const ff: number = f;
 #[test]
 fn jsdoc_signature_display_instantiates_parameter_annotations() {
     fn flatten(chain: &tsc_diagnostics::MessageChain, out: &mut Vec<String>) {
-        out.push(chain.text.clone());
+        out.push(
+            (chain.text.clone())
+                .as_str()
+                .expect("scalar value observation")
+                .to_owned(),
+        );
         for child in &chain.next {
             flatten(child, out);
         }

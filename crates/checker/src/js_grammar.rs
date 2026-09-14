@@ -71,7 +71,7 @@ impl<'a> JsGrammarWalker<'a> {
         let args: Vec<String> = args.iter().map(|arg| (*arg).to_owned()).collect();
         let start_utf16 = self.to_utf16(start);
         let end_utf16 = self.to_utf16(end);
-        self.diagnostics.push(Diagnostic::new(
+        self.diagnostics.push(Diagnostic::new_js(
             Some(self.source.file_name.clone()),
             Some(start_utf16),
             Some(end_utf16.saturating_sub(start_utf16)),
@@ -95,7 +95,7 @@ impl<'a> JsGrammarWalker<'a> {
         let args: Vec<String> = args.iter().map(|arg| (*arg).to_owned()).collect();
         let start_utf16 = self.to_utf16(start);
         let end_utf16 = self.to_utf16(end);
-        Diagnostic::new(
+        Diagnostic::new_js(
             Some(self.source.file_name.clone()),
             Some(start_utf16),
             Some(end_utf16.saturating_sub(start_utf16)),

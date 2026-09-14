@@ -1,9 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use tsc_diagnostics::{Diagnostic, DiagnosticList, DocumentVersion, TextSnapshot};
-use tsc_host::to_file_name_lower_case;
+use tsc_diagnostics::{Diagnostic, DiagnosticList, DocumentVersion, JsStr, JsString, TextSnapshot};
+use tsc_host::to_file_name_lower_case_js;
 use tsc_types::CompilerOptions;
 
 use crate::error::{PreparationError, PreparationErrorKind, PreparationOperation};
@@ -91,7 +90,7 @@ impl PathContext {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PreparedSourceFile {
     path: ProgramPath,
-    alternate_display_paths: Vec<PathBuf>,
+    alternate_display_paths: Vec<JsString>,
     /// Distinct resolved package paths redirected to this source by
     /// `createProgram`'s exact `PackageId` identity map. These are not case
     /// aliases or symlink spellings: the resolver must retain the selected
@@ -116,17 +115,17 @@ impl PreparedSourceFile {
     }
 
     pub fn from_snapshot(path: ProgramPath, snapshot: Arc<TextSnapshot>) -> Self {
-        let may_be_emitted = !path.display().to_str().is_some_and(|file_name| {
-            file_name.ends_with(".d.ts")
-                || file_name.ends_with(".d.cts")
-                || file_name.ends_with(".d.mts")
-                || (file_name.ends_with(".ts")
-                    && file_name
-                        .rsplit(['/', '\\'])
-                        .next()
-                        .unwrap_or(file_name)
-                        .contains(".d."))
-        });
+        let file_name = path.display();
+        let may_be_emitted = !(file_name.ends_with(".d.ts")
+            || file_name.ends_with(".d.cts")
+            || file_name.ends_with(".d.mts")
+            || (file_name.ends_with(".ts")
+                && file_name
+                    .split_ascii(b'/')
+                    .flat_map(|part| part.split_ascii(b'\\'))
+                    .next_back()
+                    .is_some_and(|base| base.contains(".d."))));
+
         Self {
             path,
             alternate_display_paths: Vec::new(),
@@ -218,7 +217,7 @@ impl PreparedSourceFile {
 
     /// Alternate spellings that collapsed to this canonical identity, in
     /// discovery order. These are retained for casing diagnostics.
-    pub fn alternate_display_paths(&self) -> &[PathBuf] {
+    pub fn alternate_display_paths(&self) -> &[JsString] {
         &self.alternate_display_paths
     }
 
@@ -268,14 +267,14 @@ impl PreparedSourceFile {
             && canonical_of(self.real_path.as_ref()) == canonical_of(other.real_path.as_ref())
     }
 
-    pub(crate) fn remember_display_alias(&mut self, display: &Path) {
+    pub(crate) fn remember_display_alias(&mut self, display: JsStr<'_>) {
         if display != self.path.display()
             && !self
                 .alternate_display_paths
                 .iter()
-                .any(|existing| existing == display)
+                .any(|existing| existing.as_js() == display)
         {
-            self.alternate_display_paths.push(display.to_path_buf());
+            self.alternate_display_paths.push(display.to_owned());
         }
     }
 
@@ -298,8 +297,14 @@ fn canonical_of(path: Option<&ProgramPath>) -> Option<&CanonicalPath> {
 // Keep diagnostic-source ownership aligned with
 // `FormatDiagnosticsHost::file_text`: both compare exact spellings first and
 // otherwise normalize only slash direction.
-fn diagnostic_file_names_equal(left: &str, right: &str) -> bool {
-    left == right || left.replace('\\', "/") == right.replace('\\', "/")
+fn diagnostic_file_names_equal<'l, 'r>(
+    left: impl Into<JsStr<'l>>,
+    right: impl Into<JsStr<'r>>,
+) -> bool {
+    let left = left.into();
+    let right = right.into();
+    left == right
+        || crate::js_path::normalize_slashes(left) == crate::js_path::normalize_slashes(right)
 }
 
 /// One configured or command-line root name in its original order.
@@ -323,7 +328,7 @@ pub struct PreparedRoot {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PreparedAuxiliaryFile {
     path: ProgramPath,
-    alternate_display_paths: Vec<PathBuf>,
+    alternate_display_paths: Vec<JsString>,
     snapshot: Arc<TextSnapshot>,
 }
 
@@ -347,7 +352,7 @@ impl PreparedAuxiliaryFile {
         &self.path
     }
 
-    pub fn alternate_display_paths(&self) -> &[PathBuf] {
+    pub fn alternate_display_paths(&self) -> &[JsString] {
         &self.alternate_display_paths
     }
 
@@ -359,14 +364,14 @@ impl PreparedAuxiliaryFile {
         &self.snapshot
     }
 
-    fn remember_display_alias(&mut self, display: &Path) {
+    fn remember_display_alias(&mut self, display: JsStr<'_>) {
         if display != self.path.display()
             && !self
                 .alternate_display_paths
                 .iter()
-                .any(|existing| existing == display)
+                .any(|existing| existing.as_js() == display)
         {
-            self.alternate_display_paths.push(display.to_path_buf());
+            self.alternate_display_paths.push(display.to_owned());
         }
     }
 }
@@ -401,15 +406,13 @@ impl PreparedRoot {
     }
 }
 
-fn extensionless_root_text(path: &CanonicalPath) -> Option<&str> {
-    let text = path
-        .as_path()
-        .to_str()
-        .expect("canonical program paths are representable");
+fn extensionless_root_text(path: &CanonicalPath) -> Option<JsStr<'_>> {
+    let text = path.as_js();
     (!text
-        .rsplit(['/', '\\'])
-        .next()
-        .is_some_and(|base_name| base_name.contains('.')))
+        .split_ascii(b'/')
+        .flat_map(|part| part.split_ascii(b'\\'))
+        .next_back()
+        .is_some_and(|base| base.contains(".")))
     .then_some(text)
 }
 
@@ -417,13 +420,16 @@ fn extensionless_root_source_index<'root>(
     root: &'root CanonicalPath,
     source: &CanonicalPath,
     allow_js: bool,
-) -> Option<(&'root str, usize)> {
+) -> Option<(JsStr<'root>, usize)> {
     let root_text = extensionless_root_text(root)?;
-    let source_text = source.as_path().to_str()?;
-    let extension = source_text.strip_prefix(root_text)?;
+    let source_text = source.as_js();
+    if !source_text.starts_with_js(root_text) {
+        return None;
+    }
+    let extension = source_text.substring(root_text.len_units(), source_text.len_units());
     extensionless_source_probe_extensions(allow_js)
         .iter()
-        .position(|candidate| *candidate == extension)
+        .position(|candidate| extension == *candidate)
         .map(|index| (root_text, index))
 }
 
@@ -445,10 +451,10 @@ pub enum PackageJsonType {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PackageMetadata {
     package_json: ProgramPath,
-    alternate_display_paths: Vec<PathBuf>,
+    alternate_display_paths: Vec<JsString>,
     snapshot: Arc<TextSnapshot>,
-    name: Option<String>,
-    version: Option<String>,
+    name: Option<JsString>,
+    version: Option<JsString>,
     module_type: PackageJsonType,
     type_field_truthiness: Option<bool>,
 }
@@ -472,8 +478,8 @@ impl PackageMetadata {
     pub fn from_trusted_parsed(
         package_json: ProgramPath,
         text: impl Into<String>,
-        name: Option<String>,
-        version: Option<String>,
+        name: Option<JsString>,
+        version: Option<JsString>,
         module_type: PackageJsonType,
     ) -> Self {
         Self::from_trusted_snapshot(
@@ -488,8 +494,8 @@ impl PackageMetadata {
     pub fn from_trusted_snapshot(
         package_json: ProgramPath,
         snapshot: Arc<TextSnapshot>,
-        name: Option<String>,
-        version: Option<String>,
+        name: Option<JsString>,
+        version: Option<JsString>,
         module_type: PackageJsonType,
     ) -> Self {
         Self {
@@ -507,7 +513,7 @@ impl PackageMetadata {
         &self.package_json
     }
 
-    pub fn alternate_display_paths(&self) -> &[PathBuf] {
+    pub fn alternate_display_paths(&self) -> &[JsString] {
         &self.alternate_display_paths
     }
 
@@ -519,12 +525,12 @@ impl PackageMetadata {
         &self.snapshot
     }
 
-    pub fn name(&self) -> Option<&str> {
-        self.name.as_deref()
+    pub fn name(&self) -> Option<JsStr<'_>> {
+        self.name.as_ref().map(JsString::as_js)
     }
 
-    pub fn version(&self) -> Option<&str> {
-        self.version.as_deref()
+    pub fn version(&self) -> Option<JsStr<'_>> {
+        self.version.as_ref().map(JsString::as_js)
     }
 
     pub const fn module_type(&self) -> PackageJsonType {
@@ -551,14 +557,14 @@ impl PackageMetadata {
             && self.type_field_truthiness == other.type_field_truthiness
     }
 
-    fn remember_display_alias(&mut self, display: &Path) {
+    fn remember_display_alias(&mut self, display: JsStr<'_>) {
         if display != self.package_json.display()
             && !self
                 .alternate_display_paths
                 .iter()
-                .any(|existing| existing == display)
+                .any(|existing| existing.as_js() == display)
         {
-            self.alternate_display_paths.push(display.to_path_buf());
+            self.alternate_display_paths.push(display.to_owned());
         }
     }
 }
@@ -566,23 +572,23 @@ impl PackageMetadata {
 /// One raw `paths` pattern and its ordered substitutions.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PathMapping {
-    pattern: String,
-    substitutions: Vec<String>,
+    pattern: JsString,
+    substitutions: Vec<JsString>,
 }
 
 impl PathMapping {
-    pub fn new(pattern: impl Into<String>, substitutions: Vec<String>) -> Self {
+    pub fn new(pattern: impl Into<JsString>, substitutions: Vec<JsString>) -> Self {
         Self {
             pattern: pattern.into(),
             substitutions,
         }
     }
 
-    pub fn pattern(&self) -> &str {
-        &self.pattern
+    pub fn pattern(&self) -> JsStr<'_> {
+        self.pattern.as_js()
     }
 
-    pub fn substitutions(&self) -> &[String] {
+    pub fn substitutions(&self) -> &[JsString] {
         &self.substitutions
     }
 }
@@ -593,20 +599,20 @@ impl PathMapping {
 /// file.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct PathsOptionDiagnosticLocation {
-    file_name: String,
+    file_name: JsString,
     span: ProgramConfigSpan,
 }
 
 impl PathsOptionDiagnosticLocation {
-    pub(crate) fn new(file_name: impl Into<String>, span: ProgramConfigSpan) -> Self {
+    pub(crate) fn new(file_name: impl Into<JsString>, span: ProgramConfigSpan) -> Self {
         Self {
             file_name: file_name.into(),
             span,
         }
     }
 
-    pub(crate) fn file_name(&self) -> &str {
-        &self.file_name
+    pub(crate) fn file_name(&self) -> JsStr<'_> {
+        self.file_name.as_js()
     }
 
     pub(crate) const fn span(&self) -> ProgramConfigSpan {
@@ -619,21 +625,21 @@ impl PathsOptionDiagnosticLocation {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum PathsOptionViolationKind {
     PatternHasMultipleAsterisks {
-        pattern: String,
+        pattern: JsString,
     },
     SubstitutionsNotArray {
-        pattern: String,
+        pattern: JsString,
     },
     EmptySubstitutions {
-        pattern: String,
+        pattern: JsString,
     },
     SubstitutionHasMultipleAsterisks {
-        pattern: String,
-        substitution: String,
+        pattern: JsString,
+        substitution: JsString,
     },
     SubstitutionHasIncorrectType {
-        pattern: String,
-        substitution: String,
+        pattern: JsString,
+        substitution: JsString,
         actual_type: String,
     },
     /// Emission remains conditional until the final effective `baseUrl` is
@@ -688,14 +694,14 @@ impl PathsOptionValidationPlan {
 /// from being paired with the consuming config's directory. It also lets
 /// one-shot resolver workers reuse a prepared mapping table without cloning
 /// every pattern and substitution. Exact-key lookup indices and valid
-/// single-star pattern offsets are compiled once here rather than reparsed for
+/// single-star UTF-16 offsets are compiled once here rather than reparsed for
 /// every resolution request.
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct ProgramPathMappings {
     entries: Vec<PathMapping>,
     exact_mapping_indices: Box<[usize]>,
     wildcard_patterns: Box<[(usize, usize)]>,
-    config_base_path: Option<String>,
+    config_base_path: Option<JsString>,
     option_validation: PathsOptionValidationPlan,
     validation_error: Option<ResolutionError>,
 }
@@ -707,7 +713,7 @@ impl ProgramPathMappings {
     /// tsc-port: tryParsePatterns @6.0.3
     /// tsc-hash: acf73d9f935712f2442e047a8b74f826af12a66bc1fc9880d2e064861b9f0bb6
     /// tsc-span: _tsc.js:18784-18809
-    fn new(entries: Vec<PathMapping>, config_base_path: Option<String>) -> Self {
+    fn new(entries: Vec<PathMapping>, config_base_path: Option<JsString>) -> Self {
         let option_validation =
             crate::option_validation::paths_validation_plan_for_typed_mappings(&entries);
         Self::new_with_validation(entries, config_base_path, option_validation)
@@ -715,15 +721,15 @@ impl ProgramPathMappings {
 
     fn new_with_validation(
         entries: Vec<PathMapping>,
-        config_base_path: Option<String>,
+        config_base_path: Option<JsString>,
         option_validation: PathsOptionValidationPlan,
     ) -> Self {
         let mut exact_mapping_indices = Vec::new();
         let mut wildcard_patterns = Vec::new();
         for (index, mapping) in entries.iter().enumerate() {
-            match mapping.pattern().find('*') {
-                Some(star) if !mapping.pattern()[star + 1..].contains('*') => {
-                    wildcard_patterns.push((index, star));
+            match mapping.pattern().split_once("*") {
+                Some((prefix, suffix)) if !suffix.contains("*") => {
+                    wildcard_patterns.push((index, prefix.len_units()));
                 }
                 Some(_) => {}
                 None => exact_mapping_indices.push(index),
@@ -732,7 +738,7 @@ impl ProgramPathMappings {
         exact_mapping_indices.sort_unstable_by(|left, right| {
             entries[*left]
                 .pattern()
-                .cmp(entries[*right].pattern())
+                .cmp(&entries[*right].pattern())
                 .then_with(|| left.cmp(right))
         });
         let validation_error = validate_path_mappings(&entries).err();
@@ -750,16 +756,17 @@ impl ProgramPathMappings {
         &self.entries
     }
 
-    pub(crate) fn config_base_path(&self) -> Option<&str> {
-        self.config_base_path.as_deref()
+    pub(crate) fn config_base_path(&self) -> Option<JsStr<'_>> {
+        self.config_base_path.as_ref().map(JsString::as_js)
     }
 
     /// tsc-port: matchPatternOrExact @6.0.3
     /// tsc-hash: 7d7159d6541c0491d2bb993c52a825b08c9950255ecbe198f9505b7b6b95a37c
     /// tsc-span: _tsc.js:18834-18843
-    pub(crate) fn exact_mapping_index(&self, specifier: &str) -> Option<usize> {
+    pub(crate) fn exact_mapping_index<'n>(&self, specifier: impl Into<JsStr<'n>>) -> Option<usize> {
+        let specifier = specifier.into();
         self.exact_mapping_indices
-            .binary_search_by(|index| self.entries[*index].pattern().cmp(specifier))
+            .binary_search_by(|index| self.entries[*index].pattern().cmp(&specifier))
             .ok()
             .map(|position| self.exact_mapping_indices[position])
     }
@@ -788,7 +795,7 @@ fn validate_path_mappings(entries: &[PathMapping]) -> Result<(), ResolutionError
         // patterns are getOptionsDiagnostics rows (TS5061 for the latter),
         // not resolver-construction failures; the matcher skips them with
         // TypeScript's own truthiness/parse rules.
-        if pattern.contains('\0') {
+        if pattern.contains("\0") {
             return Err(ResolutionError::invalid_data(
                 "paths pattern is empty or contains a NUL byte",
             ));
@@ -841,15 +848,15 @@ impl ProgramConfigSpan {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ProgramConfigFile {
     path: ProgramPath,
-    diagnostic_file_name: String,
-    diagnostic_file_path: String,
+    diagnostic_file_name: JsString,
+    diagnostic_file_path: JsString,
     snapshot: Arc<TextSnapshot>,
-    automatic_type_directive_locations: BTreeMap<String, ProgramConfigSpan>,
+    automatic_type_directive_locations: BTreeMap<JsString, ProgramConfigSpan>,
     compiler_options_location: Option<ProgramConfigSpan>,
-    compiler_option_name_locations: BTreeMap<String, Vec<ProgramConfigSpan>>,
-    compiler_option_value_locations: BTreeMap<String, Vec<ProgramConfigSpan>>,
-    compiler_option_string_locations: BTreeMap<String, BTreeMap<String, ProgramConfigSpan>>,
-    root_option_array_locations: BTreeMap<String, BTreeMap<String, ProgramConfigSpan>>,
+    compiler_option_name_locations: BTreeMap<JsString, Vec<ProgramConfigSpan>>,
+    compiler_option_value_locations: BTreeMap<JsString, Vec<ProgramConfigSpan>>,
+    compiler_option_string_locations: BTreeMap<JsString, BTreeMap<JsString, ProgramConfigSpan>>,
+    root_option_array_locations: BTreeMap<JsString, BTreeMap<JsString, ProgramConfigSpan>>,
 }
 
 impl ProgramConfigFile {
@@ -861,11 +868,11 @@ impl ProgramConfigFile {
     }
 
     pub fn from_snapshot(path: ProgramPath, snapshot: Arc<TextSnapshot>) -> Self {
-        let diagnostic_file_name = path.display().to_string_lossy().into_owned();
+        let diagnostic_file_name = path.display().to_owned();
         Self {
             path,
             diagnostic_file_name,
-            diagnostic_file_path: String::new(),
+            diagnostic_file_path: JsString::new(),
             snapshot,
             automatic_type_directive_locations: BTreeMap::new(),
             compiler_options_location: None,
@@ -878,25 +885,25 @@ impl ProgramConfigFile {
 
     /// Override only the diagnostic spelling. Auxiliary-file identity and
     /// lookup continue to use [`Self::path`].
-    pub fn with_diagnostic_file_name(mut self, file_name: impl Into<String>) -> Self {
+    pub fn with_diagnostic_file_name(mut self, file_name: impl Into<JsString>) -> Self {
         self.diagnostic_file_name = file_name.into();
         self
     }
 
     /// SourceFile.path is empty for parseJsonSourceFileConfigFileContent,
     /// and resolved by getParsedCommandLineOfConfigFile for a CLI config.
-    pub fn with_diagnostic_file_path(mut self, path: impl Into<String>) -> Self {
+    pub fn with_diagnostic_file_path(mut self, path: impl Into<JsString>) -> Self {
         self.diagnostic_file_path = path.into();
         self
     }
 
-    pub fn diagnostic_file_path(&self) -> &str {
-        &self.diagnostic_file_path
+    pub fn diagnostic_file_path(&self) -> JsStr<'_> {
+        self.diagnostic_file_path.as_js()
     }
 
     pub fn with_automatic_type_directive_location(
         mut self,
-        name: impl Into<String>,
+        name: impl Into<JsString>,
         location: ProgramConfigSpan,
     ) -> Self {
         self.automatic_type_directive_locations
@@ -918,7 +925,7 @@ impl ProgramConfigFile {
     /// attaches a row to each matching syntax occurrence.
     pub fn with_compiler_option_location(
         mut self,
-        name: impl Into<String>,
+        name: impl Into<JsString>,
         name_location: ProgramConfigSpan,
         value_location: ProgramConfigSpan,
     ) -> Self {
@@ -936,8 +943,8 @@ impl ProgramConfigFile {
 
     pub fn with_compiler_option_string_location(
         mut self,
-        name: impl Into<String>,
-        value: impl Into<String>,
+        name: impl Into<JsString>,
+        value: impl Into<JsString>,
         location: ProgramConfigSpan,
     ) -> Self {
         self.compiler_option_string_locations
@@ -950,8 +957,8 @@ impl ProgramConfigFile {
 
     pub fn with_root_option_array_location(
         mut self,
-        name: impl Into<String>,
-        value: impl Into<String>,
+        name: impl Into<JsString>,
+        value: impl Into<JsString>,
         location: ProgramConfigSpan,
     ) -> Self {
         self.root_option_array_locations
@@ -966,8 +973,8 @@ impl ProgramConfigFile {
         &self.path
     }
 
-    pub fn diagnostic_file_name(&self) -> &str {
-        &self.diagnostic_file_name
+    pub fn diagnostic_file_name(&self) -> JsStr<'_> {
+        self.diagnostic_file_name.as_js()
     }
 
     pub fn text(&self) -> &str {
@@ -978,43 +985,58 @@ impl ProgramConfigFile {
         &self.snapshot
     }
 
-    pub fn automatic_type_directive_location(&self, name: &str) -> Option<ProgramConfigSpan> {
-        self.automatic_type_directive_locations.get(name).copied()
+    pub fn automatic_type_directive_location<'n>(
+        &self,
+        name: impl Into<JsStr<'n>>,
+    ) -> Option<ProgramConfigSpan> {
+        self.automatic_type_directive_locations
+            .get(name.into().as_bytes())
+            .copied()
     }
 
     pub const fn compiler_options_location(&self) -> Option<ProgramConfigSpan> {
         self.compiler_options_location
     }
 
-    pub fn compiler_option_name_locations(&self, name: &str) -> &[ProgramConfigSpan] {
-        self.compiler_option_name_locations
-            .get(name)
-            .map(Vec::as_slice)
-            .unwrap_or_default()
-    }
-
-    pub fn compiler_option_value_locations(&self, name: &str) -> &[ProgramConfigSpan] {
-        self.compiler_option_value_locations
-            .get(name)
-            .map(Vec::as_slice)
-            .unwrap_or_default()
-    }
-
-    pub fn compiler_option_string_location(
+    pub fn compiler_option_name_locations<'n>(
         &self,
-        name: &str,
-        value: &str,
+        name: impl Into<JsStr<'n>>,
+    ) -> &[ProgramConfigSpan] {
+        self.compiler_option_name_locations
+            .get(name.into().as_bytes())
+            .map(Vec::as_slice)
+            .unwrap_or_default()
+    }
+
+    pub fn compiler_option_value_locations<'n>(
+        &self,
+        name: impl Into<JsStr<'n>>,
+    ) -> &[ProgramConfigSpan] {
+        self.compiler_option_value_locations
+            .get(name.into().as_bytes())
+            .map(Vec::as_slice)
+            .unwrap_or_default()
+    }
+
+    pub fn compiler_option_string_location<'n, 'v>(
+        &self,
+        name: impl Into<JsStr<'n>>,
+        value: impl Into<JsStr<'v>>,
     ) -> Option<ProgramConfigSpan> {
         self.compiler_option_string_locations
-            .get(name)
-            .and_then(|values| values.get(value))
+            .get(name.into().as_bytes())
+            .and_then(|values| values.get(value.into().as_bytes()))
             .copied()
     }
 
-    pub fn root_option_array_location(&self, name: &str, value: &str) -> Option<ProgramConfigSpan> {
+    pub fn root_option_array_location<'n, 'v>(
+        &self,
+        name: impl Into<JsStr<'n>>,
+        value: impl Into<JsStr<'v>>,
+    ) -> Option<ProgramConfigSpan> {
         self.root_option_array_locations
-            .get(name)
-            .and_then(|values| values.get(value))
+            .get(name.into().as_bytes())
+            .and_then(|values| values.get(value.into().as_bytes()))
             .copied()
     }
 }
@@ -1026,7 +1048,7 @@ impl ProgramConfigFile {
 pub struct ProgramOptions {
     no_lib: Option<bool>,
     preserve_symlinks: Option<bool>,
-    types: Option<Vec<String>>,
+    types: Option<Vec<JsString>>,
     type_roots: Option<Vec<ProgramPath>>,
     config_file_path: Option<ProgramPath>,
     config_file: Option<ProgramConfigFile>,
@@ -1077,7 +1099,7 @@ impl ProgramOptions {
         self
     }
 
-    pub fn with_types(mut self, value: Vec<String>) -> Self {
+    pub fn with_types(mut self, value: Vec<JsString>) -> Self {
         self.types = Some(value);
         self
     }
@@ -1153,7 +1175,7 @@ impl ProgramOptions {
     pub fn with_config_paths(
         mut self,
         value: Vec<PathMapping>,
-        paths_base_path: impl Into<String>,
+        paths_base_path: impl Into<JsString>,
     ) -> Self {
         self.paths = Some(Arc::new(ProgramPathMappings::new(
             value,
@@ -1168,7 +1190,7 @@ impl ProgramOptions {
     pub(crate) fn with_config_paths_validation(
         mut self,
         value: Vec<PathMapping>,
-        paths_base_path: Option<String>,
+        paths_base_path: Option<JsString>,
         validation: PathsOptionValidationPlan,
     ) -> Self {
         self.paths = Some(Arc::new(ProgramPathMappings::new_with_validation(
@@ -1191,7 +1213,7 @@ impl ProgramOptions {
         matches!(self.preserve_symlinks, Some(true))
     }
 
-    pub fn types(&self) -> Option<&[String]> {
+    pub fn types(&self) -> Option<&[JsString]> {
         self.types.as_deref()
     }
 
@@ -1226,7 +1248,7 @@ impl ProgramOptions {
     /// The declaring config directory paired with the effective `paths` map.
     /// Programmatic mappings created by [`Self::with_paths`] return `None` and
     /// therefore retain the host-current-directory fallback.
-    pub fn paths_base_path(&self) -> Option<&str> {
+    pub fn paths_base_path(&self) -> Option<JsStr<'_>> {
         self.paths
             .as_deref()
             .and_then(ProgramPathMappings::config_base_path)
@@ -1560,14 +1582,14 @@ impl PreparedProgramBuilder {
                 }
                 return Ok(existing_id);
             }
-            return Err(PreparationError::new(
+            return Err(PreparationError::new_js(
                 PreparationErrorKind::IdentityConflict,
                 PreparationOperation::AddSourceFile,
-                Some(source.path().display().to_path_buf()),
+                Some(source.path().display()),
                 format!(
                     "canonical source {} already belongs to {} with incompatible text or metadata",
-                    canonical,
-                    existing.path().display().display()
+                    canonical.as_js().to_string_lossy(),
+                    existing.path().display().to_string_lossy()
                 ),
             ));
         }
@@ -1576,14 +1598,14 @@ impl PreparedProgramBuilder {
             if let Some(existing_id) = self.source_by_realpath.get(realpath).copied() {
                 let existing = &self.source_files[existing_id.index()];
                 if existing.text() != source.text() {
-                    return Err(PreparationError::new(
+                    return Err(PreparationError::new_js(
                         PreparationErrorKind::IdentityConflict,
                         PreparationOperation::AddSourceFile,
-                        Some(source.path().display().to_path_buf()),
+                        Some(source.path().display()),
                         format!(
                             "physical source {} already belongs to {} with incompatible text",
-                            realpath,
-                            existing.path().display().display()
+                            realpath.as_js().to_string_lossy(),
+                            existing.path().display().to_string_lossy()
                         ),
                     ));
                 }
@@ -1591,10 +1613,10 @@ impl PreparedProgramBuilder {
         }
 
         let raw = u32::try_from(self.source_files.len()).map_err(|_| {
-            PreparationError::new(
+            PreparationError::new_js(
                 PreparationErrorKind::ResourceLimit,
                 PreparationOperation::AddSourceFile,
-                Some(source.path().display().to_path_buf()),
+                Some(source.path().display()),
                 "prepared source count exceeds the SourceFileId range",
             )
         })?;
@@ -1616,10 +1638,10 @@ impl PreparedProgramBuilder {
         redirect: ProgramPath,
     ) -> Result<(), PreparationError> {
         let prepared = self.source_files.get(source.index()).ok_or_else(|| {
-            PreparationError::new(
+            PreparationError::new_js(
                 PreparationErrorKind::InvalidReference,
                 PreparationOperation::AddSourceFile,
-                Some(redirect.display().to_path_buf()),
+                Some(redirect.display()),
                 format!(
                     "package redirect names unknown SourceFileId {}",
                     source.raw()
@@ -1638,26 +1660,26 @@ impl PreparedProgramBuilder {
             if existing == source {
                 return Ok(());
             }
-            return Err(PreparationError::new(
+            return Err(PreparationError::new_js(
                 PreparationErrorKind::IdentityConflict,
                 PreparationOperation::AddSourceFile,
-                Some(redirect.display().to_path_buf()),
+                Some(redirect.display()),
                 format!(
                     "package redirect {} already belongs to SourceFileId {}",
-                    redirect.canonical(),
+                    redirect.canonical().as_js().to_string_lossy(),
                     existing.raw()
                 ),
             ));
         }
         if let Some(existing) = self.source_by_realpath.get(redirect.canonical()).copied() {
             if existing != source {
-                return Err(PreparationError::new(
+                return Err(PreparationError::new_js(
                     PreparationErrorKind::IdentityConflict,
                     PreparationOperation::AddSourceFile,
-                    Some(redirect.display().to_path_buf()),
+                    Some(redirect.display()),
                     format!(
                         "package redirect {} is the physical identity of SourceFileId {}",
-                        redirect.canonical(),
+                        redirect.canonical().as_js().to_string_lossy(),
                         existing.raw()
                     ),
                 ));
@@ -1682,23 +1704,23 @@ impl PreparedProgramBuilder {
             if !self
                 .root_request_selects_source(root.path().canonical(), prepared.path().canonical())?
             {
-                return Err(PreparationError::new(
+                return Err(PreparationError::new_js(
                     PreparationErrorKind::InvalidData,
                     PreparationOperation::AddRootFile,
-                    Some(root.path().display().to_path_buf()),
+                    Some(root.path().display()),
                     format!(
                         "root {} does not match SourceFileId {} ({})",
-                        root.path().canonical(),
+                        root.path().canonical().as_js().to_string_lossy(),
                         source.raw(),
-                        prepared.path().canonical()
+                        prepared.path().canonical().as_js().to_string_lossy()
                     ),
                 ));
             }
         } else if self.root_request_has_source(root.path().canonical())? {
-            return Err(PreparationError::new(
+            return Err(PreparationError::new_js(
                 PreparationErrorKind::InvalidData,
                 PreparationOperation::AddRootFile,
-                Some(root.path().display().to_path_buf()),
+                Some(root.path().display()),
                 "a missing root cannot hide an owned prepared source",
             ));
         }
@@ -1725,8 +1747,9 @@ impl PreparedProgramBuilder {
         for extension in
             &extensionless_source_probe_extensions(self.compiler_options.allow_js)[..selected_index]
         {
-            let candidate =
-                CanonicalPath::from_trusted_normalized(format!("{root_text}{extension}"))?;
+            let mut candidate = root_text.to_owned();
+            candidate.push_str(extension);
+            let candidate = CanonicalPath::from_js_normalized(candidate.as_js())?;
             if self.source_by_canonical.contains_key(&candidate) {
                 return Ok(false);
             }
@@ -1742,8 +1765,9 @@ impl PreparedProgramBuilder {
             return Ok(false);
         };
         for extension in extensionless_source_probe_extensions(self.compiler_options.allow_js) {
-            let candidate =
-                CanonicalPath::from_trusted_normalized(format!("{root_text}{extension}"))?;
+            let mut candidate = root_text.to_owned();
+            candidate.push_str(extension);
+            let candidate = CanonicalPath::from_js_normalized(candidate.as_js())?;
             if self.source_by_canonical.contains_key(&candidate) {
                 return Ok(true);
             }
@@ -1798,11 +1822,14 @@ impl PreparedProgramBuilder {
                 existing.remember_display_alias(file.path().display());
                 return Ok(());
             }
-            return Err(PreparationError::new(
+            return Err(PreparationError::new_js(
                 PreparationErrorKind::IdentityConflict,
                 PreparationOperation::AddAuxiliaryFile,
-                Some(file.path().display().to_path_buf()),
-                format!("canonical auxiliary file {canonical} has incompatible text"),
+                Some(file.path().display()),
+                format!(
+                    "canonical auxiliary file {} has incompatible text",
+                    canonical.as_js().to_string_lossy()
+                ),
             ));
         }
         self.auxiliary_files.insert(canonical, file);
@@ -1834,11 +1861,14 @@ impl PreparedProgramBuilder {
                 existing.remember_display_alias(package.package_json().display());
                 return Ok(());
             }
-            return Err(PreparationError::new(
+            return Err(PreparationError::new_js(
                 PreparationErrorKind::IdentityConflict,
                 PreparationOperation::AddPackageMetadata,
-                Some(package.package_json().display().to_path_buf()),
-                format!("canonical package metadata {canonical} has conflicting facts"),
+                Some(package.package_json().display()),
+                format!(
+                    "canonical package metadata {} has conflicting facts",
+                    canonical.as_js().to_string_lossy()
+                ),
             ));
         }
         self.packages.insert(canonical, package);
@@ -1863,9 +1893,9 @@ impl PreparedProgramBuilder {
         let resolution = match resolution {
             Ok(resolution) => resolution,
             Err(error) => {
-                let error = PreparationError::from_resolution(
+                let error = PreparationError::from_resolution_js(
                     PreparationOperation::AddModuleResolution,
-                    Some(key.source().as_path().to_path_buf()),
+                    Some(key.source().as_js()),
                     error,
                 );
                 return Err(error);
@@ -1899,9 +1929,9 @@ impl PreparedProgramBuilder {
         let resolution = match resolution {
             Ok(resolution) => resolution,
             Err(error) => {
-                let error = PreparationError::from_resolution(
+                let error = PreparationError::from_resolution_js(
                     PreparationOperation::AddTypeReferenceResolution,
-                    Some(key.origin().canonical_path().as_path().to_path_buf()),
+                    Some(key.origin().canonical_path().as_js()),
                     error,
                 );
                 return Err(error);
@@ -1923,7 +1953,7 @@ impl PreparedProgramBuilder {
         }
         match self.mode {
             PreparedProgramMode::NoEmit if self.compiler_options.no_emit != Some(true) => {
-                return Err(PreparationError::new(
+                return Err(PreparationError::new_js(
                     PreparationErrorKind::InvalidInput,
                     PreparationOperation::BuildPreparedProgram,
                     None,
@@ -1931,7 +1961,7 @@ impl PreparedProgramBuilder {
                 ));
             }
             PreparedProgramMode::Emit if self.compiler_options.no_emit == Some(true) => {
-                return Err(PreparationError::new(
+                return Err(PreparationError::new_js(
                     PreparationErrorKind::InvalidInput,
                     PreparationOperation::BuildPreparedProgram,
                     None,
@@ -1946,12 +1976,12 @@ impl PreparedProgramBuilder {
 
         for (expected, actual) in self.library_files.iter().copied().enumerate() {
             if actual.index() != expected {
-                return Err(PreparationError::new(
+                return Err(PreparationError::new_js(
                     PreparationErrorKind::InvalidData,
                     PreparationOperation::BuildPreparedProgram,
                     self.source_files
                         .get(actual.index())
-                        .map(|source| source.path().display().to_path_buf()),
+                        .map(|source| source.path().display()),
                     "library files must form the ordered prefix of final program source order",
                 ));
             }
@@ -1960,13 +1990,13 @@ impl PreparedProgramBuilder {
         for source in &self.source_files {
             if let Some(package_scope) = source.package_scope() {
                 if !self.packages.contains_key(package_scope) {
-                    return Err(PreparationError::new(
+                    return Err(PreparationError::new_js(
                         PreparationErrorKind::InvalidReference,
                         PreparationOperation::BuildPreparedProgram,
-                        Some(source.path().display().to_path_buf()),
+                        Some(source.path().display()),
                         format!(
                             "source package scope {} has no prepared package metadata",
-                            package_scope
+                            package_scope.as_js().to_string_lossy()
                         ),
                     ));
                 }
@@ -2020,18 +2050,21 @@ impl PreparedProgramBuilder {
         &mut self,
         canonical: &CanonicalPath,
         text: &str,
-        display: &Path,
+        display: JsStr<'_>,
         operation: PreparationOperation,
     ) -> Result<(), PreparationError> {
         if let Some(existing) = self.text_by_canonical.get(canonical) {
             if existing == text {
                 return Ok(());
             }
-            return Err(PreparationError::new(
+            return Err(PreparationError::new_js(
                 PreparationErrorKind::IdentityConflict,
                 operation,
-                Some(display.to_path_buf()),
-                format!("canonical text owner {canonical} already has incompatible decoded text"),
+                Some(display),
+                format!(
+                    "canonical text owner {} already has incompatible decoded text",
+                    canonical.as_js().to_string_lossy()
+                ),
             ));
         }
         self.text_by_canonical
@@ -2059,11 +2092,11 @@ impl PreparedProgramBuilder {
                     .flat_map(|resolution| resolution.diagnostics()),
             );
         for diagnostic in diagnostics {
-            if let Some(file_name) = diagnostic.file_name.as_deref() {
+            if let Some(file_name) = diagnostic.file_name.as_ref().map(JsString::as_js) {
                 self.require_text_for_diagnostic_file(file_name)?;
             }
             for related in &diagnostic.related {
-                if let Some(file_name) = related.file_name.as_deref() {
+                if let Some(file_name) = related.file_name.as_ref().map(JsString::as_js) {
                     self.require_text_for_diagnostic_file(file_name)?;
                 }
             }
@@ -2082,10 +2115,10 @@ impl PreparedProgramBuilder {
                 .iter()
                 .any(|diagnostic| diagnostic == expected)
             {
-                return Err(PreparationError::new(
+                return Err(PreparationError::new_js(
                     PreparationErrorKind::InvalidReference,
                     PreparationOperation::BuildPreparedProgram,
-                    Some(root.path().display().to_path_buf()),
+                    Some(root.path().display()),
                     "missing root has no matching program-diagnostic occurrence",
                 ));
             }
@@ -2107,10 +2140,10 @@ impl PreparedProgramBuilder {
                 None => !self.root_request_has_source(root.path().canonical())?,
             };
             if !valid {
-                return Err(PreparationError::new(
+                return Err(PreparationError::new_js(
                     PreparationErrorKind::InvalidData,
                     PreparationOperation::BuildPreparedProgram,
-                    Some(root.path().display().to_path_buf()),
+                    Some(root.path().display()),
                     "root selection no longer matches the final prepared source inventory",
                 ));
             }
@@ -2183,36 +2216,32 @@ impl PreparedProgramBuilder {
     }
 
     fn validate_canonical_case(&self, path: &CanonicalPath) -> Result<(), PreparationError> {
-        let text = path
-            .as_path()
-            .to_str()
-            .expect("canonical program paths are validated as Unicode");
-        let folded = to_file_name_lower_case(text);
-        if folded == text {
+        let text = path.as_js();
+        let folded = to_file_name_lower_case_js(text);
+        if folded.as_js() == text {
             return Ok(());
         }
-        Err(PreparationError::new(
+        Err(PreparationError::new_js(
             PreparationErrorKind::InvalidData,
             PreparationOperation::BuildPreparedProgram,
-            Some(path.as_path().to_path_buf()),
-            format!("canonical path is not folded for a case-insensitive host (expected {folded})"),
+            Some(path.as_js()),
+            format!(
+                "canonical path is not folded for a case-insensitive host (expected {})",
+                folded.to_string_lossy()
+            ),
         ))
     }
 
-    fn require_text_for_diagnostic_file(&self, file_name: &str) -> Result<(), PreparationError> {
-        let matches_path = |path: &ProgramPath, aliases: &[PathBuf]| {
-            path.display()
-                .to_str()
-                .is_some_and(|candidate| diagnostic_file_names_equal(candidate, file_name))
-                || path
-                    .canonical()
-                    .as_path()
-                    .to_str()
-                    .is_some_and(|candidate| diagnostic_file_names_equal(candidate, file_name))
-                || aliases.iter().any(|path| {
-                    path.to_str()
-                        .is_some_and(|candidate| diagnostic_file_names_equal(candidate, file_name))
-                })
+    fn require_text_for_diagnostic_file(
+        &self,
+        file_name: JsStr<'_>,
+    ) -> Result<(), PreparationError> {
+        let matches_path = |path: &ProgramPath, aliases: &[JsString]| {
+            diagnostic_file_names_equal(path.display(), file_name)
+                || diagnostic_file_names_equal(path.canonical().as_js(), file_name)
+                || aliases
+                    .iter()
+                    .any(|path| diagnostic_file_names_equal(path.as_js(), file_name))
         };
         let has_source = self.source_files.iter().any(|source| {
             matches_path(source.path(), source.alternate_display_paths())
@@ -2245,10 +2274,10 @@ impl PreparedProgramBuilder {
         if has_source || has_auxiliary || has_package || has_config_alias {
             return Ok(());
         }
-        Err(PreparationError::new(
+        Err(PreparationError::new_js(
             PreparationErrorKind::InvalidReference,
             PreparationOperation::BuildPreparedProgram,
-            Some(PathBuf::from(file_name)),
+            Some(file_name.into()),
             "located diagnostic has no owned source text for rendering",
         ))
     }
@@ -2259,7 +2288,7 @@ impl PreparedProgramBuilder {
         operation: PreparationOperation,
     ) -> Result<&PreparedSourceFile, PreparationError> {
         self.source_files.get(source.index()).ok_or_else(|| {
-            PreparationError::new(
+            PreparationError::new_js(
                 PreparationErrorKind::InvalidReference,
                 operation,
                 None,
@@ -2277,10 +2306,10 @@ impl PreparedProgramBuilder {
             .get(key.source())
             .copied()
             .ok_or_else(|| {
-                PreparationError::new(
+                PreparationError::new_js(
                     PreparationErrorKind::InvalidReference,
                     operation,
-                    Some(key.source().as_path().to_path_buf()),
+                    Some(key.source().as_js()),
                     format!(
                         "resolution source is not an owned prepared file: {:?}",
                         key.specifier()
@@ -2296,20 +2325,19 @@ impl PreparedProgramBuilder {
         let TypeReferenceResolutionOrigin::Source(source) = key.origin() else {
             let containing_file = key.origin().canonical_path();
             let file_name = containing_file
-                .as_path()
-                .to_str()
-                .expect("canonical program paths are validated as Unicode")
-                .rsplit(['/', '\\'])
-                .next();
-            if file_name == Some("__inferred type names__.ts")
+                .as_js()
+                .split_ascii(b'/')
+                .flat_map(|part| part.split_ascii(b'\\'))
+                .next_back();
+            if file_name.is_some_and(|name| name == "__inferred type names__.ts")
                 && key.mode() == ResolutionMode::Unspecified
             {
                 return Ok(());
             }
-            return Err(PreparationError::new(
+            return Err(PreparationError::new_js(
                 PreparationErrorKind::InvalidData,
                 PreparationOperation::AddTypeReferenceResolution,
-                Some(containing_file.as_path().to_path_buf()),
+                Some(containing_file.as_js()),
                 "automatic type-reference resolutions require the inferred-types containing file and unspecified mode",
             ));
         };
@@ -2317,10 +2345,10 @@ impl PreparedProgramBuilder {
             .contains_key(source)
             .then_some(())
             .ok_or_else(|| {
-                PreparationError::new(
+                PreparationError::new_js(
                     PreparationErrorKind::InvalidReference,
                     PreparationOperation::AddTypeReferenceResolution,
-                    Some(source.as_path().to_path_buf()),
+                    Some(source.as_js()),
                     format!(
                         "type-reference source is not an owned prepared file: {:?}",
                         key.specifier()
@@ -2340,26 +2368,26 @@ impl PreparedProgramBuilder {
         let resolved_file = module.target().resolved_file();
         let extension_path = if let Some(original_path) = module.original_path() {
             if !module.is_external_library_import() {
-                return Err(PreparationError::new(
+                return Err(PreparationError::new_js(
                     PreparationErrorKind::InvalidData,
                     PreparationOperation::AddModuleResolution,
-                    Some(original_path.display().to_path_buf()),
+                    Some(original_path.display()),
                     "a module original path requires an external-library import",
                 ));
             }
             if is_external_module_name_relative(key.specifier()) {
-                return Err(PreparationError::new(
+                return Err(PreparationError::new_js(
                     PreparationErrorKind::InvalidData,
                     PreparationOperation::AddModuleResolution,
-                    Some(original_path.display().to_path_buf()),
+                    Some(original_path.display()),
                     "a module original path requires a non-relative, non-rooted module specifier",
                 ));
             }
             if original_path.canonical() == resolved_file.canonical() {
-                return Err(PreparationError::new(
+                return Err(PreparationError::new_js(
                     PreparationErrorKind::InvalidData,
                     PreparationOperation::AddModuleResolution,
-                    Some(original_path.display().to_path_buf()),
+                    Some(original_path.display()),
                     "a module original path must differ from its resolved file",
                 ));
             }
@@ -2373,10 +2401,7 @@ impl PreparedProgramBuilder {
         // must likewise be checked against the retained display spelling,
         // not a lower-cased canonical key or a differently named physical
         // target.
-        let extension_file_name = extension_path
-            .display()
-            .to_str()
-            .expect("display program paths are Unicode");
+        let extension_file_name = extension_path.display();
         if !module.extension().is_valid()
             || !module
                 .extension()
@@ -2386,13 +2411,13 @@ impl PreparedProgramBuilder {
                     self.compiler_options.module_suffixes.as_deref(),
                 )
         {
-            return Err(PreparationError::new(
+            return Err(PreparationError::new_js(
                 PreparationErrorKind::InvalidData,
                 PreparationOperation::AddModuleResolution,
-                Some(extension_path.display().to_path_buf()),
+                Some(extension_path.display()),
                 format!(
                     "resolved module path does not match extension {}",
-                    module.extension().as_str()
+                    module.extension().as_js().to_string_lossy()
                 ),
             ));
         }
@@ -2404,10 +2429,10 @@ impl PreparedProgramBuilder {
                 let prepared = self
                     .require_source(*source, PreparationOperation::AddModuleResolution)
                     .map_err(|_| {
-                        PreparationError::new(
+                        PreparationError::new_js(
                             PreparationErrorKind::InvalidReference,
                             PreparationOperation::AddModuleResolution,
-                            Some(key.source().as_path().to_path_buf()),
+                            Some(key.source().as_js()),
                             format!(
                                 "resolved module {:?} references unknown SourceFileId {}",
                                 key.specifier(),
@@ -2432,10 +2457,10 @@ impl PreparedProgramBuilder {
                         .source_by_realpath
                         .contains_key(resolved_file.canonical());
                 if is_owned {
-                    return Err(PreparationError::new(
+                    return Err(PreparationError::new_js(
                         PreparationErrorKind::InvalidData,
                         PreparationOperation::AddModuleResolution,
-                        Some(resolved_file.display().to_path_buf()),
+                        Some(resolved_file.display()),
                         "an unloaded resolution target is already an owned prepared source",
                     ));
                 }
@@ -2456,10 +2481,10 @@ impl PreparedProgramBuilder {
         let prepared = self
             .require_source(source, PreparationOperation::AddTypeReferenceResolution)
             .map_err(|_| {
-                PreparationError::new(
+                PreparationError::new_js(
                     PreparationErrorKind::InvalidReference,
                     PreparationOperation::AddTypeReferenceResolution,
-                    Some(key.origin().canonical_path().as_path().to_path_buf()),
+                    Some(key.origin().canonical_path().as_js()),
                     format!(
                         "resolved type reference {:?} references unknown SourceFileId {}",
                         key.specifier(),
@@ -2497,25 +2522,25 @@ impl PreparedProgramBuilder {
             .iter()
             .any(|path| path.canonical() == target.canonical());
         if !matches_program_path && !matches_real && !matches_package_redirect {
-            return Err(PreparationError::new(
+            return Err(PreparationError::new_js(
                 PreparationErrorKind::InvalidData,
                 operation,
-                Some(target.display().to_path_buf()),
+                Some(target.display()),
                 format!(
                     "{label} target {} does not match SourceFileId {} ({})",
-                    target.canonical(),
+                    target.canonical().as_js().to_string_lossy(),
                     source.raw(),
-                    program_path
+                    program_path.as_js().to_string_lossy()
                 ),
             ));
         }
 
         match original_path {
             None if matches_package_redirect => Ok(()),
-            Some(original) if matches_package_redirect => Err(PreparationError::new(
+            Some(original) if matches_package_redirect => Err(PreparationError::new_js(
                 PreparationErrorKind::InvalidData,
                 operation,
-                Some(original.display().to_path_buf()),
+                Some(original.display()),
                 format!(
                     "{label} combines package redirection with an unowned lexical symlink path"
                 ),
@@ -2534,25 +2559,25 @@ impl PreparedProgramBuilder {
             {
                 Ok(())
             }
-            Some(original) => Err(PreparationError::new(
+            Some(original) => Err(PreparationError::new_js(
                 PreparationErrorKind::InvalidData,
                 operation,
-                Some(original.display().to_path_buf()),
+                Some(original.display()),
                 format!(
                     "{label} original path {} is not the lexical path for physical target {}",
-                    original.canonical(),
-                    target.canonical()
+                    original.canonical().as_js().to_string_lossy(),
+                    target.canonical().as_js().to_string_lossy()
                 ),
             )),
             None if matches_program_path => Ok(()),
-            None => Err(PreparationError::new(
+            None => Err(PreparationError::new_js(
                 PreparationErrorKind::InvalidData,
                 operation,
-                Some(target.display().to_path_buf()),
+                Some(target.display()),
                 format!(
                     "{label} physical target {} is missing its original lexical path {}",
-                    target.canonical(),
-                    program_path
+                    target.canonical().as_js().to_string_lossy(),
+                    program_path.as_js().to_string_lossy()
                 ),
             )),
         }
@@ -2561,7 +2586,7 @@ impl PreparedProgramBuilder {
 
 trait TableKey {
     fn canonical_path(&self) -> &CanonicalPath;
-    fn specifier(&self) -> &str;
+    fn specifier(&self) -> JsStr<'_>;
     fn mode(&self) -> ResolutionMode;
 }
 
@@ -2570,7 +2595,7 @@ impl TableKey for ResolutionKey {
         self.source()
     }
 
-    fn specifier(&self) -> &str {
+    fn specifier(&self) -> JsStr<'_> {
         self.specifier()
     }
 
@@ -2584,7 +2609,7 @@ impl TableKey for TypeReferenceResolutionKey {
         self.origin().canonical_path()
     }
 
-    fn specifier(&self) -> &str {
+    fn specifier(&self) -> JsStr<'_> {
         self.specifier()
     }
 
@@ -2603,10 +2628,10 @@ fn insert_resolution<K: Eq + Ord + TableKey, T: Eq>(
         if existing == &value {
             return Ok(());
         }
-        return Err(PreparationError::new(
+        return Err(PreparationError::new_js(
             PreparationErrorKind::IdentityConflict,
             operation,
-            Some(key.canonical_path().as_path().to_path_buf()),
+            Some(key.canonical_path().as_js()),
             format!(
                 "resolution key ({:?}, {:?}) has conflicting outcomes",
                 key.specifier(),

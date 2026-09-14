@@ -107,8 +107,13 @@ fn case_compiler_options(serialized: &Value) -> CompilerOptions {
                     Some(value.as_bool().expect("useUnknownInCatchVariables"));
             }
             "ignoreDeprecations" => {
-                options.ignore_deprecations =
-                    Some(value.as_str().expect("ignoreDeprecations").to_owned());
+                options.ignore_deprecations = Some(
+                    value
+                        .as_str()
+                        .expect("ignoreDeprecations")
+                        .to_owned()
+                        .into(),
+                );
             }
             other => panic!("unexpected stored compiler option {other}"),
         }
@@ -199,7 +204,11 @@ fn drive_case(
                     diagnostic.code(),
                     diagnostic.start,
                     diagnostic.length,
-                    diagnostic.file_name.clone(),
+                    diagnostic.file_name.as_ref().map(|name| {
+                        name.as_str()
+                            .expect("scalar diagnostic filename")
+                            .to_owned()
+                    }),
                 )
             })
             .collect(),

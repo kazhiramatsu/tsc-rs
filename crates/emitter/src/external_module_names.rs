@@ -1,3 +1,4 @@
+use tsc_diagnostics::{JsStr, JsString};
 use tsc_syntax::SourceFile;
 
 use crate::source_map::paths;
@@ -13,7 +14,7 @@ pub(crate) fn get_resolved_external_module_name(
     host: &dyn EmitHost,
     file: &SourceFile,
     reference_file: Option<&SourceFile>,
-) -> String {
+) -> JsString {
     file.module_name
         .as_deref()
         .filter(|name| !name.is_empty())
@@ -21,11 +22,11 @@ pub(crate) fn get_resolved_external_module_name(
             || {
                 external_module_name_from_path(
                     host,
-                    &file.file_name,
-                    reference_file.map(|file| file.file_name.as_str()),
+                    file.file_name.as_js(),
+                    reference_file.map(|file| file.file_name.as_js()),
                 )
             },
-            str::to_owned,
+            JsString::from,
         )
 }
 
@@ -34,21 +35,13 @@ pub(crate) fn get_resolved_external_module_name(
 /// tsc-span: _tsc.js:16552-16566
 fn external_module_name_from_path(
     host: &dyn EmitHost,
-    file_name: &str,
-    reference_path: Option<&str>,
-) -> String {
-    let cwd = paths::normalize_slashes(&host.current_directory().to_string_lossy());
+    file_name: JsStr<'_>,
+    reference_path: Option<JsStr<'_>>,
+) -> JsString {
+    let cwd = paths::normalize_slashes(host.current_directory());
     let directory = reference_path.map_or_else(
-        || paths::normalize_slashes(&host.common_source_directory().to_string_lossy()),
-        |path| {
-            let path = paths::normalize_slashes(path);
-            let root_length = paths::get_root_length(&path);
-            if root_length == path.len() {
-                return path;
-            }
-            let path = path.strip_suffix('/').unwrap_or(&path);
-            path[..root_length.max(path.rfind('/').unwrap_or(0))].to_owned()
-        },
+        || paths::normalize_slashes(host.common_source_directory()),
+        paths::directory_path,
     );
     let directory = paths::get_normalized_absolute_path(&directory, &cwd);
     let directory = if host.use_case_sensitive_file_names() {
@@ -64,27 +57,17 @@ fn external_module_name_from_path(
         host.use_case_sensitive_file_names(),
         false,
     );
-    // removeFileExtension, including its strict length check and ordered
-    // declaration extensions. Unknown and uppercase extensions are retained.
-    let extensionless = [
-        ".d.ts", ".d.mts", ".d.cts", ".mjs", ".mts", ".cjs", ".cts", ".ts", ".js", ".tsx", ".jsx",
-        ".json",
-    ]
-    .into_iter()
-    .find_map(|extension| {
-        (relative.len() > extension.len())
-            .then(|| relative.strip_suffix(extension))
-            .flatten()
-    })
-    .unwrap_or(&relative);
+    let extensionless = paths::remove_file_extension(&relative);
     let relative_name = extensionless == "."
         || extensionless == ".."
         || extensionless.starts_with("./")
         || extensionless.starts_with("../");
-    if reference_path.is_some() && paths::get_root_length(extensionless) == 0 && !relative_name {
-        format!("./{extensionless}")
+    if reference_path.is_some() && paths::get_root_length(&extensionless) == 0 && !relative_name {
+        let mut name = JsString::from("./");
+        name.push_js(extensionless.as_js());
+        name
     } else {
-        extensionless.to_owned()
+        extensionless
     }
 }
 
@@ -94,16 +77,16 @@ fn external_module_name_from_path(
 pub(crate) fn try_get_module_name_from_file(
     host: Option<&dyn EmitHost>,
     file: &SourceFile,
-) -> Option<String> {
+) -> Option<JsString> {
     if let Some(name) = file.module_name.as_deref().filter(|name| !name.is_empty()) {
-        return Some(name.to_owned());
+        return Some(name.into());
     }
     let host = host?;
     (!file.is_declaration_file
         && host
             .compiler_options()
             .out_file
-            .as_deref()
+            .as_ref()
             .is_some_and(|name| !name.is_empty()))
     .then(|| get_resolved_external_module_name(host, file, None))
 }
@@ -115,12 +98,12 @@ pub(crate) fn resolved_external_module_name_literal(
     resolver: &dyn EmitResolver,
     arena: &TransformArena,
     declaration: TransformNode,
-) -> Result<Option<String>, TransformError> {
+) -> Result<Option<JsString>, TransformError> {
     let Some(host) = host else { return Ok(None) };
     let out_file = host
         .compiler_options()
         .out_file
-        .as_deref()
+        .as_ref()
         .is_some_and(|name| !name.is_empty());
     let named_source = host.source_file_ids().iter().copied().any(|source| {
         host.source_file(source)

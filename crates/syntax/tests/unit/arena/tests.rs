@@ -9,7 +9,7 @@ fn finalizes_parent_links_and_error_aggregation() {
     let mut arena = NodeArena::new();
     let stmt = arena.alloc_node(
         NodeData::StringLiteral(StringLiteralData {
-            text: "x".to_owned(),
+            text: "x".into(),
             has_extended_unicode_escape: None,
         }),
         0,

@@ -2,6 +2,7 @@ use std::env;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use tsc_diagnostics::{JsStr, JsString};
 
 use crate::ordering::compare_utf16;
 use crate::{CompilerHost, HostError, HostErrorKind, HostOperation};
@@ -134,6 +135,54 @@ impl FsCompilerHost {
 }
 
 impl CompilerHost for FsCompilerHost {
+    fn current_directory_js(&self) -> Result<JsString, HostError> {
+        crate::js_path::from_native(
+            &self.current_directory()?,
+            HostOperation::CurrentDirectory,
+            HostErrorKind::InvalidData,
+        )
+    }
+
+    fn read_file_js(&self, path: JsStr<'_>) -> Result<Option<Vec<u8>>, HostError> {
+        let native = crate::js_path::filesystem_path(path, HostOperation::ReadFile)?;
+        self.read_file(&native)
+            .map_err(|error| retain_query_path(error, path, &native))
+    }
+
+    fn file_exists_js(&self, path: JsStr<'_>) -> Result<bool, HostError> {
+        let native = crate::js_path::filesystem_path(path, HostOperation::FileExists)?;
+        self.file_exists(&native)
+            .map_err(|error| retain_query_path(error, path, &native))
+    }
+
+    fn directory_exists_js(&self, path: JsStr<'_>) -> Result<bool, HostError> {
+        let native = crate::js_path::filesystem_path(path, HostOperation::DirectoryExists)?;
+        self.directory_exists(&native)
+            .map_err(|error| retain_query_path(error, path, &native))
+    }
+
+    fn read_directory_js(&self, path: JsStr<'_>) -> Result<Vec<JsString>, HostError> {
+        self.read_immediate_entries_js(path, false)
+    }
+
+    fn get_directories_js(&self, path: JsStr<'_>) -> Result<Vec<JsString>, HostError> {
+        self.read_immediate_entries_js(path, true)
+    }
+
+    fn realpath_js(&self, path: JsStr<'_>) -> Result<Option<JsString>, HostError> {
+        let native = crate::js_path::filesystem_path(path, HostOperation::Realpath)?;
+        self.realpath(&native)
+            .map_err(|error| retain_query_path(error, path, &native))?
+            .map(|observed| {
+                crate::js_path::from_native(
+                    &observed,
+                    HostOperation::Realpath,
+                    HostErrorKind::InvalidData,
+                )
+            })
+            .transpose()
+    }
+
     fn current_directory(&self) -> Result<PathBuf, HostError> {
         Ok(self.current_directory.clone())
     }
@@ -202,6 +251,44 @@ impl CompilerHost for FsCompilerHost {
         let physical = normalize_windows_realpath(physical);
         validate_observed_path(&physical, HostOperation::Realpath)?;
         Ok(Some(physical))
+    }
+}
+
+impl FsCompilerHost {
+    fn read_immediate_entries_js(
+        &self,
+        path: JsStr<'_>,
+        directories_only: bool,
+    ) -> Result<Vec<JsString>, HostError> {
+        let native = crate::js_path::filesystem_path(path, HostOperation::ReadDirectory)?;
+        self.read_immediate_entries(&native, directories_only)
+            .map_err(|error| retain_query_path(error, path, &native))?
+            .into_iter()
+            .map(|entry| {
+                let name = entry
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .expect("filesystem entries were validated as Unicode");
+                Ok(crate::js_path::join_observed_name(path, name))
+            })
+            .collect()
+    }
+}
+
+fn retain_query_path(error: HostError, requested: JsStr<'_>, native: &Path) -> HostError {
+    let original = error.path().and_then(|observed| {
+        let suffix = observed.strip_prefix(native).ok()?;
+        if suffix.as_os_str().is_empty() {
+            Some(requested.to_owned())
+        } else {
+            suffix
+                .to_str()
+                .map(|suffix| crate::js_path::join_observed_name(requested, suffix))
+        }
+    });
+    match original {
+        Some(original) => error.with_js_path(original),
+        None => error,
     }
 }
 

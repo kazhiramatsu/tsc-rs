@@ -21,7 +21,7 @@ fn flatten(chain: &MessageChain, indent: usize, text: &mut String) {
         text.push('\n');
         text.push_str(&"  ".repeat(indent));
     }
-    text.push_str(&chain.text);
+    text.push_str(chain.text.as_str().expect("scalar diagnostic observation"));
     for child in &chain.next {
         flatten(child, indent + 1, text);
     }
@@ -44,7 +44,7 @@ fn diagnostics(values: &[Diagnostic]) -> Value {
                         json!({
                             "code": related.message.code,
                             "category": format!("{:?}", related.message.category),
-                            "file": related.file_name,
+                            "file": scalar_json(&related.file_name),
                             "start": related.start,
                             "length": related.length,
                             "message": message,
@@ -56,7 +56,7 @@ fn diagnostics(values: &[Diagnostic]) -> Value {
             json!({
                 "code": diagnostic.code(),
                 "category": format!("{:?}", diagnostic.category()),
-                "file": diagnostic.file_name,
+                "file": scalar_json(&diagnostic.file_name),
                 "start": diagnostic.start,
                 "length": diagnostic.length,
                 "message": message,
@@ -72,7 +72,7 @@ fn options(case: &Value) -> CompilerOptions {
             "target" => options.target = Some(value.as_i64().unwrap() as i32),
             "module" => options.module = Some(value.as_i64().unwrap() as i32),
             "newLine" => options.new_line = Some(value.as_i64().unwrap() as i32),
-            "outFile" => options.out_file = value.as_str().map(str::to_owned),
+            "outFile" => options.out_file = value.as_str().map(Into::into),
             "sourceMap" => options.source_map = value.as_bool(),
             "declaration" => options.declaration = value.as_bool(),
             "declarationMap" => options.declaration_map = value.as_bool(),
@@ -136,7 +136,7 @@ fn prepare(case: &Value, libraries: &[(String, Vec<u8>)]) -> PreparedProgram {
     let mut sources = Vec::new();
     let mut loaded_libraries = Vec::new();
     for source in program.source_files() {
-        let name = source.path().display().to_string_lossy();
+        let name = source.path().display().scalar_test_path().to_string_lossy();
         if let Some(name) = name.strip_prefix("/lib/") {
             loaded_libraries.push(name.to_owned());
         } else {
@@ -177,12 +177,12 @@ fn write_record(artifact: &EmitArtifact, index: usize) -> Value {
         EmitArtifactKind::JavaScript => "javascript",
         _ => panic!("build info is outside the Bundle sink fixture"),
     };
-    json!({"index":index,"path":artifact.path(),"kind":kind,
+    json!({"index":index,"path":scalar_json(&artifact.path()),"kind":kind,
         "callback_utf8_base64":base64::engine::general_purpose::STANDARD.encode(artifact.callback_bytes()),
         "callback_utf8_bytes":artifact.callback_bytes().len(),"write_byte_order_mark":artifact.write_byte_order_mark(),
         "materialized_utf8_base64":base64::engine::general_purpose::STANDARD.encode(artifact.materialized_bytes()),
         "materialized_utf8_bytes":artifact.materialized_bytes().len(),"on_error_callback_present":true,
-        "source_files":artifact.source_files(),"data_before":data(artifact),"data_after":data(artifact),
+        "source_files":scalar_json(&artifact.source_files()),"data_before":data(artifact),"data_after":data(artifact),
         "sink_action":"write","sink_materialized":false,"on_error_messages":[]})
 }
 struct Sink<'a> {
@@ -244,7 +244,8 @@ impl OutputSink for Sink<'_> {
                 // Save actual materialized artifact bytes only on this path;
                 // callbacks, skipped outputs and failed writes remain separate.
                 let bytes = artifact.materialized_bytes();
-                self.materialized_files.push(json!({"path": artifact.path(),
+                self.materialized_files
+                    .push(json!({"path": scalar_json(&artifact.path()),
                     "utf8_base64": base64::engine::general_purpose::STANDARD.encode(&bytes),
                     "utf8_bytes": bytes.len()}));
                 record["sink_materialized"] = json!(true);
@@ -256,8 +257,8 @@ impl OutputSink for Sink<'_> {
 }
 fn emit_result(outcome: &EmitOutcome) -> Value {
     json!({"emit_skipped":outcome.emit_skipped(),"diagnostics":diagnostics(outcome.diagnostics()),
-        "emitted_files":outcome.emitted_files(),"source_maps":outcome.source_maps().map(|maps|maps.iter().map(|map|json!({
-            "input_source_file_names":map.input_source_files(),"source_map_json":map.canonical_json()
+        "emitted_files":scalar_json(&outcome.emitted_files()),"source_maps":outcome.source_maps().map(|maps|maps.iter().map(|map|json!({
+            "input_source_file_names":scalar_json(&map.input_source_files()),"source_map_json":map.canonical_json()
         })).collect::<Vec<_>>())})
 }
 
@@ -292,7 +293,7 @@ fn ordinary_bundle_sink_commands_match_complete_typescript_twice() {
                             ProgramSession::new(program).emit_command_for_harness(&mut sink)?;
                         fields["emit_result"] = emit_result(outcome.emit());
                         fields["reported_diagnostics"] = diagnostics(outcome.diagnostics());
-                        fields["status_writes"] = json!(outcome.status_writes());
+                        fields["status_writes"] = json!(scalar_json(&outcome.status_writes()));
                         fields["exit_code"] = json!(outcome.exit_code());
                         Ok(())
                     },
@@ -405,3 +406,11 @@ fn bundle_callback_exceptions_preserve_one_request_per_option() {
     }
     assert_eq!(compared, 4 * 2);
 }
+
+#[path = "../../program/tests/support/scalar_json.rs"]
+mod utf16_scalar_json;
+use utf16_scalar_json::observe as scalar_json;
+
+#[path = "../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

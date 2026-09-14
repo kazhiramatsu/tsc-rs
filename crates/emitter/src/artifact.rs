@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::path::{Path, PathBuf};
+use tsc_diagnostics::{JsStr, JsString};
 
 use tsc_diagnostics::{Diagnostic, DiagnosticList};
 
@@ -81,20 +81,20 @@ pub enum EmitArtifactKind {
 /// separate observable value.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EmitArtifact {
-    path: PathBuf,
+    path: JsString,
     callback_text: Box<str>,
     write_byte_order_mark: bool,
     kind: EmitArtifactKind,
-    source_files: Option<Box<[PathBuf]>>,
+    source_files: Option<Box<[JsString]>>,
     metadata: Option<EmitWriteMetadata>,
 }
 
 impl EmitArtifact {
     pub fn javascript(
-        path: impl Into<PathBuf>,
+        path: impl Into<JsString>,
         callback_text: impl Into<Box<str>>,
         write_byte_order_mark: bool,
-        source_files: Option<Vec<PathBuf>>,
+        source_files: Option<Vec<JsString>>,
         metadata: EmitTextMetadata,
     ) -> Self {
         Self::text(
@@ -108,10 +108,10 @@ impl EmitArtifact {
     }
 
     pub fn declaration(
-        path: impl Into<PathBuf>,
+        path: impl Into<JsString>,
         callback_text: impl Into<Box<str>>,
         write_byte_order_mark: bool,
-        source_files: Option<Vec<PathBuf>>,
+        source_files: Option<Vec<JsString>>,
         metadata: EmitTextMetadata,
     ) -> Self {
         Self::text(
@@ -125,9 +125,9 @@ impl EmitArtifact {
     }
 
     pub fn javascript_map(
-        path: impl Into<PathBuf>,
+        path: impl Into<JsString>,
         callback_text: impl Into<Box<str>>,
-        source_files: Option<Vec<PathBuf>>,
+        source_files: Option<Vec<JsString>>,
     ) -> Self {
         Self::map(
             path,
@@ -138,9 +138,9 @@ impl EmitArtifact {
     }
 
     pub fn declaration_map(
-        path: impl Into<PathBuf>,
+        path: impl Into<JsString>,
         callback_text: impl Into<Box<str>>,
-        source_files: Option<Vec<PathBuf>>,
+        source_files: Option<Vec<JsString>>,
     ) -> Self {
         Self::map(
             path,
@@ -151,7 +151,7 @@ impl EmitArtifact {
     }
 
     pub fn build_info(
-        path: impl Into<PathBuf>,
+        path: impl Into<JsString>,
         callback_text: impl Into<Box<str>>,
         metadata: EmitBuildInfoMetadata,
     ) -> Self {
@@ -166,11 +166,11 @@ impl EmitArtifact {
     }
 
     fn text(
-        path: impl Into<PathBuf>,
+        path: impl Into<JsString>,
         callback_text: impl Into<Box<str>>,
         write_byte_order_mark: bool,
         kind: EmitArtifactKind,
-        source_files: Option<Vec<PathBuf>>,
+        source_files: Option<Vec<JsString>>,
         metadata: EmitTextMetadata,
     ) -> Self {
         debug_assert!(matches!(
@@ -188,10 +188,10 @@ impl EmitArtifact {
     }
 
     fn map(
-        path: impl Into<PathBuf>,
+        path: impl Into<JsString>,
         callback_text: impl Into<Box<str>>,
         kind: EmitArtifactKind,
-        source_files: Option<Vec<PathBuf>>,
+        source_files: Option<Vec<JsString>>,
     ) -> Self {
         debug_assert!(matches!(
             kind,
@@ -207,8 +207,8 @@ impl EmitArtifact {
         }
     }
 
-    pub fn path(&self) -> &Path {
-        &self.path
+    pub fn path(&self) -> JsStr<'_> {
+        self.path.as_js()
     }
 
     pub fn callback_text(&self) -> &str {
@@ -229,7 +229,7 @@ impl EmitArtifact {
 
     /// Retains the distinction between an absent callback argument and an
     /// explicitly present empty source list.
-    pub fn source_files(&self) -> Option<&[PathBuf]> {
+    pub fn source_files(&self) -> Option<&[JsString]> {
         self.source_files.as_deref()
     }
 

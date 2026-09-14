@@ -222,7 +222,10 @@ fn empty_subclass_missing_property_reports_base_display() {
         assert!(
             message.text.contains("in type 'A'"),
             "substituted display: {}",
-            message.text
+            message
+                .text
+                .as_str()
+                .expect("scalar diagnostic observation")
         );
     });
 }
@@ -269,11 +272,17 @@ fn checked_js_empty_container_includes_later_expando_exports() {
             .diagnostics
             .iter()
             .map(|diagnostic| (
-                diagnostic.file_name.as_deref(),
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .map(|value| value.as_js().as_str().expect("scalar name observation")),
                 diagnostic.code(),
                 diagnostic.start.unwrap_or(u32::MAX),
                 diagnostic.length.unwrap_or(u32::MAX),
-                diagnostic.message_text(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation"),
             ))
             .collect::<Vec<_>>(),
         [(
@@ -318,11 +327,17 @@ x.accessor = 1;\n"
             .diagnostics
             .iter()
             .map(|diagnostic| (
-                diagnostic.file_name.as_deref(),
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .map(|value| value.as_js().as_str().expect("scalar name observation")),
                 diagnostic.code(),
                 diagnostic.start.unwrap_or(u32::MAX),
                 diagnostic.length.unwrap_or(u32::MAX),
-                diagnostic.message_text(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation"),
             ))
             .collect::<Vec<_>>(),
         [
@@ -659,7 +674,10 @@ fn subsequent_variable_declaration_reports_2403_with_related() {
                         diag.code(),
                         diag.start.unwrap_or(u32::MAX),
                         diag.length.unwrap_or(u32::MAX),
-                        diag.message_text().to_owned(),
+                        diag.message_text()
+                            .as_str()
+                            .expect("scalar diagnostic observation")
+                            .to_owned(),
                         diag.related.len(),
                     )
                 })

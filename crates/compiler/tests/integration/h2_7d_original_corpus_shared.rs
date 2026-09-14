@@ -131,6 +131,54 @@ fn libraries() -> BTreeMap<String, Vec<u8>> {
 struct OriginalCorpusHost(MemoryCompilerHost);
 
 impl CompilerHost for OriginalCorpusHost {
+    fn current_directory_js(&self) -> Result<tsc_diagnostics::JsString, tsc_host::HostError> {
+        self.0.current_directory_js()
+    }
+    fn read_file_js(
+        &self,
+        path: tsc_diagnostics::JsStr<'_>,
+    ) -> Result<Option<Vec<u8>>, tsc_host::HostError> {
+        self.0.read_file_js(path)
+    }
+    fn file_exists_js(
+        &self,
+        path: tsc_diagnostics::JsStr<'_>,
+    ) -> Result<bool, tsc_host::HostError> {
+        self.0.file_exists_js(path)
+    }
+    fn read_directory_js(
+        &self,
+        path: tsc_diagnostics::JsStr<'_>,
+    ) -> Result<Vec<tsc_diagnostics::JsString>, tsc_host::HostError> {
+        self.0.read_directory_js(path)
+    }
+    fn get_directories_js(
+        &self,
+        path: tsc_diagnostics::JsStr<'_>,
+    ) -> Result<Vec<tsc_diagnostics::JsString>, tsc_host::HostError> {
+        self.0.get_directories_js(path)
+    }
+    fn realpath_js(
+        &self,
+        path: tsc_diagnostics::JsStr<'_>,
+    ) -> Result<Option<tsc_diagnostics::JsString>, tsc_host::HostError> {
+        self.0.realpath_js(path)
+    }
+    fn directory_exists_js(
+        &self,
+        path: tsc_diagnostics::JsStr<'_>,
+    ) -> Result<bool, tsc_host::HostError> {
+        if self.0.directory_exists_js(path)? {
+            return Ok(true);
+        }
+        let mut lookup = path;
+        while let Some(prefix) = lookup.strip_suffix("/") {
+            lookup = prefix;
+        }
+        self.0
+            .directory_exists_js(if lookup.is_empty() { path } else { lookup })
+    }
+
     fn current_directory(&self) -> Result<PathBuf, tsc_host::HostError> {
         self.0.current_directory()
     }
@@ -243,13 +291,14 @@ fn projected_options(case: &Value, host: &dyn CompilerHost) -> (CompilerOptions,
         let plan = parse_config_root_plan(
             &CompilerConfigHost::new(host),
             ConfigRootPlanRequest {
-                file_name: name.to_owned(),
+                file_name: name.into(),
                 text: config["text"].as_str().unwrap().to_owned(),
                 base_path: Path::new(name)
                     .parent()
                     .unwrap()
-                    .to_string_lossy()
-                    .into_owned(),
+                    .to_str()
+                    .expect("scalar fixture config parent")
+                    .into(),
             },
         )
         .unwrap();
@@ -317,7 +366,10 @@ fn projected_options(case: &Value, host: &dyn CompilerHost) -> (CompilerOptions,
                     .unwrap()
                     .iter()
                     .map(|(pattern, substitutions)| {
-                        tsc_program::PathMapping::new(pattern, strings(substitutions))
+                        tsc_program::PathMapping::new(
+                            pattern,
+                            strings(substitutions).into_iter().map(Into::into).collect(),
+                        )
                     })
                     .collect();
                 program = match case["effective_options"]["pathsBasePath"].as_str() {
@@ -327,7 +379,7 @@ fn projected_options(case: &Value, host: &dyn CompilerHost) -> (CompilerOptions,
             }
             "pathsBasePath" => {
                 assert!(case["effective_options"]["paths"].is_object());
-                assert_eq!(program.paths_base_path(), value.as_str());
+                assert_eq!(program.paths_base_path(), value.as_str().map(Into::into));
             }
             "alwaysStrict" => options.always_strict = Some(value.as_bool().unwrap()),
             "checkJs" => options.check_js = Some(value.as_bool().unwrap()),
@@ -357,32 +409,37 @@ fn projected_options(case: &Value, host: &dyn CompilerHost) -> (CompilerOptions,
             "useDefineForClassFields" => {
                 options.use_define_for_class_fields = Some(value.as_bool().unwrap())
             }
-            "baseUrl" => options.base_url = Some(value.as_str().unwrap().to_owned()),
-            "declarationDir" => options.declaration_dir = Some(value.as_str().unwrap().to_owned()),
+            "baseUrl" => options.base_url = Some(value.as_str().unwrap().into()),
+            "declarationDir" => options.declaration_dir = Some(value.as_str().unwrap().into()),
             "ignoreDeprecations" => {
-                options.ignore_deprecations = Some(value.as_str().unwrap().to_owned())
+                options.ignore_deprecations = Some(value.as_str().unwrap().into())
             }
-            "mapRoot" => options.map_root = Some(value.as_str().unwrap().to_owned()),
-            "outDir" => options.out_dir = Some(value.as_str().unwrap().to_owned()),
-            "outFile" => options.out_file = Some(value.as_str().unwrap().to_owned()),
-            "rootDir" => options.root_dir = Some(value.as_str().unwrap().to_owned()),
-            "sourceRoot" => options.source_root = Some(value.as_str().unwrap().to_owned()),
+            "mapRoot" => options.map_root = Some(value.as_str().unwrap().into()),
+            "outDir" => options.out_dir = Some(value.as_str().unwrap().into()),
+            "outFile" => options.out_file = Some(value.as_str().unwrap().into()),
+            "rootDir" => options.root_dir = Some(value.as_str().unwrap().into()),
+            "sourceRoot" => options.source_root = Some(value.as_str().unwrap().into()),
             "noLib" => program = program.with_no_lib(value.as_bool().unwrap()),
-            "types" => program = program.with_types(strings(value)),
+            "types" => {
+                program = program.with_types(strings(value).into_iter().map(Into::into).collect())
+            }
             "typeRoots" => {
-                let cwd = host.current_directory().unwrap();
+                let cwd = host.current_directory_js().unwrap();
                 program = program.with_type_roots(
                     strings(value)
                         .into_iter()
                         .map(|path| {
-                            let display =
-                                tsc_program::canonical_emit_path(Path::new(&path), &cwd, true);
+                            let display = tsc_program::canonical_emit_path(
+                                path.as_str().into(),
+                                cwd.as_js(),
+                                true,
+                            );
                             let canonical = tsc_program::canonical_emit_path(
-                                Path::new(&path),
-                                &cwd,
+                                path.as_str().into(),
+                                cwd.as_js(),
                                 host.use_case_sensitive_file_names(),
                             );
-                            ProgramPath::from_trusted_parts(display, canonical).unwrap()
+                            ProgramPath::from_js_parts(display.as_js(), canonical.as_js()).unwrap()
                         })
                         .collect(),
                 );
@@ -445,7 +502,7 @@ fn message(chain: &MessageChain, indent: usize, text: &mut String) {
         text.push('\n');
         text.push_str(&"  ".repeat(indent));
     }
-    text.push_str(&chain.text);
+    text.push_str(chain.text.as_str().expect("scalar frozen diagnostic text"));
     for next in &chain.next {
         message(next, indent + 1, text);
     }
@@ -457,15 +514,15 @@ fn diagnostics(diagnostics: &[Diagnostic]) -> Value {
         let related = (d.related_information_present || !d.related.is_empty()).then(|| d.related.iter().map(|r| {
             let mut text = String::new(); message(&r.message, 0, &mut text);
             json!({"code":r.message.code,"category":format!("{:?}",r.message.category),
-                "file":r.file_name,"start":r.start,"length":r.length,"message":text,"related_information":null})
+                "file":r.file_name.as_ref().map(|value| scalar_observation(value.as_js())),"start":r.start,"length":r.length,"message":text,"related_information":null})
         }).collect::<Vec<_>>());
-        json!({"code":d.code(),"category":format!("{:?}",d.category()),"file":d.file_name,
+        json!({"code":d.code(),"category":format!("{:?}",d.category()),"file":d.file_name.as_ref().map(|value| scalar_observation(value.as_js())),
             "start":d.start,"length":d.length,"message":text,"related_information":related})
     }).collect::<Vec<_>>())
 }
 
 fn write(index: usize, artifact: &EmitArtifact) -> Value {
-    let path = artifact.path().to_string_lossy();
+    let path = scalar_observation(artifact.path());
     let kind = match artifact.kind() {
         EmitArtifactKind::JavaScript => "javascript",
         EmitArtifactKind::Declaration => "declaration",
@@ -487,7 +544,7 @@ fn write(index: usize, artifact: &EmitArtifact) -> Value {
         "materialized_utf8_base64":base64::engine::general_purpose::STANDARD.encode(artifact.materialized_bytes()),
         "materialized_utf8_bytes":artifact.materialized_bytes().len(),
         // OutputSink::write's Result is the typed equivalent of onError.
-        "on_error_callback_present":true,"source_files":artifact.source_files(),
+        "on_error_callback_present":true,"source_files":artifact.source_files().map(|values| values.iter().map(|value| scalar_observation(value.as_js())).collect::<Vec<_>>()),
         "data_present":artifact.metadata().is_some(),"data_keys":keys,
         "data_source_map_url_pos":position,"data_diagnostics":data_diagnostics,"data_build_info":null})
 }
@@ -499,9 +556,9 @@ fn observe(case: &Value, host: &dyn CompilerHost, libraries: &BTreeMap<String, V
     let mut standard_libraries = Vec::new();
     for source in program.source_files() {
         let path = source.path().display();
-        let name = path.to_str().unwrap();
+        let name = path.as_str().expect("scalar frozen source filename");
         // Check actual loaded source bytes independently from its observed order.
-        let bytes = host.read_file(path).unwrap().unwrap();
+        let bytes = host.read_file_js(path).unwrap().unwrap();
         let text = std::str::from_utf8(&bytes)
             .unwrap()
             .strip_prefix('\u{feff}')
@@ -527,7 +584,7 @@ fn observe(case: &Value, host: &dyn CompilerHost, libraries: &BTreeMap<String, V
             let writes = sink
                 .writes()
                 .iter()
-                .map(|a| (a.path(), digest(a.callback_bytes())))
+                .map(|a| (scalar_observation(a.path()), digest(a.callback_bytes())))
                 .collect::<Vec<_>>();
             panic!(
                 "ordinary Program/command: {error:?}; partial callback paths/SHA256: {writes:?}"
@@ -569,16 +626,16 @@ fn observe(case: &Value, host: &dyn CompilerHost, libraries: &BTreeMap<String, V
     }
     let maps = outcome.source_maps().map(|maps| {
         maps.iter().map(|map| json!({
-        "input_source_file_names":map.input_source_files(),"source_map_json":map.canonical_json()
+        "input_source_file_names":map.input_source_files().iter().map(|value| scalar_observation(value.as_js())).collect::<Vec<_>>(),"source_map_json":map.canonical_json()
     })).collect::<Vec<_>>()
     });
     json!({"program_source_order":sources,"standard_libraries":standard_libraries,
         "writes":sink.writes().iter().enumerate().map(|(i,a)| write(i,a)).collect::<Vec<_>>(),
         "reported_diagnostics":diagnostics(command.diagnostics()),"emit_refused":outcome.emit_skipped(),
         "emit_result":{"emit_skipped":outcome.emit_skipped(),"diagnostics":diagnostics(outcome.diagnostics()),
-            "emitted_files":outcome.emitted_files(),"source_maps":maps},
+            "emitted_files":outcome.emitted_files().map(|values| values.iter().map(|value| scalar_observation(value.as_js())).collect::<Vec<_>>()),"source_maps":maps},
         // Real cli::emit_command_status producer; no test-side status/exit inference.
-        "status_writes":command.status_writes(),"exit_code":command.exit_code()})
+        "status_writes":command.status_writes().iter().map(|value| scalar_observation(value.as_js())).collect::<Vec<_>>(),"exit_code":command.exit_code()})
 }
 
 fn short(value: &Value) -> String {
@@ -708,7 +765,7 @@ fn assert_reference(
                     let error = prepared(case, &host).unwrap_err();
                     assert!(
                         matches!(error, ProgramLoadError::InvalidInput {
-                        operation: ProgramLoadOperation::ValidateOptions, path: None, ref detail,
+                        operation: ProgramLoadOperation::ValidateOptions, path: None, js_path: None, ref detail,
                     } if detail == "emitting program rejects effective compilerOptions.noEmit=true"),
                         "{error:?}"
                     );
@@ -1114,4 +1171,13 @@ fn assert_output_matrix_cases(
         );
     }
     exact
+}
+
+// This legacy JSON schema owns scalar strings. Reject unexpected lone units
+// explicitly at the observation boundary instead of changing their identity.
+fn scalar_observation(value: tsc_diagnostics::JsStr<'_>) -> String {
+    value
+        .as_str()
+        .expect("non-scalar JS value cannot match this scalar frozen observation")
+        .to_owned()
 }

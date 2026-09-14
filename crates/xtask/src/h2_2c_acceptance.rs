@@ -376,7 +376,12 @@ fn assert_exact_writes(
         let expected_path = Path::new(string(expected, "path")?);
         let expected_bytes = base64::engine::general_purpose::STANDARD
             .decode(string(expected, "callback_utf8_base64")?)?;
-        if actual.path() != expected_path
+        if std::path::Path::new(
+            actual
+                .path()
+                .as_str()
+                .expect("scalar acceptance output path"),
+        ) != expected_path
             || actual.callback_text().as_bytes() != expected_bytes
             || actual.callback_text().len() as u64
                 != expected["callback_utf8_bytes"].as_u64().unwrap_or(u64::MAX)
@@ -395,7 +400,7 @@ fn assert_exact_writes(
             return Err(failure(format!(
                 "{case_id}: write {index} path or exact bytes differ: expected_path={} actual_path={} expected_callback_sha256={} actual_callback_sha256={} expected_materialized_sha256={} actual_materialized_sha256={} expected_bom={} actual_bom={} {difference}",
                 expected_path.display(),
-                actual.path().display(),
+                std::path::Path::new(actual.path().as_str().expect("scalar acceptance output path")).display(),
                 string(expected, "callback_utf8_sha256")?,
                 sha256(actual.callback_text().as_bytes()),
                 string(expected, "materialized_utf8_sha256")?,
@@ -412,7 +417,9 @@ fn assert_exact_writes(
             .source_files()
             .unwrap_or_default()
             .iter()
-            .map(|source| source.to_string_lossy())
+            .map(|source| {
+                std::borrow::Cow::Borrowed(source.as_str().expect("scalar acceptance source path"))
+            })
             .collect::<Vec<_>>();
         if actual_sources
             .iter()
@@ -600,7 +607,7 @@ fn expected_typed_activity(
     activity
 }
 
-fn parse_prepared_source(
+pub(crate) fn parse_prepared_source(
     options: &CompilerOptions,
     source: &PreparedSourceFile,
     path: &str,
@@ -644,7 +651,7 @@ fn parse_prepared_source(
     )
 }
 
-fn is_declaration_file_path(lower_path: &str) -> bool {
+pub(crate) fn is_declaration_file_path(lower_path: &str) -> bool {
     lower_path.ends_with(".d.ts")
         || lower_path.ends_with(".d.cts")
         || lower_path.ends_with(".d.mts")
@@ -711,7 +718,7 @@ fn flatten_message_chain(chain: &MessageChain, indent: usize, output: &mut Strin
             output.push_str("  ");
         }
     }
-    output.push_str(&chain.text);
+    output.push_str(chain.text.as_str().expect("scalar acceptance diagnostic"));
     for child in &chain.next {
         flatten_message_chain(child, indent + 1, output);
     }
@@ -732,7 +739,7 @@ fn normalize_diagnostic(diagnostic: &Diagnostic) -> Value {
     json!({
         "code": diagnostic.code(),
         "category": diagnostic_category(diagnostic.category()),
-        "file": diagnostic.file_name,
+        "file": diagnostic.file_name.as_ref().map(|value| value.as_str().expect("scalar acceptance filename")),
         "start": diagnostic.start,
         "length": diagnostic.length,
         "message": message,
@@ -2424,7 +2431,14 @@ fn count_diverging_writes(expected: &[Value], actual: &MemoryOutputSink) -> u64 
     let pairs = expected.len().min(actual.writes().len());
     for (expected, actual) in expected.iter().zip(actual.writes()).take(pairs) {
         let path_matches = string(expected, "path")
-            .map(|path| actual.path() == Path::new(path))
+            .map(|path| {
+                std::path::Path::new(
+                    actual
+                        .path()
+                        .as_str()
+                        .expect("scalar acceptance output path"),
+                ) == Path::new(path)
+            })
             .unwrap_or(false);
         let bytes_match = string(expected, "callback_utf8_sha256")
             .map(|sha| sha256(actual.callback_text().as_bytes()) == sha)
@@ -2849,13 +2863,16 @@ fn count_diverging_writes_with_data(expected: &[Value], actual: &MemoryOutputSin
     diverging
 }
 
-fn emitted_files_match(expected: &Value, actual: Option<&[PathBuf]>) -> bool {
+fn emitted_files_match(expected: &Value, actual: Option<&[tsc_types::JsString]>) -> bool {
     match (expected.as_array(), actual) {
         (None, None) => expected.is_null(),
         (Some(expected), Some(actual)) => {
             expected.len() == actual.len()
                 && expected.iter().zip(actual).all(|(expected, actual)| {
-                    expected.as_str().map(Path::new) == Some(actual.as_path())
+                    expected.as_str().map(Path::new)
+                        == Some(Path::new(
+                            actual.as_str().expect("scalar acceptance output path"),
+                        ))
                 })
         }
         _ => false,
@@ -2876,7 +2893,12 @@ fn source_maps_match(
                             names.len() == actual.input_source_files().len()
                                 && names.iter().zip(actual.input_source_files()).all(
                                     |(name, actual)| {
-                                        name.as_str().map(Path::new) == Some(actual.as_path())
+                                        name.as_str().map(Path::new)
+                                            == Some(Path::new(
+                                                actual
+                                                    .as_str()
+                                                    .expect("scalar acceptance output path"),
+                                            ))
                                     },
                                 )
                         }
@@ -3057,12 +3079,14 @@ fn expected_write_bytes(write: &Value, prefix: &str) -> Result<Vec<u8>, Box<dyn 
     Ok(bytes)
 }
 
-fn source_files_value(files: Option<&[PathBuf]>) -> Value {
+fn source_files_value(files: Option<&[tsc_types::JsString]>) -> Value {
     files.map_or(Value::Null, |files| {
         Value::Array(
             files
                 .iter()
-                .map(|path| Value::String(path.to_string_lossy().into_owned()))
+                .map(|path| {
+                    Value::String(path.as_str().expect("scalar acceptance path").to_owned())
+                })
                 .collect(),
         )
     })
@@ -3148,7 +3172,12 @@ fn vectorize_writes(
                     )));
                 }
                 let expected_callback = expected_write_bytes(expected, "callback")?;
-                let legacy_base_diverging = actual.path() != Path::new(expected_path)
+                let legacy_base_diverging = std::path::Path::new(
+                    actual
+                        .path()
+                        .as_str()
+                        .expect("scalar acceptance output path"),
+                ) != Path::new(expected_path)
                     || actual.kind() != expected_kind
                     || actual.callback_text().as_bytes() != expected_callback
                     || expected["write_byte_order_mark"].as_bool()
@@ -3160,7 +3189,16 @@ fn vectorize_writes(
                     index,
                     "path",
                     &Value::String(expected_path.to_owned()),
-                    Value::String(actual.path().to_string_lossy().into_owned()),
+                    Value::String(
+                        std::path::Path::new(
+                            actual
+                                .path()
+                                .as_str()
+                                .expect("scalar acceptance output path"),
+                        )
+                        .to_string_lossy()
+                        .into_owned(),
+                    ),
                 );
                 compare_vector_value(
                     vector,
@@ -3300,7 +3338,7 @@ fn vectorize_writes(
                 index,
                 "presence",
                 json!({
-                    "path": actual.path().to_string_lossy(),
+                    "path": std::path::Path::new(actual.path().as_str().expect("scalar acceptance output path")).to_string_lossy(),
                     "kind": artifact_kind_value(actual.kind()),
                 }),
             ),
@@ -3311,12 +3349,14 @@ fn vectorize_writes(
     Ok(diverging)
 }
 
-fn emitted_files_value(actual: Option<&[PathBuf]>) -> Value {
+fn emitted_files_value(actual: Option<&[tsc_types::JsString]>) -> Value {
     actual.map_or(Value::Null, |paths| {
         Value::Array(
             paths
                 .iter()
-                .map(|path| Value::String(path.to_string_lossy().into_owned()))
+                .map(|path| {
+                    Value::String(path.as_str().expect("scalar acceptance path").to_owned())
+                })
                 .collect(),
         )
     })
@@ -3329,7 +3369,11 @@ fn source_maps_value(actual: Option<&[tsc_compiler::SourceMapObservation]>) -> V
                 .map(|map| {
                     json!({
                         "input_source_file_names": map.input_source_files().iter()
-                            .map(|path| path.to_string_lossy().into_owned())
+                            .map(|path| {
+                                path.as_str()
+                                    .expect("scalar acceptance source path")
+                                    .to_owned()
+                            })
                             .collect::<Vec<_>>(),
                         "source_map_json": map.canonical_json(),
                     })
@@ -5760,7 +5804,12 @@ fn assert_h2_7b_effective_declaration_options(
         ),
         (
             "declarationDir",
-            optional_string_value(options.declaration_dir.as_deref()),
+            optional_string_value(
+                options
+                    .declaration_dir
+                    .as_ref()
+                    .map(|value| value.as_str().expect("scalar acceptance option")),
+            ),
         ),
         ("stripInternal", optional_bool_value(options.strip_internal)),
         (
@@ -5781,11 +5830,21 @@ fn assert_h2_7b_effective_declaration_options(
         ("inlineSources", optional_bool_value(options.inline_sources)),
         (
             "sourceRoot",
-            optional_string_value(options.source_root.as_deref()),
+            optional_string_value(
+                options
+                    .source_root
+                    .as_ref()
+                    .map(|value| value.as_str().expect("scalar acceptance option")),
+            ),
         ),
         (
             "mapRoot",
-            optional_string_value(options.map_root.as_deref()),
+            optional_string_value(
+                options
+                    .map_root
+                    .as_ref()
+                    .map(|value| value.as_str().expect("scalar acceptance option")),
+            ),
         ),
     ];
     for (name, actual) in actual {

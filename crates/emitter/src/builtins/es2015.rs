@@ -16,8 +16,8 @@
 //! composition edge: both converted-loop call sites re-emit
 //! `yield* call` with `EmitFlags::ITERATOR` stamped on the call, which
 //! B-3's `visitYieldExpression` consumer-skips (no `__values` wrap).
-//! Tagged-template lowering is the B-5 shared module; the owner's
-//! `visitTaggedTemplateExpression` arm is a typed fail-closed seam here.
+//! Tagged-template lowering shares the algorithm and value owners with ES2018;
+//! this visitor uses ProcessLevel::All.
 
 use std::collections::BTreeMap;
 
@@ -1310,41 +1310,13 @@ impl Es2015Visitor<'_, '_, '_> {
         )
     }
 
-    pub(super) fn create_string_literal(
+    pub(super) fn create_string_literal<'t>(
         &mut self,
-        text: &str,
+        text: impl Into<tsc_types::JsStr<'t>>,
     ) -> Result<TransformNode, TransformError> {
-        let source = self.source;
-        self.context.factory()?.create_node(
-            source,
-            NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
-                text: text.to_owned(),
-                has_extended_unicode_escape: None,
-            }),
-            TransformFlags::NONE,
-        )
-    }
-
-    /// `factory.createStringLiteral(node.text)` for a string literal or
-    /// template fragment: tsc's `text` is a lossless JavaScript string, so
-    /// the created literal owns the JavaScript value the tree knows for
-    /// `literal` (`TransformArena::literal_code_units`: a node-owned value,
-    /// the parsed spelling, or a clone's original); only a literal without
-    /// any lossless value is created from the cooked `text`.
-    pub(super) fn create_string_literal_with_value_of(
-        &mut self,
-        literal: TransformNode,
-        text: &str,
-    ) -> Result<TransformNode, TransformError> {
-        match self.context.arena().literal_code_units(literal)? {
-            Some(units) => {
-                let source = self.source;
-                self.context
-                    .factory()?
-                    .create_string_literal_from_code_units(source, &units, false)
-            }
-            None => self.create_string_literal(text),
-        }
+        self.context
+            .factory()?
+            .create_string_literal(self.source, text.into(), false)
     }
 
     fn create_numeric_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
@@ -2783,7 +2755,7 @@ impl Es2015Visitor<'_, '_, '_> {
                 })
             }
         };
-        let created = self.create_string_literal_with_value_of(node, &text)?;
+        let created = self.create_string_literal(&text)?;
         self.set_text_range(created, node)?;
         Ok(created)
     }
@@ -2800,10 +2772,10 @@ impl Es2015Visitor<'_, '_, '_> {
                 data.has_extended_unicode_escape == Some(true),
                 data.text.clone(),
             ),
-            _ => (false, String::new()),
+            _ => (false, tsc_types::JsString::new()),
         };
         if has_escape {
-            let created = self.create_string_literal_with_value_of(node, &text)?;
+            let created = self.create_string_literal(&text)?;
             self.set_text_range(created, node)?;
             return Ok(created);
         }
@@ -5168,7 +5140,10 @@ pub(super) fn skip_trivia_bytes(text: &str, position: u32) -> u32 {
 // ---------------------------------------------------------------------------
 
 impl Es2015Visitor<'_, '_, '_> {
-    fn directive_text(&mut self, statement: TransformNode) -> Result<String, TransformError> {
+    fn directive_text(
+        &mut self,
+        statement: TransformNode,
+    ) -> Result<tsc_types::JsString, TransformError> {
         let expression = match &self.context.arena().node(statement)?.data {
             NodeData::ExpressionStatement(data) => data.expression,
             _ => None,
@@ -6135,7 +6110,7 @@ impl Es2015Visitor<'_, '_, '_> {
         &mut self,
         node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let (head, head_text, spans) = {
+        let (head_text, spans) = {
             let NodeData::TemplateExpression(data) = &self.context.arena().node(node)?.data else {
                 return Err(assembly_kind_error(
                     SyntaxKind::TemplateExpression,
@@ -6152,11 +6127,11 @@ impl Es2015Visitor<'_, '_, '_> {
                     return Err(assembly_kind_error(SyntaxKind::TemplateHead, "head"));
                 }
             };
-            (head, head_text, self.array_nodes(data.template_spans)?)
+            (head_text, self.array_nodes(data.template_spans)?)
         };
-        let mut expression = self.create_string_literal_with_value_of(head, &head_text)?;
+        let mut expression = self.create_string_literal(&head_text)?;
         for span in spans {
-            let (span_expression, literal, literal_text) = {
+            let (span_expression, literal_text) = {
                 let NodeData::TemplateSpan(data) = &self.context.arena().node(span)?.data else {
                     return Err(assembly_kind_error(SyntaxKind::TemplateSpan, "span"));
                 };
@@ -6178,11 +6153,11 @@ impl Es2015Visitor<'_, '_, '_> {
                         ))
                     }
                 };
-                (span_expression, literal, literal_text)
+                (span_expression, literal_text)
             };
             let mut arguments = vec![self.visit_required_expression(span_expression)?];
             if !literal_text.is_empty() {
-                arguments.push(self.create_string_literal_with_value_of(literal, &literal_text)?);
+                arguments.push(self.create_string_literal(&literal_text)?);
             }
             let concat = self.create_property_access_text(expression, "concat")?;
             expression = self.create_call(concat, arguments)?;
@@ -6628,12 +6603,12 @@ impl Es2015Visitor<'_, '_, '_> {
     /// tsc-hash: 5770eff9fe2f071f83fce9a7aaff9c54fa6f09141154c33c0f7f3e5dc86ee117
     /// tsc-span: _tsc.js:15861-15887
     ///
-    /// Accessor-pair name identity (identifier escaped text; literal text;
+    /// Accessor-pair name identity (identifier escaped text; escaped literal text;
     /// literal-computed unwrap; else dynamic → None).
     fn property_name_identity(
         &self,
         member: TransformNode,
-    ) -> Result<Option<String>, TransformError> {
+    ) -> Result<Option<tsc_types::EscapedName>, TransformError> {
         let name = match &self.context.arena().node(member)?.data {
             NodeData::GetAccessor(data) => data.name,
             NodeData::SetAccessor(data) => data.name,
@@ -6644,13 +6619,23 @@ impl Es2015Visitor<'_, '_, '_> {
         let Some(name) = name else { return Ok(None) };
         let name = self.node(name);
         match &self.context.arena().node(name)?.data {
-            NodeData::Identifier(data) => Ok(Some(data.escaped_text.clone())),
-            NodeData::StringLiteral(data) => Ok(Some(data.text.clone())),
-            NodeData::NumericLiteral(data) => Ok(Some(data.text.clone())),
+            NodeData::Identifier(data) => Ok(Some(
+                tsc_types::EscapedName::from_identifier_escaped_text(&data.escaped_text),
+            )),
+            NodeData::StringLiteral(data) => {
+                Ok(Some(tsc_types::EscapedName::escape(data.text.as_js())))
+            }
+            NodeData::NumericLiteral(data) => {
+                Ok(Some(tsc_types::EscapedName::escape((&data.text).into())))
+            }
             NodeData::ComputedPropertyName(data) => match data.expression {
                 Some(expression) => match &self.context.arena().node(self.node(expression))?.data {
-                    NodeData::StringLiteral(literal) => Ok(Some(literal.text.clone())),
-                    NodeData::NumericLiteral(literal) => Ok(Some(literal.text.clone())),
+                    NodeData::StringLiteral(literal) => {
+                        Ok(Some(tsc_types::EscapedName::escape(literal.text.as_js())))
+                    }
+                    NodeData::NumericLiteral(literal) => {
+                        Ok(Some(tsc_types::EscapedName::escape((&literal.text).into())))
+                    }
                     _ => Ok(None),
                 },
                 None => Ok(None),
@@ -6778,13 +6763,13 @@ impl Es2015Visitor<'_, '_, '_> {
                             "expression",
                         ))?;
                 let clone = self.clone_node(expression)?;
-                self.set_text_range(clone, member_name)?;
-                Ok(clone)
+                self.set_text_range(clone, expression)?;
+                self.context.factory()?.set_parent_from(clone, expression)
             }
             NodeData::StringLiteral(_) | NodeData::NumericLiteral(_) => {
                 let clone = self.clone_node(member_name)?;
                 self.set_text_range(clone, member_name)?;
-                Ok(clone)
+                self.context.factory()?.set_parent_from(clone, member_name)
             }
             _ => Err(assembly_kind_error(
                 self.kind(member_name)?,
@@ -7268,24 +7253,6 @@ impl Es2015Visitor<'_, '_, '_> {
         self.create_call(helper, vec![expression])
     }
 
-    /// tsc-port: createTemplateObjectHelper @6.0.3
-    /// tsc-hash: 270715e6924c8655b32e871c56808bfea6e6230a85a9e66ee9a447828277a5a9
-    /// tsc-span: _tsc.js:25861-25869
-    pub(super) fn create_template_object_helper_call(
-        &mut self,
-        cooked: TransformNode,
-        raw: TransformNode,
-    ) -> Result<TransformNode, TransformError> {
-        self.context
-            .request_emit_helper(helpers::make_template_object())?;
-        let source = self.source;
-        let helper = self
-            .context
-            .factory()?
-            .create_unscoped_helper_identifier(source, EmitHelperName::MakeTemplateObject)?;
-        self.create_call(helper, vec![cooked, raw])
-    }
-
     /// tsc-port: recordTaggedTemplateString @6.0.3
     /// tsc-hash: e44a8b5f8a01f5174faa2e9ba2d0e629b9175d698d9290e9a78ab4ca9e8126fc
     /// tsc-span: _tsc.js:104759-104764
@@ -7296,27 +7263,6 @@ impl Es2015Visitor<'_, '_, '_> {
         let declaration = self.create_variable_declaration_plain(temp, None)?;
         self.tagged_template_string_declarations.push(declaration);
         Ok(())
-    }
-
-    /// `isExternalModule(currentSourceFile)` — the parse record's
-    /// external-module indicator.
-    pub(super) fn is_external_module_source(&self) -> Result<bool, TransformError> {
-        Ok(self
-            .context
-            .arena()
-            .source(self.source)?
-            .syntax()
-            .external_module_indicator
-            .is_some())
-    }
-
-    /// Shared-module read access to the arena record (the
-    /// tagged-template module's data walks).
-    pub(super) fn arena_node(
-        &self,
-        node: TransformNode,
-    ) -> Result<&tsc_syntax::Node, TransformError> {
-        self.context.arena().node(node)
     }
 
     /// `emitHelpers().createExtendsHelper(name)` — `__extends(name,
@@ -12633,3 +12579,69 @@ impl Es2015Visitor<'_, '_, '_> {
 #[cfg(test)]
 #[path = "../../tests/unit/es2015/tests.rs"]
 mod tests;
+
+impl super::tagged_template::TaggedTemplateHost for Es2015Visitor<'_, '_, '_> {
+    fn context(&self) -> &TransformationContext {
+        self.context
+    }
+    fn context_mut(&mut self) -> &mut TransformationContext {
+        self.context
+    }
+    fn source(&self) -> TransformSourceId {
+        self.source
+    }
+    fn create_generated_identifier(
+        &mut self,
+        binding: &TargetBinding,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_generated_identifier(binding)
+    }
+    fn create_array_literal(
+        &mut self,
+        elements: Vec<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_array_literal(elements)
+    }
+    fn create_void_zero(&mut self) -> Result<TransformNode, TransformError> {
+        self.create_void_zero()
+    }
+    fn create_call(
+        &mut self,
+        tag: TransformNode,
+        arguments: Vec<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_call(tag, arguments)
+    }
+    fn create_assignment(
+        &mut self,
+        left: TransformNode,
+        right: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_assignment(left, right)
+    }
+    fn visit_required_expression(
+        &mut self,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.visit_required_expression(node)
+    }
+    fn visit_each_child_required(
+        &mut self,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.visit_each_child_required(node)
+    }
+    fn allocate_numbered_binding(&mut self, text: &str) -> Result<TargetBinding, TransformError> {
+        self.allocate_numbered_binding(text)
+    }
+    fn record_tagged_template_string(&mut self, name: TransformNode) -> Result<(), TransformError> {
+        self.record_tagged_template_string(name)
+    }
+    fn create_logical_or(
+        &mut self,
+        left: TransformNode,
+        right: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_logical_or(left, right)
+    }
+}

@@ -7,10 +7,10 @@ use std::rc::Rc;
 use serde_json::Value;
 use tsc_emitter::{
     create_printer, transform_nodes, DeclarationPrintHandlers, EmitResolverError,
-    EmitResolverMethod, GeneratedIdentifierFlags, GlobalNameOracle, JavaScriptString, NewLineKind,
-    PrintRequest, PrinterError, PrinterOptions, SourceFileTextMode, StandaloneWriter, TextWriter,
-    TransformArena, TransformError, TransformFlags, TransformNode, TransformRoot,
-    TransformSourceId, TransformationContext, TransformationResult, Transformer,
+    EmitResolverMethod, GeneratedIdentifierFlags, GlobalNameOracle, NewLineKind, PrintRequest,
+    PrinterError, PrinterOptions, SourceFileTextMode, StandaloneWriter, TextWriter, TransformArena,
+    TransformError, TransformFlags, TransformNode, TransformRoot, TransformSourceId,
+    TransformationContext, TransformationResult, Transformer,
 };
 use tsc_syntax::{
     for_each_child,
@@ -551,28 +551,28 @@ impl Transformer for SyntheticPrinterNodeTransformer {
             (
                 SyntaxKind::NoSubstitutionTemplateLiteral,
                 NodeData::NoSubstitutionTemplateLiteral(NoSubstitutionTemplateLiteralData {
-                    text: String::new(),
+                    text: tsc_types::JsString::new(),
                     raw_text: None,
                 }),
             ),
             (
                 SyntaxKind::TemplateHead,
                 NodeData::TemplateHead(TemplateHeadData {
-                    text: String::new(),
+                    text: tsc_types::JsString::new(),
                     raw_text: None,
                 }),
             ),
             (
                 SyntaxKind::TemplateMiddle,
                 NodeData::TemplateMiddle(TemplateMiddleData {
-                    text: String::new(),
+                    text: tsc_types::JsString::new(),
                     raw_text: None,
                 }),
             ),
             (
                 SyntaxKind::TemplateTail,
                 NodeData::TemplateTail(TemplateTailData {
-                    text: String::new(),
+                    text: tsc_types::JsString::new(),
                     raw_text: None,
                 }),
             ),
@@ -582,12 +582,10 @@ impl Transformer for SyntheticPrinterNodeTransformer {
             let node = context
                 .factory()?
                 .create_node(source, data, TransformFlags::NONE)?;
-            context
-                .arena_mut()?
-                .literal_properties_mut(node)?
-                .set_javascript_string_value(JavaScriptString::from_code_units(vec![
-                    0xd83d, 0xde00, 0xd800,
-                ]));
+            context.arena_mut()?.set_literal_value(
+                node,
+                tsc_types::JsString::from_code_units(&[0xd83d, 0xde00, 0xd800]),
+            )?;
             templates.push((kind, node));
         }
 
@@ -765,13 +763,7 @@ fn synthesized_template_fragments_match_typescript_literal_provenance() {
                 .find_map(|(candidate, node)| (*candidate == kind).then_some(*node))
                 .unwrap();
             assert_eq!(
-                serde_json::json!(result
-                    .arena()
-                    .literal_properties(node)
-                    .unwrap()
-                    .javascript_string_value()
-                    .unwrap()
-                    .code_units()),
+                serde_json::json!(result.arena().literal_code_units(node).unwrap().unwrap()),
                 case["units"]
             );
             let synthetic = print_standalone_value(

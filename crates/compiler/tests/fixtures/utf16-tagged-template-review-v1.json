@@ -1,0 +1,134 @@
+{
+  "version": 1,
+  "status": "Design API observations only; not a complete-command, native, source-map, or declaration qualification",
+  "root": "/Users/hiramatsu/dev/tsc-rs-declaration-comment-design",
+  "head": "f0aaa2de20bdf8edfc14a422fe93dc38aa545ba4",
+  "typescript": "6.0.3",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "tsc_sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
+  "observer_sha256": "295ec625e49cb6d088d7c513bcafb5a53e910c2b37eb3132ef10b26f958e8085",
+  "api": "transpileModule",
+  "repetitions": 2,
+  "transpile_executions": 6,
+  "cases": [
+    {
+      "id": "object-spread-tag",
+      "source": "export {}; ({...o}).f`ok`;",
+      "target": 4,
+      "source_sha256": "7e38922b517bcf915e247f1c56b14ca40e8f1f5b3683924835f136a53a9dcf54",
+      "options": {
+        "target": 4,
+        "module": 99,
+        "newLine": 1
+      },
+      "runs": [
+        {
+          "output_text": "(Object.assign({}, o)).f `ok`;\nexport {};\n",
+          "output_utf8_sha256": "aad746845b13bbdaaf42a32bc30b7e5a4f31f8dcea4e07ecdc014957ff983108",
+          "template_call_binding_numbers": [],
+          "template_tail_declarations": []
+        },
+        {
+          "output_text": "(Object.assign({}, o)).f `ok`;\nexport {};\n",
+          "output_utf8_sha256": "aad746845b13bbdaaf42a32bc30b7e5a4f31f8dcea4e07ecdc014957ff983108",
+          "template_call_binding_numbers": [],
+          "template_tail_declarations": []
+        }
+      ]
+    },
+    {
+      "id": "nested-invalid-tag",
+      "source": "export {}; a`\\unicode``ok`;",
+      "target": 4,
+      "source_sha256": "7d4d52aafc3a44e5731abc1eee9309b12d7c400425e3d46c4fd790e08664ba49",
+      "options": {
+        "target": 4,
+        "module": 99,
+        "newLine": 1
+      },
+      "runs": [
+        {
+          "output_text": "var __makeTemplateObject = (this && this.__makeTemplateObject) || function (cooked, raw) {\n    if (Object.defineProperty) { Object.defineProperty(cooked, \"raw\", { value: raw }); } else { cooked.raw = raw; }\n    return cooked;\n};\na(templateObject_2 || (templateObject_2 = __makeTemplateObject([void 0], [\"\\\\unicode\"]))) `ok`;\nvar templateObject_1, templateObject_2;\nexport {};\n",
+          "output_utf8_sha256": "18f1f37068b9891ccf7345ce7c55ee06c6f41cdfadafd5f991058d18ef8973a4",
+          "template_call_binding_numbers": [
+            2
+          ],
+          "template_tail_declarations": [
+            "var templateObject_1, templateObject_2;"
+          ]
+        },
+        {
+          "output_text": "var __makeTemplateObject = (this && this.__makeTemplateObject) || function (cooked, raw) {\n    if (Object.defineProperty) { Object.defineProperty(cooked, \"raw\", { value: raw }); } else { cooked.raw = raw; }\n    return cooked;\n};\na(templateObject_2 || (templateObject_2 = __makeTemplateObject([void 0], [\"\\\\unicode\"]))) `ok`;\nvar templateObject_1, templateObject_2;\nexport {};\n",
+          "output_utf8_sha256": "18f1f37068b9891ccf7345ce7c55ee06c6f41cdfadafd5f991058d18ef8973a4",
+          "template_call_binding_numbers": [
+            2
+          ],
+          "template_tail_declarations": [
+            "var templateObject_1, templateObject_2;"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "es5-valid-invalid-valid",
+      "source": "export {}; a`first`; a`\\unicode`; a`last`;",
+      "target": 1,
+      "source_sha256": "e94905b991240fe8ffb3e854cbaf20716b5220893d02d47307b051fd649736dd",
+      "options": {
+        "target": 1,
+        "module": 99,
+        "newLine": 1
+      },
+      "runs": [
+        {
+          "output_text": "var __makeTemplateObject = (this && this.__makeTemplateObject) || function (cooked, raw) {\n    if (Object.defineProperty) { Object.defineProperty(cooked, \"raw\", { value: raw }); } else { cooked.raw = raw; }\n    return cooked;\n};\na(templateObject_2 || (templateObject_2 = __makeTemplateObject([\"first\"], [\"first\"])));\na(templateObject_1 || (templateObject_1 = __makeTemplateObject([void 0], [\"\\\\unicode\"])));\na(templateObject_3 || (templateObject_3 = __makeTemplateObject([\"last\"], [\"last\"])));\nvar templateObject_1;\nvar templateObject_2, templateObject_3;\nexport {};\n",
+          "output_utf8_sha256": "6fed643f12dfdb969addf005797ffcac9c213ca6f90ab7a25047c630f2a0a52e",
+          "template_call_binding_numbers": [
+            2,
+            1,
+            3
+          ],
+          "template_tail_declarations": [
+            "var templateObject_1;",
+            "var templateObject_2, templateObject_3;"
+          ]
+        },
+        {
+          "output_text": "var __makeTemplateObject = (this && this.__makeTemplateObject) || function (cooked, raw) {\n    if (Object.defineProperty) { Object.defineProperty(cooked, \"raw\", { value: raw }); } else { cooked.raw = raw; }\n    return cooked;\n};\na(templateObject_2 || (templateObject_2 = __makeTemplateObject([\"first\"], [\"first\"])));\na(templateObject_1 || (templateObject_1 = __makeTemplateObject([void 0], [\"\\\\unicode\"])));\na(templateObject_3 || (templateObject_3 = __makeTemplateObject([\"last\"], [\"last\"])));\nvar templateObject_1;\nvar templateObject_2, templateObject_3;\nexport {};\n",
+          "output_utf8_sha256": "6fed643f12dfdb969addf005797ffcac9c213ca6f90ab7a25047c630f2a0a52e",
+          "template_call_binding_numbers": [
+            2,
+            1,
+            3
+          ],
+          "template_tail_declarations": [
+            "var templateObject_1;",
+            "var templateObject_2, templateObject_3;"
+          ]
+        }
+      ]
+    }
+  ],
+  "javascript_ordering_control": {
+    "bmp_utf16": [
+      57344
+    ],
+    "supplementary_utf16": [
+      55296,
+      56320
+    ],
+    "bmp_utf8": [
+      238,
+      128,
+      128
+    ],
+    "supplementary_utf8": [
+      240,
+      144,
+      128,
+      128
+    ],
+    "javascript_bmp_less_than_supplementary": false,
+    "utf8_byte_comparison": -1
+  }
+}

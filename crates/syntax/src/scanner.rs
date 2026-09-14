@@ -1,7 +1,7 @@
 use crate::parser::JSDocParsingMode;
 use crate::{chars, keywords, SyntaxKind};
 use tsc_diagnostics::{gen, DiagnosticMessage};
-use tsc_types::ScriptTarget;
+use tsc_types::{JsStr, JsString, ScriptTarget};
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum LanguageVariant {
@@ -121,6 +121,9 @@ pub(crate) struct ScanError {
     pub(crate) start: usize,
     pub(crate) length: usize,
     pub(crate) args: Vec<String>,
+    /// Set at the trivia producer. Other errors belong to the completed
+    /// scan/rescan token when the parser drains this record.
+    pub(crate) trivia_kind: Option<SyntaxKind>,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -166,7 +169,7 @@ pub(crate) struct ScannerState {
     full_start_pos: usize,
     token_start: usize,
     token: SyntaxKind,
-    token_value: String,
+    token_value: JsString,
     token_flags: TokenFlags,
     error_len: usize,
 }
@@ -178,7 +181,7 @@ pub(crate) struct Scanner<'text> {
     full_start_pos: usize,
     token_start: usize,
     token: SyntaxKind,
-    token_value: String,
+    token_value: JsString,
     token_flags: TokenFlags,
     language_version: ScriptTarget,
     language_variant: LanguageVariant,
@@ -235,7 +238,7 @@ impl<'text> Scanner<'text> {
             full_start_pos: 0,
             token_start: 0,
             token: SyntaxKind::Unknown,
-            token_value: String::new(),
+            token_value: JsString::new(),
             token_flags: TokenFlags::empty(),
             language_version,
             language_variant,
@@ -718,13 +721,28 @@ impl<'text> Scanner<'text> {
         self.token_start
     }
 
-    pub(crate) fn token_value(&self) -> &str {
-        &self.token_value
+    pub(crate) fn token_value(&self) -> JsStr<'_> {
+        self.token_value.as_js()
+    }
+
+    fn numeric_token_value(&self) -> &str {
+        let text = self
+            .token_value
+            .as_str()
+            .expect("numeric scanner values are ASCII");
+        debug_assert!(text.is_ascii());
+        text
     }
 
     /// tsc scanner.getNumericLiteralFlags.
     pub(crate) fn numeric_literal_flags(&self) -> i32 {
         (self.token_flags.0 & TokenFlags::NUMERIC_LITERAL_FLAGS.0) as i32
+    }
+
+    /// tsc parseLiteralLikeNode: scanner flags masked with TemplateLiteralLikeFlags.
+    /// Keep valid escape bits too; the factory uses any nonzero bit for ES2018.
+    pub(crate) fn template_literal_flags(&self) -> i32 {
+        self.token_flags.0 as i32 & tsc_types::TokenFlags::TEMPLATE_LITERAL_LIKE_FLAGS.bits()
     }
 
     /// tsc getTokenText: the raw source slice of the current token.
@@ -856,7 +874,13 @@ impl<'text> Scanner<'text> {
         if !comment_closed {
             // tsc: the unterminated-comment error sits at the scan
             // position (end of text), zero width.
-            self.error_at(self.pos, 0, &gen::expected);
+            self.errors.push(ScanError {
+                message: &gen::expected,
+                start: self.pos,
+                length: 0,
+                args: Vec::new(),
+                trivia_kind: Some(SyntaxKind::MultiLineCommentTrivia),
+            });
         }
     }
 
@@ -965,7 +989,12 @@ impl<'text> Scanner<'text> {
     }
 
     fn finish_identifier_token(&mut self) -> SyntaxKind {
-        self.token = keywords::keyword_kind(&self.token_value).unwrap_or(SyntaxKind::Identifier);
+        self.token = keywords::keyword_kind(
+            self.token_value
+                .as_str()
+                .expect("identifier parts are Unicode scalars"),
+        )
+        .unwrap_or(SyntaxKind::Identifier);
         self.token
     }
 
@@ -1093,7 +1122,7 @@ impl<'text> Scanner<'text> {
                 self.token_value
                     .push_str(&self.text[segment_start..self.pos]);
                 let escaped = self.scan_escape_sequence(true);
-                self.token_value.push_str(&escaped);
+                self.token_value.push_js(escaped.as_js());
                 segment_start = self.pos;
                 continue;
             }
@@ -1111,14 +1140,14 @@ impl<'text> Scanner<'text> {
         self.token
     }
 
-    fn scan_escape_sequence(&mut self, report_errors: bool) -> String {
+    fn scan_escape_sequence(&mut self, report_errors: bool) -> JsString {
         let start = self.pos;
         self.pos += 1;
         if self.pos >= self.end {
             if report_errors {
                 self.error_at(self.pos, 0, &gen::Unexpected_end_of_text);
             }
-            return String::new();
+            return JsString::new();
         }
 
         let ch = self
@@ -1129,7 +1158,7 @@ impl<'text> Scanner<'text> {
         match ch {
             '0' => {
                 if !self.current_char().is_some_and(|ch| ch.is_ascii_digit()) {
-                    return "\0".to_owned();
+                    return "\0".into();
                 }
                 self.scan_octal_escape(start, ch, report_errors)
             }
@@ -1137,24 +1166,25 @@ impl<'text> Scanner<'text> {
             '8' | '9' => {
                 self.token_flags.insert(TokenFlags::CONTAINS_INVALID_ESCAPE);
                 if report_errors {
-                    self.error_at(
+                    self.error_at_with_args(
                         start,
                         self.pos - start,
                         &gen::Escape_sequence_0_is_not_allowed,
+                        vec![self.text[start..self.pos].to_owned()],
                     );
-                    ch.to_string()
+                    ch.to_string().into()
                 } else {
-                    self.text[start..self.pos].to_owned()
+                    self.text[start..self.pos].into()
                 }
             }
-            'b' => "\u{0008}".to_owned(),
-            't' => "\t".to_owned(),
-            'n' => "\n".to_owned(),
-            'v' => "\u{000b}".to_owned(),
-            'f' => "\u{000c}".to_owned(),
-            'r' => "\r".to_owned(),
-            '\'' => "'".to_owned(),
-            '"' => "\"".to_owned(),
+            'b' => "\u{0008}".into(),
+            't' => "\t".into(),
+            'n' => "\n".into(),
+            'v' => "\u{000b}".into(),
+            'f' => "\u{000c}".into(),
+            'r' => "\r".into(),
+            '\'' => "'".into(),
+            '"' => "\"".into(),
             'u' => {
                 if self.starts_with("{") {
                     self.pos = start;
@@ -1167,14 +1197,14 @@ impl<'text> Scanner<'text> {
                         if report_errors {
                             self.error_at(self.pos, 0, &gen::Hexadecimal_digit_expected);
                         }
-                        return self.text[start..self.pos].to_owned();
+                        return self.text[start..self.pos].into();
                     }
                     self.advance_char();
                 }
                 self.token_flags.insert(TokenFlags::UNICODE_ESCAPE);
                 let value =
                     u32::from_str_radix(&self.text[digits_start..self.pos], 16).unwrap_or(0xfffd);
-                utf16_encode_as_string(value)
+                JsString::from_code_point(value)
             }
             'x' => {
                 let digits_start = self.pos;
@@ -1184,27 +1214,27 @@ impl<'text> Scanner<'text> {
                         if report_errors {
                             self.error_at(self.pos, 0, &gen::Hexadecimal_digit_expected);
                         }
-                        return self.text[start..self.pos].to_owned();
+                        return self.text[start..self.pos].into();
                     }
                     self.advance_char();
                 }
                 self.token_flags.insert(TokenFlags::HEX_ESCAPE);
                 let value =
                     u32::from_str_radix(&self.text[digits_start..self.pos], 16).unwrap_or(0xfffd);
-                utf16_encode_as_string(value)
+                JsString::from_code_point(value)
             }
             '\r' => {
                 if self.current_char() == Some('\n') {
                     self.advance_char();
                 }
-                String::new()
+                JsString::new()
             }
-            '\n' | '\u{2028}' | '\u{2029}' => String::new(),
-            _ => ch.to_string(),
+            '\n' | '\u{2028}' | '\u{2029}' => JsString::new(),
+            _ => ch.to_string().into(),
         }
     }
 
-    fn scan_octal_escape(&mut self, start: usize, first: char, report_errors: bool) -> String {
+    fn scan_octal_escape(&mut self, start: usize, first: char, report_errors: bool) -> JsString {
         if self.current_char().is_some_and(is_octal_digit) {
             self.advance_char();
         }
@@ -1214,19 +1244,21 @@ impl<'text> Scanner<'text> {
 
         self.token_flags.insert(TokenFlags::CONTAINS_INVALID_ESCAPE);
         if report_errors {
-            self.error_at(
+            let value = u32::from_str_radix(&self.text[start + 1..self.pos], 8)
+                .expect("octal escape consists of one to three octal digits");
+            self.error_at_with_args(
                 start,
                 self.pos - start,
                 &gen::Octal_escape_sequences_are_not_allowed_Use_the_syntax_0,
+                vec![format!("\\x{value:02x}")],
             );
-            let value = u32::from_str_radix(&self.text[start + 1..self.pos], 8).unwrap_or(0xfffd);
-            utf16_encode_as_string(value)
+            JsString::from_code_point(value)
         } else {
-            self.text[start..self.pos].to_owned()
+            self.text[start..self.pos].into()
         }
     }
 
-    fn scan_extended_unicode_escape(&mut self, report: bool) -> String {
+    fn scan_extended_unicode_escape(&mut self, report: bool) -> JsString {
         let start = self.pos;
         self.pos += 3;
         let escaped_start = self.pos;
@@ -1274,11 +1306,11 @@ impl<'text> Scanner<'text> {
 
         if invalid {
             self.token_flags.insert(TokenFlags::CONTAINS_INVALID_ESCAPE);
-            return self.text[start..self.pos].to_owned();
+            return self.text[start..self.pos].into();
         }
 
         self.token_flags.insert(TokenFlags::EXTENDED_UNICODE_ESCAPE);
-        utf16_encode_as_string(value.expect("valid extended escape has a value"))
+        JsString::from_code_point(value.expect("valid extended escape has a value"))
     }
 
     fn scan_template_token(&mut self) -> SyntaxKind {
@@ -1292,7 +1324,7 @@ impl<'text> Scanner<'text> {
         let started_with_backtick = self.byte_at(self.pos) == Some(b'`');
         self.pos += 1;
         let mut segment_start = self.pos;
-        let mut contents = String::new();
+        let mut contents = JsString::new();
 
         let token = loop {
             if self.pos >= self.end {
@@ -1330,7 +1362,7 @@ impl<'text> Scanner<'text> {
             if ch == '\\' {
                 contents.push_str(&self.text[segment_start..self.pos]);
                 let escaped = self.scan_escape_sequence(should_emit_invalid_escape_error);
-                contents.push_str(&escaped);
+                contents.push_js(escaped.as_js());
                 segment_start = self.pos;
                 continue;
             }
@@ -1479,7 +1511,7 @@ impl<'text> Scanner<'text> {
             }
         }
 
-        self.token_value = self.text[self.token_start..self.pos].to_owned();
+        self.token_value = self.text[self.token_start..self.pos].into();
         self.token = SyntaxKind::RegularExpressionLiteral;
         self.token
     }
@@ -1635,7 +1667,7 @@ impl<'text> Scanner<'text> {
             self.advance_char();
         }
 
-        self.token_value = self.text[self.full_start_pos..self.pos].to_owned();
+        self.token_value = self.text[self.full_start_pos..self.pos].into();
         self.token = if first_non_whitespace == -1 {
             SyntaxKind::JsxTextAllWhiteSpaces
         } else {
@@ -1722,12 +1754,12 @@ impl<'text> Scanner<'text> {
             && matches!(self.byte_at(self.pos + 1), Some(b'x' | b'X'))
         {
             self.pos += 2;
-            self.token_value = self.scan_hex_digits(1, true, true);
+            self.token_value = (self.scan_hex_digits(1, true, true)).into();
             if self.token_value.is_empty() {
                 self.error_at(self.pos, 0, &gen::Hexadecimal_digit_expected);
-                self.token_value = "0".to_owned();
+                self.token_value = ("0".to_owned()).into();
             }
-            self.token_value = format!("0x{}", self.token_value);
+            self.token_value = (format!("0x{}", self.numeric_token_value())).into();
             self.token_flags.insert(TokenFlags::HEX_SPECIFIER);
             return self.check_big_int_suffix();
         }
@@ -1736,12 +1768,12 @@ impl<'text> Scanner<'text> {
             && matches!(self.byte_at(self.pos + 1), Some(b'b' | b'B'))
         {
             self.pos += 2;
-            self.token_value = self.scan_binary_or_octal_digits(2);
+            self.token_value = (self.scan_binary_or_octal_digits(2)).into();
             if self.token_value.is_empty() {
                 self.error_at(self.pos, 0, &gen::Binary_digit_expected);
-                self.token_value = "0".to_owned();
+                self.token_value = ("0".to_owned()).into();
             }
-            self.token_value = format!("0b{}", self.token_value);
+            self.token_value = (format!("0b{}", self.numeric_token_value())).into();
             self.token_flags.insert(TokenFlags::BINARY_SPECIFIER);
             return self.check_big_int_suffix();
         }
@@ -1750,12 +1782,12 @@ impl<'text> Scanner<'text> {
             && matches!(self.byte_at(self.pos + 1), Some(b'o' | b'O'))
         {
             self.pos += 2;
-            self.token_value = self.scan_binary_or_octal_digits(8);
+            self.token_value = (self.scan_binary_or_octal_digits(8)).into();
             if self.token_value.is_empty() {
                 self.error_at(self.pos, 0, &gen::Octal_digit_expected);
-                self.token_value = "0".to_owned();
+                self.token_value = ("0".to_owned()).into();
             }
-            self.token_value = format!("0o{}", self.token_value);
+            self.token_value = (format!("0o{}", self.numeric_token_value())).into();
             self.token_flags.insert(TokenFlags::OCTAL_SPECIFIER);
             return self.check_big_int_suffix();
         }
@@ -1782,7 +1814,7 @@ impl<'text> Scanner<'text> {
                     "0".to_owned()
                 } else {
                     let value = trim_leading_zeroes(&digits);
-                    self.token_value = radix_digits_to_decimal_string(value, 8);
+                    self.token_value = (radix_digits_to_decimal_string(value, 8)).into();
                     self.token_flags.insert(TokenFlags::OCTAL);
                     let with_minus = self.token == SyntaxKind::MinusToken;
                     let error_start = if with_minus {
@@ -1853,7 +1885,7 @@ impl<'text> Scanner<'text> {
                 end.saturating_sub(start),
                 &gen::Decimals_with_leading_zeros_are_not_allowed,
             );
-            self.token_value = js_number_to_string(&result);
+            self.token_value = (js_number_to_string(&result)).into();
             self.token = SyntaxKind::NumericLiteral;
             return self.token;
         }
@@ -1862,12 +1894,12 @@ impl<'text> Scanner<'text> {
             let is_scientific =
                 decimal_fragment.is_none() && self.token_flags.contains(TokenFlags::SCIENTIFIC);
             self.check_for_identifier_start_after_numeric_literal(start, is_scientific);
-            self.token_value = js_number_to_string(&result);
+            self.token_value = (js_number_to_string(&result)).into();
             self.token = SyntaxKind::NumericLiteral;
             return self.token;
         }
 
-        self.token_value = std::mem::take(&mut result);
+        self.token_value = (std::mem::take(&mut result)).into();
         let token = self.check_big_int_suffix();
         self.check_for_identifier_start_after_numeric_literal(start, false);
         token
@@ -2040,11 +2072,13 @@ impl<'text> Scanner<'text> {
         if self.byte_at(self.pos) == Some(b'n') {
             self.token_value.push('n');
             if self.token_flags.contains(TokenFlags::BINARY_SPECIFIER) {
-                let digits = &self.token_value[2..self.token_value.len() - 1];
-                self.token_value = format!("{}n", radix_digits_to_decimal_string(digits, 2));
+                let digits = &self.numeric_token_value()[2..self.numeric_token_value().len() - 1];
+                self.token_value =
+                    (format!("{}n", radix_digits_to_decimal_string(digits, 2))).into();
             } else if self.token_flags.contains(TokenFlags::OCTAL_SPECIFIER) {
-                let digits = &self.token_value[2..self.token_value.len() - 1];
-                self.token_value = format!("{}n", radix_digits_to_decimal_string(digits, 8));
+                let digits = &self.numeric_token_value()[2..self.numeric_token_value().len() - 1];
+                self.token_value =
+                    (format!("{}n", radix_digits_to_decimal_string(digits, 8))).into();
             }
             self.pos += 1;
             self.token = SyntaxKind::BigIntLiteral;
@@ -2057,18 +2091,25 @@ impl<'text> Scanner<'text> {
             // through the exact decimal (a huge 0B… key names its
             // member "9.671406556917009e+24", not the full digits).
             if self.token_flags.contains(TokenFlags::BINARY_SPECIFIER) {
-                self.token_value =
-                    js_number_to_string(&radix_digits_to_decimal_string(&self.token_value[2..], 2));
+                self.token_value = (js_number_to_string(&radix_digits_to_decimal_string(
+                    &self.numeric_token_value()[2..],
+                    2,
+                )))
+                .into();
             } else if self.token_flags.contains(TokenFlags::OCTAL_SPECIFIER) {
-                self.token_value =
-                    js_number_to_string(&radix_digits_to_decimal_string(&self.token_value[2..], 8));
+                self.token_value = (js_number_to_string(&radix_digits_to_decimal_string(
+                    &self.numeric_token_value()[2..],
+                    8,
+                )))
+                .into();
             } else if self.token_flags.contains(TokenFlags::HEX_SPECIFIER) {
-                self.token_value = js_number_to_string(&radix_digits_to_decimal_string(
-                    &self.token_value[2..],
+                self.token_value = (js_number_to_string(&radix_digits_to_decimal_string(
+                    &self.numeric_token_value()[2..],
                     16,
-                ));
+                )))
+                .into();
             } else {
-                self.token_value = js_number_to_string(&self.token_value);
+                self.token_value = (js_number_to_string(self.numeric_token_value())).into();
             }
             self.token = SyntaxKind::NumericLiteral;
         }
@@ -2157,6 +2198,7 @@ impl<'text> Scanner<'text> {
             start,
             length,
             args,
+            trivia_kind: None,
         });
     }
 
@@ -2201,29 +2243,10 @@ fn is_octal_digit(ch: char) -> bool {
     matches!(ch, '0'..='7')
 }
 
-fn utf16_encode_as_string(value: u32) -> String {
-    char::from_u32(value)
-        .unwrap_or(char::REPLACEMENT_CHARACTER)
-        .to_string()
-}
-
-/// tsrs-native: decode a template fragment's raw source text to its
-/// cooked JavaScript UTF-16 code units. This is the lossless side
-/// channel for Rust `String`'s inability to hold unpaired surrogates;
-/// JavaScript's scanner gets the same units directly from its native
-/// string representation.
-///
-/// The scanner's general token-value surface is a Rust `String`, so a
-/// `\uXXXX` escape naming an unpaired surrogate is represented there
-/// as U+FFFD. Template literal types and the ES2015 template lowering
-/// need the original code unit for matching and synthesized printing.
-/// Re-decoding the already stored raw fragment is lossless and leaves
-/// the scanner's UTF-8-facing API unchanged. The decode replays the
-/// report-mode escape grammar (`scanTemplateAndSetTokenValue` with
-/// `shouldEmitInvalidEscapeError`, the untagged form every caller
-/// observes); it is accepted only when it agrees with `cooked` at every
-/// non-surrogate unit, so a tagged fragment whose cooked text kept an
-/// invalid escape verbatim falls back to that cooked text.
+/// Legacy emitter reconstruction for metadata with a UTF-8 cooked projection.
+/// Parsed string/template nodes now own `JsString`; identity consumers read
+/// those units directly and must not reconstruct their value through this API.
+/// The remaining metadata migration is tracked as Stage 2 of the repair.
 pub fn template_text_utf16(cooked: &str, raw: Option<&str>) -> Vec<u16> {
     raw.map(|raw| decode_raw_literal_utf16(raw, RawLiteralGrammar::Template))
         .filter(|units| cooked_agrees_with_units(cooked, units))
@@ -2257,8 +2280,8 @@ enum RawLiteralGrammar {
     Template,
 }
 
-/// The scanner's `String` projection of a JavaScript string maps every
-/// unpaired surrogate to U+FFFD, and `utf16_encode_as_string` maps each
+/// The legacy `String` projection mapped each unpaired surrogate to U+FFFD
+/// before scanner-owned `JsString`; its old escape encoding mapped each
 /// escape separately (two escapes forming a pair are two U+FFFD). Compare
 /// with every surrogate unit and U+FFFD folded together: a decode that
 /// differs anywhere else came from another escape mode (a tagged template's
@@ -2566,7 +2589,7 @@ pub fn scan_big_int_string(s: &str) -> Option<BigIntStringScan> {
     }
     Some(BigIntStringScan {
         negative,
-        token_value: scanner.token_value().to_owned(),
+        token_value: scanner.numeric_token_value().to_owned(),
         contains_separator: scanner.token_flags.contains(TokenFlags::CONTAINS_SEPARATOR),
     })
 }

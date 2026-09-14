@@ -102,7 +102,7 @@ fn source_texts(case: &Value) -> BTreeMap<String, String> {
 
 fn normalize_chain(chain: &MessageChain) -> Value {
     json!({
-        "text": chain.text,
+        "text": scalar_json(&chain.text),
         "code": chain.code,
         "category": chain.category.name(),
         "next_present": chain.next_present,
@@ -129,11 +129,11 @@ fn normalize_diagnostic(diagnostic: &Diagnostic, sources: &BTreeMap<String, Stri
         .zip(diagnostic.start)
         .and_then(|(file_name, start)| {
             sources
-                .get(file_name)
+                .get(file_name.as_str().expect("scalar oracle filename"))
                 .map(|text| get_line_and_character_of_position(&compute_line_starts(text), start))
         });
     json!({
-        "file": optional_string(diagnostic.file_name.as_deref()),
+        "file": optional_string(diagnostic.file_name.as_ref().map(|value| value.as_str().expect("scalar legacy option observation"))),
         "start": optional_u32(diagnostic.start),
         "length": optional_u32(diagnostic.length),
         "line": optional_u32(location.map(|location| location.line)),
@@ -209,7 +209,7 @@ fn assert_writes(case_id: &str, expected: &[Value], sink: &MemoryOutputSink) {
     for (index, (actual, expected)) in sink.writes().iter().zip(expected).enumerate() {
         let label = format!("{case_id} write {index}");
         assert_eq!(
-            actual.path(),
+            actual.path().scalar_test_path(),
             Path::new(expected["path"].as_str().expect("write path")),
             "{label} path"
         );
@@ -330,3 +330,11 @@ fn every_admitted_h1_case_matches_the_vendored_callback_oracle_twice() {
         );
     }
 }
+
+#[path = "../../../program/tests/support/scalar_json.rs"]
+mod utf16_scalar_json;
+use utf16_scalar_json::observe as scalar_json;
+
+#[path = "../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

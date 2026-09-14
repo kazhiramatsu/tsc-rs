@@ -262,7 +262,7 @@ fn flatten_message_chain(chain: &MessageChain, indent: usize, output: &mut Strin
             output.push_str("  ");
         }
     }
-    output.push_str(&chain.text);
+    output.push_str(chain.text.as_str().expect("scalar diagnostic observation"));
     for child in &chain.next {
         flatten_message_chain(child, indent + 1, output);
     }
@@ -283,7 +283,7 @@ fn actual_diagnostic_value(diagnostic: &Diagnostic) -> Value {
     json!({
         "code": diagnostic.code(),
         "category": diagnostic_category(diagnostic.category()),
-        "file": diagnostic.file_name,
+        "file": scalar_json(&diagnostic.file_name),
         "start": diagnostic.start,
         "length": diagnostic.length,
         "message": message,
@@ -710,7 +710,7 @@ fn write_case_diff(
         records.push(json!({
             "path": path,
             "frozen_index": expected.and_then(|write| write["index"].as_u64()),
-            "rust_index": actual.and_then(|_write| actual_writes.iter().position(|candidate| candidate.path() == Path::new(path)).map(|index| index as u64)),
+            "rust_index": actual.and_then(|_write| actual_writes.iter().position(|candidate| candidate.path().scalar_test_path() == Path::new(path)).map(|index| index as u64)),
             "diverging": diverging,
             "facets": facets,
             "callback_hunk": hunk.as_ref().map(|hunk| hunk_value(path, hunk)),
@@ -828,3 +828,11 @@ fn h2_7b_w2_write_census() {
     )
     .expect("write W2 census summary");
 }
+
+#[path = "../../../program/tests/support/scalar_json.rs"]
+mod utf16_scalar_json;
+use utf16_scalar_json::observe as scalar_json;
+
+#[path = "../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

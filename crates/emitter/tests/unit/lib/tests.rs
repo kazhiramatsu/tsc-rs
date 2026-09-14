@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use tsc_diagnostics::JsString;
 
 use tsc_syntax::{parse_source_file, NodeData, SyntaxKind};
 
@@ -165,7 +165,7 @@ fn declaration_emit_resolver_surface_preserves_pinned_values_and_names() {
 #[test]
 fn outcome_retains_optional_presence_and_independent_emitted_file_order() {
     let source_map = SourceMapObservation::new(
-        vec![PathBuf::from("/project/input.ts")],
+        vec![JsString::from("/project/input.ts")],
         "{\"version\":3}".into(),
     );
     let absent = EmitOutcome::new(Vec::new(), true, None, None, Default::default());
@@ -173,8 +173,8 @@ fn outcome_retains_optional_presence_and_independent_emitted_file_order() {
         Vec::new(),
         false,
         Some(vec![
-            PathBuf::from("/project/out.js"),
-            PathBuf::from("/project/out.js.map"),
+            JsString::from("/project/out.js"),
+            JsString::from("/project/out.js.map"),
         ]),
         Some(vec![source_map]),
         Default::default(),
@@ -187,8 +187,8 @@ fn outcome_retains_optional_presence_and_independent_emitted_file_order() {
         present.emitted_files(),
         Some(
             [
-                PathBuf::from("/project/out.js"),
-                PathBuf::from("/project/out.js.map"),
+                JsString::from("/project/out.js"),
+                JsString::from("/project/out.js.map"),
             ]
             .as_slice()
         )
@@ -196,7 +196,7 @@ fn outcome_retains_optional_presence_and_independent_emitted_file_order() {
     let maps = present.source_maps().expect("present map observations");
     assert_eq!(
         maps[0].input_source_files(),
-        [PathBuf::from("/project/input.ts")]
+        [JsString::from("/project/input.ts")]
     );
     assert_eq!(maps[0].canonical_json(), "{\"version\":3}");
 }
@@ -210,7 +210,9 @@ fn relative_module_specifier_rewrite_matches_typescript_suffix_rules() {
         ("./dep.tsx", Some("./dep.js")),
     ] {
         assert_eq!(
-            rewrite_relative_module_specifier(input).as_deref(),
+            rewrite_relative_module_specifier(input)
+                .as_ref()
+                .and_then(tsc_types::JsString::as_str),
             expected,
             "unexpected rewrite for {input}"
         );
@@ -230,6 +232,32 @@ fn relative_module_specifier_rewrite_matches_typescript_suffix_rules() {
             None,
             "specifier should remain unchanged: {input}"
         );
+    }
+}
+
+#[test]
+fn relative_module_rewrite_keeps_utf16_name_identity() {
+    use tsc_types::JsString;
+
+    let mut rewritten = Vec::new();
+    for units in [
+        &[0xd800][..],
+        &[0xd801],
+        &[0xdc00],
+        &[0xfffd],
+        &[0xd800, 0xdc00],
+    ] {
+        let mut input = JsString::from("./");
+        for &unit in units {
+            input.push_code_unit(unit);
+        }
+        let mut expected = input.clone();
+        input.push_str(".ts");
+        expected.push_str(".js");
+        let actual = rewrite_relative_module_specifier(&input).unwrap();
+        assert_eq!(actual, expected);
+        assert!(!rewritten.contains(&actual));
+        rewritten.push(actual);
     }
 }
 

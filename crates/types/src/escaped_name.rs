@@ -35,6 +35,22 @@ impl EscapedName {
         Self(JsString::from(text))
     }
 
+    /// An upstream producer has explicitly constructed an already escaped
+    /// name (for example a quoted ambient module or a private-name key).
+    /// This must not be used instead of `escape` for raw property values.
+    pub fn from_escaped_value(text: JsString) -> Self {
+        Self(text)
+    }
+
+    /// tsc's quoted external/ambient module key. Quotes are part of the key;
+    /// this is not source escaping or a display serialization.
+    pub fn quoted_module(raw: JsStr<'_>) -> Self {
+        let mut text = JsString::from("\"");
+        text.push_js(raw);
+        text.push('"');
+        Self(text)
+    }
+
     /// tsc unescapeLeadingUnderscores (_tsc.js:11441).
     pub fn unescape(&self) -> JsStr<'_> {
         let text = self.as_js();
@@ -78,6 +94,24 @@ impl Hash for EscapedName {
 impl PartialEq<str> for EscapedName {
     fn eq(&self, other: &str) -> bool {
         self.0 == *other
+    }
+}
+
+impl PartialEq<&str> for EscapedName {
+    fn eq(&self, other: &&str) -> bool {
+        self.0 == *other
+    }
+}
+
+impl<'a> From<&'a EscapedName> for JsStr<'a> {
+    fn from(name: &'a EscapedName) -> Self {
+        name.as_js()
+    }
+}
+
+impl tsc_diagnostics::DiagnosticArgument for EscapedName {
+    fn diagnostic_value(&self) -> JsStr<'_> {
+        self.as_js()
     }
 }
 
@@ -142,5 +176,29 @@ mod tests {
         assert_eq!(crate::TemplateText::from_js(value.as_js()), literal);
         let key = EscapedName::escape(value.as_js());
         assert_eq!(crate::TemplateText::from_js(key.unescape()), literal);
+    }
+
+    #[test]
+    fn scanner_values_and_template_units_share_literal_type_identity() {
+        let mut tables = crate::TypeTables::new(false, false);
+        let mut ids = Vec::new();
+        for units in [
+            &[0xD800][..],
+            &[0xD801],
+            &[0xDC00],
+            &[0xFFFD],
+            &[0xD83D, 0xDE00],
+        ] {
+            let value = JsString::from_code_units(units);
+            let id = tables.get_string_literal_type(value.as_js());
+            assert_eq!(tables.get_string_literal_type_from_utf16(units), id);
+            if let Some(scalar) = value.as_str() {
+                assert_eq!(tables.get_string_literal_type(scalar), id);
+            }
+            assert!(!ids.contains(&id));
+            ids.push(id);
+        }
+        assert_eq!(tables.get_string_literal_type("😀"), ids[4]);
+        assert_ne!(tables.get_string_literal_type("\\uD800"), ids[0]);
     }
 }

@@ -3,7 +3,7 @@
 //! alias, mapped, conditional, tuple, and JSDoc paths it feeds.
 
 use tsc_binder::{node_util, InternalSymbolName, SymbolId};
-use tsc_diagnostics::{gen as diagnostics, DiagnosticCategory};
+use tsc_diagnostics::{gen as diagnostics, DiagnosticCategory, JsStr, JsString};
 use tsc_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsc_types::{
     CheckFlags, CheckMode, ConditionalRootData, ElementFlags, IntersectionFlags, LiteralValue,
@@ -629,9 +629,7 @@ impl<'a> CheckerState<'a> {
         let NodeData::TemplateHead(head_data) = self.data_of(head) else {
             unreachable!("kind/data agree");
         };
-        let mut texts = vec![tsc_types::TemplateText::from_utf16(
-            &tsc_syntax::template_text_utf16(&head_data.text, head_data.raw_text.as_deref()),
-        )];
+        let mut texts = vec![tsc_types::TemplateText::from_js(head_data.text.as_js())];
         let mut types = Vec::with_capacity(spans.len());
         for span in spans {
             let NodeData::TemplateLiteralTypeSpan(span_data) = self.data_of(span).clone() else {
@@ -644,12 +642,8 @@ impl<'a> CheckerState<'a> {
                 .literal
                 .expect("parser invariant: template span literal always parsed");
             let text = match self.data_of(literal) {
-                NodeData::TemplateMiddle(data) => tsc_types::TemplateText::from_utf16(
-                    &tsc_syntax::template_text_utf16(&data.text, data.raw_text.as_deref()),
-                ),
-                NodeData::TemplateTail(data) => tsc_types::TemplateText::from_utf16(
-                    &tsc_syntax::template_text_utf16(&data.text, data.raw_text.as_deref()),
-                ),
+                NodeData::TemplateMiddle(data) => tsc_types::TemplateText::from_js(data.text.as_js()),
+                NodeData::TemplateTail(data) => tsc_types::TemplateText::from_js(data.text.as_js()),
                 _ => unreachable!(
                     "parser invariant: span literals are TemplateMiddle/TemplateTail (missing shape included)"
                 ),
@@ -1339,11 +1333,10 @@ impl<'a> CheckerState<'a> {
                 if let Some(cached) = self.links.symbol(symbol).unique_es_symbol_type {
                     return Ok(cached);
                 }
-                let escaped_name = format!(
-                    "__@{}@{}",
-                    self.binder.symbol(symbol).escaped_name,
-                    symbol.0
-                );
+                let mut escaped_text = tsc_types::JsString::from("__@");
+                escaped_text.push_js(self.binder.symbol(symbol).escaped_name.as_js());
+                escaped_text.push_str(&format!("@{}", symbol.0));
+                let escaped_name = tsc_types::EscapedName::from_escaped_value(escaped_text);
                 let ty = self
                     .tables
                     .create_unique_es_symbol_type(symbol, escaped_name);
@@ -1705,7 +1698,10 @@ impl<'a> CheckerState<'a> {
         if let Some(&cached) = self.unresolved_symbols.get(&path) {
             return cached;
         }
-        let symbol = self.binder.create_symbol(SymbolFlags::TYPE_ALIAS, text);
+        let symbol = self.binder.create_symbol(
+            SymbolFlags::TYPE_ALIAS,
+            tsc_types::EscapedName::from_identifier_escaped_text(&text),
+        );
         self.binder.symbol_mut(symbol).parent = parent;
         self.links
             .set_symbol_check_flags(self.speculation_depth, symbol, CheckFlags::UNRESOLVED);
@@ -1728,7 +1724,11 @@ impl<'a> CheckerState<'a> {
         let mut current = Some(symbol);
         while let Some(symbol) = current {
             let data = self.binder.symbol(symbol);
-            parts.push(data.escaped_name.clone());
+            parts.push(
+                data.escaped_name
+                    .as_str()
+                    .expect("unresolved entity chains contain scalar identifiers"),
+            );
             current = data.parent;
         }
         parts.reverse();
@@ -2040,10 +2040,10 @@ impl<'a> CheckerState<'a> {
             match self.tables.type_of(target).symbol {
                 Some(symbol) => {
                     let name = self.symbol_display_name(symbol);
-                    self.error_at(
+                    self.error_at_js(
                         Some(node),
                         &diagnostics::Type_arguments_for_0_circularly_reference_themselves,
-                        &[&name],
+                        &[(&name).into()],
                     );
                 }
                 None => {
@@ -2116,7 +2116,7 @@ impl<'a> CheckerState<'a> {
     /// symbol-name face of symbolToString (DoNotIncludeSymbolChain).
     /// External source-file symbols use the host's absolute normalized
     /// path, matching the in-memory oracle host.
-    pub(crate) fn get_fully_qualified_name(&self, symbol: SymbolId) -> String {
+    pub(crate) fn get_fully_qualified_name(&self, symbol: SymbolId) -> JsString {
         let mut parts = Vec::new();
         let mut current = Some(symbol);
         while let Some(symbol) = current {
@@ -2133,20 +2133,31 @@ impl<'a> CheckerState<'a> {
                     .any(|&declaration| self.kind_of(declaration) == SyntaxKind::SourceFile)
             {
                 if let Some(module_name) = display
-                    .strip_prefix('"')
-                    .and_then(|name| name.strip_suffix('"'))
+                    .as_js()
+                    .strip_prefix("\"")
+                    .and_then(|name| name.strip_suffix("\""))
                 {
-                    display = format!(
-                        "\"{}\"",
-                        Self::normalize_program_path(module_name, &self.host_current_directory)
-                    );
+                    let path = tsc_program::normalize_absolute_js_path_lexical(
+                        if module_name.is_empty() {
+                            ".".into()
+                        } else {
+                            module_name
+                        },
+                        Some(if self.host_current_directory.is_empty() {
+                            "/".into()
+                        } else {
+                            (&self.host_current_directory).into()
+                        }),
+                    )
+                    .expect("checker program paths have a rooted lexical base");
+                    display = crate::join_js_strings(["\"".into(), path.as_js(), "\"".into()], "");
                 }
             }
             parts.push(display);
             current = data.parent;
         }
         parts.reverse();
-        parts.join(".")
+        crate::join_js_strings(parts.iter().map(JsString::as_js), ".")
     }
 
     /// tsc-port: getTypeFromImportTypeNode @6.0.3
@@ -2197,7 +2208,7 @@ impl<'a> CheckerState<'a> {
         };
         let module_reference = match self.data_of(literal) {
             NodeData::StringLiteral(data) => data.text.clone(),
-            _ => String::new(),
+            _ => JsString::new(),
         };
         let inner_module_symbol = self
             .resolve_external_module_name(node, literal, false)?
@@ -2269,10 +2280,10 @@ impl<'a> CheckerState<'a> {
                         self.binder.source_of_node(current),
                         Some(current),
                     );
-                    self.error_at(
+                    self.error_at_js(
                         Some(current),
                         &diagnostics::Namespace_0_has_no_exported_member_1,
-                        &[&namespace_name, &declaration_name],
+                        &[(&namespace_name).into(), (&declaration_name).into()],
                     );
                     let error = self.tables.intrinsics.error;
                     self.links.overwrite_import_type_resolved_type(
@@ -2309,7 +2320,7 @@ impl<'a> CheckerState<'a> {
             } else {
                 &diagnostics::Module_0_does_not_refer_to_a_type_but_is_used_as_a_type_here_Did_you_mean_typeof_import_0
             };
-            self.error_at(Some(node), message, &[&module_reference]);
+            self.error_at_js(Some(node), message, &[(&module_reference).into()]);
             let unknown = self.unknown_symbol;
             self.links
                 .overwrite_import_type_resolved_symbol(self.speculation_depth, node, unknown);
@@ -2595,10 +2606,13 @@ impl<'a> CheckerState<'a> {
                     } else {
                         &diagnostics::Generic_type_0_requires_1_type_argument_s
                     };
-                    self.error_at(
+                    self.error_at_js(
                         Some(node),
                         message,
-                        &[&type_str, &min_type_argument_count.to_string()],
+                        &[
+                            (&type_str).into(),
+                            (&min_type_argument_count.to_string()).into(),
+                        ],
                     );
                 } else {
                     let message = if missing_augments_tag {
@@ -2606,13 +2620,13 @@ impl<'a> CheckerState<'a> {
                     } else {
                         &diagnostics::Generic_type_0_requires_between_1_and_2_type_arguments
                     };
-                    self.error_at(
+                    self.error_at_js(
                         Some(node),
                         message,
                         &[
-                            &type_str,
-                            &min_type_argument_count.to_string(),
-                            &local_type_parameters.len().to_string(),
+                            (&type_str).into(),
+                            (&min_type_argument_count.to_string()).into(),
+                            (&local_type_parameters.len().to_string()).into(),
                         ],
                     );
                 }
@@ -3109,19 +3123,22 @@ impl<'a> CheckerState<'a> {
                 // typeToString form — oracle-pinned.
                 let display = self.symbol_display_name(symbol);
                 if min_type_argument_count == type_parameters.len() {
-                    self.error_at(
+                    self.error_at_js(
                         Some(node),
                         &diagnostics::Generic_type_0_requires_1_type_argument_s,
-                        &[&display, &min_type_argument_count.to_string()],
+                        &[
+                            (&display).into(),
+                            (&min_type_argument_count.to_string()).into(),
+                        ],
                     );
                 } else {
-                    self.error_at(
+                    self.error_at_js(
                         Some(node),
                         &diagnostics::Generic_type_0_requires_between_1_and_2_type_arguments,
                         &[
-                            &display,
-                            &min_type_argument_count.to_string(),
-                            &type_parameters.len().to_string(),
+                            (&display).into(),
+                            (&min_type_argument_count.to_string()).into(),
+                            (&type_parameters.len().to_string()).into(),
                         ],
                     );
                 }
@@ -3290,9 +3307,14 @@ impl<'a> CheckerState<'a> {
                         })
                         .unwrap_or_else(|| "(anonymous)".to_owned()),
                     _ => "(anonymous)".to_owned(),
-                },
+                }
+                .into(),
             };
-            self.error_at(Some(node), &diagnostics::Type_0_is_not_generic, &[&display]);
+            self.error_at_js(
+                Some(node),
+                &diagnostics::Type_0_is_not_generic,
+                &[(&display).into()],
+            );
             return false;
         }
         true
@@ -3305,20 +3327,20 @@ impl<'a> CheckerState<'a> {
     /// qualification, which drops without an enclosing declaration
     /// (oracle-pinned: `I<U>` for a fn-scoped `interface I<U>` with
     /// outer `T`).
-    fn generic_type_display(&self, ty: TypeId) -> String {
+    fn generic_type_display(&self, ty: TypeId) -> JsString {
         let symbol = self
             .tables
             .type_of(ty)
             .symbol
             .expect("declared types carry their symbol");
-        let name = self.symbol_display_name(symbol);
+        let mut name = self.symbol_display_name(symbol);
         match &self.tables.type_of(ty).data {
             TypeData::GenericType {
                 type_parameters,
                 outer_type_parameter_count,
                 ..
             } if type_parameters.len() > *outer_type_parameter_count => {
-                let locals: Vec<String> = type_parameters[*outer_type_parameter_count..]
+                let locals: Vec<JsString> = type_parameters[*outer_type_parameter_count..]
                     .iter()
                     .map(|&parameter| {
                         self.tables
@@ -3328,7 +3350,14 @@ impl<'a> CheckerState<'a> {
                             .unwrap_or_default()
                     })
                     .collect();
-                format!("{name}<{}>", locals.join(", "))
+                {
+                    name.push_str("<");
+                    name.push_js(
+                        crate::join_js_strings(locals.iter().map(JsString::as_js), ", ").as_js(),
+                    );
+                    name.push_str(">");
+                    name
+                }
             }
             _ => name,
         }
@@ -3713,10 +3742,10 @@ impl<'a> CheckerState<'a> {
                 _ => self.name_of_node(declaration).or(Some(declaration)),
             });
             let name = self.symbol_display_name(symbol);
-            self.error_at(
+            self.error_at_js(
                 error_node,
                 &diagnostics::Type_alias_0_circularly_references_itself,
-                &[&name],
+                &[(&name).into()],
             );
             self.tables.intrinsics.error
         };
@@ -4315,7 +4344,10 @@ impl<'a> CheckerState<'a> {
                     if flags.intersects(ElementFlags::OPTIONAL) {
                         symbol_flags |= SymbolFlags::OPTIONAL;
                     }
-                    let property = self.binder.create_symbol(symbol_flags, i.to_string());
+                    let property = self.binder.create_symbol(
+                        symbol_flags,
+                        tsc_types::EscapedName::from_identifier_escaped_text(&i.to_string()),
+                    );
                     if data.readonly {
                         self.links.set_symbol_check_flags(
                             self.speculation_depth,
@@ -4340,9 +4372,10 @@ impl<'a> CheckerState<'a> {
                     properties.push(property);
                 }
             }
-            let length_symbol = self
-                .binder
-                .create_symbol(SymbolFlags::PROPERTY, "length".to_owned());
+            let length_symbol = self.binder.create_symbol(
+                SymbolFlags::PROPERTY,
+                tsc_types::EscapedName::from_identifier_escaped_text("length"),
+            );
             if data.readonly {
                 self.links.set_symbol_check_flags(
                     self.speculation_depth,
@@ -4495,7 +4528,10 @@ impl<'a> CheckerState<'a> {
                         .copied()
                 });
                 if let Some(index_symbol) = source_index {
-                    table.insert(InternalSymbolName::INDEX.to_owned(), index_symbol);
+                    table.insert(
+                        tsc_types::EscapedName::internal(InternalSymbolName::INDEX),
+                        index_symbol,
+                    );
                 }
                 members = table;
             }
@@ -4958,7 +4994,7 @@ impl<'a> CheckerState<'a> {
             {
                 tsc_binder::unescape_leading_underscores(&member_name).to_owned()
             } else {
-                self.text_of_node(decl_name)?
+                self.text_of_node(decl_name)?.into()
             };
             for declaration in declarations {
                 let error_node = node_util::get_name_of_declaration(
@@ -4966,16 +5002,16 @@ impl<'a> CheckerState<'a> {
                     declaration,
                 )
                 .unwrap_or(declaration);
-                self.error_at(
+                self.error_at_js(
                     Some(error_node),
                     &diagnostics::Property_0_was_also_declared_here,
-                    &[&display],
+                    &[(&display).into()],
                 );
             }
-            self.error_at(
+            self.error_at_js(
                 Some(decl_name),
                 &diagnostics::Duplicate_property_0,
-                &[&display],
+                &[(&display).into()],
             );
             // 57680: only the LOCAL binding is replaced — the late
             // table keeps the FIRST symbol (member types resolve
@@ -5069,9 +5105,10 @@ impl<'a> CheckerState<'a> {
                         cloned
                     }
                     None => {
-                        let created = self
-                            .binder
-                            .create_symbol(SymbolFlags::NONE, InternalSymbolName::INDEX.to_owned());
+                        let created = self.binder.create_symbol(
+                            SymbolFlags::NONE,
+                            tsc_types::EscapedName::internal(InternalSymbolName::INDEX),
+                        );
                         self.links.set_symbol_check_flags(
                             self.speculation_depth,
                             created,
@@ -5080,7 +5117,10 @@ impl<'a> CheckerState<'a> {
                         created
                     }
                 };
-                late.insert(InternalSymbolName::INDEX.to_owned(), created);
+                late.insert(
+                    tsc_types::EscapedName::internal(InternalSymbolName::INDEX),
+                    created,
+                );
                 created
             }
         };
@@ -5494,10 +5534,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:57210-57217
     fn report_circular_base_type(&mut self, node: NodeId, ty: TypeId) {
         let display = self.generic_type_display(ty);
-        self.error_at(
+        self.error_at_js(
             Some(node),
             &diagnostics::Type_0_recursively_references_itself_as_a_base_type,
-            &[&display],
+            &[(&display).into()],
         );
     }
 
@@ -5678,10 +5718,10 @@ impl<'a> CheckerState<'a> {
                 .expect("class types carry their symbol");
             let declaration = self.binder.symbol(symbol).value_declaration;
             let name = self.symbol_display_name(symbol);
-            self.error_at(
+            self.error_at_js(
                 declaration,
                 &diagnostics::_0_is_referenced_directly_or_indirectly_in_its_own_base_expression,
-                &[&name],
+                &[(&name).into()],
             );
             let error = self.tables.intrinsics.error;
             if self
@@ -5762,17 +5802,17 @@ impl<'a> CheckerState<'a> {
                     if let Some(&declaration) = state.binder.symbol(symbol).declarations.first() {
                         let symbol_text = state.symbol_display_name(symbol);
                         let return_text = state.type_to_string_slice(ctor_return)?;
-                        related.push(state.related_info_for_node(
+                        related.push(state.related_info_for_node_js(
                             declaration,
                             &diagnostics::Did_you_mean_for_0_to_be_constrained_to_type_new_args_any_1,
-                            &[&symbol_text, &return_text],
+                            &[(&symbol_text).into(), (&return_text).into()],
                         ));
                     }
                 }
-                state.error_at_with_related(
+                state.error_at_with_related_js(
                     Some(expression),
                     &diagnostics::Type_0_is_not_a_constructor_function_type,
-                    &[&text],
+                    &[(&text).into()],
                     related,
                 );
                 Ok(())
@@ -5938,9 +5978,9 @@ impl<'a> CheckerState<'a> {
             let report = (|state: &mut Self| -> CheckResult<()> {
                 let elaboration = state.elaborate_never_intersection_row(base_type)?;
                 let text = state.type_to_string_slice(reduced_base_type)?;
-                let head = tsc_diagnostics::MessageChain::new(
+                let head = tsc_diagnostics::MessageChain::new_js(
                     &diagnostics::Base_constructor_return_type_0_is_not_an_object_type_or_intersection_of_object_types_with_statically_known_members,
-                    &[text],
+                    &[(text).into()],
                 );
                 let mut diagnostic = state.diagnostic_for_node(
                     base_expression,
@@ -5964,10 +6004,10 @@ impl<'a> CheckerState<'a> {
                 .expect("class types carry their symbol");
             let declaration = self.binder.symbol(symbol).value_declaration;
             let display = self.generic_type_display(ty);
-            self.error_at(
+            self.error_at_js(
                 declaration,
                 &diagnostics::Type_0_recursively_references_itself_as_a_base_type,
-                &[&display],
+                &[(&display).into()],
             );
             return Ok(());
         }
@@ -6286,7 +6326,7 @@ impl<'a> CheckerState<'a> {
     /// for accessor reports. Late computed names, private names, and
     /// literal names retain their declaration text (`[Symbol.iterator]`,
     /// `#x`, `"x"`); ordinary identifiers keep the symbol display.
-    fn accessor_symbol_display_name(&self, symbol: SymbolId) -> String {
+    fn accessor_symbol_display_name(&self, symbol: SymbolId) -> JsString {
         let source_name_text = self
             .binder
             .symbol(symbol)
@@ -6323,7 +6363,9 @@ impl<'a> CheckerState<'a> {
                 };
                 Some(source.text()[start..end].to_owned())
             });
-        source_name_text.unwrap_or_else(|| self.symbol_display_name(symbol))
+        source_name_text
+            .map(JsString::from)
+            .unwrap_or_else(|| self.symbol_display_name(symbol))
     }
 
     /// tsc's getErrorSpanForNode receives the accessor declaration and
@@ -6335,10 +6377,10 @@ impl<'a> CheckerState<'a> {
         &self,
         declaration: NodeId,
         message: &'static tsc_diagnostics::DiagnosticMessage,
-        args: &[&str],
+        args: &[tsc_types::JsStr<'_>],
         is_error: bool,
     ) -> tsc_diagnostics::Diagnostic {
-        let mut diagnostic = self.create_error(Some(declaration), message, args);
+        let mut diagnostic = self.create_error_js(Some(declaration), message, args);
         if let Some(name) = self.name_of_node(declaration).filter(|&name| {
             matches!(
                 self.kind_of(name),
@@ -6490,7 +6532,7 @@ impl<'a> CheckerState<'a> {
                     let diagnostic = self.accessor_implicit_any_diagnostic(
                         setter,
                         &diagnostics::Property_0_implicitly_has_type_any_because_its_set_accessor_lacks_a_parameter_type_annotation,
-                        &[&name],
+                        &[(&name).into()],
                         no_implicit_any,
                     );
                     self.push_error_diagnostic(diagnostic);
@@ -6500,7 +6542,7 @@ impl<'a> CheckerState<'a> {
                     let diagnostic = self.accessor_implicit_any_diagnostic(
                         getter,
                         &diagnostics::Property_0_implicitly_has_type_any_because_its_get_accessor_lacks_a_return_type_annotation,
-                        &[&name],
+                        &[(&name).into()],
                         no_implicit_any,
                     );
                     self.push_error_diagnostic(diagnostic);
@@ -6510,7 +6552,7 @@ impl<'a> CheckerState<'a> {
                     let diagnostic = self.accessor_implicit_any_diagnostic(
                         accessor,
                         &diagnostics::Member_0_implicitly_has_an_1_type,
-                        &[&name, "any"],
+                        &[(&name).into(), ("any").into()],
                         no_implicit_any,
                     );
                     self.push_error_diagnostic(diagnostic);
@@ -6529,30 +6571,30 @@ impl<'a> CheckerState<'a> {
             // circular-getter report.
             let name = self.accessor_symbol_display_name(symbol);
             if self.annotated_accessor_type_node(getter).is_some() {
-                self.error_at(
+                self.error_at_js(
                     getter,
                     &diagnostics::_0_is_referenced_directly_or_indirectly_in_its_own_type_annotation,
-                    &[&name],
+                    &[(&name).into()],
                 );
             } else if self.annotated_accessor_type_node(setter).is_some()
                 || self.annotated_accessor_type_node(accessor).is_some()
             {
                 // tsc's setter and accessor arms both anchor at
                 // `setter` — collapsed into one branch here.
-                self.error_at(
+                self.error_at_js(
                     setter,
                     &diagnostics::_0_is_referenced_directly_or_indirectly_in_its_own_type_annotation,
-                    &[&name],
+                    &[(&name).into()],
                 );
             } else if getter.is_some()
                 && self
                     .options
                     .strict_option_value(self.options.no_implicit_any)
             {
-                self.error_at(
+                self.error_at_js(
                     getter,
                     &diagnostics::_0_implicitly_has_return_type_any_because_it_does_not_have_a_return_type_annotation_and_is_referenced_directly_or_indirectly_in_one_of_its_return_expressions,
-                    &[&name],
+                    &[(&name).into()],
                 );
             }
             self.tables.intrinsics.any
@@ -6626,10 +6668,10 @@ impl<'a> CheckerState<'a> {
         } else {
             if annotation.is_some() {
                 let name = self.symbol_display_name(symbol);
-                self.error_at(
+                self.error_at_js(
                     setter,
                     &diagnostics::_0_is_referenced_directly_or_indirectly_in_its_own_type_annotation,
-                    &[&name],
+                    &[(&name).into()],
                 );
             }
             self.tables.intrinsics.any
@@ -7078,7 +7120,10 @@ impl<'a> CheckerState<'a> {
                         let mut table = state.symbol_list_to_table(&named);
                         if let Some(index_symbol) = members.get(InternalSymbolName::INDEX).copied()
                         {
-                            table.insert(InternalSymbolName::INDEX.to_owned(), index_symbol);
+                            table.insert(
+                                tsc_types::EscapedName::internal(InternalSymbolName::INDEX),
+                                index_symbol,
+                            );
                         }
                         members = table;
                         let base_properties =
@@ -7238,7 +7283,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         members: &tsc_binder::SymbolTable,
     ) -> CheckResult<Vec<SymbolId>> {
-        let entries: Vec<(String, SymbolId)> = members
+        let entries: Vec<(tsc_types::EscapedName, SymbolId)> = members
             .iter()
             .map(|(name, &symbol)| (name.clone(), symbol))
             .collect();
@@ -7738,7 +7783,10 @@ impl<'a> CheckerState<'a> {
                     let value_declaration = file.value_declaration;
                     let members = file.members.clone();
                     let exports = file.exports.clone();
-                    let result = self.binder.create_symbol(flags, "exports".to_owned());
+                    let result = self.binder.create_symbol(
+                        flags,
+                        tsc_types::EscapedName::from_identifier_escaped_text("exports"),
+                    );
                     {
                         let result_symbol = self.binder.symbol_mut(result);
                         result_symbol.declarations = declarations;
@@ -7750,7 +7798,10 @@ impl<'a> CheckerState<'a> {
                     self.links
                         .set_symbol_target(self.speculation_depth, result, file_symbol);
                     let mut module_members = tsc_binder::SymbolTable::default();
-                    module_members.insert("exports".to_owned(), result);
+                    module_members.insert(
+                        tsc_types::EscapedName::from_identifier_escaped_text("exports"),
+                        result,
+                    );
                     let resolved = self.make_resolved_anonymous_type(
                         Some(symbol),
                         module_members,
@@ -8123,10 +8174,10 @@ impl<'a> CheckerState<'a> {
         // the declaration spelling (`#x`, `["#x"]`, ...).
         let name = self.symbol_name_as_written_slice(symbol);
         if annotation.is_some() {
-            self.error_at(
+            self.error_at_js(
                 Some(declaration),
                 &diagnostics::_0_is_referenced_directly_or_indirectly_in_its_own_type_annotation,
-                &[&name],
+                &[(&name).into()],
             );
             return self.tables.intrinsics.error;
         }
@@ -8140,10 +8191,10 @@ impl<'a> CheckerState<'a> {
         if no_implicit_any
             && (self.kind_of(declaration) != SyntaxKind::Parameter || has_initializer)
         {
-            self.error_at(
+            self.error_at_js(
                 Some(declaration),
                 &diagnostics::_0_implicitly_has_type_any_because_it_does_not_have_a_type_annotation_and_is_referenced_directly_or_indirectly_in_its_own_initializer,
-                &[&name],
+                &[(&name).into()],
             );
         }
         self.tables.intrinsics.any
@@ -9788,7 +9839,7 @@ impl<'a> CheckerState<'a> {
                 let value = self.get_enum_member_value(member)?.value;
                 let base = match value {
                     Some(EvalValue::Str(text)) => self.tables.get_enum_literal_type(
-                        LiteralValue::String(text.into()),
+                        LiteralValue::String(tsc_types::TemplateText::from_js(text.as_js())),
                         symbol,
                         member_symbol,
                     ),
@@ -10266,9 +10317,10 @@ impl<'a> CheckerState<'a> {
                     .and_then(|name| self.identifier_text_of(name))
                     .unwrap_or("(missing)")
                     .to_owned();
-                let parameter_symbol = self
-                    .binder
-                    .create_symbol(SymbolFlags::FUNCTION_SCOPED_VARIABLE, name);
+                let parameter_symbol = self.binder.create_symbol(
+                    SymbolFlags::FUNCTION_SCOPED_VARIABLE,
+                    tsc_types::EscapedName::from_identifier_escaped_text(&name),
+                );
                 if let Some(type_node) = type_node {
                     let ty = self.get_type_from_type_node(type_node)?;
                     self.links
@@ -10351,7 +10403,7 @@ impl<'a> CheckerState<'a> {
                 let ty = self.get_type_from_type_node(type_expression)?;
                 let symbol = self.binder.create_symbol(
                     SymbolFlags::FUNCTION_SCOPED_VARIABLE,
-                    InternalSymbolName::THIS.to_owned(),
+                    tsc_types::EscapedName::internal(InternalSymbolName::THIS),
                 );
                 self.links
                     .set_fresh_symbol_type(symbol, LinkSlot::Resolved(ty));
@@ -10528,9 +10580,10 @@ impl<'a> CheckerState<'a> {
         } else {
             self.any_array_type()?
         };
-        let symbol = self
-            .binder
-            .create_symbol(SymbolFlags::VARIABLE, "args".to_owned());
+        let symbol = self.binder.create_symbol(
+            SymbolFlags::VARIABLE,
+            tsc_types::EscapedName::from_identifier_escaped_text("args"),
+        );
         self.links
             .set_fresh_symbol_type(symbol, LinkSlot::Resolved(ty));
         self.links.set_symbol_check_flags(
@@ -10724,10 +10777,10 @@ impl<'a> CheckerState<'a> {
                                 .source_of_node(declaration.expect("named implies declared")),
                             Some(name),
                         );
-                        self.error_at(
+                        self.error_at_js(
                             Some(name),
                             &diagnostics::_0_implicitly_has_return_type_any_because_it_does_not_have_a_return_type_annotation_and_is_referenced_directly_or_indirectly_in_one_of_its_return_expressions,
-                            &[&display],
+                            &[(&display).into()],
                         );
                     }
                     None => {
@@ -10807,7 +10860,8 @@ fn get_excluded_symbol_flags(flags: SymbolFlags) -> SymbolFlags {
 }
 
 /// tsrs-native: Rust-structural helper for the h2-7a-m-3 foundation.
-pub(crate) fn is_reserved_member_name(name: &str) -> bool {
+pub(crate) fn is_reserved_member_name<'a>(name: impl Into<JsStr<'a>>) -> bool {
+    let name = name.into();
     // h2-7a-m-3 widening (body site)
     let bytes = name.as_bytes();
     bytes.first() == Some(&b'_')

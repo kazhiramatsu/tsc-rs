@@ -58,7 +58,9 @@ fn explicit_root_descriptor_loads_with_the_observation_floor() {
     assert_eq!(options.skip_default_lib_check, Some(false));
     assert_eq!(
         loaded.root_names.as_ref(),
-        [PathBuf::from("/.src/tests/cases/projects/baseline/emit.ts")],
+        [tsc_diagnostics::JsString::from(
+            "/.src/tests/cases/projects/baseline/emit.ts"
+        )],
         "every requested root, normalized against the project cwd"
     );
 }
@@ -74,7 +76,11 @@ fn map_root_descriptor_applies_the_emit_options_instead_of_rejecting() {
     let loaded = load_project_emit(&workspace, &plan, limits())
         .expect("the emit lane applies mapRoot as an ordinary option");
     assert_eq!(
-        loaded.effective_compiler_options.map_root.as_deref(),
+        loaded
+            .effective_compiler_options
+            .map_root
+            .as_ref()
+            .map(|value| value.as_str().expect("scalar legacy option observation")),
         Some("../mapFiles"),
         "the H0 adapter's rejection is not the emit-lane record"
     );

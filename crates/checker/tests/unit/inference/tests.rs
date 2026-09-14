@@ -1788,7 +1788,15 @@ fn literal_union_against_keyof_filters_and_escapes_members() {
                 .expect("created resolved");
             let resolved = state.members_of(members);
             assert_eq!(
-                resolved.members.keys().cloned().collect::<Vec<_>>(),
+                resolved
+                    .members
+                    .keys()
+                    .map(|value| value
+                        .as_js()
+                        .as_str()
+                        .expect("scalar name observation")
+                        .to_owned())
+                    .collect::<Vec<_>>(),
                 vec!["a".to_owned(), "___x".to_owned()],
                 "union order kept, number literal dropped, __ escaped"
             );

@@ -15,16 +15,17 @@ use crate::node_util::{
 };
 use crate::symbols::{
     escape_leading_underscores, relocate_symbol_table_values, unescape_leading_underscores,
-    InternalSymbolName, SymbolArena, SymbolId, SymbolIdentityRelocation, SymbolTable,
+    EscapedNameSet, InternalSymbolName, SymbolArena, SymbolId, SymbolIdentityRelocation,
+    SymbolTable,
 };
-use indexmap::IndexSet;
 use tsc_diagnostics::{
-    gen as diagnostics, Diagnostic, DiagnosticList, DiagnosticMessage, MessageChain, RelatedInfo,
+    gen as diagnostics, Diagnostic, DiagnosticArgument, DiagnosticList, DiagnosticMessage,
+    MessageChain, RelatedInfo,
 };
 use tsc_syntax::{NodeData, NodeId, SourceFile, SyntaxKind};
 use tsc_types::{
-    IdentityAllocationPolicy, IdentityDomain, IdentityError, IdentityLease, IdentityRange,
-    IdentitySpace, ModifierFlags, SymbolFlags, TRANSIENT_SYMBOL_BIT,
+    EscapedName, IdentityAllocationPolicy, IdentityDomain, IdentityError, IdentityLease,
+    IdentityRange, IdentitySpace, JsString, ModifierFlags, SymbolFlags, TRANSIENT_SYMBOL_BIT,
 };
 
 /// Which symbol table a declaration lands in. tsc passes the table
@@ -60,7 +61,7 @@ pub struct BinderWorker<'a> {
     pub js_global_augmentations: SymbolTable,
     pub bind_diagnostics: DiagnosticList,
     /// tsc file.classifiableNames (insertion-ordered Set).
-    pub classifiable_names: IndexSet<String>,
+    pub classifiable_names: EscapedNameSet,
     /// tsc getSymbolId's lazily-assigned global symbol ids; the counter
     /// is program-wide in tsc, so it is seedable for multi-file binds.
     assigned_symbol_ids: HashMap<SymbolId, u32>,
@@ -81,7 +82,7 @@ pub struct BinderWorker<'a> {
     /// Parse-time-only readers (node_util) keep reading the arena.
     pub node_flags_mut: Vec<i32>,
     /// tsc file.patternAmbientModules (bindModuleDeclaration).
-    pub pattern_ambient_modules: Vec<(String, String, SymbolId)>,
+    pub pattern_ambient_modules: Vec<(JsString, JsString, SymbolId)>,
 
     // ---- flow state (stage 3.3 scaffolding, stage 3.5 fills) ----
     pub flow: crate::flow::FlowArena,
@@ -143,14 +144,14 @@ pub struct BindData {
     pub locals: HashMap<NodeId, SymbolTable>,
     pub js_global_augmentations: SymbolTable,
     pub bind_diagnostics: DiagnosticList,
-    pub classifiable_names: IndexSet<String>,
+    pub classifiable_names: EscapedNameSet,
     pub assigned_symbol_ids: HashMap<SymbolId, u32>,
     pub private_name_serial_base: u32,
     pub next_symbol_id: u32,
     pub private_name_serial_lease: Option<IdentityLease>,
     pub next_container: HashMap<NodeId, NodeId>,
     pub node_flags_mut: Vec<i32>,
-    pub pattern_ambient_modules: Vec<(String, String, SymbolId)>,
+    pub pattern_ambient_modules: Vec<(JsString, JsString, SymbolId)>,
     pub flow: crate::flow::FlowArena,
     pub unreachable_flow: crate::flow::FlowId,
     pub node_flow: HashMap<NodeId, crate::flow::FlowId>,
@@ -273,7 +274,7 @@ impl<'a> BinderWorker<'a> {
             locals: HashMap::new(),
             js_global_augmentations: SymbolTable::default(),
             bind_diagnostics: Vec::new(),
-            classifiable_names: IndexSet::new(),
+            classifiable_names: EscapedNameSet::new(),
             assigned_symbol_ids: HashMap::new(),
             private_name_serial_base: next_symbol_id,
             next_symbol_id,
@@ -510,7 +511,7 @@ impl<'a> BinderWorker<'a> {
 
     /// tsc createSymbol (42513): allocation + the symbolCount bump
     /// (arena length doubles as file.symbolCount).
-    fn create_symbol(&mut self, flags: SymbolFlags, name: String) -> SymbolId {
+    fn create_symbol(&mut self, flags: SymbolFlags, name: EscapedName) -> SymbolId {
         self.symbols.alloc(flags, name)
     }
 
@@ -547,16 +548,19 @@ impl<'a> BinderWorker<'a> {
             || kind_of(self.source, node) == SyntaxKind::ExportSpecifier
                 && self.export_specifier_name_is_default(node);
 
-        let name: Option<String> = if is_computed_name {
-            Some(InternalSymbolName::COMPUTED.to_owned())
+        let name: Option<EscapedName> = if is_computed_name {
+            Some(EscapedName::internal(InternalSymbolName::COMPUTED))
         } else if is_default_export && parent.is_some() {
-            Some(InternalSymbolName::DEFAULT.to_owned())
+            Some(EscapedName::internal(InternalSymbolName::DEFAULT))
         } else {
             self.get_declaration_name(node)
         };
 
         let symbol = match name {
-            None => self.create_symbol(SymbolFlags::NONE, InternalSymbolName::MISSING.to_owned()),
+            None => self.create_symbol(
+                SymbolFlags::NONE,
+                EscapedName::internal(InternalSymbolName::MISSING),
+            ),
             Some(name) => {
                 if includes.intersects(SymbolFlags::CLASSIFIABLE) {
                     self.classifiable_names.insert(name.clone());
@@ -693,20 +697,17 @@ impl<'a> BinderWorker<'a> {
     /// tsc-span: _tsc.js:42534-42598
     ///
     /// JS-only: the BinaryExpression module.exports arm.
-    pub fn get_declaration_name(&mut self, node: NodeId) -> Option<String> {
+    pub fn get_declaration_name(&mut self, node: NodeId) -> Option<EscapedName> {
         if kind_of(self.source, node) == SyntaxKind::ExportAssignment {
             let is_export_equals = match &self.source.arena.node(node).data {
                 NodeData::ExportAssignment(data) => data.is_export_equals.unwrap_or(false),
                 _ => false,
             };
-            return Some(
-                if is_export_equals {
-                    InternalSymbolName::EXPORT_EQUALS
-                } else {
-                    InternalSymbolName::DEFAULT
-                }
-                .to_owned(),
-            );
+            return Some(EscapedName::internal(if is_export_equals {
+                InternalSymbolName::EXPORT_EQUALS
+            } else {
+                InternalSymbolName::DEFAULT
+            }));
         }
         if let Some(name) = crate::assignment::get_assignment_declaration_name(self.source, node) {
             return get_escaped_text_of_identifier_or_literal(self.source, name);
@@ -716,9 +717,9 @@ impl<'a> BinderWorker<'a> {
                 let module_name =
                     get_text_of_identifier_or_literal(self.source, name).unwrap_or_default();
                 return Some(if is_global_scope_augmentation(self.source, node) {
-                    InternalSymbolName::GLOBAL.to_owned()
+                    EscapedName::internal(InternalSymbolName::GLOBAL)
                 } else {
-                    format!("\"{module_name}\"")
+                    EscapedName::quoted_module(module_name.as_js())
                 });
             }
             if kind_of(self.source, name) == SyntaxKind::ComputedPropertyName {
@@ -744,7 +745,9 @@ impl<'a> BinderWorker<'a> {
                     let operand_text = data
                         .operand
                         .and_then(|operand| literal_text_of(self.source, operand))?;
-                    return Some(format!("{token}{operand_text}"));
+                    let mut text = JsString::from(token);
+                    text.push_js(operand_text);
+                    return Some(EscapedName::from_escaped_value(text));
                 }
                 debug_assert!(
                     false,
@@ -761,7 +764,9 @@ impl<'a> BinderWorker<'a> {
                 };
                 // tsc getSymbolNameForPrivateIdentifier (_tsc.js 15905).
                 let id = self.get_symbol_id(class_symbol);
-                return Some(format!("__#{id}@{escaped_text}"));
+                return Some(EscapedName::from_escaped_value(
+                    format!("__#{id}@{escaped_text}").into(),
+                ));
             }
             if kind_of(self.source, name) == SyntaxKind::JsxNamespacedName {
                 return get_escaped_text_of_jsx_namespaced_name(self.source, name);
@@ -773,20 +778,19 @@ impl<'a> BinderWorker<'a> {
             };
         }
         match kind_of(self.source, node) {
-            SyntaxKind::Constructor => Some(InternalSymbolName::CONSTRUCTOR.to_owned()),
+            SyntaxKind::Constructor => Some(EscapedName::internal(InternalSymbolName::CONSTRUCTOR)),
             SyntaxKind::FunctionType | SyntaxKind::CallSignature | SyntaxKind::JSDocSignature => {
-                Some(InternalSymbolName::CALL.to_owned())
+                Some(EscapedName::internal(InternalSymbolName::CALL))
             }
-            SyntaxKind::JSDocFunctionType => Some(
+            SyntaxKind::JSDocFunctionType => Some(EscapedName::internal(
                 if is_jsdoc_construct_signature(self.source, node) {
                     InternalSymbolName::NEW
                 } else {
                     InternalSymbolName::CALL
-                }
-                .to_owned(),
-            ),
+                },
+            )),
             SyntaxKind::ConstructorType | SyntaxKind::ConstructSignature => {
-                Some(InternalSymbolName::NEW.to_owned())
+                Some(EscapedName::internal(InternalSymbolName::NEW))
             }
             SyntaxKind::Parameter => {
                 let parent = parent_of(self.source, node)?;
@@ -801,29 +805,35 @@ impl<'a> BinderWorker<'a> {
                         .iter()
                         .position(|&parameter| parameter == node)
                 })?;
-                Some(format!("arg{index}"))
+                Some(EscapedName::from_identifier_escaped_text(&format!(
+                    "arg{index}"
+                )))
             }
-            SyntaxKind::IndexSignature => Some(InternalSymbolName::INDEX.to_owned()),
-            SyntaxKind::ExportDeclaration => Some(InternalSymbolName::EXPORT_STAR.to_owned()),
-            SyntaxKind::SourceFile => Some(InternalSymbolName::EXPORT_EQUALS.to_owned()),
+            SyntaxKind::IndexSignature => Some(EscapedName::internal(InternalSymbolName::INDEX)),
+            SyntaxKind::ExportDeclaration => {
+                Some(EscapedName::internal(InternalSymbolName::EXPORT_STAR))
+            }
+            SyntaxKind::SourceFile => {
+                Some(EscapedName::internal(InternalSymbolName::EXPORT_EQUALS))
+            }
             SyntaxKind::BinaryExpression
                 if crate::assignment::get_assignment_declaration_kind(self.source, node)
                     == crate::assignment::AssignmentDeclarationKind::ModuleExports =>
             {
-                Some(InternalSymbolName::EXPORT_EQUALS.to_owned())
+                Some(EscapedName::internal(InternalSymbolName::EXPORT_EQUALS))
             }
             _ => None,
         }
     }
 
     /// tsc getDisplayName (42599).
-    fn get_display_name(&mut self, node: NodeId) -> String {
+    fn get_display_name(&mut self, node: NodeId) -> JsString {
         if let Some(name) = crate::node_util::name_field_of(self.source, node) {
-            return declaration_name_to_string(self.source, Some(name));
+            return declaration_name_to_string(self.source, Some(name)).into();
         }
         match self.get_declaration_name(node) {
             Some(name) => unescape_leading_underscores(&name).to_owned(),
-            None => declaration_name_to_string(self.source, None),
+            None => declaration_name_to_string(self.source, None).into(),
         }
     }
 
@@ -883,7 +893,7 @@ impl<'a> BinderWorker<'a> {
                     .unwrap_or_default();
                 let suggestion = format!(
                     "export type {{ {} }}",
-                    unescape_leading_underscores(&escaped)
+                    tsc_syntax::unescape_leading_underscores(&escaped)
                 );
                 related_information.push(self.related_for_node(
                     node,
@@ -947,17 +957,20 @@ impl<'a> BinderWorker<'a> {
         &self,
         node: NodeId,
         message: &'static DiagnosticMessage,
-        args: &[&str],
+        args: &[&dyn DiagnosticArgument],
     ) -> Diagnostic {
         let (start, end) = get_error_span_for_node(self.source, node);
-        let args: Vec<String> = args.iter().map(|arg| (*arg).to_owned()).collect();
+        let args: Vec<JsString> = args
+            .iter()
+            .map(|arg| arg.diagnostic_value().to_owned())
+            .collect();
         let start_utf16 = self.to_utf16(start);
         let end_utf16 = self.to_utf16(end);
-        Diagnostic::new(
+        Diagnostic::new_js(
             Some(self.source.file_name.clone()),
             Some(start_utf16),
             Some(end_utf16.saturating_sub(start_utf16)),
-            MessageChain::new(message, &args),
+            MessageChain::new_js(message, &args),
         )
     }
 
@@ -965,7 +978,7 @@ impl<'a> BinderWorker<'a> {
         &self,
         node: NodeId,
         message: &'static DiagnosticMessage,
-        args: &[&str],
+        args: &[&dyn DiagnosticArgument],
     ) -> RelatedInfo {
         let diag = self.diagnostic_for_node(node, message, args);
         RelatedInfo {
@@ -1009,31 +1022,34 @@ impl PrivateNameSerialRelocation {
         Ok(())
     }
 
-    fn name(&self, value: &mut String) -> Result<bool, IdentityError> {
-        let Some(rest) = value.strip_prefix("__#") else {
+    fn name(&self, value: &mut EscapedName) -> Result<bool, IdentityError> {
+        let Some(rest) = value.as_js().strip_prefix("__#") else {
             return Ok(false);
         };
-        let Some(at) = rest.find('@') else {
+        let Some((digits, suffix)) = rest.split_once("@") else {
             return Err(IdentityError::InvalidLease {
                 space: IdentitySpace::PrivateNameSerial,
                 detail: "mangled private name has no @ delimiter",
             });
         };
-        let digits = &rest[..at];
-        if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_digit()) {
+        if digits.is_empty() || !digits.as_bytes().iter().all(u8::is_ascii_digit) {
             return Err(IdentityError::InvalidLease {
                 space: IdentitySpace::PrivateNameSerial,
                 detail: "mangled private name has an invalid serial",
             });
         }
         let mut serial = digits
+            .as_str()
+            .expect("private-name serial is ASCII digits")
             .parse::<u32>()
             .map_err(|_| IdentityError::InvalidLease {
                 space: IdentitySpace::PrivateNameSerial,
                 detail: "mangled private-name serial exceeds u32",
             })?;
         self.serial(&mut serial)?;
-        value.replace_range(3..3 + digits.len(), &serial.to_string());
+        let mut renamed = JsString::from(format!("__#{serial}@"));
+        renamed.push_js(suffix);
+        *value = EscapedName::from_escaped_value(renamed);
         Ok(true)
     }
 }

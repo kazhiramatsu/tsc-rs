@@ -33,9 +33,11 @@ use crate::node_util::{
     name_field_of, parent_of, statements_of,
 };
 use crate::symbols::{InternalSymbolName, SymbolId};
-use tsc_diagnostics::{gen as diagnostics, DiagnosticMessage};
+use tsc_diagnostics::{gen as diagnostics, DiagnosticArgument, DiagnosticMessage};
 use tsc_syntax::{for_each_child, NodeArrayId, NodeData, NodeId, SyntaxKind};
-use tsc_types::{FlowFlags, ModifierFlags, NodeFlags, ScriptTarget, SymbolFlags};
+use tsc_types::{
+    EscapedName, FlowFlags, JsStr, JsString, ModifierFlags, NodeFlags, ScriptTarget, SymbolFlags,
+};
 
 impl<'a> BinderWorker<'a> {
     /// tsc-port: bindSourceFile2 @6.0.3
@@ -301,7 +303,7 @@ impl<'a> BinderWorker<'a> {
                 self.bind_anonymous_declaration(
                     node,
                     SymbolFlags::TYPE_LITERAL,
-                    InternalSymbolName::TYPE.to_owned(),
+                    EscapedName::internal(InternalSymbolName::TYPE),
                 );
             }
             SyntaxKind::ObjectLiteralExpression => {
@@ -309,7 +311,7 @@ impl<'a> BinderWorker<'a> {
                 self.bind_anonymous_declaration(
                     node,
                     SymbolFlags::OBJECT_LITERAL,
-                    InternalSymbolName::OBJECT.to_owned(),
+                    EscapedName::internal(InternalSymbolName::OBJECT),
                 );
             }
             SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction => {
@@ -353,7 +355,7 @@ impl<'a> BinderWorker<'a> {
                 self.bind_anonymous_declaration(
                     node,
                     SymbolFlags::OBJECT_LITERAL,
-                    InternalSymbolName::JSX_ATTRIBUTES.to_owned(),
+                    EscapedName::internal(InternalSymbolName::JSX_ATTRIBUTES),
                 );
             }
             SyntaxKind::JsxAttribute => {
@@ -474,7 +476,7 @@ impl<'a> BinderWorker<'a> {
     /// tsc-hash: 7bda49b81e8882c21b8464f79529c189f0ddcab650d13ef4a160addba9cd9a07
     /// tsc-span: _tsc.js:44548-44550
     fn bind_source_file_as_external_module(&mut self) {
-        let name = format!("\"{}\"", remove_file_extension(&self.source.file_name));
+        let name = EscapedName::quoted_module(remove_file_extension(self.source.file_name.as_js()));
         self.bind_anonymous_declaration(self.source.root, SymbolFlags::VALUE_MODULE, name);
     }
 
@@ -488,7 +490,7 @@ impl<'a> BinderWorker<'a> {
                 self.bind_anonymous_declaration(
                     node,
                     SymbolFlags::VALUE,
-                    name.unwrap_or_else(|| InternalSymbolName::MISSING.to_owned()),
+                    name.unwrap_or_else(|| EscapedName::internal(InternalSymbolName::MISSING)),
                 );
             }
             Some(container_symbol) => {
@@ -589,7 +591,7 @@ impl<'a> BinderWorker<'a> {
                 self.bind_anonymous_declaration(
                     node,
                     SymbolFlags::EXPORT_STAR,
-                    name.unwrap_or_else(|| InternalSymbolName::MISSING.to_owned()),
+                    name.unwrap_or_else(|| EscapedName::internal(InternalSymbolName::MISSING)),
                 );
             }
             Some(container_symbol) => match export_clause {
@@ -645,12 +647,12 @@ impl<'a> BinderWorker<'a> {
     fn bind_function_or_constructor_type(&mut self, node: NodeId) {
         let name = self
             .get_declaration_name(node)
-            .unwrap_or_else(|| InternalSymbolName::MISSING.to_owned());
+            .unwrap_or_else(|| EscapedName::internal(InternalSymbolName::MISSING));
         let symbol = self.symbols.alloc(SymbolFlags::SIGNATURE, name.clone());
         self.add_declaration_to_symbol(symbol, node, SymbolFlags::SIGNATURE);
         let type_literal_symbol = self.symbols.alloc(
             SymbolFlags::TYPE_LITERAL,
-            InternalSymbolName::TYPE.to_owned(),
+            EscapedName::internal(InternalSymbolName::TYPE),
         );
         self.add_declaration_to_symbol(type_literal_symbol, node, SymbolFlags::TYPE_LITERAL);
         self.symbols
@@ -666,7 +668,7 @@ impl<'a> BinderWorker<'a> {
         &mut self,
         node: NodeId,
         symbol_flags: SymbolFlags,
-        name: String,
+        name: EscapedName,
     ) -> SymbolId {
         let symbol = self.symbols.alloc(symbol_flags, name);
         if symbol_flags.intersects(SymbolFlags::ENUM_MEMBER | SymbolFlags::CLASS_MEMBER) {
@@ -731,10 +733,12 @@ impl<'a> BinderWorker<'a> {
             let name = name_field_of(self.source, node);
             let binding_name = name
                 .and_then(|name| match &self.source.arena.node(name).data {
-                    NodeData::Identifier(data) => Some(data.escaped_text.clone()),
+                    NodeData::Identifier(data) => Some(EscapedName::from_identifier_escaped_text(
+                        &data.escaped_text,
+                    )),
                     _ => None,
                 })
-                .unwrap_or_else(|| InternalSymbolName::CLASS.to_owned());
+                .unwrap_or_else(|| EscapedName::internal(InternalSymbolName::CLASS));
             self.bind_anonymous_declaration(node, SymbolFlags::CLASS, binding_name.clone());
             if name.is_some() {
                 self.classifiable_names.insert(binding_name);
@@ -745,7 +749,7 @@ impl<'a> BinderWorker<'a> {
         };
         let prototype_symbol = self.symbols.alloc(
             SymbolFlags::PROPERTY | SymbolFlags::PROTOTYPE,
-            "prototype".to_owned(),
+            EscapedName::internal("prototype"),
         );
         let existing_export = self
             .symbols
@@ -758,7 +762,7 @@ impl<'a> BinderWorker<'a> {
                 let diag = self.diagnostic_for_node(
                     first,
                     &diagnostics::Duplicate_identifier_0,
-                    &["prototype"],
+                    &[&"prototype"],
                 );
                 self.bind_diagnostics.push(diag);
             }
@@ -766,7 +770,7 @@ impl<'a> BinderWorker<'a> {
         self.symbols
             .symbol_mut(symbol)
             .exports
-            .insert("prototype".to_owned(), prototype_symbol);
+            .insert(EscapedName::internal("prototype"), prototype_symbol);
         self.symbols.symbol_mut(prototype_symbol).parent = Some(symbol);
     }
 
@@ -911,7 +915,7 @@ impl<'a> BinderWorker<'a> {
             self.bind_anonymous_declaration(
                 node,
                 SymbolFlags::FUNCTION_SCOPED_VARIABLE,
-                format!("__{index}"),
+                EscapedName::from_escaped_value(format!("__{index}").into()),
             );
         } else {
             self.declare_symbol_and_add_to_symbol_table(
@@ -1040,10 +1044,12 @@ impl<'a> BinderWorker<'a> {
         self.check_strict_mode_function_name(node);
         let binding_name = name_field_of(self.source, node)
             .and_then(|name| match &self.source.arena.node(name).data {
-                NodeData::Identifier(data) => Some(data.escaped_text.clone()),
+                NodeData::Identifier(data) => Some(EscapedName::from_identifier_escaped_text(
+                    &data.escaped_text,
+                )),
                 _ => None,
             })
-            .unwrap_or_else(|| InternalSymbolName::FUNCTION.to_owned());
+            .unwrap_or_else(|| EscapedName::internal(InternalSymbolName::FUNCTION));
         self.bind_anonymous_declaration(node, SymbolFlags::FUNCTION, binding_name);
     }
 
@@ -1071,7 +1077,7 @@ impl<'a> BinderWorker<'a> {
             self.bind_anonymous_declaration(
                 node,
                 symbol_flags,
-                InternalSymbolName::COMPUTED.to_owned(),
+                EscapedName::internal(InternalSymbolName::COMPUTED),
             );
         } else {
             self.declare_symbol_and_add_to_symbol_table(node, symbol_flags, symbol_excludes);
@@ -1130,7 +1136,7 @@ impl<'a> BinderWorker<'a> {
                 None => {
                     let name = self
                         .get_declaration_name(node)
-                        .unwrap_or_else(|| InternalSymbolName::MISSING.to_owned());
+                        .unwrap_or_else(|| EscapedName::internal(InternalSymbolName::MISSING));
                     self.bind_anonymous_declaration(node, SymbolFlags::TYPE_PARAMETER, name);
                 }
             }
@@ -1232,7 +1238,7 @@ impl<'a> BinderWorker<'a> {
             self.bind_anonymous_declaration(
                 node,
                 SymbolFlags::PROPERTY | SymbolFlags::ASSIGNMENT,
-                InternalSymbolName::COMPUTED.to_owned(),
+                EscapedName::internal(InternalSymbolName::COMPUTED),
             );
             let symbol = self.bind_potentially_missing_namespaces(
                 parent_symbol,
@@ -2081,7 +2087,7 @@ impl<'a> BinderWorker<'a> {
                     );
                     return Some(symbol);
                 }
-                let name = data.escaped_text.clone();
+                let name = EscapedName::from_identifier_escaped_text(&data.escaped_text);
                 let symbol = if let Some(parent) = parent_symbol {
                     self.declare_symbol(
                         TableRef::Exports(parent),
@@ -2680,9 +2686,12 @@ impl<'a> BinderWorker<'a> {
         start: usize,
         end: usize,
         message: &'static DiagnosticMessage,
-        args: &[&str],
+        args: &[&dyn DiagnosticArgument],
     ) {
-        let args: Vec<String> = args.iter().map(|arg| (*arg).to_owned()).collect();
+        let args: Vec<JsString> = args
+            .iter()
+            .map(|arg| arg.diagnostic_value().to_owned())
+            .collect();
         let to_utf16 = |byte: usize| -> u32 {
             self.source
                 .positions()
@@ -2691,12 +2700,13 @@ impl<'a> BinderWorker<'a> {
         };
         let start_utf16 = to_utf16(start);
         let end_utf16 = to_utf16(end);
-        self.bind_diagnostics.push(tsc_diagnostics::Diagnostic::new(
-            Some(self.source.file_name.clone()),
-            Some(start_utf16),
-            Some(end_utf16.saturating_sub(start_utf16)),
-            tsc_diagnostics::MessageChain::new(message, &args),
-        ));
+        self.bind_diagnostics
+            .push(tsc_diagnostics::Diagnostic::new_js(
+                Some(self.source.file_name.clone()),
+                Some(start_utf16),
+                Some(end_utf16.saturating_sub(start_utf16)),
+                tsc_diagnostics::MessageChain::new_js(message, &args),
+            ));
     }
 
     // ---- the walk spine ----
@@ -3768,6 +3778,7 @@ impl<'a> BinderWorker<'a> {
         let post_statement_label = self.flow.create_branch_label();
         let name = label
             .and_then(|label| match &self.source.arena.node(label).data {
+                // Labels are grammar identifiers, never literal property values.
                 NodeData::Identifier(data) => Some(data.escaped_text.clone()),
                 _ => None,
             })
@@ -4639,7 +4650,7 @@ fn is_declaration_statement_kind(kind: SyntaxKind) -> bool {
 
 /// tsc removeFileExtension (18749): the longest matching known
 /// extension is removed (.d.ts before .ts).
-fn remove_file_extension(path: &str) -> &str {
+fn remove_file_extension(path: JsStr<'_>) -> JsStr<'_> {
     for extension in [
         ".d.ts", ".d.mts", ".d.cts", ".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs",
         ".json",

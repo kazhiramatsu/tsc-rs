@@ -11,7 +11,7 @@ use tsc_syntax::{
     for_each_child, try_visit_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId,
     SyntaxKind,
 };
-use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget};
+use tsc_types::{CompilerOptions, JsStr, NodeFlags, ScriptTarget};
 
 use crate::{
     factory::EmitHelperName, EmitFlags, LexicalEnvironment, TransformError, TransformFlags,
@@ -288,6 +288,7 @@ impl Transformer for Es2018Transformer {
         visitor.assert_binding_plan(&generated_bindings, &lexical_environment);
         let transformed =
             visitor.merge_source_lexical_environment(transformed, lexical_environment)?;
+        let transformed = visitor.append_tagged_template_declarations(transformed)?;
         finalize_generated_binding_names(visitor.context, source, transformed)?;
         visitor
             .context
@@ -303,6 +304,10 @@ struct Es2018Visitor<'context> {
     target: ScriptTarget,
     nodes: BTreeMap<NodeId, Option<NodeId>>,
     arrays: BTreeMap<NodeArrayId, Option<NodeArrayId>>,
+    /// A tagged-template visit deliberately revisits its tag at LiftRestriction.
+    /// Both node and array memoization must be bypassed within that subtree.
+    memo_enabled: bool,
+    tagged_template_string_declarations: Vec<TransformNode>,
     generated_bindings: GeneratedBindingScopes,
     value_use: ExpressionValueUse,
     function_stack: Vec<FunctionMode>,
@@ -327,6 +332,8 @@ impl<'context> Es2018Visitor<'context> {
             target,
             nodes: BTreeMap::new(),
             arrays: BTreeMap::new(),
+            memo_enabled: true,
+            tagged_template_string_declarations: Vec::new(),
             value_use: ExpressionValueUse::Required,
             function_stack: Vec::new(),
             async_generator_super_captures: Vec::new(),
@@ -352,8 +359,10 @@ impl<'context> Es2018Visitor<'context> {
         id: NodeId,
         value_use: ExpressionValueUse,
     ) -> Result<Option<NodeId>, TransformError> {
-        if let Some(mapped) = self.nodes.get(&id) {
-            return Ok(*mapped);
+        if self.memo_enabled {
+            if let Some(mapped) = self.nodes.get(&id) {
+                return Ok(*mapped);
+            }
         }
         let original = self.node(id);
         let requires_super_rewrite =
@@ -365,12 +374,17 @@ impl<'context> Es2018Visitor<'context> {
                 .transform_flags(original)
                 .contains(TransformFlags::CONTAINS_ES_2018)
         {
-            self.nodes.insert(id, Some(id));
+            if self.memo_enabled {
+                self.nodes.insert(id, Some(id));
+            }
             return Ok(Some(id));
         }
 
         let record = self.context.arena().node(original)?.clone();
         let transformed = match record.data {
+            NodeData::TaggedTemplateExpression(_) => {
+                Some(self.visit_tagged_template_expression(original)?.node())
+            }
             NodeData::ExpressionStatement(data) => {
                 Some(self.visit_expression_statement(original, data)?)
             }
@@ -501,8 +515,61 @@ impl<'context> Es2018Visitor<'context> {
             NodeData::Token => Some(id),
             data => Some(self.update_generic(original, data)?),
         };
-        self.nodes.insert(id, transformed);
+        if self.memo_enabled {
+            self.nodes.insert(id, transformed);
+        }
         Ok(transformed)
+    }
+
+    /// _tsc.js:93972-93982, 102047-102056. Do the actual repeated visits,
+    /// retaining helper, hoist and per-source tail effects from both passes.
+    /// No visitor state is rolled back; only memo use is scoped and restored.
+    fn visit_tagged_template_expression(
+        &mut self,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let previous = std::mem::replace(&mut self.memo_enabled, false);
+        let result = super::tagged_template::process_tagged_template_expression(
+            self,
+            node,
+            super::tagged_template::ProcessLevel::LiftRestriction,
+        );
+        self.memo_enabled = previous;
+        result
+    }
+
+    /// _tsc.js:102025-102046: one non-hoisted tail statement per source.
+    fn append_tagged_template_declarations(
+        &mut self,
+        root: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        if self.tagged_template_string_declarations.is_empty() {
+            return Ok(root);
+        }
+        let NodeData::SourceFile(mut data) = self.context.arena().node(root)?.data.clone() else {
+            return Err(TransformError::RootKindExpected {
+                actual: self.context.arena().node(root)?.kind,
+            });
+        };
+        let mut statements = self.array_nodes(data.statements)?;
+        let declarations = std::mem::take(&mut self.tagged_template_string_declarations);
+        statements.push(self.create_variable_statement(declarations)?);
+        let array = match data.statements {
+            Some(original) => {
+                let original = self.array(original);
+                self.context
+                    .factory()?
+                    .update_node_array(original, statements)?
+            }
+            None => self
+                .context
+                .factory()?
+                .create_node_array(self.source, statements)?,
+        };
+        data.statements = Some(array.array());
+        let data = NodeData::SourceFile(data);
+        let flags = flags_after_update(self.context.arena(), root, &data)?;
+        self.context.factory()?.update_node(root, data, flags)
     }
 
     fn visit_expression_statement(
@@ -3826,7 +3893,7 @@ impl<'context> Es2018Visitor<'context> {
                 Some(ExcludedProperty::Named(property_name)),
             ));
         }
-        let name_text = self.property_name_text(property_name)?.to_owned();
+        let name_text = self.identifier_text(property_name)?.to_owned();
         let name = self.create_identifier(&name_text)?;
         Ok((
             self.create_property_access(value, name)?,
@@ -3959,12 +4026,12 @@ impl<'context> Es2018Visitor<'context> {
         )
     }
 
-    fn property_name_text(&self, name: TransformNode) -> Result<&str, TransformError> {
+    fn property_name_text(&self, name: TransformNode) -> Result<JsStr<'_>, TransformError> {
         match &self.context.arena().node(name)?.data {
-            NodeData::Identifier(data) => Ok(&data.text),
-            NodeData::StringLiteral(data) => Ok(&data.text),
-            NodeData::NumericLiteral(data) => Ok(&data.text),
-            NodeData::BigIntLiteral(data) => Ok(&data.text),
+            NodeData::Identifier(data) => Ok((&data.text).into()),
+            NodeData::StringLiteral(data) => Ok(data.text.as_js()),
+            NodeData::NumericLiteral(data) => Ok((&data.text).into()),
+            NodeData::BigIntLiteral(data) => Ok((&data.text).into()),
             _ => Err(TransformError::RequiredChildRemoved {
                 parent: self.context.arena().node(name)?.kind,
                 field: "literal property name",
@@ -4010,7 +4077,11 @@ impl<'context> Es2018Visitor<'context> {
         Ok(identifier)
     }
 
-    fn create_string_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
+    fn create_string_literal<'t>(
+        &mut self,
+        text: impl Into<JsStr<'t>>,
+    ) -> Result<TransformNode, TransformError> {
+        let text = text.into();
         self.context.factory()?.create_node(
             self.source,
             NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
@@ -4803,8 +4874,10 @@ impl<'context> Es2018Visitor<'context> {
     }
 
     fn visit_node_array(&mut self, id: NodeArrayId) -> Result<Option<NodeArrayId>, TransformError> {
-        if let Some(mapped) = self.arrays.get(&id) {
-            return Ok(*mapped);
+        if self.memo_enabled {
+            if let Some(mapped) = self.arrays.get(&id) {
+                return Ok(*mapped);
+            }
         }
         let original = self.array(id);
         let nodes = self.context.arena().node_array(original)?.nodes.clone();
@@ -4819,7 +4892,9 @@ impl<'context> Es2018Visitor<'context> {
             .factory()?
             .update_node_array(original, visited)?;
         let mapped = Some(updated.array());
-        self.arrays.insert(id, mapped);
+        if self.memo_enabled {
+            self.arrays.insert(id, mapped);
+        }
         Ok(mapped)
     }
 
@@ -5138,5 +5213,83 @@ impl NodeDataChildVisitor for Es2018Visitor<'_> {
 
     fn required_child_removed(&mut self, parent: SyntaxKind, field: &'static str) -> Self::Error {
         TransformError::RequiredChildRemoved { parent, field }
+    }
+}
+
+impl super::tagged_template::TaggedTemplateHost for Es2018Visitor<'_> {
+    fn context(&self) -> &TransformationContext {
+        self.context
+    }
+    fn context_mut(&mut self) -> &mut TransformationContext {
+        self.context
+    }
+    fn source(&self) -> TransformSourceId {
+        self.source
+    }
+    fn create_generated_identifier(
+        &mut self,
+        binding: &TargetBinding,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_generated_identifier(binding)
+    }
+    fn create_array_literal(
+        &mut self,
+        elements: Vec<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_array_literal(elements)
+    }
+    fn create_void_zero(&mut self) -> Result<TransformNode, TransformError> {
+        self.create_void_zero()
+    }
+    fn create_call(
+        &mut self,
+        tag: TransformNode,
+        arguments: Vec<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_call(tag, arguments)
+    }
+    fn create_assignment(
+        &mut self,
+        left: TransformNode,
+        right: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_assignment(left, right)
+    }
+    fn visit_required_expression(
+        &mut self,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.with_value_use(ExpressionValueUse::Required, |visitor| {
+            visitor.visit_required(
+                Some(node.node()),
+                SyntaxKind::TaggedTemplateExpression,
+                "expression",
+            )
+        })
+    }
+    fn visit_each_child_required(
+        &mut self,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let data = self.context.arena().node(node)?.data.clone();
+        self.with_value_use(ExpressionValueUse::Required, |visitor| {
+            let result = visitor.update_generic(node, data)?;
+            Ok(visitor.node(result))
+        })
+    }
+    fn allocate_numbered_binding(&mut self, text: &str) -> Result<TargetBinding, TransformError> {
+        self.allocate_local_numbered_binding(text)
+    }
+    fn record_tagged_template_string(&mut self, name: TransformNode) -> Result<(), TransformError> {
+        let declaration = self.create_variable_declaration(name, None)?;
+        self.tagged_template_string_declarations.push(declaration);
+        Ok(())
+    }
+    fn create_logical_or(
+        &mut self,
+        left: TransformNode,
+        right: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_binary(left, SyntaxKind::BarBarToken, right)
     }
 }

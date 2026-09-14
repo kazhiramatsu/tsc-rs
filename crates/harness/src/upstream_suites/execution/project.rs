@@ -2,11 +2,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use serde_json::Value;
+use tsc_diagnostics::{JsStr, JsString};
 use tsc_host::{CompilerHost, FsCompilerHost, HostError, HostErrorKind, HostOperation};
 use tsc_program::{
-    load_emitting_program, load_program, validate_config_plan, CompilerConfigHost, CompilerOptions,
-    ConfigHostError, ConfigHostOperation, ConfigParseHost, ConfigRootPlan, ConfigRootPlanRequest,
-    LibraryCatalog, PreparedProgram, ProgramLoadLimits, ProgramOptions,
+    load_emitting_program_js, load_program_js, validate_config_plan, CompilerConfigHost,
+    CompilerOptions, ConfigHostError, ConfigHostOperation, ConfigParseHost, ConfigRootPlan,
+    ConfigRootPlanRequest, LibraryCatalog, PreparedProgram, ProgramLoadLimits, ProgramOptions,
 };
 
 use super::{
@@ -33,7 +34,7 @@ const NODE_MODULES_SEARCH_CASES: &[&str] = &[
 #[derive(Clone, Debug)]
 pub struct ProjectConfigProgram {
     pub config_root_plan: Arc<ConfigRootPlan>,
-    pub root_names: Arc<[PathBuf]>,
+    pub root_names: Arc<[JsString]>,
     pub effective_compiler_options: CompilerOptions,
     pub effective_program_options: ProgramOptions,
     pub prepared_program: PreparedProgram,
@@ -48,7 +49,7 @@ pub struct ProjectConfigProgram {
 #[derive(Clone, Debug)]
 pub struct ProjectNoEmitProgram {
     pub config_root_plan: Option<Arc<ConfigRootPlan>>,
-    pub root_names: Arc<[PathBuf]>,
+    pub root_names: Arc<[JsString]>,
     pub effective_compiler_options: CompilerOptions,
     pub effective_program_options: ProgramOptions,
     pub prepared_program: PreparedProgram,
@@ -86,7 +87,7 @@ pub fn load_project_no_emit(
                     .iter()
                     .map(|name| {
                         normalize_virtual_path(plan.fixture.current_directory.as_ref(), name)
-                            .map(PathBuf::from)
+                            .map(JsString::from)
                             .map_err(|path_error| {
                                 error(format!(
                                     "project descriptor {:?} has invalid explicit root {:?}: {path_error}",
@@ -118,7 +119,7 @@ pub fn load_project_no_emit(
             let root_names = config_root_plan
                 .file_names()
                 .iter()
-                .map(PathBuf::from)
+                .cloned()
                 .collect::<Vec<_>>();
             let compiler_options = config_root_plan
                 .module_resolution_options()
@@ -151,7 +152,7 @@ pub fn load_project_no_emit(
             let root_names = config_root_plan
                 .file_names()
                 .iter()
-                .map(PathBuf::from)
+                .cloned()
                 .collect::<Vec<_>>();
             let compiler_options = config_root_plan
                 .module_resolution_options()
@@ -179,7 +180,7 @@ pub fn load_project_no_emit(
     compiler_options.no_emit = Some(true);
 
     let library_catalog = LibraryCatalog::typescript_6_0_3(library_directory);
-    let prepared_program = load_program(
+    let prepared_program = load_program_js(
         &host,
         &root_names,
         compiler_options.clone(),
@@ -252,7 +253,7 @@ pub fn load_project_emit_with_option_floor(
                 .iter()
                 .map(|name| {
                     normalize_virtual_path(plan.fixture.current_directory.as_ref(), name)
-                        .map(PathBuf::from)
+                        .map(JsString::from)
                         .map_err(|path_error| {
                             error(format!(
                                 "project descriptor {:?} has invalid explicit root {:?}: {path_error}",
@@ -284,7 +285,7 @@ pub fn load_project_emit_with_option_floor(
             let root_names = config_root_plan
                 .file_names()
                 .iter()
-                .map(PathBuf::from)
+                .cloned()
                 .collect::<Vec<_>>();
             let compiler_options = config_root_plan
                 .module_resolution_options()
@@ -321,7 +322,7 @@ pub fn load_project_emit_with_option_floor(
             let root_names = config_root_plan
                 .file_names()
                 .iter()
-                .map(PathBuf::from)
+                .cloned()
                 .collect::<Vec<_>>();
             let compiler_options = config_root_plan
                 .module_resolution_options()
@@ -358,7 +359,7 @@ pub fn load_project_emit_with_option_floor(
     }
 
     let library_catalog = LibraryCatalog::typescript_6_0_3(library_directory);
-    let prepared_program = load_emitting_program(
+    let prepared_program = load_emitting_program_js(
         &host,
         &root_names,
         compiler_options.clone(),
@@ -422,19 +423,19 @@ fn apply_project_emit_options(
                 options.source_map = Some(property_bool(&property.value, "sourceMap")?);
             }
             "sourceRoot" => {
-                options.source_root = property.value.as_str().map(str::to_owned);
+                options.source_root = property.value.as_str().map(JsString::from);
             }
             "mapRoot" => {
-                options.map_root = property.value.as_str().map(str::to_owned);
+                options.map_root = property.value.as_str().map(JsString::from);
             }
             "outDir" => {
-                options.out_dir = property.value.as_str().map(str::to_owned);
+                options.out_dir = property.value.as_str().map(JsString::from);
             }
             "outFile" => {
-                options.out_file = property.value.as_str().map(str::to_owned);
+                options.out_file = property.value.as_str().map(JsString::from);
             }
             "rootDir" => {
-                options.root_dir = property.value.as_str().map(str::to_owned);
+                options.root_dir = property.value.as_str().map(JsString::from);
             }
             "scenario" | "projectRoot" | "inputFiles" | "baselineCheck" | "runTest" | "project" => {
             }
@@ -516,9 +517,9 @@ fn parse_project_config(
     let config_root_plan = tsc_program::parse_config_root_plan(
         host,
         ConfigRootPlanRequest {
-            file_name: config_path.to_owned(),
+            file_name: config_path.into(),
             text: config_text,
-            base_path: plan.fixture.current_directory.to_string(),
+            base_path: plan.fixture.current_directory.as_ref().into(),
         },
     )
     .map_err(|parse_error| {
@@ -660,9 +661,27 @@ struct MountedProjectHost {
     mount: Arc<ProjectMount>,
     current_directory: Arc<str>,
     library_directory: PathBuf,
+    library_directory_js: JsString,
 }
 
 impl MountedProjectHost {
+    fn normalized_query_js(
+        &self,
+        path: JsStr<'_>,
+        operation: HostOperation,
+    ) -> Result<JsString, HostError> {
+        super::js_paths::normalize_virtual(self.current_directory.as_ref().into(), path).map_err(
+            |detail| HostError::new_js(HostErrorKind::InvalidInput, operation, Some(path), detail),
+        )
+    }
+    fn path_is_in_mount_js(&self, path: JsStr<'_>) -> bool {
+        let root = self.mount.virtual_path.trim_end_matches('/');
+        path == root
+            || path
+                .strip_prefix(root)
+                .is_some_and(|tail| tail.starts_with("/"))
+    }
+
     fn new(
         workspace: &Path,
         mount: Arc<ProjectMount>,
@@ -685,7 +704,12 @@ impl MountedProjectHost {
                 "failed to create project filesystem host: {host_error}"
             ))
         })?;
+        let library_directory_js = library_directory
+            .to_str()
+            .ok_or_else(|| error("native library mount is not Unicode"))?
+            .into();
         Ok(Self {
+            library_directory_js,
             filesystem,
             mount,
             current_directory,
@@ -780,7 +804,7 @@ impl MountedProjectHost {
 
     fn host_error(
         operation: ConfigHostOperation,
-        path: &str,
+        path: JsStr<'_>,
         source: HostError,
     ) -> ConfigHostError {
         ConfigHostError::new(operation, path, source.to_string())
@@ -788,6 +812,105 @@ impl MountedProjectHost {
 }
 
 impl CompilerHost for MountedProjectHost {
+    fn current_directory_js(&self) -> Result<JsString, HostError> {
+        Ok(self.current_directory.as_ref().into())
+    }
+    fn read_file_js(&self, path: JsStr<'_>) -> Result<Option<Vec<u8>>, HostError> {
+        if super::js_paths::library_query(path, self.library_directory_js.as_js()) {
+            return self.filesystem.read_file_js(path);
+        }
+        let normalized = self.normalized_query_js(path, HostOperation::ReadFile)?;
+        if !self.path_is_in_mount_js(normalized.as_js()) {
+            return Ok(None);
+        }
+        Ok(self
+            .mount
+            .files
+            .iter()
+            .find(|file| normalized.as_js() == file.virtual_path.as_ref())
+            .map(|file| file.source.raw.to_vec()))
+    }
+    fn file_exists_js(&self, path: JsStr<'_>) -> Result<bool, HostError> {
+        if super::js_paths::library_query(path, self.library_directory_js.as_js()) {
+            return self.filesystem.file_exists_js(path);
+        }
+        let normalized = self.normalized_query_js(path, HostOperation::FileExists)?;
+        Ok(self.path_is_in_mount_js(normalized.as_js())
+            && self
+                .mount
+                .files
+                .iter()
+                .any(|file| normalized.as_js() == file.virtual_path.as_ref()))
+    }
+    fn directory_exists_js(&self, path: JsStr<'_>) -> Result<bool, HostError> {
+        if super::js_paths::library_query(path, self.library_directory_js.as_js()) {
+            return self.filesystem.directory_exists_js(path);
+        }
+        let normalized = self.normalized_query_js(path, HostOperation::DirectoryExists)?;
+        let prefix = super::js_paths::directory_prefix(normalized.as_js());
+        Ok(self.path_is_in_mount_js(normalized.as_js())
+            && self
+                .mount
+                .files
+                .iter()
+                .any(|file| JsStr::from(file.virtual_path.as_ref()).starts_with_js(prefix.as_js())))
+    }
+    fn read_directory_js(&self, path: JsStr<'_>) -> Result<Vec<JsString>, HostError> {
+        if super::js_paths::library_query(path, self.library_directory_js.as_js()) {
+            return self.filesystem.read_directory_js(path);
+        }
+        let normalized = self.normalized_query_js(path, HostOperation::ReadDirectory)?;
+        if !self.path_is_in_mount_js(normalized.as_js()) {
+            return Ok(Vec::new());
+        }
+        let prefix = super::js_paths::directory_prefix(normalized.as_js());
+        let mut names = Vec::new();
+        for file in self.mount.files.iter() {
+            let value = JsStr::from(file.virtual_path.as_ref());
+            if !value.starts_with_js(prefix.as_js()) {
+                continue;
+            }
+            let tail = value.substring(prefix.len_units(), value.len_units());
+            let name = tail.as_js().split_ascii(b'/').next().unwrap_or_default();
+            if !name.is_empty() && !names.iter().any(|item: &JsString| item.as_js() == name) {
+                names.push(name.to_owned());
+            }
+        }
+        names.sort_by(|a, b| a.cmp_utf16(b.as_js()));
+        Ok(names
+            .into_iter()
+            .map(|name| super::js_paths::join(normalized.as_js(), name.as_js()))
+            .collect())
+    }
+    fn get_directories_js(&self, path: JsStr<'_>) -> Result<Vec<JsString>, HostError> {
+        if super::js_paths::library_query(path, self.library_directory_js.as_js()) {
+            return self.filesystem.get_directories_js(path);
+        }
+        self.read_directory_js(path)?
+            .into_iter()
+            .filter_map(|entry| match self.directory_exists_js(entry.as_js()) {
+                Ok(true) => Some(Ok(entry)),
+                Ok(false) => None,
+                Err(error) => Some(Err(error)),
+            })
+            .collect()
+    }
+    fn realpath_js(&self, path: JsStr<'_>) -> Result<Option<JsString>, HostError> {
+        if super::js_paths::library_query(path, self.library_directory_js.as_js()) {
+            return self.filesystem.realpath_js(path);
+        }
+        let normalized = self.normalized_query_js(path, HostOperation::Realpath)?;
+        if !self.path_is_in_mount_js(normalized.as_js()) {
+            return Ok(None);
+        }
+        let prefix = super::js_paths::directory_prefix(normalized.as_js());
+        let exists = self.mount.files.iter().any(|file| {
+            let name = JsStr::from(file.virtual_path.as_ref());
+            name == normalized.as_js() || name.starts_with_js(prefix.as_js())
+        });
+        Ok(exists.then_some(normalized))
+    }
+
     fn current_directory(&self) -> Result<PathBuf, HostError> {
         Ok(PathBuf::from(self.current_directory.as_ref()))
     }
@@ -927,12 +1050,12 @@ impl ConfigParseHost for MountedProjectHost {
         true
     }
 
-    fn file_exists(&self, path: &str) -> Result<bool, ConfigHostError> {
-        CompilerHost::file_exists(self, Path::new(path))
+    fn file_exists(&self, path: JsStr<'_>) -> Result<bool, ConfigHostError> {
+        CompilerHost::file_exists_js(self, path)
             .map_err(|source| Self::host_error(ConfigHostOperation::FileExists, path, source))
     }
 
-    fn read_file(&self, path: &str) -> Result<Option<String>, ConfigHostError> {
+    fn read_file(&self, path: JsStr<'_>) -> Result<Option<String>, ConfigHostError> {
         // Keep project config reads on the same BOM/UTF-16/invalid-UTF-8
         // boundary as the production CLI and ordinary filesystem programs.
         // The virtual mount still owns the raw bytes; this adapter only
@@ -942,12 +1065,12 @@ impl ConfigParseHost for MountedProjectHost {
 
     fn read_directory(
         &self,
-        directory: &str,
+        directory: JsStr<'_>,
         extensions: &[&str],
-        excludes: Option<&[String]>,
-        includes: Option<&[String]>,
+        excludes: Option<&[JsString]>,
+        includes: Option<&[JsString]>,
         depth: Option<usize>,
-    ) -> Result<Vec<String>, ConfigHostError> {
+    ) -> Result<Vec<JsString>, ConfigHostError> {
         let absolute = ConfigParseHost::read_directory(
             &CompilerConfigHost::new(self),
             directory,
@@ -958,42 +1081,47 @@ impl ConfigParseHost for MountedProjectHost {
         )?;
         absolute
             .into_iter()
-            .map(|path| relative_posix_path(self.current_directory.as_ref(), &path))
+            .map(|path| relative_posix_path(self.current_directory.as_ref().into(), path.as_js()))
             .collect()
     }
 }
 
-fn relative_posix_path(base: &str, target: &str) -> Result<String, ConfigHostError> {
-    let base = normalize_virtual_path("/", base).map_err(|path_error| {
-        ConfigHostError::new(
-            ConfigHostOperation::ReadDirectory,
-            base,
-            path_error.to_string(),
-        )
-    })?;
-    let target = normalize_virtual_path("/", target).map_err(|path_error| {
-        ConfigHostError::new(
-            ConfigHostOperation::ReadDirectory,
-            target,
-            path_error.to_string(),
-        )
-    })?;
-    let base_parts = base.trim_start_matches('/').split('/').collect::<Vec<_>>();
+fn relative_posix_path(base: JsStr<'_>, target: JsStr<'_>) -> Result<JsString, ConfigHostError> {
+    let normalize = |path| {
+        super::js_paths::normalize_virtual("/".into(), path).map_err(|detail| {
+            ConfigHostError::new(ConfigHostOperation::ReadDirectory, path, detail)
+        })
+    };
+    let base = normalize(base)?;
+    let target = normalize(target)?;
+    let base_parts = base
+        .as_js()
+        .strip_prefix("/")
+        .unwrap_or(base.as_js())
+        .split_ascii(b'/')
+        .collect::<Vec<_>>();
     let target_parts = target
-        .trim_start_matches('/')
-        .split('/')
+        .as_js()
+        .strip_prefix("/")
+        .unwrap_or(target.as_js())
+        .split_ascii(b'/')
         .collect::<Vec<_>>();
     let common = base_parts
         .iter()
         .zip(&target_parts)
-        .take_while(|(left, right)| left == right)
+        .take_while(|(a, b)| a == b)
         .count();
-    let mut result = Vec::new();
-    result.extend(std::iter::repeat_n("..", base_parts.len() - common));
-    result.extend(target_parts[common..].iter().copied());
-    Ok(if result.is_empty() {
-        ".".to_owned()
-    } else {
-        result.join("/")
-    })
+    let mut result = JsString::new();
+    for part in std::iter::repeat_n(JsStr::from(".."), base_parts.len() - common)
+        .chain(target_parts[common..].iter().copied())
+    {
+        if !result.is_empty() {
+            result.push_str("/");
+        }
+        result.push_js(part);
+    }
+    if result.is_empty() {
+        result.push_str(".");
+    }
+    Ok(result)
 }

@@ -14,15 +14,15 @@
 //! are projected only for mode-mismatch diagnostics while their
 //! ordinary resolver verdict remains suppressed).
 
-use tsc_binder::{node_util, SymbolId, SymbolTable};
+use tsc_binder::{
+    escape_leading_underscores, node_util, unescape_leading_underscores, SymbolId, SymbolTable,
+};
 use tsc_diagnostics::{gen as diagnostics, DiagnosticCategory, DiagnosticMessage, MessageChain};
 use tsc_emitter::EmitExportContainerMode;
-use tsc_syntax::{
-    escape_leading_underscores, unescape_leading_underscores, NodeData, NodeId, SyntaxKind,
-};
+use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{
-    compiler_version_satisfies, CheckMode, InternalSymbolName, ModifierFlags, ObjectFlags,
-    SymbolFlags, TypeFlags,
+    compiler_version_satisfies, CheckMode, EscapedName, InternalSymbolName, JsStr, JsString,
+    ModifierFlags, ObjectFlags, SymbolFlags, TypeFlags,
 };
 
 use crate::expr::Ancestor;
@@ -32,7 +32,7 @@ use tsc_types::TypeId;
 
 /// The export-star collision tracker (getExportsOfModuleWorker's
 /// lookupTable): name -> (first specifier text, exportsWithDuplicate).
-type ExportLookupTable = indexmap::IndexMap<String, (String, Vec<NodeId>)>;
+type ExportLookupTable = indexmap::IndexMap<EscapedName, (String, Vec<NodeId>)>;
 
 /// The program resolver's verdict (the host.getResolvedModule seam).
 #[derive(Clone, Debug)]
@@ -40,7 +40,7 @@ pub(crate) struct ResolvedProgramModule {
     pub file_index: usize,
     /// Exact resolver-selected spelling, retained independently from the
     /// source token because package-ID redirects join a different source.
-    pub resolved_file_name: String,
+    pub resolved_file_name: JsString,
     /// tsc resolvedUsingTsExtension. For ordinary path resolution this says
     /// the specifier carried a TS-family extension and resolved as written;
     /// package-map resolution instead derives it from the selected raw target
@@ -58,8 +58,8 @@ pub(crate) struct ResolvedProgramModule {
     /// Authoritative diagnostic facts for a loaded external JavaScript
     /// implementation. Package identity membership was finalized by the
     /// prepared program; the checker consumes only its observable name face.
-    pub package_name: Option<String>,
-    pub alternate_result: Option<String>,
+    pub package_name: Option<JsString>,
+    pub alternate_result: Option<JsString>,
     pub types_package_exists: bool,
     pub package_bundles_types: bool,
 }
@@ -82,7 +82,7 @@ pub(crate) enum ProgramModuleResolution {
 /// They cannot produce a symbol, but may refine the final not-found chain.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct UnresolvedProgramModule {
-    alternate_result: Option<String>,
+    alternate_result: Option<JsString>,
 }
 
 impl ProgramModuleResolution {
@@ -98,8 +98,8 @@ impl ProgramModuleResolution {
 /// implementation file.
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum HostModuleTarget {
-    Typed(String),
-    Untyped(String),
+    Typed(JsString),
+    Untyped(JsString),
 }
 
 /// The external-library facts consumed by errorOnImplicitAnyModule.
@@ -108,9 +108,9 @@ enum HostModuleTarget {
 /// is the declaration path found by the other resolver regime. The closed
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct UntypedModuleResolution {
-    resolved_file_name: String,
-    package_name: Option<String>,
-    alternate_result: Option<String>,
+    resolved_file_name: JsString,
+    package_name: Option<JsString>,
+    alternate_result: Option<JsString>,
     types_package_exists: bool,
     package_bundles_types: bool,
     resolution_diagnostic: Option<crate::AuthoritativeModuleResolutionDiagnostic>,
@@ -1400,10 +1400,10 @@ impl<'a> CheckerState<'a> {
             // A re-entrant frame resolved (or collapsed) the slot
             // while our getTargetOfAliasDeclaration ran.
             let name = self.symbol_display_name(symbol);
-            self.error_at(
+            self.error_at_js(
                 Some(node),
                 &diagnostics::Circular_definition_of_import_alias_0,
-                &[&name],
+                &[(&name).into()],
             );
         }
         match self.links.symbol(symbol).alias_target {
@@ -1712,7 +1712,7 @@ impl<'a> CheckerState<'a> {
             &diagnostics::_0_was_imported_here
         };
         let name = if self.kind_of(type_only_declaration) == SyntaxKind::ExportDeclaration {
-            "*".to_owned()
+            JsString::from("*")
         } else {
             let decl_name = match self.data_of(type_only_declaration) {
                 NodeData::ImportSpecifier(data) => data.name,
@@ -1725,28 +1725,33 @@ impl<'a> CheckerState<'a> {
             };
             match decl_name {
                 Some(decl_name) => self.module_export_name_text_unescaped(decl_name),
-                None => String::new(),
+                None => JsString::new(),
             }
         };
         let module_reference = match self.data_of(node) {
             NodeData::ImportEqualsDeclaration(data) => data.module_reference,
             _ => None,
         };
-        let related = self.related_info_for_node(type_only_declaration, related_message, &[&name]);
-        self.error_at_with_related(module_reference.or(Some(node)), message, &[], vec![related]);
+        let related = self.related_info_for_node_js(
+            type_only_declaration,
+            related_message,
+            &[(&name).into()],
+        );
+        self.error_at_with_related_js(module_reference.or(Some(node)), message, &[], vec![related]);
         Ok(())
     }
 
     /// tsc-port: resolveExportByName @6.0.3
     /// tsc-hash: 44fb57abfeda2ba65f7348458183aabe71673fd3ca7beeb3d1d71284d703d68d
     /// tsc-span: _tsc.js:48552-48569
-    fn resolve_export_by_name(
+    fn resolve_export_by_name<'n>(
         &mut self,
         module_symbol: SymbolId,
-        name: &str,
+        name: impl Into<JsStr<'n>>,
         source_node: Option<NodeId>,
         dont_resolve_alias: bool,
     ) -> CheckResult<Option<SymbolId>> {
+        let name = name.into();
         let export_value = self
             .binder
             .symbol(module_symbol)
@@ -1917,7 +1922,7 @@ impl<'a> CheckerState<'a> {
                 };
                 let module_reference = data.text.clone();
                 if Self::is_external_module_name_relative(&module_reference)
-                    || module_reference.starts_with('/')
+                    || module_reference.starts_with("/")
                     || !matches!(
                         self.resolve_program_module(usage, &module_reference),
                         ProgramModuleResolution::Suppressed
@@ -1994,10 +1999,10 @@ impl<'a> CheckerState<'a> {
                     )? {
                         if !self.options.es_module_interop_effective() {
                             let module_name = self.symbol_display_name(module_symbol);
-                            self.error_at(
+                            self.error_at_js(
                                 self.name_of_import_binding(node).or(Some(node)),
                                 &diagnostics::Module_0_can_only_be_default_imported_using_the_1_flag,
-                                &[&module_name, "esModuleInterop"],
+                                &[(&module_name).into(), ("esModuleInterop").into()],
                             );
                             return Ok(None);
                         }
@@ -2051,16 +2056,16 @@ impl<'a> CheckerState<'a> {
                 let module_name = self.symbol_display_name(module_symbol);
                 let error_node = self.name_of_import_binding(node).or(Some(node));
                 let related = export_assignment.map(|assignment| {
-                    self.related_info_for_node(
+                    self.related_info_for_node_js(
                         assignment,
                         &diagnostics::This_module_is_declared_with_export_and_can_only_be_used_with_a_default_import_when_using_the_0_flag,
-                        &[compiler_option_name],
+                        &[(compiler_option_name).into()],
                     )
                 });
-                self.error_at_with_related(
+                self.error_at_with_related_js(
                     error_node,
                     &diagnostics::Module_0_can_only_be_default_imported_using_the_1_flag,
-                    &[&module_name, compiler_option_name],
+                    &[(&module_name).into(), (compiler_option_name).into()],
                     related.into_iter().collect(),
                 );
             } else if self.kind_of(node) == SyntaxKind::ImportClause {
@@ -2181,10 +2186,10 @@ impl<'a> CheckerState<'a> {
             let local_name = local_symbol
                 .map(|local| self.symbol_display_name(local))
                 .unwrap_or_default();
-            self.error_at(
+            self.error_at_js(
                 name.or(Some(node)),
                 &diagnostics::Module_0_has_no_default_export_Did_you_mean_to_use_import_1_from_0_instead,
-                &[&module_name, &local_name],
+                &[(&module_name).into(), (&local_name).into()],
             );
             return Ok(());
         }
@@ -2213,7 +2218,7 @@ impl<'a> CheckerState<'a> {
                         .exports
                         .contains_key(InternalSymbolName::DEFAULT)
                     {
-                        related.push(self.related_info_for_node(
+                        related.push(self.related_info_for_node_js(
                             declaration,
                             &diagnostics::export_does_not_re_export_a_default,
                             &[],
@@ -2223,10 +2228,10 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        self.error_at_with_related(
+        self.error_at_with_related_js(
             name.or(Some(node)),
             &diagnostics::Module_0_has_no_default_export,
-            &[&module_name],
+            &[(&module_name).into()],
             related,
         );
         Ok(())
@@ -2347,13 +2352,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getExportOfModule @6.0.3
     /// tsc-hash: 950617f5bdc9aeda1fea2768cf70eb55ea0d2209306b7c3b9d510fd63f7cc57f
     /// tsc-span: _tsc.js:48825-48842
-    fn get_export_of_module(
+    fn get_export_of_module<'n>(
         &mut self,
         symbol: SymbolId,
-        name_text: &str,
+        name_text: impl Into<JsStr<'n>>,
         specifier: NodeId,
         dont_resolve_alias: bool,
     ) -> CheckResult<Option<SymbolId>> {
+        let name_text = name_text.into();
         if !self
             .binder
             .symbol(symbol)
@@ -2370,7 +2376,7 @@ impl<'a> CheckerState<'a> {
             .symbol(symbol)
             .type_only_export_star_map
             .as_ref()
-            .and_then(|map| map.get(name_text))
+            .and_then(|map| map.get(name_text.as_bytes()))
             .copied();
         self.mark_symbol_of_alias_declaration_if_type_only(
             Some(specifier),
@@ -2386,11 +2392,12 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getPropertyOfVariable @6.0.3
     /// tsc-hash: fdd893d0bd7bcf0aa247b2765c029c1d4698c4d9438f49f0f07ce31ba360d386
     /// tsc-span: _tsc.js:48843-48850
-    fn get_property_of_variable(
+    fn get_property_of_variable<'n>(
         &mut self,
         symbol: SymbolId,
-        name: &str,
+        name: impl Into<JsStr<'n>>,
     ) -> CheckResult<Option<SymbolId>> {
+        let name = name.into();
         if !self
             .binder
             .symbol(symbol)
@@ -2465,7 +2472,7 @@ impl<'a> CheckerState<'a> {
         let Some(target_symbol) = target_symbol else {
             return Ok(None);
         };
-        if name_text.is_empty() && self.kind_of(name) != SyntaxKind::StringLiteral {
+        if name_text.as_js().is_empty() && self.kind_of(name) != SyntaxKind::StringLiteral {
             return Ok(None);
         }
         let module_symbol = module_symbol.expect("targetSymbol implies moduleSymbol");
@@ -2522,10 +2529,10 @@ impl<'a> CheckerState<'a> {
                 199 => "NodeNext",
                 _ => "NodeNext",
             };
-            self.error_at(
+            self.error_at_js(
                 Some(name),
                 &diagnostics::Named_imports_from_a_JSON_file_into_an_ECMAScript_module_are_not_allowed_when_module_is_set_to_0,
-                &[module_kind],
+                &[(module_kind).into()],
             );
         } else if symbol.is_none() {
             self.error_no_module_member_symbol(module_symbol, target_symbol, node, name)?;
@@ -2560,16 +2567,20 @@ impl<'a> CheckerState<'a> {
                 .symbol(suggestion)
                 .value_declaration
                 .map(|declaration| {
-                    self.related_info_for_node(
+                    self.related_info_for_node_js(
                         declaration,
                         &diagnostics::_0_is_declared_here,
-                        &[&suggestion_name],
+                        &[(&suggestion_name).into()],
                     )
                 });
-            self.error_at_with_related(
+            self.error_at_with_related_js(
                 Some(name),
                 &diagnostics::_0_has_no_exported_member_named_1_Did_you_mean_2,
-                &[&module_name, &declaration_name, &suggestion_name],
+                &[
+                    (&module_name).into(),
+                    (&declaration_name).into(),
+                    (&suggestion_name).into(),
+                ],
                 related.into_iter().collect(),
             );
             return Ok(());
@@ -2580,10 +2591,10 @@ impl<'a> CheckerState<'a> {
             .exports
             .contains_key(InternalSymbolName::DEFAULT)
         {
-            self.error_at(
+            self.error_at_js(
                 Some(name),
                 &diagnostics::Module_0_has_no_exported_member_1_Did_you_mean_to_use_import_1_from_0_instead,
-                &[&module_name, &declaration_name],
+                &[(&module_name).into(), (&declaration_name).into()],
             );
         } else {
             self.report_non_exported_member(name, &declaration_name, module_symbol, &module_name)?;
@@ -2605,7 +2616,7 @@ impl<'a> CheckerState<'a> {
         &self,
         module_symbol: SymbolId,
         containing_location: NodeId,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<JsString> {
         let merged_module_symbol = self.get_merged_symbol(module_symbol);
         let is_pattern_ambient_module =
             self.pattern_ambient_modules
@@ -2626,7 +2637,7 @@ impl<'a> CheckerState<'a> {
         if let Some(NodeData::StringLiteral(data)) =
             specifier.map(|specifier| self.data_of(specifier))
         {
-            return crate::check::string_literal_name_slice(&data.text, false);
+            return crate::check::string_literal_name_slice(&data.text, false).map(JsString::from);
         }
         Ok(self.get_fully_qualified_name(module_symbol))
     }
@@ -2639,7 +2650,7 @@ impl<'a> CheckerState<'a> {
         name: NodeId,
         declaration_name: &str,
         module_symbol: SymbolId,
-        module_name: &str,
+        module_name: &JsString,
     ) -> CheckResult<()> {
         let name_text = self.module_export_name_text_escaped(name);
         let local_symbol = self
@@ -2650,10 +2661,10 @@ impl<'a> CheckerState<'a> {
             .and_then(|locals| locals.get(&name_text))
             .copied();
         let Some(local_symbol) = local_symbol else {
-            self.error_at(
+            self.error_at_js(
                 Some(name),
                 &diagnostics::Module_0_has_no_exported_member_1,
-                &[module_name, declaration_name],
+                &[(module_name).into(), (declaration_name).into()],
             );
             return Ok(());
         };
@@ -2674,10 +2685,10 @@ impl<'a> CheckerState<'a> {
                     module_name,
                 )?;
             } else {
-                self.error_at(
+                self.error_at_js(
                     Some(name),
                     &diagnostics::Module_0_has_no_exported_member_1,
-                    &[module_name, declaration_name],
+                    &[(module_name).into(), (declaration_name).into()],
                 );
             }
             return Ok(());
@@ -2713,23 +2724,31 @@ impl<'a> CheckerState<'a> {
             } else {
                 &diagnostics::and_here
             };
-            related.push(self.related_info_for_node(declaration, message, &[declaration_name]));
+            related.push(self.related_info_for_node_js(
+                declaration,
+                message,
+                &[(declaration_name).into()],
+            ));
         }
         match exported_symbol {
             Some(exported_symbol) => {
                 let exported_name = self.symbol_display_name(exported_symbol);
-                self.error_at_with_related(
+                self.error_at_with_related_js(
                     Some(name),
                     &diagnostics::Module_0_declares_1_locally_but_it_is_exported_as_2,
-                    &[module_name, declaration_name, &exported_name],
+                    &[
+                        (module_name).into(),
+                        (declaration_name).into(),
+                        (&exported_name).into(),
+                    ],
                     related,
                 );
             }
             None => {
-                self.error_at_with_related(
+                self.error_at_with_related_js(
                     Some(name),
                     &diagnostics::Module_0_declares_1_locally_but_it_is_not_exported,
-                    &[module_name, declaration_name],
+                    &[(module_name).into(), (declaration_name).into()],
                     related,
                 );
             }
@@ -2746,7 +2765,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         name: NodeId,
         declaration_name: &str,
-        module_name: &str,
+        module_name: &JsString,
     ) -> CheckResult<()> {
         let es_module_interop = self.options.es_module_interop_effective();
         if self.options.emit_module_kind() >= 5 {
@@ -2755,18 +2774,18 @@ impl<'a> CheckerState<'a> {
             } else {
                 &diagnostics::_0_can_only_be_imported_by_turning_on_the_esModuleInterop_flag_and_using_a_default_import
             };
-            self.error_at(Some(name), message, &[declaration_name]);
+            self.error_at_js(Some(name), message, &[(declaration_name).into()]);
         } else if es_module_interop {
-            self.error_at(
+            self.error_at_js(
                 Some(name),
                 &diagnostics::_0_can_only_be_imported_by_using_import_1_require_2_or_a_default_import,
-                &[declaration_name, declaration_name, module_name],
+                &[(declaration_name).into(), (declaration_name).into(), (module_name).into()],
             );
         } else {
-            self.error_at(
+            self.error_at_js(
                 Some(name),
                 &diagnostics::_0_can_only_be_imported_by_using_import_1_require_2_or_by_turning_on_the_esModuleInterop_flag_and_using_a_default_import,
-                &[declaration_name, declaration_name, module_name],
+                &[(declaration_name).into(), (declaration_name).into(), (module_name).into()],
             );
         }
         Ok(())
@@ -3151,7 +3170,7 @@ impl<'a> CheckerState<'a> {
         final_target: Option<SymbolId>,
         overwrite_empty: bool,
         export_star_declaration: Option<NodeId>,
-        export_star_name: Option<&str>,
+        export_star_name: Option<JsStr<'_>>,
     ) -> CheckResult<bool> {
         let Some(alias_declaration) = alias_declaration else {
             return Ok(false);
@@ -3175,11 +3194,11 @@ impl<'a> CheckerState<'a> {
                 Some(export_star_declaration),
             );
             if let Some(export_star_name) = export_star_name {
-                if self.binder.symbol(source_symbol).escaped_name != export_star_name {
+                if self.binder.symbol(source_symbol).escaped_name.as_js() != export_star_name {
                     self.links.set_symbol_type_only_export_star_name(
                         self.speculation_depth,
                         source_symbol,
-                        export_star_name.to_owned(),
+                        EscapedName::from_escaped_value(export_star_name.to_owned()),
                     );
                 }
             }
@@ -3665,20 +3684,21 @@ impl<'a> CheckerState<'a> {
     /// implicit-any (7016 + 6278/6280/7035/7040/7058 chain),
     /// ts-extension rows (5097/2846 family), File_0_is_not_a_module,
     /// pattern ambient modules, and the 2307/2792 tail.
-    pub(crate) fn resolve_external_module(
+    pub(crate) fn resolve_external_module<'n>(
         &mut self,
         location: NodeId,
-        module_reference: &str,
+        module_reference: impl Into<JsStr<'n>>,
         module_not_found_error: Option<&'static DiagnosticMessage>,
         error_node: Option<NodeId>,
         is_for_augmentation: bool,
     ) -> CheckResult<Option<SymbolId>> {
+        let module_reference = module_reference.into();
         if let Some(error_node) = error_node {
             if let Some(without_prefix) = module_reference.strip_prefix("@types/") {
-                self.error_at(
+                self.error_at_js(
                     Some(error_node),
                     &diagnostics::Cannot_import_type_declaration_files_Consider_importing_0_instead_of_1,
-                    &[without_prefix, module_reference],
+                    &[(without_prefix).into(), (module_reference).into()],
                 );
             }
         }
@@ -3713,10 +3733,10 @@ impl<'a> CheckerState<'a> {
                 } else {
                     resolved_file_name.clone()
                 };
-                self.error_at(
+                self.error_at_js(
                     error_node,
                     resolution_diagnostic,
-                    &[module_reference, &diagnostic_file_name],
+                    &[(module_reference).into(), (&diagnostic_file_name).into()],
                 );
             }
             // resolveExternalModule only loads a source behind the JSX
@@ -3736,10 +3756,10 @@ impl<'a> CheckerState<'a> {
                         Self::try_extract_ts_extension(module_reference).unwrap_or(".d.ts");
                     let suggestion =
                         self.suggested_import_source(location, module_reference, ts_extension);
-                    self.error_at(
+                    self.error_at_js(
                         error_node,
                         &diagnostics::A_declaration_file_cannot_be_imported_without_import_type_Did_you_mean_to_import_an_implementation_file_0_instead,
-                        &[&suggestion],
+                        &[(&suggestion).into()],
                     );
                 }
             } else if resolved.resolved_using_ts_extension
@@ -3754,10 +3774,10 @@ impl<'a> CheckerState<'a> {
                     if !self.ts_extension_import_is_type_only(location) {
                         let ts_extension =
                             Self::try_extract_ts_extension(module_reference).unwrap_or(".ts");
-                        self.error_at(
+                        self.error_at_js(
                             Some(error_node),
                             &diagnostics::An_import_path_can_only_end_with_a_0_extension_when_allowImportingTsExtensions_is_enabled,
-                            &[ts_extension],
+                            &[(ts_extension).into()],
                         );
                     }
                 }
@@ -3778,10 +3798,10 @@ impl<'a> CheckerState<'a> {
                             &self.binder.source_of_node(location).file_name,
                             &resolved_file_name,
                         );
-                        self.error_at(
+                        self.error_at_js(
                             Some(error_node),
                             &diagnostics::This_relative_import_path_is_unsafe_to_rewrite_because_it_looks_like_a_file_name_but_actually_resolves_to_0,
-                            &[&resolved_path],
+                            &[(&resolved_path).into()],
                         );
                     }
                 } else if resolved.resolved_using_ts_extension
@@ -3799,10 +3819,10 @@ impl<'a> CheckerState<'a> {
                 {
                     if let Some(error_node) = error_node {
                         let extension = Self::any_extension_from_path(module_reference);
-                        self.error_at(
+                        self.error_at_js(
                             Some(error_node),
                             &diagnostics::This_import_uses_a_0_extension_to_resolve_to_an_input_TypeScript_file_but_will_not_be_rewritten_during_emit_because_it_is_not_a_relative_path,
-                            &[extension],
+                            &[(extension).into()],
                         );
                     }
                 }
@@ -3855,10 +3875,10 @@ impl<'a> CheckerState<'a> {
             if let (Some(error_node), Some(_)) = (error_node, module_not_found_error) {
                 if !self.is_side_effect_import(error_node) {
                     let resolved_file_path = Self::normalize_program_path(&resolved_file_name, "");
-                    self.error_at(
+                    self.error_at_js(
                         Some(error_node),
                         &diagnostics::File_0_is_not_a_module,
-                        &[&resolved_file_path],
+                        &[(&resolved_file_path).into()],
                     );
                 }
             }
@@ -3871,7 +3891,7 @@ impl<'a> CheckerState<'a> {
             if let Some(symbol) = self.find_best_pattern_match(module_reference) {
                 if let Some(&augmentation) = self
                     .pattern_ambient_module_augmentations
-                    .get(module_reference)
+                    .get(module_reference.as_bytes())
                 {
                     return Ok(Some(self.get_merged_symbol(augmentation)));
                 }
@@ -3882,10 +3902,13 @@ impl<'a> CheckerState<'a> {
             match untyped.resolution_diagnostic {
                 Some(crate::AuthoritativeModuleResolutionDiagnostic::JsxWithoutJsxOption) => {
                     if let (Some(error_node), Some(_)) = (error_node, module_not_found_error) {
-                        self.error_at(
+                        self.error_at_js(
                             Some(error_node),
                             &diagnostics::Module_0_was_resolved_to_1_but_jsx_is_not_set,
-                            &[module_reference, &untyped.resolved_file_name],
+                            &[
+                                (module_reference).into(),
+                                (&untyped.resolved_file_name).into(),
+                            ],
                         );
                     }
                     return Ok(None);
@@ -3896,10 +3919,10 @@ impl<'a> CheckerState<'a> {
                     if let Some(error_node) = error_node {
                         let resolved_file_name =
                             Self::normalize_program_path(&untyped.resolved_file_name, "");
-                        self.error_at(
+                        self.error_at_js(
                             Some(error_node),
                             &diagnostics::Module_0_was_resolved_to_1_but_allowArbitraryExtensions_is_not_set,
-                            &[module_reference, &resolved_file_name],
+                            &[(module_reference).into(), (&resolved_file_name).into()],
                         );
                     }
                     return Ok(None);
@@ -3908,10 +3931,10 @@ impl<'a> CheckerState<'a> {
             }
             if let Some(error_node) = error_node {
                 if is_for_augmentation {
-                    self.error_at(
+                    self.error_at_js(
                         Some(error_node),
                         &diagnostics::Invalid_module_name_in_augmentation_Module_0_resolves_to_an_untyped_module_at_1_which_cannot_be_augmented,
-                        &[module_reference, &untyped.resolved_file_name],
+                        &[(module_reference).into(), (&untyped.resolved_file_name).into()],
                     );
                 } else {
                     let is_error = module_not_found_error.is_some()
@@ -3951,14 +3974,14 @@ impl<'a> CheckerState<'a> {
             && self.resolution_mode_for_usage(location) == ModuleResolutionMode::EsNext
         {
             if let Some(suggested) = self.suggested_extension_for(location, module_reference) {
-                let suggestion = format!("{module_reference}{suggested}");
-                self.error_at(
+                let suggestion = crate::concat_js(&[&(module_reference), &(suggested)]);
+                self.error_at_js(
                     Some(error_node),
                     &diagnostics::Relative_import_paths_need_explicit_file_extensions_in_ECMAScript_imports_when_moduleResolution_is_node16_or_nodenext_Did_you_mean_0,
-                    &[&suggestion],
+                    &[(&suggestion).into()],
                 );
             } else {
-                self.error_at(
+                self.error_at_js(
                     Some(error_node),
                     &diagnostics::Relative_import_paths_need_explicit_file_extensions_in_ECMAScript_imports_when_moduleResolution_is_node16_or_nodenext_Consider_adding_an_extension_to_the_import_path,
                     &[],
@@ -4020,24 +4043,26 @@ impl<'a> CheckerState<'a> {
             }
             let alternate_result = match &resolution {
                 ProgramModuleResolution::Missed(unresolved) => {
-                    unresolved.alternate_result.as_deref()
+                    unresolved.alternate_result.as_ref().map(JsString::as_js)
                 }
                 _ => None,
             };
             if let Some(alternate_result) = alternate_result {
                 let details = self
                     .alternate_result_module_not_found_detail(alternate_result, module_reference);
-                let chain =
-                    MessageChain::new(module_not_found_error, &[module_reference.to_owned()])
-                        .with_next(vec![details]);
+                let chain = MessageChain::new_js(
+                    module_not_found_error,
+                    &[(module_reference.to_owned()).into()],
+                )
+                .with_next(vec![details]);
                 let span = self.diag_span_of_node(error_node);
                 let diagnostic = self.diagnostic_at_span(&span, chain);
                 self.push_error_diagnostic(diagnostic);
             } else {
-                self.error_at(
+                self.error_at_js(
                     Some(error_node),
                     module_not_found_error,
-                    &[module_reference],
+                    &[(module_reference).into()],
                 );
             }
         }
@@ -4048,13 +4073,14 @@ impl<'a> CheckerState<'a> {
     /// (_tsc.js:49556-49575). It remains a helper here so the enclosing
     /// port keeps its existing resolver control-flow readable; all
     /// diagnostics are still direct products of resolveExternalModule.
-    fn report_node_format_mismatch(
+    fn report_node_format_mismatch<'n>(
         &mut self,
         location: NodeId,
         error_node: NodeId,
         resolved_source_root: NodeId,
-        module_reference: &str,
+        module_reference: impl Into<JsStr<'n>>,
     ) {
+        let module_reference = module_reference.into();
         let module_kind = self.options.emit_module_kind();
         if !matches!(module_kind, 100 | 101) {
             return;
@@ -4077,10 +4103,10 @@ impl<'a> CheckerState<'a> {
         }
 
         if is_import_equals {
-            self.error_at(
+            self.error_at_js(
                 Some(error_node),
                 &diagnostics::Module_0_cannot_be_imported_using_this_construct_The_specifier_only_resolves_to_an_ES_module_which_cannot_be_imported_with_require_Use_an_ECMAScript_import_instead,
-                &[module_reference],
+                &[(module_reference).into()],
             );
         } else {
             let message = match override_host.map(|node| self.data_of(node)) {
@@ -4101,7 +4127,7 @@ impl<'a> CheckerState<'a> {
                     &diagnostics::The_current_file_is_a_CommonJS_module_whose_imports_will_produce_require_calls_however_the_referenced_file_is_an_ECMAScript_module_and_cannot_be_imported_with_require_Consider_writing_a_dynamic_import_0_call_instead
                 }
             };
-            let mut chain = MessageChain::new(message, &[module_reference.to_owned()]);
+            let mut chain = MessageChain::new_js(message, &[(module_reference.to_owned()).into()]);
             if let Some(details) = self.create_mode_mismatch_details(location) {
                 chain = chain.with_next(vec![details]);
             }
@@ -4171,19 +4197,19 @@ impl<'a> CheckerState<'a> {
             .as_ref()
             .filter(|(_, module_type)| *module_type == PackageJsonModuleType::Missing);
         match (untyped_scope, target_extension) {
-            (Some((package_json, _)), Some(target_extension)) => Some(MessageChain::new(
+            (Some((package_json, _)), Some(target_extension)) => Some(MessageChain::new_js(
                 &diagnostics::To_convert_this_file_to_an_ECMAScript_module_change_its_file_extension_to_0_or_add_the_field_type_module_to_1,
-                &[target_extension.to_owned(), package_json.clone()],
+                &[JsString::from(target_extension), package_json.clone()],
             )),
-            (Some((package_json, _)), None) => Some(MessageChain::new(
+            (Some((package_json, _)), None) => Some(MessageChain::new_js(
                 &diagnostics::To_convert_this_file_to_an_ECMAScript_module_add_the_field_type_module_to_0,
                 std::slice::from_ref(package_json),
             )),
-            (None, Some(target_extension)) => Some(MessageChain::new(
+            (None, Some(target_extension)) => Some(MessageChain::new_js(
                 &diagnostics::To_convert_this_file_to_an_ECMAScript_module_change_its_file_extension_to_0_or_create_a_local_package_json_file_with_type_module,
-                &[target_extension.to_owned()],
+                &[JsString::from(target_extension)],
             )),
-            (None, None) => Some(MessageChain::new(
+            (None, None) => Some(MessageChain::new_js(
                 &diagnostics::To_convert_this_file_to_an_ECMAScript_module_create_a_local_package_json_file_with_type_module,
                 &[],
             )),
@@ -4194,11 +4220,12 @@ impl<'a> CheckerState<'a> {
     /// augmentation. Preserve each augmentation container symbol
     /// rather than flattening its members to strings: resolved member
     /// tables then retain computed names and index signatures.
-    fn record_unresolved_module_augmentation(
+    fn record_unresolved_module_augmentation<'n>(
         &mut self,
         augmentation: NodeId,
-        module_reference: &str,
+        module_reference: impl Into<JsStr<'n>>,
     ) {
+        let module_reference = module_reference.into();
         let Some(root) = self.node_symbol(augmentation) else {
             return;
         };
@@ -4210,7 +4237,7 @@ impl<'a> CheckerState<'a> {
                 continue;
             }
             let entry = crate::state::UnresolvedModuleAugmentation {
-                module_reference: module_reference.to_owned(),
+                module_reference: module_reference.to_owned().into(),
                 augmentation_file: augmentation_file.clone(),
                 container_path: path.clone(),
                 container_symbol: current,
@@ -4242,19 +4269,22 @@ impl<'a> CheckerState<'a> {
     /// to their node_modules package (including DefinitelyTyped
     /// layout); relative/baseUrl-like references compare normalized TS
     /// stems.
-    pub(crate) fn unresolved_module_reference_matches_source(
+    pub(crate) fn unresolved_module_reference_matches_source<'n, 'path_text>(
         &self,
-        augmentation_file: &str,
-        module_reference: &str,
-        source_file: &str,
+        augmentation_file: impl Into<JsStr<'path_text>>,
+        module_reference: impl Into<JsStr<'n>>,
+        source_file: impl Into<JsStr<'path_text>>,
     ) -> bool {
+        let augmentation_file = augmentation_file.into();
+        let source_file = source_file.into();
+        let module_reference = module_reference.into();
         let source = Self::normalize_program_path(source_file, "");
         let augmentation = Self::normalize_program_path(augmentation_file, "");
         let reference = module_reference
             .strip_prefix("node:")
             .unwrap_or(module_reference);
         let bare =
-            !Self::is_external_module_name_relative(reference) && !reference.starts_with('/');
+            !Self::is_external_module_name_relative(reference) && !reference.starts_with("/");
         if bare {
             // Node core declarations live under @types/node rather than
             // @types/<module>. Keep the exact core submodule (`fs` vs
@@ -4279,12 +4309,8 @@ impl<'a> CheckerState<'a> {
                     return true;
                 }
             }
-            let types_package = match package.split_once('/') {
-                Some((scope, name)) if scope.starts_with('@') => {
-                    format!("@types/{}__{name}", scope.trim_start_matches('@'))
-                }
-                _ => format!("@types/{package}"),
-            };
+            let types_package =
+                crate::concat_js(&[&"@types/", &Self::mangle_scoped_package_name(&package)]);
             if let Some(root) = Self::node_modules_package_root(&source, &types_package) {
                 if self
                     .nearest_visible_package_root(&augmentation, &types_package)
@@ -4305,10 +4331,11 @@ impl<'a> CheckerState<'a> {
         }
 
         let augmentation_dir = augmentation
-            .rfind('/')
-            .map_or("", |position| &augmentation[..position]);
+            .as_js()
+            .rsplit_once("/")
+            .map_or("".into(), |(directory, _)| directory);
         let candidate =
-            if Self::is_external_module_name_relative(reference) || reference.starts_with('/') {
+            if Self::is_external_module_name_relative(reference) || reference.starts_with("/") {
                 Self::normalize_program_path(reference, augmentation_dir)
             } else if let Some(base_url) = &self.options.base_url {
                 Self::normalize_program_path(reference, base_url)
@@ -4318,53 +4345,71 @@ impl<'a> CheckerState<'a> {
         Self::module_source_stem(&source) == Self::module_source_stem(&candidate)
     }
 
-    fn bare_package_parts(reference: &str) -> (String, String) {
-        let package_segments = if reference.starts_with('@') { 2 } else { 1 };
-        let mut segments = reference.split('/');
-        let package = segments
-            .by_ref()
-            .take(package_segments)
-            .collect::<Vec<_>>()
-            .join("/");
-        (package, segments.collect::<Vec<_>>().join("/"))
+    fn bare_package_parts<'n>(reference: impl Into<JsStr<'n>>) -> (JsString, JsString) {
+        let reference = reference.into();
+        let package_segments = if reference.starts_with("@") { 2 } else { 1 };
+        let mut segments = reference.split_ascii(b'/');
+        let package = crate::join_js_texts(
+            &segments.by_ref().take(package_segments).collect::<Vec<_>>(),
+            "/",
+        );
+        (
+            package,
+            crate::join_js_texts(&segments.collect::<Vec<_>>(), "/"),
+        )
     }
 
-    fn node_modules_package_root(source: &str, package: &str) -> Option<String> {
-        let marker = format!("/node_modules/{package}");
-        source
-            .match_indices(&marker)
-            .filter(|(position, _)| {
-                source
-                    .as_bytes()
-                    .get(position + marker.len())
-                    .is_none_or(|&byte| byte == b'/')
-            })
-            .map(|(position, _)| source[..position + marker.len()].to_owned())
-            .last()
+    fn node_modules_package_root<'s, 'p>(
+        source: impl Into<JsStr<'s>>,
+        package: impl Into<JsStr<'p>>,
+    ) -> Option<JsString> {
+        let source = source.into();
+        let marker = crate::concat_js(&[&"/node_modules/", &package.into()]);
+        // Both sides of a matching package component are ASCII separators
+        // (or EOF), so a byte match cannot admit a split surrogate pair.
+        let end = source
+            .as_bytes()
+            .windows(marker.as_bytes().len())
+            .enumerate()
+            .filter(|(_, bytes)| *bytes == marker.as_bytes())
+            .map(|(position, _)| position + marker.as_bytes().len())
+            .filter(|&end| source.as_bytes().get(end).is_none_or(|&byte| byte == b'/'))
+            .next_back()?;
+        Some(
+            source
+                .split_at_byte(end)
+                .expect("package component ends at a code-point boundary")
+                .0
+                .to_owned(),
+        )
     }
 
-    fn nearest_visible_package_root(
+    fn nearest_visible_package_root<'augmentation, 'p>(
         &self,
-        augmentation_file: &str,
-        package: &str,
-    ) -> Option<String> {
+        augmentation_file: impl Into<JsStr<'augmentation>>,
+        package: impl Into<JsStr<'p>>,
+    ) -> Option<JsString> {
+        let augmentation_file = augmentation_file.into();
+        let package = package.into();
         let cache_key = (augmentation_file.to_owned(), package.to_owned());
         if let Some(cached) = self.unresolved_package_root_cache.borrow().get(&cache_key) {
             return cached.clone();
         }
-        let marker = format!("/node_modules/{package}");
+        let marker = crate::concat_js(&[&"/node_modules/", &package]);
         let nearest = self
             .host_file_paths
             .iter()
             .filter_map(|path| {
                 let root = Self::node_modules_package_root(path, package)?;
-                let owner = root.strip_suffix(&marker)?;
+                let owner = root
+                    .as_js()
+                    .substring(0, root.len_units() - marker.len_units());
+                let owner_length = owner.len_units();
                 let visible = owner.is_empty()
-                    || augmentation_file == owner
-                    || augmentation_file
-                        .strip_prefix(owner)
-                        .is_some_and(|suffix| suffix.starts_with('/'));
-                visible.then_some((owner.len(), root))
+                    || augmentation_file == owner.as_js()
+                    || (augmentation_file.starts_with_js(owner.as_js())
+                        && augmentation_file.substring(owner_length, owner_length + 1) == "/");
+                visible.then_some((owner_length, root))
             })
             .max_by_key(|(owner_length, _)| *owner_length)
             .map(|(_, root)| root);
@@ -4374,24 +4419,32 @@ impl<'a> CheckerState<'a> {
         nearest
     }
 
-    fn package_subpath_matches_source(package_root: &str, subpath: &str, source: &str) -> bool {
-        // A root entry may be redirected by package.json's types/exports
-        // field, which this resolver intentionally does not parse. The
-        // selected package instance is still authoritative. Subpaths,
-        // however, must keep their spelling so `pkg/a` cannot claim a
-        // symbol declared by `pkg/b`.
+    fn package_subpath_matches_source<'r, 'p, 's>(
+        package_root: impl Into<JsStr<'r>>,
+        subpath: impl Into<JsStr<'p>>,
+        source: impl Into<JsStr<'s>>,
+    ) -> bool {
+        let package_root = package_root.into();
+        let subpath = subpath.into();
+        let source = source.into();
+        // Root entries can be redirected by package metadata. A subpath
+        // must still retain its own spelling in the selected package.
         if subpath.is_empty() {
             return true;
         }
-        let Some(relative) = source.strip_prefix(package_root) else {
+        if !source.starts_with_js(package_root) {
             return false;
-        };
-        let relative = relative.trim_start_matches('/');
-        Self::module_source_stem(relative) == subpath
+        }
+        let relative = source.substring(package_root.len_units(), usize::MAX);
+        let mut relative = relative.as_js();
+        while let Some(trimmed) = relative.strip_prefix("/") {
+            relative = trimmed;
+        }
+        Self::module_source_stem(relative).as_js() == subpath
     }
 
-    fn module_source_stem(path: &str) -> String {
-        let mut stem = path.to_owned();
+    fn module_source_stem<'n>(path: impl Into<JsStr<'n>>) -> JsString {
+        let mut stem = path.into();
         for extension in [
             ".d.json.ts",
             ".d.mts",
@@ -4405,29 +4458,27 @@ impl<'a> CheckerState<'a> {
             ".js",
             ".json",
         ] {
-            if stem.ends_with(extension) {
-                stem.truncate(stem.len() - extension.len());
+            if let Some(without_extension) = stem.strip_suffix(extension) {
+                stem = without_extension;
                 break;
             }
         }
-        if stem.ends_with("/index") {
-            stem.truncate(stem.len() - "/index".len());
-        }
-        stem
+        stem.strip_suffix("/index").unwrap_or(stem).to_owned()
     }
 
     /// tsc-port: tryFindAmbientModule @6.0.3
     /// tsc-hash: 1f3cc9031465a237b7ec0d5712660a1201e66cb8853b050b360e2de131a1a314
     /// tsc-span: _tsc.js:59499-59505
-    pub(crate) fn try_find_ambient_module(
+    pub(crate) fn try_find_ambient_module<'n>(
         &mut self,
-        module_name: &str,
+        module_name: impl Into<JsStr<'n>>,
         with_augmentations: bool,
     ) -> Option<SymbolId> {
+        let module_name = module_name.into();
         if Self::is_external_module_name_relative(module_name) {
             return None;
         }
-        let quoted = format!("\"{module_name}\"");
+        let quoted = EscapedName::quoted_module(module_name);
         let symbol = self.globals.get(&quoted).copied()?;
         if !self
             .binder
@@ -4447,7 +4498,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isExternalModuleNameRelative @6.0.3
     /// tsc-hash: e5546324dce58e277ab9df485e26bb2c9cafa5a7e7b154366be6fc45784ad14d
     /// tsc-span: _tsc.js:11234-11236
-    pub(crate) fn is_external_module_name_relative(module_name: &str) -> bool {
+    pub(crate) fn is_external_module_name_relative<'n>(module_name: impl Into<JsStr<'n>>) -> bool {
+        let module_name = module_name.into();
         let path_is_relative = module_name.starts_with("./")
             || module_name.starts_with(".\\")
             || module_name.starts_with("../")
@@ -4487,7 +4539,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: nodeCoreModules @6.0.3
     /// tsc-hash: 0e632ec6b143db94f7d3289fd8c884f1e2d5cba30ad853d6cd66d2e6f35149da
     /// tsc-span: _tsc.js:19947-20016
-    fn is_node_core_module(name: &str) -> bool {
+    fn is_node_core_module<'n>(name: impl Into<JsStr<'n>>) -> bool {
+        let name = name.into();
+        let Some(name) = name.as_str() else {
+            return false;
+        };
         const UNPREFIXED: &[&str] = &[
             "assert",
             "assert/strict",
@@ -4558,11 +4614,12 @@ impl<'a> CheckerState<'a> {
             .is_some_and(|unprefixed| UNPREFIXED.contains(&unprefixed))
     }
 
-    fn resolve_authoritative_program_module(
+    fn resolve_authoritative_program_module<'n>(
         &self,
         location: NodeId,
-        module_reference: &str,
+        module_reference: impl Into<JsStr<'n>>,
     ) -> ProgramModuleResolution {
+        let module_reference = module_reference.into();
         if self.authoritative_module_failure.get().is_some() {
             return ProgramModuleResolution::AuthorityFailed;
         }
@@ -4585,8 +4642,8 @@ impl<'a> CheckerState<'a> {
         };
         let request = crate::AuthoritativeModuleRequest {
             source_token,
-            containing_file,
-            specifier: module_reference,
+            containing_file: containing_file.into(),
+            specifier: module_reference.into(),
             mode,
         };
         let provider = self
@@ -4627,7 +4684,7 @@ impl<'a> CheckerState<'a> {
                         crate::AuthoritativeModuleFailure::UnknownTargetToken {
                             source_token,
                             containing_file: containing_file.clone(),
-                            specifier: module_reference.to_owned(),
+                            specifier: module_reference.to_owned().into(),
                             mode,
                             target_token: resolved.target_token,
                         },
@@ -4656,7 +4713,7 @@ impl<'a> CheckerState<'a> {
                     crate::AuthoritativeModuleFailure::Lookup {
                         source_token,
                         containing_file: containing_file.clone(),
-                        specifier: module_reference.to_owned(),
+                        specifier: module_reference.to_owned().into(),
                         mode,
                         failure,
                     },
@@ -4682,11 +4739,12 @@ impl<'a> CheckerState<'a> {
     /// fabricating 2307 (FP=0 rule; risk §14.7).
     /// Case SENSITIVE (the oracle host's useCaseSensitiveFileNames=
     /// true).
-    fn resolve_program_module(
+    fn resolve_program_module<'n>(
         &self,
         location: NodeId,
-        module_reference: &str,
+        module_reference: impl Into<JsStr<'n>>,
     ) -> ProgramModuleResolution {
+        let module_reference = module_reference.into();
         // collectExternalModuleReferences omits empty static import/export,
         // import-equals, and JSDoc specifiers. Empty import types, dynamic
         // imports, JavaScript require calls, and augmentations remain exact
@@ -4712,13 +4770,14 @@ impl<'a> CheckerState<'a> {
         let importing_index = self.binder.file_index_of_node(location);
         let importer =
             Self::normalize_program_path(&self.binder.source(importing_index).file_name, "");
-        let importer_dir = match importer.rfind('/') {
-            Some(position) => importer[..position].to_owned(),
-            None => String::new(),
-        };
+        let importer_dir = importer
+            .as_js()
+            .rsplit_once("/")
+            .map(|(directory, _)| directory.to_owned())
+            .unwrap_or_default();
         let is_classic = self.options.emit_module_resolution_kind() == 1;
         let relative = Self::is_external_module_name_relative(module_reference)
-            || module_reference.starts_with('/');
+            || module_reference.starts_with("/");
         if relative {
             let candidate = Self::normalize_program_path(module_reference, &importer_dir);
             // "." / ".." / trailing-slash specifiers reference the
@@ -4726,7 +4785,7 @@ impl<'a> CheckerState<'a> {
             // (importFromDot pins "." → ./index.ts over ./<dir>.ts).
             let directory_reference = module_reference == "."
                 || module_reference == ".."
-                || module_reference.ends_with('/');
+                || module_reference.ends_with("/");
             let node_mode_resolution = matches!(self.options.emit_module_resolution_kind(), 3 | 99);
             let extensionless = !Self::has_extension(module_reference);
             if node_mode_resolution {
@@ -4760,12 +4819,15 @@ impl<'a> CheckerState<'a> {
             if directory_reference {
                 if !is_classic {
                     for extension in [".ts", ".tsx", ".d.ts"] {
-                        let probed =
-                            format!("{}/index{extension}", candidate.trim_end_matches('/'));
-                        if let Some(&index) = self.program_path_index.get(&probed) {
+                        let probed = crate::concat_js(&[
+                            &(Self::trim_module_path_end((&candidate).into())),
+                            &"/index",
+                            &(extension),
+                        ]);
+                        if let Some(&index) = self.program_path_index.get(probed.as_bytes()) {
                             return ProgramModuleResolution::Resolved(ResolvedProgramModule {
                                 file_index: index,
-                                resolved_file_name: probed.clone(),
+                                resolved_file_name: probed.clone().into(),
                                 resolved_using_ts_extension: false,
                                 is_tsx: probed.ends_with(".tsx"),
                                 is_arbitrary_extension: false,
@@ -4779,12 +4841,15 @@ impl<'a> CheckerState<'a> {
                     }
                     if self.options.allow_js {
                         for extension in [".js", ".jsx"] {
-                            let probed =
-                                format!("{}/index{extension}", candidate.trim_end_matches('/'));
-                            if let Some(&index) = self.program_path_index.get(&probed) {
+                            let probed = crate::concat_js(&[
+                                &(Self::trim_module_path_end((&candidate).into())),
+                                &"/index",
+                                &(extension),
+                            ]);
+                            if let Some(&index) = self.program_path_index.get(probed.as_bytes()) {
                                 return ProgramModuleResolution::Resolved(ResolvedProgramModule {
                                     file_index: index,
-                                    resolved_file_name: probed.clone(),
+                                    resolved_file_name: probed.clone().into(),
                                     resolved_using_ts_extension: false,
                                     is_tsx: probed.ends_with(".jsx"),
                                     is_arbitrary_extension: false,
@@ -4820,10 +4885,10 @@ impl<'a> CheckerState<'a> {
                     if let Some(resolved) = self.probe_module_candidates(&candidate, is_classic) {
                         return ProgramModuleResolution::Resolved(resolved);
                     }
-                    match dir.rfind('/') {
-                        Some(0) if dir.len() > 1 => dir = "/".to_owned(),
-                        Some(position) if position > 0 => dir.truncate(position),
-                        _ if !dir.is_empty() && dir != "/" => dir = "/".to_owned(),
+                    match dir.as_js().rsplit_once("/") {
+                        Some((parent, _)) if parent.is_empty() && dir != "/" => dir = "/".into(),
+                        Some((parent, _)) if !parent.is_empty() => dir = parent.to_owned(),
+                        _ if !dir.is_empty() && dir != "/" => dir = "/".into(),
                         _ => break,
                     }
                 }
@@ -4836,11 +4901,12 @@ impl<'a> CheckerState<'a> {
                 if let Some(resolved) = self.probe_module_candidates(&candidate, is_classic) {
                     return ProgramModuleResolution::Resolved(resolved);
                 }
-                let candidate_prefix = format!("{}/", candidate.trim_end_matches('/'));
+                let candidate_prefix =
+                    crate::concat_js(&[&(Self::trim_module_path_end((&candidate).into())), &"/"]);
                 if self
                     .host_file_paths
                     .iter()
-                    .any(|path| path.starts_with(&candidate_prefix))
+                    .any(|path| path.as_js().starts_with_js(candidate_prefix.as_js()))
                 {
                     return ProgramModuleResolution::Suppressed;
                 }
@@ -4874,34 +4940,38 @@ impl<'a> CheckerState<'a> {
             // not hide tsc's 2307.
             let package_name = Self::package_name_from_module_reference(module_reference);
             let node_modules_marker = package_name
-                .as_deref()
-                .map(|name| format!("/node_modules/{name}/"));
-            let types_package_marker = package_name.as_deref().map(|name| {
-                let types_name = if let Some(scoped) = name.strip_prefix('@') {
-                    scoped.replace('/', "__")
-                } else {
-                    name.to_owned()
-                };
-                format!("/node_modules/@types/{types_name}/")
+                .as_ref()
+                .map(JsString::as_js)
+                .map(|name| crate::concat_js(&[&"/node_modules/", &(name), &"/"]));
+            let types_package_marker = package_name.as_ref().map(JsString::as_js).map(|name| {
+                let types_name = Self::mangle_scoped_package_name(name);
+                crate::concat_js(&[&"/node_modules/@types/", &(types_name), &"/"])
             });
-            let has_matching_node_modules_package =
-                node_modules_marker.as_deref().is_some_and(|marker| {
+            let has_matching_node_modules_package = node_modules_marker
+                .as_ref()
+                .map(JsString::as_js)
+                .is_some_and(|marker| {
                     self.host_file_paths
                         .iter()
-                        .any(|path| path.contains(marker))
-                }) || types_package_marker.as_deref().is_some_and(|marker| {
-                    self.host_file_paths
-                        .iter()
-                        .any(|path| path.contains(marker))
-                });
+                        .any(|path| Self::module_path_has_package_marker(path.as_js(), marker))
+                })
+                || types_package_marker
+                    .as_ref()
+                    .map(JsString::as_js)
+                    .is_some_and(|marker| {
+                        self.host_file_paths
+                            .iter()
+                            .any(|path| Self::module_path_has_package_marker(path.as_js(), marker))
+                    });
             let has_matching_package_scope = self
                 .nearest_package_name_for_file(&importer)
                 .is_some_and(|name| {
                     package_name
-                        .as_deref()
+                        .as_ref()
+                        .map(JsString::as_js)
                         .is_some_and(|package_name| name == package_name)
                 });
-            let has_package_import_scope = module_reference.starts_with('#')
+            let has_package_import_scope = module_reference.starts_with("#")
                 && self.nearest_package_name_for_file(&importer).is_some();
             if has_matching_node_modules_package
                 || has_matching_package_scope
@@ -4913,21 +4983,23 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    fn resolve_node_format_mismatch_source(
+    fn resolve_node_format_mismatch_source<'n>(
         &self,
         location: NodeId,
-        module_reference: &str,
+        module_reference: impl Into<JsStr<'n>>,
     ) -> Option<NodeId> {
+        let module_reference = module_reference.into();
         if !matches!(self.options.emit_module_kind(), 100 | 101) {
             return None;
         }
         let importer =
             Self::normalize_program_path(&self.binder.source_of_node(location).file_name, "");
         let importer_dir = importer
-            .rsplit_once('/')
-            .map_or("", |(directory, _)| directory);
+            .as_js()
+            .rsplit_once("/")
+            .map_or("".into(), |(directory, _)| directory);
         let resolved = if Self::is_external_module_name_relative(module_reference)
-            || module_reference.starts_with('/')
+            || module_reference.starts_with("/")
         {
             let candidate = Self::normalize_program_path(module_reference, importer_dir);
             self.probe_module_candidates(&candidate, /*is_classic*/ false)
@@ -4945,11 +5017,12 @@ impl<'a> CheckerState<'a> {
     /// suppressed package faces and exposes only the target module's
     /// own SymbolFlags so the direct TS1340 producer can decide
     /// whether `import("pkg")` refers to a type.
-    pub(crate) fn resolve_bare_import_type_module_for_diagnostic(
+    pub(crate) fn resolve_bare_import_type_module_for_diagnostic<'n>(
         &self,
         node: NodeId,
-        module_reference: &str,
+        module_reference: impl Into<JsStr<'n>>,
     ) -> Option<SymbolId> {
+        let module_reference = module_reference.into();
         let NodeData::ImportType(data) = self.data_of(node) else {
             return None;
         };
@@ -4958,7 +5031,7 @@ impl<'a> CheckerState<'a> {
                 !node_util::node_is_missing(self.binder.source_of_node(node), Some(qualifier))
             })
             || Self::is_external_module_name_relative(module_reference)
-            || module_reference.starts_with('/')
+            || module_reference.starts_with("/")
             || !matches!(
                 self.resolve_program_module(node, module_reference),
                 ProgramModuleResolution::Suppressed
@@ -4980,21 +5053,26 @@ impl<'a> CheckerState<'a> {
     /// consumes only targets that resolve to an actual program source;
     /// every unsupported or absent face remains in the resolver's
     /// Suppressed channel.
-    fn resolve_node_package_target(
+    fn resolve_node_package_target<'n, 'path_text>(
         &self,
-        importer: &str,
+        importer: impl Into<JsStr<'path_text>>,
         location: NodeId,
-        module_reference: &str,
+        module_reference: impl Into<JsStr<'n>>,
     ) -> Option<ResolvedProgramModule> {
+        let importer = importer.into();
+        let module_reference = module_reference.into();
         let resolution_mode = self.resolution_mode_for_usage(location);
-        if module_reference.starts_with('#') {
+        if module_reference.starts_with("#") {
             if !self.package_json_imports_enabled() {
                 return None;
             }
             let package_json = self.nearest_package_json_for_file(importer)?;
-            let package_root = package_json.strip_suffix("/package.json").unwrap_or("");
+            let package_root = package_json
+                .as_js()
+                .strip_suffix("/package.json")
+                .unwrap_or("".into());
             let value = self.host_package_json_values.get(&package_json)?;
-            let imports = value.get("imports")?;
+            let imports = tsc_program::package_json_property(value, "imports")?;
             let target = self.package_map_target(
                 imports,
                 module_reference,
@@ -5013,22 +5091,23 @@ impl<'a> CheckerState<'a> {
         });
         let package_root = if let Some(package_json) = self_package_json {
             package_json
+                .as_js()
                 .strip_suffix("/package.json")
-                .unwrap_or("")
+                .unwrap_or("".into())
                 .to_owned()
         } else {
             self.nearest_visible_package_root(importer, &package)?
         };
-        let package_json = format!("{package_root}/package.json");
+        let package_json = crate::concat_js(&[&(package_root), &"/package.json"]);
         let value = self.host_package_json_values.get(&package_json)?;
         if !self.package_json_exports_enabled() {
             return None;
         }
-        let exports = value.get("exports")?;
+        let exports = tsc_program::package_json_property(value, "exports")?;
         let export_key = if subpath.is_empty() {
-            ".".to_owned()
+            JsString::from(".")
         } else {
-            format!("./{subpath}")
+            crate::concat_js(&[&"./", &(subpath)])
         };
         let target =
             self.package_map_target(exports, &export_key, resolution_mode, /*exports*/ true)?;
@@ -5050,11 +5129,12 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getConditions @6.0.3
     /// tsc-hash: 91d1ed5895417f7bdcea21d875a24ebbf5b54004698e26c46a9b89e7a0808140
     /// tsc-span: _tsc.js:40276-40291
-    fn package_condition_matches(
+    fn package_condition_matches<'n>(
         &self,
-        condition: &str,
+        condition: impl Into<JsStr<'n>>,
         resolution_mode: ModuleResolutionMode,
     ) -> bool {
+        let condition = condition.into();
         if condition == "default" {
             return true;
         }
@@ -5086,43 +5166,53 @@ impl<'a> CheckerState<'a> {
         self.options
             .custom_conditions
             .as_ref()
-            .is_some_and(|conditions| conditions.iter().any(|candidate| candidate == condition))
+            .is_some_and(|conditions| {
+                conditions
+                    .iter()
+                    .any(|candidate| candidate.as_js() == condition)
+            })
     }
 
     /// tsc-port: isApplicableVersionedTypesKey @6.0.3
     /// tsc-hash: 9af5528adbf587055e813a06f658baa9b9b865f96672f1f2c05c85669b4e7222
     /// tsc-span: _tsc.js:41884-41890
-    fn is_applicable_versioned_types_key(&self, condition: &str) -> bool {
+    fn is_applicable_versioned_types_key<'n>(&self, condition: impl Into<JsStr<'n>>) -> bool {
+        let condition = condition.into();
         if self.options.no_dts_resolution == Some(true) {
             return false;
         }
         condition
             .strip_prefix("types@")
-            .is_some_and(|range| compiler_version_satisfies(range) == Some(true))
+            .is_some_and(|range| range.as_str().and_then(compiler_version_satisfies) == Some(true))
     }
 
     /// tsc createModuleNotFoundChain's alternateResult arm. Both an
     /// unresolved lookup and an untyped JavaScript hit consume the same
     /// per-resolution host fact; only their top-level diagnostic differs.
-    fn alternate_result_module_not_found_detail(
+    fn alternate_result_module_not_found_detail<'path_text>(
         &self,
-        alternate_result: &str,
-        package_name: &str,
+        alternate_result: impl Into<JsStr<'path_text>>,
+        package_name: impl Into<JsStr<'path_text>>,
     ) -> MessageChain {
+        let alternate_result = alternate_result.into();
+        let package_name = package_name.into();
         if self.options.emit_module_resolution_kind() == 2 {
-            return MessageChain::new(
+            return MessageChain::new_js(
                 &diagnostics::There_are_types_at_0_but_this_result_could_not_be_resolved_under_your_current_moduleResolution_setting_Consider_updating_to_node16_nodenext_or_bundler,
-                &[alternate_result.to_owned()],
+                &[(alternate_result.to_owned()).into()],
             );
         }
         let library_name = if alternate_result.contains("/node_modules/@types/") {
-            format!("@types/{}", Self::mangle_scoped_package_name(package_name))
+            crate::concat_js(&[
+                &"@types/",
+                &(Self::mangle_scoped_package_name(package_name)),
+            ])
         } else {
             package_name.to_owned()
         };
-        MessageChain::new(
+        MessageChain::new_js(
             &diagnostics::There_are_types_at_0_but_this_result_could_not_be_resolved_when_respecting_package_json_exports_The_1_library_may_need_to_update_its_package_json_or_typings,
-            &[alternate_result.to_owned(), library_name],
+            &[(alternate_result.to_owned()).into(), (library_name).into()],
         )
     }
 
@@ -5136,13 +5226,14 @@ impl<'a> CheckerState<'a> {
     /// `resolved_file_name` names an input JavaScript file and every
     /// optional tail is derived from the selected package instance.
     /// It cannot turn a Suppressed module into a checker symbol.
-    fn report_implicit_any_module(
+    fn report_implicit_any_module<'n>(
         &mut self,
         is_error: bool,
         error_node: NodeId,
-        module_reference: &str,
+        module_reference: impl Into<JsStr<'n>>,
         resolution: &UntypedModuleResolution,
     ) {
+        let module_reference = module_reference.into();
         if self.is_side_effect_import(error_node) {
             return;
         }
@@ -5157,34 +5248,25 @@ impl<'a> CheckerState<'a> {
                         package_name,
                     )
                 } else if resolution.types_package_exists {
-                    MessageChain::new(
+                    MessageChain::new_js(
                         &diagnostics::If_the_0_package_actually_exposes_this_module_consider_sending_a_pull_request_to_amend_https_github_com_DefinitelyTyped_DefinitelyTyped_tree_master_types_1,
-                        &[
-                            package_name.clone(),
-                            Self::mangle_scoped_package_name(package_name),
-                        ],
+                        &[(package_name.clone()).into(), (Self::mangle_scoped_package_name(package_name)).into()],
                     )
                 } else if resolution.package_bundles_types {
-                    MessageChain::new(
+                    MessageChain::new_js(
                         &diagnostics::If_the_0_package_actually_exposes_this_module_try_adding_a_new_declaration_d_ts_file_containing_declare_module_1,
-                        &[package_name.clone(), module_reference.to_owned()],
+                        &[(package_name.clone()).into(), (module_reference.to_owned()).into()],
                     )
                 } else {
-                    MessageChain::new(
+                    MessageChain::new_js(
                         &diagnostics::Try_npm_i_save_dev_types_1_if_it_exists_or_add_a_new_declaration_d_ts_file_containing_declare_module_0,
-                        &[
-                            module_reference.to_owned(),
-                            Self::mangle_scoped_package_name(package_name),
-                        ],
+                        &[(module_reference.to_owned()).into(), (Self::mangle_scoped_package_name(package_name)).into()],
                     )
                 }
             });
-        let mut chain = MessageChain::new(
+        let mut chain = MessageChain::new_js(
             &diagnostics::Could_not_find_a_declaration_file_for_module_0_1_implicitly_has_an_any_type,
-            &[
-                module_reference.to_owned(),
-                resolution.resolved_file_name.clone(),
-            ],
+            &[(module_reference.to_owned()).into(), (resolution.resolved_file_name.clone()).into()],
         );
         if !is_error {
             chain.category = DiagnosticCategory::Suggestion;
@@ -5200,18 +5282,20 @@ impl<'a> CheckerState<'a> {
     /// Diagnostic-only counterpart of the host's resolvedModule
     /// record for a resolver Suppressed verdict. It recognizes only
     /// package/relative targets backed by an actual host JS file.
-    fn resolve_untyped_module_for_diagnostic(
+    fn resolve_untyped_module_for_diagnostic<'n>(
         &self,
         location: NodeId,
-        module_reference: &str,
+        module_reference: impl Into<JsStr<'n>>,
     ) -> Option<UntypedModuleResolution> {
+        let module_reference = module_reference.into();
         let importer =
             Self::normalize_program_path(&self.binder.source_of_node(location).file_name, "");
         let importer_dir = importer
-            .rsplit_once('/')
-            .map_or("", |(directory, _)| directory);
+            .as_js()
+            .rsplit_once("/")
+            .map_or("".into(), |(directory, _)| directory);
         if Self::is_external_module_name_relative(module_reference)
-            || module_reference.starts_with('/')
+            || module_reference.starts_with("/")
         {
             // needAllowJs is inactive when allowJs is effective. A
             // Suppressed relative verdict in that mode is usually a
@@ -5234,7 +5318,7 @@ impl<'a> CheckerState<'a> {
                 resolution_diagnostic: None,
             });
         }
-        if module_reference.starts_with('#')
+        if module_reference.starts_with("#")
             || !matches!(self.options.emit_module_resolution_kind(), 2 | 3 | 99 | 100)
         {
             return None;
@@ -5255,7 +5339,8 @@ impl<'a> CheckerState<'a> {
         // package. Keep its current resolver regime (especially
         // exports conditions) rather than treating it as a legacy
         // alternate.
-        let types_package = format!("@types/{}", Self::mangle_scoped_package_name(&package));
+        let types_package =
+            crate::concat_js(&[&"@types/", &(Self::mangle_scoped_package_name(&package))]);
         if self
             .nearest_visible_package_root(&importer, &types_package)
             .and_then(|root| {
@@ -5280,19 +5365,20 @@ impl<'a> CheckerState<'a> {
         ))
     }
 
-    fn untyped_resolution_from_path(
+    fn untyped_resolution_from_path<'n>(
         &self,
         location: NodeId,
-        module_reference: &str,
-        resolved_file_name: String,
+        module_reference: impl Into<JsStr<'n>>,
+        resolved_file_name: JsString,
     ) -> UntypedModuleResolution {
+        let module_reference = module_reference.into();
         let importer =
             Self::normalize_program_path(&self.binder.source_of_node(location).file_name, "");
         if Self::is_external_module_name_relative(module_reference)
-            || module_reference.starts_with('/')
+            || module_reference.starts_with("/")
         {
             return UntypedModuleResolution {
-                resolved_file_name,
+                resolved_file_name: resolved_file_name.into(),
                 package_name: None,
                 alternate_result: None,
                 types_package_exists: false,
@@ -5303,7 +5389,7 @@ impl<'a> CheckerState<'a> {
         let (package, subpath) = Self::bare_package_parts(module_reference);
         let Some(package_root) = self.nearest_visible_package_root(&importer, &package) else {
             return UntypedModuleResolution {
-                resolved_file_name,
+                resolved_file_name: resolved_file_name.into(),
                 package_name: None,
                 alternate_result: None,
                 types_package_exists: false,
@@ -5323,19 +5409,21 @@ impl<'a> CheckerState<'a> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn untyped_package_resolution(
+    fn untyped_package_resolution<'n, 'path_text>(
         &self,
-        importer: &str,
+        importer: impl Into<JsStr<'path_text>>,
         location: NodeId,
-        _module_reference: &str,
-        package: String,
-        subpath: String,
-        package_root: String,
-        resolved_file_name: String,
+        _module_reference: impl Into<JsStr<'n>>,
+        package: JsString,
+        subpath: JsString,
+        package_root: JsString,
+        resolved_file_name: JsString,
     ) -> UntypedModuleResolution {
-        let package_json = format!("{package_root}/package.json");
+        let importer = importer.into();
+        let package_json = crate::concat_js(&[&(package_root), &"/package.json"]);
         let package_name = self.host_package_json_names.get(&package_json).cloned();
-        let types_package = format!("@types/{}", Self::mangle_scoped_package_name(&package));
+        let types_package =
+            crate::concat_js(&[&"@types/", &(Self::mangle_scoped_package_name(&package))]);
         let types_package_root = self.nearest_visible_package_root(importer, &types_package);
         let types_package_exists = types_package_root.is_some();
         let package_bundles_types = self.package_root_bundles_types(&package_root);
@@ -5356,7 +5444,7 @@ impl<'a> CheckerState<'a> {
             None
         };
         UntypedModuleResolution {
-            resolved_file_name,
+            resolved_file_name: resolved_file_name.into(),
             package_name,
             alternate_result,
             types_package_exists,
@@ -5365,16 +5453,19 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    fn resolve_host_package_current_target(
+    fn resolve_host_package_current_target<'path_text>(
         &self,
-        package_root: &str,
-        subpath: &str,
+        package_root: impl Into<JsStr<'path_text>>,
+        subpath: impl Into<JsStr<'path_text>>,
         resolution_mode: ModuleResolutionMode,
     ) -> Option<HostModuleTarget> {
-        let package_json = format!("{package_root}/package.json");
+        let package_root = package_root.into();
+        let subpath = subpath.into();
+        let package_json = crate::concat_js(&[&(package_root), &"/package.json"]);
         let value = self.host_package_json_values.get(&package_json);
         if self.package_json_exports_enabled()
-            && value.is_some_and(|value| value.get("exports").is_some())
+            && value
+                .is_some_and(|value| tsc_program::package_json_property(value, "exports").is_some())
         {
             return self.resolve_host_package_exports_target(
                 package_root,
@@ -5385,61 +5476,57 @@ impl<'a> CheckerState<'a> {
         self.resolve_host_package_legacy_target(package_root, subpath)
     }
 
-    fn resolve_host_package_exports_target(
+    fn resolve_host_package_exports_target<'path_text>(
         &self,
-        package_root: &str,
-        subpath: &str,
+        package_root: impl Into<JsStr<'path_text>>,
+        subpath: impl Into<JsStr<'path_text>>,
         resolution_mode: ModuleResolutionMode,
     ) -> Option<HostModuleTarget> {
-        let package_json = format!("{package_root}/package.json");
-        let exports = self
-            .host_package_json_values
-            .get(&package_json)?
-            .get("exports")?;
+        let package_root = package_root.into();
+        let subpath = subpath.into();
+        let package_json = crate::concat_js(&[&(package_root), &"/package.json"]);
+        let value = self.host_package_json_values.get(package_json.as_bytes())?;
+        let exports = tsc_program::package_json_property(value, "exports")?;
         let export_key = if subpath.is_empty() {
-            ".".to_owned()
+            JsString::from(".")
         } else {
-            format!("./{subpath}")
+            crate::concat_js(&[&"./", &(subpath)])
         };
         let (value, capture) =
             Self::package_map_entry(exports, &export_key, /*exports*/ true)?;
         self.resolve_host_conditional_target(
             value,
             resolution_mode,
-            capture.as_deref(),
+            capture.as_ref().map(JsString::as_js),
             package_root,
         )
     }
 
-    fn package_map_entry<'b>(
-        map: &'b serde_json::Value,
-        key: &str,
+    fn package_map_entry<'b, 'path_text>(
+        map: &'b tsc_program::JsonValue,
+        key: impl Into<JsStr<'path_text>>,
         exports: bool,
-    ) -> Option<(&'b serde_json::Value, Option<String>)> {
+    ) -> Option<(&'b tsc_program::JsonValue, Option<JsString>)> {
+        let key = key.into();
         if exports
             && key == "."
             && !map.as_object().is_some_and(|object| {
-                object
-                    .keys()
-                    .any(|candidate| candidate == "." || candidate.starts_with("./"))
+                tsc_program::package_json_own_entries(object)
+                    .into_iter()
+                    .any(|(candidate, _)| candidate == "." || candidate.starts_with("./"))
             })
         {
             return Some((map, None));
         }
         let object = map.as_object()?;
-        if let Some(value) = object.get(key) {
+        if let Some(value) = tsc_program::package_json_own_property(object, key) {
             return Some((value, None));
         }
-        let mut patterns = object
-            .iter()
+        let mut patterns = tsc_program::package_json_own_entries(object)
+            .into_iter()
             .filter_map(|(pattern, value)| {
-                let star = pattern.find('*')?;
-                let (prefix, suffix_with_star) = pattern.split_at(star);
-                let suffix = &suffix_with_star[1..];
-                let capture = key
-                    .strip_prefix(prefix)
-                    .and_then(|rest| rest.strip_suffix(suffix))?;
-                Some((prefix.len(), suffix.len(), value, capture.to_owned()))
+                let (prefix, suffix, capture) = Self::package_pattern_capture(pattern, key)?;
+                Some((prefix, suffix, value, capture))
             })
             .collect::<Vec<_>>();
         patterns.sort_by(|left, right| right.0.cmp(&left.0).then_with(|| right.1.cmp(&left.1)));
@@ -5453,17 +5540,18 @@ impl<'a> CheckerState<'a> {
     /// JavaScript condition to a later `types`/`default` condition.
     /// Preserve the first JS implementation as a fallback, but prefer
     /// any declaration target reached by the same condition walk.
-    fn resolve_host_conditional_target(
+    fn resolve_host_conditional_target<'path_text>(
         &self,
-        value: &serde_json::Value,
+        value: &tsc_program::JsonValue,
         resolution_mode: ModuleResolutionMode,
-        capture: Option<&str>,
-        package_root: &str,
+        capture: Option<JsStr<'_>>,
+        package_root: impl Into<JsStr<'path_text>>,
     ) -> Option<HostModuleTarget> {
+        let package_root = package_root.into();
         match value {
-            serde_json::Value::String(target) => {
+            tsc_program::JsonValue::String(target) => {
                 let target = match capture {
-                    Some(capture) => target.replace('*', capture),
+                    Some(capture) => Self::replace_package_stars(target.as_js(), capture),
                     None => target.clone(),
                 };
                 if !target.starts_with("./") {
@@ -5472,7 +5560,7 @@ impl<'a> CheckerState<'a> {
                 let candidate = Self::normalize_program_path(&target, package_root);
                 self.probe_host_module_candidate(&candidate)
             }
-            serde_json::Value::Array(targets) => {
+            tsc_program::JsonValue::Array(targets) => {
                 let mut untyped = None;
                 for target in targets {
                     match self.resolve_host_conditional_target(
@@ -5490,9 +5578,9 @@ impl<'a> CheckerState<'a> {
                 }
                 untyped.map(HostModuleTarget::Untyped)
             }
-            serde_json::Value::Object(conditions) => {
+            tsc_program::JsonValue::Object(conditions) => {
                 let mut untyped = None;
-                for (condition, target) in conditions {
+                for (condition, target) in tsc_program::package_json_own_entries(conditions) {
                     if !self.package_condition_matches(condition, resolution_mode) {
                         continue;
                     }
@@ -5515,16 +5603,18 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    fn resolve_host_package_legacy_target(
+    fn resolve_host_package_legacy_target<'path_text>(
         &self,
-        package_root: &str,
-        subpath: &str,
+        package_root: impl Into<JsStr<'path_text>>,
+        subpath: impl Into<JsStr<'path_text>>,
     ) -> Option<HostModuleTarget> {
-        let package_json = format!("{package_root}/package.json");
+        let package_root = package_root.into();
+        let subpath = subpath.into();
+        let package_json = crate::concat_js(&[&(package_root), &"/package.json"]);
         let value = self.host_package_json_values.get(&package_json);
         if !subpath.is_empty() {
             if let Some(target) = value
-                .and_then(|value| value.get("typesVersions"))
+                .and_then(|value| tsc_program::package_json_property(value, "typesVersions"))
                 .and_then(|versions| Self::types_versions_target(versions, subpath))
             {
                 let candidate = Self::normalize_program_path(&target, package_root);
@@ -5536,10 +5626,9 @@ impl<'a> CheckerState<'a> {
             return self.probe_host_module_candidate(&candidate);
         }
         if let Some(types) = value.and_then(|value| {
-            value
-                .get("types")
-                .or_else(|| value.get("typings"))
-                .and_then(serde_json::Value::as_str)
+            tsc_program::package_json_property(value, "types")
+                .or_else(|| tsc_program::package_json_property(value, "typings"))
+                .and_then(tsc_program::JsonValue::as_js)
         }) {
             let candidate = Self::normalize_program_path(types, package_root);
             if let Some(resolved) = self.probe_host_module_candidate(&candidate) {
@@ -5547,46 +5636,76 @@ impl<'a> CheckerState<'a> {
             }
         }
         if let Some(main) = value
-            .and_then(|value| value.get("main"))
-            .and_then(serde_json::Value::as_str)
+            .and_then(|value| tsc_program::package_json_property(value, "main"))
+            .and_then(tsc_program::JsonValue::as_js)
         {
             let candidate = Self::normalize_program_path(main, package_root);
             if let Some(resolved) = self.probe_host_module_candidate(&candidate) {
                 return Some(resolved);
             }
         }
-        self.probe_host_module_candidate(&format!("{package_root}/index"))
+        self.probe_host_module_candidate(&crate::concat_js(&[&(package_root), &"/index"]))
     }
 
-    fn types_versions_target(versions: &serde_json::Value, subpath: &str) -> Option<String> {
-        let mappings = versions
-            .as_object()?
-            .values()
-            .find_map(serde_json::Value::as_object)?;
-        if let Some(value) = mappings.get(subpath) {
+    fn types_versions_target<'p>(
+        versions: &tsc_program::JsonValue,
+        subpath: impl Into<JsStr<'p>>,
+    ) -> Option<JsString> {
+        let subpath = subpath.into();
+        let mappings = tsc_program::package_json_own_entries(versions.as_object()?)
+            .into_iter()
+            .find_map(|(_, value)| value.as_object())?;
+        if let Some(value) = tsc_program::package_json_own_property(mappings, subpath) {
             return value
                 .as_array()?
                 .iter()
-                .find_map(serde_json::Value::as_str)
-                .map(str::to_owned);
+                .find_map(tsc_program::JsonValue::as_js)
+                .map(JsStr::to_owned);
         }
-        mappings.iter().find_map(|(pattern, value)| {
-            let star = pattern.find('*')?;
-            let (prefix, suffix_with_star) = pattern.split_at(star);
-            let suffix = &suffix_with_star[1..];
-            let capture = subpath.strip_prefix(prefix)?.strip_suffix(suffix)?;
-            value
-                .as_array()?
-                .iter()
-                .find_map(serde_json::Value::as_str)
-                .map(|target| target.replace('*', capture))
+        tsc_program::package_json_own_entries(mappings)
+            .into_iter()
+            .find_map(|(pattern, value)| {
+                let (_, _, capture) = Self::package_pattern_capture(pattern, subpath)?;
+                value
+                    .as_array()?
+                    .iter()
+                    .find_map(tsc_program::JsonValue::as_js)
+                    .map(|target| Self::replace_package_stars(target, capture.as_js()))
+            })
+    }
+
+    fn package_pattern_capture(
+        pattern: JsStr<'_>,
+        key: JsStr<'_>,
+    ) -> Option<(usize, usize, JsString)> {
+        let (prefix, suffix) = pattern.split_once("*")?;
+        let prefix_length = prefix.len_units();
+        let suffix_length = suffix.len_units();
+        let key_length = key.len_units();
+        (key_length >= prefix_length + suffix_length
+            && key.starts_with_js(prefix)
+            && key.ends_with_js(suffix))
+        .then(|| {
+            (
+                prefix_length,
+                suffix_length,
+                key.substring(prefix_length, key_length - suffix_length),
+            )
         })
     }
 
-    fn probe_host_module_candidate(&self, candidate: &str) -> Option<HostModuleTarget> {
-        let exists = |path: &str| self.host_file_paths.contains(path);
-        let typed = |path: String| HostModuleTarget::Typed(path);
-        let untyped = |path: String| HostModuleTarget::Untyped(path);
+    fn replace_package_stars(target: JsStr<'_>, capture: JsStr<'_>) -> JsString {
+        tsc_program::replace_all_stars_value(target, capture)
+    }
+
+    fn probe_host_module_candidate<'path_text>(
+        &self,
+        candidate: impl Into<JsStr<'path_text>>,
+    ) -> Option<HostModuleTarget> {
+        let candidate = candidate.into();
+        let exists = |path: JsStr<'_>| self.host_file_paths.contains(path.as_bytes());
+        let typed = |path: JsString| HostModuleTarget::Typed(path.into());
+        let untyped = |path: JsString| HostModuleTarget::Untyped(path.into());
         if Self::is_typed_host_path(candidate) && exists(candidate) {
             return Some(typed(candidate.to_owned()));
         }
@@ -5598,8 +5717,8 @@ impl<'a> CheckerState<'a> {
         ] {
             if let Some(base) = candidate.strip_suffix(written) {
                 for extension in substitutions {
-                    let probed = format!("{base}{extension}");
-                    if exists(&probed) {
+                    let probed = crate::concat_js(&[&(base), &(extension)]);
+                    if exists(probed.as_js()) {
                         return Some(typed(probed));
                     }
                 }
@@ -5611,112 +5730,129 @@ impl<'a> CheckerState<'a> {
         }
         if !Self::has_extension(candidate) {
             for extension in [".ts", ".tsx", ".d.ts", ".mts", ".cts"] {
-                let probed = format!("{candidate}{extension}");
-                if exists(&probed) {
+                let probed = crate::concat_js(&[&(candidate), &(extension)]);
+                if exists(probed.as_js()) {
                     return Some(typed(probed));
                 }
             }
             for extension in [".js", ".jsx", ".mjs", ".cjs"] {
-                let probed = format!("{candidate}{extension}");
-                if exists(&probed) {
+                let probed = crate::concat_js(&[&(candidate), &(extension)]);
+                if exists(probed.as_js()) {
                     return Some(untyped(probed));
                 }
             }
         }
-        let directory = candidate.trim_end_matches('/');
+        let directory = Self::trim_module_path_end(candidate);
         for extension in [".ts", ".tsx", ".d.ts", ".mts", ".cts"] {
-            let probed = format!("{directory}/index{extension}");
-            if exists(&probed) {
+            let probed = crate::concat_js(&[&(directory), &"/index", &(extension)]);
+            if exists(probed.as_js()) {
                 return Some(typed(probed));
             }
         }
         for extension in [".js", ".jsx", ".mjs", ".cjs"] {
-            let probed = format!("{directory}/index{extension}");
-            if exists(&probed) {
+            let probed = crate::concat_js(&[&(directory), &"/index", &(extension)]);
+            if exists(probed.as_js()) {
                 return Some(untyped(probed));
             }
         }
         None
     }
 
-    fn typed_target_path(target: HostModuleTarget) -> Option<String> {
+    fn typed_target_path(target: HostModuleTarget) -> Option<JsString> {
         match target {
             HostModuleTarget::Typed(path) => Some(path),
             HostModuleTarget::Untyped(_) => None,
         }
     }
 
-    fn is_typed_host_path(path: &str) -> bool {
+    fn is_typed_host_path<'n>(path: impl Into<JsStr<'n>>) -> bool {
+        let path = path.into();
         [".d.ts", ".d.mts", ".d.cts", ".ts", ".tsx", ".mts", ".cts"]
             .iter()
             .any(|extension| path.ends_with(extension))
     }
 
-    fn is_untyped_javascript_path(path: &str) -> bool {
+    fn is_untyped_javascript_path<'n>(path: impl Into<JsStr<'n>>) -> bool {
+        let path = path.into();
         [".js", ".jsx", ".mjs", ".cjs"]
             .iter()
             .any(|extension| path.ends_with(extension))
     }
 
-    fn node_modules_package_root_for_path(path: &str) -> Option<String> {
-        let marker = "/node_modules/";
-        let marker_position = path.rfind(marker)?;
-        let package_start = marker_position + marker.len();
-        let remainder = &path[package_start..];
-        let segment_count = if remainder.starts_with('@') { 2 } else { 1 };
-        let package = remainder
-            .split('/')
-            .take(segment_count)
-            .collect::<Vec<_>>()
-            .join("/");
-        (!package.is_empty()).then(|| format!("{}{}", &path[..package_start], package))
+    fn node_modules_package_root_for_path<'p>(path: impl Into<JsStr<'p>>) -> Option<JsString> {
+        let path = path.into();
+        let (before, remainder) = path.rsplit_once("/node_modules/")?;
+        let segment_count = if remainder.starts_with("@") { 2 } else { 1 };
+        let package = crate::join_js_texts(
+            &remainder
+                .split_ascii(b'/')
+                .take(segment_count)
+                .collect::<Vec<_>>(),
+            "/",
+        );
+        (!package.is_empty()).then(|| crate::concat_js(&[&before, &"/node_modules/", &package]))
     }
 
-    fn mangle_scoped_package_name(package: &str) -> String {
-        match package.strip_prefix('@') {
-            Some(scoped) => scoped.replace('/', "__"),
-            None => package.to_owned(),
-        }
+    fn mangle_scoped_package_name<'p>(package: impl Into<JsStr<'p>>) -> JsString {
+        tsc_program::mangle_scoped_package_name(package)
     }
 
-    fn package_root_bundles_types(&self, package_root: &str) -> bool {
-        let package_json = format!("{package_root}/package.json");
+    fn module_path_has_package_marker(path: JsStr<'_>, marker: JsStr<'_>) -> bool {
+        // Both marker ends are whole ASCII separators. Canonical byte
+        // equality therefore cannot match a partial surrogate pair here.
+        debug_assert!(marker.starts_with("/node_modules/") && marker.ends_with("/"));
+        path.as_bytes()
+            .windows(marker.as_bytes().len())
+            .any(|part| part == marker.as_bytes())
+    }
+
+    fn package_root_bundles_types<'path_text>(
+        &self,
+        package_root: impl Into<JsStr<'path_text>>,
+    ) -> bool {
+        let package_root = package_root.into();
+        let package_json = crate::concat_js(&[&(package_root), &"/package.json"]);
         if self
             .host_package_json_values
             .get(&package_json)
             .is_some_and(|value| {
-                value.get("types").is_some()
-                    || value.get("typings").is_some()
-                    || value.get("typesVersions").is_some()
+                tsc_program::package_json_property(value, "types").is_some()
+                    || tsc_program::package_json_property(value, "typings").is_some()
+                    || tsc_program::package_json_property(value, "typesVersions").is_some()
             })
         {
             return true;
         }
-        let prefix = format!("{package_root}/");
+        let prefix = crate::concat_js(&[&(package_root), &"/"]);
         self.host_file_paths.iter().any(|path| {
-            path.starts_with(&prefix)
+            path.as_js().starts_with_js(prefix.as_js())
                 && [".d.ts", ".d.mts", ".d.cts"]
                     .iter()
                     .any(|extension| path.ends_with(extension))
         })
     }
 
-    fn nearest_package_json_for_file(&self, file_name: &str) -> Option<String> {
+    fn nearest_package_json_for_file<'path_text>(
+        &self,
+        file_name: impl Into<JsStr<'path_text>>,
+    ) -> Option<JsString> {
+        let file_name = file_name.into();
         let file_name = Self::normalize_program_path(file_name, "");
         let mut directory = file_name
-            .rsplit_once('/')
+            .as_js()
+            .rsplit_once("/")
             .map(|(directory, _)| directory)
-            .unwrap_or("");
+            .unwrap_or("".into());
         loop {
             let package_json = if directory.is_empty() {
-                "/package.json".to_owned()
+                JsString::from("/package.json")
             } else {
-                format!("{directory}/package.json")
+                crate::concat_js(&[&(directory), &"/package.json"])
             };
             if self.host_package_json_values.contains_key(&package_json) {
                 return Some(package_json);
             }
-            let Some((parent, _)) = directory.rsplit_once('/') else {
+            let Some((parent, _)) = directory.rsplit_once("/") else {
                 break;
             };
             directory = parent;
@@ -5724,37 +5860,33 @@ impl<'a> CheckerState<'a> {
         None
     }
 
-    fn package_map_target(
+    fn package_map_target<'path_text>(
         &self,
-        map: &serde_json::Value,
-        key: &str,
+        map: &tsc_program::JsonValue,
+        key: impl Into<JsStr<'path_text>>,
         resolution_mode: ModuleResolutionMode,
         exports: bool,
-    ) -> Option<String> {
+    ) -> Option<JsString> {
+        let key = key.into();
         if exports
             && key == "."
             && !map.as_object().is_some_and(|object| {
-                object
-                    .keys()
-                    .any(|candidate| candidate == "." || candidate.starts_with("./"))
+                tsc_program::package_json_own_entries(object)
+                    .into_iter()
+                    .any(|(candidate, _)| candidate == "." || candidate.starts_with("./"))
             })
         {
             return self.conditional_package_target(map, resolution_mode, None);
         }
         let object = map.as_object()?;
-        if let Some(value) = object.get(key) {
+        if let Some(value) = tsc_program::package_json_own_property(object, key) {
             return self.conditional_package_target(value, resolution_mode, None);
         }
-        let mut patterns = object
-            .iter()
+        let mut patterns = tsc_program::package_json_own_entries(object)
+            .into_iter()
             .filter_map(|(pattern, value)| {
-                let star = pattern.find('*')?;
-                let (prefix, suffix_with_star) = pattern.split_at(star);
-                let suffix = &suffix_with_star[1..];
-                let capture = key
-                    .strip_prefix(prefix)
-                    .and_then(|rest| rest.strip_suffix(suffix))?;
-                Some((prefix.len(), suffix.len(), value, capture))
+                let (prefix, suffix, capture) = Self::package_pattern_capture(pattern, key)?;
+                Some((prefix, suffix, value, capture))
             })
             .collect::<Vec<_>>();
         patterns.sort_by(|left, right| right.0.cmp(&left.0).then_with(|| right.1.cmp(&left.1)));
@@ -5762,41 +5894,45 @@ impl<'a> CheckerState<'a> {
             .into_iter()
             .next()
             .and_then(|(_, _, value, capture)| {
-                self.conditional_package_target(value, resolution_mode, Some(capture))
+                self.conditional_package_target(value, resolution_mode, Some(capture.as_js()))
             })
     }
 
     fn conditional_package_target(
         &self,
-        value: &serde_json::Value,
+        value: &tsc_program::JsonValue,
         resolution_mode: ModuleResolutionMode,
-        capture: Option<&str>,
-    ) -> Option<String> {
+        capture: Option<JsStr<'_>>,
+    ) -> Option<JsString> {
         match value {
-            serde_json::Value::String(target) => Some(match capture {
-                Some(capture) => target.replace('*', capture),
+            tsc_program::JsonValue::String(target) => Some(match capture {
+                Some(capture) => Self::replace_package_stars(target.as_js(), capture),
                 None => target.clone(),
             }),
-            serde_json::Value::Array(targets) => targets.iter().find_map(|target| {
+            tsc_program::JsonValue::Array(targets) => targets.iter().find_map(|target| {
                 self.conditional_package_target(target, resolution_mode, capture)
             }),
-            serde_json::Value::Object(conditions) => {
-                conditions.iter().find_map(|(condition, target)| {
-                    self.package_condition_matches(condition, resolution_mode)
-                        .then(|| {
-                            self.conditional_package_target(target, resolution_mode, capture)
-                        })?
-                })
+            tsc_program::JsonValue::Object(conditions) => {
+                tsc_program::package_json_own_entries(conditions)
+                    .into_iter()
+                    .find_map(|(condition, target)| {
+                        self.package_condition_matches(condition, resolution_mode)
+                            .then(|| {
+                                self.conditional_package_target(target, resolution_mode, capture)
+                            })?
+                    })
             }
             _ => None,
         }
     }
 
-    fn resolve_package_target_path(
+    fn resolve_package_target_path<'path_text>(
         &self,
-        package_root: &str,
-        target: &str,
+        package_root: impl Into<JsStr<'path_text>>,
+        target: impl Into<JsStr<'path_text>>,
     ) -> Option<ResolvedProgramModule> {
+        let package_root = package_root.into();
+        let target = target.into();
         if !target.starts_with("./") {
             return None;
         }
@@ -5862,10 +5998,10 @@ impl<'a> CheckerState<'a> {
                     // for an unloaded implementation.
                     ProgramModuleResolution::Untyped(_) => None,
                     ProgramModuleResolution::Missed(_) => {
-                        self.error_at(
+                        self.error_at_js(
                             Some(location),
                             &diagnostics::This_syntax_requires_an_imported_helper_but_module_0_cannot_be_found,
-                            &["tslib"],
+                            &[("tslib").into()],
                         );
                         None
                     }
@@ -5907,10 +6043,10 @@ impl<'a> CheckerState<'a> {
                     let symbol = self.resolve_symbol_ex(exported, false)?;
                     let Some(symbol) = symbol.filter(|&symbol| symbol != self.unknown_symbol)
                     else {
-                        self.error_at(
+                        self.error_at_js(
                             Some(location),
                             &diagnostics::This_syntax_requires_an_imported_helper_named_1_which_does_not_exist_in_0_Consider_upgrading_your_version_of_0,
-                            &["tslib", name],
+                            &[("tslib").into(), (name).into()],
                         );
                         continue;
                     };
@@ -5930,10 +6066,10 @@ impl<'a> CheckerState<'a> {
                         }
                         if !compatible {
                             let required = required.to_string();
-                            self.error_at(
+                            self.error_at_js(
                                 Some(location),
                                 &diagnostics::This_syntax_requires_an_imported_helper_named_1_with_2_parameters_which_is_not_compatible_with_the_one_in_0_Consider_upgrading_your_version_of_0,
-                                &["tslib", name, &required],
+                                &[("tslib").into(), (name).into(), (&required).into()],
                             );
                         }
                     }
@@ -5994,39 +6130,47 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    fn package_name_from_module_reference(module_reference: &str) -> Option<String> {
-        if module_reference.starts_with('#') {
+    fn package_name_from_module_reference<'n>(
+        module_reference: impl Into<JsStr<'n>>,
+    ) -> Option<JsString> {
+        let module_reference = module_reference.into();
+        if module_reference.starts_with("#") {
             return None;
         }
-        let mut parts = module_reference.split('/');
+        let mut parts = module_reference.split_ascii(b'/');
         let first = parts.next()?;
         if first.is_empty() {
             return None;
         }
-        if first.starts_with('@') {
+        if first.starts_with("@") {
             let second = parts.next()?;
-            (!second.is_empty()).then(|| format!("{first}/{second}"))
+            (!second.is_empty()).then(|| crate::concat_js(&[&first, &"/", &second]))
         } else {
             Some(first.to_owned())
         }
     }
 
-    fn nearest_package_name_for_file(&self, file_name: &str) -> Option<&str> {
+    fn nearest_package_name_for_file<'path_text>(
+        &self,
+        file_name: impl Into<JsStr<'path_text>>,
+    ) -> Option<JsStr<'_>> {
+        let file_name = file_name.into();
         let file_name = Self::normalize_program_path(file_name, "");
         let mut directory = file_name
-            .rsplit_once('/')
+            .as_js()
+            .rsplit_once("/")
             .map(|(directory, _)| directory)
-            .unwrap_or("");
+            .unwrap_or("".into());
         loop {
             let package_json = if directory.is_empty() {
-                "/package.json".to_owned()
+                JsString::from("/package.json")
             } else {
-                format!("{directory}/package.json")
+                crate::concat_js(&[&(directory), &"/package.json"])
             };
             if let Some(name) = self.host_package_json_names.get(&package_json) {
-                return Some(name);
+                return Some(name.as_js());
             }
-            let Some((parent, _)) = directory.rsplit_once('/') else {
+            let Some((parent, _)) = directory.rsplit_once("/") else {
                 break;
             };
             directory = parent;
@@ -6039,7 +6183,8 @@ impl<'a> CheckerState<'a> {
     /// not resolve (allowJs .js/.jsx targets, .json under
     /// resolveJsonModule, declaration twins of either) — tsc may
     /// resolve there.
-    fn miss_is_undecidable(&self, candidate: &str) -> bool {
+    fn miss_is_undecidable<'n>(&self, candidate: impl Into<JsStr<'n>>) -> bool {
+        let candidate = candidate.into();
         const UNMODELED: &[&str] = &[
             "",
             ".js",
@@ -6049,9 +6194,9 @@ impl<'a> CheckerState<'a> {
             ".js.ts",
             ".json.ts",
         ];
-        let base = candidate.trim_end_matches('/');
+        let base = Self::trim_module_path_end(candidate);
         if UNMODELED.iter().any(|extension| {
-            let probed = format!("{base}{extension}");
+            let probed = crate::concat_js(&[&(base), &(extension)]);
             self.host_file_paths.contains(&probed)
         }) {
             return true;
@@ -6063,7 +6208,7 @@ impl<'a> CheckerState<'a> {
         if ["/index.js", "/index.jsx", "/index.json", "/package.json"]
             .iter()
             .any(|suffix| {
-                let probed = format!("{base}{suffix}");
+                let probed = crate::concat_js(&[&(base), &(suffix)]);
                 self.host_file_paths.contains(&probed)
             })
         {
@@ -6074,18 +6219,19 @@ impl<'a> CheckerState<'a> {
 
     /// The per-candidate extension probe half of the resolver seam
     /// (tsrs-native, split for the walk-up loop).
-    fn probe_module_candidates(
+    fn probe_module_candidates<'n>(
         &self,
-        candidate: &str,
+        candidate: impl Into<JsStr<'n>>,
         is_classic: bool,
     ) -> Option<ResolvedProgramModule> {
+        let candidate = candidate.into();
         const TS_EXTENSIONS: &[&str] =
             &[".ts", ".tsx", ".d.ts", ".mts", ".cts", ".d.mts", ".d.cts"];
-        let lookup = |path: &str| self.program_path_index.get(path).copied();
-        let make = |file_index: usize, resolved_using_ts_extension: bool, path: &str| {
+        let lookup = |path: JsStr<'_>| self.program_path_index.get(path.as_bytes()).copied();
+        let make = |file_index: usize, resolved_using_ts_extension: bool, path: JsStr<'_>| {
             ResolvedProgramModule {
                 file_index,
-                resolved_file_name: path.to_owned(),
+                resolved_file_name: path.to_owned().into(),
                 resolved_using_ts_extension,
                 is_tsx: (path.ends_with(".tsx") && !path.ends_with(".d.tsx"))
                     || path.ends_with(".jsx"),
@@ -6106,15 +6252,21 @@ impl<'a> CheckerState<'a> {
                 .iter()
                 .any(|extension| candidate.ends_with(extension));
         if !recognized_ts_js_extension {
-            if let Some(dot) = candidate.rfind('.') {
-                let slash = candidate.rfind('/').map_or(0, |position| position + 1);
+            if let Some(dot) = candidate.as_bytes().iter().rposition(|&byte| byte == b'.') {
+                let slash = candidate
+                    .as_bytes()
+                    .iter()
+                    .rposition(|&byte| byte == b'/')
+                    .map_or(0, |position| position + 1);
                 if dot > slash {
-                    let (stem, extension) = candidate.split_at(dot);
-                    let twin = format!("{stem}.d{extension}.ts");
-                    if let Some(index) = lookup(&twin) {
+                    let (stem, extension) = candidate
+                        .split_at_byte(dot)
+                        .expect("ASCII dot is a code-point boundary");
+                    let twin = crate::concat_js(&[&(stem), &".d", &(extension), &".ts"]);
+                    if let Some(index) = lookup(twin.as_js()) {
                         return Some(ResolvedProgramModule {
                             file_index: index,
-                            resolved_file_name: twin,
+                            resolved_file_name: twin.into(),
                             resolved_using_ts_extension: false,
                             is_tsx: false,
                             is_arbitrary_extension: true,
@@ -6162,9 +6314,9 @@ impl<'a> CheckerState<'a> {
             if let Some(base) = candidate.strip_suffix(known) {
                 let resolved_using_ts_extension = TS_EXTENSIONS.contains(&known);
                 for extension in subs {
-                    let probed = format!("{base}{extension}");
-                    if let Some(index) = lookup(&probed) {
-                        return Some(make(index, resolved_using_ts_extension, &probed));
+                    let probed = crate::concat_js(&[&(base), &(extension)]);
+                    if let Some(index) = lookup(probed.as_js()) {
+                        return Some(make(index, resolved_using_ts_extension, probed.as_js()));
                     }
                 }
                 break;
@@ -6188,16 +6340,16 @@ impl<'a> CheckerState<'a> {
         // (`file.d.ts` must not resolve to `file.d.ts.ts`).
         if !Self::has_extension(candidate) {
             for extension in [".ts", ".tsx", ".d.ts"] {
-                let probed = format!("{candidate}{extension}");
-                if let Some(index) = lookup(&probed) {
-                    return Some(make(index, false, &probed));
+                let probed = crate::concat_js(&[&(candidate), &(extension)]);
+                if let Some(index) = lookup(probed.as_js()) {
+                    return Some(make(index, false, probed.as_js()));
                 }
             }
             if self.options.allow_js {
                 for extension in [".js", ".jsx"] {
-                    let probed = format!("{candidate}{extension}");
-                    if let Some(index) = lookup(&probed) {
-                        return Some(make(index, false, &probed));
+                    let probed = crate::concat_js(&[&(candidate), &(extension)]);
+                    if let Some(index) = lookup(probed.as_js()) {
+                        return Some(make(index, false, probed.as_js()));
                     }
                 }
             }
@@ -6206,18 +6358,18 @@ impl<'a> CheckerState<'a> {
         // resolution). Trailing-slash specifiers ("./") collapse to
         // the bare directory.
         if !is_classic {
-            let base = candidate.trim_end_matches('/');
+            let base = Self::trim_module_path_end(candidate);
             for extension in [".ts", ".tsx", ".d.ts"] {
-                let probed = format!("{base}/index{extension}");
-                if let Some(index) = lookup(&probed) {
-                    return Some(make(index, false, &probed));
+                let probed = crate::concat_js(&[&(base), &"/index", &(extension)]);
+                if let Some(index) = lookup(probed.as_js()) {
+                    return Some(make(index, false, probed.as_js()));
                 }
             }
             if self.options.allow_js {
                 for extension in [".js", ".jsx"] {
-                    let probed = format!("{base}/index{extension}");
-                    if let Some(index) = lookup(&probed) {
-                        return Some(make(index, false, &probed));
+                    let probed = crate::concat_js(&[&(base), &"/index", &(extension)]);
+                    if let Some(index) = lookup(probed.as_js()) {
+                        return Some(make(index, false, probed.as_js()));
                     }
                 }
             }
@@ -6236,28 +6388,47 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getNormalizedAbsolutePath @6.0.3
     /// tsc-hash: 984d55d901c0fcfbb442672de7c96b0bcfb4e8312c085993256e5b250837fe71
     /// tsc-span: _tsc.js:5493-5548
-    pub(crate) fn normalize_program_path(path: &str, base_dir: &str) -> String {
-        let path = if path.is_empty() { "." } else { path };
-        let base_dir = if base_dir.is_empty() { "/" } else { base_dir };
-        tsc_program::normalize_absolute_path_lexical(std::path::Path::new(path), Some(base_dir))
-            .expect("checker program paths have a rooted lexical base")
+    pub(crate) fn normalize_program_path<'p, 'b>(
+        path: impl Into<JsStr<'p>>,
+        base_dir: impl Into<JsStr<'b>>,
+    ) -> JsString {
+        Self::normalize_js_program_path(path, base_dir)
+    }
+
+    /// JS-valued program path normalization; scalar/native I/O is downstream.
+    pub(crate) fn normalize_js_program_path<'p, 'b>(
+        path: impl Into<tsc_types::JsStr<'p>>,
+        base: impl Into<tsc_types::JsStr<'b>>,
+    ) -> tsc_types::JsString {
+        let path = path.into();
+        let base = base.into();
+        tsc_program::normalize_absolute_js_path_lexical(
+            if path.is_empty() { ".".into() } else { path },
+            Some(if base.is_empty() { "/".into() } else { base }),
+        )
+        .expect("checker program paths have a rooted lexical base")
     }
 
     /// tsrs-native: lexical getRelativePathFromFile over normalized
     /// in-program paths. Diagnostic module paths keep an explicit `./`
     /// when the target is below the importing file's directory.
-    fn relative_path_from_importer(importer: &str, target: &str) -> String {
+    fn relative_path_from_importer<'i, 't>(
+        importer: impl Into<JsStr<'i>>,
+        target: impl Into<JsStr<'t>>,
+    ) -> JsString {
         let importer = Self::normalize_program_path(importer, "");
         let target = Self::normalize_program_path(target, "");
         let importer_dir = importer
-            .rsplit_once('/')
-            .map_or("", |(directory, _)| directory);
+            .as_js()
+            .rsplit_once("/")
+            .map_or("".into(), |(directory, _)| directory);
         let from: Vec<_> = importer_dir
-            .split('/')
+            .split_ascii(b'/')
             .filter(|segment| !segment.is_empty())
             .collect();
         let to: Vec<_> = target
-            .split('/')
+            .as_js()
+            .split_ascii(b'/')
             .filter(|segment| !segment.is_empty())
             .collect();
         let shared = from
@@ -6265,36 +6436,43 @@ impl<'a> CheckerState<'a> {
             .zip(&to)
             .take_while(|(left, right)| left == right)
             .count();
-        let mut parts = vec![".."; from.len().saturating_sub(shared)];
+        let mut parts = vec![JsStr::from_str(".."); from.len().saturating_sub(shared)];
         parts.extend(to[shared..].iter().copied());
-        let relative = parts.join("/");
+        let relative = crate::join_js_texts(&parts, "/");
         if relative.starts_with("../") || relative == ".." {
             relative
         } else {
-            format!("./{relative}")
+            crate::concat_js(&[&"./", &relative])
         }
     }
 
-    fn is_declaration_file_name(name: &str) -> bool {
+    fn is_declaration_file_name<'n>(name: impl Into<JsStr<'n>>) -> bool {
+        let name = name.into();
         name.ends_with(".d.ts")
             || name.ends_with(".d.cts")
             || name.ends_with(".d.mts")
-            || (name.ends_with(".ts")
-                && name
-                    .rsplit(['/', '\\'])
-                    .next()
-                    .unwrap_or(name)
-                    .contains(".d."))
+            || (name.ends_with(".ts") && Self::module_path_basename(name).contains(".d."))
+    }
+
+    fn trim_module_path_end(mut path: JsStr<'_>) -> JsStr<'_> {
+        while let Some(trimmed) = path.strip_suffix("/") {
+            path = trimmed;
+        }
+        path
+    }
+
+    fn module_path_basename(name: JsStr<'_>) -> JsStr<'_> {
+        let name = name.rsplit_once("/").map_or(name, |(_, name)| name);
+        name.rsplit_once("\\").map_or(name, |(_, name)| name)
     }
 
     /// tsc hasExtension: any dot in the final path component counts.
-    fn has_extension(name: &str) -> bool {
-        let trimmed = name.trim_end_matches(['/', '\\']);
-        trimmed
-            .rsplit(['/', '\\'])
-            .next()
-            .unwrap_or(trimmed)
-            .contains('.')
+    fn has_extension<'n>(name: impl Into<JsStr<'n>>) -> bool {
+        let mut name = name.into();
+        while let Some(trimmed) = name.strip_suffix("/").or_else(|| name.strip_suffix("\\")) {
+            name = trimmed;
+        }
+        Self::module_path_basename(name).contains(".")
     }
 
     /// tsc importSyntaxAffectsModuleResolution over the represented
@@ -6423,14 +6601,18 @@ impl<'a> CheckerState<'a> {
         self.implied_node_format_for_file_name(&self.binder.source_of_node(location).file_name)
     }
 
-    fn implied_node_format_for_file_name(&self, file_name: &str) -> Option<ModuleResolutionMode> {
+    fn implied_node_format_for_file_name<'n>(
+        &self,
+        file_name: impl Into<JsStr<'n>>,
+    ) -> Option<ModuleResolutionMode> {
+        let file_name = file_name.into();
         if file_name.ends_with(".mts") || file_name.ends_with(".mjs") {
             return Some(ModuleResolutionMode::EsNext);
         }
         if file_name.ends_with(".cts") || file_name.ends_with(".cjs") {
             return Some(ModuleResolutionMode::CommonJs);
         }
-        let normalized = Self::normalize_program_path(file_name, "");
+        let normalized = Self::normalize_js_program_path(file_name, "");
         if self.authoritative_module_provider.is_some() {
             return self
                 .program_path_index
@@ -6454,7 +6636,8 @@ impl<'a> CheckerState<'a> {
         let should_lookup_from_package_json = (3..=99)
             .contains(&self.options.emit_module_resolution_kind())
             || normalized
-                .split('/')
+                .as_js()
+                .split_ascii(b'/')
                 .any(|segment| segment == "node_modules");
         let package_eligible = [".ts", ".tsx", ".js", ".jsx"]
             .iter()
@@ -6468,10 +6651,11 @@ impl<'a> CheckerState<'a> {
         )
     }
 
-    fn package_scope_node_format_for_file_name(
+    fn package_scope_node_format_for_file_name<'n>(
         &self,
-        file_name: &str,
+        file_name: impl Into<JsStr<'n>>,
     ) -> Option<ModuleResolutionMode> {
+        let file_name = file_name.into();
         self.package_scope_module_type_for_file_name(file_name)
             .map(|module_type| match module_type {
                 PackageJsonModuleType::Module => ModuleResolutionMode::EsNext,
@@ -6481,33 +6665,39 @@ impl<'a> CheckerState<'a> {
             })
     }
 
-    fn package_scope_module_type_for_file_name(
+    fn package_scope_module_type_for_file_name<'n>(
         &self,
-        file_name: &str,
+        file_name: impl Into<JsStr<'n>>,
     ) -> Option<PackageJsonModuleType> {
+        let file_name = file_name.into();
         self.package_scope_module_type_and_path_for_file_name(file_name)
             .map(|(_, module_type)| module_type)
     }
 
-    fn package_scope_module_type_and_path_for_file_name(
+    fn package_scope_module_type_and_path_for_file_name<'n>(
         &self,
-        file_name: &str,
-    ) -> Option<(String, PackageJsonModuleType)> {
-        let file_name = Self::normalize_program_path(file_name, "");
+        file_name: impl Into<JsStr<'n>>,
+    ) -> Option<(JsString, PackageJsonModuleType)> {
+        let file_name = file_name.into();
+        let file_name = Self::normalize_js_program_path(file_name, "");
         let mut directory = file_name
-            .rsplit_once('/')
+            .as_js()
+            .rsplit_once("/")
             .map(|(directory, _)| directory)
-            .unwrap_or("");
+            .unwrap_or("".into());
         loop {
             let package_json = if directory.is_empty() {
-                "/package.json".to_owned()
+                JsString::from("/package.json")
             } else {
-                format!("{directory}/package.json")
+                crate::concat_js(&[&directory, &"/package.json"])
             };
-            if let Some(&module_type) = self.host_package_json_module_types.get(&package_json) {
+            if let Some(&module_type) = self
+                .host_package_json_module_types
+                .get(package_json.as_bytes())
+            {
                 return Some((package_json, module_type));
             }
-            let Some((parent, _)) = directory.rsplit_once('/') else {
+            let Some((parent, _)) = directory.rsplit_once("/") else {
                 break;
             };
             directory = parent;
@@ -6555,12 +6745,13 @@ impl<'a> CheckerState<'a> {
         self.implied_node_format_for_emit_file_name(&self.binder.source(file_index).file_name)
     }
 
-    fn implied_node_format_for_emit_file_name(
+    fn implied_node_format_for_emit_file_name<'n>(
         &self,
-        file_name: &str,
+        file_name: impl Into<JsStr<'n>>,
     ) -> Option<ModuleResolutionMode> {
+        let file_name = file_name.into();
         if self.authoritative_module_provider.is_some() {
-            let normalized = Self::normalize_program_path(file_name, "");
+            let normalized = Self::normalize_js_program_path(file_name, "");
             return self
                 .program_path_index
                 .get(&normalized)
@@ -6663,19 +6854,20 @@ impl<'a> CheckerState<'a> {
     /// tsc suggestedExtensions (47456-47466) over the host set: the
     /// first actual extension whose file exists selects the import
     /// extension for the 2834 suggestion.
-    fn suggested_extension_for(
+    fn suggested_extension_for<'n>(
         &self,
         location: NodeId,
-        module_reference: &str,
+        module_reference: impl Into<JsStr<'n>>,
     ) -> Option<&'static str> {
+        let module_reference = module_reference.into();
         let importing_index = self.binder.file_index_of_node(location);
         let importer =
             Self::normalize_program_path(&self.binder.source(importing_index).file_name, "");
-        let importer_dir = match importer.rfind('/') {
-            Some(position) => importer[..position].to_owned(),
-            None => String::new(),
-        };
-        let candidate = Self::normalize_program_path(module_reference, &importer_dir);
+        let importer_dir = importer
+            .as_js()
+            .rsplit_once("/")
+            .map_or("".into(), |(directory, _)| directory);
+        let candidate = Self::normalize_program_path(module_reference, importer_dir);
         let jsx_preserve = self.options.jsx == Some(1);
         let table: [(&str, &'static str); 9] = [
             (".mts", ".mjs"),
@@ -6691,13 +6883,14 @@ impl<'a> CheckerState<'a> {
         table
             .iter()
             .find(|(actual, _)| {
-                let probed = format!("{candidate}{actual}");
+                let probed = crate::concat_js(&[&(candidate), &(actual)]);
                 self.host_file_paths.contains(&probed)
             })
             .map(|&(_, import_extension)| import_extension)
     }
 
-    fn try_extract_ts_extension(name: &str) -> Option<&'static str> {
+    fn try_extract_ts_extension<'n>(name: impl Into<JsStr<'n>>) -> Option<&'static str> {
+        let name = name.into();
         // tsc supportedTSExtensionsForExtractExtension order: the
         // declaration extension wins over the plain one.
         [".d.ts", ".d.cts", ".d.mts", ".cts", ".mts", ".ts", ".tsx"]
@@ -6707,22 +6900,30 @@ impl<'a> CheckerState<'a> {
 
     /// tsc getAnyExtensionFromPath without a supplied extension table: the
     /// suffix beginning at the last dot of the final path component.
-    fn any_extension_from_path(name: &str) -> &str {
-        let base_name = name.rsplit(['/', '\\']).next().unwrap_or(name);
+    fn any_extension_from_path<'n>(name: impl Into<JsStr<'n>>) -> JsStr<'n> {
+        let base_name = Self::module_path_basename(name.into());
         base_name
-            .rfind('.')
-            .map_or("", |position| &base_name[position..])
+            .as_bytes()
+            .iter()
+            .rposition(|&byte| byte == b'.')
+            .map_or("".into(), |position| {
+                base_name
+                    .split_at_byte(position)
+                    .expect("ASCII dot is a code-point boundary")
+                    .1
+            })
     }
 
     /// getSuggestedImportSource reduced: non-Node ESM emit at the
     /// modeled defaults strips the extension for CJS-ish kinds and
     /// maps .ts-family → .js under ES module kinds.
-    fn suggested_import_source(
+    fn suggested_import_source<'n>(
         &self,
         location: NodeId,
-        module_reference: &str,
+        module_reference: impl Into<JsStr<'n>>,
         ts_extension: &str,
-    ) -> String {
+    ) -> JsString {
+        let module_reference = module_reference.into();
         let without_extension = module_reference
             .strip_suffix(ts_extension)
             .unwrap_or(module_reference);
@@ -6757,7 +6958,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
         };
-        format!("{without_extension}{runtime_extension}")
+        crate::concat_js(&[&(without_extension), &(runtime_extension)])
     }
 
     /// resolveExternalModule's `importOrExport` probe
@@ -6834,16 +7035,17 @@ impl<'a> CheckerState<'a> {
 
     /// tsc findBestPatternMatch (1065) over patternAmbientModules:
     /// longest matching prefix wins.
-    fn find_best_pattern_match(&self, candidate: &str) -> Option<SymbolId> {
+    fn find_best_pattern_match<'n>(&self, candidate: impl Into<JsStr<'n>>) -> Option<SymbolId> {
+        let candidate = candidate.into();
         let mut matched: Option<(usize, SymbolId)> = None;
         for (prefix, suffix, symbol) in &self.pattern_ambient_modules {
-            if candidate.len() >= prefix.len() + suffix.len()
-                && candidate.starts_with(prefix.as_str())
-                && candidate.ends_with(suffix.as_str())
+            if candidate.len_units() >= prefix.len_units() + suffix.len_units()
+                && candidate.starts_with_js(prefix.as_js())
+                && candidate.ends_with_js(suffix.as_js())
             {
                 match matched {
-                    Some((best_len, _)) if prefix.len() <= best_len => {}
-                    _ => matched = Some((prefix.len(), *symbol)),
+                    Some((best_len, _)) if prefix.len_units() <= best_len => {}
+                    _ => matched = Some((prefix.len_units(), *symbol)),
                 }
             }
         }
@@ -6952,7 +7154,7 @@ impl<'a> CheckerState<'a> {
             let symbol = self.binder.symbol_mut(merged);
             symbol.flags |= SymbolFlags::VALUE_MODULE;
         }
-        let module_exports: Vec<(String, SymbolId)> = self
+        let module_exports: Vec<(EscapedName, SymbolId)> = self
             .binder
             .symbol(module_symbol)
             .exports
@@ -7016,10 +7218,10 @@ impl<'a> CheckerState<'a> {
             } else {
                 "esModuleInterop"
             };
-            self.error_at(
+            self.error_at_js(
                 Some(referencing_location),
                 &diagnostics::This_module_can_only_be_referenced_with_ECMAScript_imports_exports_by_turning_on_the_0_flag_and_referencing_its_default_export,
-                &[compiler_option_name],
+                &[(compiler_option_name).into()],
             );
             return Ok(Some(symbol));
         }
@@ -7066,10 +7268,10 @@ impl<'a> CheckerState<'a> {
                                 && !symbol_flags
                                     .intersects(SymbolFlags::MODULE | SymbolFlags::VARIABLE)
                             {
-                                self.error_at(
+                                self.error_at_js(
                                     Some(referencing_location),
                                     &diagnostics::This_module_can_only_be_referenced_with_ECMAScript_imports_exports_by_turning_on_the_0_flag_and_referencing_its_default_export,
-                                    &["esModuleInterop"],
+                                    &[("esModuleInterop").into()],
                                 );
                             }
                             if self.options.es_module_interop_effective()
@@ -7156,9 +7358,10 @@ impl<'a> CheckerState<'a> {
         original_symbol: Option<SymbolId>,
         anonymous_symbol: Option<SymbolId>,
     ) -> CheckResult<TypeId> {
-        let new_symbol = self
-            .binder
-            .create_symbol(SymbolFlags::ALIAS, InternalSymbolName::DEFAULT.to_owned());
+        let new_symbol = self.binder.create_symbol(
+            SymbolFlags::ALIAS,
+            tsc_types::EscapedName::internal(InternalSymbolName::DEFAULT),
+        );
         self.binder.symbol_mut(new_symbol).parent = original_symbol;
         let name_type = self
             .tables
@@ -7174,7 +7377,10 @@ impl<'a> CheckerState<'a> {
         self.links
             .set_fresh_symbol_alias_target(new_symbol, LinkSlot::Resolved(alias_target));
         let mut member_table = SymbolTable::default();
-        member_table.insert(InternalSymbolName::DEFAULT.to_owned(), new_symbol);
+        member_table.insert(
+            tsc_types::EscapedName::internal(InternalSymbolName::DEFAULT),
+            new_symbol,
+        );
         // createAnonymousType's getNamedMembers over the one-entry
         // table: "default" is not reserved, and symbolIsValue's alias
         // branch reads the pre-resolved target's flags (getSymbolFlags)
@@ -7250,7 +7456,7 @@ impl<'a> CheckerState<'a> {
         let synthetic = if has_synthetic_default {
             let anonymous_symbol = self.binder.create_symbol(
                 SymbolFlags::TYPE_LITERAL,
-                InternalSymbolName::TYPE.to_owned(),
+                tsc_types::EscapedName::internal(InternalSymbolName::TYPE),
             );
             let default_containing_object = self.create_default_property_wrapper_for_module(
                 symbol,
@@ -7406,11 +7612,12 @@ impl<'a> CheckerState<'a> {
         module_symbol: SymbolId,
     ) -> CheckResult<(
         SymbolTable,
-        Option<std::collections::HashMap<String, NodeId>>,
+        Option<std::collections::HashMap<EscapedName, NodeId>>,
     )> {
         let mut visited: Vec<SymbolId> = Vec::new();
-        let mut type_only_export_star_map: Option<std::collections::HashMap<String, NodeId>> = None;
-        let mut non_type_only_names: indexmap::IndexSet<String> = indexmap::IndexSet::new();
+        let mut type_only_export_star_map: Option<std::collections::HashMap<EscapedName, NodeId>> =
+            None;
+        let mut non_type_only_names: indexmap::IndexSet<EscapedName> = indexmap::IndexSet::new();
         let module_symbol = self
             .resolve_external_module_symbol(Some(module_symbol), false)?
             .expect("resolveExternalModuleSymbol(Some) is Some");
@@ -7440,8 +7647,8 @@ impl<'a> CheckerState<'a> {
         export_star: Option<NodeId>,
         is_type_only: bool,
         visited: &mut Vec<SymbolId>,
-        non_type_only_names: &mut indexmap::IndexSet<String>,
-        type_only_export_star_map: &mut Option<std::collections::HashMap<String, NodeId>>,
+        non_type_only_names: &mut indexmap::IndexSet<EscapedName>,
+        type_only_export_star_map: &mut Option<std::collections::HashMap<EscapedName, NodeId>>,
     ) -> CheckResult<Option<SymbolTable>> {
         if !is_type_only {
             if let Some(symbol) = symbol {
@@ -7499,10 +7706,10 @@ impl<'a> CheckerState<'a> {
                     continue;
                 }
                 for &node in exports_with_duplicate {
-                    self.error_at(
+                    self.error_at_js(
                         Some(node),
                         &diagnostics::Module_0_has_already_exported_a_member_named_1_Consider_explicitly_re_exporting_to_resolve_the_ambiguity,
-                        &[specifier_text, unescape_leading_underscores(id)],
+                        &[specifier_text.as_str().into(), unescape_leading_underscores(id)],
                     );
                 }
             }
@@ -7627,24 +7834,26 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:13026-13034
     ///
     /// Folded family: TextUnescaped/TextEscaped/IsDefault.
-    pub(crate) fn module_export_name_text_escaped(&self, name: NodeId) -> String {
+    pub(crate) fn module_export_name_text_escaped(&self, name: NodeId) -> EscapedName {
         match self.data_of(name) {
             NodeData::StringLiteral(data) => escape_leading_underscores(&data.text),
-            NodeData::Identifier(data) => data.escaped_text.clone(),
-            _ => String::new(),
+            NodeData::Identifier(data) => {
+                EscapedName::from_identifier_escaped_text(&data.escaped_text)
+            }
+            _ => EscapedName::escape("".into()),
         }
     }
 
     /// tsc-port: moduleExportNameTextUnescaped @6.0.3
     /// tsc-hash: 6ca98eb0675711e5d04bc7ab9c263795d5a4e08c689ed2361947370c00473ddc
     /// tsc-span: _tsc.js:13026-13028
-    pub(crate) fn module_export_name_text_unescaped(&self, name: NodeId) -> String {
+    pub(crate) fn module_export_name_text_unescaped(&self, name: NodeId) -> JsString {
         match self.data_of(name) {
             NodeData::StringLiteral(data) => data.text.clone(),
             NodeData::Identifier(data) => {
                 unescape_leading_underscores(&data.escaped_text).to_owned()
             }
-            _ => String::new(),
+            _ => JsString::new(),
         }
     }
 
@@ -7735,7 +7944,7 @@ impl<'a> CheckerState<'a> {
             .flags_of(node)
             .intersects(tsc_types::NodeFlags::AMBIENT);
         if is_global_augmentation && !in_ambient_context {
-            self.error_at(
+            self.error_at_js(
                 name.or(Some(node)),
                 &diagnostics::Augmentations_for_the_global_scope_should_have_declare_modifier_unless_they_appear_in_already_ambient_context,
                 &[],
@@ -7765,7 +7974,7 @@ impl<'a> CheckerState<'a> {
                 && !in_ambient_context
                 && self.kind_of(name) == SyntaxKind::StringLiteral
             {
-                self.grammar_error_on_node(
+                self.grammar_error_on_node_js(
                     name,
                     &diagnostics::Only_ambient_modules_can_use_quoted_names,
                     &[],
@@ -7777,7 +7986,7 @@ impl<'a> CheckerState<'a> {
             if !self.binder.flags_of(node).intersects(
                 tsc_types::NodeFlags::NAMESPACE | tsc_types::NodeFlags::GLOBAL_AUGMENTATION,
             ) {
-                self.error_at(
+                self.error_at_js(
                     Some(name),
                     &diagnostics::A_namespace_declaration_should_not_be_declared_using_the_module_keyword_Please_use_the_namespace_keyword_instead,
                     &[],
@@ -7792,7 +8001,7 @@ impl<'a> CheckerState<'a> {
             && self.is_instantiated_module(node)
         {
             if self.options.erasable_syntax_only == Some(true) {
-                self.error_at(
+                self.error_at_js(
                     Some(name),
                     &diagnostics::This_syntax_is_not_allowed_when_erasableSyntaxOnly_is_enabled,
                     &[],
@@ -7807,7 +8016,7 @@ impl<'a> CheckerState<'a> {
                     let node_file = self.binder.file_index_of_node(node);
                     let other_file = self.binder.file_index_of_node(first_non_ambient);
                     if node_file != other_file {
-                        self.error_at(
+                        self.error_at_js(
                             Some(name),
                             &diagnostics::A_namespace_declaration_cannot_be_in_a_different_file_from_a_class_or_function_with_which_it_is_merged,
                             &[],
@@ -7820,7 +8029,7 @@ impl<'a> CheckerState<'a> {
                             .node(first_non_ambient)
                             .pos
                     {
-                        self.error_at(
+                        self.error_at_js(
                             Some(name),
                             &diagnostics::A_namespace_declaration_cannot_be_located_prior_to_a_class_or_function_with_which_it_is_merged,
                             &[],
@@ -7855,7 +8064,7 @@ impl<'a> CheckerState<'a> {
                     .into_iter()
                     .find(|&modifier| self.kind_of(modifier) == SyntaxKind::ExportKeyword)
                 {
-                    self.error_at(
+                    self.error_at_js(
                         Some(export_modifier),
                         &diagnostics::A_top_level_export_modifier_cannot_be_used_on_value_declarations_in_a_CommonJS_module_when_verbatimModuleSyntax_is_enabled,
                         &[],
@@ -7895,7 +8104,7 @@ impl<'a> CheckerState<'a> {
                 .is_some_and(|parent| self.is_global_source_file_node(parent))
             {
                 if is_global_augmentation {
-                    self.error_at(
+                    self.error_at_js(
                         Some(name),
                         &diagnostics::Augmentations_for_the_global_scope_can_only_be_directly_nested_in_external_modules_or_ambient_module_declarations,
                         &[],
@@ -7905,7 +8114,7 @@ impl<'a> CheckerState<'a> {
                     let text = node_util::get_text_of_identifier_or_literal(source, name)
                         .unwrap_or_default();
                     if Self::is_external_module_name_relative(&text) {
-                        self.error_at(
+                        self.error_at_js(
                             Some(name),
                             &diagnostics::Ambient_module_declaration_cannot_specify_relative_module_name,
                             &[],
@@ -7913,13 +8122,13 @@ impl<'a> CheckerState<'a> {
                     }
                 }
             } else if is_global_augmentation {
-                self.error_at(
+                self.error_at_js(
                     Some(name),
                     &diagnostics::Augmentations_for_the_global_scope_can_only_be_directly_nested_in_external_modules_or_ambient_module_declarations,
                     &[],
                 );
             } else {
-                self.error_at(
+                self.error_at_js(
                     Some(name),
                     &diagnostics::Ambient_modules_cannot_be_nested_in_other_modules_or_namespaces,
                     &[],
@@ -8096,7 +8305,7 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         if self.kind_of(module_name) != SyntaxKind::StringLiteral {
-            self.error_at(
+            self.error_at_js(
                 Some(module_name),
                 &diagnostics::String_literal_expected,
                 &[],
@@ -8118,18 +8327,18 @@ impl<'a> CheckerState<'a> {
             } else {
                 &diagnostics::Import_declarations_in_a_namespace_cannot_reference_a_module
             };
-            self.error_at(Some(module_name), message, &[]);
+            self.error_at_js(Some(module_name), message, &[]);
             return Ok(false);
         }
         if in_ambient_external_module {
             let text = match self.data_of(module_name) {
                 NodeData::StringLiteral(data) => data.text.clone(),
-                _ => String::new(),
+                _ => String::new().into(),
             };
             if Self::is_external_module_name_relative(&text)
                 && !self.is_top_level_in_external_module_augmentation(node)
             {
-                self.error_at(
+                self.error_at_js(
                     Some(node),
                     &diagnostics::Import_or_export_declaration_in_an_ambient_module_declaration_cannot_reference_module_through_relative_module_name,
                     &[],
@@ -8162,7 +8371,7 @@ impl<'a> CheckerState<'a> {
                     if let Some(value) = value {
                         if self.kind_of(value) != SyntaxKind::StringLiteral {
                             has_error = true;
-                            self.error_at(Some(value), message, &[]);
+                            self.error_at_js(Some(value), message, &[]);
                         }
                     }
                 }
@@ -8233,9 +8442,9 @@ impl<'a> CheckerState<'a> {
             return Ok(());
         }
         if !allow_string_literal {
-            self.grammar_error_on_node(name, &diagnostics::Identifier_expected, &[]);
+            self.grammar_error_on_node_js(name, &diagnostics::Identifier_expected, &[]);
         } else if matches!(self.options.emit_module_kind(), 5 | 6) {
-            self.grammar_error_on_node(
+            self.grammar_error_on_node_js(
                 name,
                 &diagnostics::String_literal_import_and_export_names_are_not_supported_when_the_module_flag_is_set_to_es2015_or_es2020,
                 &[],
@@ -8348,7 +8557,7 @@ impl<'a> CheckerState<'a> {
                     )
                     .into_iter()
                     .collect();
-                self.error_at_with_related(
+                self.error_at_with_related_js(
                     Some(error_node),
                     &diagnostics::Types_cannot_appear_in_export_declarations_in_JavaScript_files,
                     &[],
@@ -8368,10 +8577,10 @@ impl<'a> CheckerState<'a> {
                 let module_specifier = declaration
                     .and_then(|declaration| self.get_external_module_name_of(declaration))
                     .and_then(|specifier| match self.data_of(specifier) {
-                        NodeData::StringLiteral(data) => Some(data.text.as_str()),
+                        NodeData::StringLiteral(data) => Some(data.text.as_js()),
                         _ => None,
                     })
-                    .unwrap_or("...");
+                    .unwrap_or("...".into());
                 let imported_identifier = match self.data_of(error_node) {
                     NodeData::Identifier(data) => {
                         unescape_leading_underscores(&data.escaped_text).to_owned()
@@ -8379,11 +8588,16 @@ impl<'a> CheckerState<'a> {
                     _ => unescape_leading_underscores(&self.binder.symbol(symbol).escaped_name)
                         .to_owned(),
                 };
-                let import_type = format!("import(\"{module_specifier}\").{imported_identifier}");
-                self.error_at(
+                let import_type = crate::concat_js(&[
+                    &"import(\"",
+                    &module_specifier,
+                    &"\").",
+                    &imported_identifier,
+                ]);
+                self.error_at_js(
                     Some(error_node),
                     &diagnostics::_0_is_a_type_and_cannot_be_imported_in_JavaScript_files_Use_1_in_a_JSDoc_type_annotation,
-                    &[&imported_identifier, &import_type],
+                    &[imported_identifier.as_js(), import_type.as_js()],
                 );
             }
             return Ok(());
@@ -8409,7 +8623,7 @@ impl<'a> CheckerState<'a> {
                 &diagnostics::Import_declaration_conflicts_with_local_declaration_of_0
             };
             let display = self.emit_symbol_to_string_default(symbol)?;
-            self.error_at(Some(node), message, &[&display]);
+            self.error_at_js(Some(node), message, &[(&display).into()]);
         }
 
         let isolated_modules_like = self.options.isolated_modules == Some(true)
@@ -8458,19 +8672,19 @@ impl<'a> CheckerState<'a> {
                                 } else {
                                     &diagnostics::_0_was_imported_here
                                 };
-                                let related = self.related_info_for_node(
+                                let related = self.related_info_for_node_js(
                                     declaration,
                                     related_message,
-                                    &[&display],
+                                    &[(&display).into()],
                                 );
-                                self.error_at_with_related(
+                                self.error_at_with_related_js(
                                     Some(node),
                                     message,
-                                    &[&display],
+                                    &[(&display).into()],
                                     vec![related],
                                 );
                             } else {
-                                self.error_at(Some(node), message, &[&display]);
+                                self.error_at_js(Some(node), message, &[(&display).into()]);
                             }
                         }
                     }
@@ -8514,21 +8728,25 @@ impl<'a> CheckerState<'a> {
                                 } else {
                                     &diagnostics::_0_was_imported_here
                                 };
-                                let related = self.related_info_for_node(
+                                let related = self.related_info_for_node_js(
                                     declaration,
                                     related_message,
-                                    &[&display],
+                                    &[(&display).into()],
                                 );
-                                self.error_at_with_related(
+                                self.error_at_with_related_js(
                                     Some(node),
                                     message,
-                                    &[&display, option_name],
+                                    &[(&display).into(), (option_name).into()],
                                     vec![related],
                                 );
                             } else if is_type {
-                                self.error_at(Some(node), message, &[option_name]);
+                                self.error_at_js(Some(node), message, &[(option_name).into()]);
                             } else {
-                                self.error_at(Some(node), message, &[&display, option_name]);
+                                self.error_at_js(
+                                    Some(node),
+                                    message,
+                                    &[(&display).into(), (option_name).into()],
+                                );
                             }
                         }
                     }
@@ -8542,13 +8760,13 @@ impl<'a> CheckerState<'a> {
                 && self.emit_module_format_of_file(node) == 1
             {
                 let message = self.get_verbatim_module_syntax_error_message(node);
-                self.error_at(Some(node), message, &[]);
+                self.error_at_js(Some(node), message, &[]);
             } else if self.options.emit_module_kind() == 200
                 && self.kind_of(node) != SyntaxKind::ImportEqualsDeclaration
                 && self.kind_of(node) != SyntaxKind::VariableDeclaration
                 && self.emit_module_format_of_file(node) == 1
             {
-                self.error_at(
+                self.error_at_js(
                     Some(node),
                     &diagnostics::ECMAScript_module_syntax_is_not_allowed_in_a_CommonJS_module_when_module_is_set_to_preserve,
                     &[],
@@ -8571,10 +8789,10 @@ impl<'a> CheckerState<'a> {
                             .intersects(tsc_types::NodeFlags::AMBIENT)
                     })
             {
-                self.error_at(
+                self.error_at_js(
                     Some(node),
                     &diagnostics::Cannot_access_ambient_const_enums_when_0_is_enabled,
-                    &["verbatimModuleSyntax"],
+                    &[("verbatimModuleSyntax").into()],
                 );
             }
         }
@@ -8628,7 +8846,7 @@ impl<'a> CheckerState<'a> {
             })?;
         let display =
             unescape_leading_underscores(&self.binder.symbol(already_exported).escaped_name);
-        Some(self.related_info_for_node(
+        Some(self.related_info_for_node_js(
             exporting_declaration,
             &diagnostics::_0_is_automatically_exported_here,
             &[display],
@@ -8724,7 +8942,7 @@ impl<'a> CheckerState<'a> {
             } else {
                 &diagnostics::Import_assertions_are_only_supported_when_the_module_option_is_set_to_esnext_node18_node20_nodenext_or_preserve
             };
-            self.grammar_error_on_node(node, message, &[]);
+            self.grammar_error_on_node_js(node, message, &[]);
             return Ok(());
         }
         if (102..=199).contains(&module_kind) && !is_import_attributes {
@@ -8735,7 +8953,14 @@ impl<'a> CheckerState<'a> {
             );
             return Ok(());
         }
-        if !is_import_attributes && self.options.ignore_deprecations.as_deref() != Some("6.0") {
+        if !is_import_attributes
+            && self
+                .options
+                .ignore_deprecations
+                .as_ref()
+                .map(JsString::as_js)
+                != Some("6.0".into())
+        {
             self.grammar_error_on_first_token(
                 node,
                 &diagnostics::Import_assertions_have_been_replaced_by_import_attributes_Use_with_instead_of_assert,
@@ -8760,7 +8985,7 @@ impl<'a> CheckerState<'a> {
                 } else {
                     &diagnostics::Import_assertions_are_not_allowed_on_statements_that_compile_to_CommonJS_require_calls
                 };
-                self.grammar_error_on_node(node, message, &[]);
+                self.grammar_error_on_node_js(node, message, &[]);
                 return Ok(());
             }
         }
@@ -8782,11 +9007,11 @@ impl<'a> CheckerState<'a> {
             } else {
                 &diagnostics::Import_assertions_cannot_be_used_with_type_only_imports_or_exports
             };
-            self.grammar_error_on_node(node, message, &[]);
+            self.grammar_error_on_node_js(node, message, &[]);
             return Ok(());
         }
         if overridden {
-            self.grammar_error_on_node(
+            self.grammar_error_on_node_js(
                 node,
                 &diagnostics::resolution_mode_can_only_be_set_for_type_only_imports,
                 &[],
@@ -8839,7 +9064,7 @@ impl<'a> CheckerState<'a> {
                     } else {
                         &diagnostics::Type_import_assertions_should_have_exactly_one_key_resolution_mode_with_value_import_or_require
                     };
-                    self.grammar_error_on_node(node, message, &[]);
+                    self.grammar_error_on_node_js(node, message, &[]);
                 }
                 Ok(false)
             }
@@ -8850,13 +9075,13 @@ impl<'a> CheckerState<'a> {
                     } else {
                         &diagnostics::resolution_mode_is_the_only_valid_key_for_type_import_assertions
                     };
-                    self.grammar_error_on_node(name, message, &[]);
+                    self.grammar_error_on_node_js(name, message, &[]);
                 }
                 Ok(false)
             }
             ResolutionModeOverrideParse::InvalidValue { value } => {
                 if report {
-                    self.grammar_error_on_node(
+                    self.grammar_error_on_node_js(
                         value,
                         &diagnostics::resolution_mode_should_be_either_require_or_import,
                         &[],
@@ -8888,7 +9113,7 @@ impl<'a> CheckerState<'a> {
             NodeData::StringLiteral(data) => data.text.as_str(),
             _ => return ResolutionModeOverrideParse::Missing,
         };
-        if name_text != "resolution-mode" {
+        if name_text != Some("resolution-mode") {
             return ResolutionModeOverrideParse::InvalidName { token, name };
         }
         let Some(value) = value else {
@@ -8900,8 +9125,8 @@ impl<'a> CheckerState<'a> {
             _ => return ResolutionModeOverrideParse::Missing,
         };
         let mode = match value_text {
-            "import" => ModuleResolutionMode::EsNext,
-            "require" => ModuleResolutionMode::CommonJs,
+            Some("import") => ModuleResolutionMode::EsNext,
+            Some("require") => ModuleResolutionMode::CommonJs,
             _ => return ResolutionModeOverrideParse::InvalidValue { value },
         };
         ResolutionModeOverrideParse::Valid(mode)
@@ -8914,9 +9139,10 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.links.node(node).resolved_type.resolved() {
             return Ok(cached);
         }
-        let object_symbol = self
-            .binder
-            .create_symbol(SymbolFlags::OBJECT_LITERAL, "__importAttributes".to_owned());
+        let object_symbol = self.binder.create_symbol(
+            SymbolFlags::OBJECT_LITERAL,
+            tsc_types::EscapedName::from_identifier_escaped_text("__importAttributes"),
+        );
         let mut members = SymbolTable::default();
         let mut properties = Vec::new();
         let elements = match self.data_of(node) {
@@ -8934,7 +9160,7 @@ impl<'a> CheckerState<'a> {
             let source = self.binder.source_of_node(name);
             let member_name = node_util::get_text_of_identifier_or_literal(source, name)
                 .map(|text| escape_leading_underscores(&text))
-                .unwrap_or_default();
+                .unwrap_or_else(|| EscapedName::escape("".into()));
             let member = self
                 .binder
                 .create_symbol(SymbolFlags::PROPERTY, member_name.clone());
@@ -9062,10 +9288,10 @@ impl<'a> CheckerState<'a> {
                             199 => "NodeNext",
                             _ => "NodeNext",
                         };
-                        self.error_at(
+                        self.error_at_js(
                             module_specifier,
                             &diagnostics::Importing_a_JSON_file_into_an_ECMAScript_module_requires_a_type_json_import_attribute_when_module_is_set_to_0,
-                            &[module_kind_name],
+                            &[(module_kind_name).into()],
                         );
                     }
                 }
@@ -9138,7 +9364,7 @@ impl<'a> CheckerState<'a> {
         };
         if is_type_only {
             if name.is_some() && named_bindings.is_some() {
-                return Ok(self.grammar_error_on_node(
+                return Ok(self.grammar_error_on_node_js(
                     node,
                     &diagnostics::A_type_only_import_can_specify_a_default_import_or_named_bindings_but_not_both,
                     &[],
@@ -9151,7 +9377,7 @@ impl<'a> CheckerState<'a> {
             }
         } else if phase_modifier == Some(SyntaxKind::DeferKeyword) {
             if name.is_some() {
-                return Ok(self.grammar_error_on_node(
+                return Ok(self.grammar_error_on_node_js(
                     node,
                     &diagnostics::Default_imports_are_not_allowed_in_a_deferred_import,
                     &[],
@@ -9160,14 +9386,14 @@ impl<'a> CheckerState<'a> {
             if named_bindings
                 .is_some_and(|bindings| self.kind_of(bindings) == SyntaxKind::NamedImports)
             {
-                return Ok(self.grammar_error_on_node(
+                return Ok(self.grammar_error_on_node_js(
                     node,
                     &diagnostics::Named_imports_are_not_allowed_in_a_deferred_import,
                     &[],
                 ));
             }
             if !matches!(self.options.emit_module_kind(), 99 | 200) {
-                return Ok(self.grammar_error_on_node(
+                return Ok(self.grammar_error_on_node_js(
                     node,
                     &diagnostics::Deferred_imports_are_only_supported_when_the_module_flag_is_set_to_esnext_or_preserve,
                     &[],
@@ -9229,7 +9455,7 @@ impl<'a> CheckerState<'a> {
                 .flags_of(node)
                 .intersects(tsc_types::NodeFlags::AMBIENT)
         {
-            self.error_at(
+            self.error_at_js(
                 Some(node),
                 &diagnostics::This_syntax_is_not_allowed_when_erasableSyntaxOnly_is_enabled,
                 &[],
@@ -9272,10 +9498,10 @@ impl<'a> CheckerState<'a> {
                                 self.binder.source_of_node(module_name),
                                 Some(module_name),
                             );
-                            self.error_at(
+                            self.error_at_js(
                                 Some(module_name),
                                 &diagnostics::Module_0_is_hidden_by_a_local_declaration_with_the_same_name,
-                                &[&display],
+                                &[(&display).into()],
                             );
                         }
                     }
@@ -9292,7 +9518,7 @@ impl<'a> CheckerState<'a> {
                     }
                 }
                 if is_type_only {
-                    self.grammar_error_on_node(
+                    self.grammar_error_on_node_js(
                         node,
                         &diagnostics::An_import_alias_cannot_use_import_type,
                         &[],
@@ -9305,7 +9531,7 @@ impl<'a> CheckerState<'a> {
                     .flags_of(node)
                     .intersects(tsc_types::NodeFlags::AMBIENT);
                 if (5..=99).contains(&module_kind) && !is_type_only && !ambient {
-                    self.grammar_error_on_node(
+                    self.grammar_error_on_node_js(
                         node,
                         &diagnostics::Import_assignment_cannot_be_used_when_targeting_ECMAScript_modules_Consider_using_import_as_ns_from_mod_import_a_from_mod_import_d_from_mod_or_another_module_format_instead,
                         &[],
@@ -9375,7 +9601,7 @@ impl<'a> CheckerState<'a> {
                     && !in_ambient_external_module
                     && !in_ambient_namespace_declaration
                 {
-                    self.error_at(
+                    self.error_at_js(
                         Some(node),
                         &diagnostics::Export_declarations_are_not_permitted_in_a_namespace,
                         &[],
@@ -9387,10 +9613,10 @@ impl<'a> CheckerState<'a> {
                 if let Some(module_symbol) = module_symbol {
                     if self.has_export_assignment_symbol(module_symbol) {
                         let display = self.get_fully_qualified_name(module_symbol);
-                        self.error_at(
+                        self.error_at_js(
                             Some(module_specifier),
                             &diagnostics::Module_0_uses_export_and_cannot_be_used_with_export,
-                            &[&display],
+                            &[(&display).into()],
                         );
                     } else if let Some(export_clause) = export_clause {
                         self.check_alias_symbol(export_clause)?;
@@ -9505,10 +9731,10 @@ impl<'a> CheckerState<'a> {
                     || is_global_declared
                 {
                     let display = self.module_export_name_text_unescaped(exported_name);
-                    self.error_at(
+                    self.error_at_js(
                         Some(exported_name),
                         &diagnostics::Cannot_export_0_Only_local_declarations_can_be_exported_from_a_module,
-                        &[&display],
+                        &[(&display).into()],
                     );
                 }
             }
@@ -9557,7 +9783,7 @@ impl<'a> CheckerState<'a> {
                 .flags_of(node)
                 .intersects(tsc_types::NodeFlags::AMBIENT)
         {
-            self.error_at(
+            self.error_at_js(
                 Some(node),
                 &diagnostics::This_syntax_is_not_allowed_when_erasableSyntaxOnly_is_enabled,
                 &[],
@@ -9575,13 +9801,13 @@ impl<'a> CheckerState<'a> {
             && !node_util::is_ambient_module(self.binder.source_of_node(container), container)
         {
             if is_export_equals {
-                self.error_at(
+                self.error_at_js(
                     Some(node),
                     &diagnostics::An_export_assignment_cannot_be_used_in_a_namespace,
                     &[],
                 );
             } else {
-                self.error_at(
+                self.error_at_js(
                     Some(node),
                     &diagnostics::A_default_export_can_only_be_used_in_an_ECMAScript_style_module,
                     &[],
@@ -9648,28 +9874,28 @@ impl<'a> CheckerState<'a> {
                         && self.options.verbatim_module_syntax == Some(true)
                         && type_only_declaration.is_some()
                     {
-                        self.error_at(
+                        self.error_at_js(
                             Some(expression),
                             if is_export_equals {
                                 &diagnostics::An_export_declaration_must_reference_a_real_value_when_verbatimModuleSyntax_is_enabled_but_0_resolves_to_a_type_only_declaration
                             } else {
                                 &diagnostics::An_export_default_must_reference_a_real_value_when_verbatimModuleSyntax_is_enabled_but_0_resolves_to_a_type_only_declaration
                             },
-                            &[&display],
+                            &[(&display).into()],
                         );
                     }
                 } else if !is_illegal_export_default_in_cjs
                     && !ambient
                     && self.options.verbatim_module_syntax == Some(true)
                 {
-                    self.error_at(
+                    self.error_at_js(
                         Some(expression),
                         if is_export_equals {
                             &diagnostics::An_export_declaration_must_reference_a_value_when_verbatimModuleSyntax_is_enabled_but_0_only_refers_to_a_type
                         } else {
                             &diagnostics::An_export_default_must_reference_a_value_when_verbatimModuleSyntax_is_enabled_but_0_only_refers_to_a_type
                         },
-                        &[&display],
+                        &[(&display).into()],
                     );
                 }
                 let isolated_modules_like = self.options.isolated_modules == Some(true)
@@ -9698,14 +9924,14 @@ impl<'a> CheckerState<'a> {
                         "isolatedModules"
                     };
                     if resolves_to_unmarked_type {
-                        self.error_at(
+                        self.error_at_js(
                             Some(expression),
                             if is_export_equals {
                                 &diagnostics::_0_resolves_to_a_type_and_must_be_marked_type_only_in_this_file_before_re_exporting_when_1_is_enabled_Consider_using_import_type_where_0_is_imported
                             } else {
                                 &diagnostics::_0_resolves_to_a_type_and_must_be_marked_type_only_in_this_file_before_re_exporting_when_1_is_enabled_Consider_using_export_type_0_as_default
                             },
-                            &[&display, option_name],
+                            &[(&display).into(), (option_name).into()],
                         );
                     } else if type_only_is_external {
                         let declaration =
@@ -9720,16 +9946,19 @@ impl<'a> CheckerState<'a> {
                         } else {
                             &diagnostics::_0_was_imported_here
                         };
-                        let related =
-                            self.related_info_for_node(declaration, related_message, &[&display]);
-                        self.error_at_with_related(
+                        let related = self.related_info_for_node_js(
+                            declaration,
+                            related_message,
+                            &[(&display).into()],
+                        );
+                        self.error_at_with_related_js(
                             Some(expression),
                             if is_export_equals {
                                 &diagnostics::_0_resolves_to_a_type_only_declaration_and_must_be_marked_type_only_in_this_file_before_re_exporting_when_1_is_enabled_Consider_using_import_type_where_0_is_imported
                             } else {
                                 &diagnostics::_0_resolves_to_a_type_only_declaration_and_must_be_marked_type_only_in_this_file_before_re_exporting_when_1_is_enabled_Consider_using_export_type_0_as_default
                             },
-                            &[&display, option_name],
+                            &[(&display).into(), (option_name).into()],
                             vec![related],
                         );
                     }
@@ -9745,11 +9974,11 @@ impl<'a> CheckerState<'a> {
         }
         if is_illegal_export_default_in_cjs {
             let message = self.get_verbatim_module_syntax_error_message(node);
-            self.error_at(Some(node), message, &[]);
+            self.error_at_js(Some(node), message, &[]);
         }
         self.check_external_module_exports(container)?;
         if ambient && !self.is_entity_name_expression(expression) {
-            self.grammar_error_on_node(
+            self.grammar_error_on_node_js(
                 expression,
                 &diagnostics::The_expression_of_an_export_assignment_must_be_an_identifier_or_qualified_name_in_an_ambient_context,
                 &[],
@@ -9764,13 +9993,13 @@ impl<'a> CheckerState<'a> {
                 implied_node_format != Some(ModuleResolutionMode::CommonJs)
             };
             if module_kind >= 5 && module_kind != 200 && invalid_esm_export_assignment {
-                self.grammar_error_on_node(
+                self.grammar_error_on_node_js(
                     node,
                     &diagnostics::Export_assignment_cannot_be_used_when_targeting_ECMAScript_modules_Consider_using_export_default_or_another_module_format_instead,
                     &[],
                 );
             } else if module_kind == 4 && !ambient {
-                self.grammar_error_on_node(
+                self.grammar_error_on_node_js(
                     node,
                     &diagnostics::Export_assignment_is_not_supported_when_module_flag_is_system,
                     &[],
@@ -9806,7 +10035,7 @@ impl<'a> CheckerState<'a> {
                     if !self.is_top_level_in_external_module_augmentation(declaration)
                         && !self.is_in_js_file(declaration)
                     {
-                        self.error_at(
+                        self.error_at_js(
                             Some(declaration),
                             &diagnostics::An_export_assignment_cannot_be_used_in_a_module_with_other_exported_elements,
                             &[],
@@ -9841,7 +10070,7 @@ impl<'a> CheckerState<'a> {
             {
                 for &declaration in &declarations {
                     if self.is_not_overload(declaration) {
-                        self.error_at(
+                        self.error_at_js(
                             Some(declaration),
                             &diagnostics::Cannot_redeclare_exported_variable_0,
                             &[unescape_leading_underscores(id)],

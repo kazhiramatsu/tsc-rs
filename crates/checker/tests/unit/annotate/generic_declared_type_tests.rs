@@ -102,7 +102,16 @@ fn thisless_heritage_interface_stays_plain_but_members_escape() {
                 .members_of(members)
                 .properties
                 .iter()
-                .map(|&p| state.binder.symbol(p).escaped_name.clone())
+                .map(|&p| {
+                    state
+                        .binder
+                        .symbol(p)
+                        .escaped_name
+                        .as_js()
+                        .as_str()
+                        .expect("scalar name observation")
+                        .to_owned()
+                })
                 .collect();
             assert_eq!(names, ["b", "a"], "own members first, inherited appended");
         },
@@ -159,7 +168,15 @@ fn bare_reference_to_generic_interface_reports_2314() {
             let rendered: Vec<(u32, String)> = state
                 .diagnostics
                 .iter()
-                .map(|d| (d.code(), d.message_text().to_owned()))
+                .map(|d| {
+                    (
+                        d.code(),
+                        d.message_text()
+                            .as_str()
+                            .expect("scalar diagnostic observation")
+                            .to_owned(),
+                    )
+                })
                 .collect();
             assert_eq!(
                 rendered,

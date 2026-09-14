@@ -32,7 +32,10 @@ fn bootstrap_shape_is_whole_program_source_file_javascript_only() {
     assert_eq!(plan.units().len(), 1);
     assert_eq!(plan.units()[0].mode(), EmitMode::Script);
     assert_eq!(
-        plan.units()[0].paths().javascript_path(),
+        plan.units()[0]
+            .paths()
+            .javascript_path()
+            .map(|path| path.scalar_test_path()),
         Some(std::path::Path::new("/project/out.js"))
     );
     assert_eq!(plan.validate_bootstrap_shape(), Ok(()));
@@ -315,16 +318,23 @@ impl EmitHost for TestEmitHost {
         &self.options
     }
 
-    fn current_directory(&self) -> &Path {
-        &self.current_directory
+    fn current_directory(&self) -> tsc_diagnostics::JsStr<'_> {
+        (&self.current_directory)
+            .to_str()
+            .expect("scalar mock host directory")
+            .into()
     }
 
-    fn common_source_directory(&self) -> &Path {
-        &self.common_source_directory
+    fn common_source_directory(&self) -> tsc_diagnostics::JsStr<'_> {
+        (&self.common_source_directory)
+            .to_str()
+            .expect("scalar mock host directory")
+            .into()
     }
 
-    fn config_file_path(&self) -> Option<&Path> {
-        self.config_file_path.as_deref()
+    fn config_file_path(&self) -> Option<tsc_diagnostics::JsStr<'_>> {
+        (self.config_file_path.as_deref())
+            .map(|path| path.to_str().expect("scalar mock config path").into())
     }
 
     fn use_case_sensitive_file_names(&self) -> bool {
@@ -339,8 +349,16 @@ impl EmitHost for TestEmitHost {
         let source = self.sources.get(id.index())?;
         Some(EmitSource::new(
             id,
-            &source.path,
-            &source.canonical,
+            source
+                .path
+                .to_str()
+                .expect("scalar output-plan source")
+                .into(),
+            source
+                .canonical
+                .to_str()
+                .expect("scalar output-plan canonical source")
+                .into(),
             source.may_be_emitted,
             None,
             Some(&source.syntax),
@@ -352,7 +370,7 @@ impl EmitHost for TestEmitHost {
 fn executable_planning_preserves_source_order_eligibility_and_out_dir_layout() {
     let host = TestEmitHost::new(
         CompilerOptions {
-            out_dir: Some("/project/dist".to_owned()),
+            out_dir: Some("/project/dist".to_owned().into()),
             ..CompilerOptions::default()
         },
         "/project/src",
@@ -373,7 +391,13 @@ fn executable_planning_preserves_source_order_eligibility_and_out_dir_layout() {
         .plan()
         .units()
         .iter()
-        .map(|unit| unit.paths().javascript_path().unwrap().to_path_buf())
+        .map(|unit| {
+            unit.paths()
+                .javascript_path()
+                .unwrap()
+                .scalar_test_path()
+                .to_path_buf()
+        })
         .collect::<Vec<_>>();
     assert_eq!(
         paths,
@@ -413,7 +437,7 @@ fn computed_resolve_json_module_is_validated_against_module_kind() {
 fn case_insensitive_planning_preserves_callback_visible_source_spelling() {
     let host = TestEmitHost::new(
         CompilerOptions {
-            out_dir: Some("/project/dist".to_owned()),
+            out_dir: Some("/project/dist".to_owned().into()),
             ..CompilerOptions::default()
         },
         "/project/src",
@@ -423,7 +447,10 @@ fn case_insensitive_planning_preserves_callback_visible_source_spelling() {
 
     let preflight = preflight_emit(&host, EmitSelection::WholeProgram).unwrap();
     assert_eq!(
-        preflight.plan().units()[0].paths().javascript_path(),
+        preflight.plan().units()[0]
+            .paths()
+            .javascript_path()
+            .map(|path| path.scalar_test_path()),
         Some(Path::new("/project/dist/MixedCase.js"))
     );
 }
@@ -433,7 +460,7 @@ fn h2_3a_javascript_families_keep_their_runtime_extensions_when_relocated() {
     let host = TestEmitHost::new(
         CompilerOptions {
             allow_js: true,
-            out_dir: Some("/project/dist".to_owned()),
+            out_dir: Some("/project/dist".to_owned().into()),
             ..CompilerOptions::default()
         },
         "/project/src",
@@ -451,7 +478,12 @@ fn h2_3a_javascript_families_keep_their_runtime_extensions_when_relocated() {
             .plan()
             .units()
             .iter()
-            .map(|unit| unit.paths().javascript_path().unwrap().to_path_buf())
+            .map(|unit| unit
+                .paths()
+                .javascript_path()
+                .unwrap()
+                .scalar_test_path()
+                .to_path_buf())
             .collect::<Vec<_>>(),
         [
             PathBuf::from("/project/dist/plain.js"),
@@ -467,7 +499,7 @@ fn plan_declaration_paths_forces_source_reference_targets_independently_of_emit(
     let host = TestEmitHost::new(
         CompilerOptions {
             declaration: Some(true),
-            out_dir: Some("/project/dist".to_owned()),
+            out_dir: Some("/project/dist".to_owned().into()),
             ..CompilerOptions::default()
         },
         "/project/src",
@@ -482,19 +514,23 @@ fn plan_declaration_paths_forces_source_reference_targets_independently_of_emit(
     let paths = PlanDeclarationPaths::new(&host, &preflight);
 
     assert_eq!(
-        paths.declaration_file_path(source(0)),
+        (paths.declaration_file_path(source(0)))
+            .map(|name| name.as_js().scalar_test_path().to_path_buf()),
         Some(PathBuf::from("/project/dist/code.d.ts"))
     );
     assert_eq!(
-        paths.reference_target_path(source(0)),
+        (paths.reference_target_path(source(0)))
+            .map(|name| name.as_js().scalar_test_path().to_path_buf()),
         Some(PathBuf::from("/project/dist/code.d.ts"))
     );
     assert_eq!(
-        paths.reference_target_path(source(1)),
+        (paths.reference_target_path(source(1)))
+            .map(|name| name.as_js().scalar_test_path().to_path_buf()),
         Some(PathBuf::from("/project/dist/data.d.json.ts"))
     );
     assert_eq!(
-        paths.reference_target_path(source(2)),
+        (paths.reference_target_path(source(2)))
+            .map(|name| name.as_js().scalar_test_path().to_path_buf()),
         Some(PathBuf::from("/project/dist/not-emitted.d.ts"))
     );
 }
@@ -519,8 +555,8 @@ fn declaration_collision_preflight_covers_overwrite_duplicate_case_and_js_suppre
             .collect::<Vec<_>>(),
         [5055]
     );
-    assert!(!preflight.is_emit_blocked(&overwrite, Path::new("/project/value.js")));
-    assert!(preflight.is_emit_blocked(&overwrite, Path::new("/project/value.d.ts")));
+    assert!(!preflight.is_emit_blocked(&overwrite, "/project/value.js".into()));
+    assert!(preflight.is_emit_blocked(&overwrite, "/project/value.d.ts".into()));
 
     let canonical_case = TestEmitHost::new(
         CompilerOptions {
@@ -533,7 +569,7 @@ fn declaration_collision_preflight_covers_overwrite_duplicate_case_and_js_suppre
     );
     let preflight = preflight_emit(&canonical_case, EmitSelection::WholeProgram).unwrap();
     assert_eq!(preflight.diagnostics()[0].code(), 5055);
-    assert!(preflight.is_emit_blocked(&canonical_case, Path::new("/PROJECT/Value.D.TS")));
+    assert!(preflight.is_emit_blocked(&canonical_case, "/PROJECT/Value.D.TS".into()));
 
     let duplicate = TestEmitHost::new(
         CompilerOptions {
@@ -555,7 +591,7 @@ fn declaration_collision_preflight_covers_overwrite_duplicate_case_and_js_suppre
             .collect::<Vec<_>>(),
         [5056]
     );
-    assert!(preflight.is_emit_blocked(&duplicate, Path::new("/project/value.d.ts")));
+    assert!(preflight.is_emit_blocked(&duplicate, "/project/value.d.ts".into()));
 
     let declaration_only = TestEmitHost::new(
         CompilerOptions {
@@ -597,7 +633,7 @@ fn bundle_requests_require_their_profile_before_transforming_or_writing() {
         (
             CompilerOptions {
                 declaration_map: Some(true),
-                out_file: Some("/project/bundle.js".to_owned()),
+                out_file: Some("/project/bundle.js".to_owned().into()),
                 ..CompilerOptions::default()
             },
             H2ActivityCanary::h2_7d_profile as fn() -> H2ActivityCanary,
@@ -606,7 +642,7 @@ fn bundle_requests_require_their_profile_before_transforming_or_writing() {
         ),
         (
             CompilerOptions {
-                out_file: Some("/project/bundle.js".to_owned()),
+                out_file: Some("/project/bundle.js".to_owned().into()),
                 ..CompilerOptions::default()
             },
             H2ActivityCanary::h2_7c_profile as fn() -> H2ActivityCanary,
@@ -661,7 +697,7 @@ fn h2_7b_rejects_declaration_option_and_forced_requests_before_printing() {
             ..CompilerOptions::default()
         },
         CompilerOptions {
-            declaration_dir: Some(String::new()),
+            declaration_dir: Some(String::new().into()),
             ..CompilerOptions::default()
         },
         CompilerOptions {
@@ -772,7 +808,7 @@ fn overwrite_and_case_aware_duplicate_outputs_are_blocked_before_writes() {
     );
     assert!(preflight.diagnostics()[0].message.next_present);
     assert_eq!(preflight.diagnostics()[0].message.next[0].code, 5068);
-    assert!(preflight.is_emit_blocked(&overwrite, Path::new("/project/value.js")));
+    assert!(preflight.is_emit_blocked(&overwrite, "/project/value.js".into()));
 
     let configured = TestEmitHost::new(
         CompilerOptions::default(),
@@ -800,7 +836,7 @@ fn overwrite_and_case_aware_duplicate_outputs_are_blocked_before_writes() {
             .collect::<Vec<_>>(),
         [5056]
     );
-    assert!(preflight.is_emit_blocked(&duplicate, Path::new("/project/value.js")));
+    assert!(preflight.is_emit_blocked(&duplicate, "/project/value.js".into()));
 }
 
 #[test]
@@ -879,7 +915,8 @@ impl OutputSink for ObservedSink {
         artifact: tsc_emitter::EmitArtifact,
     ) -> Result<EmitWriteDisposition, EmitIoError> {
         let index = self.paths.len();
-        self.paths.push(artifact.path().to_path_buf());
+        self.paths
+            .push(artifact.path().scalar_test_path().to_path_buf());
         if self.fail_index == Some(index) {
             return Err(EmitIoError::new(
                 EmitIoOperation::WriteFile,
@@ -939,7 +976,12 @@ fn sink_errors_continue_and_emitted_files_remain_independent_from_disposition() 
     );
     assert!(!outcome.emit_skipped());
     assert_eq!(
-        outcome.emitted_files(),
+        (outcome.emitted_files())
+            .map(|names| names
+                .iter()
+                .map(|name| name.as_js().scalar_test_path().to_path_buf())
+                .collect::<Vec<_>>())
+            .as_deref(),
         Some(
             [
                 PathBuf::from("/project/first.js"),
@@ -968,7 +1010,12 @@ fn sink_errors_continue_and_emitted_files_remain_independent_from_disposition() 
     // emitJsFileOrBundle ignores the printer's skippedDtsWrite return value
     // (_tsc.js:116634-116638). Both printed JavaScript files remain listed.
     assert_eq!(
-        outcome.emitted_files(),
+        (outcome.emitted_files())
+            .map(|names| names
+                .iter()
+                .map(|name| name.as_js().scalar_test_path().to_path_buf())
+                .collect::<Vec<_>>())
+            .as_deref(),
         Some(
             [
                 PathBuf::from("/project/first.js"),
@@ -978,3 +1025,7 @@ fn sink_errors_continue_and_emitted_files_remain_independent_from_disposition() 
         )
     );
 }
+
+#[path = "../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

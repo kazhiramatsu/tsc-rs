@@ -127,15 +127,21 @@ impl EmitHost for TransformContractHost<'_> {
         self.options
     }
 
-    fn current_directory(&self) -> &Path {
-        Path::new("/")
+    fn current_directory(&self) -> tsc_diagnostics::JsStr<'_> {
+        (Path::new("/"))
+            .to_str()
+            .expect("scalar mock host directory")
+            .into()
     }
 
-    fn common_source_directory(&self) -> &Path {
-        Path::new("/")
+    fn common_source_directory(&self) -> tsc_diagnostics::JsStr<'_> {
+        (Path::new("/"))
+            .to_str()
+            .expect("scalar mock host directory")
+            .into()
     }
 
-    fn config_file_path(&self) -> Option<&Path> {
+    fn config_file_path(&self) -> Option<tsc_diagnostics::JsStr<'_>> {
         None
     }
 
@@ -149,7 +155,7 @@ impl EmitHost for TransformContractHost<'_> {
 
     fn source_file(&self, id: SourceFileId) -> Option<EmitSource<'_>> {
         (id == self.source_ids[0]).then(|| {
-            let path = Path::new(&self.syntax.file_name);
+            let path = self.syntax.file_name.as_js();
             EmitSource::new(id, path, path, true, None, Some(self.syntax))
         })
     }
@@ -422,7 +428,7 @@ fn invalid_react_namespace_option_value_is_retained_by_recovery_emit() {
         target: Some(ScriptTarget::ES2015.bits()),
         module: Some(ModuleKind::PRESERVE.bits()),
         jsx: Some(2),
-        react_namespace: Some("my-React-Lib".to_owned()),
+        react_namespace: Some("my-React-Lib".to_owned().into()),
         always_strict: Some(false),
         ..CompilerOptions::default()
     };

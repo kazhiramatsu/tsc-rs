@@ -14,7 +14,7 @@ use tsc_syntax::{
     for_each_child, try_visit_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId,
     SyntaxKind,
 };
-use tsc_types::{NodeCheckFlags, NodeFlags, ScriptTarget};
+use tsc_types::{JsStr, JsString, NodeCheckFlags, NodeFlags, ScriptTarget};
 
 use crate::{
     factory::EmitHelperName, metadata::ClassExpressionDeclarationOrigin, CommentRange, EmitFlags,
@@ -200,7 +200,7 @@ struct PlannedPropertyName {
 /// source text.
 #[derive(Clone)]
 enum AssignedClassName {
-    Literal(String),
+    Literal(JsString),
     Evaluated(TransformNode),
 }
 
@@ -2133,7 +2133,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             // runtime name, while the enclosing variable is publication
             // plumbing only (`default_1`).
             if self.is_legacy_anonymous_default_class_expression(original)? {
-                Some(AssignedClassName::Literal("default".to_owned()))
+                Some(AssignedClassName::Literal("default".into()))
             } else {
                 self.metadata_assigned_class_name(original)
                     .or(self.assigned_class_expression_name(original)?)
@@ -2163,11 +2163,10 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         // pending assigned name represents the same cloned-class metadata.
         let class_name = if needs_named_evaluation {
             match assigned_class_name.as_ref() {
-                Some(AssignedClassName::Literal(name))
-                    if tsc_syntax::is_identifier_text_for_target(name, self.target) =>
-                {
-                    Some(name.clone())
-                }
+                Some(AssignedClassName::Literal(name)) => name
+                    .as_str()
+                    .filter(|text| tsc_syntax::is_identifier_text_for_target(text, self.target))
+                    .map(str::to_owned),
                 _ => None,
             }
         } else {
@@ -2602,10 +2601,14 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         {
             return Ok(Some(name.to_owned()));
         }
-        Ok(
-            tsc_syntax::is_identifier_text_for_target(&data.text, self.target)
-                .then(|| data.text.clone()),
-        )
+        // IdentifierText admits Unicode scalar identifier characters only.
+        // A lone surrogate cannot name this generated identifier, while the
+        // separate runtime literal-name owner retains it unchanged.
+        Ok(data
+            .text
+            .as_str()
+            .filter(|text| tsc_syntax::is_identifier_text_for_target(text, self.target))
+            .map(str::to_owned))
     }
 
     /// Resolve the named-evaluation identity of an anonymous class expression
@@ -2622,7 +2625,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         // have produced the runtime name `"default"`. Keep that name as a
         // derivable source fact; it does not by itself request a helper.
         if self.is_legacy_anonymous_default_class_expression(class)? {
-            return Ok(Some(AssignedClassName::Literal("default".to_owned())));
+            return Ok(Some(AssignedClassName::Literal("default".into())));
         }
         let mut current = class.node();
         while let Some(parent) = self.tree_ownership.unique_parent(current) {
@@ -2692,7 +2695,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 }
                 NodeData::ExportAssignment(data) if data.expression == Some(current) => {
                     (!data.is_export_equals.unwrap_or(false))
-                        .then(|| AssignedClassName::Literal("default".to_owned()))
+                        .then(|| AssignedClassName::Literal("default".into()))
                 }
                 _ => None,
             };
@@ -2728,7 +2731,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
 
     fn assignment_target_name(&self, target: NodeId) -> Option<AssignedClassName> {
         match &self.context.arena().node(self.node(target)).ok()?.data {
-            NodeData::Identifier(data) => Some(AssignedClassName::Literal(data.text.clone())),
+            NodeData::Identifier(data) => {
+                Some(AssignedClassName::Literal(data.text.clone().into()))
+            }
             _ => None,
         }
     }
@@ -2742,15 +2747,21 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
 
     fn literal_assigned_name(&self, name: NodeId) -> Option<AssignedClassName> {
         match &self.context.arena().node(self.node(name)).ok()?.data {
-            NodeData::Identifier(data) => Some(AssignedClassName::Literal(data.text.clone())),
+            NodeData::Identifier(data) => {
+                Some(AssignedClassName::Literal(data.text.clone().into()))
+            }
             NodeData::PrivateIdentifier(data) => {
-                Some(AssignedClassName::Literal(data.text.clone()))
+                Some(AssignedClassName::Literal(data.text.clone().into()))
             }
-            NodeData::StringLiteral(data) => Some(AssignedClassName::Literal(data.text.clone())),
+            NodeData::StringLiteral(data) => {
+                Some(AssignedClassName::Literal(data.text.clone().into()))
+            }
             NodeData::NoSubstitutionTemplateLiteral(data) => {
-                Some(AssignedClassName::Literal(data.text.clone()))
+                Some(AssignedClassName::Literal(data.text.clone().into()))
             }
-            NodeData::NumericLiteral(data) => Some(AssignedClassName::Literal(data.text.clone())),
+            NodeData::NumericLiteral(data) => {
+                Some(AssignedClassName::Literal(data.text.clone().into()))
+            }
             NodeData::ComputedPropertyName(data) => data
                 .expression
                 .and_then(|name| self.literal_assigned_name(name)),
@@ -2779,7 +2790,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             .metadata(class)
             .and_then(|metadata| metadata.assigned_name)?;
         match &self.context.arena().node(assigned_name).ok()?.data {
-            NodeData::StringLiteral(data) => Some(AssignedClassName::Literal(data.text.clone())),
+            NodeData::StringLiteral(data) => {
+                Some(AssignedClassName::Literal(data.text.clone().into()))
+            }
             NodeData::Identifier(_) => Some(AssignedClassName::Evaluated(assigned_name)),
             _ => None,
         }
@@ -6781,11 +6794,15 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
 
     fn computed_literal_assigned_name(&self, expression: NodeId) -> Option<AssignedClassName> {
         match &self.context.arena().node(self.node(expression)).ok()?.data {
-            NodeData::StringLiteral(data) => Some(AssignedClassName::Literal(data.text.clone())),
-            NodeData::NoSubstitutionTemplateLiteral(data) => {
-                Some(AssignedClassName::Literal(data.text.clone()))
+            NodeData::StringLiteral(data) => {
+                Some(AssignedClassName::Literal(data.text.clone().into()))
             }
-            NodeData::NumericLiteral(data) => Some(AssignedClassName::Literal(data.text.clone())),
+            NodeData::NoSubstitutionTemplateLiteral(data) => {
+                Some(AssignedClassName::Literal(data.text.clone().into()))
+            }
+            NodeData::NumericLiteral(data) => {
+                Some(AssignedClassName::Literal(data.text.clone().into()))
+            }
             _ => None,
         }
     }
@@ -8801,7 +8818,11 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         Ok(identifier)
     }
 
-    fn create_string_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
+    fn create_string_literal<'t>(
+        &mut self,
+        text: impl Into<JsStr<'t>>,
+    ) -> Result<TransformNode, TransformError> {
+        let text = text.into();
         self.context.factory()?.create_node(
             self.source,
             NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {

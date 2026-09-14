@@ -942,6 +942,20 @@ pub(super) fn create_identifier(
     )
 }
 
+/// Output-only counterpart to TypeScript's unchecked createIdentifier calls.
+/// Symbol lookup has already completed before these serialized nodes exist.
+/// Keep arbitrary symbol spellings out of scalar IdentifierData identity.
+pub(super) fn create_output_identifier<'a>(
+    arena: &mut TransformArena,
+    target: TransformSourceId,
+    text: impl Into<tsc_types::JsStr<'a>>,
+) -> BuildResult<TransformNode> {
+    arena
+        .factory()
+        .create_unchecked_identifier(target, text.into())
+        .map_err(factory_error)
+}
+
 pub(super) fn create_node_array(
     arena: &mut TransformArena,
     target: TransformSourceId,
@@ -1114,8 +1128,8 @@ pub(super) fn add_approximate_length(context: &mut NodeBuilderContext<'_>, amoun
     context.approximate_length += u32::try_from(amount).unwrap_or(u32::MAX);
 }
 
-fn js_len(text: &str) -> usize {
-    text.encode_utf16().count()
+fn js_len<'n>(text: impl Into<tsc_types::JsStr<'n>>) -> usize {
+    text.into().len_units()
 }
 
 fn require_node(
@@ -1336,11 +1350,15 @@ fn is_symbol_accessible_with_error_names(
             None,
         )?;
     }
-    if let Some(error_module_name) = result.error_module_name.as_deref() {
+    if let Some(error_module_name) = result
+        .error_module_name
+        .as_ref()
+        .map(tsc_types::JsString::as_js)
+    {
         let mut module_symbol = None;
         let mut parent = checker.binder.symbol(symbol).parent;
         while let Some(candidate) = parent {
-            if checker.symbol_display_name(candidate) == error_module_name {
+            if checker.symbol_display_name(candidate).as_js() == error_module_name {
                 module_symbol = Some(candidate);
                 break;
             }
@@ -1352,7 +1370,7 @@ fn is_symbol_accessible_with_error_names(
                     .get_external_module_container(declaration)
                     .map_err(|abort| checker_abort_error(checker, context, abort))?
                 {
-                    if checker.symbol_display_name(candidate) == error_module_name {
+                    if checker.symbol_display_name(candidate).as_js() == error_module_name {
                         module_symbol = Some(candidate);
                         break;
                     }
@@ -1576,8 +1594,11 @@ fn type_to_type_node_worker(
                     return Ok(Some(parent_name));
                 }
                 let member_name = checker.symbol_display_name(symbol);
-                if tsc_syntax::is_identifier_text(&member_name) {
-                    let member = create_named_type_reference(arena, target, &member_name, None)?;
+                if let Some(member_name) = member_name
+                    .as_str()
+                    .filter(|name| tsc_syntax::is_identifier_text(name))
+                {
+                    let member = create_named_type_reference(arena, target, member_name, None)?;
                     return append_reference_to_type(arena, target, parent_name, member).map(Some);
                 }
                 let literal = create_node(
@@ -1955,7 +1976,15 @@ fn type_to_type_node_worker(
                     .variance_type_parameter
                     .and_then(|parameter| checker.tables.type_of(parameter).symbol),
             )
-            .map(|(prefix, symbol)| format!("{prefix}{}", checker.symbol_display_name(symbol)))
+            .map(|(prefix, symbol)| {
+                format!(
+                    "{prefix}{}",
+                    checker
+                        .symbol_display_name(symbol)
+                        .as_str()
+                        .expect("variance markers refer to type parameters")
+                )
+            })
             .unwrap_or_else(|| "?".to_owned());
         return create_named_type_reference(arena, target, &name, None).map(Some);
     }
@@ -2186,9 +2215,10 @@ fn identifier_text(arena: &TransformArena, node: TransformNode) -> Option<&str> 
 }
 
 fn create_synthetic_type_parameter(checker: &mut CheckerState<'_>, name: &str) -> TypeId {
-    let symbol = checker
-        .binder
-        .create_symbol(SymbolFlags::TYPE_PARAMETER, name.to_owned());
+    let symbol = checker.binder.create_symbol(
+        SymbolFlags::TYPE_PARAMETER,
+        tsc_types::EscapedName::from_identifier_escaped_text(name),
+    );
     let parameter = checker.tables.create_synthesized_type_parameter(None);
     checker.tables.type_mut(parameter).symbol = Some(symbol);
     parameter
@@ -4163,7 +4193,7 @@ fn create_property_signature_with_name(
             arena,
             target,
             NodeData::StringLiteral(StringLiteralData {
-                text: name.to_owned(),
+                text: name.to_owned().into(),
                 has_extended_unicode_escape: None,
             }),
         )?
@@ -4257,13 +4287,13 @@ fn add_property_to_element_list(
         // digits in this replay, but that allocator detail must not inflate
         // NodeBuilder's truncation accounting. The probe's corresponding
         // program-local suffix is two digits.
-        display_name
-            .rsplit_once('@')
-            .filter(|(_, suffix)| suffix.bytes().all(|byte| byte.is_ascii_digit()))
-            .map_or_else(
-                || js_len(&display_name),
-                |(prefix, suffix)| js_len(prefix) + 1 + js_len(suffix).min(2),
-            )
+        let mut parts = display_name.as_js().split_ascii(b'@');
+        let suffix = parts.next_back().expect("split always returns one part");
+        if parts.next_back().is_some() && suffix.as_bytes().iter().all(u8::is_ascii_digit) {
+            js_len(&display_name) - suffix.len_units() + suffix.len_units().min(2)
+        } else {
+            js_len(&display_name)
+        }
     } else {
         js_len(&display_name)
     };
@@ -4404,9 +4434,10 @@ fn add_property_to_element_list(
                     context,
                 )?);
 
-                let setter_parameter = checker
-                    .binder
-                    .create_symbol(SymbolFlags::FUNCTION_SCOPED_VARIABLE, "arg".to_owned());
+                let setter_parameter = checker.binder.create_symbol(
+                    SymbolFlags::FUNCTION_SCOPED_VARIABLE,
+                    tsc_types::EscapedName::from_identifier_escaped_text("arg"),
+                );
                 checker.links.set_fresh_symbol_type(
                     setter_parameter,
                     crate::links::LinkSlot::Resolved(write_type),

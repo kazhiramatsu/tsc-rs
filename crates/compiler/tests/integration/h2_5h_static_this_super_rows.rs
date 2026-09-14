@@ -248,7 +248,7 @@ fn message(chain: &MessageChain, indent: usize, text: &mut String) {
         text.push('\n');
         text.push_str(&"  ".repeat(indent));
     }
-    text.push_str(&chain.text);
+    text.push_str(chain.text.as_str().expect("scalar diagnostic observation"));
     for next in &chain.next {
         message(next, indent + 1, text);
     }
@@ -263,7 +263,7 @@ fn diagnostics(diagnostics: &[Diagnostic]) -> Value {
             json!({
                 "code": diagnostic.code(),
                 "category": format!("{:?}", diagnostic.category()),
-                "file": diagnostic.file_name,
+                "file": scalar_json(&diagnostic.file_name),
                 "start": diagnostic.start,
                 "length": diagnostic.length,
                 "message": text,
@@ -405,3 +405,7 @@ fn capture(row: &str, attempt: usize, actual: &Value, expected: &Value) {
     )
     .unwrap();
 }
+
+#[path = "../../../program/tests/support/scalar_json.rs"]
+mod utf16_scalar_json;
+use utf16_scalar_json::observe as scalar_json;

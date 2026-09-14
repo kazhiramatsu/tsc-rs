@@ -26,6 +26,34 @@ pub struct JsStr<'a> {
     bytes: &'a [u8],
 }
 
+/// Checked canonical byte length of a sequence of JavaScript string pieces.
+/// A concatenation may join two three-byte surrogates into one four-byte
+/// scalar. Allocation preflights must account for that seam as well as the
+/// individual piece lengths; this accumulator does so without allocating.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct JsStringByteLength {
+    bytes: usize,
+    ends_with_lead: bool,
+}
+
+impl JsStringByteLength {
+    pub fn append(&mut self, piece: JsStr<'_>) -> Option<()> {
+        if piece.is_empty() {
+            return Some(());
+        }
+        let reduction =
+            usize::from(self.ends_with_lead && leading_trail(piece.as_bytes()).is_some()) * 2;
+        let bytes = self.bytes.checked_add(piece.as_bytes().len() - reduction)?;
+        self.bytes = bytes;
+        self.ends_with_lead = trailing_lead(piece.as_bytes()).is_some();
+        Some(())
+    }
+
+    pub fn bytes(self) -> usize {
+        self.bytes
+    }
+}
+
 impl JsString {
     pub const fn new() -> Self {
         Self(Vec::new())
@@ -35,8 +63,22 @@ impl JsString {
         Self(Vec::with_capacity(bytes))
     }
 
+    /// Reserve canonical WTF-8 storage at a caller-owned allocation boundary.
+    pub fn try_reserve_exact(
+        &mut self,
+        additional_bytes: usize,
+    ) -> Result<(), std::collections::TryReserveError> {
+        self.0.try_reserve_exact(additional_bytes)
+    }
+
     pub fn from_code_units(units: &[u16]) -> Self {
         units.iter().copied().collect()
+    }
+
+    pub fn from_code_point(point: u32) -> Self {
+        let mut result = Self::new();
+        result.push_code_point(point);
+        result
     }
 
     pub fn as_js(&self) -> JsStr<'_> {
@@ -71,8 +113,27 @@ impl JsString {
         self.0.clear();
     }
 
+    /// Truncate at a whole WTF-8 code-point boundary. Invalid byte offsets
+    /// leave the string untouched; splitting a pair by UTF-16 unit uses
+    /// `substring` instead. Every such prefix is canonical.
+    pub fn truncate_bytes(&mut self, length: usize) -> bool {
+        if self.as_js().split_at_byte(length).is_none() {
+            return false;
+        }
+        self.0.truncate(length);
+        true
+    }
+
     pub fn starts_with(&self, prefix: &str) -> bool {
         self.as_js().starts_with(prefix)
+    }
+
+    pub fn ends_with(&self, suffix: &str) -> bool {
+        self.as_js().ends_with(suffix)
+    }
+
+    pub fn contains(&self, scalar_pattern: &str) -> bool {
+        self.as_js().contains(scalar_pattern)
     }
 
     /// JavaScript's case-sensitive lexicographic UTF-16 comparison.
@@ -147,6 +208,22 @@ impl<'a> JsStr<'a> {
         self.bytes
     }
 
+    /// Split at an explicitly measured byte offset, if it is a whole WTF-8
+    /// code-point boundary. This cannot split a canonically encoded pair.
+    /// JavaScript string positions must use `substring` instead.
+    pub fn split_at_byte(self, index: usize) -> Option<(Self, Self)> {
+        if index > self.bytes.len()
+            || self
+                .bytes
+                .get(index)
+                .is_some_and(|byte| byte & 0xc0 == 0x80)
+        {
+            return None;
+        }
+        let (before, after) = self.bytes.split_at(index);
+        Some((Self { bytes: before }, Self { bytes: after }))
+    }
+
     /// Returns `None` exactly when the value contains an unpaired surrogate.
     pub fn as_str(self) -> Option<&'a str> {
         std::str::from_utf8(self.bytes).ok()
@@ -160,11 +237,109 @@ impl<'a> JsStr<'a> {
         self.bytes.starts_with(prefix.as_bytes())
     }
 
+    pub fn ends_with(self, suffix: &str) -> bool {
+        self.bytes.ends_with(suffix.as_bytes())
+    }
+
+    pub fn contains(self, scalar_pattern: &str) -> bool {
+        self.split_once(scalar_pattern).is_some()
+    }
+
+    /// Arbitrary JavaScript prefix comparison. Unlike the scalar fast path,
+    /// this may match only the leading unit of a canonically encoded pair.
+    pub fn starts_with_js(self, prefix: JsStr<'_>) -> bool {
+        if let Some(prefix) = prefix.as_str() {
+            return self.starts_with(prefix);
+        }
+        let mut units = self.code_units();
+        prefix.code_units().all(|unit| units.next() == Some(unit))
+    }
+
+    /// Arbitrary JavaScript suffix comparison, including a trailing unit
+    /// which shares a four-byte scalar with the preceding leading unit.
+    pub fn ends_with_js(self, suffix: JsStr<'_>) -> bool {
+        if let Some(suffix) = suffix.as_str() {
+            return self.ends_with(suffix);
+        }
+        let Some(start) = self.len_units().checked_sub(suffix.len_units()) else {
+            return false;
+        };
+        self.code_units().skip(start).eq(suffix.code_units())
+    }
+
+    /// String.prototype.substring for nonnegative integer arguments. Bounds
+    /// are clamped and swapped as in JavaScript. An owned result is necessary:
+    /// either bound can split a surrogate pair in canonical WTF-8.
+    pub fn substring(self, start: usize, end: usize) -> JsString {
+        let length = self.len_units();
+        let start = start.min(length);
+        let end = end.min(length);
+        self.code_units()
+            .skip(start.min(end))
+            .take(start.abs_diff(end))
+            .collect()
+    }
+
     pub fn strip_prefix(self, prefix: &str) -> Option<Self> {
         // A valid UTF-8 prefix ends on a code-point boundary and cannot split
         // an encoded pair or surrogate. The remaining suffix is canonical.
         self.bytes
             .strip_prefix(prefix.as_bytes())
+            .map(|bytes| Self { bytes })
+    }
+
+    pub fn strip_suffix(self, suffix: &str) -> Option<Self> {
+        self.bytes
+            .strip_suffix(suffix.as_bytes())
+            .map(|bytes| Self { bytes })
+    }
+
+    /// Split on a Unicode-scalar separator. Its UTF-8 bytes can only match
+    /// whole code points in canonical WTF-8, so both views stay canonical.
+    pub fn split_once(self, separator: &str) -> Option<(Self, Self)> {
+        let index = if separator.is_empty() {
+            0
+        } else {
+            self.bytes
+                .windows(separator.len())
+                .position(|part| part == separator.as_bytes())?
+        };
+        Some((
+            Self {
+                bytes: &self.bytes[..index],
+            },
+            Self {
+                bytes: &self.bytes[index + separator.len()..],
+            },
+        ))
+    }
+
+    /// Split at the last Unicode-scalar separator. Both borrowed results
+    /// retain canonical WTF-8; this never projects a path to scalar text.
+    pub fn rsplit_once(self, separator: &str) -> Option<(Self, Self)> {
+        let index = if separator.is_empty() {
+            self.bytes.len()
+        } else {
+            self.bytes
+                .windows(separator.len())
+                .rposition(|part| part == separator.as_bytes())?
+        };
+        Some((
+            Self {
+                bytes: &self.bytes[..index],
+            },
+            Self {
+                bytes: &self.bytes[index + separator.len()..],
+            },
+        ))
+    }
+
+    /// Split at an ASCII delimiter without allocating or splitting a WTF-8
+    /// code point. Empty components are retained, as by `str::split`.
+    pub fn split_ascii(self, separator: u8) -> impl DoubleEndedIterator<Item = Self> + Clone {
+        assert!(separator.is_ascii(), "delimiter must be ASCII");
+        self.bytes
+            .split(move |byte| *byte == separator)
             .map(|bytes| Self { bytes })
     }
 
@@ -215,9 +390,39 @@ impl From<String> for JsString {
     }
 }
 
+impl From<&String> for JsString {
+    fn from(value: &String) -> Self {
+        Self::from(value.as_str())
+    }
+}
+
+impl From<&JsString> for JsString {
+    fn from(value: &JsString) -> Self {
+        value.clone()
+    }
+}
+
 impl From<JsStr<'_>> for JsString {
     fn from(text: JsStr<'_>) -> Self {
         text.to_owned()
+    }
+}
+
+impl<'a> From<&'a str> for JsStr<'a> {
+    fn from(text: &'a str) -> Self {
+        Self::from_str(text)
+    }
+}
+
+impl<'a> From<&'a String> for JsStr<'a> {
+    fn from(text: &'a String) -> Self {
+        Self::from_str(text)
+    }
+}
+
+impl<'a> From<&'a JsString> for JsStr<'a> {
+    fn from(text: &'a JsString) -> Self {
+        text.as_js()
     }
 }
 
@@ -265,6 +470,18 @@ impl PartialEq<str> for JsStr<'_> {
 impl PartialEq<str> for JsString {
     fn eq(&self, other: &str) -> bool {
         self.0 == other.as_bytes()
+    }
+}
+
+impl PartialEq<&str> for JsString {
+    fn eq(&self, other: &&str) -> bool {
+        self.as_bytes() == other.as_bytes()
+    }
+}
+
+impl PartialEq<&str> for JsStr<'_> {
+    fn eq(&self, other: &&str) -> bool {
+        self.bytes == other.as_bytes()
     }
 }
 

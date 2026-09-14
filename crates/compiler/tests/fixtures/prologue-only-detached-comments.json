@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "scope": "prologue-only source files: detached comment prefix emitted after the prologue directives; emitted JavaScript text, exit code and diagnostic codes from the pinned compiler",
+  "typescript": "6.0.3",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "9b56c27a75e00eb9b77f252ea0e3516e880f58c5f2980e8c7b898e9f349e4e61",
+  "repetitions": 2,
+  "options": {
+    "target": "es2015",
+    "newLine": "lf"
+  },
+  "cases": [
+    {
+      "id": "detached-two-lines-custom-only",
+      "source": "// A\n// B\n\n\"custom\";\n",
+      "source_sha256": "a30104b85410156cba81bf0a54305edddd92228537aa402c96b25821d9104fc2",
+      "js_text": "\"use strict\";\n// A\n// B\n\"custom\";\n// A\n// B\n",
+      "exit_code": 0,
+      "diagnostic_codes": []
+    },
+    {
+      "id": "detached-one-line-custom-only",
+      "source": "// A\n\n\"custom\";\n",
+      "source_sha256": "5f6aa0af8fe52c7e92b2cb6e28ddf21047e787cb4d6c305af66abd39b7908b5c",
+      "js_text": "\"use strict\";\n// A\n\"custom\";\n// A\n",
+      "exit_code": 0,
+      "diagnostic_codes": []
+    },
+    {
+      "id": "detached-original-use-strict-only",
+      "source": "// A\n// B\n\n\"use strict\";\n",
+      "source_sha256": "12c834be16ccf8003cdb5447c8fa7493b15fc3d6e589a3bd7efdf5a22ec68162",
+      "js_text": "// A\n// B\n\"use strict\";\n",
+      "exit_code": 0,
+      "diagnostic_codes": []
+    },
+    {
+      "id": "detached-two-custom-prologues",
+      "source": "// A\n// B\n\n\"custom\";\n\"other\";\n",
+      "source_sha256": "3a6ab202729a7323d62f959d402e324de530939031ad2ab172a538bc89f7f8f8",
+      "js_text": "\"use strict\";\n// A\n// B\n\"custom\";\n\"other\";\n// A\n// B\n",
+      "exit_code": 0,
+      "diagnostic_codes": []
+    },
+    {
+      "id": "detached-custom-then-statement",
+      "source": "// A\n// B\n\n\"custom\";\nvar x = 1;\n",
+      "source_sha256": "b0a33fcea7d729e9130773af5e5828fbbd7b1f5fc9d1d226510ca97462bc053f",
+      "js_text": "\"use strict\";\n// A\n// B\n\"custom\";\n// A\n// B\nvar x = 1;\n",
+      "exit_code": 0,
+      "diagnostic_codes": []
+    },
+    {
+      "id": "attached-header-custom-only",
+      "source": "// A\n\"custom\";\n",
+      "source_sha256": "37daf6ab696a7de17268a8408b3d36e6cfab7b339d5fd90eb0e8b9143bd5928c",
+      "js_text": "\"use strict\";\n// A\n\"custom\";\n",
+      "exit_code": 0,
+      "diagnostic_codes": []
+    },
+    {
+      "id": "block-detached-custom-only",
+      "source": "/* A */\n\n\"custom\";\n",
+      "source_sha256": "6d73d90da85d963e2199360084181a4f1cc0d48a64fe7b322274c950c2a868de",
+      "js_text": "\"use strict\";\n/* A */\n\"custom\";\n/* A */\n",
+      "exit_code": 0,
+      "diagnostic_codes": []
+    },
+    {
+      "id": "detached-custom-invalid-escape-only",
+      "source": "// A\n// B\n\n\"\\u000G\";\n",
+      "source_sha256": "7b64b85b1e23f02158cfe8c7e6fa52d4d9f159f668c623d40e28784ae9c5c46f",
+      "js_text": "\"use strict\";\n// A\n// B\n\"\\u000G\";\n// A\n// B\n",
+      "exit_code": 2,
+      "diagnostic_codes": [
+        1125
+      ]
+    }
+  ]
+}

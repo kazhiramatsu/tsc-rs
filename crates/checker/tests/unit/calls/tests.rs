@@ -438,7 +438,16 @@ fn assertion_position_2775_keeps_explicit_annotation_related_info() {
                     diagnostic
                         .related
                         .iter()
-                        .map(|info| (info.message.code, info.message.text.clone()))
+                        .map(|info| {
+                            (
+                                info.message.code,
+                                info.message
+                                    .text
+                                    .as_str()
+                                    .expect("scalar diagnostic observation")
+                                    .to_owned(),
+                            )
+                        })
                         .collect::<Vec<_>>()
                 })
                 .collect::<Vec<_>>()
@@ -605,7 +614,12 @@ fn synthetic_spread_reports_end_to_end_from_effective_arguments() {
                         diagnostic.code(),
                         diagnostic.start.expect("file diagnostic start"),
                         diagnostic.length.expect("file diagnostic length"),
-                        diagnostic.message.text.clone(),
+                        diagnostic
+                            .message
+                            .text
+                            .as_str()
+                            .expect("scalar diagnostic observation")
+                            .to_owned(),
                     )
                 })
                 .collect::<Vec<_>>();
@@ -668,7 +682,11 @@ fn rejected_overload_keeps_reached_synthetic_spread_iteration_diagnostic() {
                         diagnostic.code(),
                         diagnostic.start.expect("file diagnostic start"),
                         diagnostic.length.expect("file diagnostic length"),
-                        diagnostic.message_text().to_owned(),
+                        diagnostic
+                            .message_text()
+                            .as_str()
+                            .expect("scalar diagnostic observation")
+                            .to_owned(),
                     )
                 })
                 .collect::<Vec<_>>();
@@ -709,7 +727,11 @@ fn earlier_fixed_overload_does_not_precheck_later_synthetic_spread_iteration() {
                         diagnostic.code(),
                         diagnostic.start.expect("file diagnostic start"),
                         diagnostic.length.expect("file diagnostic length"),
-                        diagnostic.message_text().to_owned(),
+                        diagnostic
+                            .message_text()
+                            .as_str()
+                            .expect("scalar diagnostic observation")
+                            .to_owned(),
                     )
                 })
                 .collect::<Vec<_>>();
@@ -767,7 +789,16 @@ fn generic_rest_missing_property_keeps_declaration_related_info() {
             let related = diagnostic
                 .related
                 .iter()
-                .map(|info| (info.message.code, info.message.text.clone()))
+                .map(|info| {
+                    (
+                        info.message.code,
+                        info.message
+                            .text
+                            .as_str()
+                            .expect("scalar diagnostic observation")
+                            .to_owned(),
+                    )
+                })
                 .collect::<Vec<_>>();
             (codes, related)
         });
@@ -886,7 +917,12 @@ fn checked_chain_with(text: &str, options: &CompilerOptions, code: u32) -> (Vec<
         texts: &mut Vec<String>,
     ) {
         codes.push(chain.code);
-        texts.push(chain.text.clone());
+        texts.push(
+            (chain.text.clone())
+                .as_str()
+                .expect("scalar value observation")
+                .to_owned(),
+        );
         for child in &chain.next {
             flatten(child, codes, texts);
         }
@@ -925,7 +961,13 @@ fn tuple_spread_synthetic_report_uses_the_undefined_stripped_target() {
                 .diagnostics
                 .iter()
                 .filter(|diagnostic| diagnostic.code() == 2345)
-                .map(|diagnostic| diagnostic.message_text().to_owned())
+                .map(|diagnostic| {
+                    diagnostic
+                        .message_text()
+                        .as_str()
+                        .expect("scalar diagnostic observation")
+                        .to_owned()
+                })
                 .collect::<Vec<_>>()
         },
     );
@@ -1008,9 +1050,12 @@ fn checked_js_missing_typed_arguments_reach_internal_arity_diagnostics() {
             .collect::<Vec<_>>()
     });
     assert_eq!(actual.len(), 6);
-    assert!(actual
-        .iter()
-        .all(|(file_name, _, _)| { file_name.as_deref() == Some("jsfile.js") }));
+    assert!(actual.iter().all(|(file_name, _, _)| {
+        file_name
+            .as_ref()
+            .map(|value| value.as_js().as_str().expect("scalar name observation"))
+            == Some("jsfile.js")
+    }));
 
     let non_strict_options = CompilerOptions {
         allow_js: true,
@@ -1059,7 +1104,15 @@ fn unnamed_jsdoc_parameter_arity_related_uses_argument_index() {
                         .related
                         .first()
                         .expect("arity diagnostics carry parameter provenance");
-                    (related.message.code, related.message.text.clone())
+                    (
+                        related.message.code,
+                        related
+                            .message
+                            .text
+                            .as_str()
+                            .expect("scalar diagnostic observation")
+                            .to_owned(),
+                    )
                 })
                 .collect::<Vec<_>>()
         },
@@ -1508,7 +1561,12 @@ fn invocation_error_details_match_the_tsc_union_ladder() {
             texts: &mut Vec<String>,
         ) {
             codes.push(chain.code);
-            texts.push(chain.text.clone());
+            texts.push(
+                (chain.text.clone())
+                    .as_str()
+                    .expect("scalar value observation")
+                    .to_owned(),
+            );
             for child in &chain.next {
                 flatten(child, codes, texts);
             }
@@ -1704,7 +1762,7 @@ fn array_member_elaboration_rechecks_the_syntax_specific_source() {
                     .diagnostics
                     .iter()
                     .filter(|diagnostic| diagnostic.code() == 2322)
-                    .map(|diagnostic| diagnostic.message_text())
+                    .map(|diagnostic| diagnostic.message_text().as_str().expect("scalar diagnostic observation"))
                     .collect::<Vec<_>>();
                 assert_eq!(
                     messages,
@@ -1748,13 +1806,19 @@ fn object_member_elaboration_uses_the_mutable_source_property() {
                 .collect();
             assert_eq!(diagnostics.len(), 2);
             assert_eq!(
-                diagnostics[0].message_text(),
+                diagnostics[0]
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation"),
                 "Type 'number' is not assignable to type 'true'."
             );
             // Non-firing sibling: an explicit const assertion
             // keeps the singleton source through the same helper.
             assert_eq!(
-                diagnostics[1].message_text(),
+                diagnostics[1]
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation"),
                 "Type '1' is not assignable to type 'true'."
             );
             for diagnostic in diagnostics {
@@ -1791,7 +1855,10 @@ fn reverse_mapped_inference_keeps_elementwise_property_origin() {
                 .find(|diagnostic| diagnostic.code() == 2322)
                 .expect("the reverse-mapped property mismatch is reported");
             assert_eq!(
-                diagnostic.message_text(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation"),
                 "Type 'number' is not assignable to type '() => unknown'."
             );
             assert_eq!(diagnostic.related.len(), 1);
@@ -1851,7 +1918,10 @@ fn ordinary_declaration_roots_retain_elementwise_provenance() {
             assert_eq!(diagnostic.related.len(), 1);
             assert_eq!(diagnostic.related[0].message.code, 6500);
             assert_eq!(
-                diagnostic.related[0].file_name.as_deref(),
+                diagnostic.related[0]
+                    .file_name
+                    .as_ref()
+                    .map(|value| value.as_js().as_str().expect("scalar name observation")),
                 Some("types.d.ts")
             );
         },
@@ -2118,7 +2188,7 @@ fn import_assert_key_reports_2880_under_esnext_module() {
     );
 
     let silenced = CompilerOptions {
-        ignore_deprecations: Some("6.0".to_owned()),
+        ignore_deprecations: Some(("6.0".to_owned()).into()),
         ..options
     };
     assert_eq!(
@@ -2337,7 +2407,11 @@ fn deprecated_decorator_and_tagged_template_signatures_report_6387() {
             .map(|diagnostic| {
                 (
                     diagnostic.category(),
-                    diagnostic.message_text().to_owned(),
+                    diagnostic
+                        .message_text()
+                        .as_str()
+                        .expect("scalar diagnostic observation")
+                        .to_owned(),
                     diagnostic
                         .related
                         .iter()

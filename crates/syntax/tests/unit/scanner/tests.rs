@@ -1457,3 +1457,23 @@ fn jsdoc_parsing_mode_controls_preceding_comment_flag() {
         false
     ));
 }
+
+#[test]
+fn scanner_restore_rolls_back_the_errors_trivia_provenance() {
+    let mut scanner = Scanner::new("/* unterminated", LanguageVariant::Standard);
+    let before = scanner.save();
+    scanner.scan();
+    assert_eq!(scanner.errors().len(), 1);
+    assert_eq!(
+        scanner.errors()[0].trivia_kind,
+        Some(SyntaxKind::MultiLineCommentTrivia)
+    );
+    scanner.restore(before);
+    assert!(scanner.errors().is_empty());
+    scanner.scan();
+    assert_eq!(scanner.errors().len(), 1);
+    assert_eq!(
+        scanner.errors()[0].trivia_kind,
+        Some(SyntaxKind::MultiLineCommentTrivia)
+    );
+}

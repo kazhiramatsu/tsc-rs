@@ -16,8 +16,8 @@ use tsc_binder::node_util;
 use tsc_diagnostics::DiagnosticCategory;
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{
-    CheckMode, IntersectionFlags, MappedTypeModifiers, ModifierFlags, NodeFlags, SymbolFlags,
-    SymbolId, TypeFacts, TypeFlags, TypeId, UnionReduction,
+    CheckMode, EscapedName, IntersectionFlags, JsStr, JsString, MappedTypeModifiers, ModifierFlags,
+    NodeFlags, SymbolFlags, SymbolId, TypeFacts, TypeFlags, TypeId, UnionReduction,
 };
 
 use crate::state::{CheckResult, CheckerState, SignatureId};
@@ -42,7 +42,7 @@ impl<'a> CheckerState<'a> {
                     // idText.
                     return Ok(self
                         .identifier_text_of(node)
-                        .map(tsc_binder::unescape_leading_underscores)
+                        .map(tsc_syntax::unescape_leading_underscores)
                         .unwrap_or_default()
                         .to_owned());
                 }
@@ -502,7 +502,7 @@ impl<'a> CheckerState<'a> {
                 && self.symbol_has_non_method_declaration(prop)?
             {
                 if let Some(error_node) = error_node {
-                    self.error_at(
+                    self.error_at_js(
                         Some(error_node),
                         &tsc_diagnostics::gen::Only_public_and_protected_methods_of_the_base_class_are_accessible_via_the_super_keyword,
                         &[],
@@ -519,12 +519,12 @@ impl<'a> CheckerState<'a> {
                         // vendored tsc renders typeToString(undefined)
                         // as "any" here — TS2513 with class 'any',
                         // no crash.
-                        None => "any".to_owned(),
+                        None => "any".to_owned().into(),
                     };
-                    self.error_at(
+                    self.error_at_js(
                         Some(error_node),
                         &tsc_diagnostics::gen::Abstract_method_0_in_class_1_cannot_be_accessed_via_super_expression,
-                        &[&prop_name, &class_name],
+                        &[prop_name.as_js(), (&class_name).into()],
                     );
                 }
                 return Ok(false);
@@ -540,10 +540,10 @@ impl<'a> CheckerState<'a> {
             {
                 if let Some(error_node) = error_node {
                     let prop_name = self.symbol_display_name(prop);
-                    self.error_at(
+                    self.error_at_js(
                         Some(error_node),
                         &tsc_diagnostics::gen::Class_field_0_defined_by_the_parent_class_is_not_accessible_in_the_child_class_via_super,
-                        &[&prop_name],
+                        &[prop_name.as_js()],
                     );
                 }
                 return Ok(false);
@@ -571,10 +571,10 @@ impl<'a> CheckerState<'a> {
                     if let Some(error_node) = error_node {
                         let prop_name = self.symbol_display_name(prop);
                         let class_name = self.symbol_display_name(parent_symbol);
-                        self.error_at(
+                        self.error_at_js(
                             Some(error_node),
                             &tsc_diagnostics::gen::Abstract_property_0_in_class_1_cannot_be_accessed_in_the_constructor,
-                            &[&prop_name, &class_name],
+                            &[prop_name.as_js(), (&class_name).into()],
                         );
                     }
                     return Ok(false);
@@ -598,10 +598,10 @@ impl<'a> CheckerState<'a> {
                              (revisit if Contains* propagation is ported)"
                         ),
                     };
-                    self.error_at(
+                    self.error_at_js(
                         Some(error_node),
                         &tsc_diagnostics::gen::Property_0_is_private_and_only_accessible_within_class_1,
-                        &[&prop_name, &class_name],
+                        &[prop_name.as_js(), (&class_name).into()],
                     );
                 }
                 return Ok(false);
@@ -638,10 +638,10 @@ impl<'a> CheckerState<'a> {
                         None => containing_type,
                     };
                     let class_name = self.type_to_string_slice(class)?;
-                    self.error_at(
+                    self.error_at_js(
                         Some(error_node),
                         &tsc_diagnostics::gen::Property_0_is_protected_and_only_accessible_within_class_1_and_its_subclasses,
-                        &[&prop_name, &class_name],
+                        &[prop_name.as_js(), (&class_name).into()],
                     );
                 }
                 return Ok(false);
@@ -686,10 +686,10 @@ impl<'a> CheckerState<'a> {
                         "protected props are only found through resolved base constraints"
                     ),
                 };
-                self.error_at(
+                self.error_at_js(
                     Some(error_node),
                     &tsc_diagnostics::gen::Property_0_is_protected_and_only_accessible_through_an_instance_of_class_1_This_is_an_instance_of_class_2,
-                    &[&prop_name, &enclosing_name, &containing_name],
+                    &[prop_name.as_js(), (&enclosing_name).into(), (&containing_name).into()],
                 );
             }
             return Ok(false);
@@ -1192,11 +1192,12 @@ impl<'a> CheckerState<'a> {
             let found = {
                 let symbol_data = self.binder.symbol(symbol);
                 let in_members = symbol_data.members.iter().find_map(|(name, &member)| {
-                    (name.starts_with("__#") && name.ends_with(&suffix)).then_some(member)
+                    (name.starts_with("__#") && name.as_js().ends_with(&suffix)).then_some(member)
                 });
                 in_members.or_else(|| {
                     symbol_data.exports.iter().find_map(|(name, &member)| {
-                        (name.starts_with("__#") && name.ends_with(&suffix)).then_some(member)
+                        (name.starts_with("__#") && name.as_js().ends_with(&suffix))
+                            .then_some(member)
                     })
                 })
             };
@@ -1302,7 +1303,7 @@ impl<'a> CheckerState<'a> {
             {
                 let text = self
                     .identifier_text_of(priv_id)
-                    .map(tsc_binder::unescape_leading_underscores)
+                    .map(tsc_syntax::unescape_leading_underscores)
                     .unwrap_or_default()
                     .to_owned();
                 self.grammar_error_on_node(
@@ -1384,7 +1385,7 @@ impl<'a> CheckerState<'a> {
                 break;
             }
         }
-        let diag_name = tsc_binder::unescape_leading_underscores(&right_text).to_owned();
+        let diag_name = tsc_syntax::unescape_leading_underscores(&right_text).to_owned();
         if let Some(property_on_type) = property_on_type {
             let type_value_decl = self
                 .binder
@@ -1411,20 +1412,20 @@ impl<'a> CheckerState<'a> {
                     .is_some();
                 if shadowed {
                     let left_name = self.type_to_string_slice(left_type)?;
-                    let shadowing_related = self.related_info_for_node(
+                    let shadowing_related = self.related_info_for_node_js(
                         lexical_value_decl,
                         &tsc_diagnostics::gen::The_shadowing_declaration_of_0_is_defined_here,
-                        &[&diag_name],
+                        &[(&diag_name).into()],
                     );
-                    let intended_related = self.related_info_for_node(
+                    let intended_related = self.related_info_for_node_js(
                         type_value_decl,
                         &tsc_diagnostics::gen::The_declaration_of_0_that_you_probably_intended_to_use_is_defined_here,
-                        &[&diag_name],
+                        &[(&diag_name).into()],
                     );
-                    let index = self.error_at_with_related(
+                    let index = self.error_at_with_related_js(
                         Some(right),
                         &tsc_diagnostics::gen::The_property_0_cannot_be_accessed_on_type_1_within_this_class_because_it_is_shadowed_by_another_private_identifier_with_the_same_spelling,
-                        &[&diag_name, &left_name],
+                        &[(&diag_name).into(), (&left_name).into()],
                         vec![shadowing_related, intended_related],
                     );
                     let _ = index;
@@ -1439,10 +1440,10 @@ impl<'a> CheckerState<'a> {
                 // the parentheses.
                 None => "(anonymous)".to_owned(),
             };
-            self.error_at(
+            self.error_at_js(
                 Some(right),
                 &tsc_diagnostics::gen::Property_0_is_not_accessible_outside_class_1_because_it_has_a_private_identifier,
-                &[&diag_name, &class_display],
+                &[(&diag_name).into(), (&class_display).into()],
             );
             return Ok(true);
         }
@@ -1486,6 +1487,19 @@ impl<'a> CheckerState<'a> {
         message: &'static tsc_diagnostics::DiagnosticMessage,
         args: &[&str],
     ) -> tsc_diagnostics::RelatedInfo {
+        let args = args
+            .iter()
+            .map(|arg| tsc_types::JsStr::from(*arg))
+            .collect::<Vec<_>>();
+        self.related_info_for_node_js(node, message, &args)
+    }
+
+    pub(crate) fn related_info_for_node_js(
+        &self,
+        node: NodeId,
+        message: &'static tsc_diagnostics::DiagnosticMessage,
+        args: &[tsc_types::JsStr<'_>],
+    ) -> tsc_diagnostics::RelatedInfo {
         let source = self.binder.source_of_node(node);
         let (start, end) = tsc_binder::node_util::get_error_span_for_node(source, node);
         let to_utf16 = |byte: usize| -> u32 {
@@ -1499,10 +1513,7 @@ impl<'a> CheckerState<'a> {
             file_name: Some(source.file_name.clone()),
             start: Some(start_utf16),
             length: Some(end_utf16 - start_utf16),
-            message: tsc_diagnostics::MessageChain::new(
-                message,
-                &args.iter().map(|a| (*a).to_owned()).collect::<Vec<_>>(),
-            ),
+            message: tsc_diagnostics::MessageChain::new_js_parts(message, args),
         }
     }
 
@@ -1563,7 +1574,7 @@ impl<'a> CheckerState<'a> {
         location: NodeId,
         declarations: &[NodeId],
         message: &'static tsc_diagnostics::DiagnosticMessage,
-        args: &[&str],
+        args: &[JsStr<'_>],
     ) {
         let related = self
             .jsdoc_deprecated_tag_of_declarations(declarations)
@@ -1576,23 +1587,23 @@ impl<'a> CheckerState<'a> {
             })
             .into_iter()
             .collect();
-        self.error_at_with_related(Some(location), message, args, related);
+        self.error_at_with_related_js(Some(location), message, args, related);
     }
 
     /// tsc-port: addDeprecatedSuggestion @6.0.3
     /// tsc-hash: ed7ce06032f254d3c28557044b8c2b4410fdfed576d2c968a2da5234d877ea0f
     /// tsc-span: _tsc.js:47644-47647
-    pub(crate) fn add_deprecated_suggestion(
+    pub(crate) fn add_deprecated_suggestion<'n>(
         &mut self,
         location: NodeId,
         declarations: &[NodeId],
-        deprecated_entity: &str,
+        deprecated_entity: impl Into<JsStr<'n>>,
     ) {
         self.add_deprecated_suggestion_worker(
             location,
             declarations,
             &tsc_diagnostics::gen::_0_is_deprecated,
-            &[deprecated_entity],
+            &[deprecated_entity.into()],
         );
     }
 
@@ -1603,22 +1614,22 @@ impl<'a> CheckerState<'a> {
         &mut self,
         location: NodeId,
         declaration: NodeId,
-        deprecated_entity: Option<&str>,
-        signature_string: &str,
+        deprecated_entity: Option<JsStr<'_>>,
+        signature_string: &JsString,
     ) {
         if let Some(deprecated_entity) = deprecated_entity {
             self.add_deprecated_suggestion_worker(
                 location,
                 &[declaration],
                 &tsc_diagnostics::gen::The_signature_0_of_1_is_deprecated,
-                &[signature_string, deprecated_entity],
+                &[signature_string.into(), deprecated_entity],
             );
         } else {
             self.add_deprecated_suggestion_worker(
                 location,
                 &[declaration],
                 &tsc_diagnostics::gen::_0_is_deprecated,
-                &[signature_string],
+                &[signature_string.into()],
             );
         }
     }
@@ -1685,32 +1696,36 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn property_access_or_identifier_to_string(
         &self,
         expression: NodeId,
-    ) -> Option<String> {
+    ) -> Option<JsString> {
         match self.data_of(expression) {
             NodeData::PropertyAccessExpression(data) => {
-                let base = self.property_access_or_identifier_to_string(data.expression?)?;
+                let mut base = self.property_access_or_identifier_to_string(data.expression?)?;
                 let name = self.entity_name_to_string(data.name?).ok()?;
-                Some(format!("{base}.{name}"))
+                base.push_str(".");
+                base.push_str(&name);
+                Some(base)
             }
             NodeData::ElementAccessExpression(data) => {
-                let base = self.property_access_or_identifier_to_string(data.expression?)?;
+                let mut base = self.property_access_or_identifier_to_string(data.expression?)?;
                 let argument = data.argument_expression?;
                 let name = match self.data_of(argument) {
                     NodeData::Identifier(data) => {
-                        tsc_binder::unescape_leading_underscores(&data.escaped_text).to_owned()
+                        tsc_syntax::unescape_leading_underscores(&data.escaped_text).into()
                     }
                     NodeData::StringLiteral(data) => data.text.clone(),
                     NodeData::NoSubstitutionTemplateLiteral(data) => data.text.clone(),
-                    NodeData::NumericLiteral(data) => data.text.clone(),
-                    NodeData::BigIntLiteral(data) => data.text.clone(),
+                    NodeData::NumericLiteral(data) => data.text.clone().into(),
+                    NodeData::BigIntLiteral(data) => data.text.clone().into(),
                     _ => return None,
                 };
-                Some(format!("{base}.{name}"))
+                base.push_str(".");
+                base.push_js(name.as_js());
+                Some(base)
             }
             NodeData::Identifier(data) => {
-                Some(tsc_binder::unescape_leading_underscores(&data.escaped_text).to_owned())
+                Some(tsc_syntax::unescape_leading_underscores(&data.escaped_text).into())
             }
-            NodeData::JsxNamespacedName(_) => Some(self.jsx_attribute_name_text(expression)),
+            NodeData::JsxNamespacedName(_) => Some(self.jsx_attribute_name_text(expression).into()),
             _ => None,
         }
     }
@@ -1744,7 +1759,7 @@ impl<'a> CheckerState<'a> {
         self.add_deprecated_suggestion_with_signature(
             suggestion_node,
             declaration,
-            deprecated_entity.as_deref(),
+            deprecated_entity.as_ref().map(JsString::as_js),
             &signature_string,
         );
         Ok(())
@@ -2024,7 +2039,7 @@ impl<'a> CheckerState<'a> {
                         .is_some_and(|decl| self.kind_of(decl) == SyntaxKind::MethodDeclaration)
                     {
                         let display =
-                            tsc_binder::unescape_leading_underscores(&right_text).to_owned();
+                            tsc_syntax::unescape_leading_underscores(&right_text).to_owned();
                         self.grammar_error_on_node(
                             right,
                             &tsc_diagnostics::gen::Cannot_assign_to_private_method_0_Private_methods_are_not_writable,
@@ -2078,7 +2093,7 @@ impl<'a> CheckerState<'a> {
                     });
                     if is_plain_js_class {
                         let display =
-                            tsc_binder::unescape_leading_underscores(&right_text).to_owned();
+                            tsc_syntax::unescape_leading_underscores(&right_text).to_owned();
                         self.grammar_error_on_node(
                             right,
                             &tsc_diagnostics::gen::Private_field_0_must_be_declared_in_an_enclosing_class,
@@ -2160,7 +2175,7 @@ impl<'a> CheckerState<'a> {
                 let declarations = self.binder.symbol(target_prop_symbol).declarations.clone();
                 if !declarations.is_empty() {
                     let deprecated_entity =
-                        tsc_binder::unescape_leading_underscores(&right_text).to_owned();
+                        tsc_syntax::unescape_leading_underscores(&right_text).to_owned();
                     self.add_deprecated_suggestion(right, &declarations, &deprecated_entity);
                 }
             }
@@ -2180,11 +2195,11 @@ impl<'a> CheckerState<'a> {
                 /*report_error*/ true,
             )?;
             if self.is_assignment_to_readonly_entity(node, prop, assignment_kind)? {
-                let display = tsc_binder::unescape_leading_underscores(&right_text).to_owned();
-                self.error_at(
+                let display = tsc_syntax::unescape_leading_underscores(&right_text).to_owned();
+                self.error_at_js(
                     Some(right),
                     &tsc_diagnostics::gen::Cannot_assign_to_0_because_it_is_a_read_only_property,
-                    &[&display],
+                    &[(&display).into()],
                 );
                 return Ok(self.tables.intrinsics.error);
             }
@@ -2228,12 +2243,12 @@ impl<'a> CheckerState<'a> {
                             .intersects(SymbolFlags::BLOCK_SCOPED)
                         {
                             let display =
-                                tsc_binder::unescape_leading_underscores(&right_text).to_owned();
+                                tsc_syntax::unescape_leading_underscores(&right_text).to_owned();
                             let type_name = self.type_to_string_slice(left_type)?;
-                            self.error_at(
+                            self.error_at_js(
                                 Some(right),
                                 &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1,
-                                &[&display, &type_name],
+                                &[(&display).into(), (&type_name).into()],
                             );
                         }
                     } else if self
@@ -2241,10 +2256,10 @@ impl<'a> CheckerState<'a> {
                         .strict_option_value(self.options.no_implicit_any)
                     {
                         let type_name = self.type_to_string_slice(left_type)?;
-                        self.error_at(
+                        self.error_at_js(
                             Some(right),
                             &tsc_diagnostics::gen::Element_implicitly_has_an_any_type_because_type_0_has_no_index_signature,
-                            &[&type_name],
+                            &[(&type_name).into()],
                         );
                     }
                     return Ok(self.tables.intrinsics.any);
@@ -2285,10 +2300,10 @@ impl<'a> CheckerState<'a> {
                 && (node_util::is_assignment_target(source, node) || self.is_delete_target(node))
             {
                 let type_name = self.type_to_string_slice(apparent_type)?;
-                self.error_at(
+                self.error_at_js(
                     Some(node),
                     &tsc_diagnostics::gen::Index_signature_in_type_0_only_permits_reading,
-                    &[&type_name],
+                    &[(&type_name).into()],
                 );
             }
             let mut index_prop_type = index_info.value_type;
@@ -2302,11 +2317,11 @@ impl<'a> CheckerState<'a> {
             if self.options.no_property_access_from_index_signature == Some(true)
                 && self.kind_of(node) == SyntaxKind::PropertyAccessExpression
             {
-                let display = tsc_binder::unescape_leading_underscores(&right_text).to_owned();
-                self.error_at(
+                let display = tsc_syntax::unescape_leading_underscores(&right_text).to_owned();
+                self.error_at_js(
                     Some(right),
                     &tsc_diagnostics::gen::Property_0_comes_from_an_index_signature_so_it_must_be_accessed_with_0,
-                    &[&display],
+                    &[(&display).into()],
                 );
             }
             if let Some(declaration) = index_info
@@ -2314,7 +2329,7 @@ impl<'a> CheckerState<'a> {
                 .filter(|&declaration| self.is_deprecated_declaration(declaration))
             {
                 let deprecated_entity =
-                    tsc_binder::unescape_leading_underscores(&right_text).to_owned();
+                    tsc_syntax::unescape_leading_underscores(&right_text).to_owned();
                 self.add_deprecated_suggestion(right, &[declaration], &deprecated_entity);
             }
             prop_type = index_prop_type;
@@ -2573,12 +2588,12 @@ impl<'a> CheckerState<'a> {
                 // declaration-backed private/computed names must not
                 // expose their escaped symbol-table key.
                 Some(prop) => self.symbol_name_as_written_slice(prop),
-                None => String::new(),
+                None => JsString::new(),
             };
-            self.error_at(
+            self.error_at_js(
                 Some(error_node),
                 &tsc_diagnostics::gen::Property_0_is_used_before_being_assigned,
-                &[&display],
+                &[display.as_js()],
             );
             return Ok(prop_type);
         }
@@ -3050,12 +3065,17 @@ impl<'a> CheckerState<'a> {
             message = Some(&tsc_diagnostics::gen::Class_0_used_before_its_declaration);
         }
         if let Some(message) = message {
-            let related = self.related_info_for_node(
+            let related = self.related_info_for_node_js(
                 value_declaration,
                 &tsc_diagnostics::gen::_0_is_declared_here,
-                &[&declaration_name],
+                &[(&declaration_name).into()],
             );
-            self.error_at_with_related(Some(right), message, &[&declaration_name], vec![related]);
+            self.error_at_with_related_js(
+                Some(right),
+                message,
+                &[(&declaration_name).into()],
+                vec![related],
+            );
         }
         Ok(())
     }
@@ -3357,9 +3377,9 @@ impl<'a> CheckerState<'a> {
                         .is_some();
                 if !has_index {
                     let subtype_name = self.type_to_string_slice(subtype)?;
-                    chain_tail.push(tsc_diagnostics::MessageChain::new(
+                    chain_tail.push(tsc_diagnostics::MessageChain::new_js(
                         &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1,
-                        &[missing_property.clone(), subtype_name],
+                        &[missing_property.clone(), subtype_name.into()],
                     ));
                     break;
                 }
@@ -3369,10 +3389,12 @@ impl<'a> CheckerState<'a> {
         let head: tsc_diagnostics::MessageChain;
         if self.type_has_static_property(&prop_name_raw, containing_type)? {
             let type_name = self.type_to_string_slice(containing_type)?;
-            let suggestion = format!("{type_name}.{missing_property}");
-            head = tsc_diagnostics::MessageChain::new(
+            let mut suggestion = type_name.clone();
+            suggestion.push('.');
+            suggestion.push_js(missing_property.as_js());
+            head = tsc_diagnostics::MessageChain::new_js(
                 &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1_Did_you_mean_to_access_the_static_member_2_instead,
-                &[missing_property.clone(), type_name, suggestion],
+                &[missing_property.clone(), type_name.into(), suggestion],
             );
         } else {
             let promised = self.get_promised_type_of_promise(containing_type)?;
@@ -3384,9 +3406,9 @@ impl<'a> CheckerState<'a> {
             };
             if promised_has_prop {
                 let type_name = self.type_to_string_slice(containing_type)?;
-                head = tsc_diagnostics::MessageChain::new(
+                head = tsc_diagnostics::MessageChain::new_js(
                     &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1,
-                    &[missing_property.clone(), type_name],
+                    &[missing_property.clone(), type_name.into()],
                 );
                 related = Some(self.related_info_for_node(
                     prop_node,
@@ -3408,7 +3430,7 @@ impl<'a> CheckerState<'a> {
                     || render_chained_this_empty_object
                     || render_chained_uninitialized_identifier_empty_object
                 {
-                    "{}".to_owned()
+                    JsString::from("{}")
                 } else {
                     // tsc retains the raw intersection identity for
                     // elaborateNeverIntersection, while typeToString
@@ -3423,9 +3445,9 @@ impl<'a> CheckerState<'a> {
                     containing_type,
                 )?;
                 if let Some(lib) = lib_suggestion {
-                    head = tsc_diagnostics::MessageChain::new(
+                    head = tsc_diagnostics::MessageChain::new_js(
                         &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1_Do_you_need_to_change_your_target_library_Try_changing_the_lib_compiler_option_to_2_or_later,
-                        &[missing_property.clone(), container, lib.to_owned()],
+                        &[missing_property.clone(), container.into(), lib.into()],
                     );
                 } else {
                     let suggestion = self.get_suggested_symbol_for_nonexistent_property(
@@ -3443,23 +3465,27 @@ impl<'a> CheckerState<'a> {
                         } else {
                             &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1_Did_you_mean_2
                         };
-                        head = tsc_diagnostics::MessageChain::new(
+                        head = tsc_diagnostics::MessageChain::new_js(
                             message,
-                            &[missing_property.clone(), container, suggested_name.clone()],
+                            &[
+                                missing_property.clone(),
+                                container.into(),
+                                suggested_name.clone(),
+                            ],
                         );
                         if let Some(value_declaration) =
                             self.binder.symbol(suggestion).value_declaration
                         {
-                            related = Some(self.related_info_for_node(
+                            related = Some(self.related_info_for_node_js(
                                 value_declaration,
                                 &tsc_diagnostics::gen::_0_is_declared_here,
-                                &[&suggested_name],
+                                &[suggested_name.as_js()],
                             ));
                         }
                     } else if self.container_seems_to_be_empty_dom_element(containing_type)? {
-                        head = tsc_diagnostics::MessageChain::new(
+                        head = tsc_diagnostics::MessageChain::new_js(
                             &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1_Try_changing_the_lib_compiler_option_to_include_dom,
-                            &[missing_property.clone(), container],
+                            &[missing_property.clone(), container.into()],
                         );
                     } else {
                         // chainDiagnosticMessages NESTS: the never-
@@ -3472,9 +3498,9 @@ impl<'a> CheckerState<'a> {
                             elaborated.next = std::mem::take(&mut chain_tail);
                             chain_tail = vec![elaborated];
                         }
-                        head = tsc_diagnostics::MessageChain::new(
+                        head = tsc_diagnostics::MessageChain::new_js(
                             &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1,
-                            &[missing_property.clone(), container],
+                            &[missing_property.clone(), container.into()],
                         );
                     }
                 }
@@ -3542,9 +3568,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: typeHasStaticProperty @6.0.3
     /// tsc-hash: 8e00c6c781a5ab8b88e17d268b78a78c33c5f1eaf1f73b428c996fd17def8621
     /// tsc-span: _tsc.js:75471-75500
-    pub(crate) fn type_has_static_property(
+    pub(crate) fn type_has_static_property<'n>(
         &mut self,
-        prop_name: &str,
+        prop_name: impl Into<JsStr<'n>>,
         containing_type: TypeId,
     ) -> CheckResult<bool> {
         let Some(symbol) = self.tables.type_of(containing_type).symbol else {
@@ -3566,7 +3592,7 @@ impl<'a> CheckerState<'a> {
 
     fn get_suggested_lib_for_non_existent_property(
         &mut self,
-        missing_property: &str,
+        missing_property: &JsString,
         containing_type: TypeId,
     ) -> CheckResult<Option<&'static str>> {
         let apparent = self.get_apparent_type(containing_type)?;
@@ -3578,7 +3604,7 @@ impl<'a> CheckerState<'a> {
         Ok(SCRIPT_TARGET_FEATURE_MEMBERS
             .iter()
             .find(|(type_name, _, member)| {
-                *type_name == container_name && *member == missing_property
+                container_name == *type_name && missing_property.as_js() == *member
             })
             .map(|(_, lib, _)| *lib))
     }
@@ -3599,7 +3625,7 @@ impl<'a> CheckerState<'a> {
             | tsc_types::TypeData::Intersection { types } => types.to_vec(),
             _ => vec![containing_type],
         };
-        let dom_shape = |name: &str| {
+        let dom_shape = |name: JsStr<'_>| {
             name == "EventTarget"
                 || name == "Node"
                 || name == "Element"
@@ -3715,10 +3741,10 @@ impl<'a> CheckerState<'a> {
             if let Some(error_node) = error_node {
                 let type_text = self.type_to_string_slice(ty)?;
                 let this_text = self.type_to_string_slice(this_type)?;
-                self.error_at(
+                self.error_at_js(
                     Some(error_node),
                     &tsc_diagnostics::gen::The_this_context_of_type_0_is_not_assignable_to_method_s_this_of_type_1,
-                    &[&type_text, &this_text],
+                    &[(&type_text).into(), (&this_text).into()],
                 );
             }
             return Ok((None, Some(this_type)));
@@ -4067,10 +4093,10 @@ impl<'a> CheckerState<'a> {
                     .intersects(MappedTypeModifiers::INCLUDE_READONLY)
             {
                 let display = self.type_to_string_slice(object_type)?;
-                self.error_at(
+                self.error_at_js(
                     Some(access_node),
                     &tsc_diagnostics::gen::Index_signature_in_type_0_only_permits_reading,
-                    &[&display],
+                    &[(&display).into()],
                 );
             }
             return Ok(ty);
@@ -4092,10 +4118,10 @@ impl<'a> CheckerState<'a> {
                         .intersects(ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER)
                     {
                         let display = tsc_binder::unescape_leading_underscores(&property_name);
-                        self.error_at(
+                        self.error_at_js(
                             Some(access_node),
                             &tsc_diagnostics::gen::Private_or_protected_member_0_cannot_be_accessed_on_a_type_parameter,
-                            &[display],
+                            &[(display).into()],
                         );
                         return Ok(self.tables.intrinsics.error);
                     }
@@ -4104,10 +4130,10 @@ impl<'a> CheckerState<'a> {
         }
         let index_display = self.type_to_string_slice(index_type)?;
         let object_display = self.type_to_string_slice(object_type)?;
-        self.error_at(
+        self.error_at_js(
             Some(access_node),
             &tsc_diagnostics::gen::Type_0_cannot_be_used_to_index_type_1,
-            &[&index_display, &object_display],
+            &[(&index_display).into(), (&object_display).into()],
         );
         Ok(self.tables.intrinsics.error)
     }
@@ -4249,7 +4275,7 @@ impl<'a> CheckerState<'a> {
     fn symbol_path_below_external_module_target(
         &mut self,
         symbol: SymbolId,
-    ) -> CheckResult<Vec<String>> {
+    ) -> CheckResult<Vec<EscapedName>> {
         let (mut path, source_module) = self.raw_symbol_path_below_source_module(symbol);
         if let Some(source_module) = source_module {
             if let Some(target) = self.resolve_external_module_symbol(Some(source_module), false)? {
@@ -4268,7 +4294,7 @@ impl<'a> CheckerState<'a> {
     fn raw_symbol_path_below_source_module(
         &self,
         symbol: SymbolId,
-    ) -> (Vec<String>, Option<SymbolId>) {
+    ) -> (Vec<EscapedName>, Option<SymbolId>) {
         let declaration_source_module =
             self.binder
                 .symbol(symbol)
@@ -4302,7 +4328,7 @@ impl<'a> CheckerState<'a> {
         (path, source_module.or(declaration_source_module))
     }
 
-    fn symbol_declaration_sources(&self, symbol: SymbolId) -> Vec<String> {
+    fn symbol_declaration_sources(&self, symbol: SymbolId) -> Vec<JsString> {
         let mut sources = Vec::new();
         let mut current = Some(symbol);
         let mut seen = std::collections::HashSet::new();

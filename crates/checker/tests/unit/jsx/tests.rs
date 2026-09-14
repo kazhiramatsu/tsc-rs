@@ -63,7 +63,13 @@ fn checked_jsx_component_details_with(
     options: &CompilerOptions,
 ) -> Vec<JsxComponentDetails> {
     fn flatten(chain: &tsc_diagnostics::MessageChain, rows: &mut DiagnosticChainRows) {
-        rows.push((chain.code, chain.text.clone()));
+        rows.push((
+            chain.code,
+            (chain.text.clone())
+                .as_str()
+                .expect("scalar value observation")
+                .to_owned(),
+        ));
         for child in &chain.next {
             flatten(child, rows);
         }
@@ -84,7 +90,12 @@ fn checked_jsx_component_details_with(
                     .map(|related| {
                         (
                             related.message.code,
-                            related.message.text.clone(),
+                            related
+                                .message
+                                .text
+                                .as_str()
+                                .expect("scalar diagnostic observation")
+                                .to_owned(),
                             related.start.unwrap_or(u32::MAX),
                             related.length.unwrap_or(u32::MAX),
                         )
@@ -264,7 +275,7 @@ fn jsx_factory_option_selects_its_namespace() {
          (<div id={1} />);\n",
         &CompilerOptions {
             jsx: Some(2),
-            jsx_factory: Some("Preact.h".to_owned()),
+            jsx_factory: Some(("Preact.h".to_owned()).into()),
             ..CompilerOptions::default()
         },
     );
@@ -283,7 +294,7 @@ fn jsx_factory_option_uses_the_escaped_key_for_a_double_underscore_global() {
          export {};\n",
         &CompilerOptions {
             jsx: Some(2),
-            jsx_factory: Some("__make".to_owned()),
+            jsx_factory: Some(("__make".to_owned()).into()),
             ..CompilerOptions::default()
         },
     );
@@ -298,7 +309,7 @@ fn invalid_jsx_factory_option_falls_back_to_react_namespace() {
          (<div id={1} />);\n",
         &CompilerOptions {
             jsx: Some(2),
-            jsx_factory: Some("Preact.!".to_owned()),
+            jsx_factory: Some(("Preact.!".to_owned()).into()),
             ..CompilerOptions::default()
         },
     );
@@ -376,7 +387,7 @@ fn namespaced_jsx_attribute_suggestion_uses_symbol_to_string_face() {
         let mut flattened = Vec::new();
         let mut stack = vec![&diagnostic.message];
         while let Some(chain) = stack.pop() {
-            flattened.push(chain.text.as_str());
+            flattened.push(chain.text.as_str().expect("scalar diagnostic observation"));
             stack.extend(chain.next.iter());
         }
         let flattened = flattened.join("\n");
@@ -800,7 +811,13 @@ fn deprecated_contextual_jsx_attribute_reports_6385() {
             diagnostic.category(),
             tsc_diagnostics::DiagnosticCategory::Suggestion
         );
-        assert_eq!(diagnostic.message_text(), "'old' is deprecated.");
+        assert_eq!(
+            diagnostic
+                .message_text()
+                .as_str()
+                .expect("scalar diagnostic observation"),
+            "'old' is deprecated."
+        );
         assert_eq!(
             diagnostic
                 .related
@@ -810,4 +827,51 @@ fn deprecated_contextual_jsx_attribute_reports_6385() {
             [2798]
         );
     });
+}
+
+/// tsc flattenDiagnosticMessageText(chain, "\n"): every nested message on its
+/// own line, indented two spaces per level, values kept as UTF-16 code units.
+fn flatten_message_chain(
+    chain: &tsc_diagnostics::MessageChain,
+    indent: usize,
+    output: &mut tsc_diagnostics::JsString,
+) {
+    if indent != 0 {
+        output.push_str("\n");
+        for _ in 0..indent {
+            output.push_str("  ");
+        }
+    }
+    output.push_js(chain.text.as_js());
+    for next in &chain.next {
+        flatten_message_chain(next, indent + 1, output);
+    }
+}
+
+#[test]
+fn utf16_intrinsic_literal_tag_names_retain_distinct_attribute_types() {
+    let fixture: serde_json::Value = serde_json::from_str(include_str!(
+        "../../fixtures/utf16-jsx-intrinsic-identity.json"
+    ))
+    .unwrap();
+    for case in fixture["cases"].as_array().unwrap() {
+        with_program_state(
+            &[("/a.tsx", case["source"].as_str().unwrap())],
+            &jsx(1),
+            |state| {
+                state.check_source_file(0);
+                let actual = state
+                    .diagnostics
+                    .iter()
+                    .filter(|d| d.file_name.is_some())
+                    .map(|d| {
+                        let mut message = tsc_diagnostics::JsString::new();
+                        flatten_message_chain(&d.message, 0, &mut message);
+                        serde_json::json!({"code":d.code(),"start":d.start,"length":d.length,"message":message.to_utf16()})
+                    })
+                    .collect::<Vec<_>>();
+                assert_eq!(serde_json::json!(actual), case["diagnostics"]);
+            },
+        );
+    }
 }

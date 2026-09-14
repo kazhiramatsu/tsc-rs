@@ -379,7 +379,16 @@ fn program_rows(files: &[(&str, &str)], options: &CompilerOptions) -> Vec<(Strin
         })
         .map(|diagnostic| {
             (
-                diagnostic.file_name.clone().expect("filtered"),
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .map(|value| {
+                        value
+                            .as_str()
+                            .expect("scalar filename observation")
+                            .to_owned()
+                    })
+                    .expect("filtered"),
                 diagnostic.code(),
                 diagnostic.start.unwrap_or(u32::MAX),
                 diagnostic.length.unwrap_or(u32::MAX),
@@ -499,12 +508,22 @@ fn targeted_rows(
             (
                 diagnostic
                     .file_name
-                    .clone()
+                    .as_ref()
+                    .map(|value| {
+                        value
+                            .as_str()
+                            .expect("scalar filename observation")
+                            .to_owned()
+                    })
                     .expect("targeted row is located"),
                 diagnostic.code(),
                 diagnostic.start.expect("targeted row has a start"),
                 diagnostic.length.expect("targeted row has a length"),
-                diagnostic.message_text().to_owned(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation")
+                    .to_owned(),
             )
         })
         .collect::<Vec<_>>();
@@ -542,11 +561,17 @@ fn import_specifiers_report_direct_and_intermediate_deprecated_aliases() {
         .filter(|diagnostic| diagnostic.code() == 6385)
         .map(|diagnostic| {
             (
-                diagnostic.file_name.as_deref(),
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .map(|value| value.as_js().as_str().expect("scalar name observation")),
                 diagnostic.start,
                 diagnostic.length,
                 diagnostic.category(),
-                diagnostic.message_text(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation"),
                 diagnostic
                     .related
                     .iter()
@@ -735,7 +760,7 @@ fn package_exports_conditions_match_tsc_condition_sets() {
         &CompilerOptions {
             module: Some(99),
             module_resolution: Some(100),
-            custom_conditions: Some(vec!["browser".to_owned()]),
+            custom_conditions: Some(vec![("browser".to_owned()).into()]),
             ..CompilerOptions::default()
         },
     );
@@ -1009,7 +1034,9 @@ fn checked_js_publishes_not_a_module_from_default_lib_collision() {
                 diagnostic.category() == tsc_diagnostics::DiagnosticCategory::Error
             })
             .expect("semantic module diagnostic")
-            .message_text(),
+            .message_text()
+            .as_str()
+            .expect("scalar diagnostic observation"),
         "File '/lib.d.ts' is not a module."
     );
     assert_eq!(
@@ -1021,7 +1048,14 @@ fn checked_js_publishes_not_a_module_from_default_lib_collision() {
                     && diagnostic.category() == tsc_diagnostics::DiagnosticCategory::Error
             })
             .map(|diagnostic| (
-                diagnostic.file_name.clone().expect("filtered"),
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .map(|value| value
+                        .as_str()
+                        .expect("scalar filename observation")
+                        .to_owned())
+                    .expect("filtered"),
                 diagnostic.code(),
                 diagnostic.start.unwrap_or(u32::MAX),
                 diagnostic.length.unwrap_or(u32::MAX),
@@ -1073,11 +1107,17 @@ let unrelated = \"\";\n",
                 diagnostic.category() == tsc_diagnostics::DiagnosticCategory::Error
             })
             .map(|diagnostic| (
-                diagnostic.file_name.as_deref(),
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .map(|value| value.as_js().as_str().expect("scalar name observation")),
                 diagnostic.code(),
                 diagnostic.start.unwrap_or(u32::MAX),
                 diagnostic.length.unwrap_or(u32::MAX),
-                diagnostic.message_text(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation"),
             ))
             .collect::<Vec<_>>(),
         [
@@ -1127,11 +1167,17 @@ fn checked_js_commonjs_require_property_alias_publishes_nested_object_miss() {
             .diagnostics
             .iter()
             .map(|diagnostic| (
-                diagnostic.file_name.as_deref(),
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .map(|value| value.as_js().as_str().expect("scalar name observation")),
                 diagnostic.code(),
                 diagnostic.start.unwrap_or(u32::MAX),
                 diagnostic.length.unwrap_or(u32::MAX),
-                diagnostic.message_text(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation"),
             ))
             .collect::<Vec<_>>(),
         [(
@@ -1170,11 +1216,17 @@ fn plain_js_nested_object_is_closed_for_typescript_consumers() {
             .diagnostics
             .iter()
             .map(|diagnostic| (
-                diagnostic.file_name.as_deref(),
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .map(|value| value.as_js().as_str().expect("scalar name observation")),
                 diagnostic.code(),
                 diagnostic.start.unwrap_or(u32::MAX),
                 diagnostic.length.unwrap_or(u32::MAX),
-                diagnostic.message_text(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation"),
             ))
             .collect::<Vec<_>>(),
         [(
@@ -1462,10 +1514,10 @@ fn isolated_export_assignment_reports_external_type_only_origin() {
         .expect("TS1289");
     assert_eq!(
             (
-                diagnostic.file_name.as_deref(),
+                diagnostic.file_name.as_ref().map(|value| value.as_js().as_str().expect("scalar name observation")),
                 diagnostic.start,
                 diagnostic.length,
-                diagnostic.message_text(),
+                diagnostic.message_text().as_str().expect("scalar diagnostic observation"),
             ),
             (
                 Some("/d.ts"),
@@ -1477,7 +1529,10 @@ fn isolated_export_assignment_reports_external_type_only_origin() {
     assert_eq!(diagnostic.related.len(), 1);
     assert_eq!(
         (
-            diagnostic.related[0].file_name.as_deref(),
+            diagnostic.related[0]
+                .file_name
+                .as_ref()
+                .map(|value| value.as_js().as_str().expect("scalar name observation")),
             diagnostic.related[0].start,
             diagnostic.related[0].length,
             diagnostic.related[0].message.code,
@@ -1534,11 +1589,18 @@ fn isolated_alias_exports_distinguish_types_from_type_only_values() {
             .related
             .iter()
             .map(|related| (
-                related.file_name.as_deref(),
+                related
+                    .file_name
+                    .as_ref()
+                    .map(|value| value.as_js().as_str().expect("scalar name observation")),
                 related.start,
                 related.length,
                 related.message.code,
-                related.message.text.as_str(),
+                related
+                    .message
+                    .text
+                    .as_str()
+                    .expect("scalar diagnostic observation"),
             ))
             .collect::<Vec<_>>(),
         [(
@@ -1781,11 +1843,18 @@ fn checked_js_type_exports_report_18043_with_automatic_export_context() {
         assert_eq!(diagnostic.related.len(), 1);
         assert_eq!(
             (
-                diagnostic.related[0].file_name.as_deref(),
+                diagnostic.related[0]
+                    .file_name
+                    .as_ref()
+                    .map(|value| value.as_js().as_str().expect("scalar name observation")),
                 diagnostic.related[0].start,
                 diagnostic.related[0].length,
                 diagnostic.related[0].message.code,
-                diagnostic.related[0].message.text.as_str(),
+                diagnostic.related[0]
+                    .message
+                    .text
+                    .as_str()
+                    .expect("scalar diagnostic observation"),
             ),
             (
                 Some("/main.js"),
@@ -1884,7 +1953,10 @@ fn verbatim_alias_imports_distinguish_type_only_origins() {
             .related
             .iter()
             .map(|related| (
-                related.file_name.as_deref(),
+                related
+                    .file_name
+                    .as_ref()
+                    .map(|value| value.as_js().as_str().expect("scalar name observation")),
                 related.start,
                 related.length,
                 related.message.code,
@@ -2239,9 +2311,18 @@ fn recovered_bare_import_type_and_dynamic_import_use_package_meaning() {
         .into_iter()
         .filter(|diagnostic| diagnostic.code() == 2339)
         .map(|diagnostic| {
-            let message = diagnostic.message_text().to_owned();
+            let message = diagnostic
+                .message_text()
+                .as_str()
+                .expect("scalar diagnostic observation")
+                .to_owned();
             (
-                diagnostic.file_name.expect("located property miss"),
+                diagnostic
+                    .file_name
+                    .expect("located property miss")
+                    .as_str()
+                    .expect("scalar value observation")
+                    .to_owned(),
                 message,
             )
         })
@@ -2299,10 +2380,10 @@ fn implicit_any_module_uses_node10_alternate_result_chain() {
     assert_eq!(diagnostic.category(), DiagnosticCategory::Error);
     assert_eq!(
             (
-                diagnostic.file_name.as_deref(),
+                diagnostic.file_name.as_ref().map(|value| value.as_js().as_str().expect("scalar name observation")),
                 diagnostic.start,
                 diagnostic.length,
-                diagnostic.message_text(),
+                diagnostic.message_text().as_str().expect("scalar diagnostic observation"),
             ),
             (
                 Some("/index.ts"),
@@ -2344,14 +2425,20 @@ fn implicit_any_module_suggestion_is_published_from_checked_js() {
         .find(|diagnostic| diagnostic.code() == 7016)
         .expect("checked-JS implicit-any suggestion");
     assert_eq!(diagnostic.category(), DiagnosticCategory::Suggestion);
-    assert_eq!(diagnostic.file_name.as_deref(), Some("/main.js"));
+    assert_eq!(
+        diagnostic
+            .file_name
+            .as_ref()
+            .map(|value| value.as_js().as_str().expect("scalar name observation")),
+        Some("/main.js")
+    );
     assert_eq!(
         diagnostic.start,
         Some(source.find("'untyped'").expect("specifier") as u32)
     );
     assert_eq!(diagnostic.length, Some("'untyped'".len() as u32));
     assert_eq!(
-            diagnostic.message_text(),
+            diagnostic.message_text().as_str().expect("scalar diagnostic observation"),
             "Could not find a declaration file for module 'untyped'. '/node_modules/untyped/index.js' implicitly has an 'any' type."
         );
     assert!(diagnostic.message.next.is_empty());
@@ -2982,7 +3069,11 @@ fn explicit_mts_cts_extensions_report_or_suggest_the_full_extension() {
                 (
                     diagnostic.code(),
                     start,
-                    diagnostic.message_text().to_owned(),
+                    diagnostic
+                        .message_text()
+                        .as_str()
+                        .expect("scalar diagnostic observation")
+                        .to_owned(),
                 )
             })
         })
@@ -3202,7 +3293,11 @@ fn declaration_import_suggestion_uses_usage_emit_mode() {
                 (
                     diagnostic.code(),
                     start,
-                    diagnostic.message_text().to_owned(),
+                    diagnostic
+                        .message_text()
+                        .as_str()
+                        .expect("scalar diagnostic observation")
+                        .to_owned(),
                 )
             })
         })
@@ -3248,7 +3343,11 @@ fn declaration_import_suggestion_uses_usage_emit_mode() {
                 (
                     diagnostic.code(),
                     start,
-                    diagnostic.message_text().to_owned(),
+                    diagnostic
+                        .message_text()
+                        .as_str()
+                        .expect("scalar diagnostic observation")
+                        .to_owned(),
                 )
             })
         })

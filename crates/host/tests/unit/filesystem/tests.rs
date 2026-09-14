@@ -30,6 +30,30 @@ fn maps_stable_io_error_classes() {
     }
 }
 
+#[test]
+fn io_error_retains_requested_js_identity_and_native_error_context() {
+    use std::path::PathBuf;
+    use tsc_diagnostics::JsString;
+
+    let mut requested = JsString::from("/work/");
+    requested.push_code_unit(0xd800);
+    let native = PathBuf::from("/work/\u{fffd}");
+    let observed = native.join("leaf.ts");
+    let error = map_io_error(
+        io::Error::from(io::ErrorKind::PermissionDenied),
+        HostOperation::ReadDirectory,
+        Some(observed.clone()),
+    );
+    let error = super::retain_query_path(error, requested.as_js(), &native);
+    let mut expected = requested;
+    expected.push(std::path::MAIN_SEPARATOR);
+    expected.push_str("leaf.ts");
+    assert_eq!(error.js_path(), Some(expected.as_js()));
+    assert_eq!(error.path(), Some(observed.as_path()));
+    assert_eq!(error.kind(), HostErrorKind::PermissionDenied);
+    assert_eq!(error.operation(), HostOperation::ReadDirectory);
+}
+
 #[cfg(windows)]
 #[test]
 fn recognizes_only_incomplete_windows_namespace_ancestors() {

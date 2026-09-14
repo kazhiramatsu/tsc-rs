@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use tsc_diagnostics::{JsStr, JsString};
 
 use tsc_program::SourceFileId;
 
@@ -12,9 +12,9 @@ use super::DeclarationPathResolver;
 #[derive(Clone, Debug, Default)]
 pub struct PlanDeclarationPaths {
     paths: BTreeMap<SourceFileId, EmitOutputPaths>,
-    reference_paths: BTreeMap<SourceFileId, PathBuf>,
-    root_declaration_paths: BTreeMap<SourceFileId, PathBuf>,
-    bundle_declaration_path: Option<PathBuf>,
+    reference_paths: BTreeMap<SourceFileId, JsString>,
+    root_declaration_paths: BTreeMap<SourceFileId, JsString>,
+    bundle_declaration_path: Option<JsString>,
 }
 
 impl PlanDeclarationPaths {
@@ -54,15 +54,16 @@ impl PlanDeclarationPaths {
         }
     }
 
-    fn forced_bundle_declaration_path(host: &dyn EmitHost) -> Option<PathBuf> {
+    fn forced_bundle_declaration_path(host: &dyn EmitHost) -> Option<JsString> {
         host.compiler_options()
             .out_file
-            .as_deref()
+            .as_ref()
+            .map(JsString::as_js)
             .filter(|path| !path.is_empty())
             .and_then(|path| {
                 crate::plan::get_output_paths_for_bundle(host.compiler_options(), path, true)
                     .declaration_path()
-                    .map(Path::to_path_buf)
+                    .map(JsStr::to_owned)
             })
     }
 
@@ -107,11 +108,11 @@ impl PlanDeclarationPaths {
 }
 
 impl DeclarationPathResolver for PlanDeclarationPaths {
-    fn bundle_declaration_file_path(&self) -> Option<PathBuf> {
+    fn bundle_declaration_file_path(&self) -> Option<JsString> {
         self.bundle_declaration_path.clone()
     }
 
-    fn declaration_file_path(&self, source: SourceFileId) -> Option<PathBuf> {
+    fn declaration_file_path(&self, source: SourceFileId) -> Option<JsString> {
         self.root_declaration_paths
             .get(&source)
             .cloned()
@@ -119,11 +120,11 @@ impl DeclarationPathResolver for PlanDeclarationPaths {
                 self.paths
                     .get(&source)
                     .and_then(EmitOutputPaths::declaration_path)
-                    .map(Path::to_path_buf)
+                    .map(JsStr::to_owned)
             })
     }
 
-    fn reference_target_path(&self, source: SourceFileId) -> Option<PathBuf> {
+    fn reference_target_path(&self, source: SourceFileId) -> Option<JsString> {
         // getReferencedFiles calls getOutputPathsFor(file, host, true), even
         // when declarations or this source's own emit are disabled. The forced
         // projection always has a declaration path, including for JSON. The

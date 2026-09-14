@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use tsc_host::MemoryCompilerHost;
 use tsc_program::{
     decode_host_text, CompilerOptions, HostResolvedModule, HostTextEncoding, ModuleResolver,
@@ -111,7 +109,7 @@ fn resolve_encoded_package(package_json: Vec<u8>) -> HostResolvedModule {
     };
     let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
     let outcome = resolver
-        .resolve(Path::new("/index.mts"), "pkg", ResolutionMode::EsNext)
+        .resolve("/index.mts", "pkg", ResolutionMode::EsNext)
         .expect("resolve encoded package");
     let ResolutionOutcome::Resolved(resolved) = outcome else {
         panic!("encoded package must resolve");
@@ -128,7 +126,7 @@ fn package_resolution_uses_the_central_host_text_decoder() {
             .package_metadata()
             .expect("encoded package retains metadata");
         assert_eq!(metadata.text(), json);
-        assert_eq!(metadata.name(), Some("pkg"));
+        assert_eq!(metadata.name(), (Some("pkg")).map(Into::into));
     }
 
     let mut lossy_json = br#"{"name":"pXkg","types":"./index.d.ts"}"#.to_vec();
@@ -141,7 +139,7 @@ fn package_resolution_uses_the_central_host_text_decoder() {
     let metadata = resolved
         .package_metadata()
         .expect("lossily decoded package retains metadata");
-    assert_eq!(metadata.name(), Some("p\u{fffd}kg"));
+    assert_eq!(metadata.name(), (Some("p\u{fffd}kg")).map(Into::into));
     assert!(metadata.text().contains("p\u{fffd}kg"));
 
     let mut bom_json = vec![0xEF, 0xBB, 0xBF];
@@ -177,7 +175,7 @@ fn raw_unpaired_utf16_is_invalid_but_escaped_surrogates_follow_read_json() {
     };
     let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
     let error = resolver
-        .resolve(Path::new("/index.mts"), "pkg", ResolutionMode::EsNext)
+        .resolve("/index.mts", "pkg", ResolutionMode::EsNext)
         .expect_err("unpaired surrogate must fail closed");
     assert_eq!(error.kind(), tsc_program::ResolutionErrorKind::InvalidData);
     assert!(error.to_string().contains("U+D800"));
@@ -195,7 +193,7 @@ fn raw_unpaired_utf16_is_invalid_but_escaped_surrogates_follow_read_json() {
     let mut resolver =
         ModuleResolver::new(&escaped_host, &options).expect("create escaped resolver");
     let resolved = resolver
-        .resolve(Path::new("/index.mts"), "pkg", ResolutionMode::EsNext)
+        .resolve("/index.mts", "pkg", ResolutionMode::EsNext)
         .expect("an escaped surrogate is valid JSON text");
     let ResolutionOutcome::Resolved(resolved) = resolved else {
         panic!("escaped-surrogate package must resolve");
@@ -203,7 +201,13 @@ fn raw_unpaired_utf16_is_invalid_but_escaped_surrogates_follow_read_json() {
     let metadata = resolved
         .package_metadata()
         .expect("escaped-surrogate package retains metadata");
-    assert_eq!(metadata.name(), Some("p\u{fffd}kg"));
+    // tsc parseJsonText/convertToObject (and JSON.parse) keep the escaped lone
+    // surrogate in the package name: code units p, D800, k, g. Observed from
+    // the vendored 6.0.3 compiler; the value is an identity, not a rendering.
+    assert_eq!(
+        metadata.name().map(|name| name.to_utf16()),
+        Some(vec![0x70, 0xD800, 0x6B, 0x67])
+    );
     assert_eq!(
         metadata.text(),
         r#"{"name":"p\ud800kg","types":"./index.d.ts"}"#

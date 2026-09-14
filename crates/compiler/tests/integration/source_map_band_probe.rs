@@ -187,6 +187,7 @@ fn run_h2_6a_probe(selector: &str) {
     for write in sink.writes() {
         let name = write
             .path()
+            .scalar_test_path()
             .file_name()
             .expect("write basename")
             .to_string_lossy()
@@ -804,12 +805,12 @@ fn verdict(equal: bool) -> &'static str {
     }
 }
 
-fn paths_json(paths: Option<&[PathBuf]>) -> Value {
+fn paths_json(paths: Option<&[tsc_diagnostics::JsString]>) -> Value {
     paths.map_or(Value::Null, |paths| {
         Value::Array(
             paths
                 .iter()
-                .map(|path| Value::String(path.to_string_lossy().into_owned()))
+                .map(|path| Value::String(path.scalar_test_path().to_string_lossy().into_owned()))
                 .collect(),
         )
     })
@@ -1041,3 +1042,7 @@ fn base64_value(byte: u8) -> Option<u8> {
         _ => None,
     }
 }
+
+#[path = "../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

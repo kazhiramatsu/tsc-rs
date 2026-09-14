@@ -61,55 +61,87 @@ impl ConfigParseHost for MemoryConfigHost {
         self.case_sensitive.unwrap_or(true)
     }
 
-    fn file_exists(&self, path: &str) -> Result<bool, ConfigHostError> {
+    fn file_exists(&self, path: tsc_diagnostics::JsStr<'_>) -> Result<bool, ConfigHostError> {
+        let path = path.as_str().expect("scalar config fixture query");
+
         self.requested_file_exists
             .borrow_mut()
             .push(path.to_owned());
         Ok(self.stored_file(path).is_some())
     }
 
-    fn read_file(&self, path: &str) -> Result<Option<String>, ConfigHostError> {
+    fn read_file(
+        &self,
+        path: tsc_diagnostics::JsStr<'_>,
+    ) -> Result<Option<String>, ConfigHostError> {
+        let path = path.as_str().expect("scalar config fixture query");
+
         self.requested_reads.borrow_mut().push(path.to_owned());
         Ok(self.stored_file(path).cloned())
     }
 
     fn read_directory(
         &self,
-        _directory: &str,
+        _directory: tsc_diagnostics::JsStr<'_>,
         extensions: &[&str],
-        excludes: Option<&[String]>,
-        includes: Option<&[String]>,
+        excludes: Option<&[tsc_diagnostics::JsString]>,
+        includes: Option<&[tsc_diagnostics::JsString]>,
         _depth: Option<usize>,
-    ) -> Result<Vec<String>, ConfigHostError> {
-        if let Some(error) = &self.directory_error {
-            return Err(error.clone());
-        }
-        self.requested_extensions.borrow_mut().push(
-            extensions
+    ) -> Result<Vec<tsc_diagnostics::JsString>, ConfigHostError> {
+        let excludes_scalar = excludes.map(|items| {
+            items
                 .iter()
-                .map(|extension| (*extension).to_owned())
-                .collect(),
-        );
-        self.requested_includes
-            .borrow_mut()
-            .push(includes.map(<[String]>::to_vec));
-        self.requested_excludes
-            .borrow_mut()
-            .push(excludes.map(<[String]>::to_vec));
-        Ok(self
-            .directory_files
-            .iter()
-            .filter(|file| extensions.iter().any(|extension| file.ends_with(extension)))
-            .cloned()
-            .collect())
+                .map(|item| {
+                    item.as_str()
+                        .expect("scalar config fixture pattern")
+                        .to_owned()
+                })
+                .collect::<Vec<_>>()
+        });
+        let excludes = excludes_scalar.as_deref();
+        let includes_scalar = includes.map(|items| {
+            items
+                .iter()
+                .map(|item| {
+                    item.as_str()
+                        .expect("scalar config fixture pattern")
+                        .to_owned()
+                })
+                .collect::<Vec<_>>()
+        });
+        let includes = includes_scalar.as_deref();
+        (|| -> Result<Vec<String>, ConfigHostError> {
+            if let Some(error) = &self.directory_error {
+                return Err(error.clone());
+            }
+            self.requested_extensions.borrow_mut().push(
+                extensions
+                    .iter()
+                    .map(|extension| (*extension).to_owned())
+                    .collect(),
+            );
+            self.requested_includes
+                .borrow_mut()
+                .push(includes.map(<[String]>::to_vec));
+            self.requested_excludes
+                .borrow_mut()
+                .push(excludes.map(<[String]>::to_vec));
+            Ok(self
+                .directory_files
+                .iter()
+                .filter(|file| extensions.iter().any(|extension| file.ends_with(extension)))
+                .cloned()
+                .collect())
+        })()
+        .map(|paths| paths.into_iter().map(Into::into).collect())
     }
 }
 
 fn request(file_name: &str, text: &str) -> ConfigRootPlanRequest {
     ConfigRootPlanRequest {
-        file_name: file_name.to_owned(),
+        file_name: file_name.to_owned().into(),
         text: text.to_owned(),
-        base_path: "/".to_owned(),
+        base_path: "/".to_owned().into(),
     }
 }
 
@@ -125,12 +157,18 @@ fn jsconfig_defaults_are_effective_before_root_discovery() {
         plan.file_names(),
         ["/project/main.ts", "/project/helper.js"]
     );
-    assert_eq!(plan.options().get("allowJs").unwrap().value, json!(true));
+    assert_eq!(
+        plan.options().get("allowJs").unwrap().value,
+        json!(true).into()
+    );
     assert_eq!(
         plan.options().get("maxNodeModuleJsDepth").unwrap().value,
-        json!(2)
+        json!(2).into()
     );
-    assert_eq!(plan.options().get("noEmit").unwrap().value, json!(true));
+    assert_eq!(
+        plan.options().get("noEmit").unwrap().value,
+        json!(true).into()
+    );
     assert_eq!(
         plan.module_resolution_options()
             .compiler_options()
@@ -157,7 +195,10 @@ fn explicit_jsconfig_options_override_defaults() {
     .expect("overridden jsconfig root plan");
 
     assert_eq!(plan.file_names(), ["/project/main.ts"]);
-    assert_eq!(plan.options().get("allowJs").unwrap().value, json!(false));
+    assert_eq!(
+        plan.options().get("allowJs").unwrap().value,
+        json!(false).into()
+    );
     assert_eq!(
         plan.module_resolution_options()
             .compiler_options()
@@ -210,8 +251,8 @@ fn parsed_commandline_project_references_and_wildcard_directories_are_retained()
         plan.project_references(),
         Some(
             &[tsc_program::ConfigProjectReference {
-                path: "/other".to_owned(),
-                original_path: "../other".to_owned(),
+                path: "/other".to_owned().into(),
+                original_path: "../other".to_owned().into(),
                 prepend: Some(true),
                 circular: Some(false),
             }][..]
@@ -220,7 +261,7 @@ fn parsed_commandline_project_references_and_wildcard_directories_are_retained()
     assert_eq!(
         plan.wildcard_directories(),
         &[tsc_program::ConfigWildcardDirectory {
-            path: "/project/src".to_owned(),
+            path: "/project/src".to_owned().into(),
             recursive: true,
         }]
     );
@@ -250,7 +291,7 @@ fn wildcard_directories_apply_explicit_and_default_output_excludes() {
     assert_eq!(
         output_excluded.wildcard_directories(),
         &[tsc_program::ConfigWildcardDirectory {
-            path: "/project".to_owned(),
+            path: "/project".to_owned().into(),
             recursive: true,
         }]
     );
@@ -272,7 +313,10 @@ fn compiler_option_names_are_case_sensitive() {
 
     assert_eq!(plan.file_names(), ["/project/main.ts"]);
     assert!(plan.options().get("allowJs").is_none());
-    assert_eq!(plan.options().get("ALLOWJS").unwrap().value, json!(true));
+    assert_eq!(
+        plan.options().get("ALLOWJS").unwrap().value,
+        json!(true).into()
+    );
 }
 
 #[test]
@@ -312,7 +356,7 @@ fn command_line_only_compiler_option_is_present_undefined() {
         missing.options().typed_value_state("help"),
         tsc_program::ConfigOptionValueState::Undefined
     );
-    assert_eq!(missing.raw()["compilerOptions"], json!({}));
+    assert_eq!(missing.raw()["compilerOptions"], json!({}).into());
 
     let distinct_properties = parse_config_root_plan(
         &MemoryConfigHost::default(),
@@ -351,14 +395,17 @@ fn duplicate_compiler_options_notify_in_source_order_before_raw_collapse() {
         [5024]
     );
     assert!(plan.errors()[0].start.is_some());
-    assert_eq!(plan.raw()["compilerOptions"], json!({"allowJs": true}));
+    assert_eq!(
+        plan.raw()["compilerOptions"],
+        json!({"allowJs": true}).into()
+    );
     assert_eq!(
         plan.options().typed_value_state("strict"),
-        tsc_program::ConfigOptionValueState::Value(&json!(true))
+        tsc_program::ConfigOptionValueState::Value(&json!(true).into())
     );
     assert_eq!(
         plan.options().typed_value_state("allowJs"),
-        tsc_program::ConfigOptionValueState::Value(&json!(true))
+        tsc_program::ConfigOptionValueState::Value(&json!(true).into())
     );
 }
 
@@ -392,7 +439,7 @@ fn invalid_module_diagnostic_omits_typescripts_deprecated_named_values() {
     assert_eq!(plan.errors().len(), 1);
     assert_eq!(plan.errors()[0].code(), 6046);
     assert_eq!(
-        plan.errors()[0].message_text(),
+        plan.errors()[0].message_text().as_str().expect("scalar diagnostic observation"),
         "Argument for '--module' option must be: 'commonjs', 'es6', 'es2015', 'es2020', 'es2022', 'esnext', 'node16', 'node18', 'node20', 'nodenext', 'preserve'."
     );
 }
@@ -484,7 +531,7 @@ fn undefined_duplicate_overwrites_the_previous_object_projection() {
     )
     .expect("a later undefined value overwrites the previous assignment");
 
-    assert_eq!(plan.raw()["compilerOptions"], json!({}));
+    assert_eq!(plan.raw()["compilerOptions"], json!({}).into());
     assert_eq!(
         plan.options().typed_value_state("allowJs"),
         tsc_program::ConfigOptionValueState::Undefined
@@ -504,7 +551,7 @@ fn undefined_duplicate_overwrites_the_previous_object_projection() {
             .options()
             .entries()
             .iter()
-            .map(|option| option.name.as_str())
+            .map(|option| option.name.as_str().expect("scalar option name"))
             .collect::<Vec<_>>(),
         ["allowJs", "strict"]
     );
@@ -541,7 +588,7 @@ fn undefined_option_in_a_later_compiler_options_object_removes_the_raw_entry() {
     )
     .expect("a later compilerOptions notifier overwrites the raw entry");
 
-    assert_eq!(plan.raw()["compilerOptions"], json!({}));
+    assert_eq!(plan.raw()["compilerOptions"], json!({}).into());
     assert!(plan.options().get("allowJs").is_none());
     assert_eq!(
         plan.options().typed_value_state("allowJs"),
@@ -594,14 +641,17 @@ fn typed_file_options_are_normalized_without_changing_raw_values() {
     )
     .expect("file-path options normalize in the typed projection");
 
-    assert_eq!(plan.options().get("outDir").unwrap().value, json!("./out"));
+    assert_eq!(
+        plan.options().get("outDir").unwrap().value,
+        json!("./out").into()
+    );
     assert_eq!(
         plan.options().typed_value_state("outDir"),
-        tsc_program::ConfigOptionValueState::Value(&json!("/project/out"))
+        tsc_program::ConfigOptionValueState::Value(&json!("/project/out").into())
     );
     assert_eq!(
         plan.options().typed_value_state("rootDir"),
-        tsc_program::ConfigOptionValueState::Value(&json!("/project/src"))
+        tsc_program::ConfigOptionValueState::Value(&json!("/project/src").into())
     );
 
     let rooted = parse_config_root_plan(
@@ -614,15 +664,15 @@ fn typed_file_options_are_normalized_without_changing_raw_values() {
     .expect("UNC and URL file-option roots preserve their volumes");
     assert_eq!(
         rooted.options().typed_value_state("outDir"),
-        tsc_program::ConfigOptionValueState::Value(&json!("//server/share/out"))
+        tsc_program::ConfigOptionValueState::Value(&json!("//server/share/out").into())
     );
     assert_eq!(
         rooted.options().typed_value_state("rootDir"),
-        tsc_program::ConfigOptionValueState::Value(&json!("file:///tmp/src"))
+        tsc_program::ConfigOptionValueState::Value(&json!("file:///tmp/src").into())
     );
     assert_eq!(
         rooted.discovery_options().out_dir(),
-        Some("//server/share/out")
+        (Some("//server/share/out")).map(Into::into)
     );
 
     let edge = parse_config_root_plan(
@@ -636,19 +686,19 @@ fn typed_file_options_are_normalized_without_changing_raw_values() {
     assert!(edge.errors().is_empty());
     assert_eq!(
         edge.options().typed_value_state("outDir"),
-        tsc_program::ConfigOptionValueState::Value(&json!("/a/"))
+        tsc_program::ConfigOptionValueState::Value(&json!("/a/").into())
     );
     assert_eq!(
         edge.options().typed_value_state("rootDir"),
-        tsc_program::ConfigOptionValueState::Value(&json!("/a//"))
+        tsc_program::ConfigOptionValueState::Value(&json!("/a//").into())
     );
     assert_eq!(
         edge.options().typed_value_state("declarationDir"),
-        tsc_program::ConfigOptionValueState::Value(&json!("c:"))
+        tsc_program::ConfigOptionValueState::Value(&json!("c:").into())
     );
     assert_eq!(
         edge.options().typed_value_state("mapRoot"),
-        tsc_program::ConfigOptionValueState::Value(&json!("foo_bar://h/a"))
+        tsc_program::ConfigOptionValueState::Value(&json!("foo_bar://h/a").into())
     );
 }
 
@@ -657,9 +707,9 @@ fn config_paths_normalize_the_base_spelling_and_preserve_lexical_nul() {
     let windows = parse_config_root_plan(
         &MemoryConfigHost::default(),
         ConfigRootPlanRequest {
-            file_name: "tsconfig.json".to_owned(),
+            file_name: "tsconfig.json".to_owned().into(),
             text: r#"{"compilerOptions":{"outDir":"out"},"files":["x.ts"]}"#.to_owned(),
-            base_path: r"C:\Project".to_owned(),
+            base_path: r"C:\Project".to_owned().into(),
         },
     )
     .expect("a backslash base path is normalized before config parsing");
@@ -667,7 +717,7 @@ fn config_paths_normalize_the_base_spelling_and_preserve_lexical_nul() {
     assert_eq!(windows.file_names(), ["C:/Project/x.ts"]);
     assert_eq!(
         windows.options().typed_value_state("outDir"),
-        tsc_program::ConfigOptionValueState::Value(&json!("C:/Project/out"))
+        tsc_program::ConfigOptionValueState::Value(&json!("C:/Project/out").into())
     );
 
     let nul = parse_config_root_plan(
@@ -682,7 +732,7 @@ fn config_paths_normalize_the_base_spelling_and_preserve_lexical_nul() {
     assert_eq!(nul.file_names(), ["/project/a\0.ts"]);
     assert_eq!(
         nul.options().typed_value_state("outDir"),
-        tsc_program::ConfigOptionValueState::Value(&json!("/project/a\0b"))
+        tsc_program::ConfigOptionValueState::Value(&json!("/project/a\0b").into())
     );
 }
 
@@ -706,6 +756,8 @@ fn first_misplaced_root_compiler_option_is_reported_after_conversion() {
     );
     assert!(plan.errors()[0]
         .message_text()
+        .as_str()
+        .expect("scalar diagnostic observation")
         .starts_with("'strict' should"));
 
     let suppressed = parse_config_root_plan(
@@ -1003,7 +1055,7 @@ fn undefined_duplicate_include_does_not_block_inheritance() {
     )
     .expect("undefined include allows the inherited spec through");
 
-    assert_eq!(plan.raw()["include"], json!(["base/**/*.ts"]));
+    assert_eq!(plan.raw()["include"], json!(["base/**/*.ts"]).into());
     assert_eq!(plan.errors().last().unwrap().code(), 5024);
 }
 
@@ -1030,7 +1082,10 @@ fn array_extends_uses_later_option_precedence() {
     .expect("array extends root plan");
 
     assert_eq!(plan.file_names(), ["/project/main.ts"]);
-    assert_eq!(plan.options().get("allowJs").unwrap().value, json!(false));
+    assert_eq!(
+        plan.options().get("allowJs").unwrap().value,
+        json!(false).into()
+    );
     assert_eq!(plan.extended_sources().len(), 2);
 }
 
@@ -1247,7 +1302,7 @@ fn duplicate_extends_probe_every_assignment_but_read_only_the_last() {
     assert_eq!(plan.extended_source_files(), ["/project/ok.json"]);
     assert_eq!(
         plan.options().typed_value_state("strict"),
-        tsc_program::ConfigOptionValueState::Value(&json!(true))
+        tsc_program::ConfigOptionValueState::Value(&json!(true).into())
     );
 }
 
@@ -1309,7 +1364,7 @@ fn empty_config_is_the_default_config_object() {
     let plan = parse_config_root_plan(&host, request("/project/tsconfig.json", ""))
         .expect("empty config root plan");
 
-    assert_eq!(plan.raw(), &json!({}));
+    assert_eq!(&scalar_json(&(plan.raw())), &json!({}));
     assert_eq!(plan.file_names(), ["/project/main.ts"]);
 }
 
@@ -1331,6 +1386,8 @@ fn no_input_diagnostic_reports_default_output_exclusions() {
         .last()
         .unwrap()
         .message_text()
+        .as_str()
+        .expect("scalar diagnostic observation")
         .contains("exclude' paths were '[\"/project/dist\",\"/project/types\"]'"));
 }
 
@@ -1357,6 +1414,8 @@ fn no_input_diagnostic_uses_javascript_json_number_rendering() {
         .last()
         .unwrap()
         .message_text()
+        .as_str()
+        .expect("scalar diagnostic observation")
         .contains("include' paths were '[null,0,1,100,{\"1\":\"y\",\"2\":\"x\"}]'"));
 }
 
@@ -1374,11 +1433,17 @@ fn non_object_root_reports_ts5092_and_recovers_the_first_object() {
 
     assert_eq!(plan.errors()[0].code(), 5092);
     assert_eq!(
-        plan.errors()[0].message_text(),
+        plan.errors()[0]
+            .message_text()
+            .as_str()
+            .expect("scalar diagnostic observation"),
         "The root value of a 'tsconfig.json' file must be an object."
     );
     assert_eq!(plan.file_names(), ["/project/a.ts"]);
-    assert_eq!(plan.options().get("strict").unwrap().value, json!(true));
+    assert_eq!(
+        plan.options().get("strict").unwrap().value,
+        json!(true).into()
+    );
 
     let ignored_tail = parse_config_root_plan(
         &MemoryConfigHost::default(),
@@ -1416,10 +1481,13 @@ fn jsonc_conversion_is_exercised_through_the_public_config_planner() {
     .expect("JSONC root plan");
 
     assert_eq!(
-        plan.raw(),
+        &scalar_json(&(plan.raw())),
         &json!({"compilerOptions": {"strict": true}, "include": []})
     );
-    assert_eq!(plan.options().get("strict").unwrap().value, json!(true));
+    assert_eq!(
+        plan.options().get("strict").unwrap().value,
+        json!(true).into()
+    );
 }
 
 #[test]
@@ -1442,7 +1510,7 @@ fn non_json_string_spellings_recover_with_typescripts_conversion_diagnostics() {
     );
     assert_eq!(
         unquoted.options().typed_value_state("strict"),
-        tsc_program::ConfigOptionValueState::Value(&json!(true))
+        tsc_program::ConfigOptionValueState::Value(&json!(true).into())
     );
     assert_eq!(unquoted.file_names(), ["/project/x.ts"]);
 
@@ -1464,7 +1532,7 @@ fn non_json_string_spellings_recover_with_typescripts_conversion_diagnostics() {
     );
     assert_eq!(
         keyword_name.options().typed_value_state("module"),
-        tsc_program::ConfigOptionValueState::Value(&json!(99))
+        tsc_program::ConfigOptionValueState::Value(&json!(99).into())
     );
 
     let single_quoted = parse_config_root_plan(
@@ -1485,7 +1553,7 @@ fn non_json_string_spellings_recover_with_typescripts_conversion_diagnostics() {
     );
     assert_eq!(
         single_quoted.options().typed_value_state("strict"),
-        tsc_program::ConfigOptionValueState::Value(&json!(true))
+        tsc_program::ConfigOptionValueState::Value(&json!(true).into())
     );
     assert_eq!(single_quoted.file_names(), ["/project/x.ts"]);
 
@@ -1577,13 +1645,13 @@ fn published_raw_config_contains_only_own_enumerable_json_properties() {
         ),
     )
     .expect("prototype-bearing config");
-    assert_eq!(plan.raw(), &json!({"own": true}));
+    assert_eq!(&scalar_json(&(plan.raw())), &json!({"own": true}));
     assert!(plan
         .raw()
         .as_object()
         .unwrap()
         .keys()
-        .all(|name| !name.contains('\0')));
+        .all(|name| !name.contains("\0")));
 
     let plan = parse_config_root_plan(
         &host,
@@ -1593,7 +1661,10 @@ fn published_raw_config_contains_only_own_enumerable_json_properties() {
         ),
     )
     .expect("null prototype followed by own property");
-    assert_eq!(plan.raw(), &json!({"__proto__": {"own": true}}));
+    assert_eq!(
+        &scalar_json(&(plan.raw())),
+        &json!({"__proto__": {"own": true}})
+    );
 
     let plan = parse_config_root_plan(
         &host,
@@ -1603,7 +1674,10 @@ fn published_raw_config_contains_only_own_enumerable_json_properties() {
         ),
     )
     .expect("leading-NUL user property");
-    assert_eq!(plan.raw(), &json!({"\0user": true, "include": []}));
+    assert_eq!(
+        &scalar_json(&(plan.raw())),
+        &json!({"\0user": true, "include": []})
+    );
 }
 
 #[test]
@@ -1625,11 +1699,14 @@ fn published_compiler_options_strip_jsonc_prototype_state_recursively() {
     )
     .expect("prototype-bearing compiler options");
 
-    assert_eq!(plan.options().get("strict").unwrap().value, json!(true));
+    assert_eq!(
+        plan.options().get("strict").unwrap().value,
+        json!(true).into()
+    );
     assert!(plan.options().get("inherited").is_none());
     assert_eq!(
         plan.options().get("\0custom").unwrap().value,
-        json!({"own": true})
+        json!({"own": true}).into()
     );
     assert!(plan
         .options()
@@ -1653,7 +1730,7 @@ fn jsonc_prototype_specs_follow_apply_extended_config_without_becoming_public() 
     .expect("prototype files inherited through applyExtendedConfig");
     assert_eq!(plan.file_names(), ["/project/inherited.ts"]);
     assert_eq!(
-        plan.raw(),
+        &scalar_json(&(plan.raw())),
         &json!({"extends": "./base.json", "files": ["inherited.ts"]})
     );
 
@@ -1669,7 +1746,10 @@ fn jsonc_prototype_specs_follow_apply_extended_config_without_becoming_public() 
     )
     .expect("prototype files block inherited files without becoming own raw");
     assert_eq!(plan.file_names(), ["/project/default.ts"]);
-    assert_eq!(plan.raw(), &json!({"extends": "./base.json"}));
+    assert_eq!(
+        &scalar_json(&(plan.raw())),
+        &json!({"extends": "./base.json"})
+    );
 
     let own_undefined_files =
         MemoryConfigHost::default().with_file("/project/base.json", r#"{"files":["base.ts"]}"#);
@@ -1695,7 +1775,7 @@ fn jsonc_prototype_specs_follow_apply_extended_config_without_becoming_public() 
             .collect::<Vec<_>>(),
         [5024]
     );
-    assert_eq!(plan.raw()["files"], json!(["base.ts"]));
+    assert_eq!(plan.raw()["files"], json!(["base.ts"]).into());
     assert_eq!(plan.file_names(), ["/project/base.ts"]);
 
     let own_undefined = MemoryConfigHost::default()
@@ -1723,7 +1803,7 @@ fn jsonc_prototype_specs_follow_apply_extended_config_without_becoming_public() 
             .collect::<Vec<_>>(),
         [5024]
     );
-    assert_eq!(plan.raw()["exclude"], json!(["base"]));
+    assert_eq!(plan.raw()["exclude"], json!(["base"]).into());
     assert_eq!(
         own_undefined.requested_excludes.borrow().as_slice(),
         [Some(vec!["base".to_owned()])]
@@ -1764,7 +1844,10 @@ fn package_extends_uses_manifestless_subpaths_and_tsconfig_fields() {
         request("/project/tsconfig.json", r#"{"extends":"foo/base"}"#),
     )
     .expect("manifestless package subpath");
-    assert_eq!(plan.options().get("strict").unwrap().value, json!(true));
+    assert_eq!(
+        plan.options().get("strict").unwrap().value,
+        json!(true).into()
+    );
     assert_eq!(
         plan.extended_sources()[0].file_name,
         "/project/node_modules/foo/base.json"
@@ -1787,7 +1870,7 @@ fn package_extends_uses_manifestless_subpaths_and_tsconfig_fields() {
     .expect("package tsconfig field");
     assert_eq!(
         plan.options().get("noImplicitAny").unwrap().value,
-        json!(true)
+        json!(true).into()
     );
     assert_eq!(
         plan.extended_sources()[0].file_name,
@@ -1850,7 +1933,10 @@ fn package_extends_normalizes_lexical_parent_components_before_legacy_loading() 
             request("/project/tsconfig.json", r#"{"extends":"foo/../bar"}"#),
         )
         .expect("normalized legacy package path");
-        assert_eq!(plan.options().get("strict").unwrap().value, json!(true));
+        assert_eq!(
+            plan.options().get("strict").unwrap().value,
+            json!(true).into()
+        );
         assert_eq!(
             plan.extended_sources()[0].file_name,
             "/project/node_modules/bar.json"
@@ -1887,7 +1973,10 @@ fn exact_parent_extends_uses_the_json_config_relative_loader() {
     )
     .expect("exact parent config extends");
 
-    assert_eq!(plan.options().get("strict").unwrap().value, json!(true));
+    assert_eq!(
+        plan.options().get("strict").unwrap().value,
+        json!(true).into()
+    );
     assert_eq!(
         plan.extended_sources()[0].file_name,
         "/project/tsconfig.json"
@@ -1921,7 +2010,10 @@ fn config_dir_templates_use_the_root_config_directory() {
     )
     .expect("configDir root plan");
 
-    assert_eq!(plan.discovery_options().out_dir(), Some("/project/dist"));
+    assert_eq!(
+        plan.discovery_options().out_dir(),
+        (Some("/project/dist")).map(Into::into)
+    );
     assert_eq!(
         host.requested_includes.borrow()[0],
         Some(vec!["/project/src/**/*.ts".to_owned()])
@@ -1956,14 +2048,17 @@ fn inherited_paths_keep_their_defining_base_while_templates_use_the_root_base() 
     )
     .expect("inherited paths plan");
 
-    assert_eq!(plan.options().stored_paths_base_path(), Some("/base"));
+    assert_eq!(
+        plan.options().stored_paths_base_path(),
+        (Some("/base")).map(Into::into)
+    );
     assert_eq!(
         plan.options().typed_value_state("pathsBasePath"),
-        ConfigOptionValueState::Value(&json!("/base"))
+        ConfigOptionValueState::Value(&json!("/base").into())
     );
     assert_eq!(
         plan.options().typed_value_state("rootDir"),
-        ConfigOptionValueState::Value(&json!("/project/src"))
+        ConfigOptionValueState::Value(&json!("/project/src").into())
     );
     let ConfigOptionValueState::Object(paths) = plan.options().typed_value_state("paths") else {
         panic!("paths is a converted object value")
@@ -1974,6 +2069,7 @@ fn inherited_paths_keep_their_defining_base_while_templates_use_the_root_base() 
             "@plain/*": ["relative/*"],
             "@generated/*": ["/project/generated/*"],
         })
+        .into()
     );
 
     let raw_paths = plan.options().get("paths").expect("effective raw paths");
@@ -1984,6 +2080,7 @@ fn inherited_paths_keep_their_defining_base_while_templates_use_the_root_base() 
             "@plain/*": ["relative/*"],
             "@generated/*": ["${configDir}/generated/*"],
         })
+        .into()
     );
 }
 
@@ -2034,14 +2131,14 @@ fn paths_own_property_view_keeps_javascript_order_and_undefined_values() {
         properties[5]
             .value()
             .map(tsc_program::ConfigTypedJsonValue::json_projection),
-        Some(json!(["ok"]))
+        Some(json!(["ok"]).into())
     );
     assert_eq!(properties[6].value(), None);
     assert_eq!(
         properties[7]
             .value()
             .map(tsc_program::ConfigTypedJsonValue::json_projection),
-        Some(json!(true))
+        Some(json!(true).into())
     );
     assert_eq!(
         plan.options()
@@ -2057,6 +2154,7 @@ fn paths_own_property_view_keeps_javascript_order_and_undefined_values() {
             "z": ["ok"],
             "a": true,
         })
+        .into()
     );
 }
 
@@ -2100,7 +2198,7 @@ fn nested_paths_objects_keep_undefined_identity_for_compiler_option_cache_keys()
         ordered.properties()[0]
             .value()
             .map(tsc_program::ConfigTypedJsonValue::json_projection),
-        Some(json!(true))
+        Some(json!(true).into())
     );
     assert_eq!(ordered.properties()[1].value(), None);
     assert_eq!(ordered.properties()[2].value(), None);
@@ -2142,7 +2240,7 @@ fn paths_json_projection_uses_javascript_number_stringification() {
         .expect("typed paths object");
     assert_eq!(
         paths.json_projection(),
-        json!({"array": [1, 0, null], "positive": null, "negative": null})
+        json!({"array": [1, 0, null], "positive": null, "negative": null}).into()
     );
     assert_eq!(
         paths.compiler_option_cache_identity(),
@@ -2187,7 +2285,7 @@ fn changed_paths_clone_routes_proto_through_the_fresh_object_setter() {
             .typed_object_value("paths")
             .expect("typed paths object")
             .json_projection(),
-        json!({"x": []})
+        json!({"x": []}).into()
     );
 }
 
@@ -2208,8 +2306,11 @@ fn inherited_specs_are_rebased_into_raw_with_root_path_casing() {
     .expect("case-insensitive inherited root plan");
 
     assert_eq!(plan.file_names(), ["C:/Project/sub/Foo.ts"]);
-    assert_eq!(plan.raw()["files"], json!(["sub/Foo.ts"]));
-    assert_eq!(plan.raw()["include"], json!(["sub/generated/**/*.ts"]));
+    assert_eq!(plan.raw()["files"], json!(["sub/Foo.ts"]).into());
+    assert_eq!(
+        plan.raw()["include"],
+        json!(["sub/generated/**/*.ts"]).into()
+    );
 
     let drive_host =
         MemoryConfigHost::default().with_file("c:/B/base.json", r#"{"files":["x.ts"]}"#);
@@ -2218,7 +2319,7 @@ fn inherited_specs_are_rebased_into_raw_with_root_path_casing() {
         request("C:/A/tsconfig.json", r#"{"extends":"c:/B/base.json"}"#),
     )
     .expect("drive roots compare without case on a case-sensitive host");
-    assert_eq!(drive.raw()["files"], json!(["../B/x.ts"]));
+    assert_eq!(drive.raw()["files"], json!(["../B/x.ts"]).into());
     assert_eq!(drive.file_names(), ["C:/B/x.ts"]);
 
     let unc_host =
@@ -2231,7 +2332,7 @@ fn inherited_specs_are_rebased_into_raw_with_root_path_casing() {
         ),
     )
     .expect("different UNC server roots preserve the extended absolute path");
-    assert_eq!(unc.raw()["files"], json!(["//two/B/x.ts"]));
+    assert_eq!(unc.raw()["files"], json!(["//two/B/x.ts"]).into());
     assert_eq!(unc.file_names(), ["//two/B/x.ts"]);
 
     let unicode_root_host =
@@ -2241,7 +2342,7 @@ fn inherited_specs_are_rebased_into_raw_with_root_path_casing() {
         request("//ss/A/tsconfig.json", r#"{"extends":"//ß/B/base.json"}"#),
     )
     .expect("config roots use TypeScript's uppercase case-insensitive comparison");
-    assert_eq!(unicode_root.raw()["files"], json!(["../B/x.ts"]));
+    assert_eq!(unicode_root.raw()["files"], json!(["../B/x.ts"]).into());
     assert_eq!(unicode_root.file_names(), ["//ss/B/x.ts"]);
 }
 
@@ -2260,7 +2361,10 @@ fn inherited_url_specs_preserve_the_extended_directory_in_raw() {
     .expect("a file-URL config inherits file specs without disk-path relativization");
 
     assert!(plan.errors().is_empty());
-    assert_eq!(plan.raw()["files"], json!(["file:///root/sub/src.ts"]));
+    assert_eq!(
+        plan.raw()["files"],
+        json!(["file:///root/sub/src.ts"]).into()
+    );
     assert_eq!(plan.file_names(), ["file:///root/sub/src.ts"]);
 }
 
@@ -2276,7 +2380,7 @@ fn exact_drive_root_extends_is_resolved_as_a_disk_path() {
     assert!(plan.errors().is_empty());
     assert_eq!(host.requested_file_exists.borrow().as_slice(), ["c:"]);
     assert_eq!(host.requested_reads.borrow().as_slice(), ["c:"]);
-    assert_eq!(plan.raw()["files"], json!(["c:/x.ts"]));
+    assert_eq!(plan.raw()["files"], json!(["c:/x.ts"]).into());
     assert_eq!(plan.file_names(), ["c:/x.ts"]);
 }
 
@@ -2295,7 +2399,7 @@ fn inherited_invalid_specs_follow_typescripts_raw_array_like_recovery() {
             .collect::<Vec<_>>(),
         [5024]
     );
-    assert_eq!(plan.raw()["files"], json!([]));
+    assert_eq!(plan.raw()["files"], json!([]).into());
     assert!(plan.file_names().is_empty());
     assert!(scalar.requested_includes.borrow().is_empty());
 
@@ -2313,7 +2417,10 @@ fn inherited_invalid_specs_follow_typescripts_raw_array_like_recovery() {
             .collect::<Vec<_>>(),
         [5024]
     );
-    assert_eq!(plan.raw()["files"], json!(["f", "o", "o", ".", "t", "s"]));
+    assert_eq!(
+        plan.raw()["files"],
+        json!(["f", "o", "o", ".", "t", "s"]).into()
+    );
     assert_eq!(
         plan.file_names(),
         [
@@ -2333,7 +2440,7 @@ fn inherited_invalid_specs_follow_typescripts_raw_array_like_recovery() {
     )
     .expect("a falsey raw array element maps through combinePaths as an empty path");
     assert!(plan.errors().is_empty());
-    assert_eq!(plan.raw()["files"], json!([""]));
+    assert_eq!(plan.raw()["files"], json!([""]).into());
     assert_eq!(plan.file_names(), ["/project"]);
     assert!(null_element.requested_includes.borrow().is_empty());
 }
@@ -2357,7 +2464,10 @@ fn empty_path_specs_keep_each_typescript_host_boundary_distinct() {
         ),
     )
     .expect("empty output directory");
-    assert_eq!(plan.discovery_options().out_dir(), Some("/project"));
+    assert_eq!(
+        plan.discovery_options().out_dir(),
+        (Some("/project")).map(Into::into)
+    );
     assert_eq!(
         output.requested_excludes.borrow()[0],
         Some(vec!["/project".to_owned()])
@@ -2410,12 +2520,9 @@ fn root_plan_exposes_effective_file_include_and_exclude_specs() {
     )
     .expect("root spec projection");
 
-    assert_eq!(plan.files(), Some(["src/main.ts".to_owned()].as_slice()));
-    assert_eq!(plan.include(), Some(["src/**/*.ts".to_owned()].as_slice()));
-    assert_eq!(
-        plan.exclude(),
-        Some(["src/generated".to_owned()].as_slice())
-    );
+    assert_eq!(plan.files(), Some(["src/main.ts".into()].as_slice()));
+    assert_eq!(plan.include(), Some(["src/**/*.ts".into()].as_slice()));
+    assert_eq!(plan.exclude(), Some(["src/generated".into()].as_slice()));
 }
 
 #[test]
@@ -2436,13 +2543,13 @@ fn root_plan_converts_watch_inheritance_and_keeps_acquisition_defaults() {
     .expect("root metadata projection");
 
     assert!(plan.references().is_none());
-    assert_eq!(plan.watch_options(), Some(&json!({"watchFile": 4})));
+    assert_eq!(plan.watch_options(), Some(&json!({"watchFile": 4}).into()));
     assert_eq!(
         plan.type_acquisition(),
-        Some(&json!({"enable": false, "include": [], "exclude": []}))
+        Some(&json!({"enable": false, "include": [], "exclude": []}).into())
     );
-    assert_eq!(plan.compile_on_save(), Some(&json!(true)));
-    assert_eq!(plan.raw()["compileOnSave"], json!(true));
+    assert_eq!(plan.compile_on_save(), Some(&json!(true).into()));
+    assert_eq!(plan.raw()["compileOnSave"], json!(true).into());
 }
 
 #[test]
@@ -2460,14 +2567,14 @@ fn falsey_root_settings_preserve_watch_inheritance_and_raw_values() {
     )
     .expect("falsey own root settings remain observable");
 
-    assert_eq!(plan.watch_options(), Some(&json!({"watchFile": 4})));
-    assert_eq!(plan.raw()["watchOptions"], json!(false));
+    assert_eq!(plan.watch_options(), Some(&json!({"watchFile": 4}).into()));
+    assert_eq!(plan.raw()["watchOptions"], json!(false).into());
     assert_eq!(
         plan.type_acquisition(),
-        Some(&json!({"enable": false, "include": [], "exclude": []}))
+        Some(&json!({"enable": false, "include": [], "exclude": []}).into())
     );
-    assert_eq!(plan.raw()["typeAcquisition"], json!(null));
-    assert_eq!(plan.compile_on_save(), Some(&json!(false)));
+    assert_eq!(plan.raw()["typeAcquisition"], json!(null).into());
+    assert_eq!(plan.compile_on_save(), Some(&json!(false).into()));
     assert_eq!(
         plan.unsupported_root_scopes().collect::<Vec<_>>(),
         ["watchOptions"]
@@ -2497,7 +2604,7 @@ fn case_only_extended_source_spellings_remain_observable_without_a_cache() {
     assert_eq!(
         plan.extended_sources()
             .iter()
-            .map(|source| source.file_name.as_str())
+            .map(|source| source.file_name.as_str().expect("scalar source name"))
             .collect::<Vec<_>>(),
         ["/project/BASE.json", "/project/base.json"]
     );
@@ -2542,7 +2649,10 @@ fn package_exports_use_source_condition_order_and_block_legacy_fallback() {
         request("/project/tsconfig.json", r#"{"extends":"foo"}"#),
     )
     .expect("ordered package condition");
-    assert_eq!(plan.options().get("strict").unwrap().value, json!(true));
+    assert_eq!(
+        plan.options().get("strict").unwrap().value,
+        json!(true).into()
+    );
     assert_eq!(
         plan.extended_sources()[0].file_name,
         "/project/node_modules/foo/default.json"
@@ -2578,7 +2688,10 @@ fn package_imports_resolve_config_targets() {
     )
     .expect("package imports config target");
 
-    assert_eq!(plan.options().get("strict").unwrap().value, json!(true));
+    assert_eq!(
+        plan.options().get("strict").unwrap().value,
+        json!(true).into()
+    );
     assert_eq!(
         plan.extended_sources()[0].file_name,
         "/project/configs/base.json"
@@ -2593,7 +2706,10 @@ fn package_imports_resolve_config_targets() {
         request("/project/tsconfig.json", r##"{"extends":"#missing"}"##),
     )
     .expect("an inapplicable imports lookup falls through to node_modules");
-    assert_eq!(plan.options().get("allowJs").unwrap().value, json!(true));
+    assert_eq!(
+        plan.options().get("allowJs").unwrap().value,
+        json!(true).into()
+    );
 
     let missing_target = MemoryConfigHost::default()
         .with_file(
@@ -2609,7 +2725,10 @@ fn package_imports_resolve_config_targets() {
         request("/project/tsconfig.json", r##"{"extends":"#base"}"##),
     )
     .expect("a missing imports target falls through to node_modules");
-    assert_eq!(plan.options().get("allowJs").unwrap().value, json!(true));
+    assert_eq!(
+        plan.options().get("allowJs").unwrap().value,
+        json!(true).into()
+    );
     assert_eq!(
         missing_target
             .requested_file_exists
@@ -2675,7 +2794,10 @@ fn package_imports_resolve_config_targets() {
         request("/project/tsconfig.json", r##"{"extends":"#base"}"##),
     )
     .expect("bare imports re-entry may use JSON exports");
-    assert_eq!(plan.options().get("strict").unwrap().value, json!(true));
+    assert_eq!(
+        plan.options().get("strict").unwrap().value,
+        json!(true).into()
+    );
 
     let lexical_bare = MemoryConfigHost::default()
         .with_file(
@@ -2691,7 +2813,10 @@ fn package_imports_resolve_config_targets() {
         request("/project/tsconfig.json", r##"{"extends":"#base"}"##),
     )
     .expect("bare imports targets normalize before their JSON module load");
-    assert_eq!(plan.options().get("strict").unwrap().value, json!(true));
+    assert_eq!(
+        plan.options().get("strict").unwrap().value,
+        json!(true).into()
+    );
 
     for target in ["./configs/base", "cfg/base"] {
         let package = format!(r##"{{"imports":{{"#base":"{target}"}}}}"##);
@@ -2713,3 +2838,7 @@ fn package_imports_resolve_config_targets() {
         assert_eq!(plan.errors()[0].code(), 6053);
     }
 }
+
+#[path = "../support/scalar_json.rs"]
+mod utf16_scalar_json;
+use utf16_scalar_json::observe as scalar_json;

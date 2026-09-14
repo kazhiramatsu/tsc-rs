@@ -6,8 +6,10 @@
 //! a programmatic `createProgram` caller can report the same violation without
 //! fabricating a source location.
 
-use tsc_diagnostics::{gen, sort_and_dedupe_diagnostics, Diagnostic, MessageChain};
-use tsc_syntax::{is_entity_name_text, is_identifier_text_for_target};
+use tsc_diagnostics::{
+    gen, sort_and_dedupe_diagnostics, Diagnostic, JsStr, JsString, MessageChain,
+};
+use tsc_syntax::{is_entity_name_js_text, is_identifier_text_for_target};
 use tsc_types::CompilerOptions;
 
 use crate::prepared::{
@@ -57,17 +59,17 @@ pub enum CompilerOptionViolation {
         jsx: &'static str,
     },
     InvalidJsxFactory {
-        value: String,
+        value: JsString,
     },
     InvalidReactNamespace {
-        value: String,
+        value: JsString,
     },
     JsxFragmentFactoryRequiresJsxFactory,
     JsxFragmentFactoryConflictsWithAutomaticRuntime {
         jsx: &'static str,
     },
     InvalidJsxFragmentFactory {
-        value: String,
+        value: JsString,
     },
     ReactNamespaceConflictsWithAutomaticRuntime {
         jsx: &'static str,
@@ -288,11 +290,11 @@ impl CompilerOptionViolation {
                 &gen::Option_0_cannot_be_specified_when_option_jsx_is_1,
                 &["jsxFactory".to_owned(), (*jsx).to_owned()],
             ),
-            Self::InvalidJsxFactory { value } => MessageChain::new(
+            Self::InvalidJsxFactory { value } => MessageChain::new_js(
                 &gen::Invalid_value_for_jsxFactory_0_is_not_a_valid_identifier_or_qualified_name,
                 std::slice::from_ref(value),
             ),
-            Self::InvalidReactNamespace { value } => MessageChain::new(
+            Self::InvalidReactNamespace { value } => MessageChain::new_js(
                 &gen::Invalid_value_for_reactNamespace_0_is_not_a_valid_identifier,
                 std::slice::from_ref(value),
             ),
@@ -307,7 +309,7 @@ impl CompilerOptionViolation {
                 &gen::Option_0_cannot_be_specified_when_option_jsx_is_1,
                 &["jsxFragmentFactory".to_owned(), (*jsx).to_owned()],
             ),
-            Self::InvalidJsxFragmentFactory { value } => MessageChain::new(
+            Self::InvalidJsxFragmentFactory { value } => MessageChain::new_js(
                 &gen::Invalid_value_for_jsxFragmentFactory_0_is_not_a_valid_identifier_or_qualified_name,
                 std::slice::from_ref(value),
             ),
@@ -387,7 +389,7 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
     if (isolated || verbatim)
         && options
             .out_file
-            .as_deref()
+            .as_ref()
             .is_some_and(|path| !path.is_empty())
     {
         violations.push(CompilerOptionViolation::OutFileConflictsWithIsolation { verbatim });
@@ -406,11 +408,11 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
     let inline_sources = options.inline_sources == Some(true);
     let source_root = options
         .source_root
-        .as_deref()
+        .as_ref()
         .is_some_and(|value| !value.is_empty());
     let map_root = options
         .map_root
-        .as_deref()
+        .as_ref()
         .is_some_and(|value| !value.is_empty());
 
     // Keep this in the same order as verifyCompilerOptions. The final
@@ -446,7 +448,7 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
     // verifyCompilerOptions (:124866-124872) reports these independently.
     if options
         .declaration_dir
-        .as_deref()
+        .as_ref()
         .is_some_and(|directory| !directory.is_empty())
     {
         if options.declaration != Some(true) && options.composite != Some(true) {
@@ -454,7 +456,7 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
         }
         if options
             .out_file
-            .as_deref()
+            .as_ref()
             .is_some_and(|path| !path.is_empty())
         {
             violations.push(CompilerOptionViolation::DeclarationDirectoryConflictsWithOutFile);
@@ -483,7 +485,7 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
     // belongs to the source-dependent TS6131 branch, not this relation.
     if options
         .out_file
-        .as_deref()
+        .as_ref()
         .is_some_and(|path| !path.is_empty())
         && options.emit_declaration_only != Some(true)
         && options
@@ -519,19 +521,19 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
     let target = options.emit_script_target();
     let jsx_factory = options
         .jsx_factory
-        .as_deref()
+        .as_ref()
         .filter(|value| !value.is_empty());
     let jsx_fragment_factory = options
         .jsx_fragment_factory
-        .as_deref()
+        .as_ref()
         .filter(|value| !value.is_empty());
     let react_namespace = options
         .react_namespace
-        .as_deref()
+        .as_ref()
         .filter(|value| !value.is_empty());
     let jsx_import_source = options
         .jsx_import_source
-        .as_deref()
+        .as_ref()
         .filter(|value| !value.is_empty());
 
     if let Some(factory) = jsx_factory {
@@ -542,13 +544,16 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
             violations
                 .push(CompilerOptionViolation::JsxFactoryConflictsWithAutomaticRuntime { jsx });
         }
-        if !is_entity_name_text(factory, target) {
+        if !is_entity_name_js_text(factory.as_js(), target) {
             violations.push(CompilerOptionViolation::InvalidJsxFactory {
                 value: factory.to_owned(),
             });
         }
     } else if let Some(namespace) = react_namespace {
-        if !is_identifier_text_for_target(namespace, target) {
+        if !namespace
+            .as_str()
+            .is_some_and(|text| is_identifier_text_for_target(text, target))
+        {
             violations.push(CompilerOptionViolation::InvalidReactNamespace {
                 value: namespace.to_owned(),
             });
@@ -564,7 +569,7 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
                 CompilerOptionViolation::JsxFragmentFactoryConflictsWithAutomaticRuntime { jsx },
             );
         }
-        if !is_entity_name_text(fragment_factory, target) {
+        if !is_entity_name_js_text(fragment_factory.as_js(), target) {
             violations.push(CompilerOptionViolation::InvalidJsxFragmentFactory {
                 value: fragment_factory.to_owned(),
             });
@@ -646,22 +651,24 @@ pub fn validate_paths_option_diagnostics(
     let mut diagnostics = Vec::new();
     for violation in plan.violations() {
         let message = match violation.kind() {
-            PathsOptionViolationKind::PatternHasMultipleAsterisks { pattern } => MessageChain::new(
-                &gen::Pattern_0_can_have_at_most_one_character,
-                std::slice::from_ref(pattern),
-            ),
-            PathsOptionViolationKind::SubstitutionsNotArray { pattern } => MessageChain::new(
+            PathsOptionViolationKind::PatternHasMultipleAsterisks { pattern } => {
+                MessageChain::new_js(
+                    &gen::Pattern_0_can_have_at_most_one_character,
+                    std::slice::from_ref(pattern),
+                )
+            }
+            PathsOptionViolationKind::SubstitutionsNotArray { pattern } => MessageChain::new_js(
                 &gen::Substitutions_for_pattern_0_should_be_an_array,
                 std::slice::from_ref(pattern),
             ),
-            PathsOptionViolationKind::EmptySubstitutions { pattern } => MessageChain::new(
+            PathsOptionViolationKind::EmptySubstitutions { pattern } => MessageChain::new_js(
                 &gen::Substitutions_for_pattern_0_shouldn_t_be_an_empty_array,
                 std::slice::from_ref(pattern),
             ),
             PathsOptionViolationKind::SubstitutionHasMultipleAsterisks {
                 pattern,
                 substitution,
-            } => MessageChain::new(
+            } => MessageChain::new_js(
                 &gen::Substitution_0_in_pattern_1_can_have_at_most_one_character,
                 &[substitution.clone(), pattern.clone()],
             ),
@@ -669,26 +676,30 @@ pub fn validate_paths_option_diagnostics(
                 pattern,
                 substitution,
                 actual_type,
-            } => MessageChain::new(
+            } => MessageChain::new_js(
                 &gen::Substitution_0_for_pattern_1_has_incorrect_type_expected_string_got_2,
-                &[substitution.clone(), pattern.clone(), actual_type.clone()],
+                &[
+                    substitution.clone(),
+                    pattern.clone(),
+                    actual_type.clone().into(),
+                ],
             ),
             PathsOptionViolationKind::NonRelativeSubstitutionWithoutBaseUrl => {
                 if options
                     .base_url
-                    .as_deref()
+                    .as_ref()
                     .is_some_and(|base_url| !base_url.is_empty())
                 {
                     continue;
                 }
-                MessageChain::new(
+                MessageChain::new_js(
                     &gen::Non_relative_paths_are_not_allowed_when_baseUrl_is_not_set_Did_you_forget_a_leading,
                     &[],
                 )
             }
         };
         diagnostics.push(match violation.location() {
-            Some(location) => Diagnostic::new(
+            Some(location) => Diagnostic::new_js(
                 Some(location.file_name().to_owned()),
                 Some(location.span().start()),
                 Some(location.span().length()),
@@ -698,7 +709,7 @@ pub fn validate_paths_option_diagnostics(
                 program_options
                     .config_file()
                     .filter(|config| config.diagnostic_file_name() == location.file_name())
-                    .map_or("", |config| config.diagnostic_file_path()),
+                    .map_or(JsStr::from_str(""), |config| config.diagnostic_file_path()),
             ),
             None => Diagnostic::new(None, None, None, message),
         });
@@ -753,15 +764,24 @@ pub(crate) fn paths_validation_plan_for_typed_mappings(
 /// tsc-port: hasZeroOrOneAsteriskCharacter @6.0.3
 /// tsc-hash: 28a64969081ad59009ed6f3fcb192a4ccef94471b01213a5de12c284cdd6eb45
 /// tsc-span: _tsc.js:18318-18330
-pub(crate) fn has_zero_or_one_asterisk(value: &str) -> bool {
-    value.bytes().filter(|byte| *byte == b'*').take(2).count() <= 1
+pub(crate) fn has_zero_or_one_asterisk<'a>(value: impl Into<JsStr<'a>>) -> bool {
+    // ASCII star bytes cannot occur inside a WTF-8 encoding of another unit.
+    value
+        .into()
+        .as_bytes()
+        .iter()
+        .filter(|byte| **byte == b'*')
+        .take(2)
+        .count()
+        <= 1
 }
 
 /// tsc-port: pathIsRelative @6.0.3
 /// tsc-hash: f202555c891d7a914e21c5fe1199667a8d221940ce66c814b4898adfb228aac9
 /// tsc-span: _tsc.js:5314-5316
-pub(crate) fn path_is_relative(path: &str) -> bool {
-    matches!(path, "." | "..")
+pub(crate) fn path_is_relative<'a>(path: impl Into<JsStr<'a>>) -> bool {
+    let path = path.into();
+    (path == "." || path == "..")
         || path.starts_with("./")
         || path.starts_with(".\\")
         || path.starts_with("../")
@@ -774,7 +794,8 @@ pub(crate) fn path_is_relative(path: &str) -> bool {
 /// tsc-port: getEncodedRootLength @6.0.3 (absolute/nonzero projection)
 /// tsc-hash: ad42b701dd98c53ad89476947bccf551e3ab3db9ce0c9fc5009e16a41b49b1f9
 /// tsc-span: _tsc.js:5349-5386
-pub(crate) fn path_is_absolute(path: &str) -> bool {
+pub(crate) fn path_is_absolute<'a>(path: impl Into<JsStr<'a>>) -> bool {
+    let path = path.into();
     let bytes = path.as_bytes();
     if matches!(bytes.first(), Some(b'/' | b'\\')) {
         return true;

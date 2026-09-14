@@ -1,0 +1,397 @@
+{
+  "version": 1,
+  "scope": "new.<name> meta-property names through parseIdentifierName: keyword names, missing names with TS1003 for string/template tokens (lone surrogate values included); syntax API evidence only",
+  "typescript": "6.0.3",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "53fc065eb7bf17c5690734ba32031a8952389f7d92d9b8e57b44c452bd36b502",
+  "repetitions": 2,
+  "cases": [
+    {
+      "case_id": "lone-surrogate-string-name",
+      "file_name": "a.ts",
+      "source": "const a = new.\"\\uD800\";",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": 1003,
+            "start": 14,
+            "length": 8,
+            "message_utf16": [
+              73,
+              100,
+              101,
+              110,
+              116,
+              105,
+              102,
+              105,
+              101,
+              114,
+              32,
+              101,
+              120,
+              112,
+              101,
+              99,
+              116,
+              101,
+              100,
+              46
+            ]
+          }
+        ],
+        "meta_properties": [
+          {
+            "pos": 9,
+            "end": 14,
+            "name_pos": 14,
+            "name_end": 14,
+            "name_utf16": [],
+            "name_missing": true
+          }
+        ],
+        "new_expressions": 0
+      }
+    },
+    {
+      "case_id": "lone-surrogate-template-name",
+      "file_name": "a.ts",
+      "source": "const a = new.`\\uD800`;",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": 1003,
+            "start": 14,
+            "length": 8,
+            "message_utf16": [
+              73,
+              100,
+              101,
+              110,
+              116,
+              105,
+              102,
+              105,
+              101,
+              114,
+              32,
+              101,
+              120,
+              112,
+              101,
+              99,
+              116,
+              101,
+              100,
+              46
+            ]
+          }
+        ],
+        "meta_properties": [
+          {
+            "pos": 9,
+            "end": 14,
+            "name_pos": 14,
+            "name_end": 14,
+            "name_utf16": [],
+            "name_missing": true
+          }
+        ],
+        "new_expressions": 0
+      }
+    },
+    {
+      "case_id": "surrogate-pair-string-name",
+      "file_name": "a.ts",
+      "source": "const a = new.\"😀\";",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": 1003,
+            "start": 14,
+            "length": 4,
+            "message_utf16": [
+              73,
+              100,
+              101,
+              110,
+              116,
+              105,
+              102,
+              105,
+              101,
+              114,
+              32,
+              101,
+              120,
+              112,
+              101,
+              99,
+              116,
+              101,
+              100,
+              46
+            ]
+          }
+        ],
+        "meta_properties": [
+          {
+            "pos": 9,
+            "end": 14,
+            "name_pos": 14,
+            "name_end": 14,
+            "name_utf16": [],
+            "name_missing": true
+          }
+        ],
+        "new_expressions": 0
+      }
+    },
+    {
+      "case_id": "scalar-string-name",
+      "file_name": "a.ts",
+      "source": "const a = new.\"x\";",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": 1003,
+            "start": 14,
+            "length": 3,
+            "message_utf16": [
+              73,
+              100,
+              101,
+              110,
+              116,
+              105,
+              102,
+              105,
+              101,
+              114,
+              32,
+              101,
+              120,
+              112,
+              101,
+              99,
+              116,
+              101,
+              100,
+              46
+            ]
+          }
+        ],
+        "meta_properties": [
+          {
+            "pos": 9,
+            "end": 14,
+            "name_pos": 14,
+            "name_end": 14,
+            "name_utf16": [],
+            "name_missing": true
+          }
+        ],
+        "new_expressions": 0
+      }
+    },
+    {
+      "case_id": "keyword-name",
+      "file_name": "a.ts",
+      "source": "const a = new.if;",
+      "expected": {
+        "diagnostics": [],
+        "meta_properties": [
+          {
+            "pos": 9,
+            "end": 16,
+            "name_pos": 14,
+            "name_end": 16,
+            "name_utf16": [
+              105,
+              102
+            ],
+            "name_missing": false
+          }
+        ],
+        "new_expressions": 0
+      }
+    },
+    {
+      "case_id": "target-in-function",
+      "file_name": "a.ts",
+      "source": "function f() { return new.target; }",
+      "expected": {
+        "diagnostics": [],
+        "meta_properties": [
+          {
+            "pos": 21,
+            "end": 32,
+            "name_pos": 26,
+            "name_end": 32,
+            "name_utf16": [
+              116,
+              97,
+              114,
+              103,
+              101,
+              116
+            ],
+            "name_missing": false
+          }
+        ],
+        "new_expressions": 0
+      }
+    },
+    {
+      "case_id": "numeric-after-new-is-not-a-meta-property",
+      "file_name": "a.ts",
+      "source": "const a = new.1;",
+      "expected": {
+        "diagnostics": [],
+        "meta_properties": [],
+        "new_expressions": 1
+      }
+    },
+    {
+      "case_id": "lone-surrogate-string-name-js",
+      "file_name": "a.js",
+      "source": "const a = new.\"\\uD800\";",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": 1003,
+            "start": 14,
+            "length": 8,
+            "message_utf16": [
+              73,
+              100,
+              101,
+              110,
+              116,
+              105,
+              102,
+              105,
+              101,
+              114,
+              32,
+              101,
+              120,
+              112,
+              101,
+              99,
+              116,
+              101,
+              100,
+              46
+            ]
+          }
+        ],
+        "meta_properties": [
+          {
+            "pos": 9,
+            "end": 14,
+            "name_pos": 14,
+            "name_end": 14,
+            "name_utf16": [],
+            "name_missing": true
+          }
+        ],
+        "new_expressions": 0
+      }
+    },
+    {
+      "case_id": "lone-surrogate-string-name-tsx",
+      "file_name": "a.tsx",
+      "source": "const a = new.\"\\uD800\";",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": 1003,
+            "start": 14,
+            "length": 8,
+            "message_utf16": [
+              73,
+              100,
+              101,
+              110,
+              116,
+              105,
+              102,
+              105,
+              101,
+              114,
+              32,
+              101,
+              120,
+              112,
+              101,
+              99,
+              116,
+              101,
+              100,
+              46
+            ]
+          }
+        ],
+        "meta_properties": [
+          {
+            "pos": 9,
+            "end": 14,
+            "name_pos": 14,
+            "name_end": 14,
+            "name_utf16": [],
+            "name_missing": true
+          }
+        ],
+        "new_expressions": 0
+      }
+    },
+    {
+      "case_id": "eof-after-dot",
+      "file_name": "a.ts",
+      "source": "const a = new.",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": 1003,
+            "start": 14,
+            "length": 0,
+            "message_utf16": [
+              73,
+              100,
+              101,
+              110,
+              116,
+              105,
+              102,
+              105,
+              101,
+              114,
+              32,
+              101,
+              120,
+              112,
+              101,
+              99,
+              116,
+              101,
+              100,
+              46
+            ]
+          }
+        ],
+        "meta_properties": [
+          {
+            "pos": 9,
+            "end": 14,
+            "name_pos": 14,
+            "name_end": 14,
+            "name_utf16": [],
+            "name_missing": true
+          }
+        ],
+        "new_expressions": 0
+      }
+    }
+  ]
+}

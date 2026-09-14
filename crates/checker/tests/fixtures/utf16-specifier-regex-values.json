@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "scope": "supported specifier exclusion RegExp subset: UTF-16 versus Unicode mode, literal pairs and JS whitespace/dot rules; not a full RegExp implementation claim",
+  "typescript": "6.0.3",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "af16e621003f711f87469f9bb5aea174a02b95ebe1c530bc357a156036b25566",
+  "repetitions": 2,
+  "cases": [
+    {
+      "id": "lone-high-dot",
+      "pattern": "/^.$/",
+      "value": [
+        55296
+      ],
+      "matched": true
+    },
+    {
+      "id": "lone-low-dot-u",
+      "pattern": "/^.$/u",
+      "value": [
+        56320
+      ],
+      "matched": true
+    },
+    {
+      "id": "pair-one-unit",
+      "pattern": "/^.$/",
+      "value": [
+        55296,
+        56320
+      ],
+      "matched": false
+    },
+    {
+      "id": "pair-two-units",
+      "pattern": "/^..$/",
+      "value": [
+        55296,
+        56320
+      ],
+      "matched": true
+    },
+    {
+      "id": "pair-one-point",
+      "pattern": "/^.$/u",
+      "value": [
+        55296,
+        56320
+      ],
+      "matched": true
+    },
+    {
+      "id": "pair-two-points",
+      "pattern": "/^..$/u",
+      "value": [
+        55296,
+        56320
+      ],
+      "matched": false
+    },
+    {
+      "id": "literal-pair-units",
+      "pattern": "/^𐀀+$/",
+      "value": [
+        55296,
+        56320,
+        56320
+      ],
+      "matched": true
+    },
+    {
+      "id": "literal-pair-points",
+      "pattern": "/^𐀀+$/u",
+      "value": [
+        55296,
+        56320,
+        56320
+      ],
+      "matched": false
+    },
+    {
+      "id": "line-separator-dot",
+      "pattern": "/^.$/",
+      "value": [
+        8232
+      ],
+      "matched": false
+    },
+    {
+      "id": "paragraph-separator-dot-u",
+      "pattern": "/^.$/u",
+      "value": [
+        8233
+      ],
+      "matched": false
+    },
+    {
+      "id": "bom-whitespace",
+      "pattern": "/^\\s$/",
+      "value": [
+        65279
+      ],
+      "matched": true
+    },
+    {
+      "id": "nel-not-whitespace",
+      "pattern": "/^\\s$/",
+      "value": [
+        133
+      ],
+      "matched": false
+    }
+  ]
+}

@@ -23,7 +23,7 @@ fn flatten(chain: &MessageChain, indent: usize, text: &mut String) {
         text.push('\n');
         text.push_str(&"  ".repeat(indent));
     }
-    text.push_str(&chain.text);
+    text.push_str(chain.text.as_str().expect("scalar diagnostic observation"));
     for child in &chain.next {
         flatten(child, indent + 1, text);
     }
@@ -46,7 +46,7 @@ fn diagnostics(values: &[Diagnostic]) -> Value {
                         json!({
                             "code": related.message.code,
                             "category": format!("{:?}", related.message.category),
-                            "file": related.file_name,
+                            "file": scalar_json(&related.file_name),
                             "start": related.start,
                             "length": related.length,
                             "message": message,
@@ -58,7 +58,7 @@ fn diagnostics(values: &[Diagnostic]) -> Value {
             json!({
                 "code": diagnostic.code(),
                 "category": format!("{:?}", diagnostic.category()),
-                "file": diagnostic.file_name,
+                "file": scalar_json(&diagnostic.file_name),
                 "start": diagnostic.start,
                 "length": diagnostic.length,
                 "message": message,
@@ -90,11 +90,11 @@ fn options(case: &Value) -> CompilerOptions {
             "allowJs" => options.allow_js = value.as_bool().unwrap(),
             "checkJs" => options.check_js = value.as_bool(),
             "resolveJsonModule" => options.resolve_json_module = value.as_bool(),
-            "sourceRoot" => options.source_root = value.as_str().map(str::to_owned),
-            "declarationDir" => options.declaration_dir = value.as_str().map(str::to_owned),
+            "sourceRoot" => options.source_root = value.as_str().map(Into::into),
+            "declarationDir" => options.declaration_dir = value.as_str().map(Into::into),
             "emitBOM" => options.emit_bom = value.as_bool(),
             "noResolve" => options.no_resolve = value.as_bool(),
-            "outDir" => options.out_dir = value.as_str().map(str::to_owned),
+            "outDir" => options.out_dir = value.as_str().map(Into::into),
             "noEmitForJsFiles" => options.no_emit_for_js_files = value.as_bool(),
             other => panic!("unprojected API option {other}"),
         }
@@ -170,12 +170,12 @@ fn write_record(artifact: &EmitArtifact, index: usize) -> Value {
         tsc_emitter::EmitArtifactKind::JavaScript => "javascript",
         _ => panic!("build info remains outside declaration API"),
     };
-    json!({"index":index,"path":artifact.path(),"kind":kind,
+    json!({"index":index,"path":scalar_json(&artifact.path()),"kind":kind,
         "callback_utf8_base64":base64::engine::general_purpose::STANDARD.encode(artifact.callback_bytes()),
         "callback_utf8_bytes":artifact.callback_bytes().len(),"write_byte_order_mark":artifact.write_byte_order_mark(),
         "materialized_utf8_base64":base64::engine::general_purpose::STANDARD.encode(artifact.materialized_bytes()),
         "materialized_utf8_bytes":artifact.materialized_bytes().len(),"on_error_callback_present":true,
-        "source_files":artifact.source_files(),"data_before":data(artifact),"data_after":data(artifact),
+        "source_files":scalar_json(&artifact.source_files()),"data_before":data(artifact),"data_after":data(artifact),
         "sink_action":"write","sink_materialized":false,"on_error_messages":[]})
 }
 struct ControlledSystem<'a> {
@@ -183,7 +183,13 @@ struct ControlledSystem<'a> {
     attempts: Vec<Value>,
 }
 impl EmitFileSystem for ControlledSystem<'_> {
-    fn write_file(&mut self, path: &Path, bytes: &[u8]) -> Result<(), String> {
+    fn write_file(
+        &mut self,
+        path: tsc_diagnostics::JsStr<'_>,
+        bytes: &[u8],
+    ) -> Result<(), tsc_diagnostics::JsString> {
+        let path = std::path::Path::new(path.as_str().expect("scalar fault-injection path"));
+        (|| -> Result<(), String> {
         self.attempts.push(json!({"path":path,"callback_utf8_base64":base64::engine::general_purpose::STANDARD.encode(bytes),"write_byte_order_mark":false}));
         if self
             .rules
@@ -196,11 +202,15 @@ impl EmitFileSystem for ControlledSystem<'_> {
         } else {
             Ok(())
         }
+            })().map_err(Into::into)
     }
-    fn create_directory(&mut self, _: &Path) -> Result<(), String> {
+    fn create_directory(
+        &mut self,
+        _: tsc_diagnostics::JsStr<'_>,
+    ) -> Result<(), tsc_diagnostics::JsString> {
         Ok(())
     }
-    fn directory_exists(&mut self, _: &Path) -> bool {
+    fn directory_exists(&mut self, _: tsc_diagnostics::JsStr<'_>) -> bool {
         true
     }
 }
@@ -261,7 +271,7 @@ impl OutputSink for Sink<'_> {
         };
         match &result {
             Ok(EmitWriteDisposition::Written) => record["sink_materialized"] = json!(true),
-            Err(error) => record["on_error_messages"] = json!([error.message()]),
+            Err(error) => record["on_error_messages"] = json!([scalar_json(&error.message())]),
             _ => {}
         }
         result
@@ -269,8 +279,8 @@ impl OutputSink for Sink<'_> {
 }
 fn emit_result(outcome: &EmitOutcome) -> Value {
     json!({"emit_skipped":outcome.emit_skipped(),"diagnostics":diagnostics(outcome.diagnostics()),
-        "emitted_files":outcome.emitted_files(),"source_maps":outcome.source_maps().map(|maps|maps.iter().map(|map|json!({
-            "input_source_file_names":map.input_source_files(),"source_map_json":map.canonical_json()
+        "emitted_files":scalar_json(&outcome.emitted_files()),"source_maps":outcome.source_maps().map(|maps|maps.iter().map(|map|json!({
+            "input_source_file_names":scalar_json(&map.input_source_files()),"source_map_json":map.canonical_json()
         })).collect::<Vec<_>>())})
 }
 
@@ -346,7 +356,7 @@ fn assert_stateful_program_cases(fixture: &Value) -> BTreeMap<String, usize> {
                 let mut source_order = Vec::new();
                 let mut libraries = Vec::new();
                 for source in program.source_files() {
-                    let name = source.path().display().to_string_lossy();
+                    let name = source.path().display().scalar_test_path().to_string_lossy();
                     if let Some(name) = name.strip_prefix("/lib/") {
                         libraries.push(name.to_owned());
                     } else {
@@ -366,7 +376,12 @@ fn assert_stateful_program_cases(fixture: &Value) -> BTreeMap<String, usize> {
                     .iter()
                     .map(|source| {
                         (
-                            source.path().display().to_string_lossy().into_owned(),
+                            source
+                                .path()
+                                .display()
+                                .scalar_test_path()
+                                .to_string_lossy()
+                                .into_owned(),
                             program.source_id(source.path().canonical()).unwrap(),
                         )
                     })
@@ -431,7 +446,7 @@ fn assert_stateful_program_cases(fixture: &Value) -> BTreeMap<String, usize> {
                                             let outcome = session.emit_with_reported_diagnostics(&mut sink)?;
                                             fields["emit_result"] = emit_result(outcome.emit());
                                             fields["reported_diagnostics"] = diagnostics(outcome.diagnostics());
-                                            fields["status_writes"] = json!(outcome.status_writes());
+                                            fields["status_writes"] = json!(scalar_json(&outcome.status_writes()));
                                             fields["exit_code"] = json!(outcome.exit_code());
                                         }
                                         _ => panic!("ordinary targeted APIs remain H2.8d"),
@@ -548,3 +563,11 @@ fn assert_stateful_program_cases(fixture: &Value) -> BTreeMap<String, usize> {
     );
     counts
 }
+
+#[path = "../../program/tests/support/scalar_json.rs"]
+mod utf16_scalar_json;
+use utf16_scalar_json::observe as scalar_json;
+
+#[path = "../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

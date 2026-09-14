@@ -667,7 +667,11 @@ impl TypeTables {
     /// tsc-port: getStringLiteralType @6.0.3
     /// tsc-hash: e7516536a59ae1f2232f916cde9c1fd2fe6c1ab99c9469c9ce15761178d84a0d
     /// tsc-span: _tsc.js:63083-63086
-    pub fn get_string_literal_type(&mut self, value: &str) -> TypeId {
+    pub fn get_string_literal_type<'a>(&mut self, value: impl Into<crate::JsStr<'a>>) -> TypeId {
+        let value = value.into();
+        let Some(value) = value.as_str() else {
+            return self.get_string_literal_type_from_text(&TemplateText::from_js(value));
+        };
         if let Some(&id) = self.utf8_string_literal_types.get(value) {
             return id;
         }
@@ -795,7 +799,7 @@ impl TypeTables {
     pub fn create_unique_es_symbol_type(
         &mut self,
         symbol: SymbolId,
-        escaped_name: String,
+        escaped_name: crate::EscapedName,
     ) -> TypeId {
         let id = self.create_type(
             TypeFlags::UNIQUE_ES_SYMBOL,

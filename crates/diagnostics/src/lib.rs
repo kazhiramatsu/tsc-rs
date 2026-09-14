@@ -10,7 +10,7 @@ pub mod text;
 
 use std::cmp::Ordering;
 
-pub use js_string::{CodeUnits, JsStr, JsString};
+pub use js_string::{CodeUnits, JsStr, JsString, JsStringByteLength};
 
 pub use line_map::{
     compute_line_map, compute_line_starts, get_line_and_character_of_position, LineMap,
@@ -63,12 +63,51 @@ pub fn by_code(code: u32) -> Option<&'static DiagnosticMessage> {
         .map(|index| gen::ALL_BY_CODE[index].1)
 }
 
+/// A scalar-only formatting API: its template and arguments are Rust UTF-8.
 pub fn format_message(template: &str, args: &[String]) -> String {
+    format_message_value(template, args)
+        .as_str()
+        .expect("UTF-8 template and arguments produce Unicode scalars")
+        .to_owned()
+}
+
+/// A diagnostic argument retains its JavaScript value until the output sink.
+pub trait DiagnosticArgument {
+    fn diagnostic_value(&self) -> JsStr<'_>;
+}
+
+impl DiagnosticArgument for str {
+    fn diagnostic_value(&self) -> JsStr<'_> {
+        JsStr::from_str(self)
+    }
+}
+impl DiagnosticArgument for String {
+    fn diagnostic_value(&self) -> JsStr<'_> {
+        JsStr::from_str(self)
+    }
+}
+impl DiagnosticArgument for JsString {
+    fn diagnostic_value(&self) -> JsStr<'_> {
+        self.as_js()
+    }
+}
+impl DiagnosticArgument for JsStr<'_> {
+    fn diagnostic_value(&self) -> JsStr<'_> {
+        *self
+    }
+}
+impl<T: DiagnosticArgument + ?Sized> DiagnosticArgument for &T {
+    fn diagnostic_value(&self) -> JsStr<'_> {
+        (*self).diagnostic_value()
+    }
+}
+
+fn format_message_value<A: DiagnosticArgument>(template: &str, args: &[A]) -> JsString {
     if args.is_empty() {
-        return template.to_owned();
+        return template.into();
     }
 
-    let mut output = String::with_capacity(template.len());
+    let mut output = JsString::with_capacity(template.len());
     let mut chars = template.char_indices().peekable();
     while let Some((start, ch)) = chars.next() {
         if ch != '{' {
@@ -91,9 +130,10 @@ pub fn format_message(template: &str, args: &[String]) -> String {
         if !number.is_empty() && chars.peek().is_some_and(|(_, next_ch)| *next_ch == '}') {
             chars.next();
             let index: usize = number.parse().expect("ASCII digits parse as usize");
-            output.push_str(
+            output.push_js(
                 args.get(index)
-                    .expect("diagnostic format argument is defined"),
+                    .expect("diagnostic format argument is defined")
+                    .diagnostic_value(),
             );
         } else {
             output.push_str(&template[start..end]);
@@ -107,7 +147,7 @@ pub fn format_message(template: &str, args: &[String]) -> String {
 pub struct MessageChain {
     pub code: u32,
     pub category: DiagnosticCategory,
-    pub text: String,
+    pub text: JsString,
     /// Whether tsc's `next` property exists. `undefined` and an empty
     /// array sort differently and are both observable in raw outcomes.
     pub next_present: bool,
@@ -119,7 +159,29 @@ impl MessageChain {
         Self {
             code: message.code,
             category: message.category,
-            text: format_message(message.text, args),
+            text: format_message_value(message.text, args),
+            next_present: false,
+            next: Vec::new(),
+        }
+    }
+
+    pub fn new_js(message: &'static DiagnosticMessage, args: &[JsString]) -> Self {
+        Self {
+            code: message.code,
+            category: message.category,
+            text: format_message_value(message.text, args),
+            next_present: false,
+            next: Vec::new(),
+        }
+    }
+
+    /// Canonical borrowed arguments, including mixtures of scalar text and
+    /// JavaScript names. Formatting copies directly into the message owner.
+    pub fn new_js_parts(message: &'static DiagnosticMessage, args: &[JsStr<'_>]) -> Self {
+        Self {
+            code: message.code,
+            category: message.category,
+            text: format_message_value(message.text, args),
             next_present: false,
             next: Vec::new(),
         }
@@ -134,7 +196,7 @@ impl MessageChain {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RelatedInfo {
-    pub file_name: Option<String>,
+    pub file_name: Option<JsString>,
     pub start: Option<u32>,
     pub length: Option<u32>,
     pub message: MessageChain,
@@ -148,16 +210,16 @@ pub struct RelatedInfo {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CanonicalHead {
     pub code: u32,
-    pub text: String,
+    pub text: JsString,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Diagnostic {
-    pub file_name: Option<String>,
+    pub file_name: Option<JsString>,
     /// SourceFile.path when it differs from the displayed file name.
     /// Parsed config sources have an empty path until owned by a Program.
     /// getDiagnosticFilePath compares this identity, not fileName.
-    pub file_path: Option<String>,
+    pub file_path: Option<JsString>,
     pub start: Option<u32>,
     pub length: Option<u32>,
     pub message: MessageChain,
@@ -187,6 +249,17 @@ impl Diagnostic {
         length: Option<u32>,
         message: MessageChain,
     ) -> Self {
+        Self::new_js(file_name.map(JsString::from), start, length, message)
+    }
+
+    /// Retain a JavaScript file name independently from its eventual host or
+    /// output encoding. No native-path projection participates in identity.
+    pub fn new_js(
+        file_name: Option<JsString>,
+        start: Option<u32>,
+        length: Option<u32>,
+        message: MessageChain,
+    ) -> Self {
         let metadata = by_code(message.code);
         Self {
             file_name,
@@ -208,7 +281,7 @@ impl Diagnostic {
         }
     }
 
-    pub fn with_file_path(mut self, path: impl Into<String>) -> Self {
+    pub fn with_file_path(mut self, path: impl Into<JsString>) -> Self {
         self.file_path = Some(path.into());
         self
     }
@@ -236,7 +309,7 @@ impl Diagnostic {
         self.message.category
     }
 
-    pub fn message_text(&self) -> &str {
+    pub fn message_text(&self) -> &JsString {
         &self.message.text
     }
 
@@ -248,10 +321,10 @@ impl Diagnostic {
     }
 
     /// tsc getDiagnosticMessage (17951-17954): canonicalHead text wins.
-    fn comparison_text(&self) -> &str {
+    fn comparison_text(&self) -> &JsString {
         self.canonical_head
             .as_ref()
-            .map_or_else(|| self.message_text(), |head| head.text.as_str())
+            .map_or_else(|| self.message_text(), |head| &head.text)
     }
 }
 
@@ -275,8 +348,15 @@ pub fn sort_and_dedupe_diagnostics(diagnostics: &mut DiagnosticList) {
 
 fn compare_diagnostics_skip_related(left: &Diagnostic, right: &Diagnostic) -> Ordering {
     compare_optional_strings_case_sensitive(
-        left.file_path.as_deref().or(left.file_name.as_deref()),
-        right.file_path.as_deref().or(right.file_name.as_deref()),
+        left.file_path
+            .as_ref()
+            .or(left.file_name.as_ref())
+            .map(JsString::as_js),
+        right
+            .file_path
+            .as_ref()
+            .or(right.file_name.as_ref())
+            .map(JsString::as_js),
     )
     .then_with(|| left.start.cmp(&right.start))
     .then_with(|| left.length.cmp(&right.length))
@@ -288,11 +368,17 @@ fn compare_diagnostics_skip_related(left: &Diagnostic, right: &Diagnostic) -> Or
 /// code units. Rust's `str::cmp` instead compares UTF-8 bytes, which differs
 /// when an astral character is compared with a BMP character above its high
 /// surrogate.
-fn compare_strings_case_sensitive(left: &str, right: &str) -> Ordering {
-    left.encode_utf16().cmp(right.encode_utf16())
+fn compare_strings_case_sensitive<'a, 'b>(
+    left: impl Into<JsStr<'a>>,
+    right: impl Into<JsStr<'b>>,
+) -> Ordering {
+    left.into().cmp_utf16(right.into())
 }
 
-fn compare_optional_strings_case_sensitive(left: Option<&str>, right: Option<&str>) -> Ordering {
+fn compare_optional_strings_case_sensitive(
+    left: Option<JsStr<'_>>,
+    right: Option<JsStr<'_>>,
+) -> Ordering {
     match (left, right) {
         (None, None) => Ordering::Equal,
         (None, Some(_)) => Ordering::Less,
@@ -305,7 +391,8 @@ fn compare_optional_strings_case_sensitive(left: Option<&str>, right: Option<&st
 /// canonical head, chains from the RAW message, then the
 /// canonical-bearing-sorts-first tiebreaker.
 fn compare_diagnostic_message_text(left: &Diagnostic, right: &Diagnostic) -> Ordering {
-    compare_strings_case_sensitive(left.comparison_text(), right.comparison_text())
+    left.comparison_text()
+        .cmp_utf16(right.comparison_text().as_js())
         .then_with(|| {
             compare_message_chain(
                 left.message.next_present,
@@ -347,15 +434,18 @@ fn compare_related_information(
 }
 
 fn compare_related_info(left: &RelatedInfo, right: &RelatedInfo) -> Ordering {
-    compare_optional_strings_case_sensitive(left.file_name.as_deref(), right.file_name.as_deref())
-        .then_with(|| left.start.cmp(&right.start))
-        .then_with(|| left.length.cmp(&right.length))
-        .then_with(|| left.message.code.cmp(&right.message.code))
-        .then_with(|| compare_message_text(&left.message, &right.message))
+    compare_optional_strings_case_sensitive(
+        left.file_name.as_ref().map(JsString::as_js),
+        right.file_name.as_ref().map(JsString::as_js),
+    )
+    .then_with(|| left.start.cmp(&right.start))
+    .then_with(|| left.length.cmp(&right.length))
+    .then_with(|| left.message.code.cmp(&right.message.code))
+    .then_with(|| compare_message_text(&left.message, &right.message))
 }
 
 fn compare_message_text(left: &MessageChain, right: &MessageChain) -> Ordering {
-    compare_strings_case_sensitive(&left.text, &right.text).then_with(|| {
+    left.text.cmp_utf16(right.text.as_js()).then_with(|| {
         compare_message_chain(
             left.next_present,
             &left.next,
@@ -415,7 +505,8 @@ fn compare_message_chain_content(left: &[MessageChain], right: &[MessageChain]) 
     left.iter()
         .zip(right.iter())
         .map(|(left, right)| {
-            compare_strings_case_sensitive(&left.text, &right.text)
+            left.text
+                .cmp_utf16(right.text.as_js())
                 .then_with(|| compare_message_chain_content(&left.next, &right.next))
         })
         .find(|ordering| *ordering != Ordering::Equal)

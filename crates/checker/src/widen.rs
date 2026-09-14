@@ -185,7 +185,7 @@ impl<'a> CheckerState<'a> {
     fn create_widening_context(
         &mut self,
         parent: Option<WideningContextId>,
-        property_name: Option<String>,
+        property_name: Option<tsc_types::EscapedName>,
         siblings: Option<Vec<TypeId>>,
     ) -> WideningContextId {
         self.widening_contexts.push(WideningContext {
@@ -255,7 +255,7 @@ impl<'a> CheckerState<'a> {
             return Ok(resolved.clone());
         }
         let mut names: Vec<SymbolId> = Vec::new();
-        let mut index_of: std::collections::HashMap<String, usize> =
+        let mut index_of: std::collections::HashMap<tsc_types::EscapedName, usize> =
             std::collections::HashMap::new();
         for t in self.get_siblings_of_context(context)? {
             if !self.is_object_literal_type(t)
@@ -557,10 +557,10 @@ impl<'a> CheckerState<'a> {
                         let widened = self.get_widened_type(t)?;
                         let type_string = self.type_to_string_slice(widened)?;
                         let symbol_string = self.symbol_display_name(p);
-                        self.error_at(
+                        self.error_at_js(
                             Some(value_declaration),
                             &diagnostics::Object_literal_s_property_0_implicitly_has_an_1_type,
-                            &[&symbol_string, &type_string],
+                            &[(&symbol_string).into(), (&type_string).into()],
                         );
                         error_reported = true;
                     }
@@ -683,10 +683,10 @@ impl<'a> CheckerState<'a> {
                 &diagnostics::Binding_element_0_implicitly_has_an_1_type
             }
             SyntaxKind::JSDocFunctionType => {
-                self.error_at(
+                self.error_at_js(
                     Some(declaration),
                     &diagnostics::Function_type_which_lacks_return_type_annotation_implicitly_has_an_0_return_type,
-                    &[&type_as_string],
+                    &[(&type_as_string).into()],
                 );
                 return Ok(());
             }
@@ -694,10 +694,10 @@ impl<'a> CheckerState<'a> {
                 if no_implicit_any {
                     if let Some(parent) = self.parent_of(declaration) {
                         if let NodeData::JSDocOverloadTag(data) = self.data_of(parent) {
-                            self.error_at(
+                            self.error_at_js(
                                 data.tag_name,
                                 &diagnostics::This_overload_implicitly_returns_the_type_0_because_it_lacks_a_return_type_annotation,
-                                &[&type_as_string],
+                                &[(&type_as_string).into()],
                             );
                         }
                     }
@@ -722,7 +722,7 @@ impl<'a> CheckerState<'a> {
                     } else {
                         &diagnostics::Function_expression_which_lacks_return_type_annotation_implicitly_has_an_0_return_type
                     };
-                    self.error_at(Some(declaration), message, &[&type_as_string]);
+                    self.error_at_js(Some(declaration), message, &[(&type_as_string).into()]);
                     return Ok(());
                 }
                 if !no_implicit_any {
@@ -756,10 +756,10 @@ impl<'a> CheckerState<'a> {
         // names are zero-width nodes whose surrounding trivia must
         // never become a user-facing parameter/function name.
         let name_string = node_util::declaration_name_to_string(source, name);
-        self.error_at(
+        self.error_at_js(
             Some(declaration),
             diagnostic,
-            &[&name_string, &type_as_string],
+            &[(&name_string).into(), (&type_as_string).into()],
         );
         Ok(())
     }

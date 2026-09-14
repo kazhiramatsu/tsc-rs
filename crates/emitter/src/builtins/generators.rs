@@ -17,11 +17,12 @@
 
 use std::collections::BTreeMap;
 
+use tsc_diagnostics::JsStr;
 use tsc_program::SourceFileId;
 use tsc_syntax::{
     try_visit_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind,
 };
-use tsc_types::ScriptTarget;
+use tsc_types::{EscapedName, ScriptTarget};
 
 use crate::{
     factory::EmitHelperName, resolver::EmitResolver, CommentRange, EmitFlags, EmitHint,
@@ -5007,26 +5008,29 @@ impl GeneratorsVisitor<'_, '_> {
     /// tsc-port: getPropertyNameForPropertyNameNode @6.0.3
     /// tsc-hash: 5770eff9fe2f071f83fce9a7aaff9c54fa6f09141154c33c0f7f3e5dc86ee117
     /// tsc-span: _tsc.js:15861-15887
-    fn property_name_text(&self, member: TransformNode) -> Result<Option<String>, TransformError> {
+    fn property_name_text(
+        &self,
+        member: TransformNode,
+    ) -> Result<Option<EscapedName>, TransformError> {
         let Some(name) = self.property_name_of(member)? else {
             return Ok(None);
         };
         Ok(match &self.context.arena().node(self.node(name))?.data {
-            NodeData::Identifier(data) => Some(data.escaped_text.clone()),
-            NodeData::StringLiteral(data) => Some(escape_leading_underscores_owned(&data.text)),
-            NodeData::NumericLiteral(data) => Some(escape_leading_underscores_owned(&data.text)),
-            NodeData::BigIntLiteral(data) => Some(escape_leading_underscores_owned(&data.text)),
+            NodeData::Identifier(data) => Some(EscapedName::from_identifier_escaped_text(
+                &data.escaped_text,
+            )),
+            NodeData::StringLiteral(data) => Some(EscapedName::escape((&data.text).into())),
+            NodeData::NumericLiteral(data) => Some(EscapedName::escape((&data.text).into())),
+            NodeData::BigIntLiteral(data) => Some(EscapedName::escape((&data.text).into())),
             NodeData::ComputedPropertyName(data) => {
                 let Some(expression) = data.expression else {
                     return Ok(None);
                 };
                 let expression = self.node(expression);
                 match &self.context.arena().node(expression)?.data {
-                    NodeData::StringLiteral(data) => {
-                        Some(escape_leading_underscores_owned(&data.text))
-                    }
+                    NodeData::StringLiteral(data) => Some(EscapedName::escape((&data.text).into())),
                     NodeData::NumericLiteral(data) => {
-                        Some(escape_leading_underscores_owned(&data.text))
+                        Some(EscapedName::escape((&data.text).into()))
                     }
                     _ => None,
                 }
@@ -5187,7 +5191,11 @@ impl GeneratorsVisitor<'_, '_> {
         )
     }
 
-    fn create_string_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
+    fn create_string_literal<'a>(
+        &mut self,
+        text: impl Into<JsStr<'a>>,
+    ) -> Result<TransformNode, TransformError> {
+        let text = text.into();
         let source = self.source;
         self.context.factory()?.create_node(
             source,
@@ -6232,10 +6240,6 @@ const fn is_logical_operator(kind: SyntaxKind) -> bool {
             | SyntaxKind::AmpersandAmpersandToken
             | SyntaxKind::ExclamationToken
     )
-}
-
-fn escape_leading_underscores_owned(text: &str) -> String {
-    tsc_syntax::escape_leading_underscores(text)
 }
 
 fn tsc_syntax_array(source: TransformSourceId, array: NodeArrayId) -> TransformNodeArray {

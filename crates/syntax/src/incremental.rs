@@ -6,7 +6,8 @@ use crate::{CommentDirective, NodeData, ParseOptions, SourceFile, SyntaxKind};
 use std::collections::{hash_map::Entry, HashMap};
 use std::sync::Arc;
 use tsc_diagnostics::{
-    sort_and_dedupe_diagnostics, ByteTextChangeRange, ByteTextSpan, Diagnostic, TextSnapshot,
+    sort_and_dedupe_diagnostics, ByteTextChangeRange, ByteTextSpan, Diagnostic, JsString,
+    TextSnapshot,
 };
 use tsc_types::{IdentityDomain, IdentityError, NodeFlags};
 
@@ -206,6 +207,7 @@ fn syntax_graphs_equal(left: &SourceFile, right: &SourceFile) -> bool {
             if left_node.kind != right_node.kind
                 || left_node.flags != right_node.flags
                 || left_node.numeric_literal_flags != right_node.numeric_literal_flags
+                || left_node.template_flags != right_node.template_flags
                 || left_node.multi_line != right_node.multi_line
                 || left_node.pos != right_node.pos
                 || left_node.end != right_node.end
@@ -308,6 +310,7 @@ pub fn source_files_structurally_equal(left: &SourceFile, right: &SourceFile) ->
         && left.js_doc_parsing_mode == right.js_doc_parsing_mode
         && syntax_graphs_equal(left, right)
         && left.parse_diagnostics == right.parse_diagnostics
+        && left.parse_recovery == right.parse_recovery
         && left.js_doc_diagnostics == right.js_doc_diagnostics
         && left.referenced_files == right.referenced_files
         && left.type_reference_directives == right.type_reference_directives
@@ -636,7 +639,7 @@ fn previous_scalar_start(text: &str, position: u32) -> u32 {
 }
 
 pub fn create_language_service_source_file(
-    file_name: impl Into<String>,
+    file_name: impl Into<JsString>,
     snapshot: Arc<TextSnapshot>,
     options: ParseOptions,
 ) -> Arc<SourceFile> {
@@ -649,7 +652,7 @@ pub fn create_language_service_source_file(
 }
 
 pub fn create_language_service_source_file_in_identity_domain(
-    file_name: impl Into<String>,
+    file_name: impl Into<JsString>,
     snapshot: Arc<TextSnapshot>,
     options: ParseOptions,
     domain: &IdentityDomain,
@@ -919,7 +922,7 @@ fn merge_jsdoc_diagnostics(
             *delta,
         )?;
         for related in &mut reused.related {
-            if related.file_name.as_deref() == Some(old_source.file_name.as_str()) {
+            if related.file_name.as_ref() == Some(&old_source.file_name) {
                 relocate_diagnostic_location(
                     &mut related.start,
                     &mut related.length,

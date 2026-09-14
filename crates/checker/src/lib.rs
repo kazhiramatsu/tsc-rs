@@ -1,5 +1,86 @@
 #![forbid(unsafe_code)]
 
+/// Join JavaScript values without converting through a scalar display string.
+pub(crate) fn join_js_strings<'a>(
+    parts: impl IntoIterator<Item = tsc_types::JsStr<'a>>,
+    separator: &str,
+) -> tsc_types::JsString {
+    let mut result = tsc_types::JsString::new();
+    for (index, part) in parts.into_iter().enumerate() {
+        if index != 0 {
+            result.push_str(separator);
+        }
+        result.push_js(part);
+    }
+    result
+}
+
+/// Explicit interpolation for diagnostic/source text. Arbitrary JS values
+/// append their code units; only numeric counters use scalar formatting.
+pub(crate) trait JsTextPart {
+    fn append_to(&self, result: &mut tsc_types::JsString);
+}
+
+impl<T: JsTextPart + ?Sized> JsTextPart for &T {
+    fn append_to(&self, result: &mut tsc_types::JsString) {
+        (*self).append_to(result);
+    }
+}
+impl JsTextPart for str {
+    fn append_to(&self, result: &mut tsc_types::JsString) {
+        result.push_str(self);
+    }
+}
+impl JsTextPart for String {
+    fn append_to(&self, result: &mut tsc_types::JsString) {
+        result.push_str(self);
+    }
+}
+impl JsTextPart for tsc_types::JsString {
+    fn append_to(&self, result: &mut tsc_types::JsString) {
+        result.push_js(self.as_js());
+    }
+}
+impl JsTextPart for tsc_types::JsStr<'_> {
+    fn append_to(&self, result: &mut tsc_types::JsString) {
+        result.push_js(*self);
+    }
+}
+impl JsTextPart for char {
+    fn append_to(&self, result: &mut tsc_types::JsString) {
+        result.push(*self);
+    }
+}
+macro_rules! numeric_text_part {
+    ($($number:ty),* $(,)?) => { $(
+        impl JsTextPart for $number {
+            fn append_to(&self, result: &mut tsc_types::JsString) {
+                result.push_str(&self.to_string());
+            }
+        }
+    )* };
+}
+numeric_text_part!(usize, u32, i32, u64, i64, f64);
+
+pub(crate) fn concat_js(parts: &[&dyn JsTextPart]) -> tsc_types::JsString {
+    let mut result = tsc_types::JsString::new();
+    for part in parts {
+        part.append_to(&mut result);
+    }
+    result
+}
+
+pub(crate) fn join_js_texts<T: JsTextPart>(parts: &[T], separator: &str) -> tsc_types::JsString {
+    let mut result = tsc_types::JsString::new();
+    for (index, part) in parts.iter().enumerate() {
+        if index != 0 {
+            result.push_str(separator);
+        }
+        part.append_to(&mut result);
+    }
+    result
+}
+
 pub mod access;
 pub mod annotate;
 pub mod calls;
@@ -59,7 +140,7 @@ use tsc_binder::BindData;
 use tsc_diagnostics::{
     Diagnostic, DiagnosticCategory, DiagnosticList, DocumentVersion, TextSnapshot,
 };
-use tsc_types::IdentityDomain;
+use tsc_types::{IdentityDomain, JsStr, JsString};
 
 use crate::emit::CheckerSession;
 
@@ -74,7 +155,7 @@ pub use tsc_types::CompilerOptions;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InputFile {
-    pub name: String,
+    pub name: tsc_types::JsString,
     snapshot: Arc<TextSnapshot>,
     host_only: bool,
 }
@@ -82,7 +163,7 @@ pub struct InputFile {
 impl InputFile {
     /// tsrs-native: construct a one-shot L0 snapshot at the checker
     /// compatibility edge.
-    pub fn new(name: impl Into<String>, text: impl Into<String>) -> Self {
+    pub fn new(name: impl Into<tsc_types::JsString>, text: impl Into<String>) -> Self {
         Self {
             name: name.into(),
             snapshot: TextSnapshot::new(text.into(), DocumentVersion::default()),
@@ -92,7 +173,10 @@ impl InputFile {
 
     /// tsrs-native: retain the exact producer-owned L0 snapshot Arc at the
     /// checker compatibility edge.
-    pub fn from_snapshot(name: impl Into<String>, snapshot: Arc<TextSnapshot>) -> Self {
+    pub fn from_snapshot(
+        name: impl Into<tsc_types::JsString>,
+        snapshot: Arc<TextSnapshot>,
+    ) -> Self {
         Self {
             name: name.into(),
             snapshot,
@@ -104,7 +188,10 @@ impl InputFile {
     /// checker Program. Prepared package manifests use this path so package
     /// metadata remains available to module-specifier generation without
     /// shadowing an imported JSON SourceFile at the same path.
-    pub fn host_only_from_snapshot(name: impl Into<String>, snapshot: Arc<TextSnapshot>) -> Self {
+    pub fn host_only_from_snapshot(
+        name: impl Into<tsc_types::JsString>,
+        snapshot: Arc<TextSnapshot>,
+    ) -> Self {
         Self {
             name: name.into(),
             snapshot,
@@ -146,7 +233,7 @@ pub enum AuthoritativeResolutionMode {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AuthoritativeSourceMetadata {
     pub token: AuthoritativeSourceToken,
-    pub file_name: String,
+    pub file_name: JsString,
     /// Exact source-side `sourceFileMayBeEmitted` verdict. This must remain
     /// separate from per-resolution external-library provenance.
     pub may_be_emitted: bool,
@@ -166,18 +253,18 @@ pub struct AuthoritativeSourceMetadata {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct AuthoritativeModuleRequest<'a> {
     pub source_token: AuthoritativeSourceToken,
-    pub containing_file: &'a str,
-    pub specifier: &'a str,
+    pub containing_file: JsStr<'a>,
+    pub specifier: JsStr<'a>,
     pub mode: AuthoritativeResolutionMode,
 }
 
 /// Package identity attached by the authoritative resolver.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AuthoritativePackageId {
-    pub name: String,
-    pub submodule_name: String,
-    pub version: String,
-    pub peer_dependencies: Option<String>,
+    pub name: JsString,
+    pub submodule_name: JsString,
+    pub version: JsString,
+    pub peer_dependencies: Option<JsString>,
 }
 
 /// A loaded source selected by the authoritative host table.
@@ -186,7 +273,7 @@ pub struct AuthoritativeResolvedModule {
     pub target_token: AuthoritativeSourceToken,
     /// The exact resolver-selected identity. This can differ from the target
     /// source's file name when createProgram redirects an equal package ID.
-    pub resolved_file_name: String,
+    pub resolved_file_name: JsString,
     /// Exact `resolvedUsingTsExtension` host fact. Package-map providers must
     /// derive this from the selected raw target before pattern substitution;
     /// the final resolved file extension alone is insufficient for TS2877.
@@ -200,7 +287,7 @@ pub struct AuthoritativeResolvedModule {
     pub package_id: Option<AuthoritativePackageId>,
     /// Per-resolution facts observed by `createModuleNotFoundChain` when an
     /// admitted external JavaScript source has no declarations.
-    pub alternate_result: Option<String>,
+    pub alternate_result: Option<JsString>,
     pub types_package_exists: bool,
     pub package_bundles_types: bool,
 }
@@ -209,9 +296,9 @@ pub struct AuthoritativeResolvedModule {
 /// loaded into the source program, together with the exact TS7016 facts.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AuthoritativeUntypedModule {
-    pub resolved_file_name: String,
-    pub package_name: Option<String>,
-    pub alternate_result: Option<String>,
+    pub resolved_file_name: JsString,
+    pub package_name: Option<JsString>,
+    pub alternate_result: Option<JsString>,
     pub types_package_exists: bool,
     pub package_bundles_types: bool,
 }
@@ -227,7 +314,7 @@ pub enum AuthoritativeModuleResolutionDiagnostic {
 /// represented as either a loaded module or an untyped implementation.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AuthoritativeResolutionDiagnosticModule {
-    pub resolved_file_name: String,
+    pub resolved_file_name: JsString,
     pub diagnostic: AuthoritativeModuleResolutionDiagnostic,
 }
 
@@ -235,7 +322,7 @@ pub struct AuthoritativeResolutionDiagnosticModule {
 /// observable in the module-not-found diagnostic chain.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct AuthoritativeNotFoundModule {
-    pub alternate_result: Option<String>,
+    pub alternate_result: Option<JsString>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -286,19 +373,19 @@ pub enum AuthoritativeModuleFailure {
     },
     Lookup {
         source_token: AuthoritativeSourceToken,
-        containing_file: String,
-        specifier: String,
+        containing_file: JsString,
+        specifier: JsString,
         mode: AuthoritativeResolutionMode,
         failure: AuthoritativeModuleLookupFailure,
     },
     UnknownSourceToken {
         file_index: usize,
-        containing_file: String,
+        containing_file: JsString,
     },
     UnknownTargetToken {
         source_token: AuthoritativeSourceToken,
-        containing_file: String,
-        specifier: String,
+        containing_file: JsString,
+        specifier: JsString,
         mode: AuthoritativeResolutionMode,
         target_token: AuthoritativeSourceToken,
     },
@@ -318,14 +405,14 @@ impl std::fmt::Display for AuthoritativeModuleFailure {
                 ..
             } => write!(
                 formatter,
-                "authoritative module lookup failed for ({containing_file}, {specifier:?}, {mode:?}): {failure:?}"
+                "authoritative module lookup failed for ({}, {specifier:?}, {mode:?}): {failure:?}", containing_file.to_string_lossy()
             ),
             Self::UnknownSourceToken {
                 file_index,
                 containing_file,
             } => write!(
                 formatter,
-                "authoritative checker file {file_index} ({containing_file}) has no source token"
+                "authoritative checker file {file_index} ({}) has no source token", containing_file.to_string_lossy()
             ),
             Self::UnknownTargetToken {
                 containing_file,
@@ -335,8 +422,8 @@ impl std::fmt::Display for AuthoritativeModuleFailure {
                 ..
             } => write!(
                 formatter,
-                "authoritative module lookup for ({containing_file}, {specifier:?}, {mode:?}) selected unavailable source token {}",
-                target_token.0
+                "authoritative module lookup for ({}, {specifier:?}, {mode:?}) selected unavailable source token {}",
+                containing_file.to_string_lossy(), target_token.0
             ),
         }
     }
@@ -466,7 +553,7 @@ impl CheckWorkCounters {
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct FileDiagnosticPasses {
-    pub file_name: String,
+    pub file_name: tsc_types::JsString,
     pub syntactic: DiagnosticList,
     pub semantic: DiagnosticList,
     pub suggestion: DiagnosticList,
@@ -485,7 +572,7 @@ pub enum CheckPhase {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PartialCheck {
-    pub file_name: String,
+    pub file_name: tsc_types::JsString,
     /// UTF-16 offset, matching diagnostic and oracle coordinates.
     pub start: u32,
     pub length: u32,
@@ -493,7 +580,11 @@ pub struct PartialCheck {
 }
 
 /// tsc getSupportedExtensions: JS roots only join the program with allowJs.
-fn is_supported_source_file_name(name: &str, allow_js: bool) -> bool {
+fn is_supported_source_file_name<'n>(
+    name: impl Into<tsc_types::JsStr<'n>>,
+    allow_js: bool,
+) -> bool {
+    let name = name.into();
     let ts_like = [".ts", ".tsx", ".mts", ".cts", ".json"];
     ts_like.iter().any(|extension| name.ends_with(extension)) || (allow_js && is_js_file_name(name))
 }
@@ -501,7 +592,8 @@ fn is_supported_source_file_name(name: &str, allow_js: bool) -> bool {
 /// tsc-port: hasJSFileExtension @6.0.3
 /// tsc-hash: 26f2de10186fd7377e0fc90d254165421f27320a1b95dca68e43ee8f2f71128d
 /// tsc-span: _tsc.js:18654-18656
-pub(crate) fn is_js_file_name(name: &str) -> bool {
+pub(crate) fn is_js_file_name<'n>(name: impl Into<tsc_types::JsStr<'n>>) -> bool {
+    let name = name.into();
     [".js", ".jsx", ".mjs", ".cjs"]
         .iter()
         .any(|extension| name.ends_with(extension))
@@ -811,7 +903,7 @@ fn unused_expect_error_diagnostics(
                 .positions()
                 .byte_to_utf16((directive.end as usize) as u32)
                 .unwrap_or(directive.end);
-            Some(tsc_diagnostics::Diagnostic::new(
+            Some(tsc_diagnostics::Diagnostic::new_js(
                 Some(source.file_name.clone()),
                 Some(start),
                 Some(end.saturating_sub(start)),
@@ -904,8 +996,9 @@ pub fn check_program_with_libs(
 /// Backslashes must remain ordinary characters while `.` and `..`
 /// segments are resolved. Only after that POSIX-path pass does the
 /// oracle turn them into separators with normalizeFileName.
-fn resolve_host_current_directory(current_directory: &str) -> String {
-    let raw_path = if current_directory.starts_with('/') {
+fn resolve_host_current_directory<'cwd>(current_directory: impl Into<JsStr<'cwd>>) -> JsString {
+    let current_directory = current_directory.into();
+    let raw_path = if current_directory.starts_with("/") {
         current_directory.to_owned()
     } else {
         let process_cwd = std::env::current_dir()
@@ -922,36 +1015,40 @@ fn resolve_host_current_directory(current_directory: &str) -> String {
                 }
             })
             .unwrap_or_default();
-        format!("{process_cwd}/{current_directory}")
+        concat_js(&[&process_cwd, &"/", &current_directory])
     };
 
-    let absolute = raw_path.starts_with('/');
-    let mut segments: Vec<&str> = Vec::new();
-    for segment in raw_path.split('/') {
-        match segment {
-            "" | "." => {}
-            ".." => {
+    let absolute = raw_path.starts_with("/");
+    let mut segments: Vec<JsStr<'_>> = Vec::new();
+    for segment in raw_path.as_js().split_ascii(b'/') {
+        match segment.as_str() {
+            Some("" | ".") => {}
+            Some("..") => {
                 if segments.last().is_some_and(|last| *last != "..") {
                     segments.pop();
                 } else if !absolute {
                     segments.push(segment);
                 }
             }
-            other => segments.push(other),
+            _ => segments.push(segment),
         }
     }
-    let normalized = segments.join("/");
+    let normalized = join_js_texts(&segments, "/");
     let resolved = if absolute {
-        format!("/{normalized}")
+        concat_js(&[&"/", &normalized])
     } else if normalized.is_empty() {
-        ".".to_owned()
+        JsString::from(".")
     } else {
         normalized
     };
-    resolved.replace('\\', "/")
+    node_builder::specifier::normalized_slashes(&resolved)
 }
 
-fn is_supported_path_reference(file_name: &str, options: &CompilerOptions) -> bool {
+fn is_supported_path_reference<'n>(
+    file_name: impl Into<JsStr<'n>>,
+    options: &CompilerOptions,
+) -> bool {
+    let file_name = file_name.into();
     [".ts", ".tsx", ".mts", ".cts"]
         .iter()
         .any(|extension| file_name.ends_with(extension))
@@ -968,26 +1065,28 @@ fn is_supported_path_reference(file_name: &str, options: &CompilerOptions) -> bo
 /// reports 6053 when absent. Extensionless, unsupported-extension,
 /// redirect, config, and project-reference faces remain outside this
 /// slice.
-fn missing_path_reference_diagnostics<'a>(
+fn missing_path_reference_diagnostics<'cwd, 'a>(
     sources: impl IntoIterator<Item = &'a tsc_syntax::SourceFile>,
-    host_files: impl Iterator<Item = String>,
+    host_files: impl Iterator<Item = JsString>,
     options: &CompilerOptions,
-    current_directory: &str,
+    current_directory: impl Into<JsStr<'cwd>>,
 ) -> DiagnosticList {
+    let current_directory = current_directory.into();
     // tsc's processReferencedFiles/processTypeReferenceDirectives gate is
     // outside getSourceFileFromReferenceWorker. Keep this bridge on the same
     // side of that noResolve boundary.
     if options.no_resolve == Some(true) {
         return Vec::new();
     }
-    let known_paths: std::collections::HashSet<String> = host_files.collect();
+    let known_paths: std::collections::HashSet<JsString> = host_files.collect();
     let mut diagnostics = Vec::new();
     for source in sources {
         let source_path =
             state::CheckerState::normalize_program_path(&source.file_name, current_directory);
         let source_directory = source_path
-            .rsplit_once('/')
-            .map_or("/", |(directory, _)| directory);
+            .as_js()
+            .rsplit_once("/")
+            .map_or("/".into(), |(directory, _)| directory);
         for reference in &source.referenced_files {
             if !is_supported_path_reference(&reference.file_name, options) {
                 continue;
@@ -997,11 +1096,11 @@ fn missing_path_reference_diagnostics<'a>(
             if known_paths.contains(&resolved) {
                 continue;
             }
-            diagnostics.push(Diagnostic::new(
+            diagnostics.push(Diagnostic::new_js(
                 Some(source.file_name.clone()),
                 Some(reference.pos),
                 Some(reference.end.saturating_sub(reference.pos)),
-                tsc_diagnostics::MessageChain::new(
+                tsc_diagnostics::MessageChain::new_js(
                     &tsc_diagnostics::gen::File_0_not_found,
                     &[resolved],
                 ),
@@ -1011,11 +1110,11 @@ fn missing_path_reference_diagnostics<'a>(
     diagnostics
 }
 
-fn parse_host_package_json(text: &str) -> Option<serde_json::Value> {
-    // tsc's JSON scanner accepts a leading BOM as whitespace;
-    // serde_json requires the host boundary to remove it first.
-    let text = text.strip_prefix('\u{feff}').unwrap_or(text);
-    serde_json::from_str(text).ok()
+fn parse_host_package_json(file: &InputFile) -> tsc_program::JsonValue {
+    tsc_program::JsonValue::Object(tsc_program::read_package_json_object_from_snapshot(
+        file.name.as_js(),
+        file.snapshot(),
+    ))
 }
 
 /// tsrs-native: the cwd-carrying entry — `current_directory` is the
@@ -1028,12 +1127,13 @@ fn parse_host_package_json(text: &str) -> Option<serde_json::Value> {
 /// path rendering roots relative file names against it; the "/"-rooted
 /// resolution world is unaffected (see
 /// CheckerState::host_current_directory).
-pub fn check_program_with_libs_at(
+pub fn check_program_with_libs_at<'cwd>(
     libs: &[InputFile],
     files: &[InputFile],
     options: &CompilerOptions,
-    current_directory: &str,
+    current_directory: impl Into<JsStr<'cwd>>,
 ) -> CheckResult {
+    let current_directory = current_directory.into();
     check_program_with_libs_at_observed(libs, files, options, current_directory, |_| {})
 }
 
@@ -1074,14 +1174,14 @@ pub fn prepare_authoritative_harness_lib_bundle(
     if std::env::var_os("TSRS_LIB_BUNDLE_CACHE").is_some_and(|value| value == "0") {
         return None;
     }
-    let fixture_names: std::collections::HashSet<&str> = files
+    let fixture_names: std::collections::HashSet<JsStr<'_>> = files
         .iter()
         .filter(|file| !file.host_only)
-        .map(|file| file.name.as_str())
+        .map(|file| file.name.as_js())
         .collect();
     let effective_libs = libs
         .iter()
-        .filter(|lib| !fixture_names.contains(lib.name.as_str()))
+        .filter(|lib| !fixture_names.contains(&lib.name.as_js()))
         .collect::<Vec<_>>();
     (!effective_libs.is_empty()).then(|| build_owned_lib_bundle(&effective_libs, options))
 }
@@ -1098,13 +1198,14 @@ pub fn harness_lib_bundle_options_key(options: &CompilerOptions) -> HarnessLibBu
 /// hint. Exact validation and cache-off behavior are identical to
 /// [`check_program_with_libs_at`].
 #[doc(hidden)]
-pub fn check_program_with_prepared_harness_libs_at(
+pub fn check_program_with_prepared_harness_libs_at<'cwd>(
     libs: &[InputFile],
     files: &[InputFile],
     options: &CompilerOptions,
-    current_directory: &str,
+    current_directory: impl Into<JsStr<'cwd>>,
     prepared: PreparedHarnessLibBundle,
 ) -> CheckResult {
+    let current_directory = current_directory.into();
     let cache_enabled = std::env::var_os("TSRS_LIB_BUNDLE_CACHE").is_none_or(|value| value != "0");
     let mut observe_phase = |_| {};
     check_program_with_libs_at_observed_cache_mode_prepared(
@@ -1123,13 +1224,14 @@ pub fn check_program_with_prepared_harness_libs_at(
 /// once before each coarse checker phase and never from a node visit,
 /// keeping the ordinary checker path allocation- and branch-free at
 /// node granularity.
-pub fn check_program_with_libs_at_observed(
+pub fn check_program_with_libs_at_observed<'cwd>(
     libs: &[InputFile],
     files: &[InputFile],
     options: &CompilerOptions,
-    current_directory: &str,
+    current_directory: impl Into<JsStr<'cwd>>,
     mut observe_phase: impl FnMut(CheckPhase),
 ) -> CheckResult {
+    let current_directory = current_directory.into();
     let cache_enabled = std::env::var_os("TSRS_LIB_BUNDLE_CACHE").is_none_or(|value| value != "0");
     check_program_with_libs_at_observed_cache_mode(
         libs,
@@ -1141,14 +1243,15 @@ pub fn check_program_with_libs_at_observed(
     )
 }
 
-fn check_program_with_libs_at_observed_cache_mode(
+fn check_program_with_libs_at_observed_cache_mode<'cwd>(
     libs: &[InputFile],
     files: &[InputFile],
     options: &CompilerOptions,
-    current_directory: &str,
+    current_directory: impl Into<JsStr<'cwd>>,
     cache_enabled: bool,
     observe_phase: &mut impl FnMut(CheckPhase),
 ) -> CheckResult {
+    let current_directory = current_directory.into();
     check_program_with_libs_at_observed_cache_mode_prepared(
         libs,
         files,
@@ -1160,25 +1263,26 @@ fn check_program_with_libs_at_observed_cache_mode(
     )
 }
 
-fn check_program_with_libs_at_observed_cache_mode_prepared(
+fn check_program_with_libs_at_observed_cache_mode_prepared<'cwd>(
     libs: &[InputFile],
     files: &[InputFile],
     options: &CompilerOptions,
-    current_directory: &str,
+    current_directory: impl Into<JsStr<'cwd>>,
     cache_enabled: bool,
     prepared: Option<PreparedHarnessLibBundle>,
     observe_phase: &mut impl FnMut(CheckPhase),
 ) -> CheckResult {
+    let current_directory = current_directory.into();
     observe_phase(CheckPhase::Parse);
 
-    let fixture_names: std::collections::HashSet<&str> = files
+    let fixture_names: std::collections::HashSet<JsStr<'_>> = files
         .iter()
         .filter(|file| !file.host_only)
-        .map(|file| file.name.as_str())
+        .map(|file| file.name.as_js())
         .collect();
     let effective_libs: Vec<&InputFile> = libs
         .iter()
-        .filter(|lib| !fixture_names.contains(lib.name.as_str()))
+        .filter(|lib| !fixture_names.contains(&lib.name.as_js()))
         .collect();
 
     if !effective_libs.is_empty() && !cache_enabled {
@@ -1241,20 +1345,21 @@ fn check_program_with_libs_at_observed_cache_mode_prepared(
 /// Execute one owned batch program without entering the process-lifetime lib
 /// bundle cache. Library sources, binders, and all checker borrows are local
 /// to this call and are dropped before it returns.
-pub fn check_program_with_owned_libs_at(
+pub fn check_program_with_owned_libs_at<'cwd>(
     libs: &[InputFile],
     files: &[InputFile],
     options: &CompilerOptions,
-    current_directory: &str,
+    current_directory: impl Into<JsStr<'cwd>>,
 ) -> CheckResult {
-    let fixture_names: std::collections::HashSet<&str> = files
+    let current_directory = current_directory.into();
+    let fixture_names: std::collections::HashSet<JsStr<'_>> = files
         .iter()
         .filter(|file| !file.host_only)
-        .map(|file| file.name.as_str())
+        .map(|file| file.name.as_js())
         .collect();
     let effective_libs: Vec<&InputFile> = libs
         .iter()
-        .filter(|lib| !fixture_names.contains(lib.name.as_str()))
+        .filter(|lib| !fixture_names.contains(&lib.name.as_js()))
         .collect();
     let bundle_options = lib_bundle_options(options);
     let identity_domain = IdentityDomain::ephemeral();
@@ -1326,15 +1431,16 @@ type CheckedEmitOperation<'operation> =
 /// by an exact caller-owned table. The legacy in-memory resolver is never a
 /// fallback while `provider` is installed.
 #[allow(clippy::too_many_arguments)]
-pub fn check_program_with_authoritative_modules_at(
+pub fn check_program_with_authoritative_modules_at<'cwd>(
     libs: &[InputFile],
     files: &[InputFile],
     lib_metadata: &[AuthoritativeSourceMetadata],
     file_metadata: &[AuthoritativeSourceMetadata],
     options: &CompilerOptions,
-    current_directory: &str,
+    current_directory: impl Into<JsStr<'cwd>>,
     provider: &dyn AuthoritativeModuleProvider,
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
+    let current_directory = current_directory.into();
     check_program_with_authoritative_modules_at_cache_mode(
         libs,
         files,
@@ -1356,16 +1462,17 @@ pub fn check_program_with_authoritative_modules_at(
 /// The callback cannot retain the snapshot or resolver beyond this call.
 /// tsrs-native: scoped callback seam that keeps checked state alive for H1 emit.
 #[allow(clippy::too_many_arguments)]
-pub fn check_program_with_authoritative_modules_at_for_emit(
+pub fn check_program_with_authoritative_modules_at_for_emit<'cwd>(
     libs: &[InputFile],
     files: &[InputFile],
     lib_metadata: &[AuthoritativeSourceMetadata],
     file_metadata: &[AuthoritativeSourceMetadata],
     options: &CompilerOptions,
-    current_directory: &str,
+    current_directory: impl Into<JsStr<'cwd>>,
     provider: &dyn AuthoritativeModuleProvider,
     mut operation: impl FnMut(&ProgramSnapshot, &CheckerSession<'_>, &CheckResult),
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
+    let current_directory = current_directory.into();
     check_program_with_authoritative_modules_at_cache_mode(
         libs,
         files,
@@ -1389,17 +1496,18 @@ pub fn check_program_with_authoritative_modules_at_for_emit(
 /// tsrs-native: bundle-scoped variant of the emit callback seam above.
 #[doc(hidden)]
 #[allow(clippy::too_many_arguments)]
-pub fn check_program_with_authoritative_modules_at_for_emit_with_harness_lib_bundle(
+pub fn check_program_with_authoritative_modules_at_for_emit_with_harness_lib_bundle<'cwd>(
     libs: &[InputFile],
     files: &[InputFile],
     lib_metadata: &[AuthoritativeSourceMetadata],
     file_metadata: &[AuthoritativeSourceMetadata],
     options: &CompilerOptions,
-    current_directory: &str,
+    current_directory: impl Into<JsStr<'cwd>>,
     provider: &dyn AuthoritativeModuleProvider,
     bundle: &OwnedHarnessLibBundle,
     mut operation: impl FnMut(&ProgramSnapshot, &CheckerSession<'_>, &CheckResult),
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
+    let current_directory = current_directory.into();
     check_program_with_authoritative_modules_at_cache_mode(
         libs,
         files,
@@ -1426,16 +1534,17 @@ pub fn check_program_with_authoritative_modules_at_for_emit_with_harness_lib_bun
 /// cache-off evidence run.
 #[doc(hidden)]
 #[allow(clippy::too_many_arguments)]
-pub fn check_program_with_authoritative_modules_at_harness_cached(
+pub fn check_program_with_authoritative_modules_at_harness_cached<'cwd>(
     libs: &[InputFile],
     files: &[InputFile],
     lib_metadata: &[AuthoritativeSourceMetadata],
     file_metadata: &[AuthoritativeSourceMetadata],
     options: &CompilerOptions,
-    current_directory: &str,
+    current_directory: impl Into<JsStr<'cwd>>,
     provider: &dyn AuthoritativeModuleProvider,
     library_prefix: LibraryPrefixCompletion,
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
+    let current_directory = current_directory.into();
     let cache_enabled = std::env::var_os("TSRS_LIB_BUNDLE_CACHE").is_none_or(|value| value != "0");
     check_program_with_authoritative_modules_at_cache_mode(
         libs,
@@ -1457,16 +1566,17 @@ pub fn check_program_with_authoritative_modules_at_harness_cached(
 /// Semantic checking is scheduled by the scoped consumer; compiler options and
 /// the ordinary diagnostic/emit entrypoints retain their existing behavior.
 #[allow(clippy::too_many_arguments)]
-pub fn with_authoritative_modules_at_for_declarations(
+pub fn with_authoritative_modules_at_for_declarations<'cwd>(
     libs: &[InputFile],
     files: &[InputFile],
     lib_metadata: &[AuthoritativeSourceMetadata],
     file_metadata: &[AuthoritativeSourceMetadata],
     options: &CompilerOptions,
-    current_directory: &str,
+    current_directory: impl Into<JsStr<'cwd>>,
     provider: &dyn AuthoritativeModuleProvider,
     mut operation: impl FnMut(&ProgramSnapshot, &CheckerSession<'_>, &CheckResult),
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
+    let current_directory = current_directory.into();
     check_program_with_authoritative_modules_at_cache_mode(
         libs,
         files,
@@ -1484,13 +1594,13 @@ pub fn with_authoritative_modules_at_for_declarations(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn check_program_with_authoritative_modules_at_cache_mode(
+fn check_program_with_authoritative_modules_at_cache_mode<'cwd>(
     libs: &[InputFile],
     files: &[InputFile],
     lib_metadata: &[AuthoritativeSourceMetadata],
     file_metadata: &[AuthoritativeSourceMetadata],
     options: &CompilerOptions,
-    current_directory: &str,
+    current_directory: impl Into<JsStr<'cwd>>,
     provider: &dyn AuthoritativeModuleProvider,
     cache_enabled: bool,
     emit_operation: Option<&mut CheckedEmitOperation<'_>>,
@@ -1498,6 +1608,7 @@ fn check_program_with_authoritative_modules_at_cache_mode(
     library_prefix: LibraryPrefixCompletion,
     diagnostic_schedule: DiagnosticSchedule,
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
+    let current_directory = current_directory.into();
     validate_authoritative_metadata(libs, lib_metadata, "library")?;
     validate_authoritative_metadata(files, file_metadata, "program")?;
     let mut seen_tokens = std::collections::HashSet::new();
@@ -1512,15 +1623,15 @@ fn check_program_with_authoritative_modules_at_cache_mode(
         }
     }
 
-    let fixture_names: std::collections::HashSet<&str> = files
+    let fixture_names: std::collections::HashSet<JsStr<'_>> = files
         .iter()
         .filter(|file| !file.host_only)
-        .map(|file| file.name.as_str())
+        .map(|file| file.name.as_js())
         .collect();
     let mut effective_libs = Vec::new();
     let mut effective_lib_metadata = Vec::new();
     for (lib, metadata) in libs.iter().zip(lib_metadata) {
-        if !fixture_names.contains(lib.name.as_str()) {
+        if !fixture_names.contains(&lib.name.as_js()) {
             effective_libs.push(lib);
             effective_lib_metadata.push(metadata.clone());
         }
@@ -1630,11 +1741,11 @@ fn validate_authoritative_metadata(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn check_program_with_prebound_libs_at_observed(
+fn check_program_with_prebound_libs_at_observed<'cwd>(
     libs: &[InputFile],
     files: &[InputFile],
     options: &CompilerOptions,
-    current_directory: &str,
+    current_directory: impl Into<JsStr<'cwd>>,
     lib_documents: &[Arc<BoundDocument>],
     identity_domain: &IdentityDomain,
     mut work_counters: CheckWorkCounters,
@@ -1643,6 +1754,7 @@ fn check_program_with_prebound_libs_at_observed(
     authoritative_run: Option<&AuthoritativeRun<'_>>,
     emit_operation: Option<&mut CheckedEmitOperation<'_>>,
 ) -> CheckExecution {
+    let current_directory = current_directory.into();
     let mut file_diagnostics = Vec::new();
     // An authoritative Program session exposes the whole-Program semantic
     // getter even when root filtering produces no SourceFiles (for example a
@@ -1657,43 +1769,42 @@ fn check_program_with_prebound_libs_at_observed(
     // before parsing because getSetExternalModuleIndicator's Auto mode
     // consults the implied format while SourceFiles are created.
     let host_package_json_module_types: std::collections::HashMap<
-        String,
+        tsc_types::JsString,
         state::PackageJsonModuleType,
     > = files
         .iter()
         .filter(|file| {
             file.name
-                .rsplit(['/', '\\'])
-                .next()
+                .as_js()
+                .split_ascii(b'/')
+                .next_back()
+                .and_then(|name| name.split_ascii(b'\\').next_back())
                 .is_some_and(|name| name == "package.json")
         })
         .map(|file| {
-            let module_type = parse_host_package_json(file.text())
-                .and_then(|value| {
-                    value
-                        .get("type")
-                        .and_then(serde_json::Value::as_str)
-                        .map(|value| match value {
-                            "module" => state::PackageJsonModuleType::Module,
-                            "commonjs" => state::PackageJsonModuleType::CommonJs,
-                            _ => state::PackageJsonModuleType::Other,
-                        })
+            let value = parse_host_package_json(file);
+            let module_type = tsc_program::package_json_property(&value, "type")
+                .and_then(tsc_program::JsonValue::as_js)
+                .map(|value| match value.as_str() {
+                    Some("module") => state::PackageJsonModuleType::Module,
+                    Some("commonjs") => state::PackageJsonModuleType::CommonJs,
+                    _ => state::PackageJsonModuleType::Other,
                 })
                 .unwrap_or(state::PackageJsonModuleType::Missing);
             (
-                state::CheckerState::normalize_program_path(&file.name, ""),
+                state::CheckerState::normalize_js_program_path(&file.name, ""),
                 module_type,
             )
         })
         .collect();
     // Fixture-file shadowing (unchanged from the libless world): a
     // later file with the same name shadows an earlier one entirely.
-    let mut last_index_by_name = std::collections::BTreeMap::new();
+    let mut last_index_by_name = std::collections::HashMap::new();
     for (index, file) in files.iter().enumerate() {
         if file.host_only {
             continue;
         }
-        last_index_by_name.insert(file.name.as_str(), index);
+        last_index_by_name.insert(file.name.as_js(), index);
     }
 
     // Fixture parse pass: every published source receives exact node/array
@@ -1712,7 +1823,7 @@ fn check_program_with_prebound_libs_at_observed(
             authoritative_file_index += 1;
             metadata
         });
-        if last_index_by_name.get(file.name.as_str()) != Some(&index) {
+        if last_index_by_name.get(&file.name.as_js()) != Some(&index) {
             continue;
         }
         // tsc createProgram only loads roots with supported extensions;
@@ -1771,7 +1882,8 @@ fn check_program_with_prebound_libs_at_observed(
                         let package_lookup_enabled = (3..=99)
                             .contains(&options.emit_module_resolution_kind())
                             || normalized
-                                .split('/')
+                                .as_js()
+                                .split_ascii(b'/')
                                 .any(|segment| segment == "node_modules");
                         let package_eligible = [".ts", ".tsx", ".js", ".jsx"]
                             .iter()
@@ -1781,21 +1893,22 @@ fn check_program_with_prebound_libs_at_observed(
                                 == Some(AuthoritativeResolutionMode::EsNext)
                         } else if package_lookup_enabled && package_eligible {
                             let mut directory = normalized
-                                .rsplit_once('/')
+                                .as_js()
+                                .rsplit_once("/")
                                 .map(|(directory, _)| directory)
-                                .unwrap_or("");
+                                .unwrap_or("".into());
                             loop {
                                 let package_json = if directory.is_empty() {
-                                    "/package.json".to_owned()
+                                    JsString::from("/package.json")
                                 } else {
-                                    format!("{directory}/package.json")
+                                    concat_js(&[&directory, &"/package.json"])
                                 };
                                 if let Some(&module_type) =
-                                    host_package_json_module_types.get(&package_json)
+                                    host_package_json_module_types.get(package_json.as_bytes())
                                 {
                                     break module_type == state::PackageJsonModuleType::Module;
                                 }
-                                let Some((parent, _)) = directory.rsplit_once('/') else {
+                                let Some((parent, _)) = directory.rsplit_once("/") else {
                                     break false;
                                 };
                                 directory = parent;
@@ -1939,7 +2052,7 @@ fn check_program_with_prebound_libs_at_observed(
         // untouched on POSIX; on Windows backslashes flipped and
         // everything before the first "/" (the drive) dropped. ""
         // (the old "/"-rooted world) is the no-cwd degenerate fallback.
-        state.host_current_directory = host_current_directory;
+        state.host_current_directory = host_current_directory.into();
         // The resolver's host view (M4 5.8d): every INPUT path, incl.
         // files the program dropped (.json bodies, .js without
         // allowJs) — the suppression probes need them to keep 2307
@@ -1948,15 +2061,30 @@ fn check_program_with_prebound_libs_at_observed(
             .iter()
             .map(|file| state::CheckerState::normalize_program_path(&file.name, ""))
             .collect();
+        state.host_input_snapshots = files
+            .iter()
+            .map(|file| {
+                (
+                    state::CheckerState::normalize_program_path(&file.name, ""),
+                    Arc::clone(file.snapshot()),
+                )
+            })
+            .collect();
         state.host_package_json_module_types = host_package_json_module_types;
         state.host_package_json_values = files
             .iter()
             .filter_map(|file| {
-                let file_name = file.name.rsplit(['/', '\\']).next()?;
+                let file_name = file
+                    .name
+                    .as_js()
+                    .split_ascii(b'/')
+                    .next_back()?
+                    .split_ascii(b'\\')
+                    .next_back()?;
                 if file_name != "package.json" {
                     return None;
                 }
-                let value = parse_host_package_json(file.text())?;
+                let value = parse_host_package_json(file);
                 Some((
                     state::CheckerState::normalize_program_path(&file.name, ""),
                     value,
@@ -1967,7 +2095,9 @@ fn check_program_with_prebound_libs_at_observed(
             .host_package_json_values
             .iter()
             .filter_map(|(path, value)| {
-                let name = value.get("name")?.as_str()?.trim();
+                // Package self-name resolution consumes the original string;
+                // getPathComponents does not trim it (_tsc.js:41454–41458).
+                let name = tsc_program::package_json_property(value, "name")?.as_js()?;
                 if name.is_empty() {
                     return None;
                 }
@@ -2053,7 +2183,7 @@ fn check_program_with_prebound_libs_at_observed(
             let result_index = source_index - lib_count;
             let source = state.binder.source(source_index);
             let checker_for_file = state.diagnostics.iter().filter(|diagnostic| {
-                diagnostic.file_name.as_deref() == Some(source.file_name.as_str())
+                diagnostic.file_name.as_ref().map(JsString::as_js) == Some(source.file_name.as_js())
             });
 
             // getSuggestionDiagnostics is a separate checker
@@ -2188,10 +2318,9 @@ fn semantic_diagnostics_for_program_file(
     let javascript_file = is_js_file_name(&source.file_name);
     let directive = check_directive(source.text());
     let plain_js = is_plain_js_file(javascript_file, directive, options);
-    let checker_for_file = state
-        .diagnostics
-        .iter()
-        .filter(|diagnostic| diagnostic.file_name.as_deref() == Some(source.file_name.as_str()));
+    let checker_for_file = state.diagnostics.iter().filter(|diagnostic| {
+        diagnostic.file_name.as_ref().map(JsString::as_js) == Some(source.file_name.as_js())
+    });
 
     // getBindAndCheckDiagnosticsForFileNoCache:
     // bind -> check (new globals first) -> checked-JS JSDoc.
@@ -2247,7 +2376,9 @@ fn semantic_diagnostics_for_program_file(
 
     let mut program_for_file = program_diagnostics
         .iter()
-        .filter(|diagnostic| diagnostic.file_name.as_deref() == Some(source.file_name.as_str()))
+        .filter(|diagnostic| {
+            diagnostic.file_name.as_ref().map(JsString::as_js) == Some(source.file_name.as_js())
+        })
         .cloned()
         .collect::<Vec<_>>();
     if !source.comment_directives.is_empty() {
@@ -2442,7 +2573,7 @@ fn lib_bundle_with_fingerprint(
     use std::collections::HashMap;
     use std::sync::{Arc, Mutex, OnceLock};
 
-    type Key = (Vec<(String, u64)>, CompilerOptions);
+    type Key = (Vec<(JsString, u64)>, CompilerOptions);
     type Bucket = Arc<Mutex<Vec<&'static LibBundle>>>;
     type Buckets = HashMap<Key, Bucket>;
     static CACHE: OnceLock<Mutex<Buckets>> = OnceLock::new();

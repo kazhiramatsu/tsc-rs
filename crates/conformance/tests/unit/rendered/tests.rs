@@ -291,7 +291,7 @@ fn rust_and_vendored_node_pin_every_formatter_structure() {
     )
     .unwrap();
 
-    assert_eq!(rust, node);
+    assert_eq!(rust.as_str().expect("scalar rendered fixture"), node);
     let sorted_node = pool.render_sorted_records(&program_json, &records).unwrap();
     let sorted_rust = format_sorted_diagnostics_with_context(
         &diagnostics_from_golden(&golden).unwrap(),

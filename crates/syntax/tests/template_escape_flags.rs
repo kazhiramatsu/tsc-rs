@@ -1,11 +1,31 @@
-//! Decision-table contracts for the module-internal
-//! `templateFlags & IsInvalid` recomputation
-//! (`template_cooked_is_invalid`), row-for-row against
-//! `scan_escape_sequence`'s flagging (scanner.rs:1114-1282). The
-//! byte-level lowering itself is qualified by the B-5 focused oracle
-//! projections and the 32-case witness gate, not here.
+//! Existing escape decision-table controls now exercise the owning parser flags.
+//! Raw reconstruction no longer belongs to the tagged-template transformer.
 
-use super::template_cooked_is_invalid;
+use tsc_syntax::{parse_source_file, SyntaxKind};
+use tsc_types::TokenFlags;
+
+fn template_cooked_is_invalid(raw: &str) -> bool {
+    let source = parse_source_file(
+        "template.ts",
+        &format!("tag`{raw}`;"),
+        Default::default(),
+        None,
+    );
+    let fragment = source
+        .arena
+        .nodes()
+        .iter()
+        .find(|node| node.kind == SyntaxKind::NoSubstitutionTemplateLiteral)
+        .unwrap();
+    let flags = TokenFlags::from_bits(fragment.template_flags);
+    let invalid = flags.intersects(TokenFlags::IS_INVALID);
+    assert_eq!(
+        invalid,
+        flags.intersects(TokenFlags::CONTAINS_INVALID_ESCAPE),
+        "Only ContainsInvalidEscape of IsInvalid applies to template fragments"
+    );
+    invalid
+}
 
 #[test]
 fn valid_escapes_and_plain_text_are_not_invalid() {

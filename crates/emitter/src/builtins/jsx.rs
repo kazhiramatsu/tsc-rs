@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use tsc_diagnostics::{JsStr, JsString};
 use tsc_syntax::{
     for_each_child, is_identifier_text_for_target, skip_trivia, try_visit_each_child, NodeArrayId,
     NodeData, NodeDataChildVisitor, NodeId, SyntaxKind,
@@ -7,9 +8,9 @@ use tsc_syntax::{
 use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget};
 
 use crate::{
-    factory::EmitHelperName, EmitResolver, EmitResolverNode, JavaScriptString, TransformError,
-    TransformFlags, TransformNode, TransformNodeArray, TransformRoot, TransformSourceId,
-    TransformationContext, Transformer,
+    factory::EmitHelperName, EmitResolver, EmitResolverNode, TransformError, TransformFlags,
+    TransformNode, TransformNodeArray, TransformRoot, TransformSourceId, TransformationContext,
+    Transformer,
 };
 
 /// tsc-port: transformJsx @6.0.3
@@ -35,11 +36,11 @@ pub(super) fn transform_jsx<'resolver>(
 
 struct JsxTransformer<'resolver> {
     resolver: &'resolver dyn EmitResolver,
-    jsx_factory: Option<String>,
-    jsx_fragment_factory: Option<String>,
-    jsx_import_source: Option<String>,
+    jsx_factory: Option<JsString>,
+    jsx_fragment_factory: Option<JsString>,
+    jsx_import_source: Option<JsString>,
     jsx_mode: i32,
-    react_namespace: Option<String>,
+    react_namespace: Option<JsString>,
     target: ScriptTarget,
 }
 
@@ -71,7 +72,7 @@ impl Transformer for JsxTransformer<'_> {
         let root = context.arena().root(source)?;
         let import_base = jsx_implicit_import_base(
             self.jsx_mode,
-            self.jsx_import_source.as_deref(),
+            self.jsx_import_source.as_ref().map(JsString::as_js),
             source_import.as_deref(),
             source_runtime.as_deref(),
         );
@@ -93,9 +94,9 @@ impl Transformer for JsxTransformer<'_> {
                 file_name,
                 is_external_module,
                 is_external_or_common_js_module,
-                jsx_factory: self.jsx_factory.as_deref(),
-                jsx_fragment_factory: self.jsx_fragment_factory.as_deref(),
-                react_namespace: self.react_namespace.as_deref(),
+                jsx_factory: self.jsx_factory.as_ref().map(JsString::as_js),
+                jsx_fragment_factory: self.jsx_fragment_factory.as_ref().map(JsString::as_js),
+                react_namespace: self.react_namespace.as_ref().map(JsString::as_js),
                 target: self.target,
             },
         );
@@ -126,10 +127,10 @@ struct JsxPragmaSettings {
 /// tsc-span: _tsc.js:18305-18316
 fn jsx_implicit_import_base(
     jsx_mode: i32,
-    option_import_source: Option<&str>,
+    option_import_source: Option<JsStr<'_>>,
     pragma_import_source: Option<&str>,
     pragma_runtime: Option<&str>,
-) -> Option<String> {
+) -> Option<JsString> {
     if pragma_runtime == Some("classic") {
         return None;
     }
@@ -142,8 +143,9 @@ fn jsx_implicit_import_base(
     }
     Some(
         pragma_import_source
+            .map(JsStr::from)
             .or(option_import_source)
-            .unwrap_or("react")
+            .unwrap_or("react".into())
             .to_owned(),
     )
 }
@@ -213,11 +215,11 @@ struct JsxVisitor<'context> {
     context: &'context mut TransformationContext,
     source: TransformSourceId,
     resolver: &'context dyn EmitResolver,
-    factory_entity: Vec<String>,
-    fragment_entity: Vec<String>,
+    factory_entity: Vec<JsString>,
+    fragment_entity: Vec<JsString>,
     jsx_mode: i32,
-    import_base: Option<String>,
-    file_name: String,
+    import_base: Option<JsString>,
+    file_name: JsString,
     is_external_module: bool,
     is_external_or_common_js_module: bool,
     target: ScriptTarget,
@@ -231,13 +233,13 @@ struct JsxVisitor<'context> {
 struct JsxVisitorSettings<'settings> {
     pragmas: JsxPragmaSettings,
     jsx_mode: i32,
-    import_base: Option<String>,
-    file_name: String,
+    import_base: Option<JsString>,
+    file_name: JsString,
     is_external_module: bool,
     is_external_or_common_js_module: bool,
-    jsx_factory: Option<&'settings str>,
-    jsx_fragment_factory: Option<&'settings str>,
-    react_namespace: Option<&'settings str>,
+    jsx_factory: Option<JsStr<'settings>>,
+    jsx_fragment_factory: Option<JsStr<'settings>>,
+    react_namespace: Option<JsStr<'settings>>,
     target: ScriptTarget,
 }
 
@@ -264,7 +266,7 @@ struct ImplicitImport {
 
 #[derive(Clone, Debug)]
 struct ImplicitImportGroup {
-    module_specifier: String,
+    module_specifier: JsString,
     imports: Vec<ImplicitImport>,
 }
 
@@ -294,22 +296,22 @@ impl<'context> JsxVisitor<'context> {
         // retains that spelling instead of silently falling back to `React`.
         // Qualified-name parsing applies to `jsxFactory`, not to this legacy
         // single-identifier option.
-        let namespace = vec![react_namespace.unwrap_or("React").to_owned()];
+        let namespace = vec![react_namespace.unwrap_or("React".into()).to_owned()];
         let mut default_factory = namespace.clone();
-        default_factory.push("createElement".to_owned());
+        default_factory.push("createElement".into());
         let factory_entity = pragmas
             .factory
             .as_deref()
-            .and_then(parse_entity_name)
-            .or_else(|| jsx_factory.and_then(parse_entity_name))
+            .and_then(|value| parse_entity_name(value, target))
+            .or_else(|| jsx_factory.and_then(|value| parse_entity_name(value, target)))
             .unwrap_or(default_factory);
 
         let mut default_fragment = namespace;
-        default_fragment.push("Fragment".to_owned());
+        default_fragment.push("Fragment".into());
         let fragment_entity = match pragmas.fragment_factory.as_deref() {
-            Some(local) => parse_entity_name(local).unwrap_or(default_fragment),
+            Some(local) => parse_entity_name(local, target).unwrap_or(default_fragment),
             None => jsx_fragment_factory
-                .and_then(parse_entity_name)
+                .and_then(|value| parse_entity_name(value, target))
                 .unwrap_or(default_fragment),
         };
 
@@ -1152,7 +1154,7 @@ impl<'context> JsxVisitor<'context> {
         let name = self.fresh_name("_jsxFileName");
         let declaration_name = self.create_identifier(&name)?;
         let file_name = self.file_name.clone();
-        let initializer = self.create_string_literal(file_name.encode_utf16().collect(), false)?;
+        let initializer = self.create_string_literal(file_name.to_utf16(), false)?;
         let declaration = self.context.factory()?.create_node(
             self.source,
             NodeData::VariableDeclaration(tsc_syntax::nodes::VariableDeclarationData {
@@ -1261,24 +1263,22 @@ impl<'context> JsxVisitor<'context> {
         &mut self,
         exported_name: &str,
     ) -> Result<TransformNode, TransformError> {
-        let base =
-            self.import_base
-                .as_deref()
-                .ok_or(TransformError::UnsupportedCompilerOption {
-                    option: "jsx",
-                    detail: "automatic JSX helper requested without an implicit import base",
-                })?;
+        let base = self.import_base.as_ref().map(JsString::as_js).ok_or(
+            TransformError::UnsupportedCompilerOption {
+                option: "jsx",
+                detail: "automatic JSX helper requested without an implicit import base",
+            },
+        )?;
         let module_specifier = if exported_name == "createElement" {
             base.to_owned()
         } else {
-            format!(
-                "{base}/{}",
-                if self.jsx_mode == 5 {
-                    "jsx-dev-runtime"
-                } else {
-                    "jsx-runtime"
-                }
-            )
+            let mut module = base.to_owned();
+            module.push_str(if self.jsx_mode == 5 {
+                "/jsx-dev-runtime"
+            } else {
+                "/jsx-runtime"
+            });
+            module
         };
 
         if let Some(existing) = self
@@ -1441,8 +1441,7 @@ impl<'context> JsxVisitor<'context> {
             }),
             TransformFlags::NONE,
         )?;
-        let module =
-            self.create_string_literal(group.module_specifier.encode_utf16().collect(), false)?;
+        let module = self.create_string_literal(group.module_specifier.to_utf16(), false)?;
         self.context.factory()?.create_node(
             self.source,
             NodeData::ImportDeclaration(tsc_syntax::nodes::ImportDeclarationData {
@@ -1486,8 +1485,7 @@ impl<'context> JsxVisitor<'context> {
             TransformFlags::CONTAINS_BINDING_PATTERN,
         )?;
         let require = self.create_identifier("require")?;
-        let module =
-            self.create_string_literal(group.module_specifier.encode_utf16().collect(), false)?;
+        let module = self.create_string_literal(group.module_specifier.to_utf16(), false)?;
         let arguments = self
             .context
             .factory()?
@@ -1551,26 +1549,32 @@ impl<'context> JsxVisitor<'context> {
 
     fn create_entity_expression(
         &mut self,
-        parts: Vec<String>,
+        parts: Vec<JsString>,
         reference: JsxFactoryResolverLocation,
     ) -> Result<TransformNode, TransformError> {
         let mut parts = parts.into_iter();
-        let first = parts.next().unwrap_or_else(|| "React".to_owned());
-        let mut expression = self.create_identifier(&first)?;
+        let first = parts.next().unwrap_or_else(|| "React".into());
+        let mut expression = self
+            .context
+            .factory()?
+            .create_unchecked_identifier(self.source, first.as_js())?;
         // TypeScript retains an invalid `reactNamespace` spelling in recovery
         // emit, but such a spelling cannot name a lexical import binding. Its
         // synthetic Identifier therefore has no import declaration for a
         // module transformer to substitute. Keep the typed resolver boundary
         // for valid factory roots, while avoiding an impossible semantic query
         // for recovery-only identifiers.
-        if is_identifier_text_for_target(&first, self.target) {
+        if let Some(first) = first
+            .as_str()
+            .filter(|first| is_identifier_text_for_target(first, self.target))
+        {
             let resolver_node = self.resolver_node(reference.0)?;
             let import_declaration = self
                 .resolver
-                .get_jsx_factory_import_declaration(resolver_node, &first)?;
+                .get_jsx_factory_import_declaration(resolver_node, first)?;
             let export_container = self
                 .resolver
-                .get_jsx_factory_export_container(resolver_node, &first)?;
+                .get_jsx_factory_export_container(resolver_node, first)?;
             let current_source = self.context.arena().source(self.source)?.program_source();
             if let Some(declaration) = import_declaration {
                 if current_source == Some(declaration.source()) {
@@ -1602,7 +1606,8 @@ impl<'context> JsxVisitor<'context> {
             }
         }
         for part in parts {
-            let name = self.create_identifier(&part)?;
+            let name =
+                self.create_identifier(part.as_str().expect("parsed qualified-name identifier"))?;
             expression = self.context.factory()?.create_node(
                 self.source,
                 NodeData::PropertyAccessExpression(
@@ -1638,19 +1643,9 @@ impl<'context> JsxVisitor<'context> {
         units: Vec<u16>,
         single_quote: bool,
     ) -> Result<TransformNode, TransformError> {
-        let text = String::from_utf16_lossy(&units);
-        let literal = self.context.factory()?.create_node(
-            self.source,
-            NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
-                text,
-                has_extended_unicode_escape: None,
-            }),
-            TransformFlags::NONE,
-        )?;
-        let properties = self.context.arena_mut()?.literal_properties_mut(literal)?;
-        properties.set_javascript_string_value(JavaScriptString::from_code_units(units));
-        properties.set_string_literal_single_quote(single_quote);
-        Ok(literal)
+        self.context
+            .factory()?
+            .create_string_literal_from_code_units(self.source, &units, single_quote)
     }
 
     fn create_token(&mut self, kind: SyntaxKind) -> Result<TransformNode, TransformError> {
@@ -1812,23 +1807,12 @@ impl NodeDataChildVisitor for JsxVisitor<'_> {
     }
 }
 
-fn parse_entity_name(value: &str) -> Option<Vec<String>> {
-    fn valid_identifier(part: &str) -> bool {
-        !part.is_empty()
-            && part.chars().next().is_some_and(|character| {
-                character == '_' || character == '$' || character.is_alphabetic()
-            })
-            && part.chars().all(|character| {
-                character == '_' || character == '$' || character.is_alphanumeric()
-            })
-    }
-
-    let parts = value
-        .split('.')
-        .map(str::trim)
-        .map(str::to_owned)
-        .collect::<Vec<_>>();
-    (!parts.is_empty() && parts.iter().all(|part| valid_identifier(part))).then_some(parts)
+fn parse_entity_name<'a>(
+    value: impl Into<JsStr<'a>>,
+    target: ScriptTarget,
+) -> Option<Vec<JsString>> {
+    tsc_syntax::parse_entity_name_components(value.into(), target)
+        .map(|parts| parts.into_iter().map(JsString::from).collect())
 }
 
 fn is_intrinsic_jsx_name(name: &str) -> bool {
@@ -1936,28 +1920,32 @@ fn is_single_line_whitespace(character: char) -> bool {
     )
 }
 
-fn decode_entities(text: &str) -> Vec<u16> {
+fn decode_entities<'a>(text: impl Into<JsStr<'a>>) -> Vec<u16> {
     let mut result = Vec::new();
-    let mut cursor = 0usize;
-    while cursor < text.len() {
-        let Some(relative_amp) = text[cursor..].find('&') else {
-            result.extend(text[cursor..].encode_utf16());
+    let mut rest = text.into();
+    while !rest.is_empty() {
+        let Some(amp) = rest.as_bytes().iter().position(|byte| *byte == b'&') else {
+            result.extend(rest.code_units());
             break;
         };
-        let amp = cursor + relative_amp;
-        result.extend(text[cursor..amp].encode_utf16());
-        let Some(relative_semicolon) = text[amp + 1..].find(';') else {
-            result.extend(text[amp..].encode_utf16());
+        let (prefix, entity_and_tail) = rest.split_at_byte(amp).expect("ASCII ampersand boundary");
+        result.extend(prefix.code_units());
+        let after_amp = entity_and_tail.strip_prefix("&").expect("ampersand");
+        let Some(semicolon) = after_amp.as_bytes().iter().position(|byte| *byte == b';') else {
+            result.extend(entity_and_tail.code_units());
             break;
         };
-        let semicolon = amp + 1 + relative_semicolon;
-        let entity = &text[amp + 1..semicolon];
-        if let Some(value) = decode_entity(entity) {
+        let (entity, tail) = after_amp
+            .split_at_byte(semicolon)
+            .expect("ASCII semicolon boundary");
+        // Entity names and numeric encodings have an ASCII grammar. An
+        // arbitrary JS value outside that grammar remains unchanged below.
+        if let Some(value) = entity.as_str().and_then(decode_entity) {
             push_code_point(&mut result, value);
-            cursor = semicolon + 1;
+            rest = tail.strip_prefix(";").expect("semicolon");
         } else {
             result.push(b'&' as u16);
-            cursor = amp + 1;
+            rest = after_amp;
         }
     }
     result

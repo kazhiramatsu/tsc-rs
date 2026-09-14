@@ -533,7 +533,7 @@ pub fn run_prefix_conformance(
                         .syntactic_diagnostics
                         .iter()
                         .map(|diag| GoldenDiag::from_tsrs(diag, &mut line_maps))
-                        .collect::<Vec<_>>()
+                        .collect::<ConformanceResult<Vec<_>>>()?
                         .iter(),
                 );
 
@@ -2826,10 +2826,17 @@ impl GoldenDiag {
         }
     }
 
-    fn from_tsrs(diag: &Diagnostic, line_maps: &mut TsrsLineMapCache<'_>) -> Self {
+    fn from_tsrs(
+        diag: &Diagnostic,
+        line_maps: &mut TsrsLineMapCache<'_>,
+    ) -> ConformanceResult<Self> {
         let (line, col) = line_maps.line_col(diag);
-        Self {
-            file: diag.file_name.clone(),
+        Ok(Self {
+            file: diag
+                .file_name
+                .as_ref()
+                .map(|name| scalar_observation(name.as_js(), "golden filename").map(str::to_owned))
+                .transpose()?,
             start: diag.start,
             length: diag.length,
             line,
@@ -2837,23 +2844,32 @@ impl GoldenDiag {
             code: diag.code(),
             pass: None,
             category: diag.category().name().to_owned(),
-            chain: GoldenMessageChain::from_tsrs(&diag.message),
+            chain: GoldenMessageChain::from_tsrs(&diag.message)?,
             related: diag
                 .related
                 .iter()
-                .map(|related| GoldenRelated {
-                    file: related.file_name.clone(),
-                    start: related.start,
-                    length: related.length,
-                    code: related.message.code,
-                    category: related.message.category.name().to_owned(),
-                    chain: GoldenMessageChain::from_tsrs(&related.message),
+                .map(|related| {
+                    Ok(GoldenRelated {
+                        file: related
+                            .file_name
+                            .as_ref()
+                            .map(|name| {
+                                scalar_observation(name.as_js(), "golden related filename")
+                                    .map(str::to_owned)
+                            })
+                            .transpose()?,
+                        start: related.start,
+                        length: related.length,
+                        code: related.message.code,
+                        category: related.message.category.name().to_owned(),
+                        chain: GoldenMessageChain::from_tsrs(&related.message)?,
+                    })
                 })
-                .collect(),
+                .collect::<ConformanceResult<Vec<_>>>()?,
             reports_unnecessary: diag.reports_unnecessary.unwrap_or(false),
             reports_deprecated: diag.reports_deprecated.unwrap_or(false),
             source: diag.source.clone(),
-        }
+        })
     }
 }
 
@@ -2867,13 +2883,17 @@ impl GoldenMessageChain {
         }
     }
 
-    fn from_tsrs(chain: &MessageChain) -> Self {
-        Self {
-            text: chain.text.clone(),
+    fn from_tsrs(chain: &MessageChain) -> ConformanceResult<Self> {
+        Ok(Self {
+            text: scalar_observation(chain.text.as_js(), "golden message")?.to_owned(),
             code: chain.code,
             category: chain.category.name().to_owned(),
-            next: chain.next.iter().map(Self::from_tsrs).collect(),
-        }
+            next: chain
+                .next
+                .iter()
+                .map(Self::from_tsrs)
+                .collect::<ConformanceResult<Vec<_>>>()?,
+        })
     }
 }
 
@@ -2994,13 +3014,13 @@ fn current_case_tsrs(
                 .all
                 .iter()
                 .map(|diag| GoldenDiag::from_tsrs(diag, &mut line_maps))
-                .collect(),
+                .collect::<ConformanceResult<Vec<_>>>()?,
             all_empty_related_information,
             syntactic: result
                 .syntactic
                 .iter()
                 .map(|diag| GoldenDiag::from_tsrs(diag, &mut line_maps))
-                .collect(),
+                .collect::<ConformanceResult<Vec<_>>>()?,
             partial_checks: Vec::new(),
         });
     }
@@ -3039,13 +3059,13 @@ fn current_case_tsrs(
             .diagnostics
             .iter()
             .map(|diag| GoldenDiag::from_tsrs(diag, &mut line_maps))
-            .collect(),
+            .collect::<ConformanceResult<Vec<_>>>()?,
         all_empty_related_information,
         syntactic: result
             .syntactic_diagnostics
             .iter()
             .map(|diag| GoldenDiag::from_tsrs(diag, &mut line_maps))
-            .collect(),
+            .collect::<ConformanceResult<Vec<_>>>()?,
         partial_checks: result.partial_checks,
     })
 }
@@ -3056,7 +3076,10 @@ fn file_texts_for_program(
 ) -> ConformanceResult<BTreeMap<String, String>> {
     let mut file_texts = BTreeMap::new();
     for lib in read_lib_inputs(&program.libs, vendor_lib_dir)?.as_slice() {
-        file_texts.insert(lib.name.clone(), lib.text().to_owned());
+        file_texts.insert(
+            scalar_observation(lib.name.as_js(), "vendored library filename")?.to_owned(),
+            lib.text().to_owned(),
+        );
     }
     for file in &program.files {
         file_texts.insert(file.name.clone(), base64_decode_to_string(&file.text_b64)?);
@@ -3108,12 +3131,16 @@ impl<'a> TsrsLineMapCache<'a> {
         let Some(start) = diag.start else {
             return (None, None);
         };
-        let Some(text) = self.file_texts.get(file_name) else {
+        let Some((source_name, text)) = self
+            .file_texts
+            .iter()
+            .find(|(name, _)| file_name.as_js() == tsc_diagnostics::JsStr::from_str(name.as_str()))
+        else {
             return (None, None);
         };
         let index = self
             .indexes
-            .entry(file_name.clone())
+            .entry(source_name.clone())
             .or_insert_with(|| compute_line_map(text));
         let line_col = index
             .line_and_character_utf16(start)
@@ -3147,7 +3174,7 @@ fn classify_fn_partial_boundaries(
                     continue;
                 };
                 for partial in partial_checks.iter().filter(|partial| {
-                    partial.file_name == *file
+                    partial.file_name == file.as_str()
                         && start >= partial.start
                         && start < partial.start.saturating_add(partial.length.max(1))
                 }) {
@@ -3458,3 +3485,13 @@ pub(crate) mod test_git;
 #[cfg(test)]
 #[path = "../tests/unit/lib/tests.rs"]
 mod tests;
+
+/// The versioned golden/oracle JSON schema stores scalar strings. Preserve
+/// compiler values until this observation boundary and report unsupported
+/// UTF-16 values instead of replacing or escaping them into different values.
+fn scalar_observation<'a>(
+    value: tsc_diagnostics::JsStr<'a>,
+    context: &str,
+) -> ConformanceResult<&'a str> {
+    value.as_str().ok_or_else(|| format!("{context} contains an unpaired UTF-16 surrogate unsupported by the scalar golden wire schema").into())
+}

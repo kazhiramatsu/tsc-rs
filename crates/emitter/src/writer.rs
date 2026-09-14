@@ -201,7 +201,7 @@ impl TextWriter {
     pub(crate) fn record_source_map_position_for(
         &mut self,
         source: crate::TransformSourceId,
-        file_name: &str,
+        file_name: tsc_types::JsStr<'_>,
         source_line: u32,
         source_character: u32,
     ) {

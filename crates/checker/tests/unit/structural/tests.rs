@@ -150,13 +150,13 @@ fn signature_display_parameter_name_expands_only_tuple_typed_rest_parameters() {
                 state
                     .get_parameter_name_at_position(tuple, 0)
                     .expect("tuple label"),
-                Some("args_0".to_owned())
+                Some(tsc_types::EscapedName::from_escaped_value("args_0".into()))
             );
             assert_eq!(
                 state
                     .get_parameter_name_at_position(array, 0)
                     .expect("rest name"),
-                Some("args".to_owned())
+                Some(tsc_types::EscapedName::from_escaped_value("args".into()))
             );
         },
     );
@@ -562,7 +562,12 @@ fn rows_and_partials(text: &str) -> (Vec<(u32, u32, u32)>, usize) {
 #[test]
 fn relation_property_reports_use_target_symbol_to_string_faces() {
     fn flatten(chain: &tsc_diagnostics::MessageChain, texts: &mut Vec<String>) {
-        texts.push(chain.text.clone());
+        texts.push(
+            (chain.text.clone())
+                .as_str()
+                .expect("scalar value observation")
+                .to_owned(),
+        );
         for child in &chain.next {
             flatten(child, texts);
         }
@@ -970,11 +975,13 @@ let laterMatch: (x: number) => number = overloaded;
                 .map(|diagnostic| {
                     let mut codes = Vec::new();
                     flatten_codes(&diagnostic.message, &mut codes);
-                    let detail = diagnostic
-                        .message
-                        .next
-                        .first()
-                        .map(|child| child.text.clone());
+                    let detail = diagnostic.message.next.first().map(|child| {
+                        child
+                            .text
+                            .as_str()
+                            .expect("scalar value observation")
+                            .to_owned()
+                    });
                     (codes, detail)
                 })
                 .collect::<Vec<_>>()
@@ -1039,11 +1046,13 @@ let primitiveSymbol: symbol = boxedSymbol;
                 .map(|diagnostic| {
                     let mut codes = Vec::new();
                     flatten_codes(&diagnostic.message, &mut codes);
-                    let detail = diagnostic
-                        .message
-                        .next
-                        .first()
-                        .map(|child| child.text.clone());
+                    let detail = diagnostic.message.next.first().map(|child| {
+                        child
+                            .text
+                            .as_str()
+                            .expect("scalar value observation")
+                            .to_owned()
+                    });
                     (codes, detail)
                 })
                 .collect::<Vec<_>>()
@@ -1878,7 +1887,13 @@ fn predicate_parameter_index_match_relates_live() {
 #[test]
 fn relation_error_state_generic_mapped_cleanup_preserves_the_tsc_boundary() {
     fn flatten(chain: &tsc_diagnostics::MessageChain, out: &mut Vec<(u32, String)>) {
-        out.push((chain.code, chain.text.clone()));
+        out.push((
+            chain.code,
+            (chain.text.clone())
+                .as_str()
+                .expect("scalar value observation")
+                .to_owned(),
+        ));
         for child in &chain.next {
             flatten(child, out);
         }
@@ -1961,7 +1976,13 @@ fn relation_error_state_generic_mapped_cleanup_preserves_the_tsc_boundary() {
 #[test]
 fn relation_reporting_keeps_union_keyof_and_class_member_failure_levels() {
     fn flatten(chain: &tsc_diagnostics::MessageChain, out: &mut Vec<(u32, String)>) {
-        out.push((chain.code, chain.text.clone()));
+        out.push((
+            chain.code,
+            (chain.text.clone())
+                .as_str()
+                .expect("scalar value observation")
+                .to_owned(),
+        ));
         for child in &chain.next {
             flatten(child, out);
         }

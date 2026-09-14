@@ -33,7 +33,7 @@ fn resolved_source_priorities_match_typescript_path_boundaries() {
     for case in cases {
         let directory = path(case["directory"].as_str().unwrap());
         let source = path(case["file"].as_str().unwrap());
-        let catalog = LibraryCatalog::typescript_6_0_3(directory.display());
+        let catalog = LibraryCatalog::typescript_6_0_3(case["directory"].as_str().unwrap());
         for _ in 0..2 {
             assert_eq!(
                 catalog.source_file_priority(&source, &directory),

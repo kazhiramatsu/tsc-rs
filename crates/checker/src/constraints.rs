@@ -586,10 +586,10 @@ impl<'a> CheckerState<'a> {
                         .symbol
                         .map(|s| self.symbol_display_name(s))
                         .unwrap_or_default();
-                    let mut diagnostic = self.create_error(
+                    let mut diagnostic = self.create_error_js(
                         Some(error_node),
                         &diagnostics::Type_parameter_0_has_a_circular_constraint,
-                        &[&name],
+                        &[(&name).into()],
                     );
                     // getImmediateBaseConstraint 58939-58942: the
                     // driver's current node identifies where the

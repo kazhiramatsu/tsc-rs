@@ -1358,13 +1358,9 @@ impl Printer {
             .source(source_id)?
             .syntax()
             .is_declaration_file
-            && transformation
-                .arena()
-                .source(source_id)?
-                .syntax()
-                .file_name
-                .to_ascii_lowercase()
-                .ends_with(".json")
+            && crate::builtins::is_json_file_name(
+                &transformation.arena().source(source_id)?.syntax().file_name,
+            )
         {
             // h2-6a-m-2 §4: JSON sources never record (the upstream
             // triple guard); requesting a recording here is fail-closed.
@@ -1639,7 +1635,7 @@ impl Printer {
     ) -> Result<(), PrinterError> {
         if let Some(recording) = writer.recording_mut() {
             let source = transformation.arena().source(source_id)?.syntax();
-            recording.set_current_source(source_id, &source.file_name, source.text());
+            recording.set_current_source(source_id, source.file_name.as_js(), source.text());
         }
         Ok(())
     }
@@ -1666,12 +1662,9 @@ impl Printer {
                     .priority()
                     .map_or((true, 0), |priority| (false, priority))
             });
-            crate::builtins::helpers::order_private_field_helpers(
-                &mut helpers,
-                self.options
-                    .target
-                    .is_none_or(|target| target < ScriptTarget::ES2022),
-            );
+            // Equal-priority helpers retain request order (compareEmitHelpers).
+            // A target-only private-helper reorder changes observable output:
+            // an accessor context may request `in` before get/set at ES2021.
             helpers
         };
         Ok(helpers)
@@ -1788,6 +1781,7 @@ impl Printer {
             }
         }
         let has_body_statements = statements.len() > skipped_prologues;
+        let statement_count = statements.len();
         if !has_body_statements {
             self.emit_detached_comment_prefix(
                 transformation,
@@ -1915,6 +1909,24 @@ impl Printer {
             transformation.after_emit_node(EmitHint::Unspecified, statement)?;
             writer.write_line(false);
         }
+        // tsc emitSourceFile: after prologue directives emitted ahead of the
+        // body, emitBodyWithDetachedComments and the worker still run for the
+        // source file, so a file whose statements are all prologues emits its
+        // detached comment prefix (and helpers) after them with nothing else
+        // to follow. The loop above only reaches that point through the first
+        // non-prologue statement.
+        if has_body_statements && statement_count == helper_offset {
+            self.emit_detached_comment_prefix(
+                transformation,
+                source_owned_detached_prefix,
+                writer,
+            )?;
+            self.emit_helpers(helpers, writer)?;
+            if self.options.declaration_syntax {
+                self.emit_triple_slash_directives_if_needed(transformation, source_id, writer)?;
+            }
+        }
+
         if original_source_was_statementless
             && !self.options.remove_comments
             && !self.options.declaration_syntax
@@ -1974,17 +1986,16 @@ impl Printer {
             writer.write_line(false);
         }
         for dependency in &source.amd_dependencies {
+            let mut comment = tsc_diagnostics::JsString::from("/// <amd-dependency ");
             if let Some(name) = &dependency.name {
-                writer.write_comment(&format!(
-                    "/// <amd-dependency name=\"{name}\" path=\"{}\" />",
-                    dependency.path
-                ));
-            } else {
-                writer.write_comment(&format!(
-                    "/// <amd-dependency path=\"{}\" />",
-                    dependency.path
-                ));
+                comment.push_str("name=\"");
+                comment.push_str(name);
+                comment.push_str("\" ");
             }
+            comment.push_str("path=\"");
+            comment.push_js(dependency.path.as_js());
+            comment.push_str("\" />");
+            writer.write_comment_utf16(&comment.to_utf16());
             writer.write_line(false);
         }
         self.emit_reference_directives(
@@ -2009,10 +2020,12 @@ impl Printer {
             } else {
                 ""
             };
-            writer.write_comment(&format!(
-                "/// <reference path=\"{}\" {preserve}/>",
-                reference.file_name
-            ));
+            let mut comment = tsc_diagnostics::JsString::from("/// <reference path=\"");
+            comment.push_js(reference.file_name.as_js());
+            comment.push_str("\" ");
+            comment.push_str(preserve);
+            comment.push_str("/>");
+            writer.write_comment_utf16(&comment.to_utf16());
             writer.write_line(false);
         }
         for reference in types {
@@ -2030,10 +2043,13 @@ impl Printer {
             } else {
                 ""
             };
-            writer.write_comment(&format!(
-                "/// <reference types=\"{}\" {resolution_mode}{preserve}/>",
-                reference.file_name
-            ));
+            let mut comment = tsc_diagnostics::JsString::from("/// <reference types=\"");
+            comment.push_js(reference.file_name.as_js());
+            comment.push_str("\" ");
+            comment.push_str(resolution_mode);
+            comment.push_str(preserve);
+            comment.push_str("/>");
+            writer.write_comment_utf16(&comment.to_utf16());
             writer.write_line(false);
         }
         for reference in libs {
@@ -2042,10 +2058,12 @@ impl Printer {
             } else {
                 ""
             };
-            writer.write_comment(&format!(
-                "/// <reference lib=\"{}\" {preserve}/>",
-                reference.file_name
-            ));
+            let mut comment = tsc_diagnostics::JsString::from("/// <reference lib=\"");
+            comment.push_js(reference.file_name.as_js());
+            comment.push_str("\" ");
+            comment.push_str(preserve);
+            comment.push_str("/>");
+            writer.write_comment_utf16(&comment.to_utf16());
             writer.write_line(false);
         }
     }
@@ -2231,13 +2249,13 @@ impl Printer {
             .source(node.source())?
             .syntax()
             .is_declaration_file;
-        let json_source = transformation
-            .arena()
-            .source(node.source())?
-            .syntax()
-            .file_name
-            .to_ascii_lowercase()
-            .ends_with(".json");
+        let json_source = crate::builtins::is_json_file_name(
+            &transformation
+                .arena()
+                .source(node.source())?
+                .syntax()
+                .file_name,
+        );
 
         if !self.options.declaration_syntax
             && !declaration_source
@@ -2282,6 +2300,14 @@ impl Printer {
                 Ok(())
             }
             NodeData::Identifier(data) if changed => {
+                if let Some(text) = transformation
+                    .arena()
+                    .metadata(node)
+                    .and_then(|metadata| metadata.unchecked_identifier_text.as_ref())
+                {
+                    writer.write_utf16(&text.to_utf16());
+                    return Ok(());
+                }
                 if self.transformed_identifier_can_reuse_source_spelling(
                     transformation,
                     node,
@@ -2768,18 +2794,11 @@ impl Printer {
                     let single_quote = properties
                         .and_then(crate::LiteralNodeProperties::string_literal_single_quote)
                         .unwrap_or(false);
-                    let quoted = properties
-                        .and_then(crate::LiteralNodeProperties::javascript_string_value)
-                        .map(|value| {
-                            quote_javascript_string(
-                                value.code_units(),
-                                single_quote,
-                                no_ascii_escaping,
-                            )
-                        })
-                        .unwrap_or_else(|| {
-                            quote_string_literal(&data.text, single_quote, no_ascii_escaping)
-                        });
+                    let quoted = quote_javascript_string(
+                        &data.text.to_utf16(),
+                        single_quote,
+                        no_ascii_escaping,
+                    );
                     writer.write_string_literal_utf16(quoted.code_units());
                     Ok(())
                 }
@@ -9134,7 +9153,7 @@ impl Printer {
         transformation: &TransformationResult<'_>,
         node: TransformNode,
         kind: SyntaxKind,
-        text: &str,
+        text: &tsc_types::JsString,
         raw_text: Option<&str>,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
@@ -9155,13 +9174,10 @@ impl Printer {
         } else if let Some(raw_text) = raw_text {
             TokenText::Raw(raw_text)
         } else {
-            let code_units = properties
-                .and_then(crate::LiteralNodeProperties::javascript_string_value)
-                .map_or_else(
-                    || Cow::Owned(text.encode_utf16().collect::<Vec<_>>()),
-                    |value| Cow::Borrowed(value.code_units()),
-                );
-            TokenText::Cooked(escape_template_literal_text(&code_units, no_ascii_escaping))
+            TokenText::Cooked(escape_template_literal_text(
+                &text.to_utf16(),
+                no_ascii_escaping,
+            ))
         };
         let (prefix, suffix) = match kind {
             SyntaxKind::NoSubstitutionTemplateLiteral => ("`", "`"),
@@ -17032,7 +17048,7 @@ impl Printer {
         let file_name = mapped_source.file_name.clone();
         writer.record_source_map_position_for(
             range.source(),
-            &file_name,
+            file_name.as_js(),
             location.line(),
             location.column(),
         );

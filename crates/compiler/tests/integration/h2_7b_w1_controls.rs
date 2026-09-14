@@ -144,8 +144,16 @@ fn assert_frozen_observation(case_id: &str, expect_ts_2883: bool) {
         .map(|diagnostic| {
             (
                 diagnostic.code(),
-                diagnostic.message_text().to_owned(),
-                diagnostic.file_name.clone(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation")
+                    .to_owned(),
+                diagnostic.file_name.as_ref().map(|name| {
+                    name.as_str()
+                        .expect("scalar diagnostic filename")
+                        .to_owned()
+                }),
                 diagnostic.start,
                 diagnostic.length,
             )
@@ -178,8 +186,16 @@ fn assert_frozen_observation(case_id: &str, expect_ts_2883: bool) {
         .map(|diagnostic| {
             (
                 diagnostic.code(),
-                diagnostic.message_text().to_owned(),
-                diagnostic.file_name.clone(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation")
+                    .to_owned(),
+                diagnostic.file_name.as_ref().map(|name| {
+                    name.as_str()
+                        .expect("scalar diagnostic filename")
+                        .to_owned()
+                }),
                 diagnostic.start,
                 diagnostic.length,
             )
@@ -208,7 +224,7 @@ fn assert_frozen_observation(case_id: &str, expect_ts_2883: bool) {
     );
     for (write, expected) in sink.writes().iter().zip(expected_writes) {
         assert_eq!(
-            write.path(),
+            write.path().scalar_test_path(),
             Path::new(expected["path"].as_str().expect("frozen write path")),
             "{case_id}: exact output path"
         );
@@ -216,7 +232,7 @@ fn assert_frozen_observation(case_id: &str, expect_ts_2883: bool) {
             write.callback_bytes(),
             decode(&expected["callback_utf8_base64"]),
             "{case_id}: exact callback bytes for {}",
-            write.path().display()
+            write.path().scalar_test_path().display()
         );
         assert_eq!(
             write.write_byte_order_mark(),
@@ -224,7 +240,7 @@ fn assert_frozen_observation(case_id: &str, expect_ts_2883: bool) {
                 .as_bool()
                 .expect("frozen BOM flag"),
             "{case_id}: exact BOM flag for {}",
-            write.path().display()
+            write.path().scalar_test_path().display()
         );
         let mut materialized = Vec::new();
         if write.write_byte_order_mark() {
@@ -235,7 +251,7 @@ fn assert_frozen_observation(case_id: &str, expect_ts_2883: bool) {
             materialized,
             decode(&expected["materialized_utf8_base64"]),
             "{case_id}: exact materialized bytes for {}",
-            write.path().display()
+            write.path().scalar_test_path().display()
         );
     }
 }
@@ -380,7 +396,9 @@ fn json_module_import_prefers_program_source_over_package_host_input() {
         prepared
             .source_files()
             .iter()
-            .filter(|source| source.path().display() == Path::new("/package.json"))
+            .filter(
+                |source| source.path().display().scalar_test_path() == Path::new("/package.json")
+            )
             .count(),
         1,
         "the JSON module remains a Program source"
@@ -388,7 +406,10 @@ fn json_module_import_prefers_program_source_over_package_host_input() {
     assert_eq!(
         prepared
             .packages()
-            .filter(|package| package.package_json().display() == Path::new("/package.json"))
+            .filter(
+                |package| package.package_json().display().scalar_test_path()
+                    == Path::new("/package.json")
+            )
             .count(),
         1,
         "the same manifest remains available to host package reads"
@@ -421,8 +442,16 @@ fn json_module_import_prefers_program_source_over_package_host_input() {
         .map(|diagnostic| {
             (
                 diagnostic.code(),
-                diagnostic.message_text().to_owned(),
-                diagnostic.file_name.clone(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation")
+                    .to_owned(),
+                diagnostic.file_name.as_ref().map(|name| {
+                    name.as_str()
+                        .expect("scalar diagnostic filename")
+                        .to_owned()
+                }),
                 diagnostic.start,
                 diagnostic.length,
             )
@@ -453,7 +482,7 @@ fn json_module_import_prefers_program_source_over_package_host_input() {
     for (write, expected) in sink.writes().iter().zip(expected_writes) {
         let expected_callback = decode(&expected["callback_utf8_base64"]);
         assert_eq!(
-            write.path(),
+            write.path().scalar_test_path(),
             Path::new(expected["path"].as_str().expect("frozen write path")),
             "{CASE_ID}: output path"
         );
@@ -461,7 +490,7 @@ fn json_module_import_prefers_program_source_over_package_host_input() {
             write.callback_bytes(),
             expected_callback,
             "{CASE_ID}: callback bytes for {}",
-            write.path().display()
+            write.path().scalar_test_path().display()
         );
         assert_eq!(
             write.write_byte_order_mark(),
@@ -469,7 +498,11 @@ fn json_module_import_prefers_program_source_over_package_host_input() {
                 .as_bool()
                 .expect("frozen BOM flag"),
             "{CASE_ID}: BOM flag for {}",
-            write.path().display()
+            write.path().scalar_test_path().display()
         );
     }
 }
+
+#[path = "../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

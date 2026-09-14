@@ -24,23 +24,31 @@ impl ConfigParseHost for MemoryConfigHost {
         true
     }
 
-    fn file_exists(&self, path: &str) -> Result<bool, ConfigHostError> {
+    fn file_exists(&self, path: tsc_diagnostics::JsStr<'_>) -> Result<bool, ConfigHostError> {
+        let path = path.as_str().expect("scalar config fixture query");
+
         Ok(self.files.contains_key(path))
     }
 
-    fn read_file(&self, path: &str) -> Result<Option<String>, ConfigHostError> {
+    fn read_file(
+        &self,
+        path: tsc_diagnostics::JsStr<'_>,
+    ) -> Result<Option<String>, ConfigHostError> {
+        let path = path.as_str().expect("scalar config fixture query");
+
         Ok(self.files.get(path).cloned())
     }
 
     fn read_directory(
         &self,
-        _directory: &str,
+        _directory: tsc_diagnostics::JsStr<'_>,
         _extensions: &[&str],
-        _excludes: Option<&[String]>,
-        _includes: Option<&[String]>,
+        _excludes: Option<&[tsc_diagnostics::JsString]>,
+        _includes: Option<&[tsc_diagnostics::JsString]>,
         _depth: Option<usize>,
-    ) -> Result<Vec<String>, ConfigHostError> {
-        Ok(Vec::new())
+    ) -> Result<Vec<tsc_diagnostics::JsString>, ConfigHostError> {
+        (|| -> Result<Vec<String>, ConfigHostError> { Ok(Vec::new()) })()
+            .map(|paths| paths.into_iter().map(Into::into).collect())
     }
 }
 
@@ -138,16 +146,16 @@ fn large_raw_option_merge_preserves_slots_tombstones_and_typed_shadowing() {
     let plan = parse_config_root_plan(
         &host,
         ConfigRootPlanRequest {
-            file_name: "/project/tsconfig.json".to_owned(),
+            file_name: "/project/tsconfig.json".to_owned().into(),
             text: primary_config(INHERITED_OPTIONS, OWN_OPTIONS),
-            base_path: "/".to_owned(),
+            base_path: "/".to_owned().into(),
         },
     )
     .expect("large compiler-option graph remains recoverable");
 
     assert_eq!(
         plan.options().typed_value_state("allowJs"),
-        ConfigOptionValueState::Value(&json!(false))
+        ConfigOptionValueState::Value(&json!(false).into())
     );
     assert_eq!(
         plan.options().typed_value_state("strict"),
@@ -161,7 +169,7 @@ fn large_raw_option_merge_preserves_slots_tombstones_and_typed_shadowing() {
         .count();
     assert_eq!(entries.len(), 1 + retained_inherited + 1 + OWN_OPTIONS);
     assert_eq!(entries[0].name, "allowJs");
-    assert_eq!(entries[0].value, json!(false));
+    assert_eq!(entries[0].value, json!(false).into());
 
     let mut entry_index = 1;
     for index in 0..INHERITED_OPTIONS {
@@ -172,7 +180,10 @@ fn large_raw_option_merge_preserves_slots_tombstones_and_typed_shadowing() {
         }
 
         let option = &entries[entry_index];
-        assert_eq!(option.name, name);
+        assert_eq!(
+            (option.name).as_str().expect("scalar name observation"),
+            name
+        );
         let (expected_value, expected_base) = if index % 10 == 0 {
             (30_000 + index, "/project")
         } else if index % 2 == 0 {
@@ -200,7 +211,10 @@ fn large_raw_option_merge_preserves_slots_tombstones_and_typed_shadowing() {
 
     for index in 0..OWN_OPTIONS {
         let option = &entries[entry_index + index];
-        assert_eq!(option.name, format!("own{index:04}"));
+        assert_eq!(
+            (option.name).as_str().expect("scalar name observation"),
+            format!("own{index:04}")
+        );
         assert_eq!(option.value.as_f64(), Some((40_000 + index) as f64));
         assert_eq!(option.base_path, "/project");
     }
@@ -227,9 +241,9 @@ fn large_invalid_list_orders_conversion_before_notifiers_without_quadratic_repai
     let plan = parse_config_root_plan(
         &MemoryConfigHost::default(),
         ConfigRootPlanRequest {
-            file_name: "/project/tsconfig.json".to_owned(),
+            file_name: "/project/tsconfig.json".to_owned().into(),
             text,
-            base_path: "/".to_owned(),
+            base_path: "/".to_owned().into(),
         },
     )
     .expect("large invalid list remains a bounded partial plan");
@@ -273,14 +287,17 @@ fn large_paths_map_finalizes_templates_in_one_ordered_pass() {
     let plan = parse_config_root_plan(
         &MemoryConfigHost::default(),
         ConfigRootPlanRequest {
-            file_name: "/project/tsconfig.json".to_owned(),
+            file_name: "/project/tsconfig.json".to_owned().into(),
             text,
-            base_path: "/".to_owned(),
+            base_path: "/".to_owned().into(),
         },
     )
     .expect("large paths map remains a bounded config plan");
 
-    assert_eq!(plan.options().stored_paths_base_path(), Some("/project"));
+    assert_eq!(
+        plan.options().stored_paths_base_path(),
+        (Some("/project")).map(Into::into)
+    );
     let ConfigOptionValueState::Object(paths) = plan.options().typed_value_state("paths") else {
         panic!("paths is a converted object value")
     };
@@ -308,8 +325,11 @@ fn large_paths_map_finalizes_templates_in_one_ordered_pass() {
         let values = paths[&format!("@pkg{index}/*")]
             .as_array()
             .expect("paths substitution is an array");
-        assert_eq!(values[0], json!(format!("/project/generated/{index}/*")));
-        assert_eq!(values[1], json!(format!("relative/{index}/*")));
+        assert_eq!(
+            values[0],
+            json!(format!("/project/generated/{index}/*")).into()
+        );
+        assert_eq!(values[1], json!(format!("relative/{index}/*")).into());
         assert_eq!(values[2].as_f64(), Some(index as f64));
     }
 }

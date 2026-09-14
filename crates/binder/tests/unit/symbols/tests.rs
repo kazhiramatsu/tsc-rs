@@ -34,18 +34,21 @@ fn symbol_table_preserves_insertion_order() {
     let mut arena = SymbolArena::default();
     let mut table = SymbolTable::default();
     for name in ["z", "a", "m"] {
-        let id = arena.alloc(SymbolFlags::NONE, name.to_owned());
-        table.insert(name.to_owned(), id);
+        let id = arena.alloc(SymbolFlags::NONE, escape_leading_underscores(name));
+        table.insert(escape_leading_underscores(name), id);
     }
-    let keys: Vec<&str> = table.keys().map(String::as_str).collect();
+    let keys: Vec<&str> = table
+        .keys()
+        .map(|name| name.as_str().expect("these test names are scalar"))
+        .collect();
     assert_eq!(keys, ["z", "a", "m"]);
 }
 
 #[test]
 fn arena_allocates_sequential_ids() {
     let mut arena = SymbolArena::default();
-    let first = arena.alloc(SymbolFlags::NONE, "a".to_owned());
-    let second = arena.alloc(SymbolFlags::NONE, "b".to_owned());
+    let first = arena.alloc(SymbolFlags::NONE, crate::escape_leading_underscores("a"));
+    let second = arena.alloc(SymbolFlags::NONE, crate::escape_leading_underscores("b"));
     assert_eq!(first, SymbolId(0));
     assert_eq!(second, SymbolId(1));
     assert_eq!(arena.symbol(second).escaped_name, "b");
@@ -57,12 +60,15 @@ fn persistent_and_transient_partitions_fail_with_typed_exhaustion() {
     let mut persistent = SymbolArena::with_base(tsc_types::TRANSIENT_SYMBOL_BIT - 1);
     assert_eq!(
         persistent
-            .try_alloc(SymbolFlags::NONE, "last".to_owned())
+            .try_alloc(SymbolFlags::NONE, crate::escape_leading_underscores("last"))
             .unwrap(),
         SymbolId(tsc_types::TRANSIENT_SYMBOL_BIT - 1)
     );
     let error = persistent
-        .try_alloc(SymbolFlags::NONE, "overflow".to_owned())
+        .try_alloc(
+            SymbolFlags::NONE,
+            crate::escape_leading_underscores("overflow"),
+        )
         .unwrap_err();
     assert!(!error.transient);
     assert_eq!(error.limit, tsc_types::TRANSIENT_SYMBOL_BIT);
@@ -70,12 +76,18 @@ fn persistent_and_transient_partitions_fail_with_typed_exhaustion() {
     let mut transient = SymbolArena::with_base(u32::MAX - 1);
     assert_eq!(
         transient
-            .try_alloc(SymbolFlags::TRANSIENT, "last".to_owned())
+            .try_alloc(
+                SymbolFlags::TRANSIENT,
+                crate::escape_leading_underscores("last")
+            )
             .unwrap(),
         SymbolId(u32::MAX - 1)
     );
     let error = transient
-        .try_alloc(SymbolFlags::TRANSIENT, "overflow".to_owned())
+        .try_alloc(
+            SymbolFlags::TRANSIENT,
+            crate::escape_leading_underscores("overflow"),
+        )
         .unwrap_err();
     assert!(error.transient);
     assert_eq!(error.limit, u32::MAX);

@@ -38,15 +38,15 @@ impl EmitHost for CheckerEmitHost<'_> {
         self.options
     }
 
-    fn current_directory(&self) -> &Path {
-        Path::new("/project")
+    fn current_directory(&self) -> tsc_types::JsStr<'_> {
+        "/project".into()
     }
 
-    fn common_source_directory(&self) -> &Path {
-        Path::new("/project")
+    fn common_source_directory(&self) -> tsc_types::JsStr<'_> {
+        "/project".into()
     }
 
-    fn config_file_path(&self) -> Option<&Path> {
+    fn config_file_path(&self) -> Option<tsc_types::JsStr<'_>> {
         None
     }
 
@@ -60,7 +60,12 @@ impl EmitHost for CheckerEmitHost<'_> {
 
     fn source_file(&self, id: SourceFileId) -> Option<EmitSource<'_>> {
         (id == self.source_ids[0]).then(|| {
-            let path = Path::new(&self.syntax.file_name);
+            let path = self
+                .syntax
+                .file_name
+                .as_str()
+                .expect("scalar filename observation")
+                .into();
             EmitSource::new(id, path, path, true, None, Some(self.syntax))
         })
     }
@@ -631,7 +636,7 @@ fn dm_container_properties_literal_const_and_late_bound_predicates_preserve_shap
             assert_eq!(
                 properties
                     .iter()
-                    .map(|property| property.name.as_str())
+                    .map(|property| property.name.as_str().expect("scalar name observation"))
                     .collect::<Vec<_>>(),
                 vec!["first", "second"]
             );
@@ -1105,7 +1110,13 @@ fn dm_symbol_and_entity_visibility_preserve_result_codes_aliases_and_error_nodes
             hidden_access.accessibility,
             EmitSymbolAccessibility::CannotBeNamed
         );
-        assert_eq!(hidden_access.error_symbol_name.as_deref(), Some("Hidden"));
+        assert_eq!(
+            hidden_access
+                .error_symbol_name
+                .as_ref()
+                .map(|value| value.as_js().as_str().expect("scalar name observation")),
+            Some("Hidden")
+        );
         assert!(hidden_access.error_module_name.is_some());
         assert_eq!(hidden_access.error_node, None);
 
@@ -1135,7 +1146,10 @@ fn dm_symbol_and_entity_visibility_preserve_result_codes_aliases_and_error_nodes
             EmitSymbolAccessibility::NotAccessible
         );
         assert_eq!(
-            private_access.error_symbol_name.as_deref(),
+            private_access
+                .error_symbol_name
+                .as_ref()
+                .map(|value| value.as_js().as_str().expect("scalar name observation")),
             Some("privateName")
         );
 
@@ -1176,7 +1190,13 @@ fn dm_symbol_and_entity_visibility_preserve_result_codes_aliases_and_error_nodes
             )
             .expect("unresolved entity visibility");
         assert_eq!(missing.accessibility, EmitSymbolAccessibility::NotResolved);
-        assert_eq!(missing.error_symbol_name.as_deref(), Some("Missing"));
+        assert_eq!(
+            missing
+                .error_symbol_name
+                .as_ref()
+                .map(|value| value.as_js().as_str().expect("scalar name observation")),
+            Some("Missing")
+        );
         assert_eq!(missing.error_node, Some(node(missing_reference)));
 
         let type_parameter = state
@@ -1346,8 +1366,8 @@ fn classic_jsx_fragment_retains_only_the_fragment_factory_import() {
         target: Some(ScriptTarget::ES2015.bits()),
         module: Some(ModuleKind::COMMON_JS.bits()),
         jsx: Some(2),
-        jsx_factory: Some("element".to_owned()),
-        jsx_fragment_factory: Some("fragment".to_owned()),
+        jsx_factory: Some(("element".to_owned()).into()),
+        jsx_fragment_factory: Some(("fragment".to_owned()).into()),
         no_unused_locals: Some(true),
         ..CompilerOptions::default()
     };
@@ -1819,7 +1839,8 @@ fn control_compiler_options(options: &Value) -> CompilerOptions {
         module: options["module"].as_i64().map(|value| value as i32),
         always_strict: options["alwaysStrict"].as_bool(),
         downlevel_iteration: options["downlevelIteration"].as_bool(),
-        ignore_deprecations: options["ignoreDeprecations"].as_str().map(str::to_owned),
+        ignore_deprecations: (options["ignoreDeprecations"].as_str().map(str::to_owned))
+            .map(Into::into),
         import_helpers: options["importHelpers"].as_bool(),
         new_line: options["newLine"].as_i64().map(|value| value as i32),
         no_emit_helpers: options["noEmitHelpers"].as_bool(),

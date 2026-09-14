@@ -56,7 +56,10 @@ fn jsdoc_enum_circular_alias_reports_2456_on_the_enum_type() {
         .filter(|diagnostic| diagnostic.code() == 2456)
         .map(|diagnostic| {
             (
-                diagnostic.file_name.as_deref(),
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .map(|value| value.as_js().as_str().expect("scalar name observation")),
                 diagnostic.start,
                 diagnostic.length,
             )

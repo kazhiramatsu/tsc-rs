@@ -10,7 +10,7 @@ use tsc_syntax::{
     for_each_observable_field, try_visit_each_child, Node, NodeArray, NodeArrayId, NodeData,
     NodeDataChildVisitor, NodeId, ObservableField, SourceFile, SyntaxKind, TypeReferenceDirective,
 };
-use tsc_types::{ModifierFlags, NodeFlags};
+use tsc_types::{JsStr, JsString, ModifierFlags, NodeFlags};
 
 use crate::{
     transform::GeneratedBindingId, EmitFlags, EmitMetadata, EmitResolverNode, JavaScriptString,
@@ -566,120 +566,52 @@ impl TransformArena {
         Ok(self.literal_properties.entry(node).or_default())
     }
 
-    /// The JavaScript UTF-16 value of a string literal or template
-    /// fragment, lossless wherever the tree still knows it.
-    ///
-    /// tsc's `node.text` is a lossless JavaScript string. The Rust parse tree
-    /// stores the scanner's `String` (an unpaired surrogate is U+FFFD there,
-    /// `scanner.rs::utf16_encode_as_string`) and keeps the lossless
-    /// information in the source spelling, which the printer copies verbatim
-    /// for positioned parsed nodes. Producers that synthesize a literal from
-    /// another literal's value (`createStringLiteral(node.text)`) read the
-    /// value here instead of `text`. In order:
-    /// 1. a node-owned `javascript_string_value` (synthetic lossless nodes
-    ///    and their clones);
-    /// 2. a positioned string literal's own token spelling, decoded again
-    ///    with the string grammar (`string_literal_text_utf16`);
-    /// 3. a template fragment's stored `raw_text` (`template_text_utf16`);
-    /// 4. a synthesized string literal whose `original` is a parsed string
-    ///    literal with the same cooked `text` (the `cloneNode` shape: tsc
-    ///    copies `text` losslessly): that original's value;
-    /// 5. `None`: the cooked `text` is all the tree knows. A value-changing
-    ///    synthesis (a different `text`) never borrows a spelling, and every
-    ///    decode is accepted only where it agrees with the cooked text at
-    ///    each non-surrogate unit; nothing is inferred from a U+FFFD.
+    /// The node-owned JavaScript value. Source spelling, text ranges and
+    /// original-node links affect printing, never the cooked value's owner.
+    pub fn literal_value(&self, node: TransformNode) -> Result<Option<JsStr<'_>>, TransformError> {
+        let text = match &self.node(node)?.data {
+            NodeData::StringLiteral(data) => &data.text,
+            NodeData::NoSubstitutionTemplateLiteral(data) => &data.text,
+            NodeData::TemplateHead(data) => &data.text,
+            NodeData::TemplateMiddle(data) => &data.text,
+            NodeData::TemplateTail(data) => &data.text,
+            _ => return Ok(None),
+        };
+        Ok(Some(text.as_js()))
+    }
+
+    /// Update the cooked value on its node, preserving independent spelling,
+    /// quote, original-node and range properties.
+    pub fn set_literal_value(
+        &mut self,
+        node: TransformNode,
+        value: impl Into<JsString>,
+    ) -> Result<(), TransformError> {
+        self.node(node)?;
+        let record = self
+            .source_mut(node.source)?
+            .source
+            .arena
+            .node_mut(node.node);
+        let text = match &mut record.data {
+            NodeData::StringLiteral(data) => &mut data.text,
+            NodeData::NoSubstitutionTemplateLiteral(data) => &mut data.text,
+            NodeData::TemplateHead(data) => &mut data.text,
+            NodeData::TemplateMiddle(data) => &mut data.text,
+            NodeData::TemplateTail(data) => &mut data.text,
+            _ => return Err(TransformError::FactoryTokenKindExpected(record.kind)),
+        };
+        *text = value.into();
+        Ok(())
+    }
+
+    /// UTF-16 transport of the owned value; None means this is not a string
+    /// literal or template fragment, not that its source spelling is absent.
     pub fn literal_code_units(
         &self,
         node: TransformNode,
     ) -> Result<Option<Vec<u16>>, TransformError> {
-        if let Some(value) = self
-            .literal_properties(node)
-            .and_then(LiteralNodeProperties::javascript_string_value)
-        {
-            return Ok(Some(value.code_units().to_vec()));
-        }
-        let cooked = match &self.node(node)?.data {
-            NodeData::StringLiteral(data) => &data.text,
-            NodeData::NoSubstitutionTemplateLiteral(NoSubstitutionTemplateLiteralData {
-                text,
-                raw_text,
-            })
-            | NodeData::TemplateHead(TemplateHeadData { text, raw_text })
-            | NodeData::TemplateMiddle(TemplateMiddleData { text, raw_text })
-            | NodeData::TemplateTail(TemplateTailData { text, raw_text }) => {
-                return Ok(raw_text
-                    .as_deref()
-                    .map(|raw| tsc_syntax::template_text_utf16(text, Some(raw))));
-            }
-            _ => return Ok(None),
-        };
-        if let Some(units) = self.spelled_string_literal_units(node, cooked)? {
-            return Ok(Some(units));
-        }
-        let original = self.get_original_node(node);
-        if original == node {
-            return Ok(None);
-        }
-        let NodeData::StringLiteral(data) = &self.node(original)?.data else {
-            return Ok(None);
-        };
-        if data.text != *cooked {
-            return Ok(None);
-        }
-        if let Some(value) = self
-            .literal_properties(original)
-            .and_then(LiteralNodeProperties::javascript_string_value)
-        {
-            return Ok(Some(value.code_units().to_vec()));
-        }
-        self.spelled_string_literal_units(original, cooked)
-    }
-
-    /// Branch 2 of [`Self::literal_code_units`]: the token spelling of a
-    /// positioned string literal (leading trivia skipped; the closing quote
-    /// is stripped only when the token has one, so an unterminated literal
-    /// decodes its whole tail), replayed with the string grammar and
-    /// accepted only where it agrees with `cooked`.
-    fn spelled_string_literal_units(
-        &self,
-        node: TransformNode,
-        cooked: &str,
-    ) -> Result<Option<Vec<u16>>, TransformError> {
-        let record = self.node(node)?;
-        if !matches!(record.data, NodeData::StringLiteral(_)) {
-            return Ok(None);
-        }
-        let source = self.source(node.source())?.syntax();
-        let Ok(SourceRange::Original(range)) =
-            SourceRange::from_raw(record.pos, record.end, source.positions())
-        else {
-            return Ok(None);
-        };
-        let Ok(range) = range.without_leading_trivia(source.text(), source.positions()) else {
-            return Ok(None);
-        };
-        let Some(token) = source
-            .text()
-            .get(range.start().value() as usize..range.end().value() as usize)
-        else {
-            return Ok(None);
-        };
-        let bytes = token.as_bytes();
-        let Some(&quote) = bytes.first() else {
-            return Ok(None);
-        };
-        if !matches!(quote, b'"' | b'\'') {
-            return Ok(None);
-        }
-        let end = if bytes.len() >= 2 && bytes[bytes.len() - 1] == quote {
-            bytes.len() - 1
-        } else {
-            bytes.len()
-        };
-        Ok(Some(tsc_syntax::string_literal_text_utf16(
-            cooked,
-            &token[1..end],
-        )))
+        Ok(self.literal_value(node)?.map(JsStr::to_utf16))
     }
 
     /// cloneNode copies own properties after setOriginalNode merges emitNode.
@@ -979,7 +911,9 @@ impl TransformArena {
         for_each_observable_field(record, |field, value| match value {
             ObservableField::Node(id) => node_fields.push((field, id)),
             ObservableField::NodeArray(id) => array_fields.push((field, id)),
-            ObservableField::Bool(_) | ObservableField::String(_) => {}
+            ObservableField::Bool(_)
+            | ObservableField::String(_)
+            | ObservableField::JsString(_) => {}
         });
 
         let function_like = matches!(
@@ -1972,6 +1906,26 @@ impl<'arena> NodeFactory<'arena> {
         )
     }
 
+    /// TypeScript's factory accepts arbitrary JS values as synthetic
+    /// identifiers, including recovery options and serialized export names.
+    /// Non-scalar values cannot denote a lexical binding and are held in
+    /// explicit emit metadata. These nodes are for output only: callers must
+    /// not use their empty scalar IdentifierData payload for semantic lookup.
+    pub fn create_unchecked_identifier(
+        &mut self,
+        source: TransformSourceId,
+        text: tsc_diagnostics::JsStr<'_>,
+    ) -> Result<TransformNode, TransformError> {
+        if let Some(text) = text.as_str() {
+            return self.create_identifier(source, text);
+        }
+        let identifier = self.create_identifier(source, "")?;
+        self.arena
+            .metadata_mut(identifier)
+            .unchecked_identifier_text = Some(text.to_owned());
+        Ok(identifier)
+    }
+
     /// tsc-port: createPrivateIdentifier @6.0.3
     /// tsc-hash: 095d8d14824ed1e3e193ecbd3c0d5cdf52ba4c6f89d9c5c949d7d65c0d2375e7
     /// tsc-span: _tsc.js:21673-21676
@@ -2078,7 +2032,7 @@ impl<'arena> NodeFactory<'arena> {
     pub fn create_string_literal(
         &mut self,
         source: TransformSourceId,
-        text: impl Into<String>,
+        text: impl Into<JsString>,
         single_quote: bool,
     ) -> Result<TransformNode, TransformError> {
         let literal = self.create_node(
@@ -2105,12 +2059,7 @@ impl<'arena> NodeFactory<'arena> {
         units: &[u16],
         single_quote: bool,
     ) -> Result<TransformNode, TransformError> {
-        let literal =
-            self.create_string_literal(source, String::from_utf16_lossy(units), single_quote)?;
-        self.arena
-            .literal_properties_mut(literal)?
-            .set_javascript_string_value(JavaScriptString::from_code_units(units.to_vec()));
-        Ok(literal)
+        self.create_string_literal(source, JsString::from_code_units(units), single_quote)
     }
 
     /// Lossless UTF-16 spelling of createTemplateLiteralLikeNode @6.0.3.
@@ -2124,7 +2073,7 @@ impl<'arena> NodeFactory<'arena> {
         units: &[u16],
         raw: Option<&[u16]>,
     ) -> Result<TransformNode, TransformError> {
-        let text = String::from_utf16_lossy(units);
+        let text = JsString::from_code_units(units);
         let raw_text = raw.map(String::from_utf16_lossy);
         let data = match kind {
             SyntaxKind::NoSubstitutionTemplateLiteral => {
@@ -2142,7 +2091,6 @@ impl<'arena> NodeFactory<'arena> {
         };
         let literal = self.create_node(source, data, TransformFlags::CONTAINS_ES_2015)?;
         let properties = self.arena.literal_properties_mut(literal)?;
-        properties.set_javascript_string_value(JavaScriptString::from_code_units(units.to_vec()));
         if let Some(raw) = raw {
             properties.set_raw_template_text(JavaScriptString::from_code_units(raw.to_vec()));
         }
@@ -2155,7 +2103,7 @@ impl<'arena> NodeFactory<'arena> {
     pub fn create_template_head(
         &mut self,
         source: TransformSourceId,
-        text: impl Into<String>,
+        text: impl Into<JsString>,
         raw_text: Option<String>,
     ) -> Result<TransformNode, TransformError> {
         self.create_node(
@@ -5357,6 +5305,7 @@ impl<'arena> NodeFactory<'arena> {
                 .arena
                 .node_mut(id);
             copied.numeric_literal_flags = record.numeric_literal_flags;
+            copied.template_flags = record.template_flags;
             copied.multi_line = record.multi_line;
             copied.js_doc = record.js_doc;
             copied.parent = None;
@@ -6319,6 +6268,30 @@ impl<'arena> NodeFactory<'arena> {
                 .then_some(left_kind)
                 .flatten(),
         )
+    }
+
+    /// Explicit `setParent(node, original.parent)` used by upstream workers
+    /// after cloneNode. Ordinary cloning deliberately leaves parent unset.
+    pub(crate) fn set_parent_from(
+        &mut self,
+        node: TransformNode,
+        original: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        if node.source != original.source {
+            return Err(TransformError::CrossSourceNode {
+                expected: node.source,
+                actual: original.source,
+            });
+        }
+        let parent = self.arena.node(original)?.parent;
+        self.arena.node(node)?;
+        self.arena
+            .source_mut(node.source)?
+            .source
+            .arena
+            .node_mut(node.node)
+            .parent = parent;
+        Ok(node)
     }
 
     pub fn set_text_range(
@@ -7505,6 +7478,7 @@ impl<'a> CrossSourceReuseClone<'a> {
                 .arena
                 .node_mut(cloned);
             copied.numeric_literal_flags = record.numeric_literal_flags;
+            copied.template_flags = record.template_flags;
             copied.multi_line = record.multi_line;
             copied.js_doc = js_doc;
             copied.parent = None;

@@ -1793,7 +1793,7 @@ pub(crate) fn try_get_resolution_mode_override(
         .name
         .and_then(|id| context.arena().node_ref(node.source(), id))?;
     let name = match &context.arena().node(name).ok()?.data {
-        NodeData::StringLiteral(data) => data.text.as_str(),
+        NodeData::StringLiteral(data) => data.text.as_js(),
         _ => return None,
     };
     if name != "resolution-mode" {
@@ -1803,11 +1803,11 @@ pub(crate) fn try_get_resolution_mode_override(
         .value
         .and_then(|id| context.arena().node_ref(node.source(), id))?;
     let value = match &context.arena().node(value).ok()?.data {
-        NodeData::StringLiteral(data) => data.text.as_str(),
-        NodeData::NoSubstitutionTemplateLiteral(data) => data.text.as_str(),
+        NodeData::StringLiteral(data) => data.text.as_js(),
+        NodeData::NoSubstitutionTemplateLiteral(data) => data.text.as_js(),
         _ => return None,
     };
-    matches!(value, "import" | "require").then_some(node)
+    (value == "import" || value == "require").then_some(node)
 }
 
 /// tsc-port: rewriteModuleSpecifier2 @6.0.3
@@ -1842,7 +1842,7 @@ pub(crate) fn rewrite_module_specifier(
                 transformer,
                 context,
                 parent,
-                &text,
+                text.as_js(),
             )? {
                 if !name.is_empty() {
                     return Ok(Some(context.factory()?.create_string_literal(
@@ -1940,13 +1940,20 @@ fn expando_declaration_arm(
         else {
             continue;
         };
+        let Some(property_name) = property
+            .name
+            .unescape()
+            .as_str()
+            .filter(|name| tsc_syntax::is_identifier_text(name))
+        else {
+            continue;
+        };
         if !matches!(
             context.arena().node(value_declaration_transform)?.kind,
             SyntaxKind::PropertyAccessExpression
                 | SyntaxKind::ElementAccessExpression
                 | SyntaxKind::BinaryExpression
-        ) || !tsc_syntax::is_identifier_text(&property.name)
-        {
+        ) {
             continue;
         }
         let saved_diagnostic = transformer.tracker.replace_diagnostic_context(
@@ -1977,9 +1984,9 @@ fn expando_declaration_arm(
             .restore_diagnostic_context(saved_diagnostic);
         let type_node = type_node_result?;
         if let Some(type_node) = type_node {
-            let is_keyword = is_non_contextual_keyword(&property.name);
+            let is_keyword = is_non_contextual_keyword(property_name);
             property_types.push((
-                property.name,
+                property_name.to_owned(),
                 value_declaration_transform,
                 type_node,
                 is_keyword,

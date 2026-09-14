@@ -50,7 +50,10 @@ fn implements_reuse_restores_synthetic_scope_after_success_and_factory_error() {
                 None,
                 |checker, arena, target, context| {
                     for kind in [SyntaxKind::ModuleDeclaration, SyntaxKind::Block] {
-                        let conflicting_locals = HashMap::from([("A".to_owned(), foo)]);
+                        let conflicting_locals = HashMap::from([(
+                            tsc_types::EscapedName::from_escaped_value("A".into()),
+                            foo,
+                        )]);
                         context.enclosing_declaration = Some(root);
                         context.enclosing_declaration_is_synthetic = true;
                         context.synthetic_scope_kind = Some(kind);
@@ -169,7 +172,11 @@ fn name_text(arena: &TransformArena, parent: TransformNode, name: Option<NodeId>
     match &node(arena, name).data {
         NodeData::Identifier(data) => data.text.clone(),
         NodeData::PrivateIdentifier(data) => data.text.clone(),
-        NodeData::StringLiteral(data) => data.text.clone(),
+        NodeData::StringLiteral(data) => data
+            .text
+            .as_str()
+            .expect("scalar value observation")
+            .to_owned(),
         NodeData::NumericLiteral(data) => data.text.clone(),
         data => panic!("unexpected declaration name: {data:?}"),
     }
@@ -988,7 +995,7 @@ fn declaration_comment_range_description(
         "kind": format!("{:?}", value_node.kind),
         "pos": value_node.pos as i32,
         "end": value_node.end as i32,
-        "file": arena.source(value.source()).unwrap().syntax().file_name,
+        "file": arena.source(value.source()).unwrap().syntax().file_name.as_str().expect("scalar filename observation"),
     })
 }
 
@@ -1257,7 +1264,7 @@ fn declaration_comment_range_serialized_locations_match_upstream_traces() {
                             let source = checker.binder.source(0);
                             let declaration = source.arena.node_ids().find(|&id| {
                             let node = source.arena.node(id);
-                            serde_json::json!({"kind":format!("{:?}",node.kind),"pos":node.pos as i32,"end":node.end as i32,"file":source.file_name}) == expected["declaration"]
+                            serde_json::json!({"kind":format!("{:?}",node.kind),"pos":node.pos as i32,"end":node.end as i32,"file":source.file_name.as_str().expect("scalar filename observation")}) == expected["declaration"]
                         }).unwrap();
                             let (parameters, return_type) = match &node(arena, signature).data {
                                 NodeData::FunctionDeclaration(data) => {

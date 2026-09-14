@@ -44,11 +44,11 @@ enum DeferredTrackerReport {
     InaccessibleThis,
     InaccessibleUniqueSymbol,
     LikelyUnsafeImportRequired {
-        specifier: String,
-        symbol_name: Option<String>,
+        specifier: tsc_types::JsString,
+        symbol_name: Option<tsc_types::JsString>,
     },
-    NonSerializableProperty(String),
-    PrivateInBaseOfClassExpression(String),
+    NonSerializableProperty(tsc_types::JsString),
+    PrivateInBaseOfClassExpression(tsc_types::JsString),
 }
 
 /// One open `createRecoveryBoundary` frame (`hadError` + `unreportedErrors`).
@@ -118,7 +118,7 @@ impl<'tracker> NodeBuilderTracker<'tracker> {
                     self.report_likely_unsafe_import_required_error(
                         reported_diagnostic,
                         &specifier,
-                        symbol_name.as_deref(),
+                        symbol_name.as_ref().map(tsc_types::JsString::as_js),
                     );
                 }
                 DeferredTrackerReport::NonSerializableProperty(name) => {
@@ -313,11 +313,12 @@ impl<'tracker> NodeBuilderTracker<'tracker> {
     /// tsc-port: SymbolTrackerImpl.reportPrivateInBaseOfClassExpression @6.0.3
     /// tsc-hash: 7246a663106e14972dabfa9c357b0dd78e7b86948c6cb3774f680d377a1d8872
     /// tsc-span: _tsc.js:91001-91007
-    pub(crate) fn report_private_in_base_of_class_expression(
+    pub(crate) fn report_private_in_base_of_class_expression<'name>(
         &mut self,
         reported_diagnostic: &mut bool,
-        property_name: &str,
+        property_name: impl Into<tsc_types::JsStr<'name>>,
     ) {
+        let property_name = property_name.into();
         if self.defer_report(
             reported_diagnostic,
             DeferredTrackerReport::PrivateInBaseOfClassExpression(property_name.to_owned()),
@@ -365,17 +366,18 @@ impl<'tracker> NodeBuilderTracker<'tracker> {
     /// tsc-port: SymbolTrackerImpl.reportLikelyUnsafeImportRequiredError @6.0.3
     /// tsc-hash: 3c9958ba706a65a30fe5710d708d1fef9689ee5678fb0424b6990ad4460b5292
     /// tsc-span: _tsc.js:91022-91028
-    pub(crate) fn report_likely_unsafe_import_required_error(
+    pub(crate) fn report_likely_unsafe_import_required_error<'name>(
         &mut self,
         reported_diagnostic: &mut bool,
-        specifier: &str,
-        symbol_name: Option<&str>,
+        specifier: impl Into<tsc_types::JsStr<'name>>,
+        symbol_name: Option<tsc_types::JsStr<'_>>,
     ) {
+        let specifier = specifier.into();
         if self.defer_report(
             reported_diagnostic,
             DeferredTrackerReport::LikelyUnsafeImportRequired {
                 specifier: specifier.to_owned(),
-                symbol_name: symbol_name.map(str::to_owned),
+                symbol_name: symbol_name.map(tsc_types::JsStr::to_owned),
             },
         ) {
             return;
@@ -414,11 +416,12 @@ impl<'tracker> NodeBuilderTracker<'tracker> {
     /// tsc-port: SymbolTrackerImpl.reportNonSerializableProperty @6.0.3
     /// tsc-hash: 227a16e3134442aaeeefc90843ff7448eb455298647ae1e455df5cf9754eaab0
     /// tsc-span: _tsc.js:91043-91049
-    pub(crate) fn report_non_serializable_property(
+    pub(crate) fn report_non_serializable_property<'name>(
         &mut self,
         reported_diagnostic: &mut bool,
-        property_name: &str,
+        property_name: impl Into<tsc_types::JsStr<'name>>,
     ) {
+        let property_name = property_name.into();
         if self.defer_report(
             reported_diagnostic,
             DeferredTrackerReport::NonSerializableProperty(property_name.to_owned()),

@@ -97,7 +97,13 @@ fn static_property_conflict_uses_the_written_class_name() {
                 .diagnostics
                 .iter()
                 .filter(|diagnostic| diagnostic.code() == 2699)
-                .map(|diagnostic| diagnostic.message_text().to_owned())
+                .map(|diagnostic| {
+                    diagnostic
+                        .message_text()
+                        .as_str()
+                        .expect("scalar diagnostic observation")
+                        .to_owned()
+                })
                 .collect::<Vec<_>>()
         },
     );
@@ -126,7 +132,13 @@ fn late_bound_prototype_merge_uses_the_written_computed_name() {
                 .diagnostics
                 .iter()
                 .filter(|diagnostic| diagnostic.code() == 2300)
-                .map(|diagnostic| diagnostic.message_text().to_owned())
+                .map(|diagnostic| {
+                    diagnostic
+                        .message_text()
+                        .as_str()
+                        .expect("scalar diagnostic observation")
+                        .to_owned()
+                })
                 .collect::<Vec<_>>()
         },
     );
@@ -148,7 +160,13 @@ fn index_constraint_uses_the_written_property_name() {
                 .diagnostics
                 .iter()
                 .filter(|diagnostic| diagnostic.code() == 2411)
-                .map(|diagnostic| diagnostic.message_text().to_owned())
+                .map(|diagnostic| {
+                    diagnostic
+                        .message_text()
+                        .as_str()
+                        .expect("scalar diagnostic observation")
+                        .to_owned()
+                })
                 .collect::<Vec<_>>()
         },
     );

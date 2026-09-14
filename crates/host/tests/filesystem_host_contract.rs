@@ -3,7 +3,48 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use tsc_diagnostics::JsString;
 use tsc_host::{CompilerHost, FsCompilerHost, HostErrorKind, HostOperation, MemoryCompilerHost};
+
+#[test]
+fn filesystem_js_queries_encode_at_io_and_keep_requested_listing_prefix() {
+    let tree = TempTree::new();
+    fs::create_dir(tree.path("\u{fffd}")).unwrap();
+    fs::create_dir(tree.path("\u{fffd}/nested")).unwrap();
+    fs::write(tree.path("\u{fffd}/leaf.ts"), b"same physical file").unwrap();
+    let host = FsCompilerHost::new(tree.root(), native_case_profile()).unwrap();
+    for unit in [0xd800, 0xd801, 0xfffd] {
+        let mut directory = JsString::from(tree.root().to_str().unwrap());
+        directory.push(std::path::MAIN_SEPARATOR);
+        directory.push_code_unit(unit);
+        let mut file = directory.clone();
+        file.push(std::path::MAIN_SEPARATOR);
+        file.push_str("leaf.ts");
+        let mut nested = directory.clone();
+        nested.push(std::path::MAIN_SEPARATOR);
+        nested.push_str("nested");
+        assert!(host.directory_exists_js(directory.as_js()).unwrap());
+        assert!(host.file_exists_js(file.as_js()).unwrap());
+        assert_eq!(
+            host.read_file_js(file.as_js()).unwrap(),
+            Some(b"same physical file".to_vec())
+        );
+        assert_eq!(
+            host.read_directory_js(directory.as_js()).unwrap(),
+            [file.clone(), nested.clone()]
+        );
+        assert_eq!(
+            host.get_directories_js(directory.as_js()).unwrap(),
+            [nested]
+        );
+        let physical = host.realpath_js(file.as_js()).unwrap().unwrap();
+        let scalar_control = host
+            .realpath(&tree.path("\u{fffd}/leaf.ts"))
+            .unwrap()
+            .unwrap();
+        assert_eq!(physical.as_str(), scalar_control.to_str());
+    }
+}
 
 static NEXT_TEMP_TREE: AtomicU64 = AtomicU64::new(0);
 

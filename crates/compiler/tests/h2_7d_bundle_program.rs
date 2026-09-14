@@ -38,7 +38,7 @@ fn flatten(chain: &MessageChain, indent: usize, text: &mut String) {
         text.push('\n');
         text.push_str(&"  ".repeat(indent));
     }
-    text.push_str(&chain.text);
+    text.push_str(chain.text.as_str().expect("scalar diagnostic observation"));
     for child in &chain.next {
         flatten(child, indent + 1, text);
     }
@@ -61,7 +61,7 @@ fn diagnostics(values: &[Diagnostic]) -> Value {
                         json!({
                             "code": related.message.code,
                             "category": format!("{:?}", related.message.category),
-                            "file": related.file_name,
+                            "file": scalar_json(&related.file_name),
                             "start": related.start,
                             "length": related.length,
                             "message": message,
@@ -73,7 +73,7 @@ fn diagnostics(values: &[Diagnostic]) -> Value {
             json!({
                 "code": diagnostic.code(),
                 "category": format!("{:?}", diagnostic.category()),
-                "file": diagnostic.file_name,
+                "file": scalar_json(&diagnostic.file_name),
                 "start": diagnostic.start,
                 "length": diagnostic.length,
                 "message": message,
@@ -93,9 +93,9 @@ fn options(case: &Value) -> CompilerOptions {
             "declaration" => options.declaration = value.as_bool(),
             "declarationMap" => options.declaration_map = value.as_bool(),
             "sourceMap" => options.source_map = value.as_bool(),
-            "outFile" => options.out_file = value.as_str().map(str::to_owned),
-            "declarationDir" => options.declaration_dir = value.as_str().map(str::to_owned),
-            "ignoreDeprecations" => options.ignore_deprecations = value.as_str().map(str::to_owned),
+            "outFile" => options.out_file = value.as_str().map(Into::into),
+            "declarationDir" => options.declaration_dir = value.as_str().map(Into::into),
+            "ignoreDeprecations" => options.ignore_deprecations = value.as_str().map(Into::into),
             "listEmittedFiles" => options.list_emitted_files = value.as_bool(),
             "strict" => options.strict = value.as_bool(),
             "skipDefaultLibCheck" => options.skip_default_lib_check = value.as_bool(),
@@ -171,7 +171,7 @@ fn prepare(case: &Value, libraries: &[(String, Vec<u8>)]) -> PreparedProgram {
     let mut sources = Vec::new();
     let mut loaded_libraries = Vec::new();
     for source in program.source_files() {
-        let name = source.path().display().to_string_lossy();
+        let name = source.path().display().scalar_test_path().to_string_lossy();
         if let Some(name) = name.strip_prefix("/lib/") {
             loaded_libraries.push(name.to_owned());
         } else {
@@ -209,12 +209,12 @@ fn write_record(write: &EmitArtifact, index: usize) -> Value {
         EmitArtifactKind::JavaScriptMap | EmitArtifactKind::DeclarationMap => "source-map",
         _ => panic!("unobserved artifact kind"),
     };
-    json!({"index":index,"path":write.path(),"kind":kind,
+    json!({"index":index,"path":scalar_json(&write.path()),"kind":kind,
         "callback_utf8_base64":base64::engine::general_purpose::STANDARD.encode(write.callback_bytes()),
         "callback_utf8_bytes":write.callback_bytes().len(),"write_byte_order_mark":write.write_byte_order_mark(),
         "materialized_utf8_base64":base64::engine::general_purpose::STANDARD.encode(write.materialized_bytes()),
         "materialized_utf8_bytes":write.materialized_bytes().len(),"on_error_callback_present":true,
-        "source_files":write.source_files(),"data_present":present,"data_keys":keys,
+        "source_files":scalar_json(&write.source_files()),"data_present":present,"data_keys":keys,
         "data_source_map_url_pos":position,"data_diagnostics":data_diagnostics,"data_build_info":null})
 }
 fn writes(sink: &MemoryOutputSink) -> Value {
@@ -227,8 +227,8 @@ fn writes(sink: &MemoryOutputSink) -> Value {
 }
 fn emit_result(outcome: &EmitOutcome) -> Value {
     json!({"emit_skipped":outcome.emit_skipped(),"diagnostics":diagnostics(outcome.diagnostics()),
-        "emitted_files":outcome.emitted_files(),"source_maps":outcome.source_maps().map(|maps|maps.iter().map(|map|json!({
-            "input_source_file_names":map.input_source_files(),"source_map_json":map.canonical_json()
+        "emitted_files":scalar_json(&outcome.emitted_files()),"source_maps":outcome.source_maps().map(|maps|maps.iter().map(|map|json!({
+            "input_source_file_names":scalar_json(&map.input_source_files()),"source_map_json":map.canonical_json()
         })).collect::<Vec<_>>())})
 }
 fn complete_call(expected: &Value, sink: &MemoryOutputSink, fields: Value) -> Value {
@@ -346,7 +346,7 @@ fn ordinary_bundle_program_commands_match_complete_typescript_observations() {
                     expected,
                     &sink,
                     json!({"reported_diagnostics":diagnostics(outcome.diagnostics()),
-                "status_writes":outcome.status_writes(),"exit_code":outcome.exit_code(),"emit_result":emit_result(outcome.emit())}),
+                "status_writes":scalar_json(&outcome.status_writes()),"exit_code":outcome.exit_code(),"emit_result":emit_result(outcome.emit())}),
                 ),
                 expected,
                 id,
@@ -406,7 +406,12 @@ fn same_session_bundle_commands_getters_and_forces_match_typescript() {
                 .iter()
                 .map(|source| {
                     (
-                        source.path().display().to_string_lossy().into_owned(),
+                        source
+                            .path()
+                            .display()
+                            .scalar_test_path()
+                            .to_string_lossy()
+                            .into_owned(),
                         program.source_id(source.path().canonical()).unwrap(),
                     )
                 })
@@ -421,7 +426,7 @@ fn same_session_bundle_commands_getters_and_forces_match_typescript() {
                         "ordinary-command" => {
                             assert_eq!(selection,EmitSelection::WholeProgram);
                             let outcome = session.emit_with_reported_diagnostics(&mut sink).unwrap_or_else(|error|panic_api(error,&sink,id));
-                            json!({"reported_diagnostics":diagnostics(outcome.diagnostics()),"status_writes":outcome.status_writes(),
+                            json!({"reported_diagnostics":diagnostics(outcome.diagnostics()),"status_writes":scalar_json(&outcome.status_writes()),
                                 "exit_code":outcome.exit_code(),"emit_result":emit_result(outcome.emit())})
                         },
                         "declaration-diagnostics" => json!({"diagnostics":diagnostics(&session.get_declaration_diagnostics(selection)?)}),
@@ -528,3 +533,11 @@ fn bundle_later_owner_references_remain_separate() {
             .unwrap();
     }
 }
+
+#[path = "../../program/tests/support/scalar_json.rs"]
+mod utf16_scalar_json;
+use utf16_scalar_json::observe as scalar_json;
+
+#[path = "../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

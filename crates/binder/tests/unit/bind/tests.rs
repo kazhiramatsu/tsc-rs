@@ -636,7 +636,9 @@ fn set_value_declaration_ambient_displacement_reads_root_js_flag() {
         let ambient = find_nodes(&source, SyntaxKind::VariableDeclaration)[0];
         assert!(crate::node_util::node_flags(&source, ambient).intersects(NodeFlags::AMBIENT));
         assert!(!crate::node_util::node_flags(&source, assignment).intersects(NodeFlags::AMBIENT));
-        let symbol = binder.symbols.alloc(SymbolFlags::NONE, "x".to_owned());
+        let symbol = binder
+            .symbols
+            .alloc(SymbolFlags::NONE, crate::escape_leading_underscores("x"));
         binder.set_value_declaration(symbol, assignment);
         binder.set_value_declaration(symbol, ambient);
         let expected = if ambient_wins { ambient } else { assignment };
@@ -677,7 +679,7 @@ module.exports = F;
         f_symbol
             .members
             .keys()
-            .map(String::as_str)
+            .map(|name| name.as_str().expect("these test names are scalar"))
             .collect::<Vec<_>>(),
         ["i", "p", "g"]
     );
@@ -685,7 +687,7 @@ module.exports = F;
         f_symbol
             .exports
             .keys()
-            .map(String::as_str)
+            .map(|name| name.as_str().expect("these test names are scalar"))
             .collect::<Vec<_>>(),
         ["s", "b", "prototype", "d"]
     );
@@ -729,7 +731,7 @@ module.exports = F;
         file_symbol
             .exports
             .keys()
-            .map(String::as_str)
+            .map(|name| name.as_str().expect("these test names are scalar"))
             .collect::<Vec<_>>(),
         ["x", "y", InternalSymbolName::EXPORT_EQUALS]
     );
@@ -852,7 +854,7 @@ module.exports = imported;
         file_symbol
             .exports
             .keys()
-            .map(String::as_str)
+            .map(|name| name.as_str().expect("these test names are scalar"))
             .collect::<Vec<_>>(),
         ["x", "y", InternalSymbolName::EXPORT_EQUALS]
     );

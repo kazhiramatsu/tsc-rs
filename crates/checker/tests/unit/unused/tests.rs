@@ -32,7 +32,11 @@ fn unused_rows_for_files(
                 diagnostic.category(),
                 diagnostic.start.unwrap_or(u32::MAX),
                 diagnostic.length.unwrap_or(u32::MAX),
-                diagnostic.message_text().to_owned(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation")
+                    .to_owned(),
             )
         })
         .collect()
@@ -60,9 +64,18 @@ fn unused_rows_with_file_for_files(
             let category = diagnostic.category();
             let start = diagnostic.start.unwrap_or(u32::MAX);
             let length = diagnostic.length.unwrap_or(u32::MAX);
-            let message = diagnostic.message_text().to_owned();
+            let message = diagnostic
+                .message_text()
+                .as_str()
+                .expect("scalar diagnostic observation")
+                .to_owned();
             (
-                diagnostic.file_name.unwrap_or_default(),
+                diagnostic
+                    .file_name
+                    .unwrap_or_default()
+                    .as_str()
+                    .expect("scalar value observation")
+                    .to_owned(),
                 code,
                 category,
                 start,
@@ -2172,10 +2185,16 @@ module.exports = function MC() {
             .filter(|diagnostic| diagnostic.code() == 6133)
             .map(|diagnostic| {
                 (
-                    diagnostic.file_name.as_deref(),
+                    diagnostic
+                        .file_name
+                        .as_ref()
+                        .map(|value| value.as_js().as_str().expect("scalar name observation")),
                     diagnostic.start.unwrap_or(u32::MAX),
                     diagnostic.length.unwrap_or(u32::MAX),
-                    diagnostic.message_text(),
+                    diagnostic
+                        .message_text()
+                        .as_str()
+                        .expect("scalar diagnostic observation"),
                 )
             })
             .collect::<Vec<_>>();

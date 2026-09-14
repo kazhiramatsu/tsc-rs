@@ -1,38 +1,122 @@
-//! The `tagged-template` shared module (owner-graph `shared_modules[1]`,
-//! `src/compiler/transformers/taggedTemplate.ts`).
-//!
-//! `transformES2015` is the module's only registered consumer
-//! (`ProcessLevel::All`); the upstream ES2018 consumer
-//! (`ProcessLevel::LiftRestriction`, `_tsc.js:102047-102056`) remains
-//! unwired because parse records cannot carry the invalid-escape ES2018
-//! transform-flag facet (the B-4 classifier disposition,
-//! `builtins.rs` `createTaggedTemplateExpression` row) — the level arm is
-//! representable here from day one so that lane's later owner wires a
-//! call, not a rewrite.
-//!
-//! `templateFlags & TokenFlags.IsInvalid` is not persisted on parse
-//! records (`nodes.rs` is generated); [`template_cooked_is_invalid`]
-//! recomputes the only template-reachable half —
-//! `TokenFlags::CONTAINS_INVALID_ESCAPE` — from the raw fragment bytes,
-//! mirroring `scan_escape_sequence`'s decision structure exactly
-//! (scanner.rs:1114-1282). The flag is a pure function of those bytes,
-//! and the untagged parse path re-scans invalid templates into parse
-//! errors (parser.rs:7116), so only tagged-position fragments ever reach
-//! the predicate; the B-5 focused invalid-escape projections byte-compare
-//! the result against oracle output.
+//! Shared TypeScript tagged-template lowering for ES2015 and ES2018.
+//! Template flags and cooked values belong to the parser/factory nodes;
+//! lowering does not rescan raw text to recover either fact.
 
-use tsc_syntax::{nodes::NodeData, SyntaxKind};
+use tsc_syntax::{nodes::NodeData, NodeArrayId, NodeId, SyntaxKind};
+use tsc_types::{JsString, TokenFlags};
 
-use crate::{TransformError, TransformNode};
+use super::{helpers, target_bindings::TargetBinding};
+use crate::{
+    factory::EmitHelperName, TransformError, TransformNode, TransformNodeArray, TransformSourceId,
+    TransformationContext,
+};
 
-use super::es2015::Es2015Visitor;
+/// The transformer owns visitation, binding allocation and declaration lifetime.
+/// The shared algorithm owns template values and the MakeTemplateObject helper.
+/// `visit_each_child_required` must perform the second tag visit at LiftRestriction;
+/// the ES2018 host bypasses its memo during this bounded algorithm.
+pub(super) trait TaggedTemplateHost {
+    fn context(&self) -> &TransformationContext;
+    fn context_mut(&mut self) -> &mut TransformationContext;
+    fn source(&self) -> TransformSourceId;
+    fn visit_required_expression(
+        &mut self,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError>;
+    fn visit_each_child_required(
+        &mut self,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError>;
+    fn allocate_numbered_binding(&mut self, text: &str) -> Result<TargetBinding, TransformError>;
+    fn record_tagged_template_string(&mut self, name: TransformNode) -> Result<(), TransformError>;
+    fn create_generated_identifier(
+        &mut self,
+        binding: &TargetBinding,
+    ) -> Result<TransformNode, TransformError>;
+    fn create_array_literal(
+        &mut self,
+        elements: Vec<TransformNode>,
+    ) -> Result<TransformNode, TransformError>;
+    fn create_void_zero(&mut self) -> Result<TransformNode, TransformError>;
+    fn create_call(
+        &mut self,
+        tag: TransformNode,
+        arguments: Vec<TransformNode>,
+    ) -> Result<TransformNode, TransformError>;
+    fn create_assignment(
+        &mut self,
+        left: TransformNode,
+        right: TransformNode,
+    ) -> Result<TransformNode, TransformError>;
+    fn create_logical_or(
+        &mut self,
+        left: TransformNode,
+        right: TransformNode,
+    ) -> Result<TransformNode, TransformError>;
+
+    fn node(&self, id: NodeId) -> TransformNode {
+        TransformNode::new(self.source(), id)
+    }
+
+    fn arena_node(&self, node: TransformNode) -> Result<&tsc_syntax::Node, TransformError> {
+        self.context().arena().node(node)
+    }
+
+    fn array_nodes(
+        &self,
+        array: Option<NodeArrayId>,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        match array {
+            Some(array) => Ok(self
+                .context()
+                .arena()
+                .node_array(TransformNodeArray::new(self.source(), array))?
+                .nodes
+                .iter()
+                .map(|id| self.node(*id))
+                .collect()),
+            None => Ok(Vec::new()),
+        }
+    }
+
+    fn is_external_module_source(&self) -> Result<bool, TransformError> {
+        Ok(self
+            .context()
+            .arena()
+            .source(self.source())?
+            .syntax()
+            .external_module_indicator
+            .is_some())
+    }
+
+    fn create_string_literal(&mut self, text: &JsString) -> Result<TransformNode, TransformError> {
+        let source = self.source();
+        self.context_mut()
+            .factory()?
+            .create_string_literal(source, text.as_js(), false)
+    }
+
+    fn create_template_object_helper_call(
+        &mut self,
+        cooked: TransformNode,
+        raw: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.context_mut()
+            .request_emit_helper(helpers::make_template_object())?;
+        let source = self.source();
+        let helper = self
+            .context_mut()
+            .factory()?
+            .create_unscoped_helper_identifier(source, EmitHelperName::MakeTemplateObject)?;
+        self.create_call(helper, vec![cooked, raw])
+    }
+}
 
 /// tsc `ProcessLevel` (taggedTemplate.ts): `LiftRestriction` lowers only
 /// templates whose cooked text is invalid (the ES2018 lane); `All` lowers
 /// every tagged template (the ES2015 lane).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum ProcessLevel {
-    #[allow(dead_code)] // the es2018 consumer's lane; see the module doc
     LiftRestriction,
     All,
 }
@@ -41,7 +125,7 @@ pub(super) enum ProcessLevel {
 /// tsc-hash: d318d2539195d77c458bac08f12a8adfd7b03a2c933876e9f27df4bc4782446d
 /// tsc-span: _tsc.js:93972-94018
 pub(super) fn process_tagged_template_expression(
-    host: &mut Es2015Visitor<'_, '_, '_>,
+    host: &mut impl TaggedTemplateHost,
     node: TransformNode,
     level: ProcessLevel,
 ) -> Result<TransformNode, TransformError> {
@@ -150,14 +234,14 @@ pub(super) fn process_tagged_template_expression(
 /// tsc-hash: 1f8f38eeb9dc74ce5fa36ea4158a351d9274f829b792c388a5a955c1c8253090
 /// tsc-span: _tsc.js:94019-94021
 fn create_template_cooked(
-    host: &mut Es2015Visitor<'_, '_, '_>,
+    host: &mut impl TaggedTemplateHost,
     template: TransformNode,
 ) -> Result<TransformNode, TransformError> {
-    let (text, raw) = template_fragment_texts(host, template)?;
-    if template_cooked_is_invalid(&raw) {
+    if host.arena_node(template)?.template_flags & TokenFlags::IS_INVALID.bits() != 0 {
         host.create_void_zero()
     } else {
-        host.create_string_literal_with_value_of(template, &text)
+        let (text, _) = template_fragment_texts(host, template)?;
+        host.create_string_literal(&text)
     }
 }
 
@@ -172,22 +256,36 @@ fn create_template_cooked(
 /// (upstream asserts and slices garbage positions there — "Possibly bad
 /// transform").
 fn get_raw_literal(
-    host: &mut Es2015Visitor<'_, '_, '_>,
+    host: &mut impl TaggedTemplateHost,
     node: TransformNode,
 ) -> Result<TransformNode, TransformError> {
     let (_, raw) = template_fragment_texts(host, node)?;
-    let text = raw.replace("\r\n", "\n").replace('\r', "\n");
+    // getRawLiteral's /\r\n?/g replacement on a JavaScript value.
+    let mut units = raw.code_units().peekable();
+    let mut text = JsString::new();
+    while let Some(unit) = units.next() {
+        if unit == 13 {
+            if units.peek() == Some(&10) {
+                units.next();
+            }
+            text.push_code_unit(10);
+        } else {
+            text.push_code_unit(unit);
+        }
+    }
     let literal = host.create_string_literal(&text)?;
-    host.set_text_range(literal, node)?;
+    host.context_mut()
+        .factory()?
+        .set_text_range(literal, node)?;
     Ok(literal)
 }
 
 /// The fragment's `(cooked text, raw text)` pair, typed-failing on
 /// non-fragment kinds and on a missing raw channel.
 fn template_fragment_texts(
-    host: &Es2015Visitor<'_, '_, '_>,
+    host: &impl TaggedTemplateHost,
     node: TransformNode,
-) -> Result<(String, String), TransformError> {
+) -> Result<(JsString, JsString), TransformError> {
     let record = host.arena_node(node)?;
     let (text, raw_text) = match &record.data {
         NodeData::NoSubstitutionTemplateLiteral(data) => (&data.text, &data.raw_text),
@@ -201,36 +299,45 @@ fn template_fragment_texts(
             });
         }
     };
-    let raw = raw_text
-        .clone()
-        .ok_or(TransformError::RequiredChildRemoved {
-            parent: record.kind,
-            field: "template literal raw text",
-        })?;
+    let raw =
+        match host
+            .context()
+            .arena()
+            .literal_properties(node)
+            .and_then(|properties| properties.raw_template_text())
+        {
+            Some(raw) => JsString::from_code_units(raw.code_units()),
+            None => raw_text.as_deref().map(JsString::from).ok_or(
+                TransformError::RequiredChildRemoved {
+                    parent: record.kind,
+                    field: "template literal raw text",
+                },
+            )?,
+        };
     Ok((text.clone(), raw))
 }
 
 /// tsc `hasInvalidEscape` over the template's fragments: any fragment
-/// whose raw bytes contain an invalid escape. Reached only from the
+/// whose parser-owned flags contain an invalid escape. Reached only from the
 /// `LiftRestriction` arm.
-#[allow(dead_code)] // the es2018 consumer's lane; see the module doc
 fn has_invalid_escape(
-    host: &Es2015Visitor<'_, '_, '_>,
+    host: &impl TaggedTemplateHost,
     template: TransformNode,
 ) -> Result<bool, TransformError> {
     let record = host.arena_node(template)?;
     match &record.data {
         NodeData::NoSubstitutionTemplateLiteral(_) => {
-            let (_, raw) = template_fragment_texts(host, template)?;
-            Ok(template_cooked_is_invalid(&raw))
+            Ok(record.template_flags & TokenFlags::CONTAINS_INVALID_ESCAPE.bits() != 0)
         }
         NodeData::TemplateExpression(data) => {
             let head = data.head.ok_or(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::TemplateExpression,
                 field: "head",
             })?;
-            let (_, raw) = template_fragment_texts(host, host.node(head))?;
-            if template_cooked_is_invalid(&raw) {
+            if host.arena_node(host.node(head))?.template_flags
+                & TokenFlags::CONTAINS_INVALID_ESCAPE.bits()
+                != 0
+            {
                 return Ok(true);
             }
             for span in host.array_nodes(data.template_spans)? {
@@ -246,8 +353,10 @@ fn has_invalid_escape(
                         parent: SyntaxKind::TemplateSpan,
                         field: "literal",
                     })?;
-                let (_, raw) = template_fragment_texts(host, host.node(literal))?;
-                if template_cooked_is_invalid(&raw) {
+                if host.arena_node(host.node(literal))?.template_flags
+                    & TokenFlags::CONTAINS_INVALID_ESCAPE.bits()
+                    != 0
+                {
                     return Ok(true);
                 }
             }
@@ -259,90 +368,3 @@ fn has_invalid_escape(
         }),
     }
 }
-
-/// `templateFlags & TokenFlags.IsInvalid` recomputed from the raw
-/// fragment bytes. For template literals the only reachable IsInvalid
-/// member is `CONTAINS_INVALID_ESCAPE`; the walk mirrors
-/// `scan_escape_sequence`'s consumption and flagging exactly
-/// (scanner.rs:1114-1282):
-/// octal escapes (`\0`+digit, `\1`-`\7`), `\8`/`\9`, short `\x`/`\u`
-/// hex runs, and malformed or out-of-range `\u{...}` set the flag; line
-/// continuations, recognized single-char escapes, arbitrary escaped
-/// characters, and a lone trailing backslash (the scanner's
-/// unexpected-end path) do not.
-fn template_cooked_is_invalid(raw: &str) -> bool {
-    let bytes = raw.as_bytes();
-    let mut pos = 0_usize;
-    while pos < bytes.len() {
-        if bytes[pos] != b'\\' {
-            pos += 1;
-            continue;
-        }
-        pos += 1;
-        let Some(&ch) = bytes.get(pos) else {
-            return false;
-        };
-        pos += 1;
-        match ch {
-            b'0' => {
-                // `\0` alone is the NUL escape; `\0` followed by a digit
-                // enters `scan_octal_escape`, which flags the invalid escape
-                // immediately (further consumption cannot change the answer).
-                if bytes.get(pos).is_some_and(u8::is_ascii_digit) {
-                    return true;
-                }
-            }
-            b'1'..=b'7' => return true,
-            b'8' | b'9' => return true,
-            b'u' => {
-                if bytes.get(pos) == Some(&b'{') {
-                    pos += 1;
-                    let digits_start = pos;
-                    while bytes.get(pos).is_some_and(u8::is_ascii_hexdigit) {
-                        pos += 1;
-                    }
-                    let value = std::str::from_utf8(&bytes[digits_start..pos])
-                        .ok()
-                        .filter(|digits| !digits.is_empty())
-                        .and_then(|digits| u32::from_str_radix(digits, 16).ok());
-                    match value {
-                        None => return true,
-                        Some(value) if value > 0x10ffff => return true,
-                        Some(_) => {}
-                    }
-                    if bytes.get(pos) == Some(&b'}') {
-                        pos += 1;
-                    } else {
-                        return true;
-                    }
-                } else {
-                    for _ in 0..4 {
-                        if !bytes.get(pos).is_some_and(u8::is_ascii_hexdigit) {
-                            return true;
-                        }
-                        pos += 1;
-                    }
-                }
-            }
-            b'x' => {
-                for _ in 0..2 {
-                    if !bytes.get(pos).is_some_and(u8::is_ascii_hexdigit) {
-                        return true;
-                    }
-                    pos += 1;
-                }
-            }
-            b'\r' => {
-                if bytes.get(pos) == Some(&b'\n') {
-                    pos += 1;
-                }
-            }
-            _ => {}
-        }
-    }
-    false
-}
-
-#[cfg(test)]
-#[path = "../../tests/unit/tagged_template/tests.rs"]
-mod tagged_template_tests;

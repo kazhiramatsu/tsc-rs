@@ -6,7 +6,7 @@ use std::{
 use tsc_syntax::{
     try_visit_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind,
 };
-use tsc_types::{CompilerOptions, NodeCheckFlags, NodeFlags, ScriptTarget};
+use tsc_types::{CompilerOptions, JsString, NodeCheckFlags, NodeFlags, ScriptTarget};
 
 use crate::{
     CommentRange, EmitFlags, EmitHint, EmitResolver, InternalEmitFlags, LexicalEnvironment,
@@ -3382,7 +3382,7 @@ impl<'context, 'resolver, 'aliases> ClassFieldsVisitor<'context, 'resolver, 'ali
         Ok(true)
     }
 
-    fn prologue_text(&self, node: TransformNode) -> Result<Option<String>, TransformError> {
+    fn prologue_text(&self, node: TransformNode) -> Result<Option<JsString>, TransformError> {
         let NodeData::ExpressionStatement(data) = &self.context.arena().node(node)?.data else {
             return Ok(None);
         };

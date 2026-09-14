@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use tsc_diagnostics::{JsStr, JsString};
 
 use tsc_program::SourceFileId;
 use tsc_syntax::{FileReference, NodeData, SourceFile, TypeReferenceDirective};
@@ -111,12 +111,9 @@ pub(crate) fn transform_root(
     let declaration_path = transformer
         .paths
         .declaration_file_path(program_source)
-        .unwrap_or_else(|| PathBuf::from(&source_syntax.file_name));
+        .unwrap_or_else(|| source_syntax.file_name.clone());
     let declaration_path = normalize_slashes(declaration_path);
-    let output_directory = declaration_path
-        .parent()
-        .map(Path::to_path_buf)
-        .unwrap_or_default();
+    let output_directory = crate::source_map::paths::directory_path(&declaration_path);
 
     let original_statements = source_statements(context.arena(), root_node)?;
     let combined = if is_javascript {
@@ -169,7 +166,7 @@ pub(crate) fn transform_root(
         transformer,
         context.arena(),
         source,
-        &output_directory,
+        output_directory.as_js(),
         program_source,
         None,
     )?;
@@ -233,7 +230,7 @@ pub(crate) fn referenced_files(
     transformer: &DeclarationTransformer<'_>,
     arena: &TransformArena,
     _source: TransformSourceId,
-    output_directory: &Path,
+    output_directory: JsStr<'_>,
     program_source: SourceFileId,
     bundle_sources: Option<&[TransformSourceId]>,
 ) -> Result<Vec<FileReference>, TransformError> {
@@ -260,7 +257,7 @@ pub(crate) fn referenced_files(
                 .syntax()
                 .is_some_and(|syntax| syntax.is_declaration_file)
         {
-            file.path().to_path_buf()
+            file.path().to_owned()
         } else {
             if bundle_sources.is_some_and(|sources| {
                 sources.iter().any(|&source| {
@@ -274,10 +271,13 @@ pub(crate) fn referenced_files(
             transformer
                 .paths
                 .reference_target_path(file.id())
-                .unwrap_or_else(|| file.path().to_path_buf())
+                .unwrap_or_else(|| file.path().to_owned())
         };
-        let file_name =
-            get_relative_path(output_directory, &declaration_file_name, transformer.host);
+        let file_name = get_relative_path(
+            output_directory,
+            declaration_file_name.as_js(),
+            transformer.host,
+        );
         let mut copied = RawFileReferences::synthetic_copy(reference);
         copied.file_name = file_name;
         result.push(copied);
@@ -330,33 +330,32 @@ fn statements_with_empty_exports(
         .collect())
 }
 
-pub(super) fn normalize_slashes(path: PathBuf) -> PathBuf {
-    PathBuf::from(path.to_string_lossy().replace('\\', "/"))
+pub(super) fn normalize_slashes(path: JsString) -> JsString {
+    crate::source_map::paths::normalize_slashes(&path)
 }
 
 pub(super) fn is_javascript_source(source: &SourceFile, flags: i32) -> bool {
-    let name = source.file_name.to_ascii_lowercase();
-    name.ends_with(".js")
-        || name.ends_with(".jsx")
-        || name.ends_with(".mjs")
-        || name.ends_with(".cjs")
+    [".js", ".jsx", ".mjs", ".cjs"]
+        .into_iter()
+        .any(|suffix| crate::builtins::has_ascii_file_suffix(&source.file_name, suffix))
         || tsc_types::NodeFlags::from_bits(flags).contains(tsc_types::NodeFlags::JAVA_SCRIPT_FILE)
 }
 
-fn is_declaration_file(path: &Path) -> bool {
-    let name = path.to_string_lossy().to_ascii_lowercase();
-    name.ends_with(".d.ts") || name.ends_with(".d.mts") || name.ends_with(".d.cts")
+fn is_declaration_file(path: JsStr<'_>) -> bool {
+    [".d.ts", ".d.mts", ".d.cts"]
+        .into_iter()
+        .any(|ext| crate::builtins::has_ascii_file_suffix(path, ext))
 }
 
 fn get_relative_path(
-    output_directory: &Path,
-    declaration_file_name: &Path,
+    output_directory: JsStr<'_>,
+    declaration_file_name: JsStr<'_>,
     host: &dyn EmitHost,
-) -> String {
+) -> JsString {
     get_relative_path_to_directory_or_url(
-        &output_directory.to_string_lossy(),
-        &declaration_file_name.to_string_lossy(),
-        &host.current_directory().to_string_lossy(),
+        output_directory,
+        declaration_file_name,
+        host.current_directory(),
         host.use_case_sensitive_file_names(),
         false,
     )

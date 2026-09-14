@@ -286,7 +286,10 @@ fn computed_getters_borrow_their_bindable_setter_type() {
                         diagnostic.code(),
                         diagnostic.start,
                         diagnostic.length,
-                        diagnostic.message_text(),
+                        diagnostic
+                            .message_text()
+                            .as_str()
+                            .expect("scalar diagnostic observation"),
                     )
                 })
                 .collect::<Vec<_>>(),

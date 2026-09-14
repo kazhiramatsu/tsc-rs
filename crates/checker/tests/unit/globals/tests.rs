@@ -48,7 +48,13 @@ fn non_generic_global_array_reports_2317_arity_error() {
             let codes: Vec<u32> = state.diagnostics.iter().map(|d| d.code()).collect();
             assert_eq!(codes, [2317]);
             // The arity error sits on the interface declaration.
-            assert_eq!(state.diagnostics[0].file_name.as_deref(), Some("a.ts"));
+            assert_eq!(
+                state.diagnostics[0]
+                    .file_name
+                    .as_ref()
+                    .map(|value| value.as_js().as_str().expect("scalar name observation")),
+                Some("a.ts")
+            );
         },
     );
 }

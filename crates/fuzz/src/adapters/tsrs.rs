@@ -402,6 +402,10 @@ pub(crate) fn execute_prepared_program(
                 "Rust diagnostic formatter rejected an observation: {error}"
             ))
         })?;
+        // The M9 wire model stores scalar JSON strings. Keep the compiler
+        // value intact until this boundary and reject an unrepresentable wire
+        // observation explicitly; replacement would conceal a diagnostic gap.
+        let raw_text = scalar_wire_text(raw_text.as_js(), "renderer raw text")?.to_owned();
         deduped_indices.push(wire_index);
         deduped.push(assembled_diagnostic.clone());
         aggregate_text.push_str(&raw_text);
@@ -440,12 +444,13 @@ fn append_pass(
 ) -> FoundationResult<()> {
     for diagnostic in diagnostics {
         let record = diagnostic_record(pass, diagnostic, sources)?;
-        let canonical_head = diagnostic
-            .canonical_head
-            .as_ref()
-            .map_or_else(CanonicalHead::absent, |head| {
-                CanonicalHead::present(head.code, head.text.clone())
-            });
+        let canonical_head = match &diagnostic.canonical_head {
+            Some(head) => CanonicalHead::present(
+                head.code,
+                scalar_wire_text(head.text.as_js(), "canonical head")?.to_owned(),
+            ),
+            None => CanonicalHead::absent(),
+        };
         raw_assembled.push(diagnostic.clone());
         assembled.push(AssembledDiagnostic {
             diagnostic: record,
@@ -520,15 +525,19 @@ fn diagnostic_location(
             OptionalU32::Absent,
         ));
     };
-    let source = sources.get(file_name).ok_or_else(|| {
-        FoundationError::new(format!(
-            "Rust diagnostic path {file_name:?} is absent from the input program"
-        ))
-    })?;
+    let source = sources
+        .iter()
+        .find(|(name, _)| file_name.as_js() == tsc_diagnostics::JsStr::from_str(name.as_str()))
+        .map(|(_, source)| source)
+        .ok_or_else(|| {
+            FoundationError::new(format!(
+                "Rust diagnostic path {file_name:?} is absent from the input program"
+            ))
+        })?;
     match (diagnostic.start, diagnostic.length) {
         (None, None) => Ok((
             DiagnosticFile::File {
-                path: file_name.clone(),
+                path: scalar_wire_text(file_name.as_js(), "diagnostic filename")?.to_owned(),
             },
             OptionalU32::Absent,
             OptionalU32::Absent,
@@ -543,7 +552,7 @@ fn diagnostic_location(
             let (line, column) = source.line_column(start, "Rust diagnostic start")?;
             Ok((
                 DiagnosticFile::File {
-                    path: file_name.clone(),
+                    path: scalar_wire_text(file_name.as_js(), "diagnostic filename")?.to_owned(),
                 },
                 OptionalU32::Present { value: start },
                 OptionalU32::Present { value: length },
@@ -573,11 +582,15 @@ fn related_diagnostic(
         )));
     }
     if let Some(file_name) = related.file_name.as_ref() {
-        let source = sources.get(file_name).ok_or_else(|| {
-            FoundationError::new(format!(
-                "{context} path {file_name:?} is absent from the input program"
-            ))
-        })?;
+        let source = sources
+            .iter()
+            .find(|(name, _)| file_name.as_js() == tsc_diagnostics::JsStr::from_str(name.as_str()))
+            .map(|(_, source)| source)
+            .ok_or_else(|| {
+                FoundationError::new(format!(
+                    "{context} path {file_name:?} is absent from the input program"
+                ))
+            })?;
         if let (Some(start), Some(length)) = (related.start, related.length) {
             source.ensure_boundary(start, &format!("{context} start"))?;
             let end = start.checked_add(length).ok_or_else(|| {
@@ -588,7 +601,11 @@ fn related_diagnostic(
     }
     Ok(RelatedDiagnostic {
         file_present: related.file_name.is_some(),
-        file: related.file_name.clone(),
+        file: related
+            .file_name
+            .as_ref()
+            .map(|name| scalar_wire_text(name.as_js(), "related filename").map(str::to_owned))
+            .transpose()?,
         start_present: related.start.is_some(),
         start: related.start,
         length_present: related.length.is_some(),
@@ -601,16 +618,20 @@ fn related_diagnostic(
 
 fn message_chain(root: &TsrsMessageChain, context: &str) -> FoundationResult<MessageChain> {
     preflight_message_chain(root, context)?;
-    fn convert(node: &TsrsMessageChain) -> MessageChain {
-        MessageChain {
-            text: node.text.clone(),
+    fn convert(node: &TsrsMessageChain) -> FoundationResult<MessageChain> {
+        Ok(MessageChain {
+            text: scalar_wire_text(node.text.as_js(), "diagnostic message")?.to_owned(),
             code: node.code,
             category: diagnostic_category(node.category),
             next_present: node.next_present,
-            next: node.next.iter().map(convert).collect(),
-        }
+            next: node
+                .next
+                .iter()
+                .map(convert)
+                .collect::<FoundationResult<Vec<_>>>()?,
+        })
     }
-    Ok(convert(root))
+    convert(root)
 }
 
 fn preflight_message_chain(root: &TsrsMessageChain, context: &str) -> FoundationResult<()> {
@@ -665,3 +686,17 @@ fn optional_bool(value: Option<bool>) -> OptionalBool {
 #[cfg(test)]
 #[path = "../../tests/unit/adapters/tsrs/tests.rs"]
 mod tests;
+
+/// Existing M9 JSON-string transport cannot represent unpaired surrogate units.
+/// This is an observation error, never a replacement diagnostic or lookup miss.
+fn scalar_wire_text<'a>(
+    value: tsc_diagnostics::JsStr<'a>,
+    context: &str,
+) -> FoundationResult<&'a str> {
+    value.as_str().ok_or_else(|| {
+        FoundationError::new(
+            format!(
+        "{context} contains an unpaired UTF-16 surrogate unsupported by the scalar M9 wire schema"),
+        )
+    })
+}

@@ -1,0 +1,572 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "fbc32424545db8f274059500576463838a3894064ea68ce905a2b41ae6f1e0ce",
+  "repetitions": 2,
+  "cases": [
+    {
+      "case_id": "0",
+      "value_utf16": [],
+      "expected": {
+        "base_name_utf16": [],
+        "generated_name": ""
+      }
+    },
+    {
+      "case_id": "1",
+      "value_utf16": [
+        109,
+        111,
+        100,
+        117,
+        108,
+        101
+      ],
+      "expected": {
+        "base_name_utf16": [
+          109,
+          111,
+          100,
+          117,
+          108,
+          101
+        ],
+        "generated_name": "module"
+      }
+    },
+    {
+      "case_id": "2",
+      "value_utf16": [
+        64,
+        115,
+        99,
+        111,
+        112,
+        101,
+        47,
+        112,
+        97,
+        99,
+        107,
+        97,
+        103,
+        101
+      ],
+      "expected": {
+        "base_name_utf16": [
+          112,
+          97,
+          99,
+          107,
+          97,
+          103,
+          101
+        ],
+        "generated_name": "package"
+      }
+    },
+    {
+      "case_id": "3",
+      "value_utf16": [
+        46,
+        47,
+        49,
+        45,
+        120,
+        46,
+        116,
+        115
+      ],
+      "expected": {
+        "base_name_utf16": [
+          49,
+          45,
+          120,
+          46,
+          116,
+          115
+        ],
+        "generated_name": "_1_x_ts"
+      }
+    },
+    {
+      "case_id": "4",
+      "value_utf16": [
+        46,
+        47,
+        36,
+        110,
+        97,
+        109,
+        101
+      ],
+      "expected": {
+        "base_name_utf16": [
+          36,
+          110,
+          97,
+          109,
+          101
+        ],
+        "generated_name": "_name"
+      }
+    },
+    {
+      "case_id": "5",
+      "value_utf16": [
+        46,
+        47,
+        95,
+        110,
+        97,
+        109,
+        101
+      ],
+      "expected": {
+        "base_name_utf16": [
+          95,
+          110,
+          97,
+          109,
+          101
+        ],
+        "generated_name": "_name"
+      }
+    },
+    {
+      "case_id": "6",
+      "value_utf16": [
+        46,
+        47,
+        55296
+      ],
+      "expected": {
+        "base_name_utf16": [
+          55296
+        ],
+        "generated_name": "_"
+      }
+    },
+    {
+      "case_id": "7",
+      "value_utf16": [
+        46,
+        47,
+        55297
+      ],
+      "expected": {
+        "base_name_utf16": [
+          55297
+        ],
+        "generated_name": "_"
+      }
+    },
+    {
+      "case_id": "8",
+      "value_utf16": [
+        46,
+        47,
+        56320
+      ],
+      "expected": {
+        "base_name_utf16": [
+          56320
+        ],
+        "generated_name": "_"
+      }
+    },
+    {
+      "case_id": "9",
+      "value_utf16": [
+        46,
+        47,
+        65533
+      ],
+      "expected": {
+        "base_name_utf16": [
+          65533
+        ],
+        "generated_name": "_"
+      }
+    },
+    {
+      "case_id": "10",
+      "value_utf16": [
+        46,
+        47,
+        55296,
+        56320
+      ],
+      "expected": {
+        "base_name_utf16": [
+          55296,
+          56320
+        ],
+        "generated_name": "__"
+      }
+    },
+    {
+      "case_id": "11",
+      "value_utf16": [
+        46,
+        47,
+        55296,
+        120,
+        56320
+      ],
+      "expected": {
+        "base_name_utf16": [
+          55296,
+          120,
+          56320
+        ],
+        "generated_name": "_x_"
+      }
+    },
+    {
+      "case_id": "12",
+      "value_utf16": [
+        46,
+        47,
+        55296,
+        47
+      ],
+      "expected": {
+        "base_name_utf16": [
+          55296
+        ],
+        "generated_name": "_"
+      }
+    },
+    {
+      "case_id": "13",
+      "value_utf16": [
+        46,
+        47,
+        55296,
+        47,
+        47
+      ],
+      "expected": {
+        "base_name_utf16": [],
+        "generated_name": ""
+      }
+    },
+    {
+      "case_id": "14",
+      "value_utf16": [
+        46,
+        47,
+        55296,
+        92,
+        120
+      ],
+      "expected": {
+        "base_name_utf16": [
+          120
+        ],
+        "generated_name": "x"
+      }
+    },
+    {
+      "case_id": "15",
+      "value_utf16": [
+        47
+      ],
+      "expected": {
+        "base_name_utf16": [],
+        "generated_name": ""
+      }
+    },
+    {
+      "case_id": "16",
+      "value_utf16": [
+        47,
+        47,
+        115,
+        101,
+        114,
+        118,
+        101,
+        114
+      ],
+      "expected": {
+        "base_name_utf16": [],
+        "generated_name": ""
+      }
+    },
+    {
+      "case_id": "17",
+      "value_utf16": [
+        47,
+        47,
+        55296
+      ],
+      "expected": {
+        "base_name_utf16": [],
+        "generated_name": ""
+      }
+    },
+    {
+      "case_id": "18",
+      "value_utf16": [
+        47,
+        47,
+        55296,
+        47
+      ],
+      "expected": {
+        "base_name_utf16": [],
+        "generated_name": ""
+      }
+    },
+    {
+      "case_id": "19",
+      "value_utf16": [
+        47,
+        47,
+        55296,
+        47,
+        120
+      ],
+      "expected": {
+        "base_name_utf16": [
+          120
+        ],
+        "generated_name": "x"
+      }
+    },
+    {
+      "case_id": "20",
+      "value_utf16": [
+        67,
+        58
+      ],
+      "expected": {
+        "base_name_utf16": [],
+        "generated_name": ""
+      }
+    },
+    {
+      "case_id": "21",
+      "value_utf16": [
+        67,
+        58,
+        47
+      ],
+      "expected": {
+        "base_name_utf16": [],
+        "generated_name": ""
+      }
+    },
+    {
+      "case_id": "22",
+      "value_utf16": [
+        67,
+        58,
+        47,
+        55296,
+        47
+      ],
+      "expected": {
+        "base_name_utf16": [
+          55296
+        ],
+        "generated_name": "_"
+      }
+    },
+    {
+      "case_id": "23",
+      "value_utf16": [
+        67,
+        58,
+        55296
+      ],
+      "expected": {
+        "base_name_utf16": [
+          67,
+          58,
+          55296
+        ],
+        "generated_name": "C__"
+      }
+    },
+    {
+      "case_id": "24",
+      "value_utf16": [
+        104,
+        116,
+        116,
+        112,
+        115,
+        58,
+        47,
+        47,
+        104,
+        111,
+        115,
+        116
+      ],
+      "expected": {
+        "base_name_utf16": [],
+        "generated_name": ""
+      }
+    },
+    {
+      "case_id": "25",
+      "value_utf16": [
+        104,
+        116,
+        116,
+        112,
+        115,
+        58,
+        47,
+        47,
+        55296
+      ],
+      "expected": {
+        "base_name_utf16": [],
+        "generated_name": ""
+      }
+    },
+    {
+      "case_id": "26",
+      "value_utf16": [
+        104,
+        116,
+        116,
+        112,
+        115,
+        58,
+        47,
+        47,
+        55296,
+        47
+      ],
+      "expected": {
+        "base_name_utf16": [],
+        "generated_name": ""
+      }
+    },
+    {
+      "case_id": "27",
+      "value_utf16": [
+        104,
+        116,
+        116,
+        112,
+        115,
+        58,
+        47,
+        47,
+        55296,
+        47,
+        55297
+      ],
+      "expected": {
+        "base_name_utf16": [
+          55297
+        ],
+        "generated_name": "_"
+      }
+    },
+    {
+      "case_id": "28",
+      "value_utf16": [
+        102,
+        105,
+        108,
+        101,
+        58,
+        47,
+        47,
+        47,
+        99,
+        58
+      ],
+      "expected": {
+        "base_name_utf16": [],
+        "generated_name": ""
+      }
+    },
+    {
+      "case_id": "29",
+      "value_utf16": [
+        102,
+        105,
+        108,
+        101,
+        58,
+        47,
+        47,
+        47,
+        99,
+        58,
+        47
+      ],
+      "expected": {
+        "base_name_utf16": [],
+        "generated_name": ""
+      }
+    },
+    {
+      "case_id": "30",
+      "value_utf16": [
+        102,
+        105,
+        108,
+        101,
+        58,
+        47,
+        47,
+        47,
+        99,
+        58,
+        47,
+        55296
+      ],
+      "expected": {
+        "base_name_utf16": [
+          55296
+        ],
+        "generated_name": "_"
+      }
+    },
+    {
+      "case_id": "31",
+      "value_utf16": [
+        927,
+        46,
+        931
+      ],
+      "expected": {
+        "base_name_utf16": [
+          927,
+          46,
+          931
+        ],
+        "generated_name": "___"
+      }
+    },
+    {
+      "case_id": "32",
+      "value_utf16": [
+        46,
+        47,
+        97,
+        0,
+        98
+      ],
+      "expected": {
+        "base_name_utf16": [
+          97,
+          0,
+          98
+        ],
+        "generated_name": "a_b"
+      }
+    }
+  ]
+}

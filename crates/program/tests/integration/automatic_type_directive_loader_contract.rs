@@ -55,7 +55,7 @@ fn source_paths(program: &PreparedProgram) -> Vec<&Path> {
     program
         .source_files()
         .iter()
-        .map(|source| source.path().display())
+        .map(|source| source.path().display().scalar_test_path())
         .collect()
 }
 
@@ -89,7 +89,9 @@ fn assert_missing_reason(
         assert_eq!(diagnostic.length, None);
         assert_eq!(diagnostic.code(), 2688);
         assert_eq!(
-            diagnostic.message.text,
+            (diagnostic.message.text)
+                .as_str()
+                .expect("scalar name observation"),
             format!("Cannot find type definition file for '{expected_name}'.")
         );
         let [inclusion] = diagnostic.message.next.as_slice() else {
@@ -133,7 +135,7 @@ fn absent_empty_and_requested_root_states_gate_automatic_types_exactly() {
 
     let explicit_missing = ProgramOptions::default()
         .with_no_lib(true)
-        .with_types(vec!["missing".to_owned()])
+        .with_types(vec!["missing".to_owned().into()])
         .with_type_roots(Vec::new());
     let empty = load_no_lib(&host, &[], explicit_missing.clone(), generous_limits())
         .expect("an empty requested root list suppresses explicit automatic types");
@@ -233,11 +235,11 @@ fn wildcard_expansion_preserves_root_and_host_order_filters_and_stably_deduplica
     let options = ProgramOptions::default()
         .with_no_lib(true)
         .with_types(vec![
-            "pre".to_owned(),
-            "*".to_owned(),
-            "dup".to_owned(),
-            "*".to_owned(),
-            "post".to_owned(),
+            "pre".to_owned().into(),
+            "*".to_owned().into(),
+            "dup".to_owned().into(),
+            "*".into(),
+            "post".into(),
         ])
         .with_type_roots(vec![path("/types/z-root"), path("/types/a-root")]);
 
@@ -300,7 +302,7 @@ fn wildcard_automatic_types_follow_javascript_utf16_directory_order() {
         .expect("build UTF-16 ordered automatic-types host");
     let options = ProgramOptions::default()
         .with_no_lib(true)
-        .with_types(vec!["*".to_owned()])
+        .with_types(vec!["*".to_owned().into()])
         .with_type_roots(vec![
             ProgramPath::from_trusted_parts("/types", "/types").unwrap()
         ]);
@@ -350,7 +352,7 @@ fn config_anchor_and_type_roots_preserve_absent_empty_and_nonempty_states() {
         ProgramOptions::default()
             .with_no_lib(true)
             .with_config_file_path(config.clone())
-            .with_types(vec!["*".to_owned()]),
+            .with_types(vec!["*".to_owned().into()]),
         generous_limits(),
     )
     .expect("absent typeRoots use config-file ancestors");
@@ -375,7 +377,7 @@ fn config_anchor_and_type_roots_preserve_absent_empty_and_nonempty_states() {
         ProgramOptions::default()
             .with_no_lib(true)
             .with_config_file_path(config.clone())
-            .with_types(vec!["*".to_owned()])
+            .with_types(vec!["*".to_owned().into()])
             .with_type_roots(vec![path("/custom/types")]),
         generous_limits(),
     )
@@ -394,7 +396,7 @@ fn config_anchor_and_type_roots_preserve_absent_empty_and_nonempty_states() {
         ProgramOptions::default()
             .with_no_lib(true)
             .with_config_file_path(config)
-            .with_types(vec!["fallback".to_owned()])
+            .with_types(vec!["fallback".to_owned().into()])
             .with_type_roots(Vec::new()),
         generous_limits(),
     )
@@ -471,7 +473,7 @@ fn wildcard_manifest_failure_precedes_the_hidden_directory_filter() {
         &["/work/root.ts"],
         ProgramOptions::default()
             .with_no_lib(true)
-            .with_types(vec!["*".to_owned()])
+            .with_types(vec!["*".to_owned().into()])
             .with_type_roots(vec![path("/types")]),
         generous_limits(),
     )
@@ -509,7 +511,7 @@ fn unusual_explicit_names_reach_primary_root_probes_before_becoming_misses() {
         &["/work/root.ts"],
         ProgramOptions::default()
             .with_no_lib(true)
-            .with_types(vec!["a:b".to_owned()])
+            .with_types(vec!["a:b".to_owned().into()])
             .with_type_roots(vec![path("/types")]),
         generous_limits(),
     )
@@ -575,7 +577,7 @@ fn every_automatic_resolution_precedes_the_first_target_and_library_read() {
             ..compiler_options()
         },
         ProgramOptions::default()
-            .with_types(vec!["first".to_owned(), "second".to_owned()])
+            .with_types(vec!["first".to_owned().into(), "second".to_owned().into()])
             .with_type_roots(vec![path("/types")]),
         &LibraryCatalog::typescript_6_0_3(LIBRARY_DIRECTORY),
         generous_limits(),
@@ -597,7 +599,12 @@ fn every_automatic_resolution_precedes_the_first_target_and_library_read() {
     else {
         unreachable!("kind identifies the resolution variant");
     };
-    assert_eq!(specifier.as_deref(), Some("second"));
+    assert_eq!(
+        specifier
+            .as_ref()
+            .map(|value| value.as_str().expect("scalar legacy option observation")),
+        Some("second")
+    );
     assert_eq!(source, ResolutionError::Host(second_resolution));
 }
 
@@ -613,9 +620,9 @@ fn automatic_ts2688_preserves_explicit_occurrences_and_uses_global_wildcard_reas
         ProgramOptions::default()
             .with_no_lib(true)
             .with_types(vec![
-                "zeta".to_owned(),
-                "alpha".to_owned(),
-                "zeta".to_owned(),
+                "zeta".to_owned().into(),
+                "alpha".to_owned().into(),
+                "zeta".to_owned().into(),
             ])
             .with_type_roots(Vec::new()),
         generous_limits(),
@@ -643,9 +650,9 @@ fn automatic_ts2688_preserves_explicit_occurrences_and_uses_global_wildcard_reas
         ProgramOptions::default()
             .with_no_lib(true)
             .with_types(vec![
-                "missing".to_owned(),
-                "*".to_owned(),
-                "missing".to_owned(),
+                "missing".to_owned().into(),
+                "*".to_owned().into(),
+                "missing".to_owned().into(),
             ])
             .with_type_roots(Vec::new()),
         generous_limits(),
@@ -672,7 +679,7 @@ fn automatic_names_count_toward_the_request_edge_limit_before_resolution() {
         &["/work/root.ts"],
         ProgramOptions::default()
             .with_no_lib(true)
-            .with_types(vec!["one".to_owned(), "two".to_owned()])
+            .with_types(vec!["one".to_owned().into(), "two".to_owned().into()])
             .with_type_roots(Vec::new()),
         limits(1),
     )
@@ -718,7 +725,7 @@ fn library_prefix_publication_remaps_root_and_automatic_type_target_ids() {
             ..compiler_options()
         },
         ProgramOptions::default()
-            .with_types(vec!["pkg".to_owned()])
+            .with_types(vec!["pkg".to_owned().into()])
             .with_type_roots(vec![path("/types")]),
         &LibraryCatalog::typescript_6_0_3(LIBRARY_DIRECTORY),
         generous_limits(),
@@ -751,9 +758,13 @@ fn library_prefix_publication_remaps_root_and_automatic_type_target_ids() {
     };
     assert_eq!(target.source().index(), 2);
     assert_eq!(
-        target.target().display(),
+        target.target().display().scalar_test_path(),
         Path::new("/types/pkg/index.d.ts")
     );
     assert!(target.primary());
     assert!(!target.is_external_library_import());
 }
+
+#[path = "../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

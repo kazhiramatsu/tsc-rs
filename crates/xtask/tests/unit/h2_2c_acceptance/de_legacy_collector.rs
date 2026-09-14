@@ -17,20 +17,20 @@ fn pinned(path: &Path, expected: &str) -> Result<Value, Box<dyn Error>> {
 
 fn chain(value: &MessageChain) -> Value {
     json!({"code":value.code,"category":diagnostic_category(value.category),
-        "text":value.text,"next_present":value.next_present,
+        "text":value.text.as_str().expect("scalar legacy diagnostic text"),"next_present":value.next_present,
         "next":value.next.iter().map(chain).collect::<Vec<_>>()})
 }
 
 fn diagnostics(values: &[Diagnostic]) -> Value {
     Value::Array(values.iter().map(|value| json!({
-        "file":value.file_name,"start":value.start,"length":value.length,
+        "file":value.file_name.as_ref().map(|name| name.as_str().expect("scalar legacy observation")),"start":value.start,"length":value.length,
         "message":chain(&value.message),
         "related_information_present":value.related_information_present,
         "related":value.related.iter().map(|related| json!({
-            "file":related.file_name,"start":related.start,"length":related.length,
+            "file":related.file_name.as_ref().map(|name| name.as_str().expect("scalar legacy observation")),"start":related.start,"length":related.length,
             "message":chain(&related.message)
         })).collect::<Vec<_>>(),
-        "canonical_head":value.canonical_head.as_ref().map(|head|json!({"code":head.code,"text":head.text})),
+        "canonical_head":value.canonical_head.as_ref().map(|head|json!({"code":head.code,"text":head.text.as_str().expect("scalar legacy diagnostic text")})),
         "reports_unnecessary":value.reports_unnecessary,"reports_deprecated":value.reports_deprecated,
         "source":value.source,"skipped_on_no_emit":value.skipped_on_no_emit
     })).collect())
@@ -49,7 +49,7 @@ fn writes(sink: &MemoryOutputSink) -> Value {
                 "canonical_json":info.canonical_json()
             }),
         };
-        json!({"index":index,"path":artifact.path(),"kind":format!("{:?}",artifact.kind()),
+        json!({"index":index,"path":artifact.path().as_str().expect("scalar legacy observed path"),"kind":format!("{:?}",artifact.kind()),
             "callback_utf8_base64":base64::engine::general_purpose::STANDARD.encode(artifact.callback_bytes()),
             "callback_utf8_sha256":sha256(artifact.callback_bytes()),
             "callback_utf8_bytes":artifact.callback_bytes().len(),
@@ -57,7 +57,7 @@ fn writes(sink: &MemoryOutputSink) -> Value {
             "materialized_utf8_base64":base64::engine::general_purpose::STANDARD.encode(artifact.materialized_bytes()),
             "materialized_utf8_sha256":sha256(artifact.materialized_bytes()),
             "materialized_utf8_bytes":artifact.materialized_bytes().len(),
-            "source_files":artifact.source_files(),"metadata":metadata})
+            "source_files":artifact.source_files().map(|files| files.iter().map(|name| name.as_str().expect("scalar legacy source name")).collect::<Vec<_>>()),"metadata":metadata})
     }).collect())
 }
 
@@ -72,30 +72,30 @@ fn vector(value: &H2VectorDivergence) -> Value {
 fn prepared_identity(program: &PreparedProgram) -> Value {
     let options = program.compiler_options();
     json!({
-        "mode":format!("{:?}",program.mode()),"current_directory":program.current_directory().display(),
+        "mode":format!("{:?}",program.mode()),"current_directory":program.current_directory().display().as_str().expect("scalar legacy observed path"),
         "case_sensitive":program.path_context().use_case_sensitive_file_names(),
         // Exhaustive typed Debug snapshots supplement the unchanged frozen input;
         // they are observations, not a new option projector or portable oracle.
         "compiler_options_debug":format!("{options:?}"),
         "program_options_debug":format!("{:?}",program.program_options()),
-        "option_facets":{"outFile":options.out_file,"outDir":options.out_dir,
-            "rootDir":options.root_dir,"importHelpers":options.import_helpers,
+        "option_facets":{"outFile":options.out_file.as_ref().map(|name| name.as_str().expect("scalar legacy observation")),"outDir":options.out_dir.as_ref().map(|name| name.as_str().expect("scalar legacy observation")),
+            "rootDir":options.root_dir.as_ref().map(|name| name.as_str().expect("scalar legacy observation")),"importHelpers":options.import_helpers,
             "declaration":options.declaration,"declarationMap":options.declaration_map,
             "emitDeclarationOnly":options.emit_declaration_only,"noEmit":options.no_emit,
             "noEmitOnError":options.no_emit_on_error},
         "roots":program.roots().iter().map(|root|json!({
-            "path":root.path().display(),"source_id":root.source().map(|id|id.raw()),
+            "path":root.path().display().as_str().expect("scalar legacy observed path"),"source_id":root.source().map(|id|id.raw()),
             "missing_diagnostic":root.missing_diagnostic().map(|d|diagnostics(std::slice::from_ref(d)))
         })).collect::<Vec<_>>(),
         "library_source_ids":program.library_files().iter().map(|id|id.raw()).collect::<Vec<_>>(),
         "source_files":program.source_files().iter().enumerate().map(|(id,source)|json!({
-            "source_id":id,"path":source.path().display(),"utf8_sha256":sha256(source.text()),
+            "source_id":id,"path":source.path().display().as_str().expect("scalar legacy observed path"),"utf8_sha256":sha256(source.text()),
             "utf8_bytes":source.text().len(),"may_be_emitted":source.may_be_emitted(),
             "may_emit_forced_declaration":source.may_emit_forced_declaration(),
             "is_external_module":source.is_external_module()
         })).collect::<Vec<_>>(),
         "auxiliary_files":program.auxiliary_files().map(|source|json!({
-            "path":source.path().display(),"utf8_sha256":sha256(source.text()),"utf8_bytes":source.text().len()
+            "path":source.path().display().as_str().expect("scalar legacy observed path"),"utf8_sha256":sha256(source.text()),"utf8_bytes":source.text().len()
         })).collect::<Vec<_>>()
     })
 }

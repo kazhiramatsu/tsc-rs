@@ -20,12 +20,12 @@ fn diagnostic_record(diagnostic: &Diagnostic) -> Value {
     json!({
         "code": diagnostic.code(),
         "category": category,
-        "file": diagnostic.file_name,
+        "file": scalar_json(&diagnostic.file_name),
         "start": diagnostic.start,
         "length": diagnostic.length,
-        "message": diagnostic.message_text(),
+        "message": scalar_json(&diagnostic.message_text().as_str().expect("scalar diagnostic observation")),
         "related_information": diagnostic.related.iter().map(|related| diagnostic_record(
-            &Diagnostic::new(related.file_name.clone(), related.start, related.length, related.message.clone())
+            &Diagnostic::new_js(related.file_name.clone(), related.start, related.length, related.message.clone())
         )).collect::<Vec<_>>(),
     })
 }
@@ -35,16 +35,16 @@ fn option_record(options: &ConfigOptionBag, name: &str) -> Value {
         ConfigOptionValueState::Absent => json!({"name": name, "state": "absent"}),
         ConfigOptionValueState::Undefined => json!({"name": name, "state": "undefined"}),
         ConfigOptionValueState::Value(value) => {
-            json!({"name": name, "state": "value", "value": value})
+            json!({"name": name, "state": "value", "value": scalar_json(&value)})
         }
         ConfigOptionValueState::Object(value) => {
-            json!({"name": name, "state": "value", "value": value.json_projection()})
+            json!({"name": name, "state": "value", "value": scalar_json(&value.json_projection())})
         }
         ConfigOptionValueState::List(elements) => json!({
             "name": name, "state": "list",
             "elements": elements.iter().map(|element| match element {
                 ConfigTypedListElement::Undefined => json!({"state": "undefined"}),
-                ConfigTypedListElement::Value(value) => json!({"state": "value", "value": value}),
+                ConfigTypedListElement::Value(value) => json!({"state": "value", "value": scalar_json(&value)}),
             }).collect::<Vec<_>>(),
         }),
         ConfigOptionValueState::PositiveInfinity => {
@@ -98,9 +98,9 @@ fn observe(case: &Value, option_keys: &[Value]) -> Value {
     let plan = match parse_config_root_plan(
         &CompilerConfigHost::new(&host),
         ConfigRootPlanRequest {
-            file_name: config_path.to_owned(),
+            file_name: config_path.to_owned().into(),
             text: config.to_owned(),
-            base_path: base.to_str().expect("Unicode directory").to_owned(),
+            base_path: base.to_str().expect("Unicode directory").to_owned().into(),
         },
     ) {
         Ok(plan) => plan,
@@ -113,14 +113,14 @@ fn observe(case: &Value, option_keys: &[Value]) -> Value {
         "acquisition_option_probes": (["enable", "include", "exclude", "disableFilenameBasedTypeAcquisition"].iter()
             .map(|name| option_record(plan.type_acquisition_option_bag(), name)).collect::<Vec<_>>()),
         "compile_on_save": plan.compile_on_save_enabled(),
-        "raw": plan.raw(),
-        "file_names": plan.file_names(),
+        "raw": scalar_json(&plan.raw()),
+        "file_names": scalar_json(&plan.file_names()),
         "wildcard_directories": plan.wildcard_directories().iter()
-            .map(|directory| json!({"path": directory.path, "recursive": directory.recursive}))
+            .map(|directory| json!({"path": scalar_json(&directory.path), "recursive": directory.recursive}))
             .collect::<Vec<_>>(),
-        "extended_source_files": plan.extended_source_files(),
+        "extended_source_files": scalar_json(&plan.extended_source_files()),
         "extended_sources": plan.extended_sources().iter()
-            .map(|source| json!({"file_name": source.file_name, "text": source.text()}))
+            .map(|source| json!({"file_name": scalar_json(&source.file_name), "text": source.text()}))
             .collect::<Vec<_>>(),
         "option_probes": option_keys.iter()
             .map(|name| option_record(plan.options(), name.as_str().expect("option key")))
@@ -174,3 +174,7 @@ fn config_root_options_matches_fresh_typescript_observations() {
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
+
+#[path = "../support/scalar_json.rs"]
+mod utf16_scalar_json;
+use utf16_scalar_json::observe as scalar_json;

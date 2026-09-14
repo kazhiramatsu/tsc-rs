@@ -1,0 +1,2197 @@
+{
+  "version": 1,
+  "scope": "Parser flags/values/diagnostics and transform flags only; not native or command qualification",
+  "typescript": "6.0.3",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "77c651f0fef923f91d983a1606001aad511bd6739c795adb2be1f479550aad7b",
+  "target": 4,
+  "repetitions": 2,
+  "parser_executions": 86,
+  "cases": [
+    {
+      "case_id": "untagged/plain",
+      "source": "const value = `ok`;",
+      "source_sha256": "dd640989717907562fe86c4da84138e405cf22cb29ebf4a7f67fcc3641bd77ad",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 13,
+              "end": 18,
+              "value_utf16": [
+                111,
+                107
+              ],
+              "raw_text": "ok",
+              "template_flags": 0
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 4457472,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 13,
+              "end": 18,
+              "flags": 1024
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "tagged/plain",
+      "source": "const value = tag`ok`;",
+      "source_sha256": "f4158c8a5dce0ef97e5594b14d511596828498f9d3129809cd307393be7c243f",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 17,
+              "end": 21,
+              "value_utf16": [
+                111,
+                107
+              ],
+              "raw_text": "ok",
+              "template_flags": 0
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 4457472,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 17,
+              "end": 21,
+              "flags": 1024
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "untagged/empty",
+      "source": "const value = ``;",
+      "source_sha256": "a33ca9da14f2a6e6c37a1a3ac26f3e7ccb8d588fe352b529e8d68c314a6dfc07",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 13,
+              "end": 16,
+              "value_utf16": [],
+              "raw_text": "",
+              "template_flags": 0
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 4457472,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 13,
+              "end": 16,
+              "flags": 1024
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "tagged/empty",
+      "source": "const value = tag``;",
+      "source_sha256": "2a01d09f91063a7c4895383b93bc0d05896f5e3309b2db53ddfeb3a9d967ea5d",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 17,
+              "end": 19,
+              "value_utf16": [],
+              "raw_text": "",
+              "template_flags": 0
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 4457472,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 17,
+              "end": 19,
+              "flags": 1024
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "untagged/unicode",
+      "source": "const value = `\\u0061`;",
+      "source_sha256": "32a8eedb3d9fe1b0dc77362b889420236f46dcae75efda69245ac87bf302f8b0",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 13,
+              "end": 22,
+              "value_utf16": [
+                97
+              ],
+              "raw_text": "\\u0061",
+              "template_flags": 1024
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 4457600,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 13,
+              "end": 22,
+              "flags": 1152
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "tagged/unicode",
+      "source": "const value = tag`\\u0061`;",
+      "source_sha256": "2acae589666cfd051b2e5b044d428a7df1b31a5f495b52237d3551ca83824674",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 17,
+              "end": 25,
+              "value_utf16": [
+                97
+              ],
+              "raw_text": "\\u0061",
+              "template_flags": 1024
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 4457600,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 17,
+              "end": 25,
+              "flags": 1152
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "untagged/extended",
+      "source": "const value = `\\u{10000}`;",
+      "source_sha256": "514f7e234f177fd751d61f78229b11203a35bf3a7e67112404c9b5e3218f9a6e",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 13,
+              "end": 25,
+              "value_utf16": [
+                55296,
+                56320
+              ],
+              "raw_text": "\\u{10000}",
+              "template_flags": 8
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 4457600,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 13,
+              "end": 25,
+              "flags": 1152
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "tagged/extended",
+      "source": "const value = tag`\\u{10000}`;",
+      "source_sha256": "e03b5cdacee1b975a1e02d0226d52bf4a22397b9fd91c9a438041700524fc957",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 17,
+              "end": 28,
+              "value_utf16": [
+                55296,
+                56320
+              ],
+              "raw_text": "\\u{10000}",
+              "template_flags": 8
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 4457600,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 17,
+              "end": 28,
+              "flags": 1152
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "untagged/hex",
+      "source": "const value = `\\x61`;",
+      "source_sha256": "1cac7ac08a39e755e552670239d4489bdc227b34545a6ff9e56f75c86be7fdd3",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 13,
+              "end": 20,
+              "value_utf16": [
+                97
+              ],
+              "raw_text": "\\x61",
+              "template_flags": 4096
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 4457600,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 13,
+              "end": 20,
+              "flags": 1152
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "tagged/hex",
+      "source": "const value = tag`\\x61`;",
+      "source_sha256": "d547692c7d673d3fa0d5beb413526467b0026fae42089670d71d305f0fca7c2e",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 17,
+              "end": 23,
+              "value_utf16": [
+                97
+              ],
+              "raw_text": "\\x61",
+              "template_flags": 4096
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 4457600,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 17,
+              "end": 23,
+              "flags": 1152
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "untagged/lone-surrogate",
+      "source": "const value = `\\uD800`;",
+      "source_sha256": "8e99cda56d9a34224a59bdb39e55edeccd7bd9d32285aa3366bb1bb2560851ff",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 13,
+              "end": 22,
+              "value_utf16": [
+                55296
+              ],
+              "raw_text": "\\uD800",
+              "template_flags": 1024
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 4457600,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 13,
+              "end": 22,
+              "flags": 1152
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "tagged/lone-surrogate",
+      "source": "const value = tag`\\uD800`;",
+      "source_sha256": "243897e636ee04dd1ab061b695f4515bab5b61b6b489b2b9ab52ca996cbcb31d",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 17,
+              "end": 25,
+              "value_utf16": [
+                55296
+              ],
+              "raw_text": "\\uD800",
+              "template_flags": 1024
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 4457600,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 17,
+              "end": 25,
+              "flags": 1152
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "untagged/extended-surrogate",
+      "source": "const value = `\\u{D800}`;",
+      "source_sha256": "8f7ebda09231199de77e1209368826963ab520945c094c1f6bd414f64743f933",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 13,
+              "end": 24,
+              "value_utf16": [
+                55296
+              ],
+              "raw_text": "\\u{D800}",
+              "template_flags": 8
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 4457600,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 13,
+              "end": 24,
+              "flags": 1152
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "tagged/extended-surrogate",
+      "source": "const value = tag`\\u{D800}`;",
+      "source_sha256": "0c0fe6ef51100b5cbb05a6ef65179d381d3456de55f58238ebd9c2df6e65c952",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 17,
+              "end": 27,
+              "value_utf16": [
+                55296
+              ],
+              "raw_text": "\\u{D800}",
+              "template_flags": 8
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 4457600,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 17,
+              "end": 27,
+              "flags": 1152
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "untagged/combined",
+      "source": "const value = `\\u0061\\x62\\u{63}`;",
+      "source_sha256": "9c78a018218f88116e2e8681789b8838cad87b0ff852d1e691bf3382759195b6",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 13,
+              "end": 32,
+              "value_utf16": [
+                97,
+                98,
+                99
+              ],
+              "raw_text": "\\u0061\\x62\\u{63}",
+              "template_flags": 5128
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 4457600,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 13,
+              "end": 32,
+              "flags": 1152
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "tagged/combined",
+      "source": "const value = tag`\\u0061\\x62\\u{63}`;",
+      "source_sha256": "31b0397e6bbecbfa6bde52f735bee20c205fd2c633781a85c99e9b41b10380ad",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 17,
+              "end": 35,
+              "value_utf16": [
+                97,
+                98,
+                99
+              ],
+              "raw_text": "\\u0061\\x62\\u{63}",
+              "template_flags": 5128
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 4457600,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 17,
+              "end": 35,
+              "flags": 1152
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "untagged/identity-and-control",
+      "source": "const value = `\\z\\n\\0`;",
+      "source_sha256": "8475703abfca339fd5147d145f269fa79238e3199f3a0942c05eaf52eceb40d4",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 13,
+              "end": 22,
+              "value_utf16": [
+                122,
+                10,
+                0
+              ],
+              "raw_text": "\\z\\n\\0",
+              "template_flags": 0
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 4457472,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 13,
+              "end": 22,
+              "flags": 1024
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "tagged/identity-and-control",
+      "source": "const value = tag`\\z\\n\\0`;",
+      "source_sha256": "24a4b43d08da85e613b9a99be0ebac9d54df257492b5cc5256a09d1f90777d71",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 17,
+              "end": 25,
+              "value_utf16": [
+                122,
+                10,
+                0
+              ],
+              "raw_text": "\\z\\n\\0",
+              "template_flags": 0
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 4457472,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 17,
+              "end": 25,
+              "flags": 1024
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "untagged/invalid-unicode",
+      "source": "const value = `\\unicode`;",
+      "source_sha256": "79c9ebd2f1885228bfeaf076f223de9c4973920e1e7b948e2882816aeb4ba774",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 13,
+              "end": 24,
+              "value_utf16": [
+                92,
+                117,
+                110,
+                105,
+                99,
+                111,
+                100,
+                101
+              ],
+              "raw_text": "\\unicode",
+              "template_flags": 2048
+            }
+          ],
+          "diagnostics": [
+            {
+              "code": 1125,
+              "start": 17,
+              "length": 0,
+              "message_utf16": [
+                72,
+                101,
+                120,
+                97,
+                100,
+                101,
+                99,
+                105,
+                109,
+                97,
+                108,
+                32,
+                100,
+                105,
+                103,
+                105,
+                116,
+                32,
+                101,
+                120,
+                112,
+                101,
+                99,
+                116,
+                101,
+                100,
+                46
+              ]
+            }
+          ]
+        },
+        "transforms": {
+          "root_flags": 4457600,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 13,
+              "end": 24,
+              "flags": 1152
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "tagged/invalid-unicode",
+      "source": "const value = tag`\\unicode`;",
+      "source_sha256": "98cfa1a30b12fed03744cc717bb9c8e41fe0a5f0100ddda2e1b0c8987e801aff",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 17,
+              "end": 27,
+              "value_utf16": [
+                92,
+                117,
+                110,
+                105,
+                99,
+                111,
+                100,
+                101
+              ],
+              "raw_text": "\\unicode",
+              "template_flags": 2048
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 4457600,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 17,
+              "end": 27,
+              "flags": 1152
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "untagged/invalid-hex",
+      "source": "const value = `\\xQ`;",
+      "source_sha256": "11453c475711ff2d62e877cdbb5f260e1f1c28c919cb1f2d0cb05380983fc4d1",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 13,
+              "end": 19,
+              "value_utf16": [
+                92,
+                120,
+                81
+              ],
+              "raw_text": "\\xQ",
+              "template_flags": 2048
+            }
+          ],
+          "diagnostics": [
+            {
+              "code": 1125,
+              "start": 17,
+              "length": 0,
+              "message_utf16": [
+                72,
+                101,
+                120,
+                97,
+                100,
+                101,
+                99,
+                105,
+                109,
+                97,
+                108,
+                32,
+                100,
+                105,
+                103,
+                105,
+                116,
+                32,
+                101,
+                120,
+                112,
+                101,
+                99,
+                116,
+                101,
+                100,
+                46
+              ]
+            }
+          ]
+        },
+        "transforms": {
+          "root_flags": 4457600,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 13,
+              "end": 19,
+              "flags": 1152
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "tagged/invalid-hex",
+      "source": "const value = tag`\\xQ`;",
+      "source_sha256": "31c3f94fb36ba82b478442ea94c9e301e31b0cf9865222afb2b7876dd99f40a4",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 17,
+              "end": 22,
+              "value_utf16": [
+                92,
+                120,
+                81
+              ],
+              "raw_text": "\\xQ",
+              "template_flags": 2048
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 4457600,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 17,
+              "end": 22,
+              "flags": 1152
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "untagged/out-of-range",
+      "source": "const value = `\\u{110000}`;",
+      "source_sha256": "def73882b8c505d108ccb9256eb85ab24e9a4a609482aa619ea67de1d8123f31",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 13,
+              "end": 26,
+              "value_utf16": [
+                92,
+                117,
+                123,
+                49,
+                49,
+                48,
+                48,
+                48,
+                48,
+                125
+              ],
+              "raw_text": "\\u{110000}",
+              "template_flags": 2048
+            }
+          ],
+          "diagnostics": [
+            {
+              "code": 1198,
+              "start": 18,
+              "length": 6,
+              "message_utf16": [
+                65,
+                110,
+                32,
+                101,
+                120,
+                116,
+                101,
+                110,
+                100,
+                101,
+                100,
+                32,
+                85,
+                110,
+                105,
+                99,
+                111,
+                100,
+                101,
+                32,
+                101,
+                115,
+                99,
+                97,
+                112,
+                101,
+                32,
+                118,
+                97,
+                108,
+                117,
+                101,
+                32,
+                109,
+                117,
+                115,
+                116,
+                32,
+                98,
+                101,
+                32,
+                98,
+                101,
+                116,
+                119,
+                101,
+                101,
+                110,
+                32,
+                48,
+                120,
+                48,
+                32,
+                97,
+                110,
+                100,
+                32,
+                48,
+                120,
+                49,
+                48,
+                70,
+                70,
+                70,
+                70,
+                32,
+                105,
+                110,
+                99,
+                108,
+                117,
+                115,
+                105,
+                118,
+                101,
+                46
+              ]
+            }
+          ]
+        },
+        "transforms": {
+          "root_flags": 4457600,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 13,
+              "end": 26,
+              "flags": 1152
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "tagged/out-of-range",
+      "source": "const value = tag`\\u{110000}`;",
+      "source_sha256": "83bc5c35cd49c938c6d05b9094d0225ee93ac9a3131edd6bf87580ac2cf767f8",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 17,
+              "end": 29,
+              "value_utf16": [
+                92,
+                117,
+                123,
+                49,
+                49,
+                48,
+                48,
+                48,
+                48,
+                125
+              ],
+              "raw_text": "\\u{110000}",
+              "template_flags": 2048
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 4457600,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 17,
+              "end": 29,
+              "flags": 1152
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "untagged/octal",
+      "source": "const value = `\\01`;",
+      "source_sha256": "d1806d0d8d12b0e4aa1c7ea7f384699c25bdbea3d7d69e31471397518fba8027",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 13,
+              "end": 19,
+              "value_utf16": [
+                1
+              ],
+              "raw_text": "\\01",
+              "template_flags": 2048
+            }
+          ],
+          "diagnostics": [
+            {
+              "code": 1487,
+              "start": 15,
+              "length": 3,
+              "message_utf16": [
+                79,
+                99,
+                116,
+                97,
+                108,
+                32,
+                101,
+                115,
+                99,
+                97,
+                112,
+                101,
+                32,
+                115,
+                101,
+                113,
+                117,
+                101,
+                110,
+                99,
+                101,
+                115,
+                32,
+                97,
+                114,
+                101,
+                32,
+                110,
+                111,
+                116,
+                32,
+                97,
+                108,
+                108,
+                111,
+                119,
+                101,
+                100,
+                46,
+                32,
+                85,
+                115,
+                101,
+                32,
+                116,
+                104,
+                101,
+                32,
+                115,
+                121,
+                110,
+                116,
+                97,
+                120,
+                32,
+                39,
+                92,
+                120,
+                48,
+                49,
+                39,
+                46
+              ]
+            }
+          ]
+        },
+        "transforms": {
+          "root_flags": 4457600,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 13,
+              "end": 19,
+              "flags": 1152
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "tagged/octal",
+      "source": "const value = tag`\\01`;",
+      "source_sha256": "79275a0b9d32aef7c2db8d6d330ee4c8087a1e847a5b2b10449e153787ec77cf",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 17,
+              "end": 22,
+              "value_utf16": [
+                92,
+                48,
+                49
+              ],
+              "raw_text": "\\01",
+              "template_flags": 2048
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 4457600,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 17,
+              "end": 22,
+              "flags": 1152
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "untagged/decimal",
+      "source": "const value = `\\8`;",
+      "source_sha256": "3b0ae0908d65f18775c9407152f7669d7dea0a313c033e062e4f1f027117f970",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 13,
+              "end": 18,
+              "value_utf16": [
+                56
+              ],
+              "raw_text": "\\8",
+              "template_flags": 2048
+            }
+          ],
+          "diagnostics": [
+            {
+              "code": 1488,
+              "start": 15,
+              "length": 2,
+              "message_utf16": [
+                69,
+                115,
+                99,
+                97,
+                112,
+                101,
+                32,
+                115,
+                101,
+                113,
+                117,
+                101,
+                110,
+                99,
+                101,
+                32,
+                39,
+                92,
+                56,
+                39,
+                32,
+                105,
+                115,
+                32,
+                110,
+                111,
+                116,
+                32,
+                97,
+                108,
+                108,
+                111,
+                119,
+                101,
+                100,
+                46
+              ]
+            }
+          ]
+        },
+        "transforms": {
+          "root_flags": 4457600,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 13,
+              "end": 18,
+              "flags": 1152
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "tagged/decimal",
+      "source": "const value = tag`\\8`;",
+      "source_sha256": "32cfeb610c375aae07225a5d60b5470f8473e1ea654a806d16c1b0ce2cd19f79",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 17,
+              "end": 21,
+              "value_utf16": [
+                92,
+                56
+              ],
+              "raw_text": "\\8",
+              "template_flags": 2048
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 4457600,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 17,
+              "end": 21,
+              "flags": 1152
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "untagged/line-continuation",
+      "source": "const value = `a\\\r\nb`;",
+      "source_sha256": "461507ec60c53c777c74caccc04630fa25f7651b44b269bf93418ee8743df23c",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 13,
+              "end": 21,
+              "value_utf16": [
+                97,
+                98
+              ],
+              "raw_text": "a\\\r\nb",
+              "template_flags": 0
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 4457472,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 13,
+              "end": 21,
+              "flags": 1024
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "tagged/line-continuation",
+      "source": "const value = tag`a\\\r\nb`;",
+      "source_sha256": "67b143563eae3c0b291d61df84c7be91cc245007974757bbb922dc1771a5c974",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 17,
+              "end": 24,
+              "value_utf16": [
+                97,
+                98
+              ],
+              "raw_text": "a\\\r\nb",
+              "template_flags": 0
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 4457472,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 17,
+              "end": 24,
+              "flags": 1024
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "untagged/crlf",
+      "source": "const value = `a\r\nb`;",
+      "source_sha256": "e9ff700b40d41c332c11634cb950dce6ca56daf06b4ece526a406676a459eb18",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 13,
+              "end": 20,
+              "value_utf16": [
+                97,
+                10,
+                98
+              ],
+              "raw_text": "a\r\nb",
+              "template_flags": 0
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 4457472,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 13,
+              "end": 20,
+              "flags": 1024
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "tagged/crlf",
+      "source": "const value = tag`a\r\nb`;",
+      "source_sha256": "bae2b3801b206c2bf532bd73d79f02b37040dac580ec6eed69c1de45482d40e9",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 17,
+              "end": 23,
+              "value_utf16": [
+                97,
+                10,
+                98
+              ],
+              "raw_text": "a\r\nb",
+              "template_flags": 0
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 4457472,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 17,
+              "end": 23,
+              "flags": 1024
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "tagged/all-fragments",
+      "source": "tag`\\uD800${x}\\x61${y}\\u{10000}`;",
+      "source_sha256": "44f3ad4d8be53db4ee73f026805994ce5798b9f5baaaca46f4de93c58b62dc96",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 16,
+              "pos": 3,
+              "end": 12,
+              "value_utf16": [
+                55296
+              ],
+              "raw_text": "\\uD800",
+              "template_flags": 1024
+            },
+            {
+              "kind": 17,
+              "pos": 13,
+              "end": 20,
+              "value_utf16": [
+                97
+              ],
+              "raw_text": "\\x61",
+              "template_flags": 4096
+            },
+            {
+              "kind": 18,
+              "pos": 21,
+              "end": 32,
+              "value_utf16": [
+                55296,
+                56320
+              ],
+              "raw_text": "\\u{10000}",
+              "template_flags": 8
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 1152,
+          "fragments": [
+            {
+              "kind": 16,
+              "pos": 3,
+              "end": 12,
+              "flags": 1152
+            },
+            {
+              "kind": 17,
+              "pos": 13,
+              "end": 20,
+              "flags": 1152
+            },
+            {
+              "kind": 18,
+              "pos": 21,
+              "end": 32,
+              "flags": 1152
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "tagged/invalid-fragments",
+      "source": "tag`\\unicode${x}\\xQ${y}\\01`;",
+      "source_sha256": "72556729b57dc6f927b5ea9d9f63a03743a1f2e53f06d3ad955bc59f4b45edca",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 16,
+              "pos": 3,
+              "end": 14,
+              "value_utf16": [
+                92,
+                117,
+                110,
+                105,
+                99,
+                111,
+                100,
+                101
+              ],
+              "raw_text": "\\unicode",
+              "template_flags": 2048
+            },
+            {
+              "kind": 17,
+              "pos": 15,
+              "end": 21,
+              "value_utf16": [
+                92,
+                120,
+                81
+              ],
+              "raw_text": "\\xQ",
+              "template_flags": 2048
+            },
+            {
+              "kind": 18,
+              "pos": 22,
+              "end": 27,
+              "value_utf16": [
+                92,
+                48,
+                49
+              ],
+              "raw_text": "\\01",
+              "template_flags": 2048
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 1152,
+          "fragments": [
+            {
+              "kind": 16,
+              "pos": 3,
+              "end": 14,
+              "flags": 1152
+            },
+            {
+              "kind": 17,
+              "pos": 15,
+              "end": 21,
+              "flags": 1152
+            },
+            {
+              "kind": 18,
+              "pos": 22,
+              "end": 27,
+              "flags": 1152
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "untagged/invalid-rescans",
+      "source": "`\\unicode${x}\\xQ${y}\\01`;",
+      "source_sha256": "dee165a24b823b55a209f4a8524bf82dbca50d78bc92dc5c4b05a40a638cd51a",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 16,
+              "pos": 0,
+              "end": 11,
+              "value_utf16": [
+                92,
+                117,
+                110,
+                105,
+                99,
+                111,
+                100,
+                101
+              ],
+              "raw_text": "\\unicode",
+              "template_flags": 2048
+            },
+            {
+              "kind": 17,
+              "pos": 12,
+              "end": 18,
+              "value_utf16": [
+                92,
+                120,
+                81
+              ],
+              "raw_text": "\\xQ",
+              "template_flags": 2048
+            },
+            {
+              "kind": 18,
+              "pos": 19,
+              "end": 24,
+              "value_utf16": [
+                1
+              ],
+              "raw_text": "\\01",
+              "template_flags": 2048
+            }
+          ],
+          "diagnostics": [
+            {
+              "code": 1125,
+              "start": 3,
+              "length": 0,
+              "message_utf16": [
+                72,
+                101,
+                120,
+                97,
+                100,
+                101,
+                99,
+                105,
+                109,
+                97,
+                108,
+                32,
+                100,
+                105,
+                103,
+                105,
+                116,
+                32,
+                101,
+                120,
+                112,
+                101,
+                99,
+                116,
+                101,
+                100,
+                46
+              ]
+            },
+            {
+              "code": 1125,
+              "start": 15,
+              "length": 0,
+              "message_utf16": [
+                72,
+                101,
+                120,
+                97,
+                100,
+                101,
+                99,
+                105,
+                109,
+                97,
+                108,
+                32,
+                100,
+                105,
+                103,
+                105,
+                116,
+                32,
+                101,
+                120,
+                112,
+                101,
+                99,
+                116,
+                101,
+                100,
+                46
+              ]
+            },
+            {
+              "code": 1487,
+              "start": 20,
+              "length": 3,
+              "message_utf16": [
+                79,
+                99,
+                116,
+                97,
+                108,
+                32,
+                101,
+                115,
+                99,
+                97,
+                112,
+                101,
+                32,
+                115,
+                101,
+                113,
+                117,
+                101,
+                110,
+                99,
+                101,
+                115,
+                32,
+                97,
+                114,
+                101,
+                32,
+                110,
+                111,
+                116,
+                32,
+                97,
+                108,
+                108,
+                111,
+                119,
+                101,
+                100,
+                46,
+                32,
+                85,
+                115,
+                101,
+                32,
+                116,
+                104,
+                101,
+                32,
+                115,
+                121,
+                110,
+                116,
+                97,
+                120,
+                32,
+                39,
+                92,
+                120,
+                48,
+                49,
+                39,
+                46
+              ]
+            }
+          ]
+        },
+        "transforms": {
+          "root_flags": 1152,
+          "fragments": [
+            {
+              "kind": 16,
+              "pos": 0,
+              "end": 11,
+              "flags": 1152
+            },
+            {
+              "kind": 17,
+              "pos": 12,
+              "end": 18,
+              "flags": 1152
+            },
+            {
+              "kind": 18,
+              "pos": 19,
+              "end": 24,
+              "flags": 1152
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "tagged/middle-only",
+      "source": "tag`a${x}\\unicode${y}c`;",
+      "source_sha256": "31f96e81350029ab605cda2120c9253694937be848d4a7f6d08a836410a38ad0",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 16,
+              "pos": 3,
+              "end": 7,
+              "value_utf16": [
+                97
+              ],
+              "raw_text": "a",
+              "template_flags": 0
+            },
+            {
+              "kind": 17,
+              "pos": 8,
+              "end": 19,
+              "value_utf16": [
+                92,
+                117,
+                110,
+                105,
+                99,
+                111,
+                100,
+                101
+              ],
+              "raw_text": "\\unicode",
+              "template_flags": 2048
+            },
+            {
+              "kind": 18,
+              "pos": 20,
+              "end": 23,
+              "value_utf16": [
+                99
+              ],
+              "raw_text": "c",
+              "template_flags": 0
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 1152,
+          "fragments": [
+            {
+              "kind": 16,
+              "pos": 3,
+              "end": 7,
+              "flags": 1024
+            },
+            {
+              "kind": 17,
+              "pos": 8,
+              "end": 19,
+              "flags": 1152
+            },
+            {
+              "kind": 18,
+              "pos": 20,
+              "end": 23,
+              "flags": 1024
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "tagged/tail-only",
+      "source": "tag`a${x}b${y}\\unicode`;",
+      "source_sha256": "8b90f5da7ebc1e7ffac062756c81b3b8425c2af109061ad7502107d7a5ca03bd",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 16,
+              "pos": 3,
+              "end": 7,
+              "value_utf16": [
+                97
+              ],
+              "raw_text": "a",
+              "template_flags": 0
+            },
+            {
+              "kind": 17,
+              "pos": 8,
+              "end": 12,
+              "value_utf16": [
+                98
+              ],
+              "raw_text": "b",
+              "template_flags": 0
+            },
+            {
+              "kind": 18,
+              "pos": 13,
+              "end": 23,
+              "value_utf16": [
+                92,
+                117,
+                110,
+                105,
+                99,
+                111,
+                100,
+                101
+              ],
+              "raw_text": "\\unicode",
+              "template_flags": 2048
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 1152,
+          "fragments": [
+            {
+              "kind": 16,
+              "pos": 3,
+              "end": 7,
+              "flags": 1024
+            },
+            {
+              "kind": 17,
+              "pos": 8,
+              "end": 12,
+              "flags": 1024
+            },
+            {
+              "kind": 18,
+              "pos": 13,
+              "end": 23,
+              "flags": 1152
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "tagged/unterminated",
+      "source": "tag`abc",
+      "source_sha256": "554335f178d76beed794044d4d61c2707f5f6dfa52d1f3b3d5b9552ffd03f15c",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 3,
+              "end": 7,
+              "value_utf16": [
+                97,
+                98,
+                99
+              ],
+              "raw_text": "abc",
+              "template_flags": 0
+            }
+          ],
+          "diagnostics": [
+            {
+              "code": 1160,
+              "start": 7,
+              "length": 0,
+              "message_utf16": [
+                85,
+                110,
+                116,
+                101,
+                114,
+                109,
+                105,
+                110,
+                97,
+                116,
+                101,
+                100,
+                32,
+                116,
+                101,
+                109,
+                112,
+                108,
+                97,
+                116,
+                101,
+                32,
+                108,
+                105,
+                116,
+                101,
+                114,
+                97,
+                108,
+                46
+              ]
+            }
+          ]
+        },
+        "transforms": {
+          "root_flags": 1024,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 3,
+              "end": 7,
+              "flags": 1024
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "untagged/unterminated",
+      "source": "`abc",
+      "source_sha256": "0a32f3ff1d35a3bd0c60d0ae5a5ac6c494cf9e880a425fdb3366706859d5b177",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 0,
+              "end": 4,
+              "value_utf16": [
+                97,
+                98,
+                99
+              ],
+              "raw_text": "abc",
+              "template_flags": 0
+            }
+          ],
+          "diagnostics": [
+            {
+              "code": 1160,
+              "start": 4,
+              "length": 0,
+              "message_utf16": [
+                85,
+                110,
+                116,
+                101,
+                114,
+                109,
+                105,
+                110,
+                97,
+                116,
+                101,
+                100,
+                32,
+                116,
+                101,
+                109,
+                112,
+                108,
+                97,
+                116,
+                101,
+                32,
+                108,
+                105,
+                116,
+                101,
+                114,
+                97,
+                108,
+                46
+              ]
+            }
+          ]
+        },
+        "transforms": {
+          "root_flags": 1024,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 0,
+              "end": 4,
+              "flags": 1024
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "tagged/trivia",
+      "source": "/**doc*/\ntag\n`ok`;",
+      "source_sha256": "dba0a6d355b462fe78750ddb34edb3c193a4ed6f623f8fdd6059902f85603973",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 12,
+              "end": 17,
+              "value_utf16": [
+                111,
+                107
+              ],
+              "raw_text": "ok",
+              "template_flags": 0
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 1024,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 12,
+              "end": 17,
+              "flags": 1024
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "tagged/type-arguments",
+      "source": "tag<string>`\\unicode`;",
+      "source_sha256": "617c4c8ef0359a2c74db0aaafffcd76d234848690359ba58fce186d1c1227673",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 11,
+              "end": 21,
+              "value_utf16": [
+                92,
+                117,
+                110,
+                105,
+                99,
+                111,
+                100,
+                101
+              ],
+              "raw_text": "\\unicode",
+              "template_flags": 2048
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 1153,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 11,
+              "end": 21,
+              "flags": 1152
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "await/reparse",
+      "source": "export {}; await tag`\\unicode`; tag`\\u0061`;",
+      "source_sha256": "bb74ad0e91a1b9389264ee1e9bb593bd430aef6f5e64c29f57ca546f95a44244",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 20,
+              "end": 30,
+              "value_utf16": [
+                92,
+                117,
+                110,
+                105,
+                99,
+                111,
+                100,
+                101
+              ],
+              "raw_text": "\\unicode",
+              "template_flags": 2048
+            },
+            {
+              "kind": 15,
+              "pos": 35,
+              "end": 43,
+              "value_utf16": [
+                97
+              ],
+              "raw_text": "\\u0061",
+              "template_flags": 1024
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 2098560,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 20,
+              "end": 30,
+              "flags": 1152
+            },
+            {
+              "kind": 15,
+              "pos": 35,
+              "end": 43,
+              "flags": 1152
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "non-template/flags-isolation",
+      "source": "const a = 0b1; const b = \"\\u{61}\"; tag`ok`;",
+      "source_sha256": "352c44422665347ea78cab1115d7a47d028cf139da5e4d0f2e1633ad44f8327f",
+      "expected": {
+        "syntax": {
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 38,
+              "end": 42,
+              "value_utf16": [
+                111,
+                107
+              ],
+              "raw_text": "ok",
+              "template_flags": 0
+            }
+          ],
+          "diagnostics": []
+        },
+        "transforms": {
+          "root_flags": 4457472,
+          "fragments": [
+            {
+              "kind": 15,
+              "pos": 38,
+              "end": 42,
+              "flags": 1024
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

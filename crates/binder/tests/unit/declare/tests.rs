@@ -267,7 +267,10 @@ fn enum_cannot_merge_with_class_reports_2567() {
     declare_all(&mut binder, TableRef::Locals(source.root), None);
     assert_eq!(diag_pins(&binder), [(2567, 6, 1), (2567, 16, 1)]);
     // messageNeedsName = false: the 2567 text carries no name.
-    assert!(!binder.bind_diagnostics[0].message_text().contains('C'));
+    assert!(!binder.bind_diagnostics[0]
+        .message_text()
+        .code_units()
+        .any(|unit| unit == u16::from(b'C')));
 }
 
 #[test]
@@ -278,9 +281,10 @@ fn multiple_default_export_classes_report_2528_with_relateds() {
     let options: &'static tsc_types::CompilerOptions =
         Box::leak(Box::new(tsc_types::CompilerOptions::default()));
     let mut binder = Binder::new(&source, options);
-    let container = binder
-        .symbols
-        .alloc(SymbolFlags::NONE, "container".to_owned());
+    let container = binder.symbols.alloc(
+        SymbolFlags::NONE,
+        crate::escape_leading_underscores("container"),
+    );
     declare_all(&mut binder, TableRef::Exports(container), Some(container));
     assert_eq!(diag_pins(&binder), [(2528, 21, 1), (2528, 47, 1)]);
     let first = &binder.bind_diagnostics[0];
@@ -309,9 +313,10 @@ fn multiple_export_assignments_report_2528_full_statement_spans() {
     let options: &'static tsc_types::CompilerOptions =
         Box::leak(Box::new(tsc_types::CompilerOptions::default()));
     let mut binder = Binder::new(&source, options);
-    let container = binder
-        .symbols
-        .alloc(SymbolFlags::NONE, "container".to_owned());
+    let container = binder.symbols.alloc(
+        SymbolFlags::NONE,
+        crate::escape_leading_underscores("container"),
+    );
     declare_all(&mut binder, TableRef::Exports(container), Some(container));
     assert_eq!(diag_pins(&binder), [(2528, 0, 17), (2528, 18, 17)]);
     let first = &binder.bind_diagnostics[0];

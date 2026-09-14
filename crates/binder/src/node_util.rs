@@ -2,9 +2,11 @@
 //! names, JSDoc host/tag lookup, dynamic-name predicates, and error
 //! spans. Anchors are into the vendored `_tsc.js`.
 
-use crate::symbols::{escape_leading_underscores, unescape_leading_underscores};
-use tsc_syntax::{NodeArrayId, NodeData, NodeId, SourceFile, SyntaxKind};
-use tsc_types::{ModifierFlags, NodeFlags};
+use crate::symbols::escape_leading_underscores;
+use tsc_syntax::{
+    unescape_leading_underscores, NodeArrayId, NodeData, NodeId, SourceFile, SyntaxKind,
+};
+use tsc_types::{EscapedName, JsStr, JsString, ModifierFlags, NodeFlags};
 
 pub fn node_flags(source: &SourceFile, id: NodeId) -> NodeFlags {
     NodeFlags::from_bits(source.arena.node(id).flags)
@@ -965,14 +967,14 @@ pub fn is_property_name_literal(source: &SourceFile, id: NodeId) -> bool {
 }
 
 /// The `text` payload of literal-like name nodes.
-pub fn literal_text_of(source: &SourceFile, id: NodeId) -> Option<&str> {
+pub fn literal_text_of(source: &SourceFile, id: NodeId) -> Option<JsStr<'_>> {
     match &source.arena.node(id).data {
-        NodeData::StringLiteral(data) => Some(&data.text),
-        NodeData::NumericLiteral(data) => Some(&data.text),
-        NodeData::BigIntLiteral(data) => Some(&data.text),
-        NodeData::NoSubstitutionTemplateLiteral(data) => Some(&data.text),
-        NodeData::Identifier(data) => Some(&data.text),
-        NodeData::PrivateIdentifier(data) => Some(&data.text),
+        NodeData::StringLiteral(data) => Some(data.text.as_js()),
+        NodeData::NumericLiteral(data) => Some(JsStr::from_str(&data.text)),
+        NodeData::BigIntLiteral(data) => Some(JsStr::from_str(&data.text)),
+        NodeData::NoSubstitutionTemplateLiteral(data) => Some(data.text.as_js()),
+        NodeData::Identifier(data) => Some(JsStr::from_str(&data.text)),
+        NodeData::PrivateIdentifier(data) => Some(JsStr::from_str(&data.text)),
         _ => None,
     }
 }
@@ -987,24 +989,28 @@ pub fn id_text(source: &SourceFile, id: NodeId) -> Option<&str> {
 }
 
 /// tsc getTextOfIdentifierOrLiteral (_tsc.js 15899).
-pub fn get_text_of_identifier_or_literal(source: &SourceFile, id: NodeId) -> Option<String> {
+pub fn get_text_of_identifier_or_literal(source: &SourceFile, id: NodeId) -> Option<JsString> {
     if let Some(text) = id_text(source, id) {
-        return Some(text.to_owned());
+        return Some(text.into());
     }
     if let NodeData::JsxNamespacedName(_) = &source.arena.node(id).data {
-        return get_text_of_jsx_namespaced_name(source, id);
+        return get_text_of_jsx_namespaced_name(source, id).map(Into::into);
     }
-    literal_text_of(source, id).map(str::to_owned)
+    literal_text_of(source, id).map(JsStr::to_owned)
 }
 
 /// tsc getEscapedTextOfIdentifierOrLiteral (_tsc.js 15902).
 pub fn get_escaped_text_of_identifier_or_literal(
     source: &SourceFile,
     id: NodeId,
-) -> Option<String> {
+) -> Option<EscapedName> {
     match &source.arena.node(id).data {
-        NodeData::Identifier(data) => Some(data.escaped_text.clone()),
-        NodeData::PrivateIdentifier(data) => Some(data.escaped_text.clone()),
+        NodeData::Identifier(data) => Some(EscapedName::from_identifier_escaped_text(
+            &data.escaped_text,
+        )),
+        NodeData::PrivateIdentifier(data) => Some(EscapedName::from_identifier_escaped_text(
+            &data.escaped_text,
+        )),
         NodeData::JsxNamespacedName(_) => get_escaped_text_of_jsx_namespaced_name(source, id),
         _ => literal_text_of(source, id).map(escape_leading_underscores),
     }
@@ -1012,7 +1018,10 @@ pub fn get_escaped_text_of_identifier_or_literal(
 
 /// tsc getEscapedTextOfJsxNamespacedName (_tsc.js 19342):
 /// `${namespace.escapedText}:${idText(name)}`.
-pub fn get_escaped_text_of_jsx_namespaced_name(source: &SourceFile, id: NodeId) -> Option<String> {
+pub fn get_escaped_text_of_jsx_namespaced_name(
+    source: &SourceFile,
+    id: NodeId,
+) -> Option<EscapedName> {
     let NodeData::JsxNamespacedName(data) = &source.arena.node(id).data else {
         return None;
     };
@@ -1021,11 +1030,11 @@ pub fn get_escaped_text_of_jsx_namespaced_name(source: &SourceFile, id: NodeId) 
     let NodeData::Identifier(namespace_data) = &source.arena.node(namespace).data else {
         return None;
     };
-    Some(format!(
+    Some(EscapedName::from_identifier_escaped_text(&format!(
         "{}:{}",
         namespace_data.escaped_text,
         id_text(source, name)?
-    ))
+    )))
 }
 
 fn get_text_of_jsx_namespaced_name(source: &SourceFile, id: NodeId) -> Option<String> {
@@ -1403,20 +1412,21 @@ pub fn is_module_augmentation_external(source: &SourceFile, node: NodeId) -> boo
 ///
 /// None ⇒ more than one `*`; Whole ⇒ no star; Wildcard ⇒ one star.
 pub enum ParsedPattern {
-    Whole(String),
-    Wildcard { prefix: String, suffix: String },
+    Whole(JsString),
+    Wildcard { prefix: JsString, suffix: JsString },
 }
 
-pub fn try_parse_pattern(pattern: &str) -> Option<ParsedPattern> {
-    match pattern.find('*') {
+pub fn try_parse_pattern<'a>(pattern: impl Into<JsStr<'a>>) -> Option<ParsedPattern> {
+    let pattern = pattern.into();
+    match pattern.split_once("*") {
         None => Some(ParsedPattern::Whole(pattern.to_owned())),
-        Some(index) => {
-            if pattern[index + 1..].contains('*') {
+        Some((prefix, suffix)) => {
+            if suffix.split_once("*").is_some() {
                 None
             } else {
                 Some(ParsedPattern::Wildcard {
-                    prefix: pattern[..index].to_owned(),
-                    suffix: pattern[index + 1..].to_owned(),
+                    prefix: prefix.to_owned(),
+                    suffix: suffix.to_owned(),
                 })
             }
         }

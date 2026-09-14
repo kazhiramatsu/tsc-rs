@@ -57,7 +57,8 @@ impl<'session, 'program> DeclarationSession<'session, 'program> {
         let options = self.host.compiler_options();
         if options
             .out_file
-            .as_deref()
+            .as_ref()
+            .map(tsc_diagnostics::JsString::as_js)
             .is_some_and(|path| !path.is_empty())
         {
             self.activity.observe_runtime_slice(H2RuntimeSlice::H2_7d);

@@ -10,6 +10,7 @@ struct CanonicalNode {
     kind: SyntaxKind,
     flags: i32,
     numeric_literal_flags: i32,
+    template_flags: i32,
     multi_line: Option<bool>,
     pos: u32,
     end: u32,
@@ -86,6 +87,7 @@ fn canonical_tree(source: &SourceFile) -> CanonicalTree {
                 kind: node.kind,
                 flags: node.flags,
                 numeric_literal_flags: node.numeric_literal_flags,
+                template_flags: node.template_flags,
                 multi_line: node.multi_line,
                 pos: node.pos,
                 end: node.end,
@@ -186,6 +188,7 @@ fn compare_incremental_with_options(
     let fresh = create_language_service_source_file(file_name, new_snapshot, options);
 
     assert_eq!(canonical_tree(&fresh), canonical_tree(&incremental.source));
+    assert_eq!(fresh.parse_recovery(), incremental.source.parse_recovery());
     assert_eq!(
         diagnostic_pins(&fresh),
         diagnostic_pins(&incremental.source)
@@ -1128,4 +1131,35 @@ fn unicode_change_boundaries_fail_closed_without_rounding() {
             position: emoji + 1
         }
     );
+}
+
+#[test]
+fn recovery_provenance_matches_fresh_parses_after_incremental_edits() {
+    for before in [
+        r#"const a = "\8"; const stable = 1; const b = "\9";"#,
+        "const a = ; const stable = 1; const b = 2;",
+        "const a = 1; const stable = 1; const b = ;",
+        r#"export {}; await f(); const stable = 1; const b = "\8";"#,
+        "/// <reference path=oops />\nconst stable = 1;",
+        "const stable = 1; /* unterminated",
+    ] {
+        compare_incremental(before, before.find("stable").unwrap(), 6, "renamed");
+    }
+    let before = r#"const bad = "\8"; const stable = 1;"#;
+    compare_incremental(before, before.find("\\8").unwrap(), 2, "ok");
+    let before = "const bad = ; const stable = 1;";
+    compare_incremental(before, before.find(';').unwrap(), 0, "0");
+}
+
+#[test]
+fn template_flags_survive_reuse_and_follow_escape_edits() {
+    let before = r#"const a = tag`\unicode${x}\x61${y}\u{10000}`;
+const b = tag`\uD800`; const stable = 1; const tail = 2;"#;
+    let stats = compare_incremental(before, before.find("stable").unwrap(), 6, "renamed");
+    assert!(stats.reused_nodes > 0);
+    for (old, new) in [("\\unicode", "ok"), ("\\x61", "\\xQ"), ("\\uD800", "plain")] {
+        compare_incremental(before, before.find(old).unwrap(), old.len(), new);
+    }
+    let untagged = before.replace("tag`", "`");
+    compare_incremental(&untagged, untagged.find("\\unicode").unwrap(), 8, "ok");
 }

@@ -79,7 +79,12 @@ fn jsx_attributes_optional_elaboration_decline_reports_relation_head() {
 #[test]
 fn deferred_indexed_member_keeps_the_outer_object_relation() {
     fn flatten(chain: &tsc_diagnostics::MessageChain, texts: &mut Vec<String>) {
-        texts.push(chain.text.clone());
+        texts.push(
+            (chain.text.clone())
+                .as_str()
+                .expect("scalar value observation")
+                .to_owned(),
+        );
         for child in &chain.next {
             flatten(child, texts);
         }

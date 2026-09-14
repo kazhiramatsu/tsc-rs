@@ -1,11 +1,11 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use tsc_program::SourceFileId;
 use tsc_syntax::{
     for_each_child, for_each_child_array, identifier_to_keyword_kind, skip_trivia,
     try_visit_each_child, Node, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind,
 };
-use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget};
+use tsc_types::{CompilerOptions, JsStr, JsString, NodeFlags, ScriptTarget};
 
 use crate::transform::GeneratedBindingId;
 use crate::{
@@ -274,7 +274,7 @@ fn get_script_transformers_with_optional_host<'transformers>(
     if host.is_none()
         && options
             .out_file
-            .as_deref()
+            .as_ref()
             .is_some_and(|path| !path.is_empty())
     {
         return Err(TransformError::UnsupportedCompilerOption {
@@ -580,7 +580,7 @@ impl Transformer for TypeScriptTransformer<'_> {
             // module strictness without a synthetic directive.
             self.always_strict
                 && !(syntax.external_module_indicator.is_some() && self.module_kind >= 5)
-                && !syntax.file_name.to_ascii_lowercase().ends_with(".json")
+                && !is_json_file_name(&syntax.file_name)
         };
         preflight_source(
             context.arena(),
@@ -770,21 +770,17 @@ impl TypeScriptTransformer<'_> {
         };
 
         let source = node.source();
-        let mut javascript_string = None;
         let substitute = {
             let mut factory = context.substitution_factory()?;
             let substitute = match &value {
-                EmitConstantValue::String(value) => {
-                    javascript_string = Some(value.clone());
-                    factory.create_node(
-                        source,
-                        NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
-                            text: String::from_utf16_lossy(value.code_units()),
-                            has_extended_unicode_escape: None,
-                        }),
-                        TransformFlags::NONE,
-                    )?
-                }
+                EmitConstantValue::String(value) => factory.create_node(
+                    source,
+                    NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
+                        text: tsc_types::JsString::from_code_units(value.code_units()),
+                        has_extended_unicode_escape: None,
+                    }),
+                    TransformFlags::NONE,
+                )?,
                 EmitConstantValue::Number(value) => {
                     let value = value.as_f64();
                     if value.is_nan() {
@@ -859,12 +855,6 @@ impl TypeScriptTransformer<'_> {
         // TypeScript returns the synthetic constant directly. Giving it the
         // access expression's range/original adds node and token map spans
         // which the substitution pipeline does not emit.
-        if let Some(value) = javascript_string {
-            context
-                .arena_mut()?
-                .literal_properties_mut(substitute)?
-                .set_javascript_string_value(value);
-        }
         if let Some(text) = trailing_comment {
             context
                 .arena_mut()?
@@ -1075,7 +1065,7 @@ fn ensure_use_strict_prologue(
     let literal = context.factory()?.create_node(
         source,
         NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
-            text: "use strict".to_owned(),
+            text: "use strict".into(),
             has_extended_unicode_escape: None,
         }),
         TransformFlags::NONE,
@@ -1604,7 +1594,7 @@ impl<'context> EcmaScriptModuleEqualsVisitor<'context> {
             data.modifiers,
             SyntaxKind::ExportKeyword,
         )? {
-            let name = identifier_or_literal_text(self.context.arena(), name)?;
+            let name = identifier_text_owned(self.context.arena(), name)?;
             output.push(self.create_named_export(&name)?);
         }
         Ok(output)
@@ -1792,15 +1782,13 @@ impl<'context> EcmaScriptModuleEqualsVisitor<'context> {
         )
     }
 
-    fn create_string_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
-        self.context.factory()?.create_node(
-            self.source,
-            NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
-                text: text.to_owned(),
-                has_extended_unicode_escape: None,
-            }),
-            TransformFlags::NONE,
-        )
+    fn create_string_literal<'t>(
+        &mut self,
+        text: impl Into<JsStr<'t>>,
+    ) -> Result<TransformNode, TransformError> {
+        self.context
+            .factory()?
+            .create_string_literal(self.source, text.into(), false)
     }
 
     fn create_call(
@@ -2131,7 +2119,7 @@ fn insert_external_helpers_import_declaration(
     let specifier = context.factory()?.create_node(
         source,
         NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
-            text: "tslib".to_owned(),
+            text: "tslib".into(),
             has_extended_unicode_escape: None,
         }),
         TransformFlags::NONE,
@@ -2525,19 +2513,13 @@ impl Transformer for CommonJsModuleTransformer<'_> {
         // though JSON has no external-module indicator (_tsc.js:110131).
         // hasJsonModuleEmitEnabled excludes System/UMD/None; those JSON roots
         // keep their expression and do not acquire an asynchronous wrapper.
-        let is_json = context
-            .arena()
-            .source(source)?
-            .syntax()
-            .file_name
-            .to_ascii_lowercase()
-            .ends_with(".json");
+        let is_json = is_json_file_name(&context.arena().source(source)?.syntax().file_name);
         let json_amd_bundle = is_json
             && self.module_kind == MODULE_AMD
             && self.host.is_some_and(|host| {
                 host.compiler_options()
                     .out_file
-                    .as_deref()
+                    .as_ref()
                     .is_some_and(|path| !path.is_empty())
             });
         let requires_module_rewrite =
@@ -2748,7 +2730,7 @@ impl CommonJsModuleTransformer<'_> {
                 declaration,
                 module_specifier_node: specifier,
                 runtime_name: Some(
-                    identifier_or_literal_text(context.arena(), namespace)?.into_boxed_str(),
+                    identifier_text_owned(context.arena(), namespace)?.into_boxed_str(),
                 ),
                 namespace_alias: None,
                 helper: ImportHelperKind::None,
@@ -2813,7 +2795,7 @@ impl GeneratedModuleNameAllocator {
         }
     }
 
-    fn allocate(&mut self, module_specifier: &str) -> Box<str> {
+    fn allocate<'a>(&mut self, module_specifier: impl Into<JsStr<'a>>) -> Box<str> {
         let mut base = generated_module_name(module_specifier);
         if !base.ends_with('_') {
             base.push('_');
@@ -2840,7 +2822,7 @@ impl GeneratedModuleNameAllocator {
 #[derive(Clone, Debug)]
 struct ImportBinding {
     generated_name: Box<str>,
-    property: Option<Box<str>>,
+    property: Option<JsString>,
     property_node: Option<TransformNode>,
 }
 
@@ -2857,13 +2839,18 @@ fn create_import_binding_access(
     target: TransformNode,
     binding: &ImportBinding,
 ) -> Result<TransformNode, TransformError> {
-    let Some(property) = binding.property.as_deref() else {
+    let Some(property) = binding.property.as_ref() else {
         return Ok(target);
     };
     let name = if let Some(property_node) = binding.property_node {
         context.factory()?.clone_node(property_node)?
     } else {
-        context.factory()?.create_identifier(source, property)?
+        context.factory()?.create_identifier(
+            source,
+            property
+                .as_str()
+                .expect("the only import property without a source node is the ASCII default name"),
+        )?
     };
     if binding.property_node.is_some_and(|property_node| {
         context
@@ -2905,7 +2892,7 @@ fn namespace_export_identifier_name(
     if arena.node(name)?.kind != SyntaxKind::Identifier {
         return Ok(None);
     }
-    let text = identifier_or_literal_text(arena, name)?;
+    let text = identifier_text_owned(arena, name)?;
     Ok((text != "default").then(|| text.into_boxed_str()))
 }
 
@@ -2917,7 +2904,7 @@ fn namespace_export_identifier_name(
 /// tsc-hash: 2694413ce6ea08091a03db3a313b50ee3ff526b065f199270311ac583350220e
 #[derive(Clone, Debug)]
 struct ModuleExportName {
-    text: Box<str>,
+    text: JsString,
     syntax: ModuleExportNameSyntax,
 }
 
@@ -2930,7 +2917,7 @@ enum ModuleExportNameSyntax {
 impl ModuleExportName {
     fn from_node(arena: &TransformArena, node: TransformNode) -> Result<Self, TransformError> {
         Ok(Self {
-            text: identifier_or_literal_text(arena, node)?.into_boxed_str(),
+            text: identifier_or_literal_text(arena, node)?,
             syntax: ModuleExportNameSyntax::ExistingNode(node),
         })
     }
@@ -2954,21 +2941,8 @@ impl ModuleExportName {
             .map(|name| name.unwrap_or_else(|| Self::identifier(fallback)))
     }
 
-    fn as_str(&self) -> &str {
-        &self.text
-    }
-}
-
-impl AsRef<str> for ModuleExportName {
-    fn as_ref(&self) -> &str {
-        &self.text
-    }
-}
-
-impl std::ops::Deref for ModuleExportName {
-    type Target = str;
-    fn deref(&self) -> &str {
-        &self.text
+    fn as_js(&self) -> JsStr<'_> {
+        self.text.as_js()
     }
 }
 
@@ -2986,25 +2960,14 @@ fn create_module_export_name_literal(
     source: TransformSourceId,
     name: &ModuleExportName,
 ) -> Result<TransformNode, TransformError> {
-    let literal = context.factory()?.create_node(
-        source,
-        NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
-            text: name.text.to_string(),
-            has_extended_unicode_escape: None,
-        }),
-        TransformFlags::NONE,
-    )?;
+    let literal = context
+        .factory()?
+        .create_string_literal(source, name.as_js(), false)?;
     if let ModuleExportNameSyntax::ExistingNode(node) = name.syntax {
-        let value = context
-            .arena()
-            .literal_properties(node)
-            .and_then(crate::LiteralNodeProperties::javascript_string_value)
-            .cloned();
-        let properties = context.arena_mut()?.literal_properties_mut(literal)?;
-        properties.set_string_literal_text_source(node);
-        if let Some(value) = value {
-            properties.set_javascript_string_value(value);
-        }
+        context
+            .arena_mut()?
+            .literal_properties_mut(literal)?
+            .set_string_literal_text_source(node);
     }
     Ok(literal)
 }
@@ -3080,7 +3043,7 @@ impl CommonJsDirectVariablePlan {
         for target in collector_targets {
             if !publication_targets
                 .iter()
-                .any(|existing| existing.as_ref() == target.as_ref())
+                .any(|existing| existing.as_js() == target.as_js())
             {
                 publication_targets.push(target);
             }
@@ -3145,7 +3108,7 @@ impl CommonJsFileLevelGeneratedBindingExports {
         let exports = self.by_binding.entry(binding).or_default();
         if !exports
             .iter()
-            .any(|existing| existing.as_ref() == export.as_ref())
+            .any(|existing| existing.as_js() == export.as_js())
         {
             exports.push(export);
         }
@@ -3192,11 +3155,11 @@ struct CommonJsModuleInfo {
     /// from exports_by_local, which also includes a declaration's own
     /// `export` modifier; import declarations must publish only the
     /// former after their runtime binding is initialized.
-    export_specifiers_by_local: BTreeMap<Box<str>, Vec<ModuleExportName>>,
-    exports_by_local: BTreeMap<Box<str>, Vec<ModuleExportName>>,
+    export_specifiers_by_local: HashMap<JsString, Vec<ModuleExportName>>,
+    exports_by_local: HashMap<JsString, Vec<ModuleExportName>>,
     file_level_generated_binding_exports: CommonJsFileLevelGeneratedBindingExports,
     exported_bindings: BTreeMap<NodeId, Vec<ModuleExportName>>,
-    export_specifier_locations: BTreeMap<(Box<str>, Box<str>), NodeId>,
+    export_specifier_locations: HashMap<(JsString, JsString), NodeId>,
     exported_names: Vec<ModuleExportName>,
     hoisted_function_exports: Vec<HoistedDeclarationExports>,
     direct_exported_variable_names: BTreeSet<Box<str>>,
@@ -3246,13 +3209,13 @@ impl CommonJsModuleInfo {
         }
         for export in self
             .export_specifiers_by_local
-            .get(local)
+            .get(local.as_bytes())
             .cloned()
             .unwrap_or_default()
         {
             if !publications
                 .iter()
-                .any(|existing| existing.name.as_ref() == export.as_ref())
+                .any(|existing| existing.name.as_js() == export.as_js())
             {
                 publications.push(HoistedDeclarationExport {
                     name: export,
@@ -3335,12 +3298,12 @@ impl CommonJsModuleInfo {
             imports: BTreeMap::new(),
             external_imports: Vec::new(),
             import_bindings: BTreeMap::new(),
-            export_specifiers_by_local: BTreeMap::new(),
-            exports_by_local: BTreeMap::new(),
+            export_specifiers_by_local: HashMap::new(),
+            exports_by_local: HashMap::new(),
             file_level_generated_binding_exports: CommonJsFileLevelGeneratedBindingExports::default(
             ),
             exported_bindings: BTreeMap::new(),
-            export_specifier_locations: BTreeMap::new(),
+            export_specifier_locations: HashMap::new(),
             exported_names: Vec::new(),
             hoisted_function_exports: Vec::new(),
             direct_exported_variable_names: BTreeSet::new(),
@@ -3350,7 +3313,7 @@ impl CommonJsModuleInfo {
         // preinitializers). In particular, hoisted functions publish before
         // their declaration without entering exportedNames, while a later
         // duplicate default re-export can still enter that list.
-        let mut unique_exports = BTreeSet::<Box<str>>::new();
+        let mut unique_exports = HashSet::<JsString>::new();
         let mut has_export_default = false;
         // tsc's exportedFunctions is deliberately independent from
         // exportedBindings. The latter applies export-name uniqueness to
@@ -3397,9 +3360,7 @@ impl CommonJsModuleInfo {
                                     NodeData::NamespaceImport(namespace) => namespace
                                         .name
                                         .and_then(|id| arena.node_ref(source, id))
-                                        .and_then(|name| {
-                                            identifier_or_literal_text(arena, name).ok()
-                                        })
+                                        .and_then(|name| identifier_text_owned(arena, name).ok())
                                         .map(String::into_boxed_str),
                                     _ => None,
                                 });
@@ -3478,7 +3439,7 @@ impl CommonJsModuleInfo {
                                             .name
                                             .and_then(|id| arena.node_ref(source, id))
                                             .and_then(|name| {
-                                                identifier_or_literal_text(arena, name).ok()
+                                                identifier_text_owned(arena, name).ok()
                                             })
                                             .map(String::into_boxed_str)
                                             .unwrap_or_else(|| module_binding.clone());
@@ -3513,7 +3474,7 @@ impl CommonJsModuleInfo {
                                                 arena.get_original_node(specifier).node(),
                                                 ImportBinding {
                                                     generated_name: module_binding.clone(),
-                                                    property: Some(property.into_boxed_str()),
+                                                    property: Some(property),
                                                     property_node,
                                                 },
                                             );
@@ -3559,7 +3520,7 @@ impl CommonJsModuleInfo {
                     let Some(name) = data
                         .name
                         .and_then(|id| arena.node_ref(source, id))
-                        .and_then(|name| identifier_or_literal_text(arena, name).ok())
+                        .and_then(|name| identifier_text_owned(arena, name).ok())
                     else {
                         continue;
                     };
@@ -3603,7 +3564,7 @@ impl CommonJsModuleInfo {
                     let local = data
                         .name
                         .and_then(|id| arena.node_ref(source, id))
-                        .and_then(|name| identifier_or_literal_text(arena, name).ok())
+                        .and_then(|name| identifier_text_owned(arena, name).ok())
                         .map(String::into_boxed_str)
                         .or_else(|| info.generated_declaration_names.get(&key).cloned());
                     if let Some(local) = local {
@@ -3632,7 +3593,7 @@ impl CommonJsModuleInfo {
                                 unique_exports.insert(export.text.clone())
                             };
                             if admitted {
-                                info.add_export_mapping(&local, &export);
+                                info.add_export_mapping(&*local, &export);
                                 // collectModuleInfo's default arm records the
                                 // declaration name in exportedBindings
                                 // (_tsc.js:92906-92908); "default" stays only
@@ -3670,7 +3631,7 @@ impl CommonJsModuleInfo {
                     let local = data
                         .name
                         .and_then(|id| arena.node_ref(source, id))
-                        .and_then(|name| identifier_or_literal_text(arena, name).ok())
+                        .and_then(|name| identifier_text_owned(arena, name).ok())
                         .map(String::into_boxed_str)
                         .or_else(|| info.generated_declaration_names.get(&key).cloned());
                     if let Some(local) = local {
@@ -3702,7 +3663,7 @@ impl CommonJsModuleInfo {
                             true
                         };
                         if admitted {
-                            info.add_export_mapping(&local, &export);
+                            info.add_export_mapping(&*local, &export);
                             if !is_default && has_syntactic_name {
                                 info.add_exported_name(&export);
                             }
@@ -3731,12 +3692,12 @@ impl CommonJsModuleInfo {
                             for leaf in
                                 binding_name_leaves(arena, source, variable.name, declaration)?
                             {
-                                let local = identifier_or_literal_text(arena, leaf.name)?;
-                                if !unique_exports.insert(local.clone().into_boxed_str()) {
+                                let local = identifier_text_owned(arena, leaf.name)?;
+                                if !unique_exports.insert(local.clone().into()) {
                                     continue;
                                 }
                                 let export = ModuleExportName::from_node(arena, leaf.name)?;
-                                info.add_export_mapping(&local, &export);
+                                info.add_export_mapping(&*local, &export);
                                 info.add_exported_name(&export);
                                 info.add_exported_binding(
                                     arena.get_original_node(leaf.declaration).node(),
@@ -3899,7 +3860,7 @@ impl CommonJsModuleInfo {
                         // Declaration records the declaration and specifier
                         // even when hasExportDefault suppresses its exported
                         // binding, and it does not enter exportedNames.
-                        if unique_exports.contains(export.as_str()) {
+                        if unique_exports.contains(export.as_js().as_bytes()) {
                             continue;
                         }
                         let location = arena.get_original_node(specifier_node).node();
@@ -3910,7 +3871,7 @@ impl CommonJsModuleInfo {
                                 if exported_function_set.insert(key) {
                                     exported_functions.push(key);
                                 }
-                                if export.as_ref() == "default" {
+                                if export.as_js() == "default" {
                                     if !has_export_default {
                                         has_export_default = true;
                                         info.add_exported_binding(key, &export);
@@ -3967,7 +3928,7 @@ impl CommonJsModuleInfo {
             let Some(local) = data
                 .name
                 .and_then(|id| arena.node_ref(source, id))
-                .and_then(|name| identifier_or_literal_text(arena, name).ok())
+                .and_then(|name| identifier_text_owned(arena, name).ok())
                 .map(String::into_boxed_str)
                 .or_else(|| info.generated_declaration_names.get(&key).cloned())
             else {
@@ -3988,34 +3949,42 @@ impl CommonJsModuleInfo {
         Ok(info)
     }
 
-    fn add_export_mapping(&mut self, local: &str, export: &ModuleExportName) {
+    fn add_export_mapping<'a>(&mut self, local: impl Into<JsStr<'a>>, export: &ModuleExportName) {
+        let local = local.into();
         let exports = self.exports_by_local.entry(local.into()).or_default();
         if !exports
             .iter()
-            .any(|existing| existing.as_ref() == export.as_ref())
+            .any(|existing| existing.as_js() == export.as_js())
         {
             exports.push(export.clone());
         }
     }
 
-    fn add_export_specifier(&mut self, local: &str, export: &ModuleExportName, location: NodeId) {
+    fn add_export_specifier<'a>(
+        &mut self,
+        local: impl Into<JsStr<'a>>,
+        export: &ModuleExportName,
+        location: NodeId,
+    ) {
+        let local = local.into();
         self.add_export_specifier_mapping(local, export, location);
         self.add_exported_name(export);
     }
 
-    fn add_export_specifier_mapping(
+    fn add_export_specifier_mapping<'a>(
         &mut self,
-        local: &str,
+        local: impl Into<JsStr<'a>>,
         export: &ModuleExportName,
         location: NodeId,
     ) {
+        let local = local.into();
         let exports = self
             .export_specifiers_by_local
             .entry(local.into())
             .or_default();
         if !exports
             .iter()
-            .any(|existing| existing.as_ref() == export.as_ref())
+            .any(|existing| existing.as_js() == export.as_js())
         {
             exports.push(export.clone());
         }
@@ -4029,7 +3998,7 @@ impl CommonJsModuleInfo {
         if !self
             .exported_names
             .iter()
-            .any(|existing| existing.as_ref() == export.as_ref())
+            .any(|existing| existing.as_js() == export.as_js())
         {
             self.exported_names.push(export.clone());
         }
@@ -4039,7 +4008,7 @@ impl CommonJsModuleInfo {
         let exports = self.exported_bindings.entry(declaration).or_default();
         if !exports
             .iter()
-            .any(|existing| existing.as_ref() == export.as_ref())
+            .any(|existing| existing.as_js() == export.as_js())
         {
             exports.push(export.clone());
         }
@@ -4049,12 +4018,26 @@ impl CommonJsModuleInfo {
 /// tsc-port: hasJSFileExtension @6.0.3
 /// tsc-hash: 26f2de10186fd7377e0fc90d254165421f27320a1b95dca68e43ee8f2f71128d
 /// tsc-span: _tsc.js:18654-18656
-fn has_js_file_extension(name: &str) -> bool {
+fn has_js_file_extension<'a>(name: impl Into<JsStr<'a>>) -> bool {
+    let name = name.into();
     // Fold fileExtensionIs (_tsc.js:5323-5325), including its strict
     // length guard; a filename consisting solely of ".js" does not match.
     [".js", ".jsx", ".mjs", ".cjs"]
         .iter()
-        .any(|extension| name.len() > extension.len() && name.ends_with(extension))
+        .any(|extension| name.as_bytes().len() > extension.len() && name.ends_with(extension))
+}
+
+/// JSON routing checks only an ASCII suffix, without projecting the filename.
+pub(crate) fn is_json_file_name<'a>(name: impl Into<JsStr<'a>>) -> bool {
+    has_ascii_file_suffix(name, ".json")
+}
+
+pub(crate) fn has_ascii_file_suffix<'a>(name: impl Into<JsStr<'a>>, suffix: &str) -> bool {
+    debug_assert!(suffix.is_ascii());
+    let name = name.into();
+    let bytes = name.as_bytes();
+    bytes.len() >= suffix.len()
+        && bytes[bytes.len() - suffix.len()..].eq_ignore_ascii_case(suffix.as_bytes())
 }
 
 fn source_file_statement_nodes(
@@ -4319,9 +4302,9 @@ fn source_contains_decorator(source: &tsc_syntax::SourceFile) -> bool {
 fn string_literal_text(
     arena: &TransformArena,
     node: TransformNode,
-) -> Result<&str, TransformError> {
+) -> Result<JsStr<'_>, TransformError> {
     match &arena.node(node)?.data {
-        NodeData::StringLiteral(data) => Ok(&data.text),
+        NodeData::StringLiteral(data) => Ok(data.text.as_js()),
         _ => Err(TransformError::RequiredChildRemoved {
             parent: SyntaxKind::ImportDeclaration,
             field: "string module_specifier",
@@ -4336,11 +4319,14 @@ fn string_literal_text(
 /// tsc-port: rewriteModuleSpecifier @6.0.3
 /// tsc-hash: f922e640861acb3c4f3e223a052ecf480ebdc989e9c1d4b545efca742e40aace
 /// tsc-span: _tsc.js:93242-93248
-pub(crate) fn rewrite_relative_module_specifier(text: &str) -> Option<String> {
+pub(crate) fn rewrite_relative_module_specifier<'a>(
+    text: impl Into<JsStr<'a>>,
+) -> Option<JsString> {
+    let text = text.into();
     if !(text.starts_with("./") || text.starts_with("../")) {
         return None;
     }
-    let base = text.rsplit('/').next().unwrap_or(text);
+    let base = text.split_ascii(b'/').next_back().unwrap_or(text);
     if base.ends_with(".d.ts")
         || base.ends_with(".d.mts")
         || base.ends_with(".d.cts")
@@ -4359,18 +4345,38 @@ pub(crate) fn rewrite_relative_module_specifier(text: &str) -> Option<String> {
     } else {
         return None;
     };
-    let mut rewritten = String::with_capacity(text.len() - suffix_len + output.len());
-    rewritten.push_str(&text[..text.len() - suffix_len]);
+    // The removed suffix is ASCII, so its byte boundary is also a WTF-8
+    // boundary. The retained prefix keeps every original UTF-16 unit.
+    let mut rewritten = text
+        .split_at_byte(text.as_bytes().len() - suffix_len)
+        .expect("ASCII extension starts at a canonical byte boundary")
+        .0
+        .to_owned();
     rewritten.push_str(output);
     Some(rewritten)
 }
 
-fn identifier_or_literal_text(
+/// This boundary is for local bindings and identifier property accesses.
+/// Literal property/module/export names use `identifier_or_literal_text`.
+fn identifier_text_owned(
     arena: &TransformArena,
     node: TransformNode,
 ) -> Result<String, TransformError> {
     match &arena.node(node)?.data {
         NodeData::Identifier(data) => Ok(data.text.clone()),
+        _ => Err(TransformError::RequiredChildRemoved {
+            parent: arena.node(node)?.kind,
+            field: "identifier text",
+        }),
+    }
+}
+
+fn identifier_or_literal_text(
+    arena: &TransformArena,
+    node: TransformNode,
+) -> Result<JsString, TransformError> {
+    match &arena.node(node)?.data {
+        NodeData::Identifier(data) => Ok(data.text.clone().into()),
         NodeData::StringLiteral(data) => Ok(data.text.clone()),
         _ => Err(TransformError::RequiredChildRemoved {
             parent: arena.node(node)?.kind,
@@ -4379,25 +4385,18 @@ fn identifier_or_literal_text(
     }
 }
 
-fn generated_module_name(module_specifier: &str) -> String {
-    // This is tsc's `makeIdentifierFromModuleName` boundary: normalize path
-    // separators, remove one trailing directory separator as
-    // `getBaseFileName` does, then make the basename identifier-safe. Keep an
-    // empty result empty; `makeUniqueName` owns the `_1` fallback.
-    let normalized = module_specifier.replace('\\', "/");
-    let without_trailing_separator = normalized.strip_suffix('/').unwrap_or(&normalized);
-    let segment = without_trailing_separator
-        .rsplit('/')
-        .next()
-        .unwrap_or(without_trailing_separator);
+/// makeIdentifierFromModuleName, _tsc.js:13703–13705. The generated
+/// identifier is deliberately ASCII: /\W/g consumes UTF-16 units, so a
+/// supplementary scalar contributes two underscores. Binding allocation,
+/// rather than this display-safe base, distinguishes different module names.
+fn generated_module_name<'m>(module_specifier: impl Into<JsStr<'m>>) -> String {
+    let segment = tsc_program::base_file_name(module_specifier);
     let mut generated = segment
-        .chars()
-        .map(|character| {
-            if character.is_ascii_alphanumeric() || character == '_' {
-                character
-            } else {
-                '_'
-            }
+        .code_units()
+        .map(|unit| {
+            char::from_u32(u32::from(unit))
+                .filter(|ch| ch.is_ascii_alphanumeric() || *ch == '_')
+                .unwrap_or('_')
         })
         .collect::<String>();
     if generated.as_bytes().first().is_some_and(u8::is_ascii_digit) {
@@ -4862,13 +4861,13 @@ struct DeclarationExportPlan {
 }
 
 struct AliasedAsynchronousDependency {
-    path: String,
+    path: JsString,
     parameter: TransformNode,
 }
 
 struct AsynchronousDependencies {
     aliased: Vec<AliasedAsynchronousDependency>,
-    unaliased: Vec<String>,
+    unaliased: Vec<JsString>,
 }
 
 /// Names owned by one AMD dynamic-import executor. Reserving the pair before
@@ -5233,7 +5232,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let mut aliased = Vec::new();
         let mut unaliased = Vec::new();
         for dependency in amd_dependencies {
-            let path = dependency.path;
+            let path = JsString::from(dependency.path);
             if let Some(name) = dependency.name {
                 aliased.push(AliasedAsynchronousDependency {
                     path,
@@ -5246,7 +5245,9 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         for plan in import_plans {
             let module_specifier =
                 self.external_module_name_literal(plan.declaration, plan.module_specifier_node)?;
-            let module_specifier = self.rewrite_import_argument(module_specifier)?;
+            // collectAsynchronousDependencies (_tsc.js:110461) uses the
+            // external module name directly. Rewriting belongs to require /
+            // import expressions; it does not apply to this dependency array.
             let module_specifier =
                 string_literal_text(self.context.arena(), module_specifier)?.to_owned();
             if self.module_kind == MODULE_AMD && plan.runtime_name.is_some() {
@@ -5437,7 +5438,11 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             let call = self.create_call(define, arguments)?;
             self.create_expression_statement(call)?
         } else {
-            self.create_umd_wrapper(module_name.as_deref(), dependencies, body_function)?
+            self.create_umd_wrapper(
+                module_name.as_ref().map(JsString::as_js),
+                dependencies,
+                body_function,
+            )?
         };
 
         let statements = if let Some(original_array) =
@@ -5460,7 +5465,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
 
     fn create_umd_wrapper(
         &mut self,
-        module_name: Option<&str>,
+        module_name: Option<JsStr<'_>>,
         dependencies: TransformNode,
         body_function: TransformNode,
     ) -> Result<TransformNode, TransformError> {
@@ -5617,7 +5622,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 let name = data
                     .name
                     .and_then(|id| self.context.arena().node_ref(self.source, id))
-                    .and_then(|name| identifier_or_literal_text(self.context.arena(), name).ok());
+                    .and_then(|name| identifier_text_owned(self.context.arena(), name).ok());
                 let exported = name
                     .as_deref()
                     .map(|name| {
@@ -5822,7 +5827,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         local_name: TransformNode,
         live_binding: bool,
     ) -> Result<Vec<ImportReExportPlan>, TransformError> {
-        let local = identifier_or_literal_text(self.context.arena(), local_name)?;
+        let local = identifier_text_owned(self.context.arena(), local_name)?;
         let key = self.context.arena().get_original_node(declaration).node();
         if !self.info.import_bindings.contains_key(&key) {
             return Ok(Vec::new());
@@ -5830,7 +5835,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let exports = self
             .info
             .export_specifiers_by_local
-            .get(local.as_str())
+            .get(local.as_bytes())
             .cloned()
             .unwrap_or_default();
         exports
@@ -5839,7 +5844,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 let location = self
                     .info
                     .export_specifier_locations
-                    .get(&(local.clone().into_boxed_str(), exported_name.text.clone()))
+                    .get(&(JsString::from(&local), exported_name.text.clone()))
                     .and_then(|location| self.context.arena().node_ref(self.source, *location))
                     .unwrap_or(local_name);
                 Ok(ImportReExportPlan {
@@ -6394,10 +6399,10 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             let local = variable
                 .name
                 .and_then(|id| self.context.arena().node_ref(self.source, id))
-                .and_then(|name| identifier_or_literal_text(self.context.arena(), name).ok());
+                .and_then(|name| identifier_text_owned(self.context.arena(), name).ok());
             let exports = local
                 .as_deref()
-                .and_then(|name| self.info.exports_by_local.get(name).cloned())
+                .and_then(|name| self.info.exports_by_local.get(name.as_bytes()).cloned())
                 .unwrap_or_default();
             let local_name = variable
                 .name
@@ -7039,21 +7044,18 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             binding_name_leaves(self.context.arena(), self.source, data.name, declaration)?;
         let mut plans = Vec::new();
         for leaf in leaves {
-            let local_name = identifier_or_literal_text(self.context.arena(), leaf.name)?;
+            let local_name = identifier_text_owned(self.context.arena(), leaf.name)?;
             let exports = self
                 .info
                 .export_specifiers_by_local
-                .get(local_name.as_str())
+                .get(local_name.as_bytes())
                 .cloned()
                 .unwrap_or_default();
             for exported_name in exports {
                 let Some(location) = self
                     .info
                     .export_specifier_locations
-                    .get(&(
-                        local_name.clone().into_boxed_str(),
-                        exported_name.text.clone(),
-                    ))
+                    .get(&(JsString::from(&local_name), exported_name.text.clone()))
                     .and_then(|location| self.context.arena().node_ref(self.source, *location))
                 else {
                     // A syntactic `export` modifier is published by the
@@ -7738,7 +7740,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             .initializer
             .and_then(|initializer| self.context.arena().node_ref(self.source, initializer))
         {
-            let name_text = identifier_or_literal_text(self.context.arena(), name)?;
+            let name_text = identifier_text_owned(self.context.arena(), name)?;
             let condition_name = self.create_identifier(&name_text)?;
             let undefined = self.create_void_zero()?;
             let condition = self.create_binary(
@@ -8064,7 +8066,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 // visit above (`x` -> `exports.x`). Publishing that same name
                 // again would produce `exports.x = ++exports.x`; only aliases
                 // still require an enclosing assignment.
-                if plan.direct_export_storage && export.as_ref() == plan.local_name.as_str() {
+                if plan.direct_export_storage && export.as_js() == plan.local_name.as_str() {
                     continue;
                 }
                 let target = self.create_export_access_from_module_name(&export)?;
@@ -8118,7 +8120,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             .exports
             .into_iter()
             .filter(|export| {
-                !plan.direct_export_storage || export.as_ref() != plan.local_name.as_str()
+                !plan.direct_export_storage || export.as_js() != plan.local_name.as_str()
             })
             .collect::<Vec<_>>();
         // The operand visit has already substituted a direct export with its
@@ -8188,7 +8190,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             .exports
             .into_iter()
             .filter(|export| {
-                !plan.direct_export_storage || export.as_ref() != plan.local_name.as_str()
+                !plan.direct_export_storage || export.as_js() != plan.local_name.as_str()
             })
             .collect())
     }
@@ -8249,7 +8251,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             .contains(local_name.as_str())
             && exports
                 .iter()
-                .any(|export| export.as_ref() == local_name.as_str());
+                .any(|export| export.as_js() == local_name.as_str());
         Ok(Some(ExportAssignmentPlan {
             local_name,
             exports,
@@ -8658,7 +8660,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 ModuleDestructuringExcludedProperty::Named(property_name),
             ));
         }
-        let property = identifier_or_literal_text(self.context.arena(), property_name)?;
+        let property = identifier_text_owned(self.context.arena(), property_name)?;
         Ok((
             self.create_property_access(base, &property)?,
             ModuleDestructuringExcludedProperty::Named(property_name),
@@ -9076,7 +9078,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             let argument = if let Some(module_name) = external_module_name.filter(|name| {
                 !argument.is_some_and(|argument| {
                     self.context.arena().node(argument).is_ok_and(|node| {
-                        matches!(&node.data, NodeData::StringLiteral(literal) if literal.text.as_str() == name.as_str())
+                        matches!(&node.data, NodeData::StringLiteral(literal) if literal.text.as_js() == name.as_js())
                     })
                 })
             }) {
@@ -9509,7 +9511,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let head = self.context.factory()?.create_node(
             self.source,
             NodeData::TemplateHead(tsc_syntax::nodes::TemplateHeadData {
-                text: String::new(),
+                text: JsString::new(),
                 raw_text: Some(String::new()),
             }),
             TransformFlags::NONE,
@@ -9517,7 +9519,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let tail = self.context.factory()?.create_node(
             self.source,
             NodeData::TemplateTail(tsc_syntax::nodes::TemplateTailData {
-                text: String::new(),
+                text: JsString::new(),
                 raw_text: Some(String::new()),
             }),
             TransformFlags::NONE,
@@ -9622,7 +9624,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     .and_then(|container| self.context.arena().node(container).ok())
                     .is_some_and(|container| container.kind == SyntaxKind::SourceFile);
                 if exported_from_source {
-                    let name = identifier_or_literal_text(self.context.arena(), original)?;
+                    let name = identifier_text_owned(self.context.arena(), original)?;
                     let transformed = self.create_export_access(&name)?;
                     self.set_original_and_range(transformed, original)?;
                     return Ok(transformed);
@@ -9662,7 +9664,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     return Ok(None);
                 };
                 (
-                    Some(identifier_or_literal_text(self.context.arena(), name)?.into_boxed_str()),
+                    Some(identifier_or_literal_text(self.context.arena(), name)?),
                     Some(name),
                 )
             }
@@ -9719,7 +9721,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             let name = self
                 .info
                 .generated_module_names
-                .allocate(module_text.as_str());
+                .allocate(module_text.as_js());
             self.info
                 .elided_import_runtime_names
                 .insert(import_key, name.clone());
@@ -9796,7 +9798,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             };
             let binding = ImportBinding {
                 generated_name: self.next_generated_name().into_boxed_str(),
-                property: Some(property.into_boxed_str()),
+                property: Some(property),
                 property_node,
             };
             self.info
@@ -9937,15 +9939,13 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         )
     }
 
-    fn create_string_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
-        self.context.factory()?.create_node(
-            self.source,
-            NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
-                text: text.to_owned(),
-                has_extended_unicode_escape: None,
-            }),
-            TransformFlags::NONE,
-        )
+    fn create_string_literal<'t>(
+        &mut self,
+        text: impl Into<JsStr<'t>>,
+    ) -> Result<TransformNode, TransformError> {
+        self.context
+            .factory()?
+            .create_string_literal(self.source, text.into(), false)
     }
 
     fn create_array_literal(
@@ -10309,19 +10309,11 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let exports = self.create_identifier("exports")?;
         if let ModuleExportNameSyntax::ExistingNode(node) = name.syntax {
             if self.context.arena().node(node)?.kind == SyntaxKind::StringLiteral {
-                let value = self
-                    .context
-                    .arena()
-                    .literal_properties(node)
-                    .and_then(crate::LiteralNodeProperties::javascript_string_value)
-                    .cloned();
-                let literal = self.create_string_literal(&name.text)?;
-                if let Some(value) = value {
-                    self.context
-                        .arena_mut()?
-                        .literal_properties_mut(literal)?
-                        .set_javascript_string_value(value);
-                }
+                let literal = self.context.factory()?.create_string_literal(
+                    self.source,
+                    name.as_js(),
+                    false,
+                )?;
                 return self.context.factory()?.create_element_access_expression(
                     self.source,
                     exports,
@@ -10329,7 +10321,13 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 );
             }
         }
-        let property = self.create_identifier(&name.text)?;
+        // from_node accepts only identifiers and string literals; the string
+        // branch returned above. SynthesizedIdentifier is built from &str.
+        let property = self.create_identifier(
+            name.text
+                .as_str()
+                .expect("identifier export name is scalar"),
+        )?;
         self.context
             .factory()?
             .create_property_access_expression(self.source, exports, property)
@@ -10347,7 +10345,11 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             ModuleExportNameSyntax::ExistingNode(node) => {
                 self.context.factory()?.clone_node(node)?
             }
-            ModuleExportNameSyntax::SynthesizedIdentifier => self.create_identifier(&name.text)?,
+            ModuleExportNameSyntax::SynthesizedIdentifier => self.create_identifier(
+                name.text
+                    .as_str()
+                    .expect("synthesized identifier constructor accepts scalar text"),
+            )?,
         };
         if self.context.arena().node(property)?.kind == SyntaxKind::StringLiteral {
             self.context
@@ -10393,7 +10395,6 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         name: TransformNode,
     ) -> Result<TransformNode, TransformError> {
         let exports = self.create_identifier("exports")?;
-        let text = identifier_or_literal_text(self.context.arena(), name)?;
         // Extended `\u{...}` escapes normalize in upstream's ES2015
         // visitIdentifier, which the transformer selection runs only for
         // targets below ES2015 (_tsc.js:105072, :115942). ES2015+ module
@@ -10402,6 +10403,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let property_name = if self.target < ScriptTarget::ES2015
             && self.identifier_name_uses_extended_escape(name)?
         {
+            let text = identifier_text_owned(self.context.arena(), name)?;
             let normalized = self.create_identifier(&text)?;
             self.set_source_map_range_from(normalized, name)?;
             normalized
@@ -12709,7 +12711,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 ModuleDestructuringExcludedProperty::Named(property_name),
             ));
         }
-        let property = identifier_or_literal_text(self.context.arena(), property_name)?;
+        let property = identifier_text_owned(self.context.arena(), property_name)?;
         Ok((
             self.create_property_access(base, &property)?,
             ModuleDestructuringExcludedProperty::Named(property_name),
@@ -13301,22 +13303,8 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         let original = self.node(id);
         match self.context.arena().node(original)?.data.clone() {
             NodeData::Identifier(data) => self.create_string_literal(&data.text),
-            // getExpressionForPropertyName clones the string literal name,
-            // whose tsc `text` is lossless; the synthesized literal owns the
-            // parsed spelling's value (an unpaired surrogate is U+FFFD in
-            // the cooked text) and its reverse-mapping clone copies it.
-            NodeData::StringLiteral(data) => {
-                let literal = self.create_string_literal(&data.text)?;
-                if let Some(units) = self.context.arena().literal_code_units(original)? {
-                    self.context
-                        .arena_mut()?
-                        .literal_properties_mut(literal)?
-                        .set_javascript_string_value(crate::JavaScriptString::from_code_units(
-                            units,
-                        ));
-                }
-                Ok(literal)
-            }
+            // getExpressionForPropertyName copies the owned JavaScript text.
+            NodeData::StringLiteral(data) => self.create_string_literal(data.text.as_js()),
             NodeData::NumericLiteral(data) => self.create_numeric_literal(&data.text),
             NodeData::BigIntLiteral(_) => self.context.factory()?.clone_node(original),
             NodeData::ComputedPropertyName(data) => {
@@ -13673,15 +13661,13 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         )
     }
 
-    fn create_string_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
-        self.context.factory()?.create_node(
-            self.source,
-            NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
-                text: text.to_owned(),
-                has_extended_unicode_escape: None,
-            }),
-            TransformFlags::NONE,
-        )
+    fn create_string_literal<'t>(
+        &mut self,
+        text: impl Into<tsc_types::JsStr<'t>>,
+    ) -> Result<TransformNode, TransformError> {
+        self.context
+            .factory()?
+            .create_string_literal(self.source, text.into(), false)
     }
 
     fn create_constant_expression(
@@ -13689,15 +13675,10 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         value: &EmitConstantValue,
     ) -> Result<TransformNode, TransformError> {
         match value {
-            EmitConstantValue::String(value) => {
-                let text = String::from_utf16_lossy(value.code_units());
-                let literal = self.create_string_literal(&text)?;
-                self.context
-                    .arena_mut()?
-                    .literal_properties_mut(literal)?
-                    .set_javascript_string_value(value.clone());
-                Ok(literal)
-            }
+            EmitConstantValue::String(value) => self
+                .context
+                .factory()?
+                .create_string_literal_from_code_units(self.source, value.code_units(), false),
             EmitConstantValue::Number(value) => {
                 let value = value.as_f64();
                 if value.is_nan() {
@@ -15719,7 +15700,12 @@ fn preflight_source(
     allow_legacy_decorators: bool,
 ) -> Result<(), TransformError> {
     let syntax = arena.source(source)?.syntax();
-    if !syntax.parse_diagnostics.is_empty() {
+    // Recovery admission is a parser fact. The committed record includes
+    // suppressed reporting attempts and silent missing nodes; diagnostic
+    // codes and the presence/absence of retained messages are insufficient.
+    // JSDoc diagnostics have a separate parser-owned list and are outside
+    // this syntactic recovery boundary.
+    if !syntax.has_only_literal_recovery() {
         return Err(TransformError::ParseDiagnosticsDeferred {
             count: syntax.parse_diagnostics.len(),
             owner_slice: "H2.9",
@@ -16281,11 +16267,10 @@ fn local_transform_flags(node: &Node) -> TransformFlags {
         | NodeData::TemplateMiddle(_)
         | NodeData::TemplateTail(_) => {
             // getTransformFlagsOfTemplateLiteralLike (_tsc.js:22862-22868);
-            // the parse records carry no templateFlags word, so the
-            // invalid-escape ES2018 half is unrepresentable here — it is
-            // consulted only by the B-5 tagged-template module through
-            // rawText.
             flags |= TransformFlags::CONTAINS_ES_2015;
+            if node.template_flags != 0 {
+                flags |= TransformFlags::CONTAINS_ES_2018;
+            }
         }
         NodeData::ComputedPropertyName(_) => {
             // createComputedPropertyName row (_tsc.js:21815-21819).
@@ -16484,9 +16469,8 @@ fn local_transform_flags(node: &Node) -> TransformFlags {
         }
         NodeData::TaggedTemplateExpression(data) => {
             // createTaggedTemplateExpression row (_tsc.js:22635-22646):
-            // ES2015 always (the invalid-escape ES2018 half rides
-            // templateFlags, unrepresentable on parse records — B-5's
-            // tagged-template module reads rawText for it).
+            // ES2015 always; the ES2018 facet propagates from the
+            // parser-owned template flags on the template fragments.
             flags |= TransformFlags::CONTAINS_ES_2015;
             if data.type_arguments.is_some() {
                 flags |= TransformFlags::CONTAINS_TYPE_SCRIPT;
@@ -16824,3 +16808,7 @@ fn super_access_target_flags(
 #[cfg(test)]
 #[path = "../tests/unit/builtins/tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../tests/unit/builtins/template_flags.rs"]
+mod template_flags_tests;

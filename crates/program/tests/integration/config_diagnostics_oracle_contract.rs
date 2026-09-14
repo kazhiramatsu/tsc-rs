@@ -106,7 +106,9 @@ impl ConfigParseHost for OracleConfigHost {
         self.case_sensitive
     }
 
-    fn file_exists(&self, path: &str) -> Result<bool, ConfigHostError> {
+    fn file_exists(&self, path: tsc_diagnostics::JsStr<'_>) -> Result<bool, ConfigHostError> {
+        let path = path.as_str().expect("scalar config fixture query");
+
         let result = self.file(path).is_some_and(|file| file.exists);
         self.log.borrow_mut().push(json!({
             "operation": "file_exists",
@@ -116,7 +118,12 @@ impl ConfigParseHost for OracleConfigHost {
         Ok(result)
     }
 
-    fn read_file(&self, path: &str) -> Result<Option<String>, ConfigHostError> {
+    fn read_file(
+        &self,
+        path: tsc_diagnostics::JsStr<'_>,
+    ) -> Result<Option<String>, ConfigHostError> {
+        let path = path.as_str().expect("scalar config fixture query");
+
         let Some(file) = self.file(path) else {
             self.log.borrow_mut().push(json!({
                 "operation": "read_file",
@@ -151,22 +158,48 @@ impl ConfigParseHost for OracleConfigHost {
 
     fn read_directory(
         &self,
-        directory: &str,
+        directory: tsc_diagnostics::JsStr<'_>,
         extensions: &[&str],
-        excludes: Option<&[String]>,
-        includes: Option<&[String]>,
+        excludes: Option<&[tsc_diagnostics::JsString]>,
+        includes: Option<&[tsc_diagnostics::JsString]>,
         depth: Option<usize>,
-    ) -> Result<Vec<String>, ConfigHostError> {
-        self.log.borrow_mut().push(json!({
-            "operation": "read_directory",
-            "directory": directory,
-            "extensions": extensions,
-            "excludes": excludes,
-            "includes": includes,
-            "depth": depth,
-            "result": self.read_directory_result,
-        }));
-        Ok(self.read_directory_result.clone())
+    ) -> Result<Vec<tsc_diagnostics::JsString>, ConfigHostError> {
+        let directory = directory.as_str().expect("scalar config fixture directory");
+        let excludes_scalar = excludes.map(|items| {
+            items
+                .iter()
+                .map(|item| {
+                    item.as_str()
+                        .expect("scalar config fixture pattern")
+                        .to_owned()
+                })
+                .collect::<Vec<_>>()
+        });
+        let excludes = excludes_scalar.as_deref();
+        let includes_scalar = includes.map(|items| {
+            items
+                .iter()
+                .map(|item| {
+                    item.as_str()
+                        .expect("scalar config fixture pattern")
+                        .to_owned()
+                })
+                .collect::<Vec<_>>()
+        });
+        let includes = includes_scalar.as_deref();
+        (|| -> Result<Vec<String>, ConfigHostError> {
+            self.log.borrow_mut().push(json!({
+                "operation": "read_directory",
+                "directory": directory,
+                "extensions": extensions,
+                "excludes": excludes,
+                "includes": includes,
+                "depth": depth,
+                "result": self.read_directory_result,
+            }));
+            Ok(self.read_directory_result.clone())
+        })()
+        .map(|paths| paths.into_iter().map(Into::into).collect())
     }
 }
 
@@ -208,23 +241,31 @@ impl ConfigParseHost for PathsValidationConfigHost {
         self.case_sensitive
     }
 
-    fn file_exists(&self, path: &str) -> Result<bool, ConfigHostError> {
+    fn file_exists(&self, path: tsc_diagnostics::JsStr<'_>) -> Result<bool, ConfigHostError> {
+        let path = path.as_str().expect("scalar config fixture query");
+
         Ok(self.files.contains_key(path))
     }
 
-    fn read_file(&self, path: &str) -> Result<Option<String>, ConfigHostError> {
+    fn read_file(
+        &self,
+        path: tsc_diagnostics::JsStr<'_>,
+    ) -> Result<Option<String>, ConfigHostError> {
+        let path = path.as_str().expect("scalar config fixture query");
+
         Ok(self.files.get(path).cloned())
     }
 
     fn read_directory(
         &self,
-        _directory: &str,
+        _directory: tsc_diagnostics::JsStr<'_>,
         _extensions: &[&str],
-        _excludes: Option<&[String]>,
-        _includes: Option<&[String]>,
+        _excludes: Option<&[tsc_diagnostics::JsString]>,
+        _includes: Option<&[tsc_diagnostics::JsString]>,
         _depth: Option<usize>,
-    ) -> Result<Vec<String>, ConfigHostError> {
-        Ok(self.parsed_file_names.clone())
+    ) -> Result<Vec<tsc_diagnostics::JsString>, ConfigHostError> {
+        (|| -> Result<Vec<String>, ConfigHostError> { Ok(self.parsed_file_names.clone()) })()
+            .map(|paths| paths.into_iter().map(Into::into).collect())
     }
 }
 
@@ -264,10 +305,10 @@ fn diagnostic_record(diagnostic: &Diagnostic) -> Value {
     json!({
         "code": diagnostic.code(),
         "category": category_name(diagnostic.category()),
-        "file": diagnostic.file_name,
+        "file": scalar_json(&diagnostic.file_name),
         "start": diagnostic.start,
         "length": diagnostic.length,
-        "message": diagnostic.message_text(),
+        "message": scalar_json(&diagnostic.message_text().as_str().expect("scalar diagnostic observation")),
     })
 }
 
@@ -492,15 +533,19 @@ fn config_diagnostic_plans_match_the_frozen_typescript_oracle() {
 
         let host = OracleConfigHost::from_input(input, fixture_id);
         let request = ConfigRootPlanRequest {
-            file_name: string(&root["file_name"], fixture_id, "root file name").to_owned(),
+            file_name: string(&root["file_name"], fixture_id, "root file name")
+                .to_owned()
+                .into(),
             text: string(&root["text"], fixture_id, "root text").to_owned(),
-            base_path: string(&input["base_path"], fixture_id, "base path").to_owned(),
+            base_path: string(&input["base_path"], fixture_id, "base path")
+                .to_owned()
+                .into(),
         };
         let plan = parse_config_root_plan(&host, request)
             .unwrap_or_else(|error| panic!("{fixture_id}: partial config plan failed: {error}"));
 
         assert!(
-            json_values_equivalent(plan.raw(), &fixture["plan"]["raw"]),
+            json_values_equivalent(&scalar_json(plan.raw()), &fixture["plan"]["raw"]),
             "{fixture_id}: raw config drifted: Rust={:?}, TypeScript={:?}",
             plan.raw(),
             fixture["plan"]["raw"]
@@ -538,7 +583,7 @@ fn config_diagnostic_plans_match_the_frozen_typescript_oracle() {
                         .get(name)
                         .unwrap_or_else(|| panic!("{fixture_id}: raw property {name:?} is absent"));
                     assert!(
-                        json_values_equivalent(actual, &probe["value"]),
+                        json_values_equivalent(&scalar_json(actual), &probe["value"]),
                         "{fixture_id}: raw property {name:?} value drifted"
                     );
                 }
@@ -546,12 +591,12 @@ fn config_diagnostic_plans_match_the_frozen_typescript_oracle() {
             }
         }
         assert_eq!(
-            json!(plan.file_names()),
+            json!(scalar_json(&plan.file_names())),
             fixture["plan"]["file_names"],
             "{fixture_id}: file names drifted"
         );
         assert_eq!(
-            json!(plan.extended_source_files()),
+            json!(scalar_json(&plan.extended_source_files())),
             fixture["plan"]["extended_source_files"],
             "{fixture_id}: extended source order drifted"
         );
@@ -567,7 +612,7 @@ fn config_diagnostic_plans_match_the_frozen_typescript_oracle() {
             plan.extended_sources()
                 .iter()
                 .map(|source| json!({
-                    "file_name": source.file_name,
+                    "file_name": scalar_json(&source.file_name),
                     "text": source.text(),
                 }))
                 .collect::<Vec<_>>(),
@@ -619,11 +664,11 @@ fn config_diagnostic_plans_match_the_frozen_typescript_oracle() {
                 ("absent", ConfigOptionValueState::Absent)
                 | ("undefined", ConfigOptionValueState::Undefined) => {}
                 ("value", ConfigOptionValueState::Value(actual)) => assert_eq!(
-                    actual, &probe["value"],
+        &scalar_json(&(actual)), &probe["value"],
                     "{fixture_id}: option {name:?} value drifted"
                 ),
                 ("value", ConfigOptionValueState::Object(actual)) => assert_eq!(
-                    actual.json_projection(),
+                    scalar_json(&actual.json_projection()),
                     probe["value"],
                     "{fixture_id}: object option {name:?} value drifted"
                 ),
@@ -649,7 +694,7 @@ fn config_diagnostic_plans_match_the_frozen_typescript_oracle() {
                         match (element_state, actual) {
                             ("undefined", ConfigTypedListElement::Undefined) => {}
                             ("value", ConfigTypedListElement::Value(actual)) => assert!(
-                                json_values_equivalent(actual, &expected["value"]),
+                                json_values_equivalent(&scalar_json(actual), &expected["value"]),
                                 "{fixture_id}: option {name:?} element {index} value drifted: Rust={actual:?}, TypeScript={:?}",
                                 expected["value"]
                             ),
@@ -760,14 +805,17 @@ fn compiler_paths_options_diagnostics_match_the_frozen_typescript_oracle() {
         let plan = parse_config_root_plan(
             &host,
             ConfigRootPlanRequest {
-                file_name: string(&root["file_name"], fixture_id, "config file name").to_owned(),
+                file_name: string(&root["file_name"], fixture_id, "config file name")
+                    .to_owned()
+                    .into(),
                 text: string(&root["text"], fixture_id, "config source text").to_owned(),
                 base_path: string(
                     &input["virtual_source_root"],
                     fixture_id,
                     "virtual source root",
                 )
-                .to_owned(),
+                .to_owned()
+                .into(),
             },
         )
         .unwrap_or_else(|error| panic!("{fixture_id}: config planning failed: {error}"));
@@ -777,7 +825,7 @@ fn compiler_paths_options_diagnostics_match_the_frozen_typescript_oracle() {
             plan.errors()
         );
         assert_eq!(
-            json!(plan.file_names()),
+            json!(scalar_json(&plan.file_names())),
             input["parsed_file_names"],
             "{fixture_id}: root discovery drifted"
         );
@@ -795,3 +843,7 @@ fn compiler_paths_options_diagnostics_match_the_frozen_typescript_oracle() {
         );
     }
 }
+
+#[path = "../support/scalar_json.rs"]
+mod utf16_scalar_json;
+use utf16_scalar_json::observe as scalar_json;

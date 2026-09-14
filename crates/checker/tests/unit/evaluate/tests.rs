@@ -47,6 +47,18 @@ fn radix_string_to_number_has_no_u128_ceiling_and_rounds_to_even() {
 }
 
 #[test]
+fn string_to_number_uses_js_whitespace_and_rejects_lone_units() {
+    assert_eq!(js_string_to_number("\u{feff}42\u{feff}"), 42.0);
+    for text in ["\u{85}42", "42\u{85}", "\u{200b}42"] {
+        assert!(js_string_to_number(text).is_nan());
+    }
+    for unit in [0xd800, 0xd801, 0xdc00] {
+        let value = JsString::from_code_units(&[0xfeff, unit, 0xfeff]);
+        assert!(js_string_to_number(value.as_js()).is_nan());
+    }
+}
+
+#[test]
 fn numeric_literal_names_round_trip() {
     assert!(is_numeric_literal_name("0"));
     assert!(is_numeric_literal_name("10"));

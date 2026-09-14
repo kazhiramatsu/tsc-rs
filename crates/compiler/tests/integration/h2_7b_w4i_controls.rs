@@ -261,7 +261,11 @@ fn actual_diagnostics(diagnostics: &[tsc_diagnostics::Diagnostic]) -> Vec<Diagno
             (
                 diagnostic.code(),
                 format!("{:?}", diagnostic.category()),
-                diagnostic.file_name.clone(),
+                diagnostic.file_name.as_ref().map(|name| {
+                    name.as_str()
+                        .expect("scalar diagnostic filename")
+                        .to_owned()
+                }),
                 diagnostic.start,
                 diagnostic.length,
                 message,
@@ -277,7 +281,7 @@ fn flatten_message_chain(chain: &MessageChain, indent: usize, output: &mut Strin
             output.push_str("  ");
         }
     }
-    output.push_str(&chain.text);
+    output.push_str(chain.text.as_str().expect("scalar diagnostic observation"));
     for child in &chain.next {
         flatten_message_chain(child, indent + 1, output);
     }
@@ -352,16 +356,16 @@ fn assert_frozen_observation(case_id: &str, case: &Value, prepared: PreparedProg
     );
     for (write, expected) in sink.writes().iter().zip(expected_writes) {
         assert_eq!(
-            artifact_kind(write.kind(), write.path()),
+            artifact_kind(write.kind(), write.path().scalar_test_path()),
             expected["kind"].as_str().expect("frozen write kind"),
             "{case_id}: write kind for {}",
-            write.path().display()
+            write.path().scalar_test_path().display()
         );
         assert_eq!(
             String::from_utf8_lossy(write.callback_bytes()),
             String::from_utf8_lossy(&decode(&expected["callback_utf8_base64"])),
             "{case_id}: callback bytes for {}",
-            write.path().display()
+            write.path().scalar_test_path().display()
         );
         assert_eq!(
             write.write_byte_order_mark(),
@@ -369,13 +373,13 @@ fn assert_frozen_observation(case_id: &str, case: &Value, prepared: PreparedProg
                 .as_bool()
                 .expect("frozen BOM flag"),
             "{case_id}: BOM flag for {}",
-            write.path().display()
+            write.path().scalar_test_path().display()
         );
         assert_eq!(
             String::from_utf8_lossy(write.materialized_bytes().as_ref()),
             String::from_utf8_lossy(&decode(&expected["materialized_utf8_base64"])),
             "{case_id}: materialized bytes for {}",
-            write.path().display()
+            write.path().scalar_test_path().display()
         );
         let actual_sources = write.source_files().map(|sources| {
             sources
@@ -465,3 +469,7 @@ fn project_runs_keep_their_config_identity_for_the_ts5055_hint_condition() {
         prepared_project_row(case_id)
     });
 }
+
+#[path = "../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

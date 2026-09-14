@@ -1,6 +1,6 @@
 use std::error::Error;
 use std::fmt;
-use std::path::{Path, PathBuf};
+use tsc_diagnostics::{JsStr, JsString};
 
 use tsc_program::SourceFileId;
 
@@ -83,7 +83,8 @@ pub enum EmitContractViolation {
 pub enum EmitFailure {
     Unsupported(UnsupportedEmitFeature),
     UnsupportedCompilerOption { option: &'static str },
-    UnsupportedSourceExtension { path: PathBuf },
+    UnsupportedSourceExtension { path: JsString },
+    MalformedSourceMapUrl { path: JsString },
     StageUnavailable(EmitStage),
     Contract(EmitContractViolation),
     Transform(Box<TransformError>),
@@ -102,8 +103,9 @@ impl fmt::Display for EmitFailure {
             Self::UnsupportedSourceExtension { path } => write!(
                 formatter,
                 "unsupported emit source extension: {}",
-                path.display()
+                path.to_string_lossy()
             ),
+            Self::MalformedSourceMapUrl { .. } => formatter.write_str("URI malformed"),
             Self::StageUnavailable(stage) => {
                 write!(
                     formatter,
@@ -171,15 +173,15 @@ pub enum EmitIoOperation {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EmitIoError {
     operation: EmitIoOperation,
-    path: PathBuf,
-    message: String,
+    path: JsString,
+    message: JsString,
 }
 
 impl EmitIoError {
     pub fn new(
         operation: EmitIoOperation,
-        path: impl Into<PathBuf>,
-        message: impl Into<String>,
+        path: impl Into<JsString>,
+        message: impl Into<JsString>,
     ) -> Self {
         Self {
             operation,
@@ -192,12 +194,12 @@ impl EmitIoError {
         self.operation
     }
 
-    pub fn path(&self) -> &Path {
-        &self.path
+    pub fn path(&self) -> JsStr<'_> {
+        self.path.as_js()
     }
 
-    pub fn message(&self) -> &str {
-        &self.message
+    pub fn message(&self) -> JsStr<'_> {
+        self.message.as_js()
     }
 }
 
@@ -210,8 +212,8 @@ impl fmt::Display for EmitIoError {
                 EmitIoOperation::CreateParentDirectory => "create output directory for",
                 EmitIoOperation::WriteFile => "write output file",
             },
-            self.path.display(),
-            self.message,
+            self.path.to_string_lossy(),
+            self.message.to_string_lossy(),
         )
     }
 }

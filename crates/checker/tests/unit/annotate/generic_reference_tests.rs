@@ -50,7 +50,15 @@ fn bare_generic_reference_reports_2314_with_local_parameter_display() {
             let rendered: Vec<(u32, String)> = state
                 .diagnostics
                 .iter()
-                .map(|d| (d.code(), d.message_text().to_owned()))
+                .map(|d| {
+                    (
+                        d.code(),
+                        d.message_text()
+                            .as_str()
+                            .expect("scalar diagnostic observation")
+                            .to_owned(),
+                    )
+                })
                 .collect();
             assert_eq!(
                 rendered,
@@ -79,7 +87,15 @@ fn arity_range_reports_2707() {
             let rendered: Vec<(u32, String)> = state
                 .diagnostics
                 .iter()
-                .map(|d| (d.code(), d.message_text().to_owned()))
+                .map(|d| {
+                    (
+                        d.code(),
+                        d.message_text()
+                            .as_str()
+                            .expect("scalar diagnostic observation")
+                            .to_owned(),
+                    )
+                })
                 .collect();
             assert_eq!(
                 rendered,
@@ -174,7 +190,15 @@ fn stray_type_arguments_report_2315() {
             let rendered: Vec<(u32, String)> = state
                 .diagnostics
                 .iter()
-                .map(|d| (d.code(), d.message_text().to_owned()))
+                .map(|d| {
+                    (
+                        d.code(),
+                        d.message_text()
+                            .as_str()
+                            .expect("scalar diagnostic observation")
+                            .to_owned(),
+                    )
+                })
                 .collect();
             assert_eq!(
                 rendered,

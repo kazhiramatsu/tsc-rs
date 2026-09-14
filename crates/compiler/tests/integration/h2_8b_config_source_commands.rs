@@ -71,7 +71,7 @@ fn record_attempt(case_id: &str, _: &PreparedProgram, _: &Value) {
 }
 
 fn display_path(path: &ProgramPath) -> &str {
-    path.display().to_str().expect("Unicode prepared path")
+    path.display().as_str().expect("Unicode prepared path")
 }
 
 fn inspect_program_facts(case_id: &str, prepared: &PreparedProgram, expected: &Value) {

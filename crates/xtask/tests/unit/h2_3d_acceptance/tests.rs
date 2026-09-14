@@ -15,11 +15,23 @@ fn owner_options_maps_the_json_emit_surface() {
     .unwrap();
 
     assert_eq!(options.emit_bom, Some(true));
-    assert_eq!(options.ignore_deprecations.as_deref(), Some("6.0"));
+    assert_eq!(
+        options
+            .ignore_deprecations
+            .as_ref()
+            .map(|value| value.as_str().expect("scalar acceptance option")),
+        Some("6.0")
+    );
     assert_eq!(options.module, Some(3));
     assert_eq!(options.module_resolution, Some(2));
     assert_eq!(options.new_line, Some(0));
-    assert_eq!(options.out_dir.as_deref(), Some("/project/dist"));
+    assert_eq!(
+        options
+            .out_dir
+            .as_ref()
+            .map(|value| value.as_str().expect("scalar acceptance option")),
+        Some("/project/dist")
+    );
     assert_eq!(options.resolve_json_module, Some(true));
     assert_eq!(options.target, Some(99));
     assert_eq!(options.no_emit, Some(false));

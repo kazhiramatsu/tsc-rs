@@ -43,13 +43,19 @@ impl EmitHost for Host<'_> {
     fn compiler_options(&self) -> &CompilerOptions {
         self.options
     }
-    fn current_directory(&self) -> &Path {
-        Path::new("/project")
+    fn current_directory(&self) -> tsc_diagnostics::JsStr<'_> {
+        (Path::new("/project"))
+            .to_str()
+            .expect("scalar mock host directory")
+            .into()
     }
-    fn common_source_directory(&self) -> &Path {
-        self.common
+    fn common_source_directory(&self) -> tsc_diagnostics::JsStr<'_> {
+        (self.common)
+            .to_str()
+            .expect("scalar mock host directory")
+            .into()
     }
-    fn config_file_path(&self) -> Option<&Path> {
+    fn config_file_path(&self) -> Option<tsc_diagnostics::JsStr<'_>> {
         None
     }
     fn use_case_sensitive_file_names(&self) -> bool {
@@ -60,7 +66,7 @@ impl EmitHost for Host<'_> {
     }
     fn source_file(&self, id: SourceFileId) -> Option<EmitSource<'_>> {
         let syntax = self.snapshot.documents().get(id.index())?.source();
-        let path = Path::new(&syntax.file_name);
+        let path = syntax.file_name.as_js();
         Some(EmitSource::new(
             id,
             path,
@@ -88,7 +94,7 @@ fn project_options(value: &Value) -> CompilerOptions {
             "sourceMap" => options.source_map = value.as_bool(),
             "noEmitOnError" => options.no_emit_on_error = value.as_bool(),
             "isolatedDeclarations" => options.isolated_declarations = value.as_bool(),
-            "outFile" => options.out_file = value.as_str().map(str::to_owned),
+            "outFile" => options.out_file = value.as_str().map(Into::into),
             "emitDeclarationOnly" => options.emit_declaration_only = value.as_bool(),
             "listEmittedFiles" => options.list_emitted_files = value.as_bool(),
             "newLine" => options.new_line = Some(value.as_i64().unwrap() as i32),
@@ -97,9 +103,9 @@ fn project_options(value: &Value) -> CompilerOptions {
             "skipDefaultLibCheck" => options.skip_default_lib_check = value.as_bool(),
             "noErrorTruncation" => options.no_error_truncation = value.as_bool(),
             "stripInternal" => options.strip_internal = value.as_bool(),
-            "declarationDir" => options.declaration_dir = value.as_str().map(str::to_owned),
-            "sourceRoot" => options.source_root = value.as_str().map(str::to_owned),
-            "mapRoot" => options.map_root = value.as_str().map(str::to_owned),
+            "declarationDir" => options.declaration_dir = value.as_str().map(Into::into),
+            "sourceRoot" => options.source_root = value.as_str().map(Into::into),
+            "mapRoot" => options.map_root = value.as_str().map(Into::into),
             "inlineSources" => options.inline_sources = value.as_bool(),
             "inlineSourceMap" => options.inline_source_map = value.as_bool(),
             "emitBOM" => options.emit_bom = value.as_bool(),
@@ -250,8 +256,8 @@ fn h2_7e_nonbundle_declaration_maps_match_typescript() {
                             common_source_directory: expected["common_source_directory"]
                                 .as_str()
                                 .unwrap()
-                                .to_owned(),
-                            current_directory: "/project".to_owned(),
+                                .to_owned().into(),
+                            current_directory: "/project".to_owned().into(),
                             use_case_sensitive_source_keys: true,
                         };
                         let newline = if options.new_line == Some(0) {
@@ -321,7 +327,7 @@ fn h2_7e_nonbundle_declaration_maps_match_typescript() {
                                 )
                                 .unwrap();
                                 observations.push(json!({
-                                    "inputSourceFileNames": mapped.observation.input_source_files(),
+                                    "inputSourceFileNames": scalar_json(mapped.observation.input_source_files()),
                                     "sourceMap": serde_json::from_str::<Value>(
                                         mapped.observation.canonical_json()
                                     ).unwrap()
@@ -366,7 +372,7 @@ fn flatten_message(chain: &MessageChain, indent: usize, text: &mut String) {
         text.push('\n');
         text.push_str(&"  ".repeat(indent));
     }
-    text.push_str(&chain.text);
+    text.push_str(chain.text.as_str().expect("scalar diagnostic observation"));
     for child in &chain.next {
         flatten_message(child, indent + 1, text);
     }
@@ -381,12 +387,12 @@ fn diagnostics_json(diagnostics: &[Diagnostic]) -> Value {
                 let mut message = String::new();
                 flatten_message(&related.message, 0, &mut message);
                 json!({"code":related.message.code,"category":format!("{:?}", related.message.category),
-                    "file":related.file_name,"start":related.start,"length":related.length,
+                    "file":scalar_json(&related.file_name),"start":related.start,"length":related.length,
                     "message":message,"related_information":null})
             }).collect())
         } else {Value::Null};
         json!({"code":diagnostic.code(),"category":format!("{:?}", diagnostic.category()),
-            "file":diagnostic.file_name,"start":diagnostic.start,"length":diagnostic.length,
+            "file":scalar_json(&diagnostic.file_name),"start":diagnostic.start,"length":diagnostic.length,
             "message":message,"related_information":related})
     }).collect())
 }
@@ -479,7 +485,7 @@ fn assert_program_case_with_session(case: &Value, scoped: bool) {
             let mut sources = Vec::new();
             let mut libraries = Vec::new();
             for source in program.source_files() {
-                let name = source.path().display().to_string_lossy();
+                let name = source.path().display().scalar_test_path().to_string_lossy();
                 if let Some(name) = name.strip_prefix("/lib/") {
                     libraries.push(name.to_owned());
                 } else {
@@ -493,7 +499,10 @@ fn assert_program_case_with_session(case: &Value, scoped: bool) {
             ProgramSession::new(program)
                 .with_declarations(|session| {
                     let report = session.emit_with_reported_diagnostics(&mut sink)?;
-                    assert_eq!(json!(report.status_writes()), expected["status_writes"]);
+                    assert_eq!(
+                        json!(scalar_json(&report.status_writes())),
+                        expected["status_writes"]
+                    );
                     assert_eq!(json!(report.exit_code()), expected["exit_code"]);
                     Ok((report.emit().clone(), report.diagnostics().to_vec()))
                 })
@@ -517,13 +526,13 @@ fn assert_program_case_with_session(case: &Value, scoped: bool) {
         );
         assert_eq!(json!(outcome.emit_skipped()), expected["emit_refused"]);
         assert_eq!(
-            json!(outcome.emitted_files()),
+            json!(scalar_json(&outcome.emitted_files())),
             expected["emit_result"]["emitted_files"]
         );
         let maps = outcome.source_maps().map(|maps| {
             maps.iter()
                 .map(|map| {
-                    json!({"inputSourceFileNames":map.input_source_files(),
+                    json!({"inputSourceFileNames":scalar_json(&map.input_source_files()),
                     "sourceMap":serde_json::from_str::<Value>(map.canonical_json()).unwrap()})
                 })
                 .collect::<Vec<_>>()
@@ -753,26 +762,37 @@ struct ControlledFileSystem<'a> {
     attempts: Vec<Value>,
 }
 impl tsc_emitter::EmitFileSystem for ControlledFileSystem<'_> {
-    fn write_file(&mut self, path: &Path, bytes: &[u8]) -> Result<(), String> {
-        self.attempts.push(json!({"path":path,
+    fn write_file(
+        &mut self,
+        path: tsc_diagnostics::JsStr<'_>,
+        bytes: &[u8],
+    ) -> Result<(), tsc_diagnostics::JsString> {
+        let path = std::path::Path::new(path.as_str().expect("scalar fault-injection path"));
+        (|| -> Result<(), String> {
+            self.attempts.push(json!({"path":path,
             "callback_utf8_base64":base64::engine::general_purpose::STANDARD.encode(bytes),
             "write_byte_order_mark":false}));
-        if self
-            .rules
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|rule| rule["path"].as_str().unwrap() == path.to_string_lossy())
-        {
-            Err("H2.7e controlled system failure".to_owned())
-        } else {
-            Ok(())
-        }
+            if self
+                .rules
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|rule| rule["path"].as_str().unwrap() == path.to_string_lossy())
+            {
+                Err("H2.7e controlled system failure".to_owned())
+            } else {
+                Ok(())
+            }
+        })()
+        .map_err(Into::into)
     }
-    fn create_directory(&mut self, _: &Path) -> Result<(), String> {
+    fn create_directory(
+        &mut self,
+        _: tsc_diagnostics::JsStr<'_>,
+    ) -> Result<(), tsc_diagnostics::JsString> {
         Ok(())
     }
-    fn directory_exists(&mut self, _: &Path) -> bool {
+    fn directory_exists(&mut self, _: tsc_diagnostics::JsStr<'_>) -> bool {
         true
     }
 }
@@ -814,7 +834,13 @@ impl tsc_emitter::OutputSink for ControlledSink<'_> {
             }
         };
         let message = match &result {
-            Err(error) => Some(error.message().to_owned()),
+            Err(error) => Some(
+                error
+                    .message()
+                    .as_str()
+                    .expect("scalar sink message observation")
+                    .to_owned(),
+            ),
             _ => None,
         };
         let skipped_dts = result == Ok(EmitWriteDisposition::SkippedUnchanged) && is_declaration;
@@ -893,12 +919,12 @@ fn h2_7e_ordinary_api_gates_and_sink_feedback_match_typescript() {
                 "{id}"
             );
             assert_eq!(
-                json!(outcome.emitted_files()),
+                json!(scalar_json(&outcome.emitted_files())),
                 expected["emit_result"]["emitted_files"],
                 "{id}"
             );
             assert_eq!(json!(outcome.source_maps().map(|maps| maps.iter().map(|map| json!({
-                "input_source_file_names":map.input_source_files(),"source_map_json":map.canonical_json()
+                "input_source_file_names":scalar_json(&map.input_source_files()),"source_map_json":map.canonical_json()
             })).collect::<Vec<_>>())), expected["emit_result"]["source_maps"], "{id}");
             assert_eq!(
                 json!(sink.materialized),
@@ -1053,3 +1079,11 @@ fn h2_7e_scoped_ordinary_commands_preserve_existing_complete_observations() {
         }
     }
 }
+
+#[path = "../../program/tests/support/scalar_json.rs"]
+mod utf16_scalar_json;
+use utf16_scalar_json::observe as scalar_json;
+
+#[path = "../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

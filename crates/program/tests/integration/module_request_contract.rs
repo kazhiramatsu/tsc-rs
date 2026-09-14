@@ -44,7 +44,10 @@ fn static_imports_produce_stable_exact_deduplicated_keys() {
     let requests =
         plan_static_module_requests(&source, &node_options()).expect("plan static imports");
     assert_eq!(requests.len(), 2);
-    assert_eq!(requests[0].source().as_path(), Path::new("/index.mts"));
+    assert_eq!(
+        requests[0].source().as_js().scalar_test_path(),
+        Path::new("/index.mts")
+    );
     assert_eq!(requests[0].specifier(), "inner/first");
     assert_eq!(requests[0].mode(), ResolutionMode::EsNext);
     assert_eq!(requests[1].specifier(), "inner/second");
@@ -119,7 +122,13 @@ fn deferred_dynamic_import_uses_the_same_authoritative_mode_as_import_call() {
         assert_eq!(
             plan.module_requests()
                 .iter()
-                .map(|request| (request.specifier(), request.mode()))
+                .map(|request| (
+                    request
+                        .specifier()
+                        .as_str()
+                        .expect("scalar request observation"),
+                    request.mode()
+                ))
                 .collect::<Vec<_>>(),
             [("./a.js", expected_mode), ("./ordinary.js", expected_mode),],
             "module {module}"
@@ -246,7 +255,13 @@ fn jsdoc_imports_retain_source_order_and_exact_resolution_mode_keys() {
     assert_eq!(
         requests
             .iter()
-            .map(|request| (request.specifier(), request.mode()))
+            .map(|request| (
+                request
+                    .specifier()
+                    .as_str()
+                    .expect("scalar request observation"),
+                request.mode()
+            ))
             .collect::<Vec<_>>(),
         [
             ("after-jsdoc", ResolutionMode::CommonJs),
@@ -281,7 +296,14 @@ fn source_plan_reuses_the_parse_for_exact_type_reference_directives() {
 
     let directives = plan.type_reference_directives();
     assert_eq!(directives.len(), 4);
-    assert_eq!(directives[0].key().specifier(), "JqUeRy");
+    assert_eq!(
+        directives[0]
+            .key()
+            .specifier()
+            .as_str()
+            .expect("scalar request observation"),
+        "JqUeRy"
+    );
     assert_eq!(directives[0].key().mode(), ResolutionMode::Unspecified);
     assert_eq!(directives[0].span(), 22..28);
     assert_eq!(directives[0].pos(), 22);
@@ -289,25 +311,51 @@ fn source_plan_reuses_the_parse_for_exact_type_reference_directives() {
     assert_eq!(directives[0].length(), 6);
     assert_eq!(utf16_text_at(text, directives[0].span()), "JqUeRy");
 
-    assert_eq!(directives[1].key().specifier(), "@scope/pkg");
+    assert_eq!(
+        directives[1]
+            .key()
+            .specifier()
+            .as_str()
+            .expect("scalar request observation"),
+        "@scope/pkg"
+    );
     assert_eq!(directives[1].key().mode(), ResolutionMode::EsNext);
     assert_eq!(
         utf16_text_at(text, directives[1].span()),
-        directives[1].key().specifier()
+        directives[1]
+            .key()
+            .specifier()
+            .as_str()
+            .expect("scalar request observation")
     );
 
     assert_eq!(directives[2].key(), directives[0].key());
     assert_ne!(directives[2].span(), directives[0].span());
     assert_eq!(
         utf16_text_at(text, directives[2].span()),
-        directives[2].key().specifier()
+        directives[2]
+            .key()
+            .specifier()
+            .as_str()
+            .expect("scalar request observation")
     );
 
-    assert_eq!(directives[3].key().specifier(), "@scope/pkg");
+    assert_eq!(
+        directives[3]
+            .key()
+            .specifier()
+            .as_str()
+            .expect("scalar request observation"),
+        "@scope/pkg"
+    );
     assert_eq!(directives[3].key().mode(), ResolutionMode::CommonJs);
     assert_eq!(
         utf16_text_at(text, directives[3].span()),
-        directives[3].key().specifier()
+        directives[3]
+            .key()
+            .specifier()
+            .as_str()
+            .expect("scalar request observation")
     );
 
     let containing_mode_source = source_at(
@@ -338,19 +386,39 @@ fn source_plan_projects_path_and_lib_references_from_the_same_parse() {
 
     assert_eq!(plan.path_references().len(), 1);
     let path = &plan.path_references()[0];
-    assert_eq!(path.file_name(), "./dependency.ts");
+    assert_eq!(
+        path.file_name()
+            .as_str()
+            .expect("scalar request observation"),
+        "./dependency.ts"
+    );
     assert_eq!(
         path.length(),
         "./dependency.ts".encode_utf16().count() as u32
     );
-    assert_eq!(utf16_text_at(text, path.span()), path.file_name());
+    assert_eq!(
+        utf16_text_at(text, path.span()),
+        path.file_name()
+            .as_str()
+            .expect("scalar request observation")
+    );
     assert!(path.preserve());
 
     assert_eq!(plan.lib_reference_directives().len(), 1);
     let lib = &plan.lib_reference_directives()[0];
-    assert_eq!(lib.file_name(), "es2023");
+    assert_eq!(
+        lib.file_name()
+            .as_str()
+            .expect("scalar request observation"),
+        "es2023"
+    );
     assert_eq!(lib.length(), 6);
-    assert_eq!(utf16_text_at(text, lib.span()), lib.file_name());
+    assert_eq!(
+        utf16_text_at(text, lib.span()),
+        lib.file_name()
+            .as_str()
+            .expect("scalar request observation")
+    );
     assert!(lib.preserve());
 
     assert_eq!(plan.type_reference_directives().len(), 1);
@@ -420,17 +488,24 @@ fn import_helpers_prepends_the_exact_synthetic_tslib_request() {
     assert_eq!(
         plan.module_requests()
             .iter()
-            .map(|request| (request.specifier(), request.mode()))
+            .map(|request| (
+                request
+                    .specifier()
+                    .as_str()
+                    .expect("scalar request observation"),
+                request.mode()
+            ))
             .collect::<Vec<_>>(),
         [
             ("tslib", ResolutionMode::EsNext),
             ("after", ResolutionMode::EsNext),
         ]
     );
-    assert!(plan
-        .module_requests()
-        .iter()
-        .all(|request| request.source().as_path() == Path::new("/main.ts")));
+    assert!(plan.module_requests().iter().all(|request| request
+        .source()
+        .as_js()
+        .scalar_test_path()
+        == Path::new("/main.ts")));
 }
 
 #[test]
@@ -500,7 +575,7 @@ fn synthetic_helpers_and_jsx_runtime_obey_the_upstream_source_boundary() {
     );
 
     let jsx_import_source = CompilerOptions {
-        jsx_import_source: Some("preact".to_owned()),
+        jsx_import_source: Some("preact".to_owned().into()),
         isolated_modules: Some(true),
         ..options.clone()
     };
@@ -719,7 +794,13 @@ fn expanded_javascript_require_calls_use_the_effective_commonjs_mode() {
         assert_eq!(
             requests
                 .iter()
-                .map(|request| (request.specifier(), request.mode()))
+                .map(|request| (
+                    request
+                        .specifier()
+                        .as_str()
+                        .expect("scalar request observation"),
+                    request.mode()
+                ))
                 .collect::<Vec<_>>(),
             [
                 ("static", expected_modes[2]),
@@ -1020,7 +1101,13 @@ fn ordinary_namespace_import_equals_requests_are_authoritative_unpreprocessed_mi
     assert!(plan.module_requests().is_empty());
     assert_eq!(
         plan.unpreprocessed_module_requests()
-            .map(|request| (request.specifier(), request.mode()))
+            .map(|request| (
+                request
+                    .specifier()
+                    .as_str()
+                    .expect("scalar request observation"),
+                request.mode()
+            ))
             .collect::<Vec<_>>(),
         [
             ("first-missing", ResolutionMode::CommonJs),
@@ -1107,7 +1194,13 @@ fn classic_import_types_retain_explicit_modes_and_use_unspecified_fallback() {
     assert_eq!(
         requests
             .iter()
-            .map(|request| (request.specifier(), request.mode()))
+            .map(|request| (
+                request
+                    .specifier()
+                    .as_str()
+                    .expect("scalar request observation"),
+                request.mode()
+            ))
             .collect::<Vec<_>>(),
         [
             ("foo", ResolutionMode::Unspecified),
@@ -1126,7 +1219,13 @@ fn classic_import_types_retain_explicit_modes_and_use_unspecified_fallback() {
     assert_eq!(
         requests
             .iter()
-            .map(|request| (request.specifier(), request.mode()))
+            .map(|request| (
+                request
+                    .specifier()
+                    .as_str()
+                    .expect("scalar request observation"),
+                request.mode()
+            ))
             .collect::<Vec<_>>(),
         [
             ("foo", ResolutionMode::EsNext),
@@ -1161,7 +1260,13 @@ fn classic_type_only_imports_retain_explicit_modes_and_use_unspecified_fallback(
     assert_eq!(
         requests
             .iter()
-            .map(|request| (request.specifier(), request.mode()))
+            .map(|request| (
+                request
+                    .specifier()
+                    .as_str()
+                    .expect("scalar request observation"),
+                request.mode()
+            ))
             .collect::<Vec<_>>(),
         [
             ("foo", ResolutionMode::Unspecified),
@@ -1180,7 +1285,13 @@ fn classic_type_only_imports_retain_explicit_modes_and_use_unspecified_fallback(
     assert_eq!(
         requests
             .iter()
-            .map(|request| (request.specifier(), request.mode()))
+            .map(|request| (
+                request
+                    .specifier()
+                    .as_str()
+                    .expect("scalar request observation"),
+                request.mode()
+            ))
             .collect::<Vec<_>>(),
         [
             ("foo", ResolutionMode::EsNext),
@@ -1261,7 +1372,13 @@ fn legacy_emit_module_kinds_keep_static_requests_unspecified() {
         assert_eq!(
             plan.module_requests()
                 .iter()
-                .map(|request| (request.specifier(), request.mode()))
+                .map(|request| (
+                    request
+                        .specifier()
+                        .as_str()
+                        .expect("scalar request observation"),
+                    request.mode()
+                ))
                 .collect::<Vec<_>>(),
             [
                 ("dependency", ResolutionMode::Unspecified),
@@ -1390,3 +1507,7 @@ fn utf16_text_at(text: &str, span: std::ops::Range<u32>) -> String {
     String::from_utf16(&utf16[span.start as usize..span.end as usize])
         .expect("directive span contains valid UTF-16")
 }
+
+#[path = "../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

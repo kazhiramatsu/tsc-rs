@@ -184,6 +184,7 @@ impl SubtreeCopier {
             );
             let copied = destination.node_mut(id);
             copied.numeric_literal_flags = old_node.numeric_literal_flags;
+            copied.template_flags = old_node.template_flags;
             copied.multi_line = old_node.multi_line;
             let index = self.node_index(*old_id);
             self.node_map[index] = id;
@@ -605,6 +606,7 @@ impl NodeArena {
             kind,
             flags: flags.bits(),
             numeric_literal_flags: 0,
+            template_flags: 0,
             multi_line: None,
             pos: pos as u32,
             end: end as u32,

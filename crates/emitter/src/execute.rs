@@ -1,4 +1,5 @@
 use tsc_diagnostics::{gen, sort_and_dedupe_diagnostics, Diagnostic, DiagnosticList, MessageChain};
+use tsc_diagnostics::{JsStr, JsString};
 use tsc_types::{CompilerOptions, ScriptTarget};
 
 use crate::builtins::{
@@ -187,7 +188,7 @@ fn validate_emit_request(host: &dyn EmitHost, operation: EmitOperation) -> Resul
     validate_emit_options(options, operation)?;
     if options
         .out_file
-        .as_deref()
+        .as_ref()
         .is_some_and(|path| !path.is_empty())
     {
         if options.import_helpers == Some(true) {
@@ -209,27 +210,27 @@ fn validate_emit_request(host: &dyn EmitHost, operation: EmitOperation) -> Resul
         if !eligible {
             continue;
         }
-        let name = source.path().to_string_lossy().to_ascii_lowercase();
-        let is_typescript = name.ends_with(".ts")
-            || name.ends_with(".mts")
-            || name.ends_with(".cts")
-            || name.ends_with(".tsx");
+        let name = source.path();
+        let is_typescript = crate::builtins::has_ascii_file_suffix(name, ".ts")
+            || crate::builtins::has_ascii_file_suffix(name, ".mts")
+            || crate::builtins::has_ascii_file_suffix(name, ".cts")
+            || crate::builtins::has_ascii_file_suffix(name, ".tsx");
         let is_javascript = options.allow_js
-            && (name.ends_with(".js")
-                || name.ends_with(".mjs")
-                || name.ends_with(".cjs")
-                || name.ends_with(".jsx"));
-        let is_json = name.ends_with(".json");
+            && (crate::builtins::has_ascii_file_suffix(name, ".js")
+                || crate::builtins::has_ascii_file_suffix(name, ".mjs")
+                || crate::builtins::has_ascii_file_suffix(name, ".cjs")
+                || crate::builtins::has_ascii_file_suffix(name, ".jsx"));
+        let is_json = crate::builtins::has_ascii_file_suffix(name, ".json");
         if is_json && !options.resolve_json_module_effective() {
             return unsupported("resolveJsonModule");
         }
         if !(is_typescript || is_javascript || is_json)
-            || name.ends_with(".d.ts")
-            || name.ends_with(".d.mts")
-            || name.ends_with(".d.cts")
+            || crate::builtins::has_ascii_file_suffix(name, ".d.ts")
+            || crate::builtins::has_ascii_file_suffix(name, ".d.mts")
+            || crate::builtins::has_ascii_file_suffix(name, ".d.cts")
         {
             return Err(EmitFailure::UnsupportedSourceExtension {
-                path: source.path().to_path_buf(),
+                path: source.path().to_owned(),
             });
         }
     }
@@ -244,15 +245,17 @@ fn observe_source_routing(host: &dyn EmitHost, activity: &mut H2ActivityCanary) 
         if !crate::plan::source_file_may_be_emitted_for_host(source, host) {
             continue;
         }
-        let name = source.path().to_string_lossy().to_ascii_lowercase();
-        if name.ends_with(".js")
-            || name.ends_with(".mjs")
-            || name.ends_with(".cjs")
-            || name.ends_with(".jsx")
+        let name = source.path();
+        if crate::builtins::has_ascii_file_suffix(name, ".js")
+            || crate::builtins::has_ascii_file_suffix(name, ".mjs")
+            || crate::builtins::has_ascii_file_suffix(name, ".cjs")
+            || crate::builtins::has_ascii_file_suffix(name, ".jsx")
         {
             activity.observe_runtime_slice(H2RuntimeSlice::H2_3a);
         }
-        if name.ends_with(".tsx") || name.ends_with(".jsx") {
+        if crate::builtins::has_ascii_file_suffix(name, ".tsx")
+            || crate::builtins::has_ascii_file_suffix(name, ".jsx")
+        {
             activity.observe_runtime_slice(H2RuntimeSlice::H2_3b);
             if source.syntax().is_some_and(|syntax| {
                 syntax.jsx_runtime_pragma.as_deref() != Some("classic")
@@ -264,7 +267,7 @@ fn observe_source_routing(host: &dyn EmitHost, activity: &mut H2ActivityCanary) 
                 activity.observe_runtime_slice(H2RuntimeSlice::H2_3c);
             }
         }
-        if name.ends_with(".json") {
+        if crate::builtins::has_ascii_file_suffix(name, ".json") {
             activity.observe_runtime_slice(H2RuntimeSlice::H2_3d);
         }
     }
@@ -318,8 +321,8 @@ pub fn print_script_units_with_recording_for_harness(
     resolver: &dyn EmitResolver,
     host: &dyn EmitHost,
     preflight: &EmitPreflight,
-    recording_inputs_for: &dyn Fn(&std::path::Path) -> Option<crate::SourceMapRecordingInputs>,
-) -> Result<Vec<(std::path::PathBuf, crate::PrintedText)>, EmitFailure> {
+    recording_inputs_for: &dyn Fn(JsStr<'_>) -> Option<crate::SourceMapRecordingInputs>,
+) -> Result<Vec<(JsString, crate::PrintedText)>, EmitFailure> {
     let options = host.compiler_options();
     let new_line = match options.new_line {
         Some(0) => NewLineKind::CarriageReturnLineFeed,
@@ -371,7 +374,7 @@ pub fn print_script_units_with_recording_for_harness(
             PrintRequest::SourceFile(transform_source),
             recording_inputs_for(javascript_path),
         )?;
-        printed_units.push((javascript_path.to_path_buf(), printed));
+        printed_units.push((javascript_path.to_owned(), printed));
     }
     Ok(printed_units)
 }
@@ -388,7 +391,13 @@ pub fn print_script_units_with_recording_for_harness(
 /// through, every other scalar percent-escapes its UTF-8 bytes
 /// (uppercase hex). The witness `path-shapes--positive-percent-name`
 /// case pins the byte behavior.
-fn encode_uri(text: &str) -> String {
+fn encode_uri<'a>(text: impl Into<JsStr<'a>>) -> Result<String, EmitFailure> {
+    let text = text.into();
+    let text = text
+        .as_str()
+        .ok_or_else(|| EmitFailure::MalformedSourceMapUrl {
+            path: text.to_owned(),
+        })?;
     const KEEP: &[u8] = b";,/?:@&=+$-_.!~*'()#";
     let mut encoded = String::with_capacity(text.len());
     let mut buffer = [0_u8; 4];
@@ -402,7 +411,7 @@ fn encode_uri(text: &str) -> String {
             }
         }
     }
-    encoded
+    Ok(encoded)
 }
 
 /// tsc-port: getSourceRoot @6.0.3
@@ -414,9 +423,14 @@ fn encode_uri(text: &str) -> String {
 /// §4.2). `""` (still emitted as a key) whenever the option is absent —
 /// the H2.6a floor value.
 #[doc(hidden)]
-pub fn source_root_field(options: &CompilerOptions) -> String {
-    let normalized =
-        crate::source_map::paths::normalize_slashes(options.source_root.as_deref().unwrap_or(""));
+pub fn source_root_field(options: &CompilerOptions) -> JsString {
+    let normalized = crate::source_map::paths::normalize_slashes(
+        options
+            .source_root
+            .as_ref()
+            .map(JsString::as_js)
+            .unwrap_or("".into()),
+    );
     if normalized.is_empty() {
         normalized
     } else {
@@ -424,8 +438,8 @@ pub fn source_root_field(options: &CompilerOptions) -> String {
     }
 }
 
-fn normalized_display(path: &std::path::Path) -> String {
-    path.to_string_lossy().replace('\\', "/")
+fn normalized_display(path: JsStr<'_>) -> JsString {
+    crate::source_map::paths::normalize_slashes(path)
 }
 
 /// The exact host projection the root/URL lanes consume (h2-6b-m-1).
@@ -437,28 +451,50 @@ fn normalized_display(path: &std::path::Path) -> String {
 pub struct MapLaneInputs {
     /// `host.getCommonSourceDirectory()` with normalized slashes and the
     /// trailing separator the upstream host guarantees.
-    pub common_source_directory: String,
-    pub current_directory: String,
+    pub common_source_directory: JsString,
+    pub current_directory: JsString,
     pub use_case_sensitive_source_keys: bool,
 }
 
 pub(crate) fn map_lane_inputs(host: &dyn EmitHost) -> MapLaneInputs {
     MapLaneInputs {
         common_source_directory: crate::source_map::paths::ensure_trailing_directory_separator(
-            &crate::source_map::paths::normalize_slashes(
-                &host.common_source_directory().to_string_lossy(),
-            ),
+            &crate::source_map::paths::normalize_slashes(host.common_source_directory()),
         ),
         current_directory: normalized_display(host.current_directory()),
         use_case_sensitive_source_keys: host.use_case_sensitive_file_names(),
     }
 }
 
-fn directory_and_basename(normalized: &str) -> (&str, &str) {
-    match normalized.rfind('/') {
-        Some(split) => (&normalized[..split], &normalized[split + 1..]),
-        None => ("", normalized),
+fn directory_and_basename(normalized: JsStr<'_>) -> (JsStr<'_>, JsStr<'_>) {
+    let root = crate::source_map::paths::get_root_length(normalized);
+    if root == normalized.as_bytes().len() {
+        return (normalized, "".into());
     }
+    let slash = normalized.as_bytes().iter().rposition(|&byte| byte == b'/');
+    let directory_end = root.max(slash.unwrap_or(0));
+    let base_start = root.max(slash.map_or(0, |offset| offset + 1));
+    (
+        normalized
+            .split_at_byte(directory_end)
+            .expect("directory boundary is ASCII")
+            .0,
+        normalized
+            .split_at_byte(base_start)
+            .expect("basename boundary is ASCII")
+            .1,
+    )
+}
+
+fn trim_directory_separators(path: JsStr<'_>) -> JsStr<'_> {
+    let end = path
+        .as_bytes()
+        .iter()
+        .rposition(|&byte| byte != b'/')
+        .map_or(0, |offset| offset + 1);
+    path.split_at_byte(end)
+        .expect("trailing separators are ASCII")
+        .0
 }
 
 /// tsc-port: getSourceMapDirectory @6.0.3
@@ -475,30 +511,27 @@ fn directory_and_basename(normalized: &str) -> (&str, &str) {
 pub fn source_map_directory(
     lane: &MapLaneInputs,
     options: &CompilerOptions,
-    javascript_path: &std::path::Path,
-    source_path: &std::path::Path,
-) -> String {
+    javascript_path: JsStr<'_>,
+    source_path: JsStr<'_>,
+) -> JsString {
     source_map_directory_for_output(lane, options, javascript_path, Some(source_path))
 }
 
 pub(crate) fn source_map_directory_for_output(
     lane: &MapLaneInputs,
     options: &CompilerOptions,
-    javascript_path: &std::path::Path,
-    source_path: Option<&std::path::Path>,
-) -> String {
+    javascript_path: JsStr<'_>,
+    source_path: Option<JsStr<'_>>,
+) -> JsString {
     use crate::source_map::paths;
     if options
         .source_root
-        .as_deref()
+        .as_ref()
         .is_some_and(|root| !root.is_empty())
     {
-        return lane
-            .common_source_directory
-            .trim_end_matches('/')
-            .to_owned();
+        return trim_directory_separators(lane.common_source_directory.as_js()).to_owned();
     }
-    if let Some(map_root) = options.map_root.as_deref().filter(|root| !root.is_empty()) {
+    if let Some(map_root) = options.map_root.as_ref().filter(|root| !root.is_empty()) {
         let mut source_map_dir = paths::normalize_slashes(map_root);
         // per-file nesting (getSourceFilePathInNewDir): the relative
         // mapRoot stays relative through the worker; the root-length
@@ -511,17 +544,17 @@ pub(crate) fn source_map_directory_for_output(
                 &lane.common_source_directory,
                 lane.use_case_sensitive_source_keys,
             );
-            source_map_dir = directory_and_basename(&nested).0.to_owned();
+            source_map_dir = directory_and_basename(nested.as_js()).0.to_owned();
         }
         if paths::get_root_length(&source_map_dir) == 0 {
             source_map_dir = paths::combine_paths(
-                lane.common_source_directory.trim_end_matches('/'),
+                trim_directory_separators(lane.common_source_directory.as_js()),
                 &source_map_dir,
             );
         }
         return source_map_dir;
     }
-    directory_and_basename(&normalized_display(javascript_path))
+    directory_and_basename(normalized_display(javascript_path).as_js())
         .0
         .to_owned()
 }
@@ -536,8 +569,8 @@ pub(crate) fn source_map_directory_for_output(
 pub fn source_map_recording_inputs_for(
     lane: &MapLaneInputs,
     options: &CompilerOptions,
-    javascript_path: &std::path::Path,
-    source_path: &std::path::Path,
+    javascript_path: JsStr<'_>,
+    source_path: JsStr<'_>,
 ) -> SourceMapRecordingInputs {
     source_map_recording_inputs_for_output(lane, options, javascript_path, Some(source_path))
 }
@@ -545,11 +578,11 @@ pub fn source_map_recording_inputs_for(
 pub(crate) fn source_map_recording_inputs_for_output(
     lane: &MapLaneInputs,
     options: &CompilerOptions,
-    javascript_path: &std::path::Path,
-    source_path: Option<&std::path::Path>,
+    javascript_path: JsStr<'_>,
+    source_path: Option<JsStr<'_>>,
 ) -> SourceMapRecordingInputs {
     let normalized = normalized_display(javascript_path);
-    let (_, basename) = directory_and_basename(&normalized);
+    let (_, basename) = directory_and_basename(normalized.as_js());
     SourceMapRecordingInputs {
         file: basename.into(),
         source_root: source_root_field(options).into(),
@@ -614,9 +647,9 @@ pub fn source_mapping_url(
     lane: &MapLaneInputs,
     options: &CompilerOptions,
     map_text: &str,
-    javascript_path: &std::path::Path,
-    map_path: Option<&std::path::Path>,
-    source_path: &std::path::Path,
+    javascript_path: JsStr<'_>,
+    map_path: Option<JsStr<'_>>,
+    source_path: JsStr<'_>,
 ) -> Result<String, EmitFailure> {
     source_mapping_url_for_output(
         lane,
@@ -632,9 +665,9 @@ pub(crate) fn source_mapping_url_for_output(
     lane: &MapLaneInputs,
     options: &CompilerOptions,
     map_text: &str,
-    javascript_path: &std::path::Path,
-    map_path: Option<&std::path::Path>,
-    source_path: Option<&std::path::Path>,
+    javascript_path: JsStr<'_>,
+    map_path: Option<JsStr<'_>>,
+    source_path: Option<JsStr<'_>>,
 ) -> Result<String, EmitFailure> {
     use crate::source_map::paths;
     if options.inline_source_map == Some(true) {
@@ -649,8 +682,8 @@ pub(crate) fn source_mapping_url_for_output(
         EmitContractViolation::SourceMapRecordingUnavailable,
     ))?;
     let normalized_map = normalized_display(map_path);
-    let (_, map_basename) = directory_and_basename(&normalized_map);
-    if let Some(map_root) = options.map_root.as_deref().filter(|root| !root.is_empty()) {
+    let (_, map_basename) = directory_and_basename(normalized_map.as_js());
+    if let Some(map_root) = options.map_root.as_ref().filter(|root| !root.is_empty()) {
         let mut source_map_dir = paths::normalize_slashes(map_root);
         if let Some(source_path) = source_path {
             let nested = paths::source_file_path_in_new_dir_worker(
@@ -660,29 +693,26 @@ pub(crate) fn source_mapping_url_for_output(
                 &lane.common_source_directory,
                 lane.use_case_sensitive_source_keys,
             );
-            source_map_dir = directory_and_basename(&nested).0.to_owned();
+            source_map_dir = directory_and_basename(nested.as_js()).0.to_owned();
         }
         if paths::get_root_length(&source_map_dir) == 0 {
             source_map_dir = paths::combine_paths(
-                lane.common_source_directory.trim_end_matches('/'),
+                trim_directory_separators(lane.common_source_directory.as_js()),
                 &source_map_dir,
             );
             let normalized_js = normalized_display(javascript_path);
-            let (js_directory, _) = directory_and_basename(&normalized_js);
-            return Ok(encode_uri(&paths::get_relative_path_to_directory_or_url(
+            let (js_directory, _) = directory_and_basename(normalized_js.as_js());
+            return encode_uri(&paths::get_relative_path_to_directory_or_url(
                 js_directory,
                 &paths::combine_paths(&source_map_dir, map_basename),
                 &lane.current_directory,
                 lane.use_case_sensitive_source_keys,
                 true,
-            )));
+            ));
         }
-        return Ok(encode_uri(&paths::combine_paths(
-            &source_map_dir,
-            map_basename,
-        )));
+        return encode_uri(&paths::combine_paths(&source_map_dir, map_basename));
     }
-    Ok(encode_uri(map_basename))
+    encode_uri(map_basename)
 }
 
 pub(crate) struct ResolverGlobalNameOracle<'resolver>(pub(crate) &'resolver dyn EmitResolver);
@@ -720,7 +750,7 @@ pub(crate) fn transformed_source_paths(
     result: &crate::TransformationResult<'_>,
     root: &TransformRoot,
     host: &dyn EmitHost,
-) -> Result<Vec<std::path::PathBuf>, EmitFailure> {
+) -> Result<Vec<JsString>, EmitFailure> {
     let sources = match root {
         TransformRoot::SourceFile(source) => std::slice::from_ref(source),
         TransformRoot::Bundle(bundle) => bundle.sources(),
@@ -732,7 +762,7 @@ pub(crate) fn transformed_source_paths(
                 crate::TransformError::MissingProgramSource(result.arena().root(source)?),
             )?;
             host.source_file(source_id)
-                .map(|file| file.path().to_path_buf())
+                .map(|file| file.path().to_owned())
                 .ok_or(EmitFailure::Contract(
                     EmitContractViolation::PlannedSourceMissing(source_id),
                 ))
@@ -763,7 +793,7 @@ pub fn emit_files_with_activity(
     // zero-unit exits. Internal noEmitOnError getters do not add another request.
     if options
         .out_file
-        .as_deref()
+        .as_ref()
         .is_some_and(|path| !path.is_empty())
     {
         activity.observe_runtime_slice(H2RuntimeSlice::H2_7d);
@@ -847,10 +877,10 @@ pub fn emit_files_with_activity(
     // map before its text. A declaration map is listed whenever its print
     // branch ran, independently of the sink disposition.
     struct UnitListing {
-        javascript_path: Option<std::path::PathBuf>,
-        javascript_map_path: Option<std::path::PathBuf>,
-        declaration_path: Option<std::path::PathBuf>,
-        declaration_map_path: Option<std::path::PathBuf>,
+        javascript_path: Option<JsString>,
+        javascript_map_path: Option<JsString>,
+        declaration_path: Option<JsString>,
+        declaration_map_path: Option<JsString>,
     }
     let mut unit_listing = Vec::new();
     // sourceMapDataList is allocated iff a map option is on (116532):
@@ -880,20 +910,11 @@ pub fn emit_files_with_activity(
         };
         let mut parsed_emit_metadata = None;
         let mut javascript_printed = false;
-        let javascript_path = unit
-            .paths()
-            .javascript_path()
-            .map(std::path::Path::to_path_buf);
-        let javascript_map_path = unit
-            .paths()
-            .javascript_map_path()
-            .map(std::path::Path::to_path_buf);
-        let declaration_path = unit
-            .paths()
-            .declaration_path()
-            .map(std::path::Path::to_path_buf);
+        let javascript_path = unit.paths().javascript_path().map(JsStr::to_owned);
+        let javascript_map_path = unit.paths().javascript_map_path().map(JsStr::to_owned);
+        let declaration_path = unit.paths().declaration_path().map(JsStr::to_owned);
 
-        if let Some(javascript_path) = javascript_path.as_deref() {
+        if let Some(javascript_path) = javascript_path.as_ref().map(JsString::as_js) {
             if preflight.is_emit_blocked(host, javascript_path) {
                 emit_skipped = true;
             } else {
@@ -934,8 +955,7 @@ pub fn emit_files_with_activity(
                 // tsc-port: shouldEmitSourceMaps @6.0.3
                 // tsc-hash: 313b475b45d97ba74f69e4e404efd89763caf5fcc7ca9f94c293edf8fdea4f52
                 // tsc-span: _tsc.js:116805-116807
-                let json_source =
-                    source_path.is_some_and(|path| path.to_string_lossy().ends_with(".json"));
+                let json_source = source_path.is_some_and(|path| path.ends_with(".json"));
                 let recording_enabled = javascript_map_options_enabled && !json_source;
                 if recording_enabled
                     && options.inline_source_map != Some(true)
@@ -997,7 +1017,7 @@ pub fn emit_files_with_activity(
                         );
                         recording.set_current_source(
                             transform_source,
-                            &syntax.file_name,
+                            syntax.file_name.as_js(),
                             syntax.text(),
                         );
                         (printed, Some(recording.into_generator()))
@@ -1024,11 +1044,7 @@ pub fn emit_files_with_activity(
                         ))?;
                     let map_json = generator.to_json_string();
                     source_map_observations.push(SourceMapObservation::new(
-                        generator
-                            .raw_sources()
-                            .iter()
-                            .map(|name| std::path::PathBuf::from(name.as_ref()))
-                            .collect(),
+                        generator.raw_sources().iter().cloned().collect(),
                         map_json.clone().into_boxed_str(),
                     ));
                     let url = source_mapping_url_for_output(
@@ -1036,7 +1052,7 @@ pub fn emit_files_with_activity(
                         options,
                         &map_json,
                         javascript_path,
-                        map_path.map(std::path::PathBuf::as_path),
+                        map_path.map(JsString::as_js),
                         source_path,
                     )?;
                     let mut javascript_text = printed.text().to_owned();
@@ -1092,7 +1108,7 @@ pub fn emit_files_with_activity(
         }
 
         let mut printed_declaration_map_path = None;
-        if let Some(declaration_path) = declaration_path.as_deref() {
+        if let Some(declaration_path) = declaration_path.as_ref().map(JsString::as_js) {
             let declaration = emit_declaration_unit(
                 resolver,
                 host,
@@ -1111,7 +1127,7 @@ pub fn emit_files_with_activity(
                 source_map_observations.push(observation);
             }
             if let Some(map) = declaration.map_artifact {
-                printed_declaration_map_path = Some(map.path().to_path_buf());
+                printed_declaration_map_path = Some(map.path().to_owned());
                 artifacts.push(map);
             }
             if let Some(artifact) = declaration.artifact {
@@ -1188,18 +1204,17 @@ fn write_artifacts(
     sink: &mut dyn OutputSink,
     diagnostics: &mut DiagnosticList,
     activity: &mut H2ActivityCanary,
-) -> std::collections::BTreeSet<std::path::PathBuf> {
-    let mut written_paths: std::collections::BTreeSet<std::path::PathBuf> =
-        std::collections::BTreeSet::new();
+) -> std::collections::BTreeSet<JsString> {
+    let mut written_paths: std::collections::BTreeSet<JsString> = std::collections::BTreeSet::new();
     for artifact in artifacts {
-        let path = artifact.path().to_path_buf();
+        let path = artifact.path().to_owned();
         activity.attempt_output_sink_write();
         let include_in_emitted_files = match sink.write(artifact) {
             Ok(EmitWriteDisposition::Written) => true,
             Ok(EmitWriteDisposition::SkippedUnchanged) => false,
             Err(error) => {
                 activity.observe_output_sink_failure();
-                diagnostics.push(write_diagnostic(&path, error.message()));
+                diagnostics.push(write_diagnostic(path.as_js(), error.message()));
                 true
             }
         };
@@ -1228,7 +1243,7 @@ pub fn emit_forced_declarations_with_activity(
     let options = host.compiler_options();
     if options
         .out_file
-        .as_deref()
+        .as_ref()
         .is_some_and(|path| !path.is_empty())
     {
         activity.observe_runtime_slice(H2RuntimeSlice::H2_7d);
@@ -1278,14 +1293,14 @@ pub fn emit_forced_declarations_with_activity(
         // assertion must retain earlier JSON writes instead of discarding a
         // Program-wide preconstructed artifact vector.
         let written = write_artifacts(artifacts, sink, &mut diagnostics, activity);
-        if written.contains(path) {
-            listing.push(path.to_path_buf());
+        if written.contains(path.as_bytes()) {
+            listing.push(path.to_owned());
         }
         if printed {
             // This list entry is unconditional even for a JSON source, whose
             // shouldEmitSourceMaps branch produces no map artifact at all.
             if let Some(map_path) = unit.paths().declaration_map_path() {
-                listing.push(map_path.to_path_buf());
+                listing.push(map_path.to_owned());
             }
         }
     }
@@ -1299,14 +1314,14 @@ pub fn emit_forced_declarations_with_activity(
     ))
 }
 
-fn write_diagnostic(path: &std::path::Path, message: &str) -> Diagnostic {
+fn write_diagnostic(path: JsStr<'_>, message: JsStr<'_>) -> Diagnostic {
     Diagnostic::new(
         None,
         None,
         None,
-        MessageChain::new(
+        MessageChain::new_js(
             &gen::Could_not_write_file_0_1,
-            &[path.to_string_lossy().into_owned(), message.to_owned()],
+            &[path.to_owned(), message.to_owned()],
         ),
     )
 }

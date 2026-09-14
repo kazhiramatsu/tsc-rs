@@ -49,7 +49,8 @@ pub(crate) use statements::{symbol_table_to_declaration_statements, symbol_to_de
 pub(crate) use tracker::NodeBuilderTracker;
 use type_nodes::{
     add_approximate_length, checker_abort_error, clone_parse_node, create_identifier, create_node,
-    create_node_array, create_token, factory_error, project_parse_node, BuildResult,
+    create_node_array, create_output_identifier, create_token, factory_error, project_parse_node,
+    BuildResult,
 };
 pub(crate) use type_nodes::{create_factory_node, update_factory_node};
 pub(crate) use type_nodes::{map_to_type_nodes, type_to_type_node_helper};
@@ -57,7 +58,8 @@ pub(crate) use type_nodes::{map_to_type_nodes, type_to_type_node_helper};
 pub(crate) struct SyntheticModuleScopeRestore {
     enclosing_declaration: Option<tsc_syntax::NodeId>,
     enclosing_declaration_is_synthetic: bool,
-    synthetic_scope_locals: Option<std::collections::HashMap<String, tsc_binder::SymbolId>>,
+    synthetic_scope_locals:
+        Option<std::collections::HashMap<tsc_types::EscapedName, tsc_binder::SymbolId>>,
     synthetic_scope_kind: Option<tsc_syntax::SyntaxKind>,
 }
 
@@ -266,13 +268,14 @@ pub(crate) struct SyntacticScopeCleanup {
         Option<std::collections::HashMap<tsc_types::TypeId, tsc_emitter::TransformNode>>,
     type_parameter_names_by_text: Option<std::collections::HashSet<String>>,
     type_parameter_names_by_text_next_name_count: Option<std::collections::HashMap<String, u32>>,
-    synthetic_scope_locals: Option<std::collections::HashMap<String, tsc_binder::SymbolId>>,
+    synthetic_scope_locals:
+        Option<std::collections::HashMap<tsc_types::EscapedName, tsc_binder::SymbolId>>,
     synthetic_scope_kind: Option<tsc_syntax::SyntaxKind>,
     reuses_synthetic_scope: bool,
-    first_new_parameter_local: Option<String>,
-    first_old_parameter_local: Option<(String, tsc_binder::SymbolId)>,
-    first_new_type_parameter_local: Option<String>,
-    first_old_type_parameter_local: Option<(String, tsc_binder::SymbolId)>,
+    first_new_parameter_local: Option<tsc_types::EscapedName>,
+    first_old_parameter_local: Option<(tsc_types::EscapedName, tsc_binder::SymbolId)>,
+    first_new_type_parameter_local: Option<tsc_types::EscapedName>,
+    first_old_type_parameter_local: Option<(tsc_types::EscapedName, tsc_binder::SymbolId)>,
 }
 
 impl SyntacticScopeCleanup {
@@ -302,9 +305,9 @@ impl SyntacticScopeCleanup {
     }
 
     fn record_local(
-        first_new: &mut Option<String>,
-        first_old: &mut Option<(String, tsc_binder::SymbolId)>,
-        name: &str,
+        first_new: &mut Option<tsc_types::EscapedName>,
+        first_old: &mut Option<(tsc_types::EscapedName, tsc_binder::SymbolId)>,
+        name: &tsc_types::EscapedName,
         old_symbol: Option<tsc_binder::SymbolId>,
     ) {
         // `enterNewScope` appends every changed local, but its cleanup passes
@@ -323,7 +326,7 @@ impl SyntacticScopeCleanup {
     /// tsrs-native: enterNewScope changed-local bookkeeping for parameter locals (see record_local).
     pub(crate) fn record_parameter_local(
         &mut self,
-        name: &str,
+        name: &tsc_types::EscapedName,
         old_symbol: Option<tsc_binder::SymbolId>,
     ) {
         if self.reuses_synthetic_scope {
@@ -346,7 +349,7 @@ impl SyntacticScopeCleanup {
             Self::record_local(
                 &mut self.first_new_type_parameter_local,
                 &mut self.first_old_type_parameter_local,
-                name,
+                &tsc_types::EscapedName::from_identifier_escaped_text(name),
                 old_symbol,
             );
         }
@@ -691,7 +694,7 @@ pub(crate) trait SyntacticBuilderResolver: tsc_emitter::EmitTrackerAccess {
         context: &mut NodeBuilderContext<'_>,
         parent: tsc_emitter::TransformNode,
         literal: tsc_emitter::TransformNode,
-    ) -> Result<Option<String>, tsc_emitter::EmitResolverError>;
+    ) -> Result<Option<tsc_types::JsString>, tsc_emitter::EmitResolverError>;
 
     fn can_reuse_type_node(
         &mut self,
@@ -871,7 +874,7 @@ impl tsc_emitter::EmitTrackerAccess for StandaloneTrackerAccess<'_, '_> {
             })
             .collect();
         tsc_emitter::EmitTrackerSymbolDescription {
-            escaped_name: data.escaped_name.clone(),
+            escaped_name: data.escaped_name.as_js().to_owned(),
             declaration_count: u32::try_from(data.declarations.len()).unwrap_or(u32::MAX),
             declarations,
         }
@@ -1241,7 +1244,7 @@ pub(crate) mod replay_sink {
         /// tracker in the harness).
         Tracker {
             site: &'static str,
-            payload: serde_json::Value,
+            payload: tsc_program::JsonValue,
         },
     }
 

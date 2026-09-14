@@ -2,6 +2,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use tsc_diagnostics::{JsStr, JsString};
 use tsc_syntax::{
     try_visit_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind,
 };
@@ -191,7 +192,7 @@ impl DecoratorIdentifier for TargetBinding {
 struct PropertyPlan {
     original: TransformNode,
     data: tsc_syntax::nodes::PropertyDeclarationData,
-    name: String,
+    name: JsString,
     is_static: bool,
     is_private: bool,
     is_accessor: bool,
@@ -206,11 +207,11 @@ struct PropertyPlan {
     /// access object and (for auto-accessors) the setter name.
     computed_temp: Option<TargetBinding>,
     computed_expression: Option<NodeId>,
-    /// `partialTransformClassElement`: a computed name whose expression is a
-    /// non-identifier property-name literal (`isPropertyNameLiteral(expression)
-    /// && !isIdentifier(expression)`) names the decorator context by
-    /// `createStringLiteralFromNode(expression)`; no cache temp, no hoist,
-    /// no `__propKey`.
+    /// `partialTransformClassElement`: literal names and the literal
+    /// expression of a computed name use `{ computed: true, name:
+    /// createStringLiteralFromNode(literal) }` in the context/access object.
+    /// This does not change the member's emitted property syntax and needs
+    /// no cache temp, hoist or `__propKey`.
     computed_literal: Option<NodeId>,
     /// `getAssignedNameOfPropertyName` hoisted this generated name for the
     /// anonymous decorated class initializer; `visitReferencedPropertyName`
@@ -317,7 +318,7 @@ impl DecoratedClassDeclarationName {
 #[derive(Clone, Debug)]
 enum DecoratedClassRuntimeName {
     Declared(String),
-    Assigned(String),
+    Assigned(JsString),
     /// `getAssignedNameOfPropertyName` for a non-literal computed property
     /// name: the assigned name is the hoisted `__propKey` cache temp, shared
     /// with the property's rewritten computed name.
@@ -327,12 +328,13 @@ enum DecoratedClassRuntimeName {
 }
 
 impl DecoratedClassRuntimeName {
-    fn text(&self) -> &str {
+    fn text(&self) -> JsStr<'_> {
         match self {
-            Self::Declared(text) | Self::Assigned(text) => text,
-            Self::AssignedReference(binding) => binding.provisional_name(),
-            Self::AnonymousDefaultDeclaration => "default",
-            Self::UnassignedDecoratedExpression => "",
+            Self::Declared(text) => text.into(),
+            Self::Assigned(text) => text.as_js(),
+            Self::AssignedReference(binding) => binding.provisional_name().into(),
+            Self::AnonymousDefaultDeclaration => "default".into(),
+            Self::UnassignedDecoratedExpression => "".into(),
         }
     }
 }
@@ -415,7 +417,6 @@ impl DecoratedClassRoute {
 #[derive(Clone)]
 enum StaticAccessorReceiver {
     GeneratedBinding(TargetBinding),
-    ClassEvaluationName(String),
     ClassReference {
         text: String,
         original_name: TransformNode,
@@ -462,7 +463,7 @@ impl MethodKind {
 #[derive(Clone)]
 struct MethodPlan {
     original: TransformNode,
-    name: String,
+    name: JsString,
     is_static: bool,
     is_private: bool,
     kind: MethodKind,
@@ -488,7 +489,6 @@ struct ClassMemberState<'a> {
     class_decoration: Option<&'a ClassDecorationPlan>,
     explicit_class_name: Option<&'a str>,
     explicit_class_name_node: Option<TransformNode>,
-    class_evaluation_binding_name: Option<&'a str>,
     class_owner: TransformNode,
 }
 
@@ -701,7 +701,7 @@ struct StandardDecoratorVisitor<'context> {
     target: ScriptTarget,
     nodes: BTreeMap<NodeId, Option<NodeId>>,
     arrays: BTreeMap<NodeArrayId, Option<NodeArrayId>>,
-    inferred_class_names: BTreeMap<NodeId, String>,
+    inferred_class_names: BTreeMap<NodeId, JsString>,
     /// Named evaluation through a non-literal computed property name: the
     /// anonymous decorated class receives the property's hoisted key temp.
     inferred_class_name_references: BTreeMap<NodeId, TargetBinding>,
@@ -1095,11 +1095,12 @@ impl<'context> StandardDecoratorVisitor<'context> {
         self.record_named_evaluation_text(initializer, &text)
     }
 
-    fn record_named_evaluation_text(
+    fn record_named_evaluation_text<'a>(
         &mut self,
         initializer: Option<NodeId>,
-        text: &str,
+        text: impl Into<JsStr<'a>>,
     ) -> Result<(), TransformError> {
+        let text = text.into();
         if let Some(class) = self.anonymous_class_needing_assigned_name(initializer)? {
             self.inferred_class_names
                 .entry(class.node())
@@ -1115,17 +1116,17 @@ impl<'context> StandardDecoratorVisitor<'context> {
     fn property_name_literal_text(
         &self,
         name: TransformNode,
-    ) -> Result<Option<String>, TransformError> {
+    ) -> Result<Option<JsString>, TransformError> {
         Ok(match &self.context.arena().node(name)?.data {
-            NodeData::Identifier(data) => Some(data.text.clone()),
-            NodeData::PrivateIdentifier(data) => Some(data.text.clone()),
+            NodeData::Identifier(data) => Some(data.text.clone().into()),
+            NodeData::PrivateIdentifier(data) => Some(data.text.clone().into()),
             NodeData::StringLiteral(data) => Some(data.text.clone()),
-            NodeData::NumericLiteral(data) => Some(data.text.clone()),
+            NodeData::NumericLiteral(data) => Some(data.text.clone().into()),
             NodeData::NoSubstitutionTemplateLiteral(data) => Some(data.text.clone()),
             NodeData::ComputedPropertyName(data) => match data.expression {
                 Some(expression) => match &self.context.arena().node(self.node(expression))?.data {
                     NodeData::StringLiteral(data) => Some(data.text.clone()),
-                    NodeData::NumericLiteral(data) => Some(data.text.clone()),
+                    NodeData::NumericLiteral(data) => Some(data.text.clone().into()),
                     NodeData::NoSubstitutionTemplateLiteral(data) => Some(data.text.clone()),
                     _ => None,
                 },
@@ -1381,12 +1382,12 @@ impl<'context> StandardDecoratorVisitor<'context> {
             return Ok(());
         }
         let is_private = self.name_is_private(name)?;
+        let helper_name = self.decorator_helper_stem(name)?;
         let (name, computed_expression, computed_literal) = self.decorator_property_name(name)?;
         let is_static = self.has_modifier(modifiers, SyntaxKind::StaticKeyword)?;
         let static_prefix = if is_static { "static_" } else { "" };
         let private_prefix = if is_private { "private_" } else { "" };
         let kind_prefix = kind.helper_prefix();
-        let helper_name = name.trim_start_matches('#');
         let decorators_name = self.allocate_name(&format!(
             "_{static_prefix}{private_prefix}{kind_prefix}{helper_name}_decorators"
         ))?;
@@ -1443,9 +1444,6 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let assigned_class_name = explicitly_assigned_name
             .clone()
             .or_else(|| self.inferred_class_names.get(&original.node()).cloned());
-        let class_evaluation_binding_name = explicit_class_name
-            .clone()
-            .or_else(|| assigned_class_name.clone());
         let runtime_class_name = match route {
             DecoratedClassRoute::Declaration(_) => Some(declaration_name.map_or(
                 DecoratedClassRuntimeName::AnonymousDefaultDeclaration,
@@ -1455,7 +1453,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 original,
                 explicit_class_name_node,
                 explicit_class_name.as_deref(),
-                assigned_class_name.as_deref(),
+                assigned_class_name.as_ref().map(JsString::as_js),
                 !class_decorators.is_empty(),
             )?,
         };
@@ -1546,6 +1544,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                         continue;
                     }
                     let is_private = self.name_is_private(member_data.name)?;
+                    let helper_name = self.decorator_helper_stem(member_data.name)?;
                     let (name, computed_expression, computed_literal) =
                         self.decorator_property_name(member_data.name)?;
                     let is_static =
@@ -1554,7 +1553,6 @@ impl<'context> StandardDecoratorVisitor<'context> {
                         self.has_modifier(member_data.modifiers, SyntaxKind::AccessorKeyword)?;
                     let static_prefix = if is_static { "static_" } else { "" };
                     let private_prefix = if is_private { "private_" } else { "" };
-                    let helper_name = name.trim_start_matches('#');
                     let decorators_name = self.allocate_name(&format!(
                         "_{static_prefix}{private_prefix}{helper_name}_decorators"
                     ))?;
@@ -1579,7 +1577,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
                         if computed_expression.is_some() {
                             self.allocate_computed_private_storage(&mut used_private)
                         } else {
-                            self.allocate_private_storage(&name, &mut used_private)
+                            self.allocate_private_storage(
+                                name.as_str().expect("private identifier spelling"),
+                                &mut used_private,
+                            )
                         }
                     });
                     plans.push(PropertyPlan {
@@ -1877,7 +1878,6 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 class_decoration: class_decoration.as_ref(),
                 explicit_class_name: explicit_class_name.as_deref(),
                 explicit_class_name_node,
-                class_evaluation_binding_name: class_evaluation_binding_name.as_deref(),
                 class_owner: original,
             };
             let result = self.transform_class_member(member, member_data, &mut state);
@@ -2392,9 +2392,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
                                 class_owner: state.class_owner,
                             })
                         } else {
-                            state.class_evaluation_binding_name.map(|name| {
-                                StaticAccessorReceiver::ClassEvaluationName(name.to_owned())
-                            })
+                            // Assigned runtime names are property values, not
+                            // lexical class bindings. Private decorated accessors
+                            // call their descriptor with `this` below.
+                            None
                         }
                     } else {
                         None
@@ -3213,10 +3214,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
         self.create_object_literal(vec![getter, setter], false)
     }
 
-    fn create_set_function_name(
+    fn create_set_function_name<'a>(
         &mut self,
         function: TransformNode,
-        name: &str,
+        name: impl Into<JsStr<'a>>,
         prefix: Option<&str>,
     ) -> Result<TransformNode, TransformError> {
         let helper = self
@@ -3440,7 +3441,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             self.create_false()?
         };
         let access = self.create_access_object(
-            &plan.name,
+            plan.name.as_js(),
             true,
             true,
             plan.is_private,
@@ -3488,7 +3489,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             self.create_false()?
         };
         let access = self.create_access_object(
-            &plan.name,
+            plan.name.as_js(),
             plan.kind != MethodKind::Setter,
             plan.kind == MethodKind::Setter,
             plan.is_private,
@@ -3512,7 +3513,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
 
     fn create_access_object(
         &mut self,
-        name: &str,
+        name: JsStr<'_>,
         include_get: bool,
         include_set: bool,
         is_private: bool,
@@ -3525,7 +3526,12 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let property = if let Some(computed) = computed {
             self.create_computed_access_key(computed)?
         } else if is_private {
-            source_name.unwrap_or(self.create_private_identifier(name)?)
+            match source_name {
+                Some(source_name) => source_name,
+                None => self.create_private_identifier(
+                    name.as_str().expect("private identifier spelling"),
+                )?,
+            }
         } else {
             self.create_string_literal(name)?
         };
@@ -3542,8 +3548,13 @@ impl<'context> StandardDecoratorVisitor<'context> {
             } else {
                 let name = match source_name {
                     Some(source_name) => source_name,
-                    None if is_private => self.create_private_identifier(name)?,
-                    None => self.create_identifier(name)?,
+                    None if is_private => self.create_private_identifier(
+                        name.as_str().expect("private identifier spelling"),
+                    )?,
+                    None => self.create_identifier(
+                        name.as_str()
+                            .expect("uncomputed identifier without source node"),
+                    )?,
                 };
                 self.create_property_access_node(obj_expression, name)?
             };
@@ -3560,8 +3571,13 @@ impl<'context> StandardDecoratorVisitor<'context> {
             } else {
                 let name = match source_name {
                     Some(source_name) => source_name,
-                    None if is_private => self.create_private_identifier(name)?,
-                    None => self.create_identifier(name)?,
+                    None if is_private => self.create_private_identifier(
+                        name.as_str().expect("private identifier spelling"),
+                    )?,
+                    None => self.create_identifier(
+                        name.as_str()
+                            .expect("uncomputed identifier without source node"),
+                    )?,
                 };
                 self.create_property_access_node(obj_expression, name)?
             };
@@ -3602,7 +3618,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
     ) -> Result<TransformNode, TransformError> {
         let text = match &self.context.arena().node(literal)?.data {
             NodeData::StringLiteral(data) => data.text.clone(),
-            NodeData::NumericLiteral(data) => data.text.clone(),
+            NodeData::NumericLiteral(data) => data.text.clone().into(),
             NodeData::NoSubstitutionTemplateLiteral(data) => data.text.clone(),
             _ => {
                 return Err(TransformError::RequiredChildRemoved {
@@ -4035,7 +4051,6 @@ impl<'context> StandardDecoratorVisitor<'context> {
     ) -> Result<TransformNode, TransformError> {
         match receiver {
             StaticAccessorReceiver::GeneratedBinding(binding) => self.create_identifier(binding),
-            StaticAccessorReceiver::ClassEvaluationName(text) => self.create_identifier(text),
             StaticAccessorReceiver::ClassReference {
                 text,
                 original_name,
@@ -4627,7 +4642,11 @@ impl<'context> StandardDecoratorVisitor<'context> {
         )
     }
 
-    fn create_string_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
+    fn create_string_literal<'a>(
+        &mut self,
+        text: impl Into<JsStr<'a>>,
+    ) -> Result<TransformNode, TransformError> {
+        let text = text.into();
         self.context.factory()?.create_node(
             self.source,
             NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
@@ -5155,7 +5174,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         class_like: TransformNode,
         explicit_name_node: Option<TransformNode>,
         explicit_name: Option<&str>,
-        assigned_name: Option<&str>,
+        assigned_name: Option<JsStr<'_>>,
         has_class_decorators: bool,
     ) -> Result<Option<DecoratedClassRuntimeName>, TransformError> {
         let owner = self.generated_class_reference_owner(class_like)?;
@@ -5206,7 +5225,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         if let Some(parsed) = self.context.arena().parse_tree_node(name)? {
             return Ok(!matches!(
                 self.context.arena().node(parsed)?.data,
-                NodeData::Identifier(_)
+                NodeData::Identifier(_) | NodeData::PrivateIdentifier(_)
             ));
         }
         Ok(NodeFlags::from_bits(self.context.arena().node(name)?.flags)
@@ -5804,24 +5823,45 @@ impl<'context> StandardDecoratorVisitor<'context> {
         Ok(())
     }
 
-    /// The helper-variable stem (`getHelperVariableName`: `member` for every
-    /// computed name), the computed expression that needs the `__propKey`
+    fn decorator_helper_stem(&self, name: Option<NodeId>) -> Result<String, TransformError> {
+        let Some(name) = name.map(|name| self.node(name)) else {
+            return Ok("member".into());
+        };
+        // getHelperVariableName (_tsc.js:99214): only a non-generated
+        // identifier/private identifier or an identifier-shaped string literal
+        // supplies a stem. Numeric and computed names use `member`.
+        let stem = match &self.context.arena().node(name)?.data {
+            NodeData::Identifier(data) if !self.is_generated_binding_name(name)? => {
+                Some(data.text.as_str())
+            }
+            NodeData::PrivateIdentifier(data) if !self.is_generated_binding_name(name)? => {
+                data.text.strip_prefix('#')
+            }
+            NodeData::StringLiteral(data) => data.text.as_str().filter(|text| {
+                tsc_syntax::is_identifier_text_for_target(text, ScriptTarget::ES_NEXT)
+            }),
+            _ => None,
+        };
+        Ok(stem.unwrap_or("member").to_owned())
+    }
+
+    /// The runtime property name, the computed expression that needs the `__propKey`
     /// cache temp, and the literal expression of a computed name that
     /// `partialTransformClassElement` keeps as `{ computed: true, name:
     /// createStringLiteralFromNode(expression) }` instead.
     fn decorator_property_name(
         &mut self,
         name: Option<NodeId>,
-    ) -> Result<(String, Option<NodeId>, Option<NodeId>), TransformError> {
+    ) -> Result<(JsString, Option<NodeId>, Option<NodeId>), TransformError> {
         let name = name.ok_or(TransformError::RequiredChildRemoved {
             parent: SyntaxKind::PropertyDeclaration,
             field: "name",
         })?;
         match &self.context.arena().node(self.node(name))?.data {
-            NodeData::Identifier(data) => Ok((data.text.clone(), None, None)),
-            NodeData::PrivateIdentifier(data) => Ok((data.text.clone(), None, None)),
-            NodeData::StringLiteral(data) => Ok((data.text.clone(), None, None)),
-            NodeData::NumericLiteral(data) => Ok((data.text.clone(), None, None)),
+            NodeData::Identifier(data) => Ok((data.text.clone().into(), None, None)),
+            NodeData::PrivateIdentifier(data) => Ok((data.text.clone().into(), None, None)),
+            NodeData::StringLiteral(data) => Ok((data.text.clone(), None, Some(name))),
+            NodeData::NumericLiteral(data) => Ok((data.text.clone().into(), None, Some(name))),
             NodeData::ComputedPropertyName(data) => {
                 let expression = data
                     .expression
@@ -5839,9 +5879,9 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 );
                 let expression = expression_node.node();
                 if is_literal {
-                    Ok(("member".to_owned(), None, Some(expression)))
+                    Ok(("member".into(), None, Some(expression)))
                 } else {
-                    Ok(("member".to_owned(), Some(expression), None))
+                    Ok(("member".into(), Some(expression), None))
                 }
             }
             _ => Err(TransformError::UnsupportedSyntax {
@@ -5861,7 +5901,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
     fn explicitly_assigned_class_name(
         &self,
         class: TransformNode,
-    ) -> Result<Option<String>, TransformError> {
+    ) -> Result<Option<JsString>, TransformError> {
         let Some(assigned_name) = self
             .context
             .arena()
@@ -5871,9 +5911,9 @@ impl<'context> StandardDecoratorVisitor<'context> {
             return Ok(None);
         };
         Ok(match &self.context.arena().node(assigned_name)?.data {
-            NodeData::Identifier(data) => Some(data.text.clone()),
+            NodeData::Identifier(data) => Some(data.text.clone().into()),
             NodeData::StringLiteral(data) => Some(data.text.clone()),
-            NodeData::NumericLiteral(data) => Some(data.text.clone()),
+            NodeData::NumericLiteral(data) => Some(data.text.clone().into()),
             _ => None,
         })
     }

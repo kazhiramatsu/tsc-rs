@@ -15,10 +15,10 @@
 use std::collections::HashSet;
 
 use tsc_diagnostics::{
-    gen as diagnostics, Diagnostic, DiagnosticMessage, MessageChain, RelatedInfo,
+    gen as diagnostics, Diagnostic, DiagnosticMessage, JsString, MessageChain, RelatedInfo,
 };
 use tsc_types::{
-    ConditionalRootId, ExpandingFlags, IntersectionState, ObjectFlags, RecursionFlags,
+    ConditionalRootId, EscapedName, ExpandingFlags, IntersectionState, ObjectFlags, RecursionFlags,
     RelationComparisonResult, SymbolFlags, Ternary, TypeData, TypeFlags, TypeId, UnionReduction,
 };
 
@@ -50,15 +50,15 @@ impl SimpleTypeRelationOutcome {
     }
 }
 
-fn enum_relation_value_text(value: &EvalValue) -> String {
+fn enum_relation_value_text(value: &EvalValue) -> JsString {
     match value {
-        EvalValue::Num(value) => tsc_types::js_number_to_string(*value),
-        EvalValue::Str(value) => format!(
-            "\"{}\"",
-            crate::check::string_literal_type_display_text(&tsc_types::TemplateText::from_utf8(
-                value,
-            ))
-        ),
+        EvalValue::Num(value) => tsc_types::js_number_to_string(*value).into(),
+        EvalValue::Str(value) => {
+            let mut quoted = JsString::from("\"");
+            quoted.push_js(crate::merge::escape_double_quoted_symbol_name(value.as_js()).as_js());
+            quoted.push('"');
+            quoted
+        }
     }
 }
 
@@ -1043,15 +1043,15 @@ pub(crate) enum ExcessPropertyOutcome {
 
 enum ExcessPropertyReportKind {
     Jsx {
-        source_text: String,
-        target_text: String,
-        prop_text: String,
-        suggestion: Option<String>,
+        source_text: JsString,
+        target_text: JsString,
+        prop_text: JsString,
+        suggestion: Option<JsString>,
     },
     ObjectLiteral {
-        target_text: String,
-        prop_text: String,
-        suggestion: Option<String>,
+        target_text: JsString,
+        prop_text: JsString,
+        suggestion: Option<JsString>,
     },
 }
 
@@ -1075,7 +1075,7 @@ pub(crate) struct RelationErrorOutput {
 pub(crate) struct RelationErrorState {
     error_info: Option<MessageChain>,
     related_info: Vec<RelatedInfo>,
-    incompatible_stack: Vec<(&'static DiagnosticMessage, Vec<String>)>,
+    incompatible_stack: Vec<(&'static DiagnosticMessage, Vec<JsString>)>,
     last_skipped_info: Option<(TypeId, TypeId)>,
     override_next_error_info: usize,
     skip_parent_counter: usize,
@@ -1566,10 +1566,18 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         message: &'static DiagnosticMessage,
         args: Vec<String>,
     ) -> CheckResult<()> {
+        self.report_error_js(message, args.into_iter().map(JsString::from).collect())
+    }
+
+    pub(crate) fn report_error_js(
+        &mut self,
+        message: &'static DiagnosticMessage,
+        args: Vec<JsString>,
+    ) -> CheckResult<()> {
         if !self.error_state.incompatible_stack.is_empty() {
             self.report_incompatible_stack()?;
         }
-        self.report_error_direct(message, args);
+        self.report_error_direct_js(message, args);
         Ok(())
     }
 
@@ -1640,13 +1648,13 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 break;
             }
         }
-        self.report_error(
+        self.report_error_js(
             if callable_face {
                 &diagnostics::Value_of_type_0_has_no_properties_in_common_with_type_1_Did_you_mean_to_call_it
             } else {
                 &diagnostics::Type_0_has_no_properties_in_common_with_type_1
             },
-            vec![source_text, target_text],
+            vec![(source_text).into(), (target_text).into()],
         )
     }
 
@@ -1658,9 +1666,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             } => {
                 let target_type = self.st.get_declared_type_of_symbol_slice(target_enum)?;
                 let target_text = self.st.get_type_name_for_error_display(target_type)?;
-                self.report_error(
+                self.report_error_js(
                     &diagnostics::Property_0_is_missing_in_type_1,
-                    vec![self.st.symbol_display_name(source_member), target_text],
+                    vec![
+                        self.st.symbol_display_name(source_member),
+                        target_text.into(),
+                    ],
                 )?;
             }
             EnumRelationError::MismatchedMemberValue {
@@ -1669,7 +1680,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 expected,
                 given,
             } => {
-                self.report_error(
+                self.report_error_js(
                     &diagnostics::Each_declaration_of_0_1_differs_in_its_value_where_2_was_expected_but_3_was_given,
                     vec![
                         self.st.symbol_display_name(target_enum),
@@ -1684,7 +1695,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 target_member,
                 known_string,
             } => {
-                self.report_error(
+                self.report_error_js(
                     &diagnostics::One_value_of_0_1_is_the_string_2_and_the_other_is_assumed_to_be_an_unknown_numeric_value,
                     vec![
                         self.st.symbol_display_name(target_enum),
@@ -1697,19 +1708,23 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         Ok(())
     }
 
-    fn report_error_direct(&mut self, message: &'static DiagnosticMessage, args: Vec<String>) {
+    fn report_error_direct_js(&mut self, message: &'static DiagnosticMessage, args: Vec<JsString>) {
         if message.elided_in_compatibility_pyramid {
             return;
         }
-        self.report_error_unelided(message, args);
+        self.report_error_unelided_js(message, args);
     }
 
-    fn report_error_unelided(&mut self, message: &'static DiagnosticMessage, args: Vec<String>) {
+    fn report_error_unelided_js(
+        &mut self,
+        message: &'static DiagnosticMessage,
+        args: Vec<JsString>,
+    ) {
         if self.error_state.skip_parent_counter > 0 {
             self.error_state.skip_parent_counter -= 1;
             return;
         }
-        let head = MessageChain::new(message, &args);
+        let head = MessageChain::new_js(message, &args);
         self.error_state.error_info = Some(match self.error_state.error_info.take() {
             Some(next) => head.with_next(vec![next]),
             None => head,
@@ -1798,6 +1813,14 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         message: &'static DiagnosticMessage,
         args: Vec<String>,
     ) {
+        self.report_incompatible_error_js(message, args.into_iter().map(JsString::from).collect());
+    }
+
+    pub(crate) fn report_incompatible_error_js(
+        &mut self,
+        message: &'static DiagnosticMessage,
+        args: Vec<JsString>,
+    ) {
         self.error_state.override_next_error_info += 1;
         self.error_state.last_skipped_info = None;
         self.error_state.incompatible_stack.push((message, args));
@@ -1831,14 +1854,15 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         let skipped = self.error_state.last_skipped_info.take();
         if stack.len() == 1 {
             let (message, args) = stack.pop().expect("single incompatibility");
-            self.report_error_direct(message, args);
+            self.report_error_direct_js(message, args);
             if let Some((source, target)) = skipped {
                 self.report_relation_error(None, source, target)?;
             }
             return Ok(());
         }
-        let mut path = String::new();
-        let mut secondary_root_errors: Vec<(&'static DiagnosticMessage, Vec<String>)> = Vec::new();
+        let mut path = JsString::default();
+        let mut secondary_root_errors: Vec<(&'static DiagnosticMessage, Vec<JsString>)> =
+            Vec::new();
         while let Some((message, args)) = stack.pop() {
             match message.code {
                 code if code == diagnostics::Types_of_property_0_are_incompatible.code => {
@@ -1846,21 +1870,27 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     // belongs to that value, not to the constructor target:
                     // `(new C()).p`, never `new C().p`.
                     if path.starts_with("new ") {
-                        path = format!("({path})");
+                        let mut wrapped = JsString::from("(");
+                        wrapped.push_js(path.as_js());
+                        wrapped.push_str(")");
+                        path = wrapped;
                     }
                     let property = args.first().cloned().unwrap_or_default();
                     if path.is_empty() {
                         path = property;
-                    } else if property.chars().enumerate().all(|(index, ch)| {
+                    } else if property.as_str().is_some_and(|text| text.chars().enumerate().all(|(index, ch)| {
                         ch == '_'
                             || ch == '$'
                             || ch.is_alphanumeric() && (index > 0 || !ch.is_ascii_digit())
-                    }) {
-                        path = format!("{path}.{property}");
-                    } else if property.starts_with('[') && property.ends_with(']') {
-                        path.push_str(&property);
+                    })) {
+                        path.push_str(".");
+                        path.push_js(property.as_js());
+                    } else if property.starts_with("[") && property.ends_with("]") {
+                        path.push_js(property.as_js());
                     } else {
-                        path = format!("{path}[{property}]");
+                        path.push_str("[");
+                        path.push_js(property.as_js());
+                        path.push_str("]");
                     }
                 }
                 code if code
@@ -1903,12 +1933,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                             || code
                                 == diagnostics::Construct_signatures_with_no_arguments_have_incompatible_return_types_0_and_1
                                     .code;
-                        path = format!(
-                            "{}{}({})",
-                            if construct { "new " } else { "" },
-                            path,
-                            if no_arguments { "" } else { "..." }
-                        );
+                        if construct {
+                            let mut prefixed = JsString::from("new ");
+                            prefixed.push_js(path.as_js());
+                            path = prefixed;
+                        }
+                        path.push_str(if no_arguments { "()" } else { "(...)" });
                     }
                 }
                 code if code
@@ -1919,12 +1949,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 {
                     secondary_root_errors.insert(0, (message, args));
                 }
-                _ => self.report_error_direct(message, args),
+                _ => self.report_error_direct_js(message, args),
             }
         }
         if !path.is_empty() {
-            self.report_error_direct(
-                if path.ends_with(')') {
+            self.report_error_direct_js(
+                if path.ends_with(")") {
                     &diagnostics::The_types_returned_by_0_are_incompatible_between_these_types
                 } else {
                     &diagnostics::The_types_of_0_are_incompatible_between_these_types
@@ -1937,7 +1967,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         for (message, args) in secondary_root_errors {
             // reportIncompatibleStack temporarily clears
             // elidedInCompatibilityPyramid for these root rows.
-            self.report_error_unelided(message, args);
+            self.report_error_unelided_js(message, args);
         }
         if let Some((source, target)) = skipped {
             self.report_relation_error(None, source, target)?;
@@ -2009,25 +2039,21 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 let constraint_text = self.st.type_to_string_slice_with_error_enclosing(
                     constraint.expect("successful constraint relation has a constraint"),
                 )?;
-                self.report_error(
+                self.report_error_js(
                     &diagnostics::_0_is_assignable_to_the_constraint_of_type_1_but_1_could_be_instantiated_with_a_different_subtype_of_constraint_2,
-                    vec![
-                        if needs_original_source {
+                    vec![(if needs_original_source {
                             source_text.clone()
                         } else {
                             generalized_source_text.clone()
-                        },
-                        target_text.clone(),
-                        constraint_text,
-                    ],
+                        }).into(), (target_text.clone()).into(), (constraint_text).into()],
                 )?;
             } else {
                 self.error_state.error_info = None;
                 self.error_state.error_info_revision =
                     self.error_state.error_info_revision.wrapping_add(1);
-                self.report_error(
+                self.report_error_js(
                     &diagnostics::_0_could_be_instantiated_with_an_arbitrary_type_which_could_be_unrelated_to_1,
-                    vec![target_text.clone(), generalized_source_text.clone()],
+                    vec![(target_text.clone()).into(), (generalized_source_text.clone()).into()],
                 )?;
             }
         }
@@ -2052,9 +2078,13 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         .get_suggested_type_for_nonexistent_string_literal_type(source, target)
                     {
                         let suggested_text = self.st.type_to_string_slice(suggested_type)?;
-                        self.report_error(
+                        self.report_error_js(
                             &diagnostics::Type_0_is_not_assignable_to_type_1_Did_you_mean_2,
-                            vec![generalized_source_text, target_text, suggested_text],
+                            vec![
+                                (generalized_source_text).into(),
+                                (target_text).into(),
+                                (suggested_text).into(),
+                            ],
                         )?;
                         return Ok(());
                     }
@@ -2062,9 +2092,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 &diagnostics::Type_0_is_not_assignable_to_type_1
             });
         }
-        self.report_error(
+        self.report_error_js(
             message.expect("relation error has a selected head"),
-            vec![generalized_source_text, target_text],
+            vec![(generalized_source_text).into(), (target_text).into()],
         )?;
         Ok(())
     }
@@ -2088,9 +2118,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             || source == self.st.global_boolean_type()? && target == boolean_type
             || source == self.st.global_es_symbol_type()? && target == es_symbol_type;
         if wrapper_to_primitive {
-            self.report_error(
+            self.report_error_js(
                 &diagnostics::_0_is_a_primitive_but_1_is_a_wrapper_object_Prefer_using_0_when_possible,
-                vec![target_text, source_text],
+                vec![(target_text).into(), (source_text).into()],
             )?;
         }
         Ok(())
@@ -2240,10 +2270,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
 
         let target_text = self.st.type_to_string_slice_at(target, declaration)?;
-        let related = self.st.related_info_for_node(
+        let related = self.st.related_info_for_node_js(
             declaration,
             &diagnostics::This_type_parameter_might_need_an_extends_0_constraint,
-            &[&target_text],
+            &[(&target_text).into()],
         );
         self.associate_related_info(related);
         Ok(())
@@ -2340,7 +2370,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         for prop in self.st.get_properties_of_type(source)? {
             if self.should_check_as_excess_property(prop, source_symbol) {
                 let name = self.st.binder.symbol(prop).escaped_name.clone();
-                if is_comparing_jsx_attributes && name.contains('-') {
+                if is_comparing_jsx_attributes && name.as_js().contains("-") {
                     continue;
                 }
                 if !self.st.is_known_property(reduced_target, &name)? {
@@ -2382,7 +2412,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     )?) {
                         if report_errors {
                             let name = self.st.symbol_name_as_written_slice(prop);
-                            self.report_incompatible_error(
+                            self.report_incompatible_error_js(
                                 &diagnostics::Types_of_property_0_are_incompatible,
                                 vec![name],
                             );
@@ -2430,16 +2460,16 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 // the generic 2322. This head-site adapter owns the final
                 // source location, so materialize the same complete chain.
                 let detail = match suggestion {
-                    Some(suggestion) => MessageChain::new(
+                    Some(suggestion) => MessageChain::new_js(
                         &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1_Did_you_mean_2,
-                        &[prop_text, target_text.clone(), suggestion],
+                        &[prop_text, target_text.clone().into(), suggestion],
                     ),
-                    None => MessageChain::new(
+                    None => MessageChain::new_js(
                         &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1,
-                        &[prop_text, target_text.clone()],
+                        &[prop_text, target_text.clone().into()],
                     ),
                 };
-                let message = MessageChain::new(
+                let message = MessageChain::new_js(
                     &tsc_diagnostics::gen::Type_0_is_not_assignable_to_type_1,
                     &[source_text, target_text],
                 )
@@ -2458,15 +2488,15 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 suggestion,
             } => {
                 let diagnostic = match suggestion {
-                    Some(suggestion) => self.st.create_error(
+                    Some(suggestion) => self.st.create_error_js(
                         Some(report.node),
                         &tsc_diagnostics::gen::Object_literal_may_only_specify_known_properties_but_0_does_not_exist_in_type_1_Did_you_mean_to_write_2,
-                        &[&prop_text, &target_text, &suggestion],
+                        &[prop_text.as_js(), (&target_text).into(), suggestion.as_js()],
                     ),
-                    None => self.st.create_error(
+                    None => self.st.create_error_js(
                         Some(report.node),
                         &tsc_diagnostics::gen::Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1,
-                        &[&prop_text, &target_text],
+                        &[prop_text.as_js(), (&target_text).into()],
                     ),
                 };
                 Ok(diagnostic)
@@ -2491,13 +2521,13 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 suggestion,
                 ..
             } => match suggestion {
-                Some(suggestion) => self.report_error(
+                Some(suggestion) => self.report_error_js(
                     &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1_Did_you_mean_2,
-                    vec![prop_text, target_text, suggestion],
+                    vec![prop_text, target_text.into(), suggestion],
                 )?,
-                None => self.report_error(
+                None => self.report_error_js(
                     &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1,
-                    vec![prop_text, target_text],
+                    vec![prop_text, target_text.into()],
                 )?,
             },
             ExcessPropertyReportKind::ObjectLiteral {
@@ -2506,13 +2536,13 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 suggestion,
             } => {
                 match suggestion {
-                    Some(suggestion) => self.report_error(
+                    Some(suggestion) => self.report_error_js(
                         &tsc_diagnostics::gen::Object_literal_may_only_specify_known_properties_but_0_does_not_exist_in_type_1_Did_you_mean_to_write_2,
-                        vec![prop_text, target_text, suggestion],
+                        vec![prop_text, target_text.into(), suggestion],
                     )?,
-                    None => self.report_error(
+                    None => self.report_error_js(
                         &tsc_diagnostics::gen::Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1,
-                        vec![prop_text, target_text],
+                        vec![prop_text, target_text.into()],
                     )?,
                 }
                 // reportParentSkippedError: suppress this recursion level's
@@ -2574,11 +2604,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             let target_text = self.st.type_to_string_slice(error_target)?;
             let target_properties = self.st.get_properties_of_type(error_target)?;
             let jsx_specific = match prop_text.as_str() {
-                "for" => target_properties
+                Some("for") => target_properties
                     .iter()
                     .copied()
                     .find(|&candidate| self.st.symbol_display_name(candidate) == "htmlFor"),
-                "class" => target_properties
+                Some("class") => target_properties
                     .iter()
                     .copied()
                     .find(|&candidate| self.st.symbol_display_name(candidate) == "className"),
@@ -2687,11 +2717,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// (the review pin `({a}&{b})|{c}` caught the object-only slice
     /// fabricating undefinedType), so the property lookup branches on
     /// UnionOrIntersection exactly as 65336 does.
-    pub(crate) fn get_type_of_property_in_types(
+    pub(crate) fn get_type_of_property_in_types<'n>(
         &mut self,
         types: Vec<TypeId>,
-        name: &str,
+        name: impl Into<tsc_types::JsStr<'n>>,
     ) -> CheckResult<TypeId> {
+        let name = name.into();
         let mut prop_types = Vec::with_capacity(types.len());
         for ty in types {
             let apparent = self.st.get_apparent_type(ty)?;
@@ -3572,7 +3603,7 @@ impl<'a> CheckerState<'a> {
             .intersects(ObjectFlags::JSX_ATTRIBUTES);
         for prop in self.get_properties_of_type(source)? {
             let name = self.binder.symbol(prop).escaped_name.clone();
-            if is_comparing_jsx_attributes && name.contains('-') {
+            if is_comparing_jsx_attributes && name.as_js().contains("-") {
                 return Ok(true);
             }
             if self.is_known_property(target, &name)? {
@@ -3608,11 +3639,12 @@ impl<'a> CheckerState<'a> {
     /// and manufactured a 2322 tsc never reports). The binder-flags
     /// VALUE re-filter is gone too: symbolIsValue already gates
     /// inside the property lookup.
-    pub fn get_type_of_property_of_type(
+    pub fn get_type_of_property_of_type<'n>(
         &mut self,
         ty: TypeId,
-        name: &str,
+        name: impl Into<tsc_types::JsStr<'n>>,
     ) -> CheckResult<Option<TypeId>> {
+        let name = name.into();
         self.get_type_of_property_of_type_full(ty, name)
     }
 
@@ -3637,32 +3669,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getApplicableIndexInfoForName @6.0.3
     /// tsc-hash: f6b9b92223c2975ab3d55e4c1bc1acabbde0fdbf39ea15d47561f74bedf015b5
     /// tsc-span: _tsc.js:59479-59481
-    pub fn get_applicable_index_info_for_name(
+    pub fn get_applicable_index_info_for_name<'n>(
         &mut self,
         ty: TypeId,
-        name: &str,
+        name: impl Into<tsc_types::JsStr<'n>>,
     ) -> CheckResult<Option<TypeId>> {
-        if !self.tables.flags_of(ty).intersects(TypeFlags::from_bits(
-            TypeFlags::OBJECT.bits() | TypeFlags::UNION_OR_INTERSECTION.bits(),
-        )) {
-            return Ok(None);
-        }
-        let members = self.resolve_structured_type_members(ty)?;
-        let resolved = self.members_of(members);
-        let numeric = is_numeric_literal_name(name);
-        let mut applicable = None;
-        for info in &resolved.index_infos {
-            let key_flags = self.tables.flags_of(info.key_type);
-            if key_flags.intersects(TypeFlags::STRING)
-                || (numeric && key_flags.intersects(TypeFlags::NUMBER))
-            {
-                applicable = Some(info.value_type);
-                if numeric && key_flags.intersects(TypeFlags::NUMBER) {
-                    break;
-                }
-            }
-        }
-        Ok(applicable)
+        Ok(self
+            .get_applicable_index_info_for_name_info(ty, name)?
+            .map(|info| info.value_type))
     }
 
     /// tsc-port: isKnownProperty @6.0.3
@@ -3673,7 +3687,12 @@ impl<'a> CheckerState<'a> {
     /// string)` disjunct is live. `isComparingJsxAttributes` is owned
     /// by the callers because it depends on the source type; they
     /// admit hyphenated JSX names before this target-only recursion.
-    pub fn is_known_property(&mut self, target: TypeId, name: &str) -> CheckResult<bool> {
+    pub fn is_known_property<'n>(
+        &mut self,
+        target: TypeId,
+        name: impl Into<tsc_types::JsStr<'n>>,
+    ) -> CheckResult<bool> {
+        let name = name.into();
         let flags = self.tables.flags_of(target);
         if flags.intersects(TypeFlags::OBJECT) {
             // 74828: getPropertyOfObjectType — the symbolIsValue gate
@@ -3963,7 +3982,10 @@ impl<'a> CheckerState<'a> {
     /// The keyPropertyName/constituentMap caches live on TypeLinks
     /// (tsc stores them on the union type object). M5's discriminant
     /// narrowing reuses this machinery.
-    pub(crate) fn get_key_property_name(&mut self, union: TypeId) -> CheckResult<Option<String>> {
+    pub(crate) fn get_key_property_name(
+        &mut self,
+        union: TypeId,
+    ) -> CheckResult<Option<EscapedName>> {
         if let Some(cached) = self.links.ty(union).union_key_property.resolved() {
             return Ok(cached.name);
         }
@@ -4021,7 +4043,7 @@ impl<'a> CheckerState<'a> {
     fn map_types_by_key_property(
         &mut self,
         types: &[TypeId],
-        name: &str,
+        name: &EscapedName,
     ) -> CheckResult<Option<std::collections::HashMap<TypeId, TypeId>>> {
         let mut map = std::collections::HashMap::new();
         let mut count = 0usize;
@@ -4150,7 +4172,7 @@ impl<'a> CheckerState<'a> {
         }
         let source_properties = self.get_properties_of_type(source)?;
         if let Some(filtered) = self.find_discriminant_properties(&source_properties, target)? {
-            let discriminators: Vec<(crate::contextual::ContextualDiscriminator, String)> =
+            let discriminators: Vec<(crate::contextual::ContextualDiscriminator, EscapedName)> =
                 filtered
                     .iter()
                     .map(|&property| {
@@ -4614,15 +4636,6 @@ pub(crate) enum RecursionIdentity {
     /// mapper-carrying instance over the same annotation shares one
     /// identity, distinct nodes over the same interface do not.
     Node(NodeId),
-}
-
-/// tsc isNumericLiteralName (19205): the name round-trips through
-/// numeric conversion. The annotation-reachable slice: canonical
-/// non-negative integer strings.
-fn is_numeric_literal_name(name: &str) -> bool {
-    !name.is_empty()
-        && name.bytes().all(|b| b.is_ascii_digit())
-        && (name == "0" || !name.starts_with('0'))
 }
 
 #[cfg(test)]

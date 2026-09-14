@@ -83,8 +83,8 @@ pub(super) fn assert_corpus(artifact: &Value) {
                     }
                     "newLine" => options.new_line = Some(value.as_i64().unwrap() as i32),
                     "declaration" => options.declaration = value.as_bool(),
-                    "declarationDir" => options.declaration_dir = value.as_str().map(str::to_owned),
-                    "rootDir" => options.root_dir = value.as_str().map(str::to_owned),
+                    "declarationDir" => options.declaration_dir = value.as_str().map(Into::into),
+                    "rootDir" => options.root_dir = value.as_str().map(Into::into),
                     "declarationMap" => options.declaration_map = value.as_bool(),
                     "isolatedDeclarations" => options.isolated_declarations = value.as_bool(),
                     "strict" => options.strict = value.as_bool(),
@@ -114,13 +114,14 @@ pub(super) fn assert_corpus(artifact: &Value) {
                 parse_config_root_plan(
                     &CompilerConfigHost::new(&host),
                     ConfigRootPlanRequest {
-                        file_name: name.to_owned(),
+                        file_name: name.into(),
                         text: config["text"].as_str().unwrap().to_owned(),
                         base_path: Path::new(name)
                             .parent()
                             .unwrap()
-                            .to_string_lossy()
-                            .into_owned(),
+                            .to_str()
+                            .expect("scalar config parent")
+                            .into(),
                     },
                 )
                 .unwrap()

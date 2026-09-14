@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use tsc_diagnostics::{JsStr, JsString};
 
 use tsc_program::SourceFileId;
 use tsc_syntax::{parse_source_file, FileReference, NodeData, ParseOptions, SourceFile};
@@ -12,7 +12,7 @@ use crate::{
 
 struct TestHost {
     options: CompilerOptions,
-    paths: Vec<PathBuf>,
+    paths: Vec<JsString>,
     sources: Vec<SourceFile>,
     ids: Vec<SourceFileId>,
 }
@@ -22,15 +22,15 @@ impl EmitHost for TestHost {
         &self.options
     }
 
-    fn current_directory(&self) -> &Path {
-        Path::new("/project")
+    fn current_directory(&self) -> JsStr<'_> {
+        JsStr::from("/project")
     }
 
-    fn common_source_directory(&self) -> &Path {
-        Path::new("/project")
+    fn common_source_directory(&self) -> JsStr<'_> {
+        JsStr::from("/project")
     }
 
-    fn config_file_path(&self) -> Option<&Path> {
+    fn config_file_path(&self) -> Option<JsStr<'_>> {
         None
     }
 
@@ -46,8 +46,8 @@ impl EmitHost for TestHost {
         let index = id.raw() as usize;
         Some(EmitSource::new(
             id,
-            self.paths.get(index)?,
-            self.paths.get(index)?,
+            self.paths.get(index)?.as_js(),
+            self.paths.get(index)?.as_js(),
             true,
             None,
             self.sources.get(index),
@@ -58,12 +58,15 @@ impl EmitHost for TestHost {
 struct TestPaths;
 
 impl DeclarationPathResolver for TestPaths {
-    fn declaration_file_path(&self, source: SourceFileId) -> Option<PathBuf> {
-        Some(PathBuf::from(format!("/project/out/{}.d.ts", source.raw())))
+    fn declaration_file_path(&self, source: SourceFileId) -> Option<JsString> {
+        Some(JsString::from(format!(
+            "/project/out/{}.d.ts",
+            source.raw()
+        )))
     }
 
-    fn reference_target_path(&self, source: SourceFileId) -> Option<PathBuf> {
-        Some(PathBuf::from(format!("/project/{}.d.ts", source.raw())))
+    fn reference_target_path(&self, source: SourceFileId) -> Option<JsString> {
+        Some(JsString::from(format!("/project/{}.d.ts", source.raw())))
     }
 }
 

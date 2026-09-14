@@ -32,36 +32,46 @@ impl ConfigParseHost for MemoryConfigHost {
         true
     }
 
-    fn file_exists(&self, path: &str) -> Result<bool, ConfigHostError> {
+    fn file_exists(&self, path: tsc_diagnostics::JsStr<'_>) -> Result<bool, ConfigHostError> {
+        let path = path.as_str().expect("scalar config fixture query");
+
         Ok(self.files.contains_key(path))
     }
 
-    fn read_file(&self, path: &str) -> Result<Option<String>, ConfigHostError> {
+    fn read_file(
+        &self,
+        path: tsc_diagnostics::JsStr<'_>,
+    ) -> Result<Option<String>, ConfigHostError> {
+        let path = path.as_str().expect("scalar config fixture query");
+
         Ok(self.files.get(path).cloned())
     }
 
     fn read_directory(
         &self,
-        _directory: &str,
+        _directory: tsc_diagnostics::JsStr<'_>,
         extensions: &[&str],
-        _excludes: Option<&[String]>,
-        _includes: Option<&[String]>,
+        _excludes: Option<&[tsc_diagnostics::JsString]>,
+        _includes: Option<&[tsc_diagnostics::JsString]>,
         _depth: Option<usize>,
-    ) -> Result<Vec<String>, ConfigHostError> {
-        Ok(self
-            .directory_files
-            .iter()
-            .filter(|file| extensions.iter().any(|extension| file.ends_with(extension)))
-            .cloned()
-            .collect())
+    ) -> Result<Vec<tsc_diagnostics::JsString>, ConfigHostError> {
+        (|| -> Result<Vec<String>, ConfigHostError> {
+            Ok(self
+                .directory_files
+                .iter()
+                .filter(|file| extensions.iter().any(|extension| file.ends_with(extension)))
+                .cloned()
+                .collect())
+        })()
+        .map(|paths| paths.into_iter().map(Into::into).collect())
     }
 }
 
 fn request(file_name: &str, text: &str) -> ConfigRootPlanRequest {
     ConfigRootPlanRequest {
-        file_name: file_name.to_owned(),
+        file_name: file_name.to_owned().into(),
         text: text.to_owned(),
-        base_path: "/".to_owned(),
+        base_path: "/".to_owned().into(),
     }
 }
 
@@ -190,7 +200,7 @@ fn config_projection_carries_the_currently_modeled_resolver_options() {
     assert_eq!(compiler.resolve_package_json_imports, Some(true));
     assert_eq!(
         compiler.custom_conditions.as_deref(),
-        Some(["development".to_owned(), "browser".to_owned()].as_slice())
+        Some(["development".into(), "browser".into()].as_slice())
     );
     assert_eq!(compiler.allow_arbitrary_extensions, Some(true));
     assert_eq!(compiler.allow_importing_ts_extensions, Some(true));
@@ -200,13 +210,13 @@ fn config_projection_carries_the_currently_modeled_resolver_options() {
     let program = projected.program_options();
     assert_eq!(program.no_lib(), Some(true));
     assert_eq!(program.preserve_symlinks(), Some(true));
-    assert_eq!(program.types(), Some(["node".to_owned()].as_slice()));
+    assert_eq!(program.types(), Some(["node".into()].as_slice()));
     assert_eq!(
         program
             .type_roots()
             .unwrap()
             .iter()
-            .map(|path| path.display())
+            .map(|path| path.display().scalar_test_path())
             .collect::<Vec<_>>(),
         [Path::new("/project/types")]
     );
@@ -215,12 +225,16 @@ fn config_projection_carries_the_currently_modeled_resolver_options() {
             .root_dirs()
             .unwrap()
             .iter()
-            .map(|path| path.display())
+            .map(|path| path.display().scalar_test_path())
             .collect::<Vec<_>>(),
         [Path::new("/project/src"), Path::new("/project/generated")]
     );
     assert_eq!(
-        program.config_file_path().unwrap().display(),
+        program
+            .config_file_path()
+            .unwrap()
+            .display()
+            .scalar_test_path(),
         Path::new("/project/tsconfig.json")
     );
 }
@@ -281,7 +295,7 @@ fn config_number_projection_drives_javascript_depth_admission_without_narrowing(
         program
             .source_files()
             .iter()
-            .map(|source| source.path().display())
+            .map(|source| source.path().display().scalar_test_path())
             .collect::<Vec<_>>(),
         [
             Path::new("/project/node_modules/pkg/index.js"),
@@ -436,9 +450,9 @@ fn paths_validation_uses_final_base_url_and_raw_config_diagnostic_spelling() {
     let plan = parse_config_root_plan(
         &MemoryConfigHost::default().with_directory_files(&["/.src/a.ts"]),
         ConfigRootPlanRequest {
-            file_name: "tsconfig.json".to_owned(),
+            file_name: "tsconfig.json".to_owned().into(),
             text: text.to_owned(),
-            base_path: "/.src".to_owned(),
+            base_path: "/.src".to_owned().into(),
         },
     )
     .expect("relative config paths validation plan");
@@ -448,7 +462,7 @@ fn paths_validation_uses_final_base_url_and_raw_config_diagnostic_spelling() {
         .config_file()
         .expect("config syntax provenance");
     assert_eq!(
-        config_file.path().display(),
+        config_file.path().display().scalar_test_path(),
         Path::new("/.src/tsconfig.json")
     );
     assert_eq!(config_file.diagnostic_file_name(), "tsconfig.json");
@@ -459,7 +473,13 @@ fn paths_validation_uses_final_base_url_and_raw_config_diagnostic_spelling() {
         panic!("one late TS5090 diagnostic expected")
     };
     assert_eq!(diagnostic.code(), 5090);
-    assert_eq!(diagnostic.file_name.as_deref(), Some("tsconfig.json"));
+    assert_eq!(
+        diagnostic
+            .file_name
+            .as_ref()
+            .map(|value| value.as_str().expect("scalar legacy option observation")),
+        Some("tsconfig.json")
+    );
     assert_eq!(
         diagnostic.start,
         Some(text.find("\"bare\"").unwrap() as u32)
@@ -467,10 +487,10 @@ fn paths_validation_uses_final_base_url_and_raw_config_diagnostic_spelling() {
     assert_eq!(diagnostic.length, Some(6));
 
     let mut effective = plan.compiler_options().clone();
-    effective.base_url = Some("/.src".to_owned());
+    effective.base_url = Some("/.src".to_owned().into());
     assert!(validate_paths_option_diagnostics(&effective, plan.program_options()).is_empty());
 
-    effective.base_url = Some(String::new());
+    effective.base_url = Some(String::new().into());
     assert_eq!(
         validate_paths_option_diagnostics(&effective, plan.program_options())
             .iter()
@@ -492,7 +512,7 @@ fn paths_diagnostic_locations_follow_root_syntax_fallback_and_compacted_indices(
         panic!("one compacted substitution diagnostic expected")
     };
     assert_eq!(diagnostic.code(), 5090);
-    assert_eq!(diagnostic.message_text(), "Non-relative paths are not allowed when 'baseUrl' is not set. Did you forget a leading './'?");
+    assert_eq!(diagnostic.message_text().as_str().expect("scalar diagnostic observation"), "Non-relative paths are not allowed when 'baseUrl' is not set. Did you forget a leading './'?");
     assert_eq!(diagnostic.start, Some(text.find("missing").unwrap() as u32));
     assert_eq!(diagnostic.length, Some("missing".len() as u32));
 
@@ -513,7 +533,10 @@ fn paths_diagnostic_locations_follow_root_syntax_fallback_and_compacted_indices(
     );
     for diagnostic in inherited_plan.option_diagnostics() {
         assert_eq!(
-            diagnostic.file_name.as_deref(),
+            diagnostic
+                .file_name
+                .as_ref()
+                .map(|value| value.as_str().expect("scalar legacy option observation")),
             Some("/project/tsconfig.json")
         );
         assert_eq!(
@@ -589,9 +612,11 @@ fn duplicate_paths_syntax_uses_effective_values_and_typescript_location_walks() 
         .filter(|diagnostic| diagnostic.code() == 5062)
         .collect::<Vec<_>>();
     assert_eq!(element_diagnostics.len(), 3);
-    assert!(element_diagnostics
-        .iter()
-        .all(|diagnostic| diagnostic.message_text().contains("effective")));
+    assert!(element_diagnostics.iter().all(|diagnostic| diagnostic
+        .message_text()
+        .as_str()
+        .expect("scalar diagnostic observation")
+        .contains("effective")));
     assert_eq!(
         plan.option_diagnostics()
             .iter()
@@ -614,7 +639,11 @@ fn config_dir_substitution_is_validated_after_final_merge() {
         panic!("one multi-star substitution diagnostic expected")
     };
     assert_eq!(diagnostic.code(), 5062);
-    assert!(diagnostic.message_text().contains("/project/a**"));
+    assert!(diagnostic
+        .message_text()
+        .as_str()
+        .expect("scalar diagnostic observation")
+        .contains("/project/a**"));
 }
 
 #[test]
@@ -629,7 +658,7 @@ fn paths_and_declaring_base_project_atomically_into_the_resolver() {
     let projected = plan.module_resolution_options();
     assert_eq!(
         projected.program_options().paths_base_path(),
-        Some("/other")
+        (Some("/other")).map(Into::into)
     );
     assert_eq!(
         projected.program_options().paths().unwrap()[0].pattern(),
@@ -648,17 +677,13 @@ fn paths_and_declaring_base_project_atomically_into_the_resolver() {
     )
     .expect("create inherited paths resolver");
     let outcome = resolver
-        .resolve(
-            Path::new("/project/index.ts"),
-            "p1",
-            ResolutionMode::CommonJs,
-        )
+        .resolve("/project/index.ts", "p1", ResolutionMode::CommonJs)
         .expect("resolve inherited mapping");
     let ResolutionOutcome::Resolved(module) = outcome else {
         panic!("inherited paths mapping must resolve")
     };
     assert_eq!(
-        module.resolved_file().display(),
+        module.resolved_file().display().scalar_test_path(),
         Path::new("/other/lib/p1/index.ts")
     );
 }
@@ -672,12 +697,16 @@ fn inherited_base_url_wins_and_masked_paths_drop_the_stale_base() {
         .expect("inherited baseUrl projection");
     let projected = plan.module_resolution_options();
     assert_eq!(
-        projected.compiler_options().base_url.as_deref(),
+        projected
+            .compiler_options()
+            .base_url
+            .as_ref()
+            .map(|value| value.as_str().expect("scalar legacy option observation")),
         Some("/other")
     );
     assert_eq!(
         projected.program_options().paths_base_path(),
-        Some("/project")
+        (Some("/project")).map(Into::into)
     );
 
     let masked_root = r#"{"extends":"../other/tsconfig.base.json","compilerOptions":{"paths":null},"files":["index.ts"]}"#;
@@ -719,7 +748,7 @@ fn non_string_substitutions_remain_diagnostic_instead_of_panicking() {
     assert_eq!(
         plan.option_diagnostics()
             .iter()
-            .map(|diagnostic| diagnostic.message_text())
+            .map(|diagnostic| diagnostic.message_text().as_str().expect("scalar diagnostic observation"))
             .collect::<Vec<_>>(),
         [
             "Substitution 'null' for pattern 'x' has incorrect type, expected 'string', got 'object'.",
@@ -729,3 +758,7 @@ fn non_string_substitutions_remain_diagnostic_instead_of_panicking() {
         ]
     );
 }
+
+#[path = "../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

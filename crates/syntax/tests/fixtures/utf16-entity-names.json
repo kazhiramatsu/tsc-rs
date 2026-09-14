@@ -1,0 +1,2187 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "06f7e3bff16d733dd6db4a66a5d46a666fcd39938513a484a527f7e6a9992d6f",
+  "repetitions": 2,
+  "cases": [
+    {
+      "case_id": "0/1",
+      "value_utf16": [],
+      "target": 1,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "0/2",
+      "value_utf16": [],
+      "target": 2,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "0/99",
+      "value_utf16": [],
+      "target": 99,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "1/1",
+      "value_utf16": [
+        97
+      ],
+      "target": 1,
+      "expected": {
+        "entity": true,
+        "identifier": true
+      }
+    },
+    {
+      "case_id": "1/2",
+      "value_utf16": [
+        97
+      ],
+      "target": 2,
+      "expected": {
+        "entity": true,
+        "identifier": true
+      }
+    },
+    {
+      "case_id": "1/99",
+      "value_utf16": [
+        97
+      ],
+      "target": 99,
+      "expected": {
+        "entity": true,
+        "identifier": true
+      }
+    },
+    {
+      "case_id": "2/1",
+      "value_utf16": [
+        97,
+        46,
+        98
+      ],
+      "target": 1,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "2/2",
+      "value_utf16": [
+        97,
+        46,
+        98
+      ],
+      "target": 2,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "2/99",
+      "value_utf16": [
+        97,
+        46,
+        98
+      ],
+      "target": 99,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "3/1",
+      "value_utf16": [
+        97,
+        46,
+        46,
+        98
+      ],
+      "target": 1,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "3/2",
+      "value_utf16": [
+        97,
+        46,
+        46,
+        98
+      ],
+      "target": 2,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "3/99",
+      "value_utf16": [
+        97,
+        46,
+        46,
+        98
+      ],
+      "target": 99,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "4/1",
+      "value_utf16": [
+        100,
+        101,
+        102,
+        97,
+        117,
+        108,
+        116
+      ],
+      "target": 1,
+      "expected": {
+        "entity": true,
+        "identifier": true
+      }
+    },
+    {
+      "case_id": "4/2",
+      "value_utf16": [
+        100,
+        101,
+        102,
+        97,
+        117,
+        108,
+        116
+      ],
+      "target": 2,
+      "expected": {
+        "entity": true,
+        "identifier": true
+      }
+    },
+    {
+      "case_id": "4/99",
+      "value_utf16": [
+        100,
+        101,
+        102,
+        97,
+        117,
+        108,
+        116
+      ],
+      "target": 99,
+      "expected": {
+        "entity": true,
+        "identifier": true
+      }
+    },
+    {
+      "case_id": "5/1",
+      "value_utf16": [
+        97,
+        46,
+        100,
+        101,
+        102,
+        97,
+        117,
+        108,
+        116
+      ],
+      "target": 1,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "5/2",
+      "value_utf16": [
+        97,
+        46,
+        100,
+        101,
+        102,
+        97,
+        117,
+        108,
+        116
+      ],
+      "target": 2,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "5/99",
+      "value_utf16": [
+        97,
+        46,
+        100,
+        101,
+        102,
+        97,
+        117,
+        108,
+        116
+      ],
+      "target": 99,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "6/1",
+      "value_utf16": [
+        92,
+        117,
+        48,
+        48,
+        54,
+        49,
+        46,
+        98
+      ],
+      "target": 1,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "6/2",
+      "value_utf16": [
+        92,
+        117,
+        48,
+        48,
+        54,
+        49,
+        46,
+        98
+      ],
+      "target": 2,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "6/99",
+      "value_utf16": [
+        92,
+        117,
+        48,
+        48,
+        54,
+        49,
+        46,
+        98
+      ],
+      "target": 99,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "7/1",
+      "value_utf16": [
+        92,
+        117,
+        68,
+        56,
+        48,
+        48,
+        46,
+        98
+      ],
+      "target": 1,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "7/2",
+      "value_utf16": [
+        92,
+        117,
+        68,
+        56,
+        48,
+        48,
+        46,
+        98
+      ],
+      "target": 2,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "7/99",
+      "value_utf16": [
+        92,
+        117,
+        68,
+        56,
+        48,
+        48,
+        46,
+        98
+      ],
+      "target": 99,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "8/1",
+      "value_utf16": [
+        55296,
+        97
+      ],
+      "target": 1,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "8/2",
+      "value_utf16": [
+        55296,
+        97
+      ],
+      "target": 2,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "8/99",
+      "value_utf16": [
+        55296,
+        97
+      ],
+      "target": 99,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "9/1",
+      "value_utf16": [
+        97,
+        55296
+      ],
+      "target": 1,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "9/2",
+      "value_utf16": [
+        97,
+        55296
+      ],
+      "target": 2,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "9/99",
+      "value_utf16": [
+        97,
+        55296
+      ],
+      "target": 99,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "10/1",
+      "value_utf16": [
+        97,
+        55297
+      ],
+      "target": 1,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "10/2",
+      "value_utf16": [
+        97,
+        55297
+      ],
+      "target": 2,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "10/99",
+      "value_utf16": [
+        97,
+        55297
+      ],
+      "target": 99,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "11/1",
+      "value_utf16": [
+        97,
+        46,
+        56320
+      ],
+      "target": 1,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "11/2",
+      "value_utf16": [
+        97,
+        46,
+        56320
+      ],
+      "target": 2,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "11/99",
+      "value_utf16": [
+        97,
+        46,
+        56320
+      ],
+      "target": 99,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "12/1",
+      "value_utf16": [
+        55297,
+        56320,
+        46,
+        120
+      ],
+      "target": 1,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "12/2",
+      "value_utf16": [
+        55297,
+        56320,
+        46,
+        120
+      ],
+      "target": 2,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "12/99",
+      "value_utf16": [
+        55297,
+        56320,
+        46,
+        120
+      ],
+      "target": 99,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "13/1",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47
+      ],
+      "target": 1,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "13/2",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47
+      ],
+      "target": 2,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "13/99",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47
+      ],
+      "target": 99,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "14/1",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55297,
+        42,
+        47,
+        46,
+        98
+      ],
+      "target": 1,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "14/2",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55297,
+        42,
+        47,
+        46,
+        98
+      ],
+      "target": 2,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "14/99",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55297,
+        42,
+        47,
+        46,
+        98
+      ],
+      "target": 99,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "15/1",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        56320,
+        42,
+        47,
+        46,
+        98
+      ],
+      "target": 1,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "15/2",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        56320,
+        42,
+        47,
+        46,
+        98
+      ],
+      "target": 2,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "15/99",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        56320,
+        42,
+        47,
+        46,
+        98
+      ],
+      "target": 99,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "16/1",
+      "value_utf16": [
+        47,
+        42,
+        55296,
+        42,
+        47,
+        97
+      ],
+      "target": 1,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "16/2",
+      "value_utf16": [
+        47,
+        42,
+        55296,
+        42,
+        47,
+        97
+      ],
+      "target": 2,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "16/99",
+      "value_utf16": [
+        47,
+        42,
+        55296,
+        42,
+        47,
+        97
+      ],
+      "target": 99,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "17/1",
+      "value_utf16": [
+        97,
+        47,
+        47,
+        55296,
+        10
+      ],
+      "target": 1,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "17/2",
+      "value_utf16": [
+        97,
+        47,
+        47,
+        55296,
+        10
+      ],
+      "target": 2,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "17/99",
+      "value_utf16": [
+        97,
+        47,
+        47,
+        55296,
+        10
+      ],
+      "target": 99,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "18/1",
+      "value_utf16": [
+        97,
+        47,
+        47,
+        55296,
+        13,
+        46,
+        98
+      ],
+      "target": 1,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "18/2",
+      "value_utf16": [
+        97,
+        47,
+        47,
+        55296,
+        13,
+        46,
+        98
+      ],
+      "target": 2,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "18/99",
+      "value_utf16": [
+        97,
+        47,
+        47,
+        55296,
+        13,
+        46,
+        98
+      ],
+      "target": 99,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "19/1",
+      "value_utf16": [
+        97,
+        47,
+        47,
+        55296,
+        8232,
+        46,
+        98
+      ],
+      "target": 1,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "19/2",
+      "value_utf16": [
+        97,
+        47,
+        47,
+        55296,
+        8232,
+        46,
+        98
+      ],
+      "target": 2,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "19/99",
+      "value_utf16": [
+        97,
+        47,
+        47,
+        55296,
+        8232,
+        46,
+        98
+      ],
+      "target": 99,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "20/1",
+      "value_utf16": [
+        97,
+        47,
+        47,
+        55296,
+        8233,
+        46,
+        98
+      ],
+      "target": 1,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "20/2",
+      "value_utf16": [
+        97,
+        47,
+        47,
+        55296,
+        8233,
+        46,
+        98
+      ],
+      "target": 2,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "20/99",
+      "value_utf16": [
+        97,
+        47,
+        47,
+        55296,
+        8233,
+        46,
+        98
+      ],
+      "target": 99,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "21/1",
+      "value_utf16": [
+        97,
+        47,
+        47,
+        55296,
+        8232,
+        55297
+      ],
+      "target": 1,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "21/2",
+      "value_utf16": [
+        97,
+        47,
+        47,
+        55296,
+        8232,
+        55297
+      ],
+      "target": 2,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "21/99",
+      "value_utf16": [
+        97,
+        47,
+        47,
+        55296,
+        8232,
+        55297
+      ],
+      "target": 99,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "22/1",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        98
+      ],
+      "target": 1,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "22/2",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        98
+      ],
+      "target": 2,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "22/99",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        98
+      ],
+      "target": 99,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "23/1",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296
+      ],
+      "target": 1,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "23/2",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296
+      ],
+      "target": 2,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "23/99",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296
+      ],
+      "target": 99,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "24/1",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        42,
+        55296,
+        42,
+        47,
+        46,
+        98
+      ],
+      "target": 1,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "24/2",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        42,
+        55296,
+        42,
+        47,
+        46,
+        98
+      ],
+      "target": 2,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "24/99",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        42,
+        55296,
+        42,
+        47,
+        46,
+        98
+      ],
+      "target": 99,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "25/1",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        47,
+        55296,
+        42,
+        47,
+        46,
+        98
+      ],
+      "target": 1,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "25/2",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        47,
+        55296,
+        42,
+        47,
+        46,
+        98
+      ],
+      "target": 2,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "25/99",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        47,
+        55296,
+        42,
+        47,
+        46,
+        98
+      ],
+      "target": 99,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "26/1",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        47,
+        42,
+        46,
+        42,
+        47,
+        98
+      ],
+      "target": 1,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "26/2",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        47,
+        42,
+        46,
+        42,
+        47,
+        98
+      ],
+      "target": 2,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "26/99",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        47,
+        42,
+        46,
+        42,
+        47,
+        98
+      ],
+      "target": 99,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "27/1",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        46,
+        47,
+        42,
+        56320,
+        42,
+        47,
+        98
+      ],
+      "target": 1,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "27/2",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        46,
+        47,
+        42,
+        56320,
+        42,
+        47,
+        98
+      ],
+      "target": 2,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "27/99",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        46,
+        47,
+        42,
+        56320,
+        42,
+        47,
+        98
+      ],
+      "target": 99,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "28/1",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        56320,
+        42,
+        47,
+        46,
+        98
+      ],
+      "target": 1,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "28/2",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        56320,
+        42,
+        47,
+        46,
+        98
+      ],
+      "target": 2,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "28/99",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        56320,
+        42,
+        47,
+        46,
+        98
+      ],
+      "target": 99,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "29/1",
+      "value_utf16": [
+        97,
+        47,
+        47,
+        55296
+      ],
+      "target": 1,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "29/2",
+      "value_utf16": [
+        97,
+        47,
+        47,
+        55296
+      ],
+      "target": 2,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "29/99",
+      "value_utf16": [
+        97,
+        47,
+        47,
+        55296
+      ],
+      "target": 99,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "30/1",
+      "value_utf16": [
+        39,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        39
+      ],
+      "target": 1,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "30/2",
+      "value_utf16": [
+        39,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        39
+      ],
+      "target": 2,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "30/99",
+      "value_utf16": [
+        39,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        39
+      ],
+      "target": 99,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "31/1",
+      "value_utf16": [
+        96,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        96
+      ],
+      "target": 1,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "31/2",
+      "value_utf16": [
+        96,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        96
+      ],
+      "target": 2,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "31/99",
+      "value_utf16": [
+        96,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        96
+      ],
+      "target": 99,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "32/1",
+      "value_utf16": [
+        47,
+        55296,
+        47
+      ],
+      "target": 1,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "32/2",
+      "value_utf16": [
+        47,
+        55296,
+        47
+      ],
+      "target": 2,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "32/99",
+      "value_utf16": [
+        47,
+        55296,
+        47
+      ],
+      "target": 99,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "33/1",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        91,
+        39,
+        120,
+        39,
+        93
+      ],
+      "target": 1,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "33/2",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        91,
+        39,
+        120,
+        39,
+        93
+      ],
+      "target": 2,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "33/99",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        91,
+        39,
+        120,
+        39,
+        93
+      ],
+      "target": 99,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "34/1",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        59
+      ],
+      "target": 1,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "34/2",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        59
+      ],
+      "target": 2,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "34/99",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        59
+      ],
+      "target": 99,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "35/1",
+      "value_utf16": [
+        97,
+        55296,
+        47,
+        42,
+        120,
+        42,
+        47
+      ],
+      "target": 1,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "35/2",
+      "value_utf16": [
+        97,
+        55296,
+        47,
+        42,
+        120,
+        42,
+        47
+      ],
+      "target": 2,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "35/99",
+      "value_utf16": [
+        97,
+        55296,
+        47,
+        42,
+        120,
+        42,
+        47
+      ],
+      "target": 99,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "36/1",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        92,
+        117,
+        48,
+        48,
+        50,
+        101,
+        46,
+        98
+      ],
+      "target": 1,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "36/2",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        92,
+        117,
+        48,
+        48,
+        50,
+        101,
+        46,
+        98
+      ],
+      "target": 2,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "36/99",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        92,
+        117,
+        48,
+        48,
+        50,
+        101,
+        46,
+        98
+      ],
+      "target": 99,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "37/1",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        92,
+        117,
+        48,
+        48,
+        54,
+        50
+      ],
+      "target": 1,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "37/2",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        92,
+        117,
+        48,
+        48,
+        54,
+        50
+      ],
+      "target": 2,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "37/99",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        92,
+        117,
+        48,
+        48,
+        54,
+        50
+      ],
+      "target": 99,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "38/1",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        46,
+        92,
+        117,
+        48,
+        48,
+        54,
+        50
+      ],
+      "target": 1,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "38/2",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        46,
+        92,
+        117,
+        48,
+        48,
+        54,
+        50
+      ],
+      "target": 2,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "38/99",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        46,
+        92,
+        117,
+        48,
+        48,
+        54,
+        50
+      ],
+      "target": 99,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "39/1",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        46,
+        92,
+        117,
+        68,
+        56,
+        48,
+        48
+      ],
+      "target": 1,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "39/2",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        46,
+        92,
+        117,
+        68,
+        56,
+        48,
+        48
+      ],
+      "target": 2,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "39/99",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        46,
+        92,
+        117,
+        68,
+        56,
+        48,
+        48
+      ],
+      "target": 99,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "40/1",
+      "value_utf16": [
+        97,
+        47,
+        47,
+        55296,
+        10,
+        46,
+        98
+      ],
+      "target": 1,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "40/2",
+      "value_utf16": [
+        97,
+        47,
+        47,
+        55296,
+        10,
+        46,
+        98
+      ],
+      "target": 2,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "40/99",
+      "value_utf16": [
+        97,
+        47,
+        47,
+        55296,
+        10,
+        46,
+        98
+      ],
+      "target": 99,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "41/1",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        0
+      ],
+      "target": 1,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "41/2",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        0
+      ],
+      "target": 2,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "41/99",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        0
+      ],
+      "target": 99,
+      "expected": {
+        "entity": false,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "42/1",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        65279,
+        46,
+        98
+      ],
+      "target": 1,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "42/2",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        65279,
+        46,
+        98
+      ],
+      "target": 2,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    },
+    {
+      "case_id": "42/99",
+      "value_utf16": [
+        97,
+        47,
+        42,
+        55296,
+        42,
+        47,
+        65279,
+        46,
+        98
+      ],
+      "target": 99,
+      "expected": {
+        "entity": true,
+        "identifier": false
+      }
+    }
+  ]
+}

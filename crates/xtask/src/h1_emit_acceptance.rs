@@ -81,7 +81,7 @@ fn optional_bool(value: Option<bool>) -> Value {
 
 fn normalize_chain(chain: &MessageChain) -> Value {
     json!({
-        "text": chain.text,
+        "text": chain.text.as_str().expect("scalar acceptance diagnostic"),
         "code": chain.code,
         "category": chain.category.name(),
         "next_present": chain.next_present,
@@ -96,11 +96,16 @@ fn normalize_diagnostic(diagnostic: &Diagnostic, sources: &BTreeMap<String, Stri
         .zip(diagnostic.start)
         .and_then(|(file_name, start)| {
             sources
-                .get(file_name)
-                .map(|text| get_line_and_character_of_position(&compute_line_starts(text), start))
+                .iter()
+                .find(|(name, _)| {
+                    file_name.as_js() == tsc_diagnostics::JsStr::from_str(name.as_str())
+                })
+                .map(|(_, text)| {
+                    get_line_and_character_of_position(&compute_line_starts(text), start)
+                })
         });
     json!({
-        "file": optional_string(diagnostic.file_name.as_deref()),
+        "file": optional_string(diagnostic.file_name.as_ref().map(|value| value.as_str().expect("scalar acceptance filename"))),
         "start": optional_u32(diagnostic.start),
         "length": optional_u32(diagnostic.length),
         "line": optional_u32(location.map(|location| location.line)),
@@ -112,7 +117,7 @@ fn normalize_diagnostic(diagnostic: &Diagnostic, sources: &BTreeMap<String, Stri
             || !diagnostic.related.is_empty(),
         "related": diagnostic.related.iter().map(|related| {
             json!({
-                "file": optional_string(related.file_name.as_deref()),
+                "file": optional_string(related.file_name.as_ref().map(|value| value.as_str().expect("scalar acceptance filename"))),
                 "start": optional_u32(related.start),
                 "length": optional_u32(related.length),
                 "code": related.message.code,
@@ -192,7 +197,11 @@ fn assert_outcome(
         .emitted_files()
         .unwrap_or_default()
         .iter()
-        .map(|path| path.to_string_lossy().into_owned())
+        .map(|path| {
+            path.as_str()
+                .expect("scalar acceptance path observation")
+                .to_owned()
+        })
         .collect::<Vec<_>>();
     let expected_emitted = expected["emitted_files"]
         .as_array()
@@ -235,7 +244,12 @@ fn assert_writes(
         let expected_path = expected["path"]
             .as_str()
             .ok_or_else(|| failure(format!("{label}: path is not a string")))?;
-        if actual.path() != Path::new(expected_path)
+        if std::path::Path::new(
+            actual
+                .path()
+                .as_str()
+                .expect("scalar acceptance output path"),
+        ) != Path::new(expected_path)
             || actual.kind() != EmitArtifactKind::JavaScript
             || expected["kind"] != "javascript"
         {
@@ -273,7 +287,11 @@ fn assert_writes(
             .source_files()
             .unwrap_or_default()
             .iter()
-            .map(|path| path.to_string_lossy().into_owned())
+            .map(|path| {
+                path.as_str()
+                    .expect("scalar acceptance path observation")
+                    .to_owned()
+            })
             .collect::<Vec<_>>();
         let expected_sources = expected["source_files"]
             .as_array()

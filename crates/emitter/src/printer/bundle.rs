@@ -197,9 +197,8 @@ impl Printer {
         })
     }
 
-    /// The prologue directive's JavaScript value: the arena's lossless
-    /// literal reader (a node-owned value, the parsed spelling, or a clone's
-    /// original), else the cooked text.
+    /// The prologue directive's node-owned JavaScript value. Source spelling
+    /// affects emitted tokens but never the directive's equality key.
     fn bundle_prologue_value(
         &self,
         transformation: &TransformationResult<'_>,
@@ -218,12 +217,7 @@ impl Printer {
         let NodeData::StringLiteral(data) = &transformation.arena().node(expression)?.data else {
             return Ok(None);
         };
-        Ok(Some(
-            transformation
-                .arena()
-                .literal_code_units(expression)?
-                .unwrap_or_else(|| data.text.encode_utf16().collect()),
-        ))
+        Ok(Some(data.text.to_utf16()))
     }
 
     fn write_bundle_prologue(

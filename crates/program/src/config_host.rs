@@ -6,14 +6,17 @@
 //! and TypeScript UTF-16 ordering rules instead of duplicating them in the CLI.
 
 use std::collections::BTreeSet;
-use std::path::Path;
-
-use tsc_host::{to_file_name_lower_case, CompilerHost, HostError};
+use tsc_diagnostics::{JsStr, JsString};
+use tsc_host::{CompilerHost, HostError};
 
 use crate::config::{ConfigHostError, ConfigHostOperation, ConfigParseHost};
 use crate::config_matcher::ConfigFilePattern;
 use crate::decode_host_text;
-use crate::module_resolution::{directory_name, normalize_absolute_path, normalized_root_parts};
+use crate::js_path::{
+    base_file_name, directory_name, eq_ignore_case, file_name_key, normalize_slashes, root_parts,
+    uppercase,
+};
+use crate::module_resolution::normalize_absolute_js_path;
 
 const MAX_DIRECTORY_DEPTH: usize = 256;
 
@@ -32,7 +35,7 @@ impl<'a> CompilerConfigHost<'a> {
     fn host_error(
         &self,
         operation: ConfigHostOperation,
-        path: &str,
+        path: JsStr<'_>,
         error: HostError,
     ) -> ConfigHostError {
         ConfigHostError::new(operation, path, error.to_string())
@@ -41,13 +44,13 @@ impl<'a> CompilerConfigHost<'a> {
     #[allow(clippy::too_many_arguments)]
     fn walk_directory(
         &self,
-        directory: &Path,
+        directory: JsStr<'_>,
         extensions: &[&str],
         includes: &[ConfigFilePattern],
         excludes: &[ConfigFilePattern],
         depth: usize,
-        files: &mut [Vec<String>],
-        visited: &mut BTreeSet<String>,
+        files: &mut [Vec<JsString>],
+        visited: &mut BTreeSet<JsString>,
     ) -> Result<(), ConfigHostError> {
         if depth == 0 {
             return Ok(());
@@ -56,25 +59,18 @@ impl<'a> CompilerConfigHost<'a> {
         if !visited.insert(canonical_directory) {
             return Ok(());
         }
-        let entries = self.host.read_directory(directory).map_err(|error| {
-            let path = directory.display().to_string();
-            self.host_error(ConfigHostOperation::ReadDirectory, &path, error)
+        let entries = self.host.read_directory_js(directory).map_err(|error| {
+            self.host_error(ConfigHostOperation::ReadDirectory, directory, error)
         })?;
         // matchFiles.visitDirectory visits current files before child
         // directories (_tsc.js:18539–18571). CompilerHost already supplies
         // UTF-16 name order; partitioning preserves that order within each.
         let mut child_directories = Vec::new();
         for entry in entries {
-            let text = entry.to_str().ok_or_else(|| {
-                ConfigHostError::new(
-                    ConfigHostOperation::ReadDirectory,
-                    entry.display().to_string(),
-                    "filesystem entry is not Unicode",
-                )
-            })?;
+            let text = entry.as_js();
             if self
                 .host
-                .directory_exists(&entry)
+                .directory_exists_js(entry.as_js())
                 .map_err(|error| self.host_error(ConfigHostOperation::ReadDirectory, text, error))?
             {
                 child_directories.push(entry);
@@ -95,8 +91,8 @@ impl<'a> CompilerConfigHost<'a> {
             }
         }
         for entry in child_directories {
-            let text = entry.to_str().expect("directory entry was validated above");
-            if !includes.is_empty() && is_implicit_excluded_directory(&entry) {
+            let text = entry.as_js();
+            if !includes.is_empty() && is_implicit_excluded_directory(entry.as_js()) {
                 // A package directory is excluded by the implicit recursive
                 // wildcard, but an explicit include such as
                 // `node_modules/**/*.ts` must still be able to enter it.
@@ -114,7 +110,7 @@ impl<'a> CompilerConfigHost<'a> {
                         .any(|pattern| pattern.could_match_descendant(text)))
             {
                 self.walk_directory(
-                    &entry,
+                    entry.as_js(),
                     extensions,
                     includes,
                     excludes,
@@ -127,28 +123,16 @@ impl<'a> CompilerConfigHost<'a> {
         Ok(())
     }
 
-    fn canonical_directory(&self, directory: &Path) -> Result<String, ConfigHostError> {
+    fn canonical_directory(&self, directory: JsStr<'_>) -> Result<JsString, ConfigHostError> {
         let observed = self
             .host
-            .realpath(directory)
-            .map_err(|error| {
-                let path = directory.display().to_string();
-                self.host_error(ConfigHostOperation::ReadDirectory, &path, error)
-            })?
-            .unwrap_or_else(|| directory.to_path_buf());
-        let text = observed.to_str().ok_or_else(|| {
-            ConfigHostError::new(
-                ConfigHostOperation::ReadDirectory,
-                observed.display().to_string(),
-                "filesystem path is not Unicode",
-            )
-        })?;
-        let normalized = text.replace('\\', "/");
-        Ok(if self.host.use_case_sensitive_file_names() {
-            normalized
-        } else {
-            to_file_name_lower_case(&normalized)
-        })
+            .realpath_js(directory)
+            .map_err(|error| self.host_error(ConfigHostOperation::ReadDirectory, directory, error))?
+            .unwrap_or_else(|| directory.to_owned());
+        Ok(file_name_key(
+            normalize_slashes(observed.as_js()).as_js(),
+            self.host.use_case_sensitive_file_names(),
+        ))
     }
 }
 
@@ -157,16 +141,16 @@ impl ConfigParseHost for CompilerConfigHost<'_> {
         self.host.use_case_sensitive_file_names()
     }
 
-    fn file_exists(&self, path: &str) -> Result<bool, ConfigHostError> {
+    fn file_exists(&self, path: JsStr<'_>) -> Result<bool, ConfigHostError> {
         self.host
-            .file_exists(Path::new(path))
+            .file_exists_js(path)
             .map_err(|error| self.host_error(ConfigHostOperation::FileExists, path, error))
     }
 
-    fn read_file(&self, path: &str) -> Result<Option<String>, ConfigHostError> {
+    fn read_file(&self, path: JsStr<'_>) -> Result<Option<String>, ConfigHostError> {
         let Some(bytes) = self
             .host
-            .read_file(Path::new(path))
+            .read_file_js(path)
             .map_err(|error| self.host_error(ConfigHostOperation::ReadFile, path, error))?
         else {
             return Ok(None);
@@ -178,22 +162,22 @@ impl ConfigParseHost for CompilerConfigHost<'_> {
 
     fn read_directory(
         &self,
-        directory: &str,
+        directory: JsStr<'_>,
         extensions: &[&str],
-        excludes: Option<&[String]>,
-        includes: Option<&[String]>,
+        excludes: Option<&[JsString]>,
+        includes: Option<&[JsString]>,
         depth: Option<usize>,
-    ) -> Result<Vec<String>, ConfigHostError> {
+    ) -> Result<Vec<JsString>, ConfigHostError> {
         let case_sensitive = self.host.use_case_sensitive_file_names();
         let include_patterns = compile_patterns(includes, directory, case_sensitive)?;
         let exclude_patterns = compile_patterns(excludes, directory, case_sensitive)?;
         let mut file_buckets = (0..include_patterns.len().max(1))
             .map(|_| Vec::new())
-            .collect::<Vec<Vec<String>>>();
+            .collect::<Vec<Vec<JsString>>>();
         let mut visited = BTreeSet::new();
         for base in discovery_base_paths(directory, includes, case_sensitive)? {
             self.walk_directory(
-                Path::new(&base),
+                base.as_js(),
                 extensions,
                 &include_patterns,
                 &exclude_patterns,
@@ -209,14 +193,14 @@ impl ConfigParseHost for CompilerConfigHost<'_> {
 // getBasePaths/getIncludeBasePath (_tsc.js:18573–18596). Keep the config
 // directory first even when a later include adds one of its ancestors.
 fn discovery_base_paths(
-    directory: &str,
-    includes: Option<&[String]>,
+    directory: JsStr<'_>,
+    includes: Option<&[JsString]>,
     case_sensitive: bool,
-) -> Result<Vec<String>, ConfigHostError> {
-    let normalize = |path: &str| {
+) -> Result<Vec<JsString>, ConfigHostError> {
+    let normalize = |path: JsStr<'_>| {
         let path = if path.is_empty() { directory } else { path };
         let mut normalized =
-            normalize_absolute_path(Path::new(path), Some(directory)).map_err(|error| {
+            normalize_absolute_js_path(path, Some(directory), true).map_err(|error| {
                 ConfigHostError::new(
                     ConfigHostOperation::ReadDirectory,
                     directory,
@@ -225,7 +209,7 @@ fn discovery_base_paths(
             })?;
         // normalizePath preserves a trailing separator; the shared helper
         // implements getNormalizedAbsolutePath, which can remove one.
-        if path.ends_with(['/', '\\']) && !normalized.ends_with('/') {
+        if (path.ends_with("/") || path.ends_with("\\")) && !normalized.ends_with("/") {
             normalized.push('/');
         }
         Ok::<_, ConfigHostError>(normalized)
@@ -233,21 +217,43 @@ fn discovery_base_paths(
     let mut bases = vec![normalize(directory)?];
     let mut candidates = Vec::new();
     for include in includes.unwrap_or(&[]) {
-        let slashed = include.replace('\\', "/");
+        let slashed = normalize_slashes(include.as_js());
         let rooted_disk =
-            normalized_root_parts(&slashed).is_some_and(|(root, _)| !root.contains("://"));
+            root_parts(slashed.as_js()).is_some_and(|(root, _)| !root.contains("://"));
         // TypeScript preserves rooted disk spelling at this step; relative
         // paths and URLs go through normalizePath(combinePaths(...)).
         let absolute = if rooted_disk {
             include.clone()
         } else {
-            normalize(include)?
+            normalize(include.as_js())?
         };
-        let base = if let Some(wildcard) = absolute.find(['*', '?']) {
-            absolute[..absolute[..wildcard].rfind('/').unwrap_or(0)].to_owned()
-        } else if discovery_has_extension(&absolute) {
-            let parent = directory_name(&absolute);
-            parent.strip_suffix('/').unwrap_or(&parent).to_owned()
+        let base = if let Some(wildcard) = absolute
+            .as_bytes()
+            .iter()
+            .position(|byte| matches!(byte, b'*' | b'?'))
+        {
+            let before = absolute
+                .as_js()
+                .split_at_byte(wildcard)
+                .expect("ASCII wildcard boundary")
+                .0;
+            let separator = before
+                .as_bytes()
+                .iter()
+                .rposition(|byte| *byte == b'/')
+                .unwrap_or(0);
+            before
+                .split_at_byte(separator)
+                .expect("ASCII directory boundary")
+                .0
+                .to_owned()
+        } else if discovery_has_extension(absolute.as_js()) {
+            let parent = directory_name(absolute.as_js());
+            parent
+                .as_js()
+                .strip_suffix("/")
+                .unwrap_or(parent.as_js())
+                .to_owned()
         } else {
             absolute
         };
@@ -257,16 +263,19 @@ fn discovery_base_paths(
         if case_sensitive {
             path.clone()
         } else {
-            path.to_uppercase()
+            uppercase(path.as_js())
         }
-        .encode_utf16()
-        .collect::<Vec<_>>()
+        .to_utf16()
     });
     for candidate in candidates {
-        let normalized_candidate = normalize(&candidate)?;
+        let normalized_candidate = normalize(candidate.as_js())?;
         let mut covered = false;
         for base in &bases {
-            if discovery_path_contains(&normalize(base)?, &normalized_candidate, case_sensitive) {
+            if discovery_path_contains(
+                normalize(base.as_js())?.as_js(),
+                normalized_candidate.as_js(),
+                case_sensitive,
+            ) {
                 covered = true;
                 break;
             }
@@ -278,45 +287,47 @@ fn discovery_base_paths(
     Ok(bases)
 }
 
-fn discovery_has_extension(path: &str) -> bool {
-    let slashed = path.replace('\\', "/");
-    if normalized_root_parts(&slashed).is_some_and(|(_, tail)| tail.is_empty()) {
+fn discovery_has_extension(path: JsStr<'_>) -> bool {
+    let slashed = normalize_slashes(path);
+    if root_parts(slashed.as_js()).is_some_and(|(_, tail)| tail.is_empty()) {
         return false;
     }
     // getBaseFileName removes one trailing separator, not all of them.
-    slashed
-        .strip_suffix('/')
-        .unwrap_or(&slashed)
-        .rsplit('/')
-        .next()
-        .is_some_and(|name| name.contains('.'))
+    let result = slashed
+        .as_js()
+        .strip_suffix("/")
+        .unwrap_or(slashed.as_js())
+        .split_ascii(b'/')
+        .next_back()
+        .is_some_and(|name| name.contains("."));
+    result
 }
 
-fn discovery_path_contains(parent: &str, child: &str, case_sensitive: bool) -> bool {
-    let (parent_root, parent_tail) = normalized_root_parts(parent).expect("normalized parent");
-    let (child_root, child_tail) = normalized_root_parts(child).expect("normalized child");
+fn discovery_path_contains(parent: JsStr<'_>, child: JsStr<'_>, case_sensitive: bool) -> bool {
+    let (parent_root, parent_tail) = root_parts(parent).expect("normalized parent");
+    let (child_root, child_tail) = root_parts(child).expect("normalized child");
     // containsPath compares roots without case even on a case-sensitive host.
-    if parent_root.to_uppercase() != child_root.to_uppercase() {
+    if !eq_ignore_case(parent_root, child_root) {
         return false;
     }
-    let mut child_components = child_tail.split('/').filter(|part| !part.is_empty());
+    let mut child_components = child_tail.split_ascii(b'/').filter(|part| !part.is_empty());
     parent_tail
-        .split('/')
+        .split_ascii(b'/')
         .filter(|part| !part.is_empty())
         .all(|parent| {
             child_components.next().is_some_and(|child| {
                 if case_sensitive {
                     parent == child
                 } else {
-                    parent.to_uppercase() == child.to_uppercase()
+                    eq_ignore_case(parent, child)
                 }
             })
         })
 }
 
 fn compile_patterns(
-    patterns: Option<&[String]>,
-    directory: &str,
+    patterns: Option<&[JsString]>,
+    directory: JsStr<'_>,
     case_sensitive: bool,
 ) -> Result<Vec<ConfigFilePattern>, ConfigHostError> {
     let mut compiled = Vec::new();
@@ -332,21 +343,67 @@ fn compile_patterns(
     Ok(compiled)
 }
 
-fn is_implicit_excluded_directory(path: &Path) -> bool {
-    path.file_name()
-        .and_then(|name| name.to_str())
-        .is_some_and(|name| {
-            matches!(
-                name.to_ascii_lowercase().as_str(),
-                "node_modules" | "bower_components" | "jspm_packages"
-            )
-        })
+fn is_implicit_excluded_directory(path: JsStr<'_>) -> bool {
+    // This finite ASCII catalog cannot match a non-scalar basename. The
+    // directory path itself remains a JS value throughout the walk.
+    base_file_name(path).as_str().is_some_and(|name| {
+        matches!(
+            name.to_ascii_lowercase().as_str(),
+            "node_modules" | "bower_components" | "jspm_packages"
+        )
+    })
 }
 
 #[cfg(test)]
 mod tests {
-    use super::discovery_base_paths;
+    use super::*;
     use serde_json::{json, Value};
+
+    #[test]
+    fn config_host_keeps_js_directory_keys_patterns_and_read_names() {
+        let base = JsString::from_code_units(&[0x2f, 0x77, 0x6f, 0x72, 0x6b, 0x2f, 0xd800]);
+        let leaves = [0xd800, 0xd801, 0xfffd].map(|unit| {
+            let mut path = base.clone();
+            path.push('/');
+            path.push_code_unit(unit);
+            path.push_str("/a.ts");
+            path
+        });
+        let mut builder = tsc_host::MemoryCompilerHost::builder_js("/work");
+        for (index, path) in leaves.iter().enumerate() {
+            builder = builder.file_js(path, format!("source {index}").into_bytes());
+        }
+        let host = builder.build().unwrap();
+        let config = CompilerConfigHost::new(&host);
+        let mut first_pattern = JsString::from_code_units(&[0xd801]);
+        first_pattern.push_str("/**/*.ts");
+        let includes = [first_pattern.clone(), JsString::from("**/*.ts")];
+        assert_eq!(
+            config
+                .read_directory(base.as_js(), &[".ts"], None, Some(&includes), None)
+                .unwrap(),
+            [leaves[1].clone(), leaves[0].clone(), leaves[2].clone()]
+        );
+        assert_eq!(
+            config
+                .read_directory(
+                    base.as_js(),
+                    &[".ts"],
+                    Some(&[first_pattern]),
+                    Some(&includes),
+                    None
+                )
+                .unwrap(),
+            [leaves[0].clone(), leaves[2].clone()]
+        );
+        for (index, path) in leaves.iter().enumerate() {
+            assert!(config.file_exists(path.as_js()).unwrap());
+            assert_eq!(
+                config.read_file(path.as_js()).unwrap(),
+                Some(format!("source {index}"))
+            );
+        }
+    }
 
     #[test]
     fn config_discovery_base_paths_match_typescript() {
@@ -375,16 +432,23 @@ mod tests {
             let includes = case["includes"].as_array().map(|values| {
                 values
                     .iter()
-                    .map(|value| value.as_str().expect("include").to_owned())
+                    .map(|value| JsString::from(value.as_str().expect("include")))
                     .collect::<Vec<_>>()
             });
             for repetition in 1..=2 {
                 let actual = discovery_base_paths(
-                    case["directory"].as_str().expect("directory"),
+                    case["directory"].as_str().expect("directory").into(),
                     includes.as_deref(),
                     case["case_sensitive"].as_bool().expect("case policy"),
                 )
                 .expect("valid discovery paths");
+                let actual = actual
+                    .iter()
+                    .map(|path| {
+                        path.as_str()
+                            .expect("these frozen controls contain scalar path values")
+                    })
+                    .collect::<Vec<_>>();
                 let exact = json!(actual) == case["base_paths"];
                 eprintln!(
                     "H2.8b-CFG1b-path {}",

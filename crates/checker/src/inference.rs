@@ -21,7 +21,7 @@
 
 use std::collections::HashMap;
 
-use tsc_syntax::{escape_leading_underscores, NodeId, SyntaxKind};
+use tsc_syntax::{NodeId, SyntaxKind};
 use tsc_types::{
     ContextFlags, ElementFlags, ExpandingFlags, InferenceFlags, InferencePriority,
     IntersectionFlags, LiteralValue, ObjectFlags, SignatureFlags, SymbolFlags, TypeData, TypeFlags,
@@ -691,13 +691,7 @@ impl<'a> CheckerState<'a> {
             else {
                 unreachable!("StringLiteral flag implies string data");
             };
-            let Some(value) = value.to_utf8() else {
-                // The binder's symbol table is UTF-8 keyed. Do not
-                // alias an unpaired-surrogate literal to replacement
-                // text or to an escaped spelling.
-                continue;
-            };
-            let name = escape_leading_underscores(&value);
+            let name = tsc_types::EscapedName::escape(value.to_js_string().as_js());
             let literal_prop = self
                 .binder
                 .create_symbol(SymbolFlags::PROPERTY, name.clone());

@@ -70,7 +70,8 @@ struct DeclarationDispositionSink {
 
 impl OutputSink for DeclarationDispositionSink {
     fn write(&mut self, artifact: EmitArtifact) -> Result<EmitWriteDisposition, EmitIoError> {
-        self.paths.push(artifact.path().to_path_buf());
+        self.paths
+            .push(artifact.path().scalar_test_path().to_path_buf());
         if artifact.kind() == EmitArtifactKind::Declaration {
             if self.fail_declaration {
                 return Err(EmitIoError::new(
@@ -272,7 +273,9 @@ fn assert_control_failure(id: &str, expected: &Value, error: DriverError) {
         "unsupported-source-extension" => match error {
             DriverError::Emit(EmitFailure::UnsupportedSourceExtension { path }) => {
                 assert_eq!(
-                    path.extension().and_then(|extension| extension.to_str()),
+                    path.scalar_test_path()
+                        .extension()
+                        .and_then(|extension| extension.to_str()),
                     expected["extension"]
                         .as_str()
                         .expect("failure extension")
@@ -382,7 +385,7 @@ fn dependency_sources_selected_by_root_dirs_and_paths_are_emitted() {
             .source_files()
             .iter()
             .filter(|source| source.may_be_emitted())
-            .map(|source| source.path().display().to_path_buf())
+            .map(|source| source.path().display().scalar_test_path().to_path_buf())
             .collect::<Vec<_>>();
         assert_eq!(
             emit_eligible.len(),
@@ -404,7 +407,7 @@ fn dependency_sources_selected_by_root_dirs_and_paths_are_emitted() {
             expected_paths
                 .iter()
                 .copied()
-                .map(Path::new)
+                .map(tsc_diagnostics::JsStr::from)
                 .collect::<Vec<_>>(),
             "{case_id}: ordered write paths"
         );
@@ -539,7 +542,7 @@ fn frozen_adjacent_controls_remain_rejected_or_are_exactly_promoted() {
             );
             for (write, expected) in sink.writes().iter().zip(expected_writes) {
                 assert_eq!(
-                    write.path(),
+                    write.path().scalar_test_path(),
                     Path::new(expected["path"].as_str().expect("expected write path")),
                     "{id}: exact promoted output path",
                 );
@@ -613,7 +616,12 @@ fn declaration_sink_skip_and_failure_keep_listing_semantics_exact() {
     assert_eq!(skipping.paths, expected_paths);
     assert!(skipped.diagnostics().is_empty());
     assert_eq!(
-        skipped.emitted_files(),
+        (skipped.emitted_files())
+            .map(|names| names
+                .iter()
+                .map(|name| name.as_js().scalar_test_path().to_path_buf())
+                .collect::<Vec<_>>())
+            .as_deref(),
         Some([PathBuf::from("/project/src/declaration.js")].as_slice())
     );
 
@@ -635,11 +643,23 @@ fn declaration_sink_skip_and_failure_keep_listing_semantics_exact() {
     );
     assert!(failed.diagnostics()[0]
         .message_text()
+        .as_str()
+        .expect("scalar diagnostic observation")
         .contains("/project/src/declaration.d.ts"));
     assert!(failed.diagnostics()[0]
         .message_text()
+        .as_str()
+        .expect("scalar diagnostic observation")
         .contains("injected declaration failure"));
-    assert_eq!(failed.emitted_files(), Some(expected_paths.as_slice()));
+    assert_eq!(
+        (failed.emitted_files())
+            .map(|names| names
+                .iter()
+                .map(|name| name.as_js().scalar_test_path().to_path_buf())
+                .collect::<Vec<_>>())
+            .as_deref(),
+        Some(expected_paths.as_slice())
+    );
 }
 
 #[test]
@@ -660,7 +680,10 @@ fn declaration_collision_blocks_only_the_declaration_member() {
     assert_eq!(
         sink.writes()
             .iter()
-            .map(|artifact| (artifact.kind(), artifact.path().to_path_buf()))
+            .map(|artifact| (
+                artifact.kind(),
+                artifact.path().scalar_test_path().to_path_buf()
+            ))
             .collect::<Vec<_>>(),
         [(
             EmitArtifactKind::JavaScript,
@@ -668,7 +691,12 @@ fn declaration_collision_blocks_only_the_declaration_member() {
         )]
     );
     assert_eq!(
-        outcome.emitted_files(),
+        (outcome.emitted_files())
+            .map(|names| names
+                .iter()
+                .map(|name| name.as_js().scalar_test_path().to_path_buf())
+                .collect::<Vec<_>>())
+            .as_deref(),
         Some([PathBuf::from("/project/value.js")].as_slice())
     );
     assert_eq!(
@@ -800,3 +828,7 @@ fn qualification_authority_hashes_are_current() {
         );
     }
 }
+
+#[path = "../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

@@ -132,9 +132,10 @@ fn enum_relation_short_circuits_on_symbol_identity() {
     // 64676-64678: identical symbols relate before any flag or
     // name test — even a symbol that is not an enum at all.
     with_state(|state| {
-        let symbol = state
-            .binder
-            .create_symbol(tsc_types::SymbolFlags::NONE, "identity".to_owned());
+        let symbol = state.binder.create_symbol(
+            tsc_types::SymbolFlags::NONE,
+            tsc_types::EscapedName::from_escaped_value(("identity".to_owned()).into()),
+        );
         assert_ne!(symbol.0 & tsc_types::TRANSIENT_SYMBOL_BIT, 0);
         assert!(state
             .is_enum_type_related_to(symbol, symbol)
@@ -165,12 +166,23 @@ fn reporting_enum_relations_replay_cached_failures_with_typed_details() {
                 .filter(|diagnostic| diagnostic.file_name.is_some())
                 .map(|diagnostic| {
                     (
-                        diagnostic.message.text.clone(),
+                        diagnostic
+                            .message
+                            .text
+                            .as_str()
+                            .expect("scalar diagnostic observation")
+                            .to_owned(),
                         diagnostic
                             .message
                             .next
                             .iter()
-                            .map(|detail| detail.text.clone())
+                            .map(|detail| {
+                                detail
+                                    .text
+                                    .as_str()
+                                    .expect("scalar value observation")
+                                    .to_owned()
+                            })
                             .collect::<Vec<_>>(),
                     )
                 })
@@ -242,7 +254,16 @@ fn relation_error_suggests_nearby_string_literal_union_member() {
                 .diagnostics
                 .iter()
                 .filter(|diagnostic| diagnostic.file_name.is_some())
-                .map(|diagnostic| (diagnostic.code(), diagnostic.message_text().to_owned()))
+                .map(|diagnostic| {
+                    (
+                        diagnostic.code(),
+                        diagnostic
+                            .message_text()
+                            .as_str()
+                            .expect("scalar diagnostic observation")
+                            .to_owned(),
+                    )
+                })
                 .collect::<Vec<_>>();
             assert_eq!(
                 diagnostics,

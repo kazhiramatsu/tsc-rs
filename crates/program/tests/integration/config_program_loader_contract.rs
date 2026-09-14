@@ -31,9 +31,9 @@ fn unsupported_h0_config_scope_fails_at_the_program_gate() {
     let references = parse_config_root_plan(
         &adapter,
         ConfigRootPlanRequest {
-            file_name: "/work/tsconfig.json".to_owned(),
+            file_name: "/work/tsconfig.json".to_owned().into(),
             text: r#"{"files":["main.ts"],"references":[{"path":"other"}]}"#.to_owned(),
-            base_path: "/work".to_owned(),
+            base_path: "/work".to_owned().into(),
         },
     )
     .expect("project-reference config remains observable as a partial plan");
@@ -56,9 +56,9 @@ fn unsupported_h0_config_scope_fails_at_the_program_gate() {
     let emit = parse_config_root_plan(
         &adapter,
         ConfigRootPlanRequest {
-            file_name: "/work/tsconfig.json".to_owned(),
+            file_name: "/work/tsconfig.json".to_owned().into(),
             text: r#"{"files":["main.ts"],"compilerOptions":{"declaration":true}}"#.to_owned(),
-            base_path: "/work".to_owned(),
+            base_path: "/work".to_owned().into(),
         },
     )
     .expect("declaration config remains observable as a partial plan");
@@ -212,13 +212,20 @@ impl ConfigParseHost for ConfigHostAdapter<'_> {
         self.host.use_case_sensitive_file_names()
     }
 
-    fn file_exists(&self, path: &str) -> Result<bool, ConfigHostError> {
+    fn file_exists(&self, path: tsc_diagnostics::JsStr<'_>) -> Result<bool, ConfigHostError> {
+        let path = path.as_str().expect("scalar config fixture query");
+
         self.host.file_exists(Path::new(path)).map_err(|error| {
             Self::host_error(ConfigHostOperation::FileExists, path, &error.to_string())
         })
     }
 
-    fn read_file(&self, path: &str) -> Result<Option<String>, ConfigHostError> {
+    fn read_file(
+        &self,
+        path: tsc_diagnostics::JsStr<'_>,
+    ) -> Result<Option<String>, ConfigHostError> {
+        let path = path.as_str().expect("scalar config fixture query");
+
         if let Some(text) = self.files.get(path) {
             return Ok(Some(text.clone()));
         }
@@ -237,17 +244,21 @@ impl ConfigParseHost for ConfigHostAdapter<'_> {
 
     fn read_directory(
         &self,
-        directory: &str,
+        directory: tsc_diagnostics::JsStr<'_>,
         _extensions: &[&str],
-        _excludes: Option<&[String]>,
-        _includes: Option<&[String]>,
+        _excludes: Option<&[tsc_diagnostics::JsString]>,
+        _includes: Option<&[tsc_diagnostics::JsString]>,
         _depth: Option<usize>,
-    ) -> Result<Vec<String>, ConfigHostError> {
-        Err(Self::host_error(
-            ConfigHostOperation::ReadDirectory,
-            directory,
-            "the files-only contract does not enumerate directories",
-        ))
+    ) -> Result<Vec<tsc_diagnostics::JsString>, ConfigHostError> {
+        let directory = directory.as_str().expect("scalar config fixture directory");
+        (|| -> Result<Vec<String>, ConfigHostError> {
+            Err(Self::host_error(
+                ConfigHostOperation::ReadDirectory,
+                directory,
+                "the files-only contract does not enumerate directories",
+            ))
+        })()
+        .map(|paths| paths.into_iter().map(Into::into).collect())
     }
 }
 
@@ -258,9 +269,9 @@ fn request(text: &str) -> ConfigRootPlanRequest {
 fn request_at(base: &Path, text: &str) -> ConfigRootPlanRequest {
     let base = base.to_str().expect("test path is Unicode");
     ConfigRootPlanRequest {
-        file_name: format!("{base}/tsconfig.json"),
+        file_name: format!("{base}/tsconfig.json").into(),
         text: text.to_owned(),
-        base_path: base.to_owned(),
+        base_path: base.to_owned().into(),
     }
 }
 
@@ -294,7 +305,10 @@ fn config_plan_loads_no_emit_program_without_reparsing_options() {
     )
     .expect("load config program");
     assert_eq!(prepared.roots().len(), 1);
-    assert_eq!(prepared.roots()[0].path().display(), "/project/main.ts");
+    assert_eq!(
+        prepared.roots()[0].path().display().scalar_test_path(),
+        "/project/main.ts"
+    );
     assert_eq!(prepared.compiler_options().no_emit, Some(true));
     assert_eq!(prepared.program_options().no_lib(), Some(true));
 }
@@ -319,7 +333,10 @@ fn conflicting_lib_and_no_lib_are_option_diagnostics_at_both_names() {
         vec![(5053, Some(34), Some(7)), (5053, Some(47), Some(5))]
     );
     assert_eq!(
-        plan.option_diagnostics()[0].message_text(),
+        plan.option_diagnostics()[0]
+            .message_text()
+            .as_str()
+            .expect("scalar diagnostic observation"),
         "Option 'lib' cannot be specified with option 'noLib'."
     );
 }
@@ -352,14 +369,23 @@ fn missing_configured_type_retains_ts1419_config_related_information() {
         panic!("TS2688 must point back to compilerOptions.types");
     };
     assert_eq!(related.message.code, 1419);
-    assert_eq!(related.file_name.as_deref(), Some("/project/tsconfig.json"));
+    assert_eq!(
+        related
+            .file_name
+            .as_ref()
+            .map(|value| value.as_str().expect("scalar legacy option observation")),
+        Some("/project/tsconfig.json")
+    );
     let literal_byte = text.find("\"missing\"").expect("types literal span");
     let literal_utf16 = text[..literal_byte].encode_utf16().count() as u32;
     assert_eq!(related.start, Some(literal_utf16));
     assert_eq!(related.length, Some("\"missing\"".len() as u32));
     let auxiliary = prepared.auxiliary_files().collect::<Vec<_>>();
     assert_eq!(auxiliary.len(), 1);
-    assert_eq!(auxiliary[0].path().display(), "/project/tsconfig.json");
+    assert_eq!(
+        auxiliary[0].path().display().scalar_test_path(),
+        "/project/tsconfig.json"
+    );
     assert_eq!(auxiliary[0].text(), text);
 }
 
@@ -392,7 +418,13 @@ fn missing_default_library_retains_ts1426_target_related_information() {
         panic!("missing default library must point back to compilerOptions.target");
     };
     assert_eq!(related.message.code, 1426);
-    assert_eq!(related.file_name.as_deref(), Some("/project/tsconfig.json"));
+    assert_eq!(
+        related
+            .file_name
+            .as_ref()
+            .map(|value| value.as_str().expect("scalar legacy option observation")),
+        Some("/project/tsconfig.json")
+    );
     let literal_byte = text.find("\"es5\"").expect("target literal span");
     let literal_utf16 = text[..literal_byte].encode_utf16().count() as u32;
     assert_eq!(related.start, Some(literal_utf16));
@@ -465,7 +497,13 @@ fn case_only_alias_retains_ts1410_files_list_related_information() {
         panic!("TS1261 must point back to the matching files entry");
     };
     assert_eq!(related.message.code, 1410);
-    assert_eq!(related.file_name.as_deref(), Some("/project/tsconfig.json"));
+    assert_eq!(
+        related
+            .file_name
+            .as_ref()
+            .map(|value| value.as_str().expect("scalar legacy option observation")),
+        Some("/project/tsconfig.json")
+    );
     let literal_byte = text.rfind("\"value.ts\"").expect("files literal span");
     let literal_utf16 = text[..literal_byte].encode_utf16().count() as u32;
     assert_eq!(related.start, Some(literal_utf16));
@@ -511,7 +549,13 @@ fn case_only_alias_retains_ts1408_include_pattern_related_information() {
         panic!("TS1261 must point back to the matching include entry");
     };
     assert_eq!(related.message.code, 1408);
-    assert_eq!(related.file_name.as_deref(), Some("/project/tsconfig.json"));
+    assert_eq!(
+        related
+            .file_name
+            .as_ref()
+            .map(|value| value.as_str().expect("scalar legacy option observation")),
+        Some("/project/tsconfig.json")
+    );
     let literal_byte = text.rfind("\"**/*.ts\"").expect("include literal span");
     let literal_utf16 = text[..literal_byte].encode_utf16().count() as u32;
     assert_eq!(related.start, Some(literal_utf16));
@@ -579,7 +623,7 @@ fn case_sensitive_distinct_files_retain_both_files_list_provenance_entries() {
         prepared
             .source_files()
             .iter()
-            .map(|source| source.path().display())
+            .map(|source| source.path().display().scalar_test_path())
             .collect::<Vec<_>>(),
         [
             Path::new("/project/Value.ts"),
@@ -603,7 +647,13 @@ fn case_sensitive_distinct_files_retain_both_files_list_provenance_entries() {
         .zip(["\"Value.ts\"", "\"value.ts\""])
     {
         assert_eq!(related.message.code, 1410);
-        assert_eq!(related.file_name.as_deref(), Some("/project/tsconfig.json"));
+        assert_eq!(
+            related
+                .file_name
+                .as_ref()
+                .map(|value| value.as_str().expect("scalar legacy option observation")),
+            Some("/project/tsconfig.json")
+        );
         let byte = text.find(spec).expect("files entry span");
         assert_eq!(related.start, Some(byte as u32));
         assert_eq!(related.length, Some(spec.len() as u32));
@@ -702,10 +752,10 @@ process.stdout.write(JSON.stringify(configs.map(probe)));
                 "relatedInformationPresent": diagnostic.related_information_present,
                 "related": diagnostic.related.iter().map(|related| json!({
                     "code": related.message.code,
-                    "file": related.file_name,
+                    "file": scalar_json(&related.file_name),
                     "start": related.start,
                     "length": related.length,
-                    "message": related.message.text,
+                    "message": scalar_json(&related.message.text),
                 })).collect::<Vec<_>>(),
             })
         })
@@ -883,7 +933,11 @@ fn shared_compiler_host_config_adapter_keeps_include_exclude_equivalent() {
     assert_eq!(filesystem_plan, memory_plan);
     let main_name = tree.path("src/main.ts").to_string_lossy().into_owned();
     assert_eq!(
-        filesystem_plan.file_names(),
+        (filesystem_plan.file_names())
+            .iter()
+            .map(|name| name.as_str().expect("scalar name observation").to_owned())
+            .collect::<Vec<_>>()
+            .as_slice(),
         std::slice::from_ref(&main_name)
     );
 
@@ -907,10 +961,14 @@ fn compiler_config_host_prunes_implicit_packages_but_honors_explicit_package_inc
         .expect("package include memory host");
 
     let all_files = CompilerConfigHost::new(&host)
-        .read_directory("/project", &[".ts"], None, None, None)
+        .read_directory("/project".into(), &[".ts"], None, None, None)
         .expect("unfiltered recursive directory listing");
     assert_eq!(
-        all_files,
+        (all_files)
+            .iter()
+            .map(|name| name.as_str().expect("scalar name observation").to_owned())
+            .collect::<Vec<_>>()
+            .as_slice(),
         vec![
             "/project/main.ts".to_owned(),
             "/project/node_modules/pkg/index.ts".to_owned()
@@ -922,7 +980,14 @@ fn compiler_config_host_prunes_implicit_packages_but_honors_explicit_package_inc
         request(r#"{"compilerOptions":{"noEmit":true,"noLib":true},"include":["**/*.ts"]}"#),
     )
     .expect("implicit package exclusion plan");
-    assert_eq!(implicit.file_names(), &["/project/main.ts".to_owned()]);
+    assert_eq!(
+        (implicit.file_names())
+            .iter()
+            .map(|name| name.as_str().expect("scalar name observation").to_owned())
+            .collect::<Vec<_>>()
+            .as_slice(),
+        &["/project/main.ts".to_owned()]
+    );
 
     let explicit = parse_config_root_plan(
         &CompilerConfigHost::new(&host),
@@ -932,7 +997,11 @@ fn compiler_config_host_prunes_implicit_packages_but_honors_explicit_package_inc
     )
     .expect("explicit package include plan");
     assert_eq!(
-        explicit.file_names(),
+        (explicit.file_names())
+            .iter()
+            .map(|name| name.as_str().expect("scalar name observation").to_owned())
+            .collect::<Vec<_>>()
+            .as_slice(),
         &["/project/node_modules/pkg/index.ts".to_owned()]
     );
 }
@@ -946,15 +1015,19 @@ fn compiler_config_host_flattens_multiple_includes_in_written_order() {
         .expect("multiple include memory host");
     let files = CompilerConfigHost::new(&host)
         .read_directory(
-            "/project",
+            "/project".into(),
             &[".ts"],
             None,
-            Some(&["b/**/*.ts".to_owned(), "a/**/*.ts".to_owned()]),
+            Some(&["b/**/*.ts".to_owned().into(), "a/**/*.ts".to_owned().into()]),
             None,
         )
         .expect("multiple include directory listing");
     assert_eq!(
-        files,
+        (files)
+            .iter()
+            .map(|name| name.as_str().expect("scalar name observation").to_owned())
+            .collect::<Vec<_>>()
+            .as_slice(),
         vec!["/project/b/a.ts".to_owned(), "/project/a/z.ts".to_owned()]
     );
 }
@@ -969,14 +1042,21 @@ fn compiler_config_host_deduplicates_realpath_directory_cycles() {
         .expect("realpath-cycle memory host");
     let files = CompilerConfigHost::new(&host)
         .read_directory(
-            "/project",
+            "/project".into(),
             &[".ts"],
             None,
-            Some(&["**/*.ts".to_owned()]),
+            Some(&["**/*.ts".to_owned().into()]),
             None,
         )
         .expect("realpath-cycle directory listing");
-    assert_eq!(files, vec!["/project/main.ts".to_owned()]);
+    assert_eq!(
+        (files)
+            .iter()
+            .map(|name| name.as_str().expect("scalar name observation").to_owned())
+            .collect::<Vec<_>>()
+            .as_slice(),
+        vec!["/project/main.ts".to_owned()]
+    );
 }
 
 #[test]
@@ -1157,7 +1237,11 @@ fn ts6_option_deprecations_are_reported_without_blocking_no_emit_loading() {
     .expect("parse silenced deprecated-option plan");
     assert!(silenced.option_diagnostics().is_empty());
     assert_eq!(
-        silenced.compiler_options().ignore_deprecations.as_deref(),
+        silenced
+            .compiler_options()
+            .ignore_deprecations
+            .as_ref()
+            .map(|value| value.as_str().expect("scalar legacy option observation")),
         Some("6.0")
     );
 
@@ -1335,9 +1419,18 @@ fn compiler_option_relationship_diagnostics_use_tsc_config_spans() {
             .expect("config offset fits u32");
 
         assert_eq!(diagnostic.code(), expected_code);
-        assert_eq!(diagnostic.message_text(), expected_message);
         assert_eq!(
-            diagnostic.file_name.as_deref(),
+            diagnostic
+                .message_text()
+                .as_str()
+                .expect("scalar diagnostic observation"),
+            expected_message
+        );
+        assert_eq!(
+            diagnostic
+                .file_name
+                .as_ref()
+                .map(|value| value.as_str().expect("scalar legacy option observation")),
             Some("/project/tsconfig.json")
         );
         assert_eq!(diagnostic.start, Some(start));
@@ -1403,3 +1496,11 @@ fn allow_importing_ts_extensions_requires_no_emit_unless_overridden() {
     .expect("the command-line noEmit override satisfies TS5096");
     assert_eq!(prepared.compiler_options().no_emit, Some(true));
 }
+
+#[path = "../support/scalar_json.rs"]
+mod utf16_scalar_json;
+use utf16_scalar_json::observe as scalar_json;
+
+#[path = "../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

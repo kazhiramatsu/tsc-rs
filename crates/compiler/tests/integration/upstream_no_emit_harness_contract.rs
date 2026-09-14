@@ -95,7 +95,7 @@ fn message_record(message: &MessageChain) -> Value {
     json!({
         "code": message.code,
         "category": message.category.name(),
-        "text": message.text,
+        "text": scalar_json(&message.text),
         "next": message.next_present.then(|| {
             message.next.iter().map(message_record).collect::<Vec<_>>()
         }),
@@ -104,7 +104,7 @@ fn message_record(message: &MessageChain) -> Value {
 
 fn diagnostic_record(diagnostic: &Diagnostic) -> Value {
     json!({
-        "file": diagnostic.file_name,
+        "file": scalar_json(&diagnostic.file_name),
         "start": diagnostic.start,
         "length": diagnostic.length,
         "code": diagnostic.code(),
@@ -148,6 +148,7 @@ fn compiler_package_redirects_match_typescript_oracle() {
                     .expect("library source is owned")
                     .path()
                     .display()
+                    .scalar_test_path()
                     .display()
                     .to_string()
             })
@@ -155,12 +156,17 @@ fn compiler_package_redirects_match_typescript_oracle() {
         let mut actual_primary_sources = Vec::new();
         let mut actual_redirects = Vec::new();
         for source in prepared.source_files() {
-            let target = source.path().display().display().to_string();
+            let target = source
+                .path()
+                .display()
+                .scalar_test_path()
+                .display()
+                .to_string();
             if !library_paths.contains(&target) {
                 actual_primary_sources.push(target.clone());
             }
             for redirect in source.package_redirect_paths() {
-                let redirected = redirect.display().display().to_string();
+                let redirected = redirect.display().scalar_test_path().display().to_string();
                 assert_eq!(
                     prepared.source_id(redirect.canonical()),
                     prepared.source_id(source.path().canonical()),
@@ -286,7 +292,8 @@ fn project_session_runs_focused_node_modules_search_programs() {
             );
             let actual_file = actual
                 .file_name
-                .as_deref()
+                .as_ref()
+                .map(|value| value.as_str().expect("scalar legacy option observation"))
                 .and_then(|name| name.strip_prefix(current_directory))
                 .and_then(|name| name.strip_prefix('/'));
             assert_eq!(actual_file, expected["file"].as_str());
@@ -497,3 +504,11 @@ fn audit_all_recorded_compiler_no_emit_sessions_locally() {
     );
     assert!(failures.is_empty(), "compiler session audit found failures");
 }
+
+#[path = "../../../program/tests/support/scalar_json.rs"]
+mod utf16_scalar_json;
+use utf16_scalar_json::observe as scalar_json;
+
+#[path = "../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

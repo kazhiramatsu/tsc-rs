@@ -1,4 +1,4 @@
-use std::path::Path;
+use tsc_diagnostics::{JsStr, JsString};
 
 use crate::{EmitArtifact, EmitIoError, EmitIoOperation};
 
@@ -23,14 +23,14 @@ pub trait OutputSink {
 /// write retry. Read-only program hosts intentionally do not implement this
 /// boundary.
 pub trait EmitFileSystem {
-    fn write_file(&mut self, path: &Path, bytes: &[u8]) -> Result<(), String>;
+    fn write_file(&mut self, path: JsStr<'_>, bytes: &[u8]) -> Result<(), JsString>;
 
-    fn create_directory(&mut self, path: &Path) -> Result<(), String>;
+    fn create_directory(&mut self, path: JsStr<'_>) -> Result<(), JsString>;
 
     /// TypeScript's system `directoryExists` query is non-throwing. A native
     /// adapter therefore maps an uninspectable path to `false`; the following
     /// create/write operation owns the stable reportable failure.
-    fn directory_exists(&mut self, path: &Path) -> bool;
+    fn directory_exists(&mut self, path: JsStr<'_>) -> bool;
 }
 
 /// Filesystem sink that applies TypeScript's write/parent/retry boundary to
@@ -47,16 +47,16 @@ impl<'filesystem> FsOutputSink<'filesystem> {
     /// tsc-port: ensureDirectoriesExist @6.0.3
     /// tsc-hash: 6d2d75310879fb4ad132c16f8817a30d754187c1c28691182d5eafb57f3aab28
     /// tsc-span: _tsc.js:16656-16662
-    fn ensure_parent_directories(&mut self, output: &Path) -> Result<(), EmitIoError> {
+    fn ensure_parent_directories(&mut self, output: JsStr<'_>) -> Result<(), EmitIoError> {
         use crate::source_map::paths;
 
         // Only retry-parent discovery is normalized. Both write attempts keep
         // the caller's original path, including relative dot segments.
-        let normalized = paths::get_normalized_absolute_path(&output.to_string_lossy(), "");
-        let mut directory = directory_path(&normalized);
+        let normalized = paths::get_normalized_absolute_path(output, "");
+        let mut directory = directory_path(normalized.as_js());
         let mut missing = Vec::new();
-        while directory.len() > paths::get_root_length(directory) {
-            if self.filesystem.directory_exists(Path::new(directory)) {
+        while directory.as_bytes().len() > paths::get_root_length(directory) {
+            if self.filesystem.directory_exists(directory) {
                 break;
             }
             missing.push(directory);
@@ -64,7 +64,7 @@ impl<'filesystem> FsOutputSink<'filesystem> {
         }
         for directory in missing.into_iter().rev() {
             self.filesystem
-                .create_directory(Path::new(directory))
+                .create_directory(directory)
                 .map_err(|message| {
                     EmitIoError::new(EmitIoOperation::CreateParentDirectory, directory, message)
                 })?;
@@ -77,13 +77,20 @@ impl<'filesystem> FsOutputSink<'filesystem> {
 /// tsc-port: getDirectoryPath @6.0.3
 /// tsc-hash: 7f2c6450b6b1c1bc4e1c65523c113201cd6cad6445d29d8c2d368913af418157
 /// tsc-span: _tsc.js:5391-5397
-fn directory_path(path: &str) -> &str {
+fn directory_path(path: JsStr<'_>) -> JsStr<'_> {
     let root_length = crate::source_map::paths::get_root_length(path);
-    if path.len() == root_length {
+    if path.as_bytes().len() == root_length {
         return path;
     }
-    let path = path.strip_suffix('/').unwrap_or(path);
-    &path[..path.rfind('/').unwrap_or(0).max(root_length)]
+    let path = path.strip_suffix("/").unwrap_or(path);
+    let slash = path
+        .as_bytes()
+        .iter()
+        .rposition(|&byte| byte == b'/')
+        .unwrap_or(0);
+    path.split_at_byte(slash.max(root_length))
+        .expect("directory boundary is ASCII")
+        .0
 }
 
 impl OutputSink for FsOutputSink<'_> {
@@ -91,15 +98,19 @@ impl OutputSink for FsOutputSink<'_> {
     /// tsc-hash: 7a161f0c5aec317eb20a1f26977e5929c56ec7608d9f621e19eb1235322f9cd2
     /// tsc-span: _tsc.js:16663-16670
     fn write(&mut self, artifact: EmitArtifact) -> Result<EmitWriteDisposition, EmitIoError> {
-        let path = artifact.path().to_path_buf();
+        let path = artifact.path().to_owned();
         let bytes = artifact.materialized_bytes();
-        if self.filesystem.write_file(&path, bytes.as_ref()).is_ok() {
+        if self
+            .filesystem
+            .write_file(path.as_js(), bytes.as_ref())
+            .is_ok()
+        {
             return Ok(EmitWriteDisposition::Written);
         }
 
-        self.ensure_parent_directories(&path)?;
+        self.ensure_parent_directories(path.as_js())?;
         self.filesystem
-            .write_file(&path, bytes.as_ref())
+            .write_file(path.as_js(), bytes.as_ref())
             .map_err(|message| EmitIoError::new(EmitIoOperation::WriteFile, &path, message))?;
         Ok(EmitWriteDisposition::Written)
     }

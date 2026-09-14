@@ -52,7 +52,7 @@ fn has_flag(context: &NodeBuilderContext<'_>, flag: u32) -> bool {
 }
 
 fn source_name_length(checker: &CheckerState<'_>, symbol: SymbolId) -> usize {
-    checker.symbol_display_name(symbol).encode_utf16().count()
+    checker.symbol_display_name(symbol).len_units()
 }
 
 fn node_array(
@@ -131,7 +131,9 @@ fn expanded_tuple_element_label(
             "{}_{}",
             tsc_binder::unescape_leading_underscores(
                 &checker.binder.symbol(rest_symbol).escaped_name
-            ),
+            )
+            .as_str()
+            .expect("rest parameter names are scalar identifiers"),
             index
         ),
     })
@@ -154,7 +156,7 @@ fn expanded_tuple_element_label_from_binding_element(
     if let Some(name) = name {
         match checker.data_of(name) {
             NodeData::Identifier(data) => {
-                let text = tsc_binder::unescape_leading_underscores(&data.escaped_text).to_owned();
+                let text = tsc_syntax::unescape_leading_underscores(&data.escaped_text).to_owned();
                 if dot_dot_dot {
                     return if element_flags.intersects(ElementFlags::VARIABLE) {
                         text
@@ -280,11 +282,13 @@ fn get_expanded_parameters(
     expanded.reserve(count);
     for (index, element_type) in element_types.into_iter().take(count).enumerate() {
         let name = match associated_names.as_ref().and_then(|names| names.get(index)) {
-            Some(name) => name.clone(),
+            Some(name) => tsc_types::EscapedName::escape(name.as_str().into()),
             None => checker
                 .get_parameter_name_at_position(signature_id, rest_index + index)
                 .map_err(|abort| checker_abort_error(checker, context, abort))?
-                .unwrap_or_else(|| format!("arg{index}")),
+                .unwrap_or_else(|| {
+                    tsc_types::EscapedName::from_identifier_escaped_text(&format!("arg{index}"))
+                }),
         };
         let flags = tuple.element_flags[index];
         let check_flags = if flags.intersects(ElementFlags::VARIABLE) {
@@ -957,7 +961,7 @@ pub(crate) struct ScopeRestore {
     type_parameter_names: Option<HashMap<TypeId, TransformNode>>,
     type_parameter_names_by_text: Option<HashSet<String>>,
     type_parameter_names_by_text_next_name_count: Option<HashMap<String, u32>>,
-    synthetic_scope_locals: Option<HashMap<String, SymbolId>>,
+    synthetic_scope_locals: Option<HashMap<tsc_types::EscapedName, SymbolId>>,
     synthetic_scope_kind: Option<SyntaxKind>,
 }
 
@@ -1059,7 +1063,10 @@ pub(crate) fn prime_type_parameter_names_for_scope(
             context
                 .synthetic_scope_locals
                 .get_or_insert_with(HashMap::new)
-                .insert(data.escaped_text.clone(), symbol);
+                .insert(
+                    tsc_types::EscapedName::from_identifier_escaped_text(&data.escaped_text),
+                    symbol,
+                );
         }
     }
     context.enclosing_declaration_is_synthetic = true;
@@ -1089,7 +1096,7 @@ pub(crate) fn exit_new_scope(context: &mut NodeBuilderContext<'_>, restore: Scop
 fn collect_binding_pattern_symbols(
     checker: &CheckerState<'_>,
     pattern: NodeId,
-    locals: &mut Vec<(String, SymbolId)>,
+    locals: &mut Vec<(tsc_types::EscapedName, SymbolId)>,
 ) {
     let elements = match checker.data_of(pattern) {
         NodeData::ArrayBindingPattern(data) => checker.nodes_of(data.elements),
@@ -1109,7 +1116,7 @@ fn collect_binding_pattern_symbols(
 fn collect_binding_element_symbols(
     checker: &CheckerState<'_>,
     element: NodeId,
-    locals: &mut Vec<(String, SymbolId)>,
+    locals: &mut Vec<(tsc_types::EscapedName, SymbolId)>,
 ) {
     let NodeData::BindingElement(data) = checker.data_of(element) else {
         return;
@@ -1135,7 +1142,7 @@ fn collect_binding_element_symbols(
 pub(super) fn parameter_scope_symbols(
     checker: &CheckerState<'_>,
     parameter: SymbolId,
-) -> Vec<(String, SymbolId)> {
+) -> Vec<(tsc_types::EscapedName, SymbolId)> {
     let pattern = checker
         .binder
         .symbol(parameter)
@@ -1484,7 +1491,14 @@ pub(super) fn parameter_to_parameter_declaration_name(
     context: &mut NodeBuilderContext<'_>,
 ) -> BuildResult<TransformNode> {
     let Some(declaration) = declaration else {
-        return create_identifier(arena, target, &checker.symbol_display_name(parameter));
+        return create_identifier(
+            arena,
+            target,
+            checker
+                .symbol_display_name(parameter)
+                .as_str()
+                .expect("parameter symbols have scalar identifier names"),
+        );
     };
     if let Some(serialized) =
         syntactic_serialize_name_of_parameter_seam(checker, arena, target, context, declaration)?
@@ -1497,12 +1511,26 @@ pub(super) fn parameter_to_parameter_declaration_name(
         _ => None,
     };
     let Some(name) = name else {
-        return create_identifier(arena, target, &checker.symbol_display_name(parameter));
+        return create_identifier(
+            arena,
+            target,
+            checker
+                .symbol_display_name(parameter)
+                .as_str()
+                .expect("parameter symbols have scalar identifier names"),
+        );
     };
     match checker.kind_of(name) {
         SyntaxKind::Identifier => {
             let cloned = clone_parameter_name_to_source(checker, arena, target, name)?.unwrap_or(
-                create_identifier(arena, target, &checker.symbol_display_name(parameter))?,
+                create_identifier(
+                    arena,
+                    target,
+                    checker
+                        .symbol_display_name(parameter)
+                        .as_str()
+                        .expect("parameter symbols have scalar identifier names"),
+                )?,
             );
             Ok(set_no_ascii_escaping(arena, cloned))
         }
@@ -1518,14 +1546,24 @@ pub(super) fn parameter_to_parameter_declaration_name(
             .unwrap_or(create_identifier(
                 arena,
                 target,
-                &checker.symbol_display_name(parameter),
+                checker
+                    .symbol_display_name(parameter)
+                    .as_str()
+                    .expect("parameter symbols have scalar identifier names"),
             )?);
             Ok(set_no_ascii_escaping(arena, cloned))
         }
         SyntaxKind::ArrayBindingPattern | SyntaxKind::ObjectBindingPattern => {
             clone_binding_name(checker, arena, target, name, context)
         }
-        _ => create_identifier(arena, target, &checker.symbol_display_name(parameter)),
+        _ => create_identifier(
+            arena,
+            target,
+            checker
+                .symbol_display_name(parameter)
+                .as_str()
+                .expect("parameter symbols have scalar identifier names"),
+        ),
     }
 }
 

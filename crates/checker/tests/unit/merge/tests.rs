@@ -63,7 +63,18 @@ fn augmentation_conflicts_survive_to_the_post_pass_flush() {
             let mut pins: Vec<(u32, Option<String>, u32)> = state
                 .diagnostics
                 .iter()
-                .map(|d| (d.code(), d.file_name.clone(), d.start.unwrap_or(u32::MAX)))
+                .map(|d| {
+                    (
+                        d.code(),
+                        d.file_name.as_ref().map(|value| {
+                            value
+                                .as_str()
+                                .expect("scalar filename observation")
+                                .to_owned()
+                        }),
+                        d.start.unwrap_or(u32::MAX),
+                    )
+                })
                 .collect();
             pins.sort();
             assert_eq!(
@@ -108,7 +119,7 @@ fn global_namespace_merge_resolves_alias_meaning_before_conflict_detection() {
                 .map(|diagnostic| {
                     (
                         diagnostic.code(),
-                        diagnostic.file_name.as_deref().unwrap_or_default(),
+                        diagnostic.file_name.as_ref().map(|value| value.as_js().as_str().expect("scalar name observation")).unwrap_or_default(),
                         diagnostic.start.unwrap_or(u32::MAX),
                         diagnostic.length.unwrap_or(u32::MAX),
                     )
@@ -151,7 +162,11 @@ fn global_augmentation_conflicts_with_an_earlier_umd_global_export() {
                 .map(|diagnostic| {
                     (
                         diagnostic.code(),
-                        diagnostic.file_name.as_deref().unwrap_or_default(),
+                        diagnostic
+                            .file_name
+                            .as_ref()
+                            .map(|value| value.as_js().as_str().expect("scalar name observation"))
+                            .unwrap_or_default(),
                         diagnostic.start.unwrap_or(u32::MAX),
                         diagnostic.length.unwrap_or(u32::MAX),
                     )
@@ -174,7 +189,17 @@ fn cross_file_duplicate_classes_report_2300_on_both_files() {
             let mut pins: Vec<(u32, Option<String>)> = state
                 .diagnostics
                 .iter()
-                .map(|d| (d.code(), d.file_name.clone()))
+                .map(|d| {
+                    (
+                        d.code(),
+                        d.file_name.as_ref().map(|value| {
+                            value
+                                .as_str()
+                                .expect("scalar filename observation")
+                                .to_owned()
+                        }),
+                    )
+                })
                 .collect();
             pins.sort();
             assert_eq!(
@@ -241,7 +266,16 @@ fn cross_file_interfaces_merge_declarations_and_members() {
                 .members_of(members)
                 .properties
                 .iter()
-                .map(|&p| state.binder.symbol(p).escaped_name.clone())
+                .map(|&p| {
+                    state
+                        .binder
+                        .symbol(p)
+                        .escaped_name
+                        .as_js()
+                        .as_str()
+                        .expect("scalar name observation")
+                        .to_owned()
+                })
                 .collect();
             assert_eq!(names, ["a", "b"]);
         },
@@ -306,7 +340,11 @@ fn plain_js_omits_only_its_own_duplicate_location() {
                 .map(|diagnostic| {
                     (
                         diagnostic.code(),
-                        diagnostic.file_name.as_deref().unwrap_or_default(),
+                        diagnostic
+                            .file_name
+                            .as_ref()
+                            .map(|value| value.as_js().as_str().expect("scalar name observation"))
+                            .unwrap_or_default(),
                         diagnostic.start.unwrap_or(u32::MAX),
                     )
                 })
@@ -333,7 +371,11 @@ fn checked_js_reports_cross_file_block_scoped_redeclarations() {
                 .map(|diagnostic| {
                     (
                         diagnostic.code(),
-                        diagnostic.file_name.as_deref().unwrap_or_default(),
+                        diagnostic
+                            .file_name
+                            .as_ref()
+                            .map(|value| value.as_js().as_str().expect("scalar name observation"))
+                            .unwrap_or_default(),
                         diagnostic.start.unwrap_or(u32::MAX),
                     )
                 })

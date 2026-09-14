@@ -1,6 +1,84 @@
 use std::path::{Path, PathBuf};
 
+use tsc_diagnostics::JsString;
 use tsc_host::{CompilerHost, HostError, HostErrorKind, HostOperation, MemoryCompilerHost};
+
+#[test]
+fn memory_host_preserves_js_path_identity_in_reads_listings_and_failures() {
+    let names = [
+        vec![0xd800],
+        vec![0xd801],
+        vec![0xdc00],
+        vec![0xfffd],
+        vec![0xe000],
+        vec![0xd83d, 0xde00],
+    ];
+    for case_sensitive in [true, false] {
+        let mut builder = MemoryCompilerHost::builder("/Work").case_sensitive(case_sensitive);
+        let mut paths = Vec::new();
+        for (index, units) in names.iter().enumerate() {
+            let mut path = JsString::from("/Work/");
+            path.push_js(JsString::from_code_units(units).as_js());
+            path.push_str("/Leaf.TS");
+            builder = builder.file_js(path.clone(), vec![index as u8]);
+            paths.push(path);
+        }
+        let first_error = HostError::new_js(
+            HostErrorKind::PermissionDenied,
+            HostOperation::FileExists,
+            Some(paths[0].as_js()),
+            "first",
+        );
+        let second_error = HostError::new_js(
+            HostErrorKind::PermissionDenied,
+            HostOperation::FileExists,
+            Some(paths[1].as_js()),
+            "second",
+        );
+        let host = builder
+            .failure(first_error.clone())
+            .failure(second_error.clone())
+            .realpath_js(paths[0].clone(), paths[1].clone())
+            .build()
+            .unwrap();
+        for (index, path) in paths.iter().enumerate() {
+            assert_eq!(
+                host.read_file_js(path.as_js()).unwrap(),
+                Some(vec![index as u8])
+            );
+            let parent = path.as_js().strip_suffix("/Leaf.TS").unwrap();
+            assert_eq!(host.read_directory_js(parent).unwrap(), [path.clone()]);
+            assert!(host.directory_exists_js(parent).unwrap());
+            if !case_sensitive {
+                let folded = tsc_host::to_file_name_lower_case_js(path.as_js());
+                assert_eq!(
+                    host.read_file_js(folded.as_js()).unwrap(),
+                    Some(vec![index as u8])
+                );
+            }
+        }
+        let expected_directories = [0, 1, 5, 2, 4, 3]
+            .into_iter()
+            .map(|index| {
+                paths[index]
+                    .as_js()
+                    .strip_suffix("/Leaf.TS")
+                    .unwrap()
+                    .to_owned()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            host.get_directories_js("/Work".into()).unwrap(),
+            expected_directories
+        );
+        assert_eq!(host.file_exists_js(paths[0].as_js()), Err(first_error));
+        assert_eq!(host.file_exists_js(paths[1].as_js()), Err(second_error));
+        assert_eq!(
+            host.realpath_js(paths[0].as_js()).unwrap(),
+            Some(paths[1].clone())
+        );
+    }
+}
 
 fn host_with_tree(case_sensitive: bool) -> MemoryCompilerHost {
     MemoryCompilerHost::builder("/Work")

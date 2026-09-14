@@ -25,24 +25,41 @@ struct ObservedFileSystem {
 }
 
 impl EmitFileSystem for ObservedFileSystem {
-    fn write_file(&mut self, path: &Path, bytes: &[u8]) -> Result<(), String> {
-        self.calls
-            .push(FileSystemCall::Write(path.to_path_buf(), bytes.to_vec()));
-        self.write_results.pop_front().unwrap_or(Ok(()))
+    fn write_file(
+        &mut self,
+        path: tsc_diagnostics::JsStr<'_>,
+        bytes: &[u8],
+    ) -> Result<(), tsc_diagnostics::JsString> {
+        let path = std::path::Path::new(path.as_str().expect("scalar fault-injection path"));
+        (|| -> Result<(), String> {
+            self.calls
+                .push(FileSystemCall::Write(path.to_path_buf(), bytes.to_vec()));
+            self.write_results.pop_front().unwrap_or(Ok(()))
+        })()
+        .map_err(Into::into)
     }
 
-    fn create_directory(&mut self, path: &Path) -> Result<(), String> {
-        self.calls.push(FileSystemCall::Create(path.to_path_buf()));
-        if let Some((failed_path, message)) = &self.create_failure {
-            if failed_path == path {
-                return Err(message.clone());
+    fn create_directory(
+        &mut self,
+        path: tsc_diagnostics::JsStr<'_>,
+    ) -> Result<(), tsc_diagnostics::JsString> {
+        let path = std::path::Path::new(path.as_str().expect("scalar fault-injection path"));
+        (|| -> Result<(), String> {
+            self.calls.push(FileSystemCall::Create(path.to_path_buf()));
+            if let Some((failed_path, message)) = &self.create_failure {
+                if failed_path == path {
+                    return Err(message.clone());
+                }
             }
-        }
-        self.directories.insert(path.to_path_buf());
-        Ok(())
+            self.directories.insert(path.to_path_buf());
+            Ok(())
+        })()
+        .map_err(Into::into)
     }
 
-    fn directory_exists(&mut self, path: &Path) -> bool {
+    fn directory_exists(&mut self, path: tsc_diagnostics::JsStr<'_>) -> bool {
+        let path = std::path::Path::new(path.as_str().expect("scalar fault-injection path"));
+
         self.calls.push(FileSystemCall::Exists(path.to_path_buf()));
         self.directories.contains(path)
     }
@@ -55,11 +72,11 @@ fn artifact_retains_callback_bytes_bom_provenance_and_metadata_independently() {
         "/project/out.js",
         "a😀b\n",
         true,
-        Some(vec![PathBuf::from("/project/input.ts")]),
+        Some(vec![tsc_diagnostics::JsString::from("/project/input.ts")]),
         metadata,
     );
 
-    assert_eq!(artifact.path().to_str(), Some("/project/out.js"));
+    assert_eq!(artifact.path().as_str(), Some("/project/out.js"));
     assert_eq!(artifact.kind(), EmitArtifactKind::JavaScript);
     assert_eq!(artifact.callback_text(), "a😀b\n");
     assert_eq!(artifact.callback_bytes(), "a😀b\n".as_bytes());
@@ -69,7 +86,12 @@ fn artifact_retains_callback_bytes_bom_provenance_and_metadata_independently() {
         Cow::<[u8]>::Owned([&[0xEF, 0xBB, 0xBF], "a😀b\n".as_bytes()].concat())
     );
     assert_eq!(
-        artifact.source_files(),
+        (artifact.source_files())
+            .map(|names| names
+                .iter()
+                .map(|name| name.as_js().scalar_test_path().to_path_buf())
+                .collect::<Vec<_>>())
+            .as_deref(),
         Some([PathBuf::from("/project/input.ts")].as_slice())
     );
     let Some(EmitWriteMetadata::Text(metadata)) = artifact.metadata() else {
@@ -161,7 +183,7 @@ fn sink_io_failures_retain_operation_path_and_stable_message() {
         "permission denied",
     );
     assert_eq!(error.operation(), EmitIoOperation::WriteFile);
-    assert_eq!(error.path().to_str(), Some("/project/out.js"));
+    assert_eq!(error.path().as_str(), Some("/project/out.js"));
     assert_eq!(error.message(), "permission denied");
     assert_eq!(
         error.to_string(),
@@ -261,7 +283,10 @@ fn filesystem_sink_reports_create_failure_without_retrying_the_file() {
 
     let error = sink.write(artifact).expect_err("parent creation fails");
     assert_eq!(error.operation(), EmitIoOperation::CreateParentDirectory);
-    assert_eq!(error.path(), Path::new("/project/generated"));
+    assert_eq!(
+        error.path().scalar_test_path(),
+        Path::new("/project/generated")
+    );
     assert_eq!(error.message(), "stable create failure");
     assert_eq!(
         filesystem
@@ -296,6 +321,13 @@ fn filesystem_sink_reports_only_the_final_retry_failure() {
 
     let error = sink.write(artifact).expect_err("retry fails");
     assert_eq!(error.operation(), EmitIoOperation::WriteFile);
-    assert_eq!(error.path(), Path::new("/project/out.js"));
+    assert_eq!(
+        error.path().scalar_test_path(),
+        Path::new("/project/out.js")
+    );
     assert_eq!(error.message(), "stable retry failure");
 }
+
+#[path = "../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

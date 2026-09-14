@@ -40,10 +40,11 @@ fn unexpected_scope_owner_drains_by_shape_beside_a_known_block_owner() {
             "neither the shape fallback nor the known sibling is partial"
         );
         assert!(
-            state
-                .diagnostics
-                .iter()
-                .any(|diagnostic| diagnostic.message_text().contains("'local'")),
+            state.diagnostics.iter().any(|diagnostic| diagnostic
+                .message_text()
+                .as_str()
+                .expect("scalar diagnostic observation")
+                .contains("'local'")),
             "the known Block sibling still runs its ordinary unused worker"
         );
     });

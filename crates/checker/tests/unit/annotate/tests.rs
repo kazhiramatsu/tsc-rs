@@ -104,7 +104,10 @@ fn checked_js_non_jsdoc_base_constructor_error_is_published() {
             .iter()
             .map(|diag| (
                 diag.code(),
-                diag.file_name.as_deref().unwrap_or_default(),
+                diag.file_name
+                    .as_ref()
+                    .map(|value| value.as_js().as_str().expect("scalar name observation"))
+                    .unwrap_or_default(),
                 diag.start.unwrap_or(u32::MAX),
                 diag.length.unwrap_or(u32::MAX),
             ))

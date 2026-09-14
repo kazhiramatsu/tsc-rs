@@ -12,6 +12,7 @@ use crate::node_util::{
 use crate::symbols::escape_leading_underscores;
 use tsc_syntax::{NodeData, NodeId, SourceFile, SyntaxKind};
 use tsc_types::NodeFlags;
+use tsc_types::{EscapedName, JsStr, JsString};
 
 /// tsc AssignmentDeclarationKind.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -106,8 +107,8 @@ fn get_assignment_declaration_kind_worker(
             return AssignmentDeclarationKind::ObjectDefinePropertyExports;
         }
         if is_bindable_static_access_expression(source, entity_name, false)
-            && get_element_or_property_access_name(source, entity_name).as_deref()
-                == Some("prototype")
+            && get_element_or_property_access_name(source, entity_name)
+                .is_some_and(|name| name == "prototype")
         {
             return AssignmentDeclarationKind::ObjectDefinePrototypeProperty;
         }
@@ -136,7 +137,7 @@ fn get_assignment_declaration_kind_worker(
     let left_expression = access_expression_of(source, left);
     if left_expression
         .is_some_and(|expression| is_bindable_static_name_expression(source, expression, true))
-        && get_element_or_property_access_name(source, left).as_deref() == Some("prototype")
+        && get_element_or_property_access_name(source, left).is_some_and(|name| name == "prototype")
         && kind_of(source, get_initializer_of_binary_expression(source, expr))
             == SyntaxKind::ObjectLiteralExpression
     {
@@ -176,8 +177,8 @@ pub fn get_assignment_declaration_property_access_kind(
         };
         if (id_escaped == Some("exports")
             || id_escaped == Some("module")
-                && get_element_or_property_access_name(source, next_to_last).as_deref()
-                    == Some("exports"))
+                && get_element_or_property_access_name(source, next_to_last)
+                    .is_some_and(|name| name == "exports"))
             && is_bindable_static_access_expression(source, lhs, false)
         {
             return AssignmentDeclarationKind::ExportsProperty;
@@ -245,7 +246,7 @@ pub fn is_module_exports_access_expression(source: &SourceFile, node: NodeId) ->
                 NodeData::Identifier(data) if data.escaped_text == "module"
             )
         })
-        && get_element_or_property_access_name(source, node).as_deref() == Some("exports")
+        && get_element_or_property_access_name(source, node).is_some_and(|name| name == "exports")
 }
 
 pub fn is_literal_like_element_access(source: &SourceFile, node: NodeId) -> bool {
@@ -321,10 +322,15 @@ pub fn get_element_or_property_access_argument_expression_or_name(
     }
 }
 
-pub fn get_element_or_property_access_name(source: &SourceFile, node: NodeId) -> Option<String> {
+pub fn get_element_or_property_access_name(
+    source: &SourceFile,
+    node: NodeId,
+) -> Option<EscapedName> {
     let name = get_element_or_property_access_argument_expression_or_name(source, node)?;
     match &source.arena.node(name).data {
-        NodeData::Identifier(data) => Some(data.escaped_text.clone()),
+        NodeData::Identifier(data) => Some(EscapedName::from_identifier_escaped_text(
+            &data.escaped_text,
+        )),
         _ if is_string_or_numeric_literal_like(source, name) => {
             literal_text_of(source, name).map(escape_leading_underscores)
         }
@@ -387,7 +393,7 @@ pub fn get_initializer_of_binary_expression(source: &SourceFile, mut expr: NodeI
 
 pub fn is_prototype_access(source: &SourceFile, node: NodeId) -> bool {
     is_bindable_static_access_expression(source, node, false)
-        && get_element_or_property_access_name(source, node).as_deref() == Some("prototype")
+        && get_element_or_property_access_name(source, node).is_some_and(|name| name == "prototype")
 }
 
 /// tsc-port: getEffectiveInitializer/getDeclaredExpandoInitializer @6.0.3
@@ -486,7 +492,8 @@ pub fn get_assigned_expando_initializer(source: &SourceFile, node: NodeId) -> Op
             }
             _ => None,
         })?;
-    let is_prototype_assignment = literal_text_of(source, *arguments.get(1)?) == Some("prototype");
+    let is_prototype_assignment =
+        literal_text_of(source, *arguments.get(1)?).is_some_and(|text| text == "prototype");
     get_expando_initializer(source, initializer, is_prototype_assignment)
 }
 
@@ -583,10 +590,10 @@ pub fn is_same_entity_name(source: &SourceFile, name: NodeId, initializer: NodeI
         && is_same_entity_name(source, name_expression, initializer_expression)
 }
 
-fn identifier_or_literal_text(source: &SourceFile, node: NodeId) -> Option<String> {
-    id_text(source, node).map(str::to_owned).or_else(|| {
+fn identifier_or_literal_text(source: &SourceFile, node: NodeId) -> Option<JsString> {
+    id_text(source, node).map(JsString::from).or_else(|| {
         if is_string_or_numeric_literal_like(source, node) {
-            literal_text_of(source, node).map(str::to_owned)
+            literal_text_of(source, node).map(JsStr::to_owned)
         } else {
             None
         }

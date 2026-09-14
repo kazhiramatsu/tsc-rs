@@ -1,8 +1,8 @@
-use std::path::Path;
 use std::sync::Arc;
 
-use serde_json::{Map, Number, Value};
-use tsc_diagnostics::{DocumentVersion, TextSnapshot};
+use crate::json_value::{JsonObject as Map, JsonValue as Value};
+use serde_json::Number;
+use tsc_diagnostics::{DocumentVersion, JsStr, JsString, TextSnapshot};
 use tsc_syntax::{
     parse_json_text_from_snapshot, scan_token_kinds, LanguageVariant, NodeId, SourceFile,
     SyntaxKind,
@@ -33,31 +33,45 @@ pub(crate) enum JsonParserPreflight {
 /// tsc-hash: 0be1077ca0dcab5ef44710716a6fb660d94811c5b51312f6c2fb20fc3029786e
 /// tsc-span: _tsc.js:17261-17275
 /// JSONC conversion also follows `_tsc.js:38331-38344,38475-38553`.
-pub(crate) fn parse_json_object(
-    file_name: &Path,
-    text: String,
-) -> (Arc<TextSnapshot>, Map<String, Value>) {
+pub(crate) fn parse_json_object(file_name: JsStr<'_>, text: String) -> (Arc<TextSnapshot>, Map) {
     let snapshot = TextSnapshot::new(text, DocumentVersion::default());
-    if json_parser_preflight(snapshot.text()) != JsonParserPreflight::Safe {
-        return (snapshot, Map::new());
-    }
-
-    if let Ok(mut value) = serde_json::from_str::<Value>(snapshot.text()) {
-        encode_user_object_keys(&mut value);
-        return (
-            snapshot,
-            match value {
-                Value::Object(object) => object,
-                _ => Map::new(),
-            },
-        );
-    }
-
-    let strict_json = text_is_strict_json(snapshot.text());
-    let source = parse_json_text_from_snapshot(file_name.to_string_lossy(), Arc::clone(&snapshot));
-    let object = parse_jsonc_object(&source, strict_json).unwrap_or_default();
-    debug_assert!(Arc::ptr_eq(source.snapshot(), &snapshot));
+    let object = read_package_json_object_from_snapshot(file_name, &snapshot);
     (snapshot, object)
+}
+
+/// TypeScript's package-object view of `readJson`, retaining the caller's
+/// original text snapshot through the JSONC fallback. Object keys and
+/// prototype information use the package converter's internal encoding;
+/// consumers must query and enumerate through the package accessors below.
+pub fn read_package_json_object_from_snapshot(
+    file_name: JsStr<'_>,
+    snapshot: &Arc<TextSnapshot>,
+) -> Map {
+    if json_parser_preflight(snapshot.text()) != JsonParserPreflight::Safe {
+        return Map::new();
+    }
+    if let Ok(value) = serde_json::from_str::<serde_json::Value>(snapshot.text()) {
+        let mut value = Value::from(value);
+        encode_user_object_keys(&mut value);
+        return match value {
+            Value::Object(object) => object,
+            _ => Map::new(),
+        };
+    }
+    let strict_json = text_is_strict_json(snapshot.text());
+    let source = parse_json_text_from_snapshot(file_name, Arc::clone(snapshot));
+    let object = parse_jsonc_object(&source, strict_json).unwrap_or_default();
+    debug_assert!(Arc::ptr_eq(source.snapshot(), snapshot));
+    object
+}
+
+/// Property access on a value returned by the package reader, including
+/// inherited JSONC properties and original NUL-prefixed names.
+pub fn package_json_property<'a, 'n>(
+    value: &'a Value,
+    property: impl Into<JsStr<'n>>,
+) -> Option<&'a Value> {
+    json_object_get(value.as_object()?, property)
 }
 
 fn encode_user_object_keys(value: &mut Value) {
@@ -85,11 +99,14 @@ fn encode_user_object_keys(value: &mut Value) {
     }
 }
 
-fn encode_user_object_key(mut key: String) -> String {
-    if key.starts_with('\0') {
-        key.insert(0, '\0');
+fn encode_user_object_key(key: JsString) -> JsString {
+    if key.starts_with("\0") {
+        let mut encoded = JsString::from("\0");
+        encoded.push_js(key.as_js());
+        encoded
+    } else {
+        key
     }
-    key
 }
 
 /// JSON.parse accepts finite-syntax numbers which overflow to JavaScript
@@ -327,7 +344,7 @@ enum ConversionTask {
         structural_depth: usize,
     },
     FinishArray(usize),
-    FinishObject(Vec<String>),
+    FinishObject(Vec<JsString>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -336,10 +353,7 @@ pub(crate) enum RecoverableJsonValue {
     Undefined,
 }
 
-fn parse_jsonc_object(
-    source: &SourceFile,
-    use_strict_object_assignment: bool,
-) -> Option<Map<String, Value>> {
+fn parse_jsonc_object(source: &SourceFile, use_strict_object_assignment: bool) -> Option<Map> {
     let value = if use_strict_object_assignment {
         convert_json_source_file_to_value_with_assignment(
             source, true, /* allow_parse_recovery */ false,
@@ -634,7 +648,7 @@ fn convert_jsonc_value_worker(
     Some(std::mem::replace(value, RecoverableJsonValue::Undefined))
 }
 
-fn assign_jsonc_object_property(object: &mut Map<String, Value>, key: String, value: Value) {
+fn assign_jsonc_object_property(object: &mut Map, key: JsString, value: Value) {
     if key != "__proto__" {
         object.insert(encode_user_object_key(key), value);
         return;
@@ -655,7 +669,7 @@ fn assign_jsonc_object_property(object: &mut Map<String, Value>, key: String, va
     // The native setter deliberately ignores primitive right-hand sides.
 }
 
-fn jsonc_object_inherits_proto_setter(object: &Map<String, Value>) -> bool {
+fn jsonc_object_inherits_proto_setter(object: &Map) -> bool {
     match jsonc_prototype(object) {
         // A freshly converted object has Object.prototype and therefore its
         // legacy `__proto__` accessor in the chain.
@@ -857,16 +871,20 @@ pub(crate) fn json_number_as_f64(number: &Number) -> Option<f64> {
     }
 }
 
-pub(crate) fn json_object_get<'a>(
-    object: &'a Map<String, Value>,
-    property: &str,
+pub(crate) fn json_object_get<'a, 'n>(
+    object: &'a Map,
+    property: impl Into<JsStr<'n>>,
 ) -> Option<&'a Value> {
+    let property = property.into();
     json_object_own_get(object, property).or_else(|| match object.get(JSONC_PROTOTYPE_MARKER) {
         Some(Value::Object(prototype)) => json_object_get(prototype, property),
+        // Array indices have an ASCII canonical decimal spelling. A non-scalar
+        // property cannot match an array index, but was still queried on every
+        // object in the prototype chain above.
         Some(Value::Array(prototype)) => property
-            .parse::<usize>()
-            .ok()
-            .filter(|index| index.to_string() == property)
+            .as_str()
+            .and_then(|text| text.parse::<usize>().ok())
+            .filter(|index| property == index.to_string().as_str())
             .and_then(|index| prototype.get(index)),
         Some(Value::Null) | None => None,
         Some(_) => {
@@ -875,32 +893,39 @@ pub(crate) fn json_object_get<'a>(
     })
 }
 
-pub(crate) fn jsonc_prototype(object: &Map<String, Value>) -> Option<&Value> {
+pub(crate) fn jsonc_prototype(object: &Map) -> Option<&Value> {
     object.get(JSONC_PROTOTYPE_MARKER)
 }
 
-pub(crate) fn json_object_own_get<'a>(
-    object: &'a Map<String, Value>,
-    property: &str,
+pub fn json_object_own_get<'a, 'n>(
+    object: &'a Map,
+    property: impl Into<JsStr<'n>>,
 ) -> Option<&'a Value> {
-    if property.starts_with('\0') {
-        object.get(&format!("\0{property}"))
+    let property = property.into();
+    if property.starts_with("\0") {
+        let encoded = encode_user_object_key(property.to_owned());
+        object.get(&encoded)
     } else {
         object.get(property)
     }
 }
 
-pub(crate) fn decode_user_object_key(key: &str) -> Option<&str> {
+pub(crate) fn decode_user_object_key<'a>(key: impl Into<JsStr<'a>>) -> Option<JsStr<'a>> {
+    let key = key.into();
     if key == JSONC_PROTOTYPE_MARKER {
         None
     } else if key.starts_with("\0\0") {
-        key.get(1..)
+        key.strip_prefix("\0")
     } else {
         Some(key)
     }
 }
 
-fn jsonc_property_name(source: &SourceFile, name: NodeId, allow_recovery: bool) -> Option<String> {
+fn jsonc_property_name(
+    source: &SourceFile,
+    name: NodeId,
+    allow_recovery: bool,
+) -> Option<JsString> {
     let node = source.arena.node(name);
     match node.kind {
         SyntaxKind::StringLiteral
@@ -913,11 +938,11 @@ fn jsonc_property_name(source: &SourceFile, name: NodeId, allow_recovery: bool) 
         SyntaxKind::Identifier if allow_recovery => node
             .data
             .as_identifier()
-            .map(|identifier| identifier.text.clone()),
+            .map(|identifier| identifier.text.clone().into()),
         SyntaxKind::NumericLiteral if allow_recovery => node
             .data
             .as_numeric_literal()
-            .map(|literal| literal.text.clone()),
+            .map(|literal| literal.text.clone().into()),
         _ => None,
     }
 }

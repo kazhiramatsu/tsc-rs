@@ -5,7 +5,9 @@
 //! programs, so adversarial runs of `*` cannot recurse or backtrack
 //! exponentially. A compiled pattern is reusable across directory entries.
 
-use crate::module_resolution::normalized_root_parts;
+use tsc_diagnostics::{JsStr, JsString};
+
+use crate::js_path::{normalize_slashes, root_parts};
 
 const COMMON_PACKAGE_FOLDERS: &[&str] = &["node_modules", "bower_components", "jspm_packages"];
 
@@ -34,7 +36,13 @@ impl ConfigFilePattern {
     /// `**` produce `None`, as `getSubPatternFromSpec(..., "files")` does.
     /// POSIX, drive, UNC, and URL roots are supported. Path normalization is
     /// lexical and therefore keeps wildcard-bearing components intact.
-    pub fn new(spec: &str, base: &str, case_sensitive: bool) -> Result<Option<Self>, String> {
+    pub fn new<'s, 'b>(
+        spec: impl Into<JsStr<'s>>,
+        base: impl Into<JsStr<'b>>,
+        case_sensitive: bool,
+    ) -> Result<Option<Self>, String> {
+        let spec = spec.into();
+        let base = base.into();
         if spec.is_empty() {
             return Ok(None);
         }
@@ -52,8 +60,19 @@ impl ConfigFilePattern {
         // zero. It therefore participates in isImplicitGlob when the path has
         // no tail component (for example `https://host`).
         let implicit_glob = normalized.components.last().map_or_else(
-            || !normalized.root.contains(['.', '*', '?']),
-            |part| !part.contains(['.', '*', '?']),
+            || {
+                !normalized
+                    .root
+                    .as_bytes()
+                    .iter()
+                    .any(|byte| matches!(byte, b'.' | b'*' | b'?'))
+            },
+            |part| {
+                !part
+                    .as_bytes()
+                    .iter()
+                    .any(|byte| matches!(byte, b'.' | b'*' | b'?'))
+            },
         );
         let mut components = normalized
             .components
@@ -62,7 +81,7 @@ impl ConfigFilePattern {
             .collect::<Vec<_>>();
         if implicit_glob {
             components.push(PatternComponent::Recursive);
-            components.push(PatternComponent::compile("*".to_owned()));
+            components.push(PatternComponent::compile("*".into()));
         }
 
         Ok(Some(Self {
@@ -73,8 +92,9 @@ impl ConfigFilePattern {
             root: GlobComponent::compile(
                 normalized
                     .root
-                    .strip_suffix('/')
-                    .unwrap_or(&normalized.root)
+                    .as_js()
+                    .strip_suffix("/")
+                    .unwrap_or(normalized.root.as_js())
                     .to_owned(),
             ),
             components,
@@ -87,11 +107,15 @@ impl ConfigFilePattern {
     /// Unsupported or relative candidate paths simply do not match. The path
     /// component DP uses linear scratch space; `**` only has recursive meaning
     /// when it is an entire pattern component.
-    pub fn matches(&self, absolute_path: &str) -> bool {
-        let Ok(path) = normalize_absolute(absolute_path) else {
+    pub fn matches<'s>(&self, absolute_path: impl Into<JsStr<'s>>) -> bool {
+        let Ok(path) = normalize_absolute(absolute_path.into()) else {
             return false;
         };
-        let root = path.root.strip_suffix('/').unwrap_or(&path.root);
+        let root = path
+            .root
+            .as_js()
+            .strip_suffix("/")
+            .unwrap_or(path.root.as_js());
         if !self.root.matches(
             &InputComponent::new(root, self.case_sensitive),
             self.components.is_empty(),
@@ -103,7 +127,7 @@ impl ConfigFilePattern {
         let inputs = path
             .components
             .iter()
-            .map(|text| InputComponent::new(text, self.case_sensitive))
+            .map(|text| InputComponent::new(text.as_js(), self.case_sensitive))
             .collect::<Vec<_>>();
         let input_count = inputs.len();
         let mut previous = vec![false; input_count + 1];
@@ -149,11 +173,18 @@ impl ConfigFilePattern {
     /// consume a directory only when the same implicit-directory rules used by
     /// [`Self::matches`] allow it; an explicit `node_modules` component thus
     /// remains selectable while `**/*` still skips it.
-    pub(crate) fn could_match_descendant(&self, absolute_directory: &str) -> bool {
-        let Ok(path) = normalize_absolute(absolute_directory) else {
+    pub(crate) fn could_match_descendant<'s>(
+        &self,
+        absolute_directory: impl Into<JsStr<'s>>,
+    ) -> bool {
+        let Ok(path) = normalize_absolute(absolute_directory.into()) else {
             return false;
         };
-        let root = path.root.strip_suffix('/').unwrap_or(&path.root);
+        let root = path
+            .root
+            .as_js()
+            .strip_suffix("/")
+            .unwrap_or(path.root.as_js());
         if !self.root.matches(
             &InputComponent::new(root, self.case_sensitive),
             self.components.is_empty(),
@@ -164,7 +195,7 @@ impl ConfigFilePattern {
 
         let mut states = vec![0usize];
         for component in &path.components {
-            states = self.advance_directory_states(&states, component);
+            states = self.advance_directory_states(&states, component.as_js());
             if states.is_empty() {
                 return false;
             }
@@ -179,7 +210,7 @@ impl ConfigFilePattern {
             .any(|state| state < self.components.len())
     }
 
-    fn advance_directory_states(&self, states: &[usize], input: &str) -> Vec<usize> {
+    fn advance_directory_states(&self, states: &[usize], input: JsStr<'_>) -> Vec<usize> {
         let mut closure = states.to_vec();
         let mut index = 0;
         while index < closure.len() {
@@ -224,7 +255,7 @@ enum PatternComponent {
 }
 
 impl PatternComponent {
-    fn compile(text: String) -> Self {
+    fn compile(text: JsString) -> Self {
         if text == "**" {
             return Self::Recursive;
         }
@@ -239,10 +270,10 @@ struct GlobComponent {
 }
 
 impl GlobComponent {
-    fn compile(text: String) -> Self {
+    fn compile(text: JsString) -> Self {
         let mut has_wildcard = false;
         let tokens = text
-            .encode_utf16()
+            .code_units()
             .map(|unit| match unit {
                 unit if unit == u16::from(b'*') => {
                     has_wildcard = true;
@@ -329,37 +360,37 @@ enum GlobToken {
 }
 
 struct InputComponent<'a> {
-    text: &'a str,
+    text: JsStr<'a>,
     characters: Vec<u16>,
     common_package_folder: bool,
 }
 
 impl<'a> InputComponent<'a> {
-    fn new(text: &'a str, case_sensitive: bool) -> Self {
+    fn new(text: JsStr<'a>, case_sensitive: bool) -> Self {
         Self {
             text,
-            characters: text.encode_utf16().collect(),
+            characters: text.code_units().collect(),
             common_package_folder: COMMON_PACKAGE_FOLDERS
                 .iter()
-                .any(|folder| regex_text_eq(text, folder, case_sensitive)),
+                .any(|folder| regex_text_eq(text, (*folder).into(), case_sensitive)),
         }
     }
 
     fn recursive_wildcard_allowed(&self) -> bool {
-        !self.text.starts_with('.') && !self.common_package_folder
+        !self.text.starts_with(".") && !self.common_package_folder
     }
 }
 
 #[derive(Debug, Eq, PartialEq)]
 struct NormalizedPath {
-    root: String,
-    components: Vec<String>,
+    root: JsString,
+    components: Vec<JsString>,
 }
 
-fn normalize_spec(spec: &str, base: &str) -> Result<NormalizedPath, String> {
-    let slashed_spec = spec.replace('\\', "/");
-    if split_root(&slashed_spec)?.is_some() {
-        return normalize_absolute_slashed(&slashed_spec);
+fn normalize_spec(spec: JsStr<'_>, base: JsStr<'_>) -> Result<NormalizedPath, String> {
+    let slashed_spec = normalize_slashes(spec);
+    if split_root(slashed_spec.as_js())?.is_some() {
+        return normalize_absolute_slashed(slashed_spec.as_js());
     }
 
     let mut normalized = normalize_absolute(base)
@@ -367,18 +398,18 @@ fn normalize_spec(spec: &str, base: &str) -> Result<NormalizedPath, String> {
     // combinePaths inserts a separator before every non-empty relative spec.
     // That separator is part of root component zero for separator-less roots
     // such as `https://host`, `//server`, and `c:`.
-    if !normalized.root.ends_with('/') {
+    if !normalized.root.ends_with("/") {
         normalized.root.push('/');
     }
-    reduce_components(&mut normalized.components, &slashed_spec);
+    reduce_components(&mut normalized.components, slashed_spec.as_js());
     Ok(normalized)
 }
 
-fn normalize_absolute(path: &str) -> Result<NormalizedPath, String> {
-    normalize_absolute_slashed(&path.replace('\\', "/"))
+fn normalize_absolute(path: JsStr<'_>) -> Result<NormalizedPath, String> {
+    normalize_absolute_slashed(normalize_slashes(path).as_js())
 }
 
-fn normalize_absolute_slashed(path: &str) -> Result<NormalizedPath, String> {
+fn normalize_absolute_slashed(path: JsStr<'_>) -> Result<NormalizedPath, String> {
     let Some((root, tail)) = split_root(path)? else {
         return Err(format!("path {path:?} is not absolute"));
     };
@@ -387,18 +418,19 @@ fn normalize_absolute_slashed(path: &str) -> Result<NormalizedPath, String> {
     Ok(NormalizedPath { root, components })
 }
 
-fn split_root(path: &str) -> Result<Option<(String, &str)>, String> {
-    Ok(normalized_root_parts(path).map(|(root, tail)| (root.to_owned(), tail)))
+fn split_root(path: JsStr<'_>) -> Result<Option<(JsString, JsStr<'_>)>, String> {
+    Ok(root_parts(path).map(|(root, tail)| (root.to_owned(), tail)))
 }
 
-fn reduce_components(components: &mut Vec<String>, tail: &str) {
-    for component in tail.split('/') {
-        match component {
-            "" | "." => {}
-            ".." => {
-                components.pop();
-            }
-            component => components.push(component.to_owned()),
+fn reduce_components(components: &mut Vec<JsString>, tail: JsStr<'_>) {
+    for component in tail.split_ascii(b'/') {
+        if component.is_empty() || component == "." {
+            continue;
+        }
+        if component == ".." {
+            components.pop();
+        } else {
+            components.push(component.to_owned());
         }
     }
 }
@@ -422,9 +454,9 @@ fn min_js_dot_index(characters: &[u16], case_sensitive: bool) -> Option<usize> {
         .then_some(start)
 }
 
-fn regex_text_eq(left: &str, right: &str, case_sensitive: bool) -> bool {
-    let mut left = left.encode_utf16();
-    let mut right = right.encode_utf16();
+fn regex_text_eq(left: JsStr<'_>, right: JsStr<'_>, case_sensitive: bool) -> bool {
+    let mut left = left.code_units();
+    let mut right = right.code_units();
     loop {
         match (left.next(), right.next()) {
             (Some(left), Some(right)) if regex_code_unit_eq(left, right, case_sensitive) => {}

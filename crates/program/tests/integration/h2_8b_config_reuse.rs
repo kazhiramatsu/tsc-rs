@@ -17,28 +17,35 @@ fn diagnostic(d: &Diagnostic) -> Value {
         DiagnosticCategory::Suggestion => "suggestion",
         DiagnosticCategory::Message => "message",
     };
-    json!({"code": d.code(), "category": category, "file": d.file_name, "start": d.start, "length": d.length, "message": d.message_text(), "related_information": d.related.iter().map(|r| diagnostic(&Diagnostic::new(r.file_name.clone(),r.start,r.length,r.message.clone()))).collect::<Vec<_>>()})
+    json!({"code": d.code(), "category": category, "file": scalar_json(&d.file_name), "start": d.start, "length": d.length, "message": scalar_json(&d.message_text().as_str().expect("scalar diagnostic observation")), "related_information": d.related.iter().map(|r| diagnostic(&Diagnostic::new_js(r.file_name.clone(),r.start,r.length,r.message.clone()))).collect::<Vec<_>>()})
 }
 fn options(bag: &ConfigOptionBag) -> Value {
     let mut object = serde_json::Map::new();
     for entry in bag.entries() {
-        let value = match bag.typed_value_state(&entry.name) {
-            ConfigOptionValueState::Absent | ConfigOptionValueState::Undefined => continue,
-            ConfigOptionValueState::Value(v) => v.clone(),
-            ConfigOptionValueState::Object(v) => v.json_projection(),
-            ConfigOptionValueState::List(v) => Value::Array(
-                v.iter()
-                    .map(|v| match v {
-                        ConfigTypedListElement::Undefined => Value::Null,
-                        ConfigTypedListElement::Value(v) => v.clone(),
-                    })
-                    .collect(),
-            ),
-            ConfigOptionValueState::PositiveInfinity | ConfigOptionValueState::NegativeInfinity => {
-                Value::Null
-            }
-        };
-        object.insert(entry.name.clone(), value);
+        let value =
+            match bag.typed_value_state(entry.name.as_str().expect("scalar option observation")) {
+                ConfigOptionValueState::Absent | ConfigOptionValueState::Undefined => continue,
+                ConfigOptionValueState::Value(v) => scalar_json(v),
+                ConfigOptionValueState::Object(v) => scalar_json(&v.json_projection()),
+                ConfigOptionValueState::List(v) => Value::Array(
+                    v.iter()
+                        .map(|v| match v {
+                            ConfigTypedListElement::Undefined => Value::Null,
+                            ConfigTypedListElement::Value(v) => scalar_json(v),
+                        })
+                        .collect(),
+                ),
+                ConfigOptionValueState::PositiveInfinity
+                | ConfigOptionValueState::NegativeInfinity => Value::Null,
+            };
+        object.insert(
+            entry
+                .name
+                .as_str()
+                .expect("scalar option observation")
+                .to_owned(),
+            value,
+        );
     }
     Value::Object(object)
 }
@@ -82,13 +89,20 @@ impl ConfigParseHost for Host {
     fn use_case_sensitive_file_names(&self) -> bool {
         self.sensitive
     }
-    fn file_exists(&self, path: &str) -> Result<bool, ConfigHostError> {
+    fn file_exists(&self, path: tsc_diagnostics::JsStr<'_>) -> Result<bool, ConfigHostError> {
+        let path = path.as_str().expect("scalar config fixture query");
+
         Ok(
             !self.call(ConfigHostOperation::FileExists, path, json!({}))?
                 && self.files.borrow().contains_key(&self.key(path)),
         )
     }
-    fn read_file(&self, path: &str) -> Result<Option<String>, ConfigHostError> {
+    fn read_file(
+        &self,
+        path: tsc_diagnostics::JsStr<'_>,
+    ) -> Result<Option<String>, ConfigHostError> {
+        let path = path.as_str().expect("scalar config fixture query");
+
         if self.call(ConfigHostOperation::ReadFile, path, json!({}))? {
             return Ok(None);
         }
@@ -96,18 +110,44 @@ impl ConfigParseHost for Host {
     }
     fn read_directory(
         &self,
-        path: &str,
+        path: tsc_diagnostics::JsStr<'_>,
         extensions: &[&str],
-        excludes: Option<&[String]>,
-        includes: Option<&[String]>,
+        excludes: Option<&[tsc_diagnostics::JsString]>,
+        includes: Option<&[tsc_diagnostics::JsString]>,
         depth: Option<usize>,
-    ) -> Result<Vec<String>, ConfigHostError> {
-        self.call(
+    ) -> Result<Vec<tsc_diagnostics::JsString>, ConfigHostError> {
+        let path = path.as_str().expect("scalar config fixture directory");
+        let excludes_scalar = excludes.map(|items| {
+            items
+                .iter()
+                .map(|item| {
+                    item.as_str()
+                        .expect("scalar config fixture pattern")
+                        .to_owned()
+                })
+                .collect::<Vec<_>>()
+        });
+        let excludes = excludes_scalar.as_deref();
+        let includes_scalar = includes.map(|items| {
+            items
+                .iter()
+                .map(|item| {
+                    item.as_str()
+                        .expect("scalar config fixture pattern")
+                        .to_owned()
+                })
+                .collect::<Vec<_>>()
+        });
+        let includes = includes_scalar.as_deref();
+        (|| -> Result<Vec<String>, ConfigHostError> {
+            self.call(
             ConfigHostOperation::ReadDirectory,
             path,
             json!({"extensions":extensions,"excludes":excludes,"includes":includes,"depth":depth}),
         )?;
-        Ok(Vec::new())
+            Ok(Vec::new())
+        })()
+        .map(|paths| paths.into_iter().map(Into::into).collect())
     }
 }
 fn observe(case: &Value) -> Value {
@@ -142,14 +182,15 @@ fn observe(case: &Value) -> Value {
             cache.clear();
         }
         let request = ConfigRootPlanRequest {
-            file_name: config_path.to_owned(),
+            file_name: config_path.to_owned().into(),
             text: text.to_owned(),
             base_path: Path::new(config_path)
                 .parent()
                 .unwrap()
                 .to_str()
                 .unwrap()
-                .to_owned(),
+                .to_owned()
+                .into(),
         };
         let plan = if case["cache"] == true {
             parse_config_root_plan_with_cache(&host, request, &mut cache)
@@ -160,11 +201,11 @@ fn observe(case: &Value) -> Value {
             Ok(plan) => {
                 let mut converted = options(plan.options());
                 converted["configFilePath"] = json!(config_path);
-                json!({"calls":host.calls.borrow().clone(),"raw":plan.raw(),"options":converted,"watch_options":plan.watch_options(),"type_acquisition":plan.type_acquisition(),"compile_on_save":plan.compile_on_save_enabled(),"file_names":plan.file_names(),"extended_source_files":plan.extended_source_files(),"root_parse_diagnostics":plan.root_parse_diagnostics().iter().map(diagnostic).collect::<Vec<_>>(),"parsed_errors":plan.errors().iter().map(diagnostic).collect::<Vec<_>>(),"config_diagnostics":plan.diagnostics().map(diagnostic).collect::<Vec<_>>()})
+                json!({"calls":host.calls.borrow().clone(),"raw":scalar_json(&plan.raw()),"options":converted,"watch_options":scalar_json(&plan.watch_options()),"type_acquisition":scalar_json(&plan.type_acquisition()),"compile_on_save":plan.compile_on_save_enabled(),"file_names":scalar_json(&plan.file_names()),"extended_source_files":scalar_json(&plan.extended_source_files()),"root_parse_diagnostics":plan.root_parse_diagnostics().iter().map(diagnostic).collect::<Vec<_>>(),"parsed_errors":plan.errors().iter().map(diagnostic).collect::<Vec<_>>(),"config_diagnostics":plan.diagnostics().map(diagnostic).collect::<Vec<_>>()})
             }
             Err(error) => match error.host_error() {
                 Some(e) => {
-                    json!({"calls":host.calls.borrow().clone(),"host_failure":{"operation":e.operation().to_string(),"path":e.path(),"detail":e.detail()}})
+                    json!({"calls":host.calls.borrow().clone(),"host_failure":{"operation":e.operation().to_string(),"path":scalar_json(&e.path()),"detail":e.detail()}})
                 }
                 None => {
                     json!({"calls":host.calls.borrow().clone(),"unexpected_failure":error.to_string()})
@@ -203,3 +244,7 @@ fn config_reuse_matches_typescript_host_and_cache_observations() {
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
+
+#[path = "../support/scalar_json.rs"]
+mod utf16_scalar_json;
+use utf16_scalar_json::observe as scalar_json;

@@ -1615,7 +1615,7 @@ pub(super) fn project_checker_inputs(
         current_directory: prepared
             .current_directory()
             .display()
-            .to_str()
+            .as_str()
             .expect("current directory is Unicode")
             .to_owned(),
     }
@@ -1641,18 +1641,18 @@ fn options_from_record(record: &Value) -> CompilerOptions {
                         .collect(),
                 )
             }
-            "mapRoot" => options.map_root = Some(string_value(value)),
+            "mapRoot" => options.map_root = Some(string_value(value).into()),
             "module" => options.module = Some(i32_value(value)),
             "moduleResolution" => options.module_resolution = Some(i32_value(value)),
             "newLine" => options.new_line = Some(i32_value(value)),
             "noErrorTruncation" => options.no_error_truncation = Some(bool_value(value)),
             "noResolve" => options.no_resolve = Some(bool_value(value)),
-            "outDir" => options.out_dir = Some(string_value(value)),
-            "outFile" => options.out_file = Some(string_value(value)),
+            "outDir" => options.out_dir = Some(string_value(value).into()),
+            "outFile" => options.out_file = Some(string_value(value).into()),
             "removeComments" => options.remove_comments = Some(bool_value(value)),
             "skipDefaultLibCheck" => options.skip_default_lib_check = Some(bool_value(value)),
             "sourceMap" => options.source_map = Some(bool_value(value)),
-            "sourceRoot" => options.source_root = Some(string_value(value)),
+            "sourceRoot" => options.source_root = Some(string_value(value).into()),
             "strict" => options.strict = Some(bool_value(value)),
             "target" => options.target = Some(i32_value(value)),
             other => panic!("unprojected option_record key {other}"),

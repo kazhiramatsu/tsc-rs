@@ -83,7 +83,10 @@ impl EmitSymbolTracker for RecordingTracker {
             .push("inaccessible-this".to_owned());
     }
 
-    fn report_private_in_base_of_class_expression(&mut self, property_name: &str) {
+    fn report_private_in_base_of_class_expression(&mut self, property_name: tsc_types::JsStr<'_>) {
+        let property_name = property_name
+            .as_str()
+            .expect("scalar tracker event fixture");
         self.log
             .borrow_mut()
             .report_events
@@ -106,9 +109,12 @@ impl EmitSymbolTracker for RecordingTracker {
 
     fn report_likely_unsafe_import_required_error(
         &mut self,
-        specifier: &str,
-        symbol_name: Option<&str>,
+        specifier: tsc_types::JsStr<'_>,
+        symbol_name: Option<tsc_types::JsStr<'_>>,
     ) {
+        let specifier = specifier.as_str().expect("scalar tracker event fixture");
+        let symbol_name =
+            symbol_name.map(|value| value.as_str().expect("scalar tracker event fixture"));
         self.log.borrow_mut().report_events.push(format!(
             "unsafe-import:{specifier}:{}",
             symbol_name.unwrap_or_default()
@@ -136,7 +142,10 @@ impl EmitSymbolTracker for RecordingTracker {
             .push(format!("nonlocal:{primary}:{augmenting}"));
     }
 
-    fn report_non_serializable_property(&mut self, property_name: &str) {
+    fn report_non_serializable_property(&mut self, property_name: tsc_types::JsStr<'_>) {
+        let property_name = property_name
+            .as_str()
+            .expect("scalar tracker event fixture");
         self.log
             .borrow_mut()
             .report_events
@@ -319,7 +328,7 @@ fn with_test_context<R>(
 #[test]
 fn node_builder_context_construction_uses_upstream_defaults_and_bundled_gate() {
     let options = CompilerOptions {
-        out_file: Some("/dist/bundle.js".to_owned()),
+        out_file: Some(("/dist/bundle.js".to_owned()).into()),
         ..CompilerOptions::default()
     };
     with_program_state(&[("/main.ts", "export {};\n")], &options, |checker| {
@@ -636,7 +645,7 @@ fn node_builder_tracker_forwards_gates_and_records_only_non_type_parameters() {
         context.tracker.report_likely_unsafe_import_required_error(
             &mut context.reported_diagnostic,
             "pkg",
-            Some("Thing"),
+            Some("Thing".into()),
         );
         assert!(context.reported_diagnostic);
         context.reported_diagnostic = false;

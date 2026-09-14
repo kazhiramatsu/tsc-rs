@@ -94,23 +94,40 @@ struct InjectedFileSystem {
 }
 
 impl EmitFileSystem for InjectedFileSystem {
-    fn write_file(&mut self, path: &Path, bytes: &[u8]) -> Result<(), String> {
-        self.attempts.push(path.to_path_buf());
-        if path == self.fail_path {
-            return Err("injected stable H2.0b write failure".to_owned());
-        }
-        self.files.insert(path.to_path_buf(), bytes.to_vec());
-        Ok(())
+    fn write_file(
+        &mut self,
+        path: tsc_diagnostics::JsStr<'_>,
+        bytes: &[u8],
+    ) -> Result<(), tsc_diagnostics::JsString> {
+        let path = std::path::Path::new(path.as_str().expect("scalar fault-injection path"));
+        (|| -> Result<(), String> {
+            self.attempts.push(path.to_path_buf());
+            if path == self.fail_path {
+                return Err("injected stable H2.0b write failure".to_owned());
+            }
+            self.files.insert(path.to_path_buf(), bytes.to_vec());
+            Ok(())
+        })()
+        .map_err(Into::into)
     }
 
-    fn create_directory(&mut self, path: &Path) -> Result<(), String> {
-        Err(format!(
-            "unexpected parent-directory construction for {}",
-            path.display()
-        ))
+    fn create_directory(
+        &mut self,
+        path: tsc_diagnostics::JsStr<'_>,
+    ) -> Result<(), tsc_diagnostics::JsString> {
+        let path = std::path::Path::new(path.as_str().expect("scalar fault-injection path"));
+        (|| -> Result<(), String> {
+            Err(format!(
+                "unexpected parent-directory construction for {}",
+                path.display()
+            ))
+        })()
+        .map_err(Into::into)
     }
 
-    fn directory_exists(&mut self, path: &Path) -> bool {
+    fn directory_exists(&mut self, path: tsc_diagnostics::JsStr<'_>) -> bool {
+        let path = std::path::Path::new(path.as_str().expect("scalar fault-injection path"));
+
         path == Path::new("/project")
     }
 }
@@ -163,7 +180,7 @@ fn observe_fault(failed_index: usize) -> Result<(), Box<dyn std::error::Error>> 
             json!({
                 "code": diagnostic.code(),
                 "category": diagnostic.category().name(),
-                "message": diagnostic.message_text(),
+                "message": scalar_json(&diagnostic.message_text()),
             })
         })
         .collect::<Vec<_>>();
@@ -186,7 +203,7 @@ fn observe_fault(failed_index: usize) -> Result<(), Box<dyn std::error::Error>> 
             "failed_index": failed_index,
             "diagnostics": diagnostics,
             "emit_skipped": outcome.emit_skipped(),
-            "emitted_files": outcome.emitted_files(),
+            "emitted_files": scalar_json(&outcome.emitted_files()),
             "source_maps_present": outcome.source_maps().is_some(),
             "filesystem_attempts": filesystem.attempts,
             "successful_files": files,
@@ -222,3 +239,7 @@ fn activity_json(counters: H2ActivityCounters) -> Value {
         "runtime_slices": runtime,
     })
 }
+
+#[path = "../../program/tests/support/scalar_json.rs"]
+mod utf16_scalar_json;
+use utf16_scalar_json::observe as scalar_json;

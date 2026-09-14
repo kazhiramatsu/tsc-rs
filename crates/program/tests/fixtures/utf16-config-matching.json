@@ -1,0 +1,2288 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "460c9ab01624d4cbbedfccbad3d49910a59058a568e229e8b445201e43f5332b",
+  "repetitions": 2,
+  "paths_utf16": [
+    [
+      47,
+      112,
+      114,
+      111,
+      106,
+      101,
+      99,
+      116,
+      47,
+      97,
+      46,
+      116,
+      115
+    ],
+    [
+      47,
+      112,
+      114,
+      111,
+      106,
+      101,
+      99,
+      116,
+      47,
+      55296,
+      46,
+      116,
+      115
+    ],
+    [
+      47,
+      112,
+      114,
+      111,
+      106,
+      101,
+      99,
+      116,
+      47,
+      55297,
+      46,
+      116,
+      115
+    ],
+    [
+      47,
+      112,
+      114,
+      111,
+      106,
+      101,
+      99,
+      116,
+      47,
+      56320,
+      46,
+      116,
+      115
+    ],
+    [
+      47,
+      112,
+      114,
+      111,
+      106,
+      101,
+      99,
+      116,
+      47,
+      65533,
+      46,
+      116,
+      115
+    ],
+    [
+      47,
+      112,
+      114,
+      111,
+      106,
+      101,
+      99,
+      116,
+      47,
+      55296,
+      56320,
+      46,
+      116,
+      115
+    ],
+    [
+      47,
+      112,
+      114,
+      111,
+      106,
+      101,
+      99,
+      116,
+      47,
+      55296,
+      120,
+      46,
+      116,
+      115
+    ],
+    [
+      47,
+      112,
+      114,
+      111,
+      106,
+      101,
+      99,
+      116,
+      47,
+      120,
+      56320,
+      46,
+      116,
+      115
+    ],
+    [
+      47,
+      112,
+      114,
+      111,
+      106,
+      101,
+      99,
+      116,
+      47,
+      55296,
+      47,
+      97,
+      46,
+      116,
+      115
+    ],
+    [
+      47,
+      112,
+      114,
+      111,
+      106,
+      101,
+      99,
+      116,
+      47,
+      55297,
+      47,
+      97,
+      46,
+      116,
+      115
+    ],
+    [
+      47,
+      112,
+      114,
+      111,
+      106,
+      101,
+      99,
+      116,
+      47,
+      55296,
+      47,
+      110,
+      101,
+      115,
+      116,
+      101,
+      100,
+      47,
+      97,
+      46,
+      116,
+      115
+    ],
+    [
+      47,
+      112,
+      114,
+      111,
+      106,
+      101,
+      99,
+      116,
+      47,
+      55296,
+      47,
+      110,
+      111,
+      100,
+      101,
+      95,
+      109,
+      111,
+      100,
+      117,
+      108,
+      101,
+      115,
+      47,
+      97,
+      46,
+      116,
+      115
+    ],
+    [
+      47,
+      112,
+      114,
+      111,
+      106,
+      101,
+      99,
+      116,
+      47,
+      55296,
+      47,
+      46,
+      104,
+      105,
+      100,
+      100,
+      101,
+      110,
+      46,
+      116,
+      115
+    ],
+    [
+      47,
+      112,
+      114,
+      111,
+      106,
+      101,
+      99,
+      116,
+      47,
+      55296,
+      47,
+      65,
+      46,
+      84,
+      83
+    ],
+    [
+      47,
+      112,
+      114,
+      111,
+      106,
+      101,
+      99,
+      116,
+      47,
+      55296,
+      46,
+      109,
+      105,
+      110,
+      46,
+      106,
+      115
+    ],
+    [
+      47,
+      112,
+      114,
+      111,
+      106,
+      101,
+      99,
+      116,
+      47,
+      55296,
+      46,
+      106,
+      115
+    ],
+    [
+      47,
+      112,
+      114,
+      111,
+      106,
+      101,
+      99,
+      116,
+      47,
+      55297,
+      47,
+      46,
+      46,
+      47,
+      55296,
+      46,
+      116,
+      115
+    ],
+    [
+      47,
+      112,
+      114,
+      111,
+      106,
+      101,
+      99,
+      116,
+      47,
+      927,
+      931,
+      46,
+      116,
+      115
+    ],
+    [
+      47,
+      112,
+      114,
+      111,
+      106,
+      101,
+      99,
+      116,
+      47,
+      959,
+      963,
+      46,
+      116,
+      115
+    ],
+    [
+      67,
+      58,
+      47,
+      55296,
+      47,
+      97,
+      46,
+      116,
+      115
+    ],
+    [
+      47,
+      47,
+      55296,
+      47,
+      115,
+      101,
+      114,
+      118,
+      101,
+      114,
+      47,
+      97,
+      46,
+      116,
+      115
+    ],
+    [
+      104,
+      116,
+      116,
+      112,
+      115,
+      58,
+      47,
+      47,
+      55296,
+      47,
+      97,
+      46,
+      116,
+      115
+    ]
+  ],
+  "matching": [
+    {
+      "case_id": "0/true",
+      "spec_utf16": [
+        42,
+        46,
+        116,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": true,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          true,
+          true,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "0/false",
+      "spec_utf16": [
+        42,
+        46,
+        116,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": false,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          true,
+          true,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "1/true",
+      "spec_utf16": [
+        63,
+        46,
+        116,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": true,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "1/false",
+      "spec_utf16": [
+        63,
+        46,
+        116,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": false,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "2/true",
+      "spec_utf16": [
+        63,
+        63,
+        46,
+        116,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": true,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          true,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          true,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "2/false",
+      "spec_utf16": [
+        63,
+        63,
+        46,
+        116,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": false,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          true,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          true,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "3/true",
+      "spec_utf16": [
+        55296,
+        46,
+        116,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": true,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "3/false",
+      "spec_utf16": [
+        55296,
+        46,
+        116,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": false,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "4/true",
+      "spec_utf16": [
+        55297,
+        46,
+        116,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": true,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "4/false",
+      "spec_utf16": [
+        55297,
+        46,
+        116,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": false,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "5/true",
+      "spec_utf16": [
+        56320,
+        46,
+        116,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": true,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "5/false",
+      "spec_utf16": [
+        56320,
+        46,
+        116,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": false,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "6/true",
+      "spec_utf16": [
+        55296,
+        63,
+        46,
+        116,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": true,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "6/false",
+      "spec_utf16": [
+        55296,
+        63,
+        46,
+        116,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": false,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "7/true",
+      "spec_utf16": [
+        63,
+        56320,
+        46,
+        116,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": true,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "7/false",
+      "spec_utf16": [
+        63,
+        56320,
+        46,
+        116,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": false,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "8/true",
+      "spec_utf16": [
+        55296,
+        56320,
+        46,
+        116,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": true,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "8/false",
+      "spec_utf16": [
+        55296,
+        56320,
+        46,
+        116,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": false,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "9/true",
+      "spec_utf16": [
+        55296,
+        47,
+        42,
+        46,
+        116,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": true,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "9/false",
+      "spec_utf16": [
+        55296,
+        47,
+        42,
+        46,
+        116,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": false,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "10/true",
+      "spec_utf16": [
+        55296,
+        47,
+        42,
+        42,
+        47,
+        42,
+        46,
+        116,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": true,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "10/false",
+      "spec_utf16": [
+        55296,
+        47,
+        42,
+        42,
+        47,
+        42,
+        46,
+        116,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": false,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          true,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "11/true",
+      "spec_utf16": [
+        55296
+      ],
+      "base": "/project",
+      "case_sensitive": true,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          true,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "11/false",
+      "spec_utf16": [
+        55296
+      ],
+      "base": "/project",
+      "case_sensitive": false,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          true,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "12/true",
+      "spec_utf16": [
+        55296,
+        47,
+        42,
+        42
+      ],
+      "base": "/project",
+      "case_sensitive": true,
+      "expected": {
+        "compiled": false,
+        "matches": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "12/false",
+      "spec_utf16": [
+        55296,
+        47,
+        42,
+        42
+      ],
+      "base": "/project",
+      "case_sensitive": false,
+      "expected": {
+        "compiled": false,
+        "matches": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "13/true",
+      "spec_utf16": [],
+      "base": "/project",
+      "case_sensitive": true,
+      "expected": {
+        "compiled": false,
+        "matches": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "13/false",
+      "spec_utf16": [],
+      "base": "/project",
+      "case_sensitive": false,
+      "expected": {
+        "compiled": false,
+        "matches": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "14/true",
+      "spec_utf16": [
+        46,
+        46,
+        47,
+        112,
+        114,
+        111,
+        106,
+        101,
+        99,
+        116,
+        47,
+        55297,
+        46,
+        116,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": true,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "14/false",
+      "spec_utf16": [
+        46,
+        46,
+        47,
+        112,
+        114,
+        111,
+        106,
+        101,
+        99,
+        116,
+        47,
+        55297,
+        46,
+        116,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": false,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "15/true",
+      "spec_utf16": [
+        67,
+        58,
+        47,
+        55296,
+        47,
+        42,
+        46,
+        116,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": true,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "15/false",
+      "spec_utf16": [
+        67,
+        58,
+        47,
+        55296,
+        47,
+        42,
+        46,
+        116,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": false,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "16/true",
+      "spec_utf16": [
+        47,
+        47,
+        55296,
+        47,
+        115,
+        101,
+        114,
+        118,
+        101,
+        114,
+        47,
+        42,
+        46,
+        116,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": true,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "16/false",
+      "spec_utf16": [
+        47,
+        47,
+        55296,
+        47,
+        115,
+        101,
+        114,
+        118,
+        101,
+        114,
+        47,
+        42,
+        46,
+        116,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": false,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "17/true",
+      "spec_utf16": [
+        104,
+        116,
+        116,
+        112,
+        115,
+        58,
+        47,
+        47,
+        55296,
+        47,
+        42,
+        46,
+        116,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": true,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ]
+      }
+    },
+    {
+      "case_id": "17/false",
+      "spec_utf16": [
+        104,
+        116,
+        116,
+        112,
+        115,
+        58,
+        47,
+        47,
+        55296,
+        47,
+        42,
+        46,
+        116,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": false,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true
+        ]
+      }
+    },
+    {
+      "case_id": "18/true",
+      "spec_utf16": [
+        42,
+        46,
+        106,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": true,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "18/false",
+      "spec_utf16": [
+        42,
+        46,
+        106,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": false,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "19/true",
+      "spec_utf16": [
+        42,
+        46,
+        109,
+        105,
+        110,
+        46,
+        106,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": true,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "19/false",
+      "spec_utf16": [
+        42,
+        46,
+        109,
+        105,
+        110,
+        46,
+        106,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": false,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "20/true",
+      "spec_utf16": [
+        927,
+        63,
+        46,
+        116,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": true,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "case_id": "20/false",
+      "spec_utf16": [
+        927,
+        63,
+        46,
+        116,
+        115
+      ],
+      "base": "/project",
+      "case_sensitive": false,
+      "expected": {
+        "compiled": true,
+        "matches": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          true,
+          false,
+          false,
+          false
+        ]
+      }
+    }
+  ],
+  "folding": [
+    {
+      "value_utf16": [
+        65,
+        55296,
+        66
+      ],
+      "expected": [
+        97,
+        55296,
+        98
+      ]
+    },
+    {
+      "value_utf16": [
+        65,
+        55297,
+        66
+      ],
+      "expected": [
+        97,
+        55297,
+        98
+      ]
+    },
+    {
+      "value_utf16": [
+        65,
+        56320,
+        66
+      ],
+      "expected": [
+        97,
+        56320,
+        98
+      ]
+    },
+    {
+      "value_utf16": [
+        65,
+        65533,
+        66
+      ],
+      "expected": [
+        97,
+        65533,
+        98
+      ]
+    },
+    {
+      "value_utf16": [
+        927,
+        931
+      ],
+      "expected": [
+        959,
+        962
+      ]
+    },
+    {
+      "value_utf16": [
+        927,
+        931,
+        55296
+      ],
+      "expected": [
+        959,
+        962,
+        55296
+      ]
+    },
+    {
+      "value_utf16": [
+        927,
+        55296,
+        931
+      ],
+      "expected": [
+        959,
+        55296,
+        963
+      ]
+    },
+    {
+      "value_utf16": [
+        55296,
+        927,
+        931
+      ],
+      "expected": [
+        55296,
+        959,
+        962
+      ]
+    },
+    {
+      "value_utf16": [
+        927,
+        931,
+        55296,
+        913
+      ],
+      "expected": [
+        959,
+        962,
+        55296,
+        945
+      ]
+    },
+    {
+      "value_utf16": [
+        927,
+        931,
+        97
+      ],
+      "expected": [
+        959,
+        962,
+        97
+      ]
+    },
+    {
+      "value_utf16": [
+        927,
+        931,
+        304,
+        65
+      ],
+      "expected": [
+        959,
+        962,
+        304,
+        97
+      ]
+    },
+    {
+      "value_utf16": [
+        304,
+        305,
+        223,
+        931
+      ],
+      "expected": [
+        304,
+        305,
+        223,
+        963
+      ]
+    },
+    {
+      "value_utf16": [
+        55297,
+        56320
+      ],
+      "expected": [
+        55297,
+        56360
+      ]
+    },
+    {
+      "value_utf16": [
+        55297,
+        56360
+      ],
+      "expected": [
+        55297,
+        56360
+      ]
+    },
+    {
+      "value_utf16": [
+        55296,
+        47,
+        931
+      ],
+      "expected": [
+        55296,
+        47,
+        963
+      ]
+    },
+    {
+      "value_utf16": [
+        65,
+        55296,
+        55297,
+        66
+      ],
+      "expected": [
+        97,
+        55296,
+        55297,
+        98
+      ]
+    },
+    {
+      "value_utf16": [
+        65,
+        56320,
+        56321,
+        66
+      ],
+      "expected": [
+        97,
+        56320,
+        56321,
+        98
+      ]
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Range;
 use std::sync::Arc;
+use tsc_diagnostics::{JsStr, JsString};
 
 use tsc_syntax::{
     for_each_child, parse_source_file_from_snapshot, skip_trivia, LanguageVariant, NodeData,
@@ -57,15 +58,15 @@ impl PlannedTypeReferenceDirective {
 /// A source-owned triple-slash path reference and its diagnostic span.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PlannedPathReference {
-    file_name: String,
+    file_name: JsString,
     pos: u32,
     end: u32,
     preserve: bool,
 }
 
 impl PlannedPathReference {
-    pub fn file_name(&self) -> &str {
-        &self.file_name
+    pub fn file_name(&self) -> JsStr<'_> {
+        self.file_name.as_js()
     }
 
     pub const fn pos(&self) -> u32 {
@@ -92,15 +93,15 @@ impl PlannedPathReference {
 /// A source-owned triple-slash lib reference and its diagnostic span.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PlannedLibReferenceDirective {
-    file_name: String,
+    file_name: JsString,
     pos: u32,
     end: u32,
     preserve: bool,
 }
 
 impl PlannedLibReferenceDirective {
-    pub fn file_name(&self) -> &str {
-        &self.file_name
+    pub fn file_name(&self) -> JsStr<'_> {
+        self.file_name.as_js()
     }
 
     pub const fn pos(&self) -> u32 {
@@ -287,11 +288,7 @@ fn plan_module_requests_worker(
         ));
     }
 
-    let file_name = source
-        .path()
-        .display()
-        .to_str()
-        .ok_or_else(|| unsupported(source, "the source display path is not valid Unicode"))?;
+    let file_name = source.path().display();
     let import_syntax_affects_resolution = import_syntax_affects_module_resolution(options);
     let (static_mode, dynamic_mode) = if import_syntax_affects_resolution {
         let file_emit_kind = file_emit_module_kind(source, file_name, module_kind)?;
@@ -772,14 +769,19 @@ fn byte_to_utf16_offset(text: &str, byte_offset: usize) -> u32 {
 
 /// `isDeclarationFileName` includes arbitrary-extension declaration twins
 /// such as `style.d.css.ts`, in addition to the three standard spellings.
-pub(crate) fn is_declaration_file_name(file_name: &str) -> bool {
+pub(crate) fn is_declaration_file_name<'a>(file_name: impl Into<JsStr<'a>>) -> bool {
+    let file_name = file_name.into();
     if file_name.ends_with(".d.ts")
         || file_name.ends_with(".d.cts")
         || file_name.ends_with(".d.mts")
     {
         return true;
     }
-    let base_name = file_name.rsplit(['/', '\\']).next().unwrap_or(file_name);
+    let base_name = file_name.split_ascii(b'/').next_back().unwrap_or(file_name);
+    let base_name = base_name
+        .split_ascii(b'\\')
+        .next_back()
+        .unwrap_or(base_name);
     base_name.ends_with(".ts") && base_name.contains(".d.")
 }
 
@@ -999,9 +1001,9 @@ fn collect_static_module_reference_statements(
                     continue;
                 }
                 let name_text = match &name_node.data {
-                    NodeData::StringLiteral(literal) => literal.text.as_str(),
-                    NodeData::Identifier(identifier) => identifier.text.as_str(),
-                    _ => "",
+                    NodeData::StringLiteral(literal) => literal.text.as_js(),
+                    NodeData::Identifier(identifier) => JsStr::from_str(&identifier.text),
+                    _ => JsStr::from_str(""),
                 };
                 let is_augmentation = parsed.external_module_indicator.is_some()
                     || (in_ambient_module && !is_external_module_name_relative(name_text));
@@ -1212,10 +1214,13 @@ fn resolution_mode_override(parsed: &SourceFile, attributes: NodeId) -> Option<R
     }
 }
 
+// This projection serves only resolution-mode's exact ASCII spellings above.
+// A non-scalar value cannot equal any of those three strings; its original
+// literal ownership and resolution key are unaffected.
 fn string_literal_like_text(parsed: &SourceFile, node: NodeId) -> Option<&str> {
     match &parsed.arena.node(node).data {
-        NodeData::StringLiteral(literal) => Some(&literal.text),
-        NodeData::NoSubstitutionTemplateLiteral(literal) => Some(&literal.text),
+        NodeData::StringLiteral(literal) => literal.text.as_str(),
+        NodeData::NoSubstitutionTemplateLiteral(literal) => literal.text.as_str(),
         _ => None,
     }
 }
@@ -1223,7 +1228,10 @@ fn string_literal_like_text(parsed: &SourceFile, node: NodeId) -> Option<&str> {
 /// Port of TypeScript's getJSXImplicitImportBase and getJSXRuntimeImport.
 /// The parser keeps the final recognized pragma value, matching the
 /// compiler's last-write-wins pragma map.
-fn jsx_runtime_import_specifier(parsed: &SourceFile, options: &CompilerOptions) -> Option<String> {
+fn jsx_runtime_import_specifier(
+    parsed: &SourceFile,
+    options: &CompilerOptions,
+) -> Option<JsString> {
     if parsed
         .jsx_runtime_pragma
         .as_deref()
@@ -1236,26 +1244,31 @@ fn jsx_runtime_import_specifier(parsed: &SourceFile, options: &CompilerOptions) 
         .jsx_import_source_pragma
         .as_deref()
         .filter(|source| !source.is_empty())
+        .map(JsStr::from)
         .or_else(|| {
             options
                 .jsx_import_source
-                .as_deref()
+                .as_ref()
                 .filter(|source| !source.is_empty())
+                .map(JsString::as_js)
         })
-        .or_else(|| matches!(options.jsx, Some(4 | 5)).then_some("react"))
+        .or_else(|| matches!(options.jsx, Some(4 | 5)).then_some(JsStr::from("react")))
         .or_else(|| {
             parsed
                 .jsx_runtime_pragma
                 .as_deref()
                 .filter(|runtime| runtime.eq_ignore_ascii_case("automatic"))
-                .map(|_| "react")
+                .map(|_| JsStr::from("react"))
         })?;
     let runtime = if options.jsx == Some(5) {
         "jsx-dev-runtime"
     } else {
         "jsx-runtime"
     };
-    Some(format!("{base}/{runtime}"))
+    let mut specifier = base.to_owned();
+    specifier.push('/');
+    specifier.push_str(runtime);
+    Some(specifier)
 }
 
 /// tsc `importSyntaxAffectsModuleResolution`, including the computed package
@@ -1268,7 +1281,7 @@ fn import_syntax_affects_module_resolution(options: &CompilerOptions) -> bool {
                 || options.resolve_package_json_imports != Some(false)))
 }
 
-fn is_javascript_file_name(file_name: &str) -> bool {
+fn is_javascript_file_name(file_name: JsStr<'_>) -> bool {
     [".js", ".jsx", ".mjs", ".cjs"]
         .iter()
         .any(|extension| file_name.ends_with(extension))
@@ -1279,7 +1292,7 @@ fn is_javascript_file_name(file_name: &str) -> bool {
 /// the computed `module` kind is used.
 fn file_emit_module_kind(
     source: &PreparedSourceFile,
-    file_name: &str,
+    file_name: JsStr<'_>,
     module_kind: i32,
 ) -> Result<i32, ResolutionError> {
     if let Some(mode) = source.implied_node_format_for_emit() {
@@ -1299,7 +1312,8 @@ fn file_emit_module_kind(
         return Err(unsupported(
             source,
             format!(
-                "{file_name} has no authoritative implied Node format for module kind {module_kind}"
+                "{} has no authoritative implied Node format for module kind {module_kind}",
+                file_name.to_string_lossy()
             ),
         ));
     }
@@ -1370,7 +1384,11 @@ fn is_import_call_callee(source: &SourceFile, callee: NodeId) -> bool {
 fn unsupported(source: &PreparedSourceFile, detail: impl Into<String>) -> ResolutionError {
     ResolutionError::unsupported(
         FEATURE,
-        format!("{}: {}", source.path().display().display(), detail.into()),
+        format!(
+            "{}: {}",
+            source.path().display().to_string_lossy(),
+            detail.into()
+        ),
     )
 }
 

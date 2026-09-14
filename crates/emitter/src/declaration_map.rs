@@ -3,7 +3,7 @@
 //! The declaration lane shares the JavaScript map generator, path workers and
 //! UTF-16 writer positions. Its map options explicitly omit both inline flags.
 
-use std::path::{Path, PathBuf};
+use tsc_diagnostics::{JsStr, JsString};
 
 use tsc_diagnostics::Diagnostic;
 use tsc_types::CompilerOptions;
@@ -31,7 +31,7 @@ pub(crate) fn map_options(options: &CompilerOptions) -> CompilerOptions {
 pub fn declaration_bundle_map_recording_inputs_for(
     lane: &MapLaneInputs,
     options: &CompilerOptions,
-    declaration_path: &Path,
+    declaration_path: JsStr<'_>,
 ) -> SourceMapRecordingInputs {
     crate::execute::source_map_recording_inputs_for_output(
         lane,
@@ -44,8 +44,8 @@ pub fn declaration_bundle_map_recording_inputs_for(
 pub fn declaration_map_recording_inputs_for(
     lane: &MapLaneInputs,
     options: &CompilerOptions,
-    declaration_path: &Path,
-    source_path: &Path,
+    declaration_path: JsStr<'_>,
+    source_path: JsStr<'_>,
 ) -> SourceMapRecordingInputs {
     source_map_recording_inputs_for(lane, &map_options(options), declaration_path, source_path)
 }
@@ -67,9 +67,9 @@ pub struct DeclarationMapEmit {
 pub fn finish_declaration_map(
     lane: &MapLaneInputs,
     options: &CompilerOptions,
-    declaration_path: &Path,
-    map_path: &Path,
-    source_path: &Path,
+    declaration_path: JsStr<'_>,
+    map_path: JsStr<'_>,
+    source_path: JsStr<'_>,
     printed: &PrintedText,
     diagnostics: Vec<Diagnostic>,
     new_line: NewLineKind,
@@ -80,7 +80,7 @@ pub fn finish_declaration_map(
         declaration_path,
         map_path,
         Some(source_path),
-        &[source_path.to_path_buf()],
+        &[source_path.to_owned()],
         printed,
         diagnostics,
         new_line,
@@ -93,9 +93,9 @@ pub fn finish_declaration_map(
 pub fn finish_declaration_bundle_map(
     lane: &MapLaneInputs,
     options: &CompilerOptions,
-    declaration_path: &Path,
-    map_path: &Path,
-    source_files: &[PathBuf],
+    declaration_path: JsStr<'_>,
+    map_path: JsStr<'_>,
+    source_files: &[JsString],
     printed: &PrintedText,
     diagnostics: Vec<Diagnostic>,
     new_line: NewLineKind,
@@ -117,10 +117,10 @@ pub fn finish_declaration_bundle_map(
 fn finish_declaration_map_for_output(
     lane: &MapLaneInputs,
     options: &CompilerOptions,
-    declaration_path: &Path,
-    map_path: &Path,
-    source_path: Option<&Path>,
-    source_files: &[PathBuf],
+    declaration_path: JsStr<'_>,
+    map_path: JsStr<'_>,
+    source_path: Option<JsStr<'_>>,
+    source_files: &[JsString],
     printed: &PrintedText,
     diagnostics: Vec<Diagnostic>,
     new_line: NewLineKind,
@@ -130,11 +130,7 @@ fn finish_declaration_map_for_output(
     ))?;
     let map_json = generator.to_json_string();
     let observation = SourceMapObservation::new(
-        generator
-            .raw_sources()
-            .iter()
-            .map(|name| name.as_ref().into())
-            .collect(),
+        generator.raw_sources().iter().cloned().collect(),
         map_json.clone().into_boxed_str(),
     );
     let url = crate::execute::source_mapping_url_for_output(

@@ -1,6 +1,6 @@
 //! Declaration Bundle visitor. Shared references belong to the output bundle;
 //! visibility, scope markers, and late-painted declarations belong to a source.
-use std::path::Path;
+use tsc_diagnostics::{JsStr, JsString};
 
 use tsc_syntax::{NodeData, SyntaxKind};
 use tsc_types::NodeFlags;
@@ -27,7 +27,7 @@ pub(super) fn transform_bundle(
             DeclarationTransformer::contract("bundle declaration output path is required")
         })?;
     let declaration_path = normalize_slashes(declaration_path);
-    let output_directory = declaration_path.parent().unwrap_or_else(|| Path::new(""));
+    let output_directory = crate::source_map::paths::directory_path(&declaration_path);
     let mut raw_references = RawFileReferences::default();
     let mut sources = Vec::with_capacity(bundle.sources().len());
     let mut last_source = None;
@@ -43,7 +43,7 @@ pub(super) fn transform_bundle(
             .program_source()
             .ok_or(TransformError::MissingProgramSource(root))?;
         let is_javascript = is_javascript_source(&syntax, context.arena().node(root)?.flags);
-        let is_json = syntax.file_name.to_ascii_lowercase().ends_with(".json");
+        let is_json = crate::builtins::is_json_file_name(&syntax.file_name);
         let resolver_node = transformer.required_resolver_node(context, root)?;
         let wrapped = transformer
             .resolver
@@ -146,7 +146,7 @@ pub(super) fn transform_bundle(
             transformer,
             context.arena(),
             source,
-            output_directory,
+            output_directory.as_js(),
             program_source,
             Some(bundle.sources()),
         )?
@@ -166,8 +166,8 @@ pub(super) fn external_module_name_from_declaration(
     transformer: &DeclarationTransformer<'_>,
     context: &TransformationContext,
     declaration: crate::TransformNode,
-    specifier: &str,
-) -> Result<Option<String>, TransformError> {
+    specifier: JsStr<'_>,
+) -> Result<Option<JsString>, TransformError> {
     let declaration = transformer.required_resolver_node(context, declaration)?;
     let Some(target) = transformer
         .resolver
@@ -198,8 +198,8 @@ pub(super) fn external_module_name_from_declaration(
         || specifier.starts_with("..\\");
     if !relative {
         use crate::source_map::paths;
-        let cwd = paths::normalize_slashes(&transformer.host.current_directory().to_string_lossy());
-        let canonical = |path: &str| {
+        let cwd = paths::normalize_slashes(transformer.host.current_directory());
+        let canonical = |path: JsStr<'_>| {
             let normalized = paths::get_normalized_absolute_path(path, &cwd);
             if transformer.host.use_case_sensitive_file_names() {
                 normalized
@@ -207,15 +207,15 @@ pub(super) fn external_module_name_from_declaration(
                 paths::to_file_name_lower_case(&normalized)
             }
         };
-        let common =
-            paths::normalize_slashes(&transformer.host.common_source_directory().to_string_lossy());
-        let common = if common.ends_with('/') {
-            common
-        } else {
-            format!("{common}/")
-        };
+        let common = paths::normalize_slashes(transformer.host.common_source_directory());
+        let common = paths::ensure_trailing_directory_separator(&common);
         // Upstream uses includes, not a path-prefix test.
-        if !canonical(&file.canonical_path().to_string_lossy()).contains(&canonical(&common)) {
+        let file_units = canonical(file.canonical_path()).to_utf16();
+        let common_units = canonical(common.as_js()).to_utf16();
+        if !file_units
+            .windows(common_units.len())
+            .any(|units| units == common_units)
+        {
             return Ok(None);
         }
     }

@@ -23,7 +23,7 @@ fn message(chain: &MessageChain, depth: usize, out: &mut String) {
         out.push('\n');
         out.push_str(&"  ".repeat(depth));
     }
-    out.push_str(&chain.text);
+    out.push_str(chain.text.as_str().expect("scalar diagnostic observation"));
     for child in &chain.next {
         message(child, depth + 1, out);
     }
@@ -37,10 +37,10 @@ fn diagnostics(values: &[Diagnostic]) -> Value {
             json!(d.related.iter().map(|r| {
                 let mut text = String::new(); message(&r.message, 0, &mut text);
                 json!({"code":r.message.code,"category":format!("{:?}",r.message.category),
-                    "file":r.file_name,"start":r.start,"length":r.length,"message":text,"related_information":null})
+                    "file":scalar_json(&r.file_name),"start":r.start,"length":r.length,"message":text,"related_information":null})
             }).collect::<Vec<_>>())
         } else { Value::Null };
-        json!({"code":d.code(),"category":format!("{:?}",d.category()),"file":d.file_name,
+        json!({"code":d.code(),"category":format!("{:?}",d.category()),"file":scalar_json(&d.file_name),
             "start":d.start,"length":d.length,"message":text,"related_information":related})
     }).collect::<Vec<_>>())
 }
@@ -58,7 +58,14 @@ pub(super) fn assert_prepared_facts(case_id: &str, program: &PreparedProgram, ex
         .source_files()
         .iter()
         .filter(|source| !libraries.contains(source.path().canonical()))
-        .map(|source| source.path().display().to_string_lossy().into_owned())
+        .map(|source| {
+            source
+                .path()
+                .display()
+                .scalar_test_path()
+                .to_string_lossy()
+                .into_owned()
+        })
         .collect::<Vec<_>>();
     assert_eq!(
         json!(files),
@@ -75,17 +82,18 @@ pub(super) fn assert_prepared_facts(case_id: &str, program: &PreparedProgram, ex
             .unwrap()
             .path()
             .display()
+            .scalar_test_path()
             .to_string_lossy()
             .into_owned()
     };
     let modules = program.resolutions().modules().filter(|(key, _)| !libraries.contains(key.source()))
         .map(|(key, resolution)| {
             let (file, extension) = match resolution.outcome() {
-                ResolutionOutcome::Resolved(module) => (Some(module.target().resolved_file().display().to_string_lossy().into_owned()), Some(module.extension().as_str().to_owned())),
+                ResolutionOutcome::Resolved(module) => (Some(module.target().resolved_file().display().scalar_test_path().to_string_lossy().into_owned()), Some(module.extension().as_js().as_str().expect("scalar extension observation").to_owned())),
                 ResolutionOutcome::NotFound => (None, None),
             };
             let mode = match key.mode() { ResolutionMode::CommonJs => Some(1), ResolutionMode::EsNext => Some(99), ResolutionMode::Unspecified => None };
-            json!({"source":sources(key.source()),"specifier":key.specifier(),"mode":mode,
+            json!({"source":sources(key.source()),"specifier":scalar_json(&key.specifier()),"mode":mode,
                 "resolved_file":file,"extension":extension,"diagnostics":diagnostics(resolution.diagnostics())})
         }).collect::<Vec<_>>();
     assert_eq!(
@@ -104,7 +112,7 @@ pub(super) fn assert_prepared_facts(case_id: &str, program: &PreparedProgram, ex
             );
             let (file, primary) = match resolution.outcome() {
                 ResolutionOutcome::Resolved(target) => (
-                    Some(target.target().display().to_string_lossy().into_owned()),
+                    Some(target.target().display().scalar_test_path().to_string_lossy().into_owned()),
                     Some(target.primary()),
                 ),
                 ResolutionOutcome::NotFound => (None, None),
@@ -118,7 +126,7 @@ pub(super) fn assert_prepared_facts(case_id: &str, program: &PreparedProgram, ex
                 .filter(|d| d.file_name.is_none())
                 .cloned()
                 .collect::<Vec<_>>();
-            json!({"source":sources(key.origin().canonical_path()),"specifier":key.specifier(),
+            json!({"source":sources(key.origin().canonical_path()),"specifier":scalar_json(&key.specifier()),
                 "resolved_file":file,"primary":primary,"diagnostics":diagnostics(&raw)})
         })
         .collect::<Vec<_>>();
@@ -138,3 +146,11 @@ fn root_diagnostic_module_format_notes_match_complete_observations() {
     assert_eq!(artifact["cases"].as_array().unwrap().len(), 50);
     super::h2_7c_declaration_blocking::assert_cases_with_reporting(&artifact, true);
 }
+
+#[path = "../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;
+
+#[path = "../../../program/tests/support/scalar_json.rs"]
+mod utf16_scalar_json;
+use utf16_scalar_json::observe as scalar_json;

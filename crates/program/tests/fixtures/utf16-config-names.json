@@ -1,0 +1,136 @@
+{
+  "scope": "Exact option lookup and getSpellingSuggestion API only",
+  "typescript_version": "6.0.3",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "88ff02ffed8b7ed4ff9b17af67b185801a1cb38a7d812f4f0d72b95cb8bd6b77",
+  "repetitions": 2,
+  "cases": [
+    {
+      "units": [
+        115,
+        116,
+        114,
+        105,
+        99,
+        55296
+      ],
+      "exact": null,
+      "suggestion": "strict"
+    },
+    {
+      "units": [
+        115,
+        116,
+        114,
+        105,
+        99,
+        55297
+      ],
+      "exact": null,
+      "suggestion": "strict"
+    },
+    {
+      "units": [
+        115,
+        116,
+        114,
+        105,
+        99,
+        56320
+      ],
+      "exact": null,
+      "suggestion": "strict"
+    },
+    {
+      "units": [
+        115,
+        116,
+        114,
+        105,
+        99,
+        65533
+      ],
+      "exact": null,
+      "suggestion": "strict"
+    },
+    {
+      "units": [
+        115,
+        116,
+        114,
+        105,
+        99,
+        92,
+        117,
+        68,
+        56,
+        48,
+        48
+      ],
+      "exact": null,
+      "suggestion": null
+    },
+    {
+      "units": [
+        55296,
+        115,
+        116,
+        114,
+        105,
+        99,
+        116
+      ],
+      "exact": null,
+      "suggestion": "strict"
+    },
+    {
+      "units": [
+        115,
+        116,
+        114,
+        105,
+        99,
+        55357,
+        56832
+      ],
+      "exact": null,
+      "suggestion": null
+    },
+    {
+      "units": [
+        115,
+        116,
+        114,
+        105,
+        99,
+        116
+      ],
+      "exact": "strict",
+      "suggestion": null
+    },
+    {
+      "units": [
+        83,
+        116,
+        114,
+        105,
+        99,
+        116
+      ],
+      "exact": null,
+      "suggestion": "strict"
+    },
+    {
+      "units": [
+        116,
+        97,
+        114,
+        103,
+        101,
+        116
+      ],
+      "exact": "target",
+      "suggestion": null
+    }
+  ]
+}

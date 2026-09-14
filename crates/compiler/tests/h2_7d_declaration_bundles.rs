@@ -26,14 +26,14 @@ fn options(value: &Value) -> CompilerOptions {
             "module" => options.module = Some(value.as_i64().unwrap() as i32),
             "moduleResolution" => options.module_resolution = Some(value.as_i64().unwrap() as i32),
             "declaration" => options.declaration = value.as_bool(),
-            "outFile" => options.out_file = value.as_str().map(str::to_owned),
+            "outFile" => options.out_file = value.as_str().map(Into::into),
             "listEmittedFiles" => options.list_emitted_files = value.as_bool(),
-            "ignoreDeprecations" => options.ignore_deprecations = value.as_str().map(str::to_owned),
+            "ignoreDeprecations" => options.ignore_deprecations = value.as_str().map(Into::into),
             "strict" => options.strict = value.as_bool(),
             "skipDefaultLibCheck" => options.skip_default_lib_check = value.as_bool(),
             "noErrorTruncation" => options.no_error_truncation = value.as_bool(),
             "newLine" => options.new_line = Some(value.as_i64().unwrap() as i32),
-            "declarationDir" => options.declaration_dir = value.as_str().map(str::to_owned),
+            "declarationDir" => options.declaration_dir = value.as_str().map(Into::into),
             "emitBOM" => options.emit_bom = value.as_bool(),
             "allowJs" => options.allow_js = value.as_bool().unwrap(),
             "checkJs" => options.check_js = value.as_bool(),
@@ -120,14 +120,14 @@ impl GlobalNameOracle for GlobalNames<'_> {
 }
 
 fn reference(reference: &FileReference) -> Value {
-    let mut value = json!({"pos":reference.pos as i32,"end":reference.end as i32,"fileName":reference.file_name});
+    let mut value = json!({"pos":reference.pos as i32,"end":reference.end as i32,"fileName":scalar_json(&reference.file_name)});
     if reference.preserve {
         value["preserve"] = json!(true);
     }
     value
 }
 fn type_reference(reference: &TypeReferenceDirective) -> Value {
-    let mut value = json!({"pos":reference.pos as i32,"end":reference.end as i32,"fileName":reference.file_name});
+    let mut value = json!({"pos":reference.pos as i32,"end":reference.end as i32,"fileName":scalar_json(&reference.file_name)});
     if reference.preserve {
         value["preserve"] = json!(true);
     }
@@ -143,7 +143,12 @@ fn type_reference(reference: &TypeReferenceDirective) -> Value {
 fn node_name(arena: &TransformArena, node: Option<TransformNode>) -> Option<String> {
     match &arena.node(node?).ok()?.data {
         NodeData::Identifier(data) => Some(data.text.clone()),
-        NodeData::StringLiteral(data) => Some(data.text.clone()),
+        NodeData::StringLiteral(data) => Some(
+            data.text
+                .as_str()
+                .expect("scalar bundle literal observation")
+                .to_owned(),
+        ),
         _ => None,
     }
 }
@@ -262,7 +267,7 @@ fn bundle_shape(result: &TransformationResult<'_>, bundle: &TransformBundle) -> 
         let root = arena.root(source).unwrap();
         let NodeData::SourceFile(data) = &arena.node(root).unwrap().data else {panic!("source")};
         let array = arena.node_array(TransformNodeArray::new(source, data.statements.unwrap())).unwrap();
-        json!({"file_name":syntax.file_name,"is_declaration_file":syntax.is_declaration_file,
+        json!({"file_name":scalar_json(&syntax.file_name),"is_declaration_file":syntax.is_declaration_file,
             "module_name":syntax.module_name,"has_no_default_lib":arena.source(source).unwrap().updated_has_no_default_lib(),
             "referenced_files":syntax.referenced_files.iter().map(reference).collect::<Vec<_>>(),
             "type_reference_directives":syntax.type_reference_directives.iter().map(type_reference).collect::<Vec<_>>(),
@@ -277,11 +282,11 @@ fn bundle_shape(result: &TransformationResult<'_>, bundle: &TransformBundle) -> 
 
 fn diagnostic(value: &tsc_diagnostics::Diagnostic) -> Value {
     json!({"code":value.code(),"category":format!("{:?}",value.category()),
-        "file":value.file_name,"start":value.start,"length":value.length,
-        "message":value.message_text(),"related_information":(value.related_information_present || !value.related.is_empty()).then(||value.related.iter().map(|related| {
+        "file":scalar_json(&value.file_name),"start":value.start,"length":value.length,
+        "message":scalar_json(&value.message_text().as_str().expect("scalar diagnostic observation")),"related_information":(value.related_information_present || !value.related.is_empty()).then(||value.related.iter().map(|related| {
             assert!(related.message.next.is_empty());
             json!({"code":related.message.code,"category":format!("{:?}",related.message.category),
-                "file":related.file_name,"start":related.start,"length":related.length,"message":related.message.text,"related_information":null})
+                "file":scalar_json(&related.file_name),"start":related.start,"length":related.length,"message":scalar_json(&related.message.text),"related_information":null})
         }).collect::<Vec<_>>())})
 }
 
@@ -368,7 +373,7 @@ fn compare_visitor(case: &Value, host: &dyn EmitHost, resolver: &dyn EmitResolve
         expected["emit_result"]["diagnostics"]
     );
     let path = paths.bundle_declaration_file_path().unwrap();
-    if !diagnostics.is_empty() || preflight.is_emit_blocked(host, &path) {
+    if !diagnostics.is_empty() || preflight.is_emit_blocked(host, path.as_js()) {
         assert!(declaration_writes.is_empty());
         assert_eq!(expected["emit_result"]["emit_skipped"], true);
         result.dispose();
@@ -378,17 +383,19 @@ fn compare_visitor(case: &Value, host: &dyn EmitHost, resolver: &dyn EmitResolve
     let write = declaration_writes[0];
     assert_eq!(path.to_string_lossy(), write["path"].as_str().unwrap());
     assert_eq!(
-        json!(bundle
-            .sources()
-            .iter()
-            .map(|&source| result
-                .arena()
-                .source(source)
-                .unwrap()
-                .syntax()
-                .file_name
-                .clone())
-            .collect::<Vec<_>>()),
+        scalar_json(
+            &bundle
+                .sources()
+                .iter()
+                .map(|&source| result
+                    .arena()
+                    .source(source)
+                    .unwrap()
+                    .syntax()
+                    .file_name
+                    .clone())
+                .collect::<Vec<_>>()
+        ),
         write["source_files"]
     );
     let newline = if options.new_line == Some(0) {
@@ -581,13 +588,13 @@ fn compare_map_artifact(actual: &tsc_emitter::EmitArtifact, expected: &Value) {
 fn compare_recorded_output(
     case: &Value,
     printed: &tsc_emitter::PrintedText,
-    path: &Path,
-    map_path: Option<&Path>,
+    path: tsc_diagnostics::JsStr<'_>,
+    map_path: Option<tsc_diagnostics::JsStr<'_>>,
     map_options: &CompilerOptions,
     lane: &tsc_emitter::MapLaneInputs,
-    first_source_path: &Path,
+    first_source_path: tsc_diagnostics::JsStr<'_>,
     declaration: bool,
-    source_files: &[PathBuf],
+    source_files: &[tsc_diagnostics::JsString],
     map_observations: &mut Vec<Value>,
 ) {
     let expected = &case["typescript_observation"];
@@ -595,7 +602,7 @@ fn compare_recorded_output(
         .as_array()
         .unwrap()
         .iter()
-        .find(|write| write["path"] == path.to_string_lossy().as_ref())
+        .find(|write| write["path"] == path.scalar_test_path().to_string_lossy().as_ref())
         .unwrap();
     let newline = if case["options"]["newLine"] == 0 {
         "\r\n"
@@ -623,12 +630,19 @@ fn compare_recorded_output(
                 .as_array()
                 .unwrap()
                 .iter()
-                .find(|write| write["path"] == artifact.path().to_string_lossy().as_ref())
+                .find(|write| {
+                    write["path"]
+                        == artifact
+                            .path()
+                            .scalar_test_path()
+                            .to_string_lossy()
+                            .as_ref()
+                })
                 .unwrap();
             compare_map_artifact(artifact, expected_write);
         }
         map_observations.push(
-            json!({ "input_source_file_names": artifacts.observation.input_source_files(),
+            json!({ "input_source_file_names": scalar_json(artifacts.observation.input_source_files()),
             "source_map_json": artifacts.observation.canonical_json() }),
         );
         return;
@@ -638,14 +652,16 @@ fn compare_recorded_output(
         let mut generator = generator.clone();
         let map_json = generator.to_json_string();
         map_observations.push(json!({
-            "input_source_file_names": generator.raw_sources(), "source_map_json": map_json,
+            "input_source_file_names": scalar_json(generator.raw_sources()), "source_map_json": map_json,
         }));
         if let Some(map_path) = map_path {
             let map_write = expected["writes"]
                 .as_array()
                 .unwrap()
                 .iter()
-                .find(|write| write["path"] == map_path.to_string_lossy().as_ref())
+                .find(|write| {
+                    write["path"] == map_path.scalar_test_path().to_string_lossy().as_ref()
+                })
                 .unwrap();
             let expected_map = base64::engine::general_purpose::STANDARD
                 .decode(map_write["callback_utf8_base64"].as_str().unwrap())
@@ -763,21 +779,22 @@ fn compare_bundle_recording(
         assert_eq!(write["source_files"], json!(associated));
     }
     let first = root.source_files()[0];
-    let first_source_path = host.source_file(first).unwrap().path().to_path_buf();
+    let first_source_path = host.source_file(first).unwrap().path().to_owned();
     let common = host
         .common_source_directory()
         .to_string_lossy()
         .replace('\\', "/");
     let lane = MapLaneInputs {
         common_source_directory: if common.ends_with('/') {
-            common
+            common.into()
         } else {
-            format!("{common}/")
+            format!("{common}/").into()
         },
         current_directory: host
             .current_directory()
             .to_string_lossy()
-            .replace('\\', "/"),
+            .replace('\\', "/")
+            .into(),
         use_case_sensitive_source_keys: host.use_case_sensitive_file_names(),
     };
     let new_line = if options.new_line == Some(0) {
@@ -879,7 +896,12 @@ fn compare_bundle_recording(
             if declaration {
                 tsc_emitter::declaration_bundle_map_recording_inputs_for(&lane, options, path)
             } else {
-                source_map_recording_inputs_for(&lane, &map_options, path, &first_source_path)
+                source_map_recording_inputs_for(
+                    &lane,
+                    &map_options,
+                    path,
+                    first_source_path.as_js(),
+                )
             }
         });
         let printer_options = PrinterOptions::new(new_line)
@@ -942,7 +964,7 @@ fn compare_bundle_recording(
                         if metadata.flags().is_empty() && metadata.type_node().is_none() {
                             continue;
                         }
-                        actual_metadata.push(json!({ "file": parsed.file_name, "kind": format!("{:?}", record.kind),
+                        actual_metadata.push(json!({ "file": scalar_json(&parsed.file_name), "kind": format!("{:?}", record.kind),
                             "pos": parsed.positions().byte_to_utf16(record.pos).unwrap(),
                             "end": parsed.positions().byte_to_utf16(record.end).unwrap(), "flags": metadata.flags().bits(),
                             "type_kind": metadata.type_node().map(|node| format!("{:?}", result.arena().node(node).unwrap().kind)),
@@ -983,7 +1005,7 @@ fn compare_bundle_recording(
                         }
                         other => panic!("unobserved constant {other:?}"),
                     };
-                    actual_constants.push(json!({ "file": parsed.file_name, "kind": format!("{:?}", record.kind),
+                    actual_constants.push(json!({ "file": scalar_json(&parsed.file_name), "kind": format!("{:?}", record.kind),
                         "pos": parsed.positions().byte_to_utf16(record.pos).unwrap(),
                         "end": parsed.positions().byte_to_utf16(record.end).unwrap(), "value": value }).to_string());
                 }
@@ -1014,7 +1036,15 @@ fn compare_bundle_recording(
         let source_files = bundle
             .sources()
             .iter()
-            .map(|&id| PathBuf::from(&result.arena().source(id).unwrap().syntax().file_name))
+            .map(|&id| {
+                result
+                    .arena()
+                    .source(id)
+                    .unwrap()
+                    .syntax()
+                    .file_name
+                    .clone()
+            })
             .collect::<Vec<_>>();
         compare_recorded_output(
             case,
@@ -1023,7 +1053,7 @@ fn compare_bundle_recording(
             map_path,
             options,
             &lane,
-            &first_source_path,
+            first_source_path.as_js(),
             declaration,
             &source_files,
             &mut maps,
@@ -1196,3 +1226,11 @@ fn original_javascript_declaration_bundles_match_typescript_twice() {
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
+
+#[path = "../../program/tests/support/scalar_json.rs"]
+mod utf16_scalar_json;
+use utf16_scalar_json::observe as scalar_json;
+
+#[path = "../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

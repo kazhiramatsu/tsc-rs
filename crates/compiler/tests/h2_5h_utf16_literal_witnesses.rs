@@ -180,15 +180,15 @@ fn capture_complete_command(
         Ok(command) => {
             let outcome = command.emit();
             let maps = outcome.source_maps().map(|maps| maps.iter().map(|map| json!({
-                "input_source_file_names": map.input_source_files(), "source_map_json": map.canonical_json()
+                "input_source_file_names": map.input_source_files().iter().map(|value| h2_7b_w4a_controls::scalar_observation(value.as_js())).collect::<Vec<_>>(), "source_map_json": map.canonical_json()
             })).collect::<Vec<_>>());
             (
                 Some(
                     json!({"writes": writes, "reported_diagnostics": diagnostics(command.diagnostics()),
                 "emit_refused": outcome.emit_skipped(), "emit_result": {
                     "emit_skipped": outcome.emit_skipped(), "diagnostics": diagnostics(outcome.diagnostics()),
-                    "emitted_files": outcome.emitted_files(), "source_maps": maps},
-                "status_writes": command.status_writes(), "exit_code": command.exit_code()}),
+                    "emitted_files": outcome.emitted_files().map(|values| values.iter().map(|value| h2_7b_w4a_controls::scalar_observation(value.as_js())).collect::<Vec<_>>()), "source_maps": maps},
+                "status_writes": command.status_writes().iter().map(|value| h2_7b_w4a_controls::scalar_observation(value.as_js())).collect::<Vec<_>>(), "exit_code": command.exit_code()}),
                 ),
                 None,
             )
@@ -210,7 +210,7 @@ fn message(chain: &MessageChain, indent: usize, text: &mut String) {
         text.push('\n');
         text.push_str(&"  ".repeat(indent));
     }
-    text.push_str(&chain.text);
+    text.push_str(chain.text.as_str().expect("scalar frozen diagnostic text"));
     for next in &chain.next {
         message(next, indent + 1, text);
     }
@@ -222,9 +222,9 @@ fn diagnostics(diagnostics: &[Diagnostic]) -> Value {
         let related = (d.related_information_present || !d.related.is_empty()).then(|| d.related.iter().map(|r| {
             let mut text = String::new(); message(&r.message, 0, &mut text);
             json!({"code":r.message.code,"category":format!("{:?}",r.message.category),
-                "file":r.file_name,"start":r.start,"length":r.length,"message":text,"related_information":null})
+                "file":r.file_name.as_ref().map(|value| h2_7b_w4a_controls::scalar_observation(value.as_js())),"start":r.start,"length":r.length,"message":text,"related_information":null})
         }).collect::<Vec<_>>());
-        json!({"code":d.code(),"category":format!("{:?}",d.category()),"file":d.file_name,
+        json!({"code":d.code(),"category":format!("{:?}",d.category()),"file":d.file_name.as_ref().map(|value| h2_7b_w4a_controls::scalar_observation(value.as_js())),
             "start":d.start,"length":d.length,"message":text,"related_information":related})
     }).collect::<Vec<_>>())
 }
@@ -252,7 +252,7 @@ fn captured_write(index: usize, artifact: &EmitArtifact) -> Value {
         "materialized_utf8_base64":base64::engine::general_purpose::STANDARD.encode(artifact.materialized_bytes()),
         "materialized_utf8_bytes":artifact.materialized_bytes().len(),
         // OutputSink::write's Result is the typed equivalent of onError.
-        "on_error_callback_present":true,"source_files":artifact.source_files(),
+        "on_error_callback_present":true,"source_files":artifact.source_files().map(|values| values.iter().map(|value| h2_7b_w4a_controls::scalar_observation(value.as_js())).collect::<Vec<_>>()),
         "data_present":artifact.metadata().is_some(),"data_keys":keys,
         "data_source_map_url_pos":position,"data_diagnostics":data_diagnostics,"data_build_info":null})
 }

@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use crate::{ParseDiagnosticOrigin, ParseRecovery, ParseRecoveryEvent, ParseRecoveryKind};
+
 mod jsdoc;
 
 use crate::arena::{NodeArena, SubtreeCopier};
@@ -51,7 +53,8 @@ use crate::scanner::{is_js_whitespace, is_whitespace_like, LanguageVariant, Scan
 use crate::{SourceFile, SyntaxKind, TypeReferenceDirective, TypeReferenceDirectiveResolutionMode};
 use std::sync::Arc;
 use tsc_diagnostics::{
-    gen, Diagnostic, DiagnosticList, DiagnosticMessage, PositionIndex, TextSnapshot,
+    gen, Diagnostic, DiagnosticArgument, DiagnosticList, DiagnosticMessage, JsString,
+    PositionIndex, TextSnapshot,
 };
 use tsc_diagnostics::{MessageChain, RelatedInfo};
 use tsc_types::{NodeFlags, ScriptTarget};
@@ -206,7 +209,7 @@ struct Parser<'text> {
     scanner: Scanner<'text>,
     source_text: &'text str,
     arena: NodeArena,
-    file_name: String,
+    file_name: JsString,
     language_version: ScriptTarget,
     language_variant: LanguageVariant,
     javascript_file: bool,
@@ -221,6 +224,8 @@ struct Parser<'text> {
     /// speculation, so lookAhead/tryParse leak them here too.
     source_flags: NodeFlags,
     parse_diagnostics: DiagnosticList,
+    parse_recovery: ParseRecovery,
+    recovery_statement_start: Option<usize>,
     js_doc_diagnostics: DiagnosticList,
     parse_error_before_next_finished_node: bool,
     parsing_context: u32,
@@ -248,13 +253,14 @@ enum Tristate {
 }
 
 struct FinishedParse {
-    file_name: String,
+    file_name: JsString,
     language_version: ScriptTarget,
     language_variant: LanguageVariant,
     is_declaration_file: bool,
     arena: NodeArena,
     root: NodeId,
     parse_diagnostics: DiagnosticList,
+    parse_recovery: ParseRecovery,
     js_doc_diagnostics: DiagnosticList,
     referenced_files: Vec<crate::FileReference>,
     type_reference_directives: Vec<TypeReferenceDirective>,
@@ -687,7 +693,7 @@ fn leading_reference_directives(text: &str) -> RawReferenceDirectives {
             let path = named_pragma_attribute(comment, comment_start, "path")?;
             return Some((
                 RawReferenceDirective::AmdDependency(crate::AmdDependency {
-                    path: path.value.to_owned(),
+                    path: path.value.into(),
                     name: named_pragma_attribute(comment, comment_start, "name")
                         .map(|attribute| attribute.value.to_owned()),
                 }),
@@ -831,7 +837,7 @@ fn leading_reference_directives(text: &str) -> RawReferenceDirectives {
 
 impl<'text> Parser<'text> {
     fn new(
-        file_name: String,
+        file_name: JsString,
         text: &'text str,
         language_variant: LanguageVariant,
         javascript_file: bool,
@@ -847,7 +853,7 @@ impl<'text> Parser<'text> {
     }
 
     fn new_with_target(
-        file_name: String,
+        file_name: JsString,
         text: &'text str,
         positions: Arc<PositionIndex>,
         language_version: ScriptTarget,
@@ -865,8 +871,13 @@ impl<'text> Parser<'text> {
                 // getBaseFileName over normalizeSlashes: both
                 // separators split the basename (a `.d.` in a
                 // DIRECTORY name must not mark the file ambient).
-                let base = file_name.rsplit(['/', '\\']).next().unwrap_or(&file_name);
-                base.rfind(".d.").is_some()
+                let base = file_name
+                    .as_js()
+                    .split_ascii(b'/')
+                    .next_back()
+                    .unwrap_or(file_name.as_js());
+                let base = base.split_ascii(b'\\').next_back().unwrap_or(base);
+                base.contains(".d.")
             });
         // tsc initializeState (29164): JS/JSX script kinds parse with
         // the JavaScriptFile context flag on every node;
@@ -892,6 +903,8 @@ impl<'text> Parser<'text> {
             context_flags: source_flags,
             source_flags,
             parse_diagnostics: Vec::new(),
+            parse_recovery: ParseRecovery::default(),
+            recovery_statement_start: None,
             js_doc_diagnostics: Vec::new(),
             parse_error_before_next_finished_node: false,
             parsing_context: 0,
@@ -911,14 +924,21 @@ impl<'text> Parser<'text> {
         start: usize,
         length: usize,
         message: &'static DiagnosticMessage,
-        args: &[&str],
+        args: &[&dyn DiagnosticArgument],
     ) {
-        let args = args.iter().map(|arg| (*arg).to_owned()).collect();
-        self.push_parse_diagnostic(start, length, message, args);
+        let args = args
+            .iter()
+            .map(|arg| arg.diagnostic_value().to_owned())
+            .collect();
+        self.push_parse_diagnostic(start, length, message, args, ParseDiagnosticOrigin::Parser);
         self.parse_error_before_next_finished_node = true;
     }
 
-    fn parse_error_at_current_token(&mut self, message: &'static DiagnosticMessage, args: &[&str]) {
+    fn parse_error_at_current_token(
+        &mut self,
+        message: &'static DiagnosticMessage,
+        args: &[&dyn DiagnosticArgument],
+    ) {
         self.parse_error_at_position(
             self.scanner.token_start(),
             self.scanner.pos() - self.scanner.token_start(),
@@ -934,14 +954,18 @@ impl<'text> Parser<'text> {
     fn parse_error_at_current_token_with_index(
         &mut self,
         message: &'static DiagnosticMessage,
-        args: &[&str],
+        args: &[&dyn DiagnosticArgument],
     ) -> Option<usize> {
-        let args = args.iter().map(|arg| (*arg).to_owned()).collect();
+        let args = args
+            .iter()
+            .map(|arg| arg.diagnostic_value().to_owned())
+            .collect();
         let result = self.push_parse_diagnostic_with_index(
             self.scanner.token_start(),
             self.scanner.pos() - self.scanner.token_start(),
             message,
             args,
+            ParseDiagnosticOrigin::Parser,
         );
         self.parse_error_before_next_finished_node = true;
         result
@@ -953,7 +977,7 @@ impl<'text> Parser<'text> {
         start: usize,
         end: usize,
         message: &'static DiagnosticMessage,
-        args: &[&str],
+        args: &[&dyn DiagnosticArgument],
     ) {
         self.parse_error_at_position(start, end.saturating_sub(start), message, args);
     }
@@ -963,7 +987,7 @@ impl<'text> Parser<'text> {
         &mut self,
         node: NodeId,
         message: &'static DiagnosticMessage,
-        args: &[&str],
+        args: &[&dyn DiagnosticArgument],
     ) {
         let (pos, end) = {
             let node = self.arena.node(node);
@@ -982,7 +1006,16 @@ impl<'text> Parser<'text> {
 
     fn drain_scanner_errors(&mut self) {
         for error in self.scanner.take_errors() {
-            self.push_parse_diagnostic(error.start, error.length, error.message, error.args);
+            self.push_parse_diagnostic(
+                error.start,
+                error.length,
+                error.message,
+                error.args.into_iter().map(Into::into).collect(),
+                match error.trivia_kind {
+                    Some(kind) => ParseDiagnosticOrigin::ScannerTrivia(kind),
+                    None => ParseDiagnosticOrigin::ScannerToken(self.scanner.token()),
+                },
+            );
             self.parse_error_before_next_finished_node = true;
         }
     }
@@ -1198,7 +1231,7 @@ impl<'text> Parser<'text> {
         kind: SyntaxKind,
         report_at_current_position: bool,
         message: Option<&'static DiagnosticMessage>,
-        args: &[&str],
+        args: &[&dyn DiagnosticArgument],
     ) -> NodeId {
         if report_at_current_position {
             if let Some(message) = message {
@@ -1206,6 +1239,19 @@ impl<'text> Parser<'text> {
             }
         } else if let Some(message) = message {
             self.parse_error_at_current_token(message, args);
+        }
+
+        if message.is_none() {
+            self.parse_recovery.events.push(ParseRecoveryEvent {
+                kind: ParseRecoveryKind::SilentMissingNode(kind),
+                start: self.to_utf16(self.scanner.full_start_pos()),
+                length: 0,
+                diagnostic_index: None,
+                reparse_start: self.to_utf16(
+                    self.recovery_statement_start
+                        .unwrap_or(self.scanner.full_start_pos()),
+                ),
+            });
         }
 
         // tsc createMissingNode: pos = getNodePos() — the token FULL
@@ -1242,7 +1288,7 @@ impl<'text> Parser<'text> {
         let report_at_current_position = self.token() == SyntaxKind::EndOfFileToken;
         let is_reserved_word = self.token().value() >= SyntaxKind::FirstReservedWord.value()
             && self.token().value() <= SyntaxKind::LastReservedWord.value();
-        let msg_arg = self.current_token_text();
+        let msg_arg = self.current_token_value();
         let default_message = if is_reserved_word {
             &gen::Identifier_expected_0_is_a_reserved_word_that_cannot_be_used_here
         } else {
@@ -1273,6 +1319,7 @@ impl<'text> Parser<'text> {
     fn try_parse<R: ParserTruthy>(&mut self, f: impl FnOnce(&mut Self) -> R) -> R {
         let scanner_state = self.scanner.save();
         let diagnostics_len = self.parse_diagnostics.len();
+        let recovery_checkpoint = self.parse_recovery.checkpoint();
         let parse_error_before_next_finished_node = self.parse_error_before_next_finished_node;
         let context_flags = self.context_flags;
         let parsing_context = self.parsing_context;
@@ -1282,6 +1329,7 @@ impl<'text> Parser<'text> {
         if !result.is_truthy() {
             self.scanner.restore(scanner_state);
             self.parse_diagnostics.truncate(diagnostics_len);
+            self.parse_recovery.restore(recovery_checkpoint);
             self.parse_error_before_next_finished_node = parse_error_before_next_finished_node;
             self.context_flags = context_flags;
             self.parsing_context = parsing_context;
@@ -1293,6 +1341,7 @@ impl<'text> Parser<'text> {
     fn look_ahead<R>(&mut self, f: impl FnOnce(&mut Self) -> R) -> R {
         let scanner_state = self.scanner.save();
         let diagnostics_len = self.parse_diagnostics.len();
+        let recovery_checkpoint = self.parse_recovery.checkpoint();
         let parse_error_before_next_finished_node = self.parse_error_before_next_finished_node;
         let context_flags = self.context_flags;
         let parsing_context = self.parsing_context;
@@ -1300,6 +1349,7 @@ impl<'text> Parser<'text> {
         let result = f(self);
         self.scanner.restore(scanner_state);
         self.parse_diagnostics.truncate(diagnostics_len);
+        self.parse_recovery.restore(recovery_checkpoint);
         self.parse_error_before_next_finished_node = parse_error_before_next_finished_node;
         self.context_flags = context_flags;
         self.parsing_context = parsing_context;
@@ -1323,6 +1373,19 @@ impl<'text> Parser<'text> {
                 NodeFlags::THIS_NODE_HAS_ERROR | NodeFlags::THIS_NODE_OR_ANY_SUB_NODES_HAS_ERROR,
             )
             || flags & NodeFlags::CONTEXT_FLAGS != self.context_flags & NodeFlags::CONTEXT_FLAGS
+            || source.parse_recovery.events().iter().any(|event| {
+                let start = source
+                    .snapshot()
+                    .positions()
+                    .byte_to_utf16(node.pos)
+                    .expect("syntax node positions are scalar boundaries");
+                let end = source
+                    .snapshot()
+                    .positions()
+                    .byte_to_utf16(node.end)
+                    .expect("syntax node positions are scalar boundaries");
+                (start..=end).contains(&event.start)
+            })
             || !Self::can_reuse_node(source, candidate.old_node, context)
         {
             return None;
@@ -1885,7 +1948,7 @@ impl<'text> Parser<'text> {
             }
             ParsingContext::ImportOrExportSpecifiers => {
                 if self.token() == SyntaxKind::FromKeyword {
-                    self.parse_error_at_current_token(&gen::_0_expected, &["}"]);
+                    self.parse_error_at_current_token(&gen::_0_expected, &[&"}"]);
                 } else {
                     self.parse_error_at_current_token(&gen::Identifier_expected, &[]);
                 }
@@ -5388,7 +5451,12 @@ impl<'text> Parser<'text> {
     /// tsc parseJsxText.
     fn parse_jsx_text(&mut self) -> NodeId {
         let pos = self.node_pos();
-        let text = self.scanner.token_value().to_owned();
+        let text = self
+            .scanner
+            .token_value()
+            .as_str()
+            .expect("JSX text is a raw UTF-8 source slice")
+            .to_owned();
         let contains_only_trivia_white_spaces = self.token() == SyntaxKind::JsxTextAllWhiteSpaces;
         self.scan_jsx_text();
         self.finish_node_data(
@@ -6543,7 +6611,7 @@ impl<'text> Parser<'text> {
         let pos = self.node_pos();
         self.parse_expected(SyntaxKind::NewKeyword, None);
         if self.parse_optional(SyntaxKind::DotToken) {
-            let name = self.parse_identifier();
+            let name = self.parse_identifier_name(None);
             return self.finish_node_data(
                 NodeData::MetaProperty(MetaPropertyData {
                     keyword_token: SyntaxKind::NewKeyword,
@@ -7105,7 +7173,7 @@ impl<'text> Parser<'text> {
                 SyntaxKind::TemplateTail,
                 false,
                 Some(&gen::_0_expected),
-                &["}"],
+                &[&"}"],
             )
         }
     }
@@ -7134,7 +7202,7 @@ impl<'text> Parser<'text> {
                 SyntaxKind::TemplateTail,
                 false,
                 Some(&gen::_0_expected),
-                &["}"],
+                &[&"}"],
             ),
         }
     }
@@ -7157,6 +7225,7 @@ impl<'text> Parser<'text> {
             _ => unreachable!("template fragment kind"),
         };
         let id = self.arena.alloc_node(data, pos, end, NodeFlags::NONE);
+        self.arena.node_mut(id).template_flags = self.scanner.template_literal_flags();
         self.next_token();
         self.finish_node_at(id, pos, end)
     }
@@ -7245,6 +7314,7 @@ impl<'text> Parser<'text> {
             end,
             NodeFlags::NONE,
         );
+        self.arena.node_mut(id).template_flags = self.scanner.template_literal_flags();
         self.next_token();
         self.finish_node_at(id, pos, end)
     }
@@ -8762,7 +8832,7 @@ impl<'text> Parser<'text> {
 
     fn parse_semicolon(&mut self) {
         if !self.try_parse_semicolon() {
-            self.parse_error_at_current_token(&gen::_0_expected, &[";"]);
+            self.parse_error_at_current_token(&gen::_0_expected, &[&";"]);
         }
     }
 
@@ -8887,7 +8957,7 @@ impl<'text> Parser<'text> {
         if self.token() == token_if_blank_name {
             self.parse_error_at_current_token(blank_diagnostic, &[]);
         } else {
-            let name = self.current_token_text();
+            let name = self.current_token_value();
             self.parse_error_at_current_token(name_diagnostic, &[&name]);
         }
     }
@@ -9196,12 +9266,21 @@ impl<'text> Parser<'text> {
         self.arena.node(id).kind == SyntaxKind::Identifier
     }
 
-    fn current_token_text(&self) -> String {
+    fn current_token_value(&self) -> JsString {
         if self.scanner.token_value().is_empty() {
-            token_to_string(self.token())
+            token_to_string(self.token()).into()
         } else {
             self.scanner.token_value().to_owned()
         }
+    }
+
+    // Identifier/private/numeric/regexp token consumers are scalar by grammar.
+    // Diagnostic arguments use current_token_value instead, including literals.
+    fn current_token_text(&self) -> String {
+        self.current_token_value()
+            .as_str()
+            .expect("identifier, numeric and regexp token text is Unicode scalar text")
+            .to_owned()
     }
 
     /// tsc isFileProbablyExternalModule: the first statement that is an
@@ -9405,6 +9484,54 @@ impl<'text> Parser<'text> {
         false
     }
 
+    fn parse_source_element(&mut self) -> NodeId {
+        let saved = self.recovery_statement_start.replace(self.node_pos());
+        let node = self.parse_statement();
+        self.recovery_statement_start = saved;
+        node
+    }
+
+    /// Keep the same diagnostic slice as reparseTopLevelAwait, carrying its
+    /// origins and remapping event indices. Suppressed/silent events use the
+    /// producing source element instead of a possibly adjacent error span.
+    fn retain_reparse_recovery(
+        &mut self,
+        diagnostics: &DiagnosticList,
+        recovery: &ParseRecovery,
+        positions: std::ops::Range<u32>,
+    ) {
+        let diag_start = diagnostics
+            .iter()
+            .position(|diagnostic| {
+                diagnostic
+                    .start
+                    .is_some_and(|start| start >= positions.start)
+            })
+            .unwrap_or(diagnostics.len());
+        let diag_end = diagnostics[diag_start..]
+            .iter()
+            .position(|diagnostic| diagnostic.start.is_some_and(|start| start >= positions.end))
+            .map_or(diagnostics.len(), |offset| diag_start + offset);
+        let new_start = self.parse_diagnostics.len();
+        self.parse_diagnostics
+            .extend_from_slice(&diagnostics[diag_start..diag_end]);
+        self.parse_recovery
+            .diagnostic_origins
+            .extend_from_slice(&recovery.diagnostic_origins[diag_start..diag_end]);
+        for event in &recovery.events {
+            let mut retained = *event;
+            if let Some(index) = event.diagnostic_index {
+                if !(diag_start..diag_end).contains(&index) {
+                    continue;
+                }
+                retained.diagnostic_index = Some(new_start + index - diag_start);
+            } else if !positions.contains(&event.reparse_start) {
+                continue;
+            }
+            self.parse_recovery.events.push(retained);
+        }
+    }
+
     /// tsc reparseTopLevelAwait: maximal runs of possible-await statements
     /// re-parse from their start in the Await context; parse diagnostics in
     /// the re-parsed ranges are replaced by the re-parse output.
@@ -9414,6 +9541,7 @@ impl<'text> Parser<'text> {
             (array.nodes.clone(), array.pos as usize, array.end as usize)
         };
         let saved_diagnostics = std::mem::take(&mut self.parse_diagnostics);
+        let saved_recovery = std::mem::take(&mut self.parse_recovery);
         let mut statements: Vec<NodeId> = Vec::new();
 
         let mut pos: Option<usize> = Some(0);
@@ -9426,18 +9554,7 @@ impl<'text> Parser<'text> {
             // Keep the diagnostics of the untouched range.
             let prev_pos = self.to_utf16(self.arena.node(old_statements[keep_from]).pos as usize);
             let next_pos = self.to_utf16(self.arena.node(old_statements[run_start]).pos as usize);
-            if let Some(diag_start) = saved_diagnostics
-                .iter()
-                .position(|diagnostic| diagnostic.start.is_some_and(|start| start >= prev_pos))
-            {
-                let diag_end = saved_diagnostics[diag_start..]
-                    .iter()
-                    .position(|diagnostic| diagnostic.start.is_some_and(|start| start >= next_pos))
-                    .map(|offset| diag_start + offset)
-                    .unwrap_or(saved_diagnostics.len());
-                self.parse_diagnostics
-                    .extend_from_slice(&saved_diagnostics[diag_start..diag_end]);
-            }
+            self.retain_reparse_recovery(&saved_diagnostics, &saved_recovery, prev_pos..next_pos);
 
             // Re-parse in the Await context (tsc SpeculationKind.Reparse:
             // diagnostics kept, scanner state restored afterwards).
@@ -9450,7 +9567,7 @@ impl<'text> Parser<'text> {
             self.next_token();
             while self.token() != SyntaxKind::EndOfFileToken {
                 let start_pos = self.scanner.full_start_pos();
-                let statement = self.parse_statement();
+                let statement = self.parse_source_element();
                 statements.push(statement);
                 if start_pos == self.scanner.full_start_pos() {
                     self.next_token();
@@ -9474,13 +9591,7 @@ impl<'text> Parser<'text> {
         if let Some(keep_from) = pos {
             statements.extend_from_slice(&old_statements[keep_from..]);
             let prev_pos = self.to_utf16(self.arena.node(old_statements[keep_from]).pos as usize);
-            if let Some(diag_start) = saved_diagnostics
-                .iter()
-                .position(|diagnostic| diagnostic.start.is_some_and(|start| start >= prev_pos))
-            {
-                self.parse_diagnostics
-                    .extend_from_slice(&saved_diagnostics[diag_start..]);
-            }
+            self.retain_reparse_recovery(&saved_diagnostics, &saved_recovery, prev_pos..u32::MAX);
         }
 
         self.arena
@@ -9674,6 +9785,7 @@ impl<'text> Parser<'text> {
             arena: self.arena,
             root,
             parse_diagnostics: self.parse_diagnostics,
+            parse_recovery: self.parse_recovery,
             js_doc_diagnostics: self.js_doc_diagnostics,
             referenced_files: directives.paths,
             type_reference_directives: directives.types,
@@ -9692,13 +9804,19 @@ impl<'text> Parser<'text> {
     fn process_leading_reference_directives(&mut self) -> ProcessedReferenceDirectives {
         let directives = leading_reference_directives(self.source_text);
         for (start, length, message) in directives.errors {
-            self.push_parse_diagnostic(start, length, message, Vec::new());
+            self.push_parse_diagnostic(
+                start,
+                length,
+                message,
+                Vec::new(),
+                ParseDiagnosticOrigin::ReferenceDirective,
+            );
         }
         let paths = directives
             .paths
             .into_iter()
             .map(|reference| crate::FileReference {
-                file_name: reference.file_name,
+                file_name: reference.file_name.into(),
                 pos: self.to_utf16(reference.start),
                 end: self.to_utf16(reference.end),
                 preserve: reference.preserve,
@@ -9708,7 +9826,7 @@ impl<'text> Parser<'text> {
             .types
             .into_iter()
             .map(|directive| TypeReferenceDirective {
-                file_name: directive.reference.file_name,
+                file_name: directive.reference.file_name.into(),
                 pos: self.to_utf16(directive.reference.start),
                 end: self.to_utf16(directive.reference.end),
                 resolution_mode: directive.resolution_mode,
@@ -9719,7 +9837,7 @@ impl<'text> Parser<'text> {
             .libs
             .into_iter()
             .map(|reference| crate::FileReference {
-                file_name: reference.file_name,
+                file_name: reference.file_name.into(),
                 pos: self.to_utf16(reference.start),
                 end: self.to_utf16(reference.end),
                 preserve: reference.preserve,
@@ -9766,9 +9884,10 @@ impl<'text> Parser<'text> {
         start: usize,
         length: usize,
         message: &'static DiagnosticMessage,
-        args: Vec<String>,
+        args: Vec<JsString>,
+        origin: ParseDiagnosticOrigin,
     ) {
-        let _ = self.push_parse_diagnostic_with_index(start, length, message, args);
+        let _ = self.push_parse_diagnostic_with_index(start, length, message, args, origin);
     }
 
     fn push_parse_diagnostic_with_index(
@@ -9776,25 +9895,40 @@ impl<'text> Parser<'text> {
         start: usize,
         length: usize,
         message: &'static DiagnosticMessage,
-        args: Vec<String>,
+        args: Vec<JsString>,
+        origin: ParseDiagnosticOrigin,
     ) -> Option<usize> {
         let start_utf16 = self.to_utf16(start);
-        if self
+        let end_utf16 = self.to_utf16(start.saturating_add(length));
+        let diagnostic_index = if self
             .parse_diagnostics
             .last()
             .is_none_or(|last| last.start != Some(start_utf16))
         {
-            let end_utf16 = self.to_utf16(start.saturating_add(length));
-            self.parse_diagnostics.push(Diagnostic::new(
+            self.parse_diagnostics.push(Diagnostic::new_js(
                 Some(self.file_name.clone()),
                 Some(start_utf16),
                 Some(end_utf16.saturating_sub(start_utf16)),
-                MessageChain::new(message, &args),
+                MessageChain::new_js(message, &args),
             ));
+            self.parse_recovery.diagnostic_origins.push(origin);
             Some(self.parse_diagnostics.len() - 1)
         } else {
             None
-        }
+        };
+        self.parse_recovery.events.push(ParseRecoveryEvent {
+            kind: ParseRecoveryKind::Diagnostic(origin),
+            start: start_utf16,
+            length: end_utf16.saturating_sub(start_utf16),
+            diagnostic_index,
+            reparse_start: self.to_utf16(match origin {
+                ParseDiagnosticOrigin::ScannerToken(_) => self.scanner.token_start(),
+                ParseDiagnosticOrigin::Parser => self.recovery_statement_start.unwrap_or(start),
+                ParseDiagnosticOrigin::ScannerTrivia(_)
+                | ParseDiagnosticOrigin::ReferenceDirective => start,
+            }),
+        });
+        diagnostic_index
     }
 
     fn to_utf16(&self, byte_offset: usize) -> u32 {
@@ -9807,7 +9941,7 @@ impl<'text> Parser<'text> {
 
 #[allow(dead_code)]
 fn parse_source_file(
-    file_name: String,
+    file_name: JsString,
     text: String,
     options: ParseOptions,
     cursor: Option<&SyntaxCursor>,
@@ -9827,21 +9961,112 @@ fn parse_source_file(
 /// tsc-hash: 92cfd18e0c60b7d06ba8360b03cbfd7259a3d463273461742c418c6861f6a9d0
 /// tsc-span: _tsc.js:29042-29061
 pub fn is_entity_name_text(text: &str, language_version: ScriptTarget) -> bool {
+    parse_entity_name_components(text.into(), language_version).is_some()
+}
+
+/// Parse the identifier values of an isolated qualified name. Comments and
+/// escapes are consumed by the same grammar used for option validation.
+/// Only identifier values leave this function; arbitrary units in comments
+/// never become part of a returned name.
+pub fn parse_entity_name_components(
+    text: tsc_diagnostics::JsStr<'_>,
+    language_version: ScriptTarget,
+) -> Option<Vec<String>> {
+    let text = entity_name_scalar_input(text)?;
     let mut parser = Parser::new_with_target(
-        String::new(),
-        text,
-        Arc::new(PositionIndex::new_static(text)),
+        JsString::new(),
+        &text,
+        Arc::new(PositionIndex::new_static(&text)),
         language_version,
         LanguageVariant::Standard,
         true,
     );
     parser.next_token();
-    parser.parse_entity_name(true, None);
-    parser.token() == SyntaxKind::EndOfFileToken && parser.parse_diagnostics.is_empty()
+    let entity = parser.parse_entity_name(true, None);
+    if parser.token() != SyntaxKind::EndOfFileToken || !parser.parse_diagnostics.is_empty() {
+        return None;
+    }
+    fn collect(arena: &NodeArena, node: NodeId, parts: &mut Vec<String>) -> Option<()> {
+        match &arena.node(node).data {
+            NodeData::Identifier(data) => parts.push(data.text.clone()),
+            NodeData::QualifiedName(data) => {
+                collect(arena, data.left?, parts)?;
+                collect(arena, data.right?, parts)?;
+            }
+            _ => return None,
+        }
+        Some(())
+    }
+    let mut parts = Vec::new();
+    collect(&parser.arena, entity, &mut parts)?;
+    Some(parts)
+}
+
+/// The isolated entity-name grammar accepts comments containing arbitrary JS
+/// code units, even though identifiers cannot contain unpaired surrogates.
+/// Keep the caller's value unchanged: this temporary scanner input replaces
+/// only unpaired units in comments with spaces. Comment delimiters and line
+/// breaks are scalar characters and remain exact. An unpaired unit outside
+/// a comment cannot occur in a valid entity name, so it fails the predicate.
+/// The normal parser still validates escapes, qualification, and unfinished
+/// comments; no projected text is returned as a name or diagnostic value.
+pub fn is_entity_name_js_text(
+    text: tsc_diagnostics::JsStr<'_>,
+    language_version: ScriptTarget,
+) -> bool {
+    parse_entity_name_components(text, language_version).is_some()
+}
+
+fn entity_name_scalar_input(text: tsc_diagnostics::JsStr<'_>) -> Option<std::borrow::Cow<'_, str>> {
+    if let Some(text) = text.as_str() {
+        return Some(std::borrow::Cow::Borrowed(text));
+    }
+    #[derive(Clone, Copy)]
+    enum Comment {
+        None,
+        Line,
+        Block,
+    }
+    let mut comment = Comment::None;
+    let mut chars = char::decode_utf16(text.code_units()).peekable();
+    let mut scalar = String::with_capacity(text.as_bytes().len());
+    while let Some(ch) = chars.next() {
+        let ch = match ch {
+            Ok(ch) => ch,
+            Err(_) if !matches!(comment, Comment::None) => ' ',
+            Err(_) => return None,
+        };
+        scalar.push(ch);
+        match comment {
+            Comment::None if ch == '/' => {
+                comment = match chars.peek() {
+                    Some(Ok('/')) => Comment::Line,
+                    Some(Ok('*')) => Comment::Block,
+                    _ => continue,
+                };
+                scalar.push(
+                    chars
+                        .next()
+                        .expect("peeked comment delimiter")
+                        .expect("ASCII delimiter"),
+                );
+            }
+            Comment::Line if matches!(ch, '\n' | '\r' | '\u{2028}' | '\u{2029}') => {
+                comment = Comment::None;
+            }
+            Comment::Block if ch == '*' && matches!(chars.peek(), Some(Ok('/'))) => {
+                chars.next();
+                scalar.push('/');
+                comment = Comment::None;
+            }
+            _ => {}
+        }
+    }
+    Some(std::borrow::Cow::Owned(scalar))
 }
 
 pub fn parse_source_file_from_snapshot(
-    file_name: String,
+    file_name: JsString,
     snapshot: Arc<TextSnapshot>,
     options: ParseOptions,
     cursor: Option<&SyntaxCursor>,
@@ -9857,7 +10082,7 @@ pub fn parse_source_file_from_snapshot(
 }
 
 pub(crate) fn parse_source_file_from_snapshot_incrementally(
-    file_name: String,
+    file_name: JsString,
     snapshot: Arc<TextSnapshot>,
     options: ParseOptions,
     cursor: &SyntaxCursor,
@@ -9873,7 +10098,7 @@ pub(crate) fn parse_source_file_from_snapshot_incrementally(
 }
 
 fn parse_source_file_from_snapshot_worker(
-    file_name: String,
+    file_name: JsString,
     snapshot: Arc<TextSnapshot>,
     options: ParseOptions,
     cursor: Option<&SyntaxCursor>,
@@ -9899,7 +10124,7 @@ fn parse_source_file_from_snapshot_worker(
     }
     parser.next_token();
     let mut statements = parser.parse_list(ParsingContext::SourceElements, |parser| {
-        Some(parser.parse_statement())
+        Some(parser.parse_source_element())
     });
     debug_assert_eq!(parser.token(), SyntaxKind::EndOfFileToken);
     let end_of_file_token = parser.parse_token_node();
@@ -9943,6 +10168,7 @@ fn parse_source_file_from_snapshot_worker(
         root: finished.root,
         external_module_indicator,
         parse_diagnostics: finished.parse_diagnostics,
+        parse_recovery: finished.parse_recovery,
         js_doc_diagnostics: finished.js_doc_diagnostics,
         referenced_files: finished.referenced_files,
         type_reference_directives: finished.type_reference_directives,
@@ -9960,19 +10186,22 @@ fn parse_source_file_from_snapshot_worker(
 
 /// tsc Parser.parseJsonText, including the JSON/JavaScript context flags.
 #[allow(dead_code)]
-fn parse_json_text(file_name: String, text: String) -> SourceFile {
+fn parse_json_text(file_name: JsString, text: String) -> SourceFile {
     parse_json_text_from_snapshot(
         file_name,
         TextSnapshot::new(text, tsc_diagnostics::DocumentVersion::default()),
     )
 }
 
-pub fn parse_json_text_from_snapshot(file_name: String, snapshot: Arc<TextSnapshot>) -> SourceFile {
+pub fn parse_json_text_from_snapshot(
+    file_name: JsString,
+    snapshot: Arc<TextSnapshot>,
+) -> SourceFile {
     parse_json_text_from_snapshot_with_bases(file_name, snapshot, 0, 0)
 }
 
 pub fn parse_json_text_from_snapshot_with_bases(
-    file_name: String,
+    file_name: JsString,
     snapshot: Arc<TextSnapshot>,
     node_id_base: u32,
     node_array_id_base: u32,
@@ -10081,6 +10310,7 @@ pub fn parse_json_text_from_snapshot_with_bases(
         root: finished.root,
         external_module_indicator: None,
         parse_diagnostics: finished.parse_diagnostics,
+        parse_recovery: finished.parse_recovery,
         js_doc_diagnostics: finished.js_doc_diagnostics,
         referenced_files: finished.referenced_files,
         type_reference_directives: finished.type_reference_directives,
@@ -10404,3 +10634,7 @@ fn context_flags_for_function_body(is_generator: bool, is_async: bool) -> (NodeF
 #[cfg(test)]
 #[path = "../tests/unit/parser/tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../tests/unit/parser/recovery.rs"]
+mod recovery_tests;

@@ -12,11 +12,11 @@
 //! Namespace machinery includes jsxFactory-family options, leading
 //! @jsx pragmas, and react-jsx implicit runtime imports.
 
-use tsc_binder::{escape_leading_underscores, SymbolId, SymbolTable};
+use tsc_binder::{SymbolId, SymbolTable};
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{
-    CheckMode, ContextFlags, IntersectionFlags, JsxFlags, ObjectFlags, SymbolFlags, TypeData,
-    TypeFlags, TypeId,
+    CheckMode, ContextFlags, EscapedName, IntersectionFlags, JsStr, JsString, JsxFlags,
+    ObjectFlags, SymbolFlags, TypeData, TypeFlags, TypeId,
 };
 
 use crate::structural::SignatureKind;
@@ -113,22 +113,14 @@ fn leading_jsx_pragmas(text: &str) -> JsxPragmaSettings {
 /// the source-name -> symbol-table-key boundary. tsc obtains an
 /// Identifier node here and returns its `escapedText`; compiler-option
 /// and pragma strings therefore need the same escaping explicitly.
-fn first_entity_escaped_identifier(entity: &str) -> Option<String> {
-    let valid_identifier = |part: &str| {
-        !part.is_empty()
-            && part.chars().next().is_some_and(|character| {
-                character == '_' || character == '$' || character.is_alphabetic()
-            })
-            && part.chars().all(|character| {
-                character == '_' || character == '$' || character.is_alphanumeric()
-            })
-    };
-    let mut parts = entity.split('.').map(str::trim);
-    let first = parts.next()?;
-    if !valid_identifier(first) || !parts.all(valid_identifier) {
-        return None;
-    }
-    Some(escape_leading_underscores(first))
+fn first_entity_escaped_identifier<'n>(
+    entity: impl Into<JsStr<'n>>,
+    target: tsc_types::ScriptTarget,
+) -> Option<EscapedName> {
+    let parts = tsc_syntax::parse_entity_name_components(entity.into(), target)?;
+    parts
+        .first()
+        .map(|first| EscapedName::escape(first.as_str().into()))
 }
 
 /// tsc JsxReferenceKind (getJsxReferenceKind 76075).
@@ -368,7 +360,7 @@ impl<'a> CheckerState<'a> {
                     if let (Some(name_text), Some(children_name)) =
                         (&name_text, &jsx_children_property_name)
                     {
-                        if name_text == children_name {
+                        if children_name == name_text.as_str() {
                             explicitly_specify_children_attribute = true;
                         }
                     }
@@ -542,14 +534,14 @@ impl<'a> CheckerState<'a> {
                 let children_types = self.check_jsx_children(element, check_mode)?;
                 if let Some(children_name) = jsx_children_property_name
                     .as_ref()
-                    .filter(|name| !has_spread_any_type && !name.is_empty())
+                    .filter(|name| !has_spread_any_type && !name.as_js().is_empty())
                 {
                     if explicitly_specify_children_attribute {
                         let display = tsc_binder::unescape_leading_underscores(children_name);
-                        self.error_at(
+                        self.error_at_js(
                             Some(attribute_parent),
                             &diagnostics::_0_are_specified_twice_The_attribute_named_0_will_be_overwritten,
-                            &[display],
+                            &[(display).into()],
                         );
                     }
                     let contextual_type =
@@ -893,8 +885,10 @@ impl<'a> CheckerState<'a> {
             Ok(None) | Err(_) => {
                 let source_text = self.type_to_string_slice(source)?;
                 let target_text = self.type_to_string_slice(target)?;
-                let chain = containing
-                    .with_next(vec![MessageChain::new(head, &[source_text, target_text])]);
+                let chain = containing.with_next(vec![MessageChain::new_js(
+                    head,
+                    &[(source_text).into(), (target_text).into()],
+                )]);
                 self.diagnostic_at_span(&span, chain)
             }
         };
@@ -1161,7 +1155,7 @@ impl<'a> CheckerState<'a> {
     /// idText flavors: the DISPLAY form (unescaped).
     fn intrinsic_tag_name_to_string(&self, tag_name: NodeId) -> CheckResult<String> {
         let escaped = self.intrinsic_tag_property_name(tag_name)?;
-        Ok(tsc_binder::unescape_leading_underscores(&escaped).to_owned())
+        Ok(tsc_syntax::unescape_leading_underscores(&escaped).to_owned())
     }
 
     /// tsc-port: getIntrinsicTagSymbol @6.0.3
@@ -1328,13 +1322,10 @@ impl<'a> CheckerState<'a> {
             return Ok(Some(self.tables.intrinsics.any));
         }
         let value = self.string_literal_type_value(ty)?;
-        if let Some(value) = value.to_utf8() {
-            let escaped = tsc_binder::escape_leading_underscores(&value);
-            if let Some(prop) =
-                self.get_property_of_type_full(intrinsic_elements_type, escaped.as_ref())?
-            {
-                return Ok(Some(self.get_type_of_symbol(prop)?));
-            }
+        let value = value.to_js_string();
+        let escaped = tsc_binder::escape_leading_underscores(value.as_js());
+        if let Some(prop) = self.get_property_of_type_full(intrinsic_elements_type, &escaped)? {
+            return Ok(Some(self.get_type_of_symbol(prop)?));
         }
         let string = self.tables.intrinsics.string;
         if let Some(info) = self.get_index_info_of_type(intrinsic_elements_type, string)? {
@@ -1379,9 +1370,10 @@ impl<'a> CheckerState<'a> {
             Some(type_symbol) => self.get_declared_type_of_symbol_slice(type_symbol)?,
             None => self.tables.intrinsics.error,
         };
-        let props = self
-            .binder
-            .create_symbol(SymbolFlags::FUNCTION_SCOPED_VARIABLE, "props".to_owned());
+        let props = self.binder.create_symbol(
+            SymbolFlags::FUNCTION_SCOPED_VARIABLE,
+            tsc_types::EscapedName::from_identifier_escaped_text("props"),
+        );
         self.links
             .set_fresh_symbol_type(props, LinkSlot::Resolved(result));
         Ok(self.alloc_signature(crate::state::Signature {
@@ -1485,10 +1477,10 @@ impl<'a> CheckerState<'a> {
                 let value = self.string_literal_type_value(element_type)?;
                 let value = crate::check::string_literal_type_display_text(&value);
                 let container = format!("JSX.{JSX_INTRINSIC_ELEMENTS}");
-                self.error_at(
+                self.error_at_js(
                     Some(caller),
                     &diagnostics::Property_0_does_not_exist_on_type_1,
-                    &[&value, &container],
+                    &[(&value).into(), (&container).into()],
                 );
                 return Ok(Vec::new());
             };
@@ -1669,7 +1661,7 @@ impl<'a> CheckerState<'a> {
     fn get_jsx_props_type_for_signature_from_member(
         &mut self,
         signature: SignatureId,
-        forced_lookup_location: &str,
+        forced_lookup_location: &EscapedName,
     ) -> CheckResult<Option<TypeId>> {
         if let Some(composites) = self.signature_of(signature).composite_signatures.clone() {
             let mut results: Vec<TypeId> = Vec::with_capacity(composites.len());
@@ -1787,7 +1779,7 @@ impl<'a> CheckerState<'a> {
             } else {
                 self.get_type_at_position(signature, 0)?
             }),
-            Some(location) if location.is_empty() => {
+            Some(location) if location.as_js().is_empty() => {
                 Some(self.get_return_type_of_signature(signature)?)
             }
             Some(location) => {
@@ -1796,7 +1788,10 @@ impl<'a> CheckerState<'a> {
             }
         };
         let Some(mut attributes_type) = attributes_type else {
-            if let Some(location) = forced_lookup_location.as_ref().filter(|l| !l.is_empty()) {
+            if let Some(location) = forced_lookup_location
+                .as_ref()
+                .filter(|l| !l.as_js().is_empty())
+            {
                 let has_properties = match self.data_of(context) {
                     NodeData::JsxOpeningElement(data) => data.attributes,
                     NodeData::JsxSelfClosingElement(data) => data.attributes,
@@ -1808,10 +1803,10 @@ impl<'a> CheckerState<'a> {
                 });
                 if has_properties {
                     let display = tsc_binder::unescape_leading_underscores(location);
-                    self.error_at(
+                    self.error_at_js(
                         Some(context),
                         &diagnostics::JSX_element_class_does_not_support_attributes_because_it_does_not_have_a_0_property,
-                        &[display],
+                        &[(display).into()],
                     );
                 }
             }
@@ -1951,7 +1946,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         name_of_attrib_prop_container: &str,
         jsx_namespace: Option<SymbolId>,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<EscapedName>> {
         let Some(jsx_namespace) = jsx_namespace else {
             return Ok(None);
         };
@@ -1966,7 +1961,7 @@ impl<'a> CheckerState<'a> {
         let container_type = self.get_declared_type_of_symbol_slice(container_sym)?;
         let properties = self.get_properties_of_type(container_type)?;
         if properties.is_empty() {
-            return Ok(Some(String::new()));
+            return Ok(Some(EscapedName::from_identifier_escaped_text("")));
         }
         if properties.len() == 1 {
             return Ok(Some(self.binder.symbol(properties[0]).escaped_name.clone()));
@@ -1979,10 +1974,10 @@ impl<'a> CheckerState<'a> {
             .copied();
         if let Some(declaration) = first_declaration {
             let display = tsc_binder::unescape_leading_underscores(name_of_attrib_prop_container);
-            self.error_at(
+            self.error_at_js(
                 Some(declaration),
                 &diagnostics::The_global_type_JSX_0_may_not_have_more_than_one_property,
-                &[display],
+                &[(display).into()],
             );
         }
         Ok(None)
@@ -1994,7 +1989,7 @@ impl<'a> CheckerState<'a> {
     fn get_jsx_element_properties_name(
         &mut self,
         jsx_namespace: Option<SymbolId>,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<EscapedName>> {
         self.get_name_from_jsx_element_attributes_container(
             JSX_ELEMENT_ATTRIBUTES_PROPERTY_NAME_CONTAINER,
             jsx_namespace,
@@ -2010,9 +2005,9 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_jsx_element_children_property_name(
         &mut self,
         jsx_namespace: Option<SymbolId>,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<EscapedName>> {
         if matches!(self.options.jsx, Some(4) | Some(5)) {
-            return Ok(Some("children".to_owned()));
+            return Ok(Some(EscapedName::from_identifier_escaped_text("children")));
         }
         self.get_name_from_jsx_element_attributes_container(
             JSX_ELEMENT_CHILDREN_ATTRIBUTE_NAME_CONTAINER,
@@ -2157,8 +2152,9 @@ impl<'a> CheckerState<'a> {
             Some(
                 pragmas
                     .import_source
+                    .map(JsString::from)
                     .or_else(|| self.options.jsx_import_source.clone())
-                    .unwrap_or_else(|| "react".to_owned()),
+                    .unwrap_or_else(|| JsString::from("react")),
             )
         } else {
             None
@@ -2167,14 +2163,12 @@ impl<'a> CheckerState<'a> {
             self.jsx_implicit_import_containers.insert(file_index, None);
             return Ok(None);
         };
-        let runtime = format!(
-            "{base}/{}",
-            if self.options.jsx == Some(5) {
-                "jsx-dev-runtime"
-            } else {
-                "jsx-runtime"
-            }
-        );
+        let mut runtime = base;
+        runtime.push_str(if self.options.jsx == Some(5) {
+            "/jsx-dev-runtime"
+        } else {
+            "/jsx-runtime"
+        });
         let error_message = if self.options.emit_module_resolution_kind() == 1 {
             &diagnostics::Cannot_find_module_0_Did_you_mean_to_set_the_moduleResolution_option_to_nodenext_or_to_add_aliases_to_the_paths_option
         } else {
@@ -2202,7 +2196,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 8ff29aa0c80ee1a5faf4121789c901358721fcc508acdf6030ee1d23e096462a
     /// tsc-span: _tsc.js:47491-47537
     ///
-    pub(crate) fn get_jsx_namespace_name(&self, location: NodeId) -> String {
+    pub(crate) fn get_jsx_namespace_name(&self, location: NodeId) -> EscapedName {
         let pragmas = leading_jsx_pragmas(self.binder.source_of_node(location).text());
         if matches!(
             self.kind_of(location),
@@ -2212,44 +2206,52 @@ impl<'a> CheckerState<'a> {
             // getJsxFragmentFactoryEntity, then falls through to the
             // ordinary JSX namespace.
             if let Some(local) = pragmas.fragment_factory {
-                return first_entity_escaped_identifier(&local)
+                return first_entity_escaped_identifier(&local, self.options.emit_script_target())
                     .unwrap_or_else(|| self.global_jsx_namespace_name());
             }
-            if let Some(option) = self.options.jsx_fragment_factory.as_deref() {
-                return first_entity_escaped_identifier(option)
+            if let Some(option) = self.options.jsx_fragment_factory.as_ref() {
+                return first_entity_escaped_identifier(option, self.options.emit_script_target())
                     .unwrap_or_else(|| self.global_jsx_namespace_name());
             }
             return self.global_jsx_namespace_name();
         }
         if let Some(local) = pragmas.factory {
-            if let Some(namespace) = first_entity_escaped_identifier(&local) {
+            if let Some(namespace) =
+                first_entity_escaped_identifier(&local, self.options.emit_script_target())
+            {
                 return namespace;
             }
         }
         self.global_jsx_namespace_name()
     }
 
-    fn get_jsx_factory_namespace_name(&self, location: NodeId) -> String {
+    fn get_jsx_factory_namespace_name(&self, location: NodeId) -> EscapedName {
         let pragmas = leading_jsx_pragmas(self.binder.source_of_node(location).text());
         pragmas
             .factory
             .as_deref()
-            .and_then(first_entity_escaped_identifier)
+            .and_then(|entity| {
+                first_entity_escaped_identifier(entity, self.options.emit_script_target())
+            })
             .unwrap_or_else(|| self.global_jsx_namespace_name())
     }
 
-    fn global_jsx_namespace_name(&self) -> String {
-        match self.options.jsx_factory.as_deref() {
-            Some(factory) => {
-                first_entity_escaped_identifier(factory).unwrap_or_else(|| "React".to_owned())
-            }
-            None => self
-                .options
-                .react_namespace
-                .as_deref()
-                .map(escape_leading_underscores)
-                .unwrap_or_else(|| "React".to_owned()),
+    fn global_jsx_namespace_name(&self) -> EscapedName {
+        if let Some(factory) = self
+            .options
+            .jsx_factory
+            .as_ref()
+            .filter(|value| !value.is_empty())
+        {
+            return first_entity_escaped_identifier(factory, self.options.emit_script_target())
+                .unwrap_or_else(|| EscapedName::from_identifier_escaped_text("React"));
         }
+        self.options
+            .react_namespace
+            .as_ref()
+            .filter(|value| !value.is_empty())
+            .map(|name| EscapedName::escape(name.as_js()))
+            .unwrap_or_else(|| EscapedName::from_identifier_escaped_text("React"))
     }
 
     // ---- grammar ----

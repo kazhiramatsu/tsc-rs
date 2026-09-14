@@ -177,7 +177,7 @@ fn compiler_plan_projects_ordered_custom_conditions() {
 
     assert_eq!(
         compiler_options.custom_conditions.as_deref(),
-        Some(&["webpack".to_owned(), "browser".to_owned()][..]),
+        Some(&["webpack".into(), "browser".into()][..]),
     );
 }
 
@@ -333,10 +333,10 @@ fn current_map_floor_preserves_declaration_only_without_changing_earlier_floors(
                 source_map: source_map.then_some(true),
                 inline_source_map: map_family.then_some(true),
                 inline_sources: map_family.then_some(true),
-                source_root: map_family.then(|| "/sources".to_owned()),
-                map_root: map_family.then(|| "/maps".to_owned()),
+                source_root: map_family.then(|| "/sources".into()),
+                map_root: map_family.then(|| "/maps".into()),
                 emit_bom: bom.then_some(true),
-                out_file: bundle_family.then(|| "bundle.js".to_owned()),
+                out_file: bundle_family.then(|| "bundle.js".into()),
                 declaration_map: bundle_family.then_some(true),
                 emit_declaration_only: declaration_mode.then_some(declaration_only).flatten(),
                 ..CompilerOptions::default()
@@ -351,10 +351,10 @@ fn current_map_floor_preserves_declaration_only_without_changing_earlier_floors(
                 source_map: Some(true),
                 inline_source_map: Some(true),
                 inline_sources: Some(true),
-                source_root: Some("/sources".to_owned()),
-                map_root: Some("/maps".to_owned()),
+                source_root: Some("/sources".into()),
+                map_root: Some("/maps".into()),
                 emit_bom: Some(true),
-                out_file: Some("bundle.js".to_owned()),
+                out_file: Some("bundle.js".into()),
                 declaration_map: Some(true),
                 emit_declaration_only: declaration_only,
                 ..CompilerOptions::default()
@@ -413,7 +413,13 @@ fn current_map_floor_projects_the_two_frozen_commonjs_declaration_only_inputs() 
         assert_eq!(current.declaration, Some(true));
         assert_eq!(current.source_map, Some(true));
         assert_eq!(current.module, Some(1));
-        assert_eq!(current.out_file.as_deref(), Some("all.js"));
+        assert_eq!(
+            current
+                .out_file
+                .as_ref()
+                .map(|name| name.as_str().expect("scalar option")),
+            Some("all.js")
+        );
         // Every other projected setting remains identical to the old prepare.
         historical.emit_declaration_only = Some(true);
         assert_eq!(current, historical);

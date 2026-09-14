@@ -26,9 +26,9 @@ pub struct EmitSymbolAccessibilityResult {
     /// `Some` is reserved for a non-empty ordered alias list.
     pub aliases_to_make_visible: Option<Vec<EmitResolverNode>>,
     /// Error symbol name reported by the checker accessibility worker.
-    pub error_symbol_name: Option<String>,
+    pub error_symbol_name: Option<tsc_types::JsString>,
     /// Error module name reported by the checker accessibility worker.
-    pub error_module_name: Option<String>,
+    pub error_module_name: Option<tsc_types::JsString>,
     pub error_node: Option<EmitResolverNode>,
 }
 
@@ -55,7 +55,7 @@ pub struct EmitResolverSymbol {
 /// A property returned by `getPropertiesOfContainerFunction`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EmitFunctionProperty {
-    pub name: String,
+    pub name: tsc_types::EscapedName,
     pub symbol: EmitResolverSymbol,
     pub parent: EmitResolverSymbol,
     pub value_declaration: Option<EmitResolverNode>,
@@ -151,7 +151,7 @@ pub struct EmitTrackerNodeDescription {
 /// declarations).
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct EmitTrackerSymbolDescription {
-    pub escaped_name: String,
+    pub escaped_name: tsc_types::JsString,
     pub declaration_count: u32,
     pub declarations: Vec<EmitTrackerNodeDescription>,
 }
@@ -231,11 +231,11 @@ pub trait EmitTrackerAccess {
 /// tsc-span: _tsc.js:90948-90968
 /// (basic host), :45368-46289 (consumption)
 pub trait EmitModuleSpecifierHost {
-    fn get_current_directory(&self) -> String;
+    fn get_current_directory(&self) -> tsc_types::JsString;
     fn use_case_sensitive_file_names(&self) -> bool;
-    fn file_exists(&self, file_name: &str) -> bool;
-    fn read_file(&self, file_name: &str) -> Option<String>;
-    fn get_common_source_directory(&self) -> String;
+    fn file_exists(&self, file_name: tsc_types::JsStr<'_>) -> bool;
+    fn read_file(&self, file_name: tsc_types::JsStr<'_>) -> Option<String>;
+    fn get_common_source_directory(&self) -> tsc_types::JsString;
     /// Default resolution mode for a file (upstream `getDefaultResolutionModeForFile`).
     fn get_default_resolution_mode_for_file(&self, file: EmitResolverNode) -> EmitResolutionMode;
     /// Resolution mode at a module-specifier index (upstream
@@ -247,25 +247,31 @@ pub trait EmitModuleSpecifierHost {
     ) -> EmitResolutionMode;
 
     // Capability-optional surfaces (typed absent defaults).
-    fn symlinked_directories(&self) -> Vec<(String, String)> {
+    fn symlinked_directories(&self) -> Vec<(tsc_types::JsString, tsc_types::JsString)> {
         Vec::new()
     }
-    fn symlinked_files(&self) -> Vec<(String, String)> {
+    fn symlinked_files(&self) -> Vec<(tsc_types::JsString, tsc_types::JsString)> {
         Vec::new()
     }
-    fn get_nearest_ancestor_directory_with_package_json(&self, _file_name: &str) -> Option<String> {
+    fn get_nearest_ancestor_directory_with_package_json(
+        &self,
+        _file_name: tsc_types::JsStr<'_>,
+    ) -> Option<tsc_types::JsString> {
         None
     }
-    fn get_global_typings_cache_location(&self) -> Option<String> {
+    fn get_global_typings_cache_location(&self) -> Option<tsc_types::JsString> {
         None
     }
-    fn redirect_targets(&self, _file_path: &str) -> Vec<String> {
+    fn redirect_targets(&self, _file_path: tsc_types::JsStr<'_>) -> Vec<tsc_types::JsString> {
         Vec::new()
     }
-    fn get_redirect_from_source_file(&self, _file_name: &str) -> Option<String> {
+    fn get_redirect_from_source_file(
+        &self,
+        _file_name: tsc_types::JsStr<'_>,
+    ) -> Option<tsc_types::JsString> {
         None
     }
-    fn is_source_of_project_reference_redirect(&self, _file_name: &str) -> bool {
+    fn is_source_of_project_reference_redirect(&self, _file_name: tsc_types::JsStr<'_>) -> bool {
         false
     }
     /// The Import-kind file-include reasons for an imported module path —
@@ -274,7 +280,10 @@ pub trait EmitModuleSpecifierHost {
     /// the module-specifier index inside it; the checker reads the literal
     /// specifier text at that index from its own parse tree. Hosts without
     /// include-reason tracking answer empty.
-    fn import_include_reasons(&self, _imported_path: &str) -> Vec<EmitImportIncludeReason> {
+    fn import_include_reasons(
+        &self,
+        _imported_path: tsc_types::JsStr<'_>,
+    ) -> Vec<EmitImportIncludeReason> {
         Vec::new()
     }
     /// Whether the host carries a module-resolution cache (the
@@ -345,7 +354,7 @@ pub trait EmitSymbolTracker {
         Ok(())
     }
 
-    fn report_private_in_base_of_class_expression(&mut self, property_name: &str) {
+    fn report_private_in_base_of_class_expression(&mut self, property_name: tsc_types::JsStr<'_>) {
         let _ = property_name;
     }
 
@@ -357,8 +366,8 @@ pub trait EmitSymbolTracker {
 
     fn report_likely_unsafe_import_required_error(
         &mut self,
-        specifier: &str,
-        symbol_name: Option<&str>,
+        specifier: tsc_types::JsStr<'_>,
+        symbol_name: Option<tsc_types::JsStr<'_>>,
     ) {
         let _ = (specifier, symbol_name);
     }
@@ -376,7 +385,7 @@ pub trait EmitSymbolTracker {
         let _ = (primary_declaration, augmenting_declarations);
     }
 
-    fn report_non_serializable_property(&mut self, property_name: &str) {
+    fn report_non_serializable_property(&mut self, property_name: tsc_types::JsStr<'_>) {
         let _ = property_name;
     }
 

@@ -17,7 +17,7 @@
 //! | `addName` (_tsc.js:92432-92443) | reachable only from `appendSourceMap`; the printer never records names (`emitPos` passes `nameIndex: undefined`, _tsc.js:121318-121319) |
 
 use std::collections::HashMap;
-use std::fmt::Write as _;
+use tsc_diagnostics::{JsStr, JsString};
 
 /// tsc-port: createSourceMapGenerator @6.0.3
 /// tsc-hash: a9b20ed17638b1cd1d4c96a283a9731eef97e8ccffaf09b96d1e999d66d18e34
@@ -34,16 +34,16 @@ use std::fmt::Write as _;
 /// ported `to_file_name_lower_case` arm.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SourceMapGenerator {
-    file: Box<str>,
-    source_root: Box<str>,
-    sources_directory_path: Box<str>,
-    current_directory: Box<str>,
+    file: JsString,
+    source_root: JsString,
+    sources_directory_path: JsString,
+    current_directory: JsString,
     use_case_sensitive_source_keys: bool,
-    raw_sources: Vec<Box<str>>,
-    sources: Vec<Box<str>>,
-    source_index_by_relative: HashMap<Box<str>, u32>,
-    sources_content: Option<Vec<Option<Box<str>>>>,
-    names: Vec<Box<str>>,
+    raw_sources: Vec<JsString>,
+    sources: Vec<JsString>,
+    source_index_by_relative: HashMap<JsString, u32>,
+    sources_content: Option<Vec<Option<JsString>>>,
+    names: Vec<JsString>,
     mappings: String,
     last: MappingFields,
     has_last: bool,
@@ -81,10 +81,10 @@ impl SourceMapGenerator {
     /// `generatorOptions.extendedDiagnostics` timer is diagnostics-only
     /// upstream and has no output surface.
     pub fn new(
-        file: impl Into<Box<str>>,
-        source_root: impl Into<Box<str>>,
-        sources_directory_path: impl Into<Box<str>>,
-        current_directory: impl Into<Box<str>>,
+        file: impl Into<JsString>,
+        source_root: impl Into<JsString>,
+        sources_directory_path: impl Into<JsString>,
+        current_directory: impl Into<JsString>,
         use_case_sensitive_source_keys: bool,
     ) -> Self {
         Self {
@@ -111,7 +111,8 @@ impl SourceMapGenerator {
     /// tsc-port: addSource @6.0.3
     /// tsc-hash: 76070cdb8ed2cd15927fb715699301c61cf8739305bef8c0d711abadd57960dc
     /// tsc-span: _tsc.js:92401-92420
-    pub fn add_source(&mut self, file_name: &str) -> u32 {
+    pub fn add_source<'a>(&mut self, file_name: impl Into<JsStr<'a>>) -> u32 {
+        let file_name = file_name.into();
         let source = paths::get_relative_path_to_directory_or_url(
             &self.sources_directory_path,
             file_name,
@@ -119,11 +120,10 @@ impl SourceMapGenerator {
             self.use_case_sensitive_source_keys,
             /* is_absolute_path_an_url */ true,
         );
-        if let Some(&index) = self.source_index_by_relative.get(source.as_str()) {
+        if let Some(&index) = self.source_index_by_relative.get(source.as_bytes()) {
             return index;
         }
         let index = u32::try_from(self.sources.len()).expect("source index exceeds u32");
-        let source: Box<str> = source.into();
         self.sources.push(source.clone());
         self.raw_sources.push(file_name.into());
         self.source_index_by_relative.insert(source, index);
@@ -137,7 +137,7 @@ impl SourceMapGenerator {
     /// Dormant in H2.6a: the sole upstream caller runs under
     /// `printerOptions.inlineSources` (H2.6b). Upstream's `content !==
     /// null` guard is the `Some` arm; holes back-fill with `null`.
-    pub fn set_source_content(&mut self, source_index: u32, content: Option<&str>) {
+    pub fn set_source_content(&mut self, source_index: u32, content: Option<JsStr<'_>>) {
         let Some(content) = content else { return };
         let sources_content = self.sources_content.get_or_insert_with(Vec::new);
         let index = source_index as usize;
@@ -365,7 +365,7 @@ impl SourceMapGenerator {
     ///
     /// The RAW registered file names in registration order — the m-3
     /// `SourceMapObservation.input_source_files` producer.
-    pub fn raw_sources(&self) -> &[Box<str>] {
+    pub fn raw_sources(&self) -> &[JsString] {
         &self.raw_sources
     }
 }
@@ -384,29 +384,10 @@ fn base64_format_encode(value: u8) -> char {
     }
 }
 
-/// `JSON.stringify`-equivalent string escaping (packet §5, V8-verified):
-/// `"` and `\` escaped, U+0008/0009/000A/000C/000D as the `\b\t\n\f\r`
-/// short forms, every other C0 control as four-digit lowercase `\u00xx`
-/// hex, and everything else — DEL, U+2028/U+2029, all non-ASCII — passes
-/// through raw.
-fn push_json_string(out: &mut String, value: &str) {
-    out.push('"');
-    for ch in value.chars() {
-        match ch {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\u{0008}' => out.push_str("\\b"),
-            '\u{0009}' => out.push_str("\\t"),
-            '\u{000A}' => out.push_str("\\n"),
-            '\u{000C}' => out.push_str("\\f"),
-            '\u{000D}' => out.push_str("\\r"),
-            ch if (ch as u32) < 0x20 => {
-                write!(out, "\\u{:04x}", ch as u32).expect("string write is infallible");
-            }
-            ch => out.push(ch),
-        }
-    }
-    out.push('"');
+/// Serialize canonical values with JSON.stringify's well-formed escaping.
+/// Lone units are escaped here, after all identity and path computations.
+fn push_json_string<'a>(out: &mut String, value: impl Into<JsStr<'a>>) {
+    tsc_program::append_json_quoted(value.into(), out);
 }
 
 /// Constructor inputs for a print-lifetime recording (h2-6a-m-2 §4):
@@ -415,10 +396,10 @@ fn push_json_string(out: &mut String, value: &str) {
 /// needs no host reach.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SourceMapRecordingInputs {
-    pub file: Box<str>,
-    pub source_root: Box<str>,
-    pub sources_directory_path: Box<str>,
-    pub current_directory: Box<str>,
+    pub file: JsString,
+    pub source_root: JsString,
+    pub sources_directory_path: JsString,
+    pub current_directory: JsString,
     pub use_case_sensitive_source_keys: bool,
     /// h2-6b-m-1: `printerOptions.inlineSources` — the registration
     /// point feeds `set_source_content` iff set (upstream
@@ -470,7 +451,7 @@ impl SourceMapRecording {
     fn register(
         &mut self,
         source: crate::TransformSourceId,
-        file_name: &str,
+        file_name: JsStr<'_>,
         source_text: Option<&str>,
     ) -> RegisteredSource {
         if let Some(&registered) = self.registered.get(&source) {
@@ -479,7 +460,7 @@ impl SourceMapRecording {
         // tsc-port: isJsonSourceMapSource @6.0.3
         // tsc-hash: 6dfe87426da2f4738186629fcf86526d3d4b1030570d6284437b0d8ec67dbee2
         // tsc-span: _tsc.js:121375-121377
-        let registered = if file_name.to_ascii_lowercase().ends_with(".json") {
+        let registered = if crate::builtins::is_json_file_name(file_name) {
             RegisteredSource::Json
         } else {
             let index = self.generator.add_source(file_name);
@@ -492,7 +473,8 @@ impl SourceMapRecording {
             // once per registration (the memo above is the once-guard).
             if self.inline_sources {
                 if let Some(source_text) = source_text {
-                    self.generator.set_source_content(index, Some(source_text));
+                    self.generator
+                        .set_source_content(index, Some(source_text.into()));
                 }
                 // A `None` text reaches here only from the foreign-source
                 // seam (`record_for_source`), which no tsc-CLI input can
@@ -515,7 +497,7 @@ impl SourceMapRecording {
     pub(crate) fn set_current_source(
         &mut self,
         source: crate::TransformSourceId,
-        file_name: &str,
+        file_name: JsStr<'_>,
         source_text: &str,
     ) {
         let registered = self.register(source, file_name, Some(source_text));
@@ -575,7 +557,7 @@ impl SourceMapRecording {
     pub(crate) fn record_for_source(
         &mut self,
         source: crate::TransformSourceId,
-        file_name: &str,
+        file_name: JsStr<'_>,
         source_line: u32,
         source_character: u32,
         generated_line: u32,
@@ -620,15 +602,65 @@ impl SourceMapRecording {
 /// absolute root, and both preserve leading `..` for relative inputs) —
 /// the recorded packet §4 equivalence argument.
 pub(crate) mod paths {
+    use tsc_diagnostics::{JsStr, JsString};
     /// tsc-port: normalizeSlashes @6.0.3
     /// tsc-hash: d53c3e92f0b97072b15fe2ed30c413ab7f33522619f88528f818eef207535163
     /// tsc-span: _tsc.js:5452-5454
-    pub(crate) fn normalize_slashes(path: &str) -> String {
-        if path.contains('\\') {
-            path.replace('\\', "/")
+    pub(crate) fn normalize_slashes<'a>(path: impl Into<JsStr<'a>>) -> JsString {
+        let path = path.into();
+        if path.contains("\\") {
+            JsString::from_code_units(
+                &path
+                    .code_units()
+                    .map(|unit| if unit == 0x5c { 0x2f } else { unit })
+                    .collect::<Vec<_>>(),
+            )
         } else {
             path.to_owned()
         }
+    }
+
+    /// tsc-port: getDirectoryPath @6.0.3 (_tsc.js:5391-5397).
+    pub(crate) fn directory_path<'a>(path: impl Into<JsStr<'a>>) -> JsString {
+        let path = normalize_slashes(path);
+        let root = get_root_length(&path);
+        if root == path.as_bytes().len() {
+            return path;
+        }
+        let value = path.as_js().strip_suffix("/").unwrap_or(path.as_js());
+        let slash = value
+            .as_bytes()
+            .iter()
+            .rposition(|&byte| byte == b'/')
+            .unwrap_or(0);
+        value
+            .split_at_byte(root.max(slash))
+            .expect("directory boundary is ASCII")
+            .0
+            .to_owned()
+    }
+
+    /// removeFileExtension uses this ordered, case-sensitive extension list.
+    pub(crate) fn remove_file_extension<'a>(path: impl Into<JsStr<'a>>) -> JsString {
+        let path = path.into();
+        [
+            ".d.ts", ".d.mts", ".d.cts", ".mjs", ".mts", ".cjs", ".cts", ".ts", ".js", ".tsx",
+            ".jsx", ".json",
+        ]
+        .into_iter()
+        .find_map(|extension| {
+            (path.as_bytes().len() > extension.len())
+                .then(|| path.strip_suffix(extension))
+                .flatten()
+        })
+        .unwrap_or(path)
+        .to_owned()
+    }
+
+    pub(crate) fn append_suffix<'a>(path: impl Into<JsStr<'a>>, suffix: &str) -> JsString {
+        let mut result = path.into().to_owned();
+        result.push_str(suffix);
+        result
     }
 
     /// tsc-port: isVolumeCharacter @6.0.3
@@ -657,12 +689,12 @@ pub(crate) mod paths {
     /// tsc-span: _tsc.js:5349-5386
     ///
     /// URL roots are `~`-encoded negative exactly as upstream. Index
-    /// arithmetic runs over UTF-8 bytes: every structural delimiter is
+    /// arithmetic runs over canonical WTF-8 bytes: every structural delimiter is
     /// ASCII, so byte scanning finds the same boundaries as upstream's
-    /// UTF-16 scan and the returned lengths are valid `&str` slice
+    /// UTF-16 scan and the returned lengths are valid canonical slice
     /// boundaries; the numeric VALUE differs from JS only for non-ASCII
     /// authority text, which no comparison in this module observes.
-    fn get_encoded_root_length(path: &str) -> i64 {
+    fn get_encoded_root_length(path: JsStr<'_>) -> i64 {
         let bytes = path.as_bytes();
         if bytes.is_empty() {
             return 0;
@@ -692,10 +724,10 @@ pub(crate) mod paths {
             if let Some(authority_offset) = bytes[authority_start..].iter().position(|&b| b == b'/')
             {
                 let authority_end = authority_start + authority_offset;
-                let scheme = &path[..scheme_end];
-                let authority = &path[authority_start..authority_end];
-                if scheme == "file"
-                    && (authority.is_empty() || authority == "localhost")
+                let scheme = &bytes[..scheme_end];
+                let authority = &bytes[authority_start..authority_end];
+                if scheme == b"file"
+                    && (authority.is_empty() || authority == b"localhost")
                     && bytes
                         .get(authority_end + 1)
                         .copied()
@@ -728,7 +760,8 @@ pub(crate) mod paths {
     /// tsc-port: getRootLength @6.0.3
     /// tsc-hash: 667612ab2d64309ca725b3e9e2b8c2d5e30fc1294a373956781a1f8a066e5cbb
     /// tsc-span: _tsc.js:5387-5390
-    pub(crate) fn get_root_length(path: &str) -> usize {
+    pub(crate) fn get_root_length<'a>(path: impl Into<JsStr<'a>>) -> usize {
+        let path = path.into();
         let root_length = get_encoded_root_length(path);
         (if root_length < 0 {
             !root_length
@@ -744,35 +777,43 @@ pub(crate) mod paths {
     /// Strictly positive encoded length: a `~`-encoded URL root is NOT a
     /// disk path, which is what keeps the `file://` prefix arm below off
     /// already-URL components.
-    fn is_rooted_disk_path(path: &str) -> bool {
+    fn is_rooted_disk_path(path: JsStr<'_>) -> bool {
         get_encoded_root_length(path) > 0
     }
 
     /// tsc-port: hasTrailingDirectorySeparator @6.0.3
     /// tsc-hash: 41e47fac4a2d5c0eb6359198faf485e13ba5dbccbe7c0b13025f6c338c7960ed
     /// tsc-span: _tsc.js:5334-5336
-    fn has_trailing_directory_separator(path: &str) -> bool {
+    fn has_trailing_directory_separator(path: JsStr<'_>) -> bool {
         matches!(path.as_bytes().last(), Some(b'/') | Some(b'\\'))
     }
 
     /// tsc-port: ensureTrailingDirectorySeparator @6.0.3
     /// tsc-hash: 5bd7b55e9a33e4a9fbea300f2f8ee2011c420d700dcde3d9df360328fb0beca8
     /// tsc-span: _tsc.js:5610-5615
-    pub(crate) fn ensure_trailing_directory_separator(path: &str) -> String {
+    pub(crate) fn ensure_trailing_directory_separator<'a>(path: impl Into<JsStr<'a>>) -> JsString {
+        let path = path.into();
         if has_trailing_directory_separator(path) {
             path.to_owned()
         } else {
-            format!("{path}/")
+            {
+                let mut result = path.to_owned();
+                result.push('/');
+                result
+            }
         }
     }
 
     /// tsc-port: pathComponents @6.0.3
     /// tsc-hash: ce00442504a457bdc73ac095fbeee31278f66cb566b14edea2fdb0bdb0c1e863
     /// tsc-span: _tsc.js:5437-5442
-    fn path_components(path: &str, root_length: usize) -> Vec<String> {
-        let root = path[..root_length].to_owned();
-        let mut rest: Vec<String> = path[root_length..].split('/').map(str::to_owned).collect();
-        if rest.last().is_some_and(String::is_empty) {
+    fn path_components(path: JsStr<'_>, root_length: usize) -> Vec<JsString> {
+        let (root, tail) = path
+            .split_at_byte(root_length)
+            .expect("root ends at an ASCII structural boundary");
+        let root = root.to_owned();
+        let mut rest: Vec<JsString> = tail.split_ascii(b'/').map(JsStr::to_owned).collect();
+        if rest.last().is_some_and(JsString::is_empty) {
             rest.pop();
         }
         let mut components = Vec::with_capacity(rest.len() + 1);
@@ -784,10 +825,10 @@ pub(crate) mod paths {
     /// tsc-port: getPathComponents @6.0.3
     /// tsc-hash: e90db53f4d0f370afebd35c5fee098b79f29ce0984f16a0ba684c0c7be428f14
     /// tsc-span: _tsc.js:5443-5446
-    fn get_path_components(path: &str, current_directory: &str) -> Vec<String> {
+    fn get_path_components(path: JsStr<'_>, current_directory: JsStr<'_>) -> Vec<JsString> {
         let combined = combine_paths(current_directory, path);
         let root_length = get_root_length(&combined);
-        path_components(&combined, root_length)
+        path_components(combined.as_js(), root_length)
     }
 
     /// tsc-port: reducePathComponents @6.0.3
@@ -797,11 +838,11 @@ pub(crate) mod paths {
     /// `..` pops a kept non-`..` segment at depth > 1, is dropped
     /// outright at depth 1 under a truthy (absolute) root, and
     /// accumulates only under an empty (relative) root.
-    fn reduce_path_components(components: Vec<String>) -> Vec<String> {
+    fn reduce_path_components(components: Vec<JsString>) -> Vec<JsString> {
         let Some((root, rest)) = components.split_first() else {
             return Vec::new();
         };
-        let mut reduced: Vec<String> = vec![root.clone()];
+        let mut reduced: Vec<JsString> = vec![root.clone()];
         for component in rest {
             if component.is_empty() || component == "." {
                 continue;
@@ -824,9 +865,14 @@ pub(crate) mod paths {
     /// tsc-port: combinePaths @6.0.3
     /// tsc-hash: b5ac359c4863f2966ac63973b41fde20c4548b83a0671304ce14cb6c54ba8e28
     /// tsc-span: _tsc.js:5474-5486
-    pub(crate) fn combine_paths(path: &str, relative: &str) -> String {
+    pub(crate) fn combine_paths<'a, 'b>(
+        path: impl Into<JsStr<'a>>,
+        relative: impl Into<JsStr<'b>>,
+    ) -> JsString {
+        let path = path.into();
+        let relative = relative.into();
         let mut combined = if path.is_empty() {
-            String::new()
+            JsString::new()
         } else {
             normalize_slashes(path)
         };
@@ -838,23 +884,29 @@ pub(crate) mod paths {
             return relative;
         }
         combined = ensure_trailing_directory_separator(&combined);
-        combined.push_str(&relative);
+        combined.push_js(relative.as_js());
         combined
     }
 
     /// tsc-port: getPathFromPathComponents @6.0.3
     /// tsc-hash: 138e19b80fb9f4ae63e7388d0dd670c3884ccf08aaceffd326a9fa2fa0611a50
     /// tsc-span: _tsc.js:5447-5451
-    fn get_path_from_path_components(components: &[String]) -> String {
+    fn get_path_from_path_components(components: &[JsString]) -> JsString {
         let Some((root, rest)) = components.split_first() else {
-            return String::new();
+            return JsString::new();
         };
-        let root = if root.is_empty() {
-            String::new()
+        let mut result = if root.is_empty() {
+            JsString::new()
         } else {
             ensure_trailing_directory_separator(root)
         };
-        format!("{root}{}", rest.join("/"))
+        for (index, component) in rest.iter().enumerate() {
+            if index > 0 {
+                result.push('/');
+            }
+            result.push_js(component.as_js());
+        }
+        result
     }
 
     /// tsc-port: toFileNameLowerCase @6.0.3
@@ -868,27 +920,29 @@ pub(crate) mod paths {
     /// rung (packet §12b): every witness replay and the whole 6a band run
     /// case-sensitive; the first case-insensitive-host band packet owns
     /// its first observation.
-    pub(crate) fn to_file_name_lower_case(file_name: &str) -> String {
+    pub(crate) fn to_file_name_lower_case<'a>(file_name: impl Into<JsStr<'a>>) -> JsString {
         fn is_preserved(ch: char) -> bool {
             matches!(ch,
                 '\u{0130}' | '\u{0131}' | '\u{00DF}'
                 | 'a'..='z' | '0'..='9'
                 | '\\' | '/' | ':' | '-' | '_' | '.' | ' ')
         }
-        if file_name.chars().all(is_preserved) {
-            return file_name.to_owned();
-        }
-        let mut out = String::with_capacity(file_name.len());
+        let file_name = file_name.into();
+        let mut out = JsString::with_capacity(file_name.as_bytes().len());
         let mut run = String::new();
-        for ch in file_name.chars() {
-            if is_preserved(ch) {
-                if !run.is_empty() {
-                    out.push_str(&run.to_lowercase());
-                    run.clear();
+        for point in char::decode_utf16(file_name.code_units()) {
+            match point {
+                Ok(ch) if !is_preserved(ch) => run.push(ch),
+                point => {
+                    if !run.is_empty() {
+                        out.push_str(&run.to_lowercase());
+                        run.clear();
+                    }
+                    match point {
+                        Ok(ch) => out.push(ch),
+                        Err(unit) => out.push_code_unit(unit.unpaired_surrogate()),
+                    }
                 }
-                out.push(ch);
-            } else {
-                run.push(ch);
             }
         }
         if !run.is_empty() {
@@ -901,13 +955,20 @@ pub(crate) mod paths {
     /// tsc-hash: 1798be4a0411df11d02a3c1ab582f840d2c3d2bae6a48dc4803dabc1155e485c
     /// tsc-span: _tsc.js:905-907
     ///
-    /// `toUpperCase` equality, ported as ASCII-uppercase with the packet
-    /// §12a reachability note: every reachable root component on the
-    /// admitted profile is `/`, so the compare short-circuits on
-    /// equality; UNC roots that could carry non-ASCII are owned by the
-    /// first band that admits one.
-    fn equate_strings_case_insensitive(a: &str, b: &str) -> bool {
-        a == b || a.eq_ignore_ascii_case(b)
+    /// JavaScript's full Unicode uppercase equality; unpaired units remain
+    /// opaque, so different non-scalar roots cannot collapse.
+    fn equate_strings_case_insensitive(a: JsStr<'_>, b: JsStr<'_>) -> bool {
+        fn uppercase(value: JsStr<'_>) -> JsString {
+            let mut output = JsString::new();
+            for point in char::decode_utf16(value.code_units()) {
+                match point {
+                    Ok(ch) => ch.to_uppercase().for_each(|ch| output.push(ch)),
+                    Err(unit) => output.push_code_unit(unit.unpaired_surrogate()),
+                }
+            }
+            output
+        }
+        a == b || uppercase(a) == uppercase(b)
     }
 
     /// tsc-port: getPathComponentsRelativeTo @6.0.3
@@ -922,25 +983,25 @@ pub(crate) mod paths {
     /// the case-sensitive comparer that
     /// `getRelativePathToDirectoryOrUrl` always passes.
     fn get_path_components_relative_to(
-        from_combined: &str,
-        to_combined: &str,
+        from_combined: JsStr<'_>,
+        to_combined: JsStr<'_>,
         use_case_sensitive_source_keys: bool,
-    ) -> Vec<String> {
-        let canonical = |component: &str| -> String {
+    ) -> Vec<JsString> {
+        let canonical = |component: &JsString| -> JsString {
             if use_case_sensitive_source_keys {
-                component.to_owned()
+                component.clone()
             } else {
                 to_file_name_lower_case(component)
             }
         };
-        let from_components = reduce_path_components(get_path_components(from_combined, ""));
-        let to_components = reduce_path_components(get_path_components(to_combined, ""));
+        let from_components = reduce_path_components(get_path_components(from_combined, "".into()));
+        let to_components = reduce_path_components(get_path_components(to_combined, "".into()));
         let mut start = 0usize;
         while start < from_components.len() && start < to_components.len() {
             let from_component = canonical(&from_components[start]);
             let to_component = canonical(&to_components[start]);
             let matched = if start == 0 {
-                equate_strings_case_insensitive(&from_component, &to_component)
+                equate_strings_case_insensitive(from_component.as_js(), to_component.as_js())
             } else {
                 from_component == to_component
             };
@@ -954,9 +1015,9 @@ pub(crate) mod paths {
         }
         let components = &to_components[start..];
         let mut relative = Vec::new();
-        relative.push(String::new());
+        relative.push(JsString::new());
         for _ in start..from_components.len() {
-            relative.push("..".to_owned());
+            relative.push("..".into());
         }
         relative.extend(components.iter().cloned());
         relative
@@ -971,7 +1032,12 @@ pub(crate) mod paths {
     /// path))))`. File paths carry no trailing separator on any
     /// reachable input; the trailing-separator preservation arm of the
     /// upstream span is therefore vacuous here and not modeled.
-    pub(crate) fn get_normalized_absolute_path(path: &str, current_directory: &str) -> String {
+    pub(crate) fn get_normalized_absolute_path<'a, 'b>(
+        path: impl Into<JsStr<'a>>,
+        current_directory: impl Into<JsStr<'b>>,
+    ) -> JsString {
+        let path = path.into();
+        let current_directory = current_directory.into();
         get_path_from_path_components(&reduce_path_components(get_path_components(
             path,
             current_directory,
@@ -988,25 +1054,30 @@ pub(crate) mod paths {
     /// directory, upstream order). `common_source_directory` must carry
     /// its trailing separator (the upstream host guarantees it; the
     /// caller ensures it).
-    pub(crate) fn source_file_path_in_new_dir_worker(
-        file_name: &str,
-        new_dir_path: &str,
-        current_directory: &str,
-        common_source_directory: &str,
+    pub(crate) fn source_file_path_in_new_dir_worker<'a, 'b, 'c, 'd>(
+        file_name: impl Into<JsStr<'a>>,
+        new_dir_path: impl Into<JsStr<'b>>,
+        current_directory: impl Into<JsStr<'c>>,
+        common_source_directory: impl Into<JsStr<'d>>,
         use_case_sensitive_source_keys: bool,
-    ) -> String {
+    ) -> JsString {
+        let common_source_directory = common_source_directory.into();
         let source_file_path = get_normalized_absolute_path(file_name, current_directory);
-        let canonical = |value: &str| {
+        let canonical = |value: JsStr<'_>| {
             if use_case_sensitive_source_keys {
                 value.to_owned()
             } else {
                 to_file_name_lower_case(value)
             }
         };
-        let in_common =
-            canonical(&source_file_path).starts_with(&canonical(common_source_directory));
+        let in_common = canonical(source_file_path.as_js())
+            .as_js()
+            .starts_with_js(canonical(common_source_directory).as_js());
         let suffix = if in_common {
-            source_file_path[common_source_directory.len()..].to_owned()
+            source_file_path.as_js().substring(
+                common_source_directory.len_units(),
+                source_file_path.len_units(),
+            )
         } else {
             source_file_path
         };
@@ -1016,28 +1087,31 @@ pub(crate) mod paths {
     /// tsc-port: getRelativePathToDirectoryOrUrl @6.0.3
     /// tsc-hash: 702a35388f8748ee6cb70c7b7826ad08b66064005619ca2677dd90a7d8596b10
     /// tsc-span: _tsc.js:5734-5747
-    pub(crate) fn get_relative_path_to_directory_or_url(
-        directory_path_or_url: &str,
-        relative_or_absolute_path: &str,
-        current_directory: &str,
+    pub(crate) fn get_relative_path_to_directory_or_url<'a, 'b, 'c>(
+        directory_path_or_url: impl Into<JsStr<'a>>,
+        relative_or_absolute_path: impl Into<JsStr<'b>>,
+        current_directory: impl Into<JsStr<'c>>,
         use_case_sensitive_source_keys: bool,
         is_absolute_path_an_url: bool,
-    ) -> String {
+    ) -> JsString {
+        let current_directory = current_directory.into();
         let from_combined = combine_paths(current_directory, directory_path_or_url);
         let to_combined = combine_paths(current_directory, relative_or_absolute_path);
         let mut components = get_path_components_relative_to(
-            &from_combined,
-            &to_combined,
+            from_combined.as_js(),
+            to_combined.as_js(),
             use_case_sensitive_source_keys,
         );
         if let Some(first) = components.first_mut() {
-            if is_absolute_path_an_url && is_rooted_disk_path(first) {
-                let prefix = if first.starts_with('/') {
+            if is_absolute_path_an_url && is_rooted_disk_path(first.as_js()) {
+                let prefix = if first.starts_with("/") {
                     "file://"
                 } else {
                     "file:///"
                 };
-                *first = format!("{prefix}{first}");
+                let mut rooted = JsString::from(prefix);
+                rooted.push_js(first.as_js());
+                *first = rooted;
             }
         }
         get_path_from_path_components(&components)

@@ -1,5 +1,7 @@
+use crate::builtins::has_ascii_file_suffix;
+use crate::source_map::paths;
 use std::collections::BTreeSet;
-use std::path::{Path, PathBuf};
+use tsc_diagnostics::{JsStr, JsString};
 
 use tsc_diagnostics::{gen, sort_and_dedupe_diagnostics, Diagnostic, DiagnosticList, MessageChain};
 use tsc_program::SourceFileId;
@@ -74,11 +76,11 @@ pub enum JavascriptOmission {
 /// Full `getOutputPathsFor` plus build-info slot shape.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct EmitOutputPaths {
-    javascript: Option<PathBuf>,
-    javascript_map: Option<PathBuf>,
-    declaration: Option<PathBuf>,
-    declaration_map: Option<PathBuf>,
-    build_info: Option<PathBuf>,
+    javascript: Option<JsString>,
+    javascript_map: Option<JsString>,
+    declaration: Option<JsString>,
+    declaration_map: Option<JsString>,
+    build_info: Option<JsString>,
 }
 
 impl EmitOutputPaths {
@@ -92,51 +94,51 @@ impl EmitOutputPaths {
         }
     }
 
-    pub fn javascript(path: impl Into<PathBuf>) -> Self {
+    pub fn javascript(path: impl Into<JsString>) -> Self {
         Self {
             javascript: Some(path.into()),
             ..Self::empty()
         }
     }
 
-    pub fn with_javascript_map(mut self, path: impl Into<PathBuf>) -> Self {
+    pub fn with_javascript_map(mut self, path: impl Into<JsString>) -> Self {
         self.javascript_map = Some(path.into());
         self
     }
 
-    pub fn with_declaration(mut self, path: impl Into<PathBuf>) -> Self {
+    pub fn with_declaration(mut self, path: impl Into<JsString>) -> Self {
         self.declaration = Some(path.into());
         self
     }
 
-    pub fn with_declaration_map(mut self, path: impl Into<PathBuf>) -> Self {
+    pub fn with_declaration_map(mut self, path: impl Into<JsString>) -> Self {
         self.declaration_map = Some(path.into());
         self
     }
 
-    pub fn with_build_info(mut self, path: impl Into<PathBuf>) -> Self {
+    pub fn with_build_info(mut self, path: impl Into<JsString>) -> Self {
         self.build_info = Some(path.into());
         self
     }
 
-    pub fn javascript_path(&self) -> Option<&Path> {
-        self.javascript.as_deref()
+    pub fn javascript_path(&self) -> Option<JsStr<'_>> {
+        self.javascript.as_ref().map(JsString::as_js)
     }
 
-    pub fn javascript_map_path(&self) -> Option<&Path> {
-        self.javascript_map.as_deref()
+    pub fn javascript_map_path(&self) -> Option<JsStr<'_>> {
+        self.javascript_map.as_ref().map(JsString::as_js)
     }
 
-    pub fn declaration_path(&self) -> Option<&Path> {
-        self.declaration.as_deref()
+    pub fn declaration_path(&self) -> Option<JsStr<'_>> {
+        self.declaration.as_ref().map(JsString::as_js)
     }
 
-    pub fn declaration_map_path(&self) -> Option<&Path> {
-        self.declaration_map.as_deref()
+    pub fn declaration_map_path(&self) -> Option<JsStr<'_>> {
+        self.declaration_map.as_ref().map(JsString::as_js)
     }
 
-    pub fn build_info_path(&self) -> Option<&Path> {
-        self.build_info.as_deref()
+    pub fn build_info_path(&self) -> Option<JsStr<'_>> {
+        self.build_info.as_ref().map(JsString::as_js)
     }
 }
 
@@ -271,7 +273,7 @@ impl EmitOutputPlan {
 pub struct EmitPreflight {
     plan: EmitOutputPlan,
     diagnostics: DiagnosticList,
-    blocked_outputs: BTreeSet<PathBuf>,
+    blocked_outputs: BTreeSet<JsString>,
 }
 
 impl EmitPreflight {
@@ -283,7 +285,7 @@ impl EmitPreflight {
         &self.diagnostics
     }
 
-    pub fn is_emit_blocked(&self, host: &dyn EmitHost, path: &Path) -> bool {
+    pub fn is_emit_blocked(&self, host: &dyn EmitHost, path: JsStr<'_>) -> bool {
         self.blocked_outputs
             .contains(&canonical_case_key(host, path))
     }
@@ -379,10 +381,10 @@ fn no_emit_for_js_source(source: EmitSource<'_>, host: &dyn EmitHost) -> bool {
     if host.compiler_options().no_emit_for_js_files != Some(true) {
         return false;
     }
-    let path = source.path().to_string_lossy().to_ascii_lowercase();
+    let path = source.path();
     [".js", ".jsx", ".mjs", ".cjs", ".json"]
         .iter()
-        .any(|extension| path.ends_with(extension))
+        .any(|extension| has_ascii_file_suffix(path, extension))
 }
 
 pub(crate) fn source_file_may_emit_forced_declaration(
@@ -416,7 +418,7 @@ fn get_output_paths_for_with_force(
     let javascript = (!(options.emit_declaration_only.unwrap_or(false)
         || is_json
             && host.canonical_output_path(source.path())
-                == host.canonical_output_path(&javascript)))
+                == host.canonical_output_path(javascript.as_js())))
     .then_some(javascript);
 
     let mut paths = match javascript {
@@ -427,15 +429,15 @@ fn get_output_paths_for_with_force(
     // files (116373-116387); getSourceMapFilePath (116388-116390) applies
     // only past that gate (h2-6a-m-3 G6).
     if options.source_map == Some(true) && options.inline_source_map != Some(true) && !is_json {
-        if let Some(path) = paths.javascript_path().map(Path::to_path_buf) {
-            paths = paths.with_javascript_map(format!("{}.map", path.to_string_lossy()));
+        if let Some(path) = paths.javascript_path().map(JsStr::to_owned) {
+            paths = paths.with_javascript_map(paths::append_suffix(&path, ".map"));
         }
     }
     let declarations_enabled = options.declaration == Some(true) || options.composite == Some(true);
     if force_dts_paths || declarations_enabled && !is_json {
         let declaration = declaration_output_path(source.path(), host);
         if declarations_enabled && options.declaration_map == Some(true) {
-            paths = paths.with_declaration_map(format!("{}.map", declaration.to_string_lossy()));
+            paths = paths.with_declaration_map(paths::append_suffix(&declaration, ".map"));
         }
         paths = paths.with_declaration(declaration);
     }
@@ -493,10 +495,11 @@ fn for_each_emitted_file_with_force(
     Ok(())
 }
 
-fn active_out_file(host: &dyn EmitHost) -> Option<&str> {
+fn active_out_file(host: &dyn EmitHost) -> Option<JsStr<'_>> {
     host.compiler_options()
         .out_file
-        .as_deref()
+        .as_ref()
+        .map(JsString::as_js)
         .filter(|path| !path.is_empty())
 }
 
@@ -505,7 +508,7 @@ fn active_out_file(host: &dyn EmitHost) -> Option<&str> {
 /// tsc-span: _tsc.js:116365-116372
 pub(crate) fn get_output_paths_for_bundle(
     options: &tsc_types::CompilerOptions,
-    out_file: &str,
+    out_file: JsStr<'_>,
     force_dts_paths: bool,
 ) -> EmitOutputPaths {
     // The callback spelling is the raw outFile option. Only collision keys
@@ -520,7 +523,7 @@ pub(crate) fn get_output_paths_for_bundle(
         && options.source_map == Some(true)
         && options.inline_source_map != Some(true)
     {
-        paths = paths.with_javascript_map(format!("{out_file}.map"));
+        paths = paths.with_javascript_map(paths::append_suffix(out_file, ".map"));
     }
     let declarations_enabled = options.declaration == Some(true) || options.composite == Some(true);
     if force_dts_paths || declarations_enabled {
@@ -532,14 +535,14 @@ pub(crate) fn get_output_paths_for_bundle(
         ]
         .iter()
         .find_map(|extension| {
-            (out_file.len() > extension.len())
+            (out_file.as_bytes().len() > extension.len())
                 .then(|| out_file.strip_suffix(extension))
                 .flatten()
         })
         .unwrap_or(out_file);
-        let declaration = format!("{extensionless}.d.ts");
+        let declaration = paths::append_suffix(extensionless, ".d.ts");
         if declarations_enabled && options.declaration_map == Some(true) {
-            paths = paths.with_declaration_map(format!("{declaration}.map"));
+            paths = paths.with_declaration_map(paths::append_suffix(&declaration, ".map"));
         }
         paths = paths.with_declaration(declaration);
     }
@@ -660,42 +663,48 @@ pub(crate) fn preflight_forced_declarations(
 /// tsc-hash: 4ddd1ea3136e64d8da7394a321fb709fffd279d36c8b456616956cdd82905b14
 /// tsc-span: _tsc.js:16567-16576
 fn get_own_emit_output_file_path(
-    source_file: &Path,
+    source_file: JsStr<'_>,
     host: &dyn EmitHost,
     extension: &'static str,
-) -> PathBuf {
+) -> JsString {
     let relocated = host
         .compiler_options()
         .out_dir
-        .as_deref()
+        .as_ref()
+        .map(JsString::as_js)
         .filter(|directory| !directory.is_empty())
         .map(|out_dir| source_file_path_in_new_dir(source_file, host, out_dir))
-        .unwrap_or_else(|| source_file.to_path_buf());
-    relocated.with_extension(extension)
+        .unwrap_or_else(|| source_file.to_owned());
+    paths::append_suffix(
+        paths::remove_file_extension(&relocated).as_js(),
+        &format!(".{extension}"),
+    )
 }
 
 /// tsc-port: getOutputExtension @6.0.3
 /// tsc-hash: cf61157be90d2652413f6d8ee13d05b2e76048b1f4ee38f8b620691af40632ce
 /// tsc-span: _tsc.js:116391-116393
-fn get_output_extension(path: &Path, jsx: Option<i32>) -> Result<&'static str, EmitFailure> {
-    let file_name = path.to_string_lossy().to_ascii_lowercase();
-    if file_name.ends_with(".json") {
+fn get_output_extension(path: JsStr<'_>, jsx: Option<i32>) -> Result<&'static str, EmitFailure> {
+    let file_name = path;
+    if has_ascii_file_suffix(file_name, ".json") {
         Ok("json")
-    } else if (file_name.ends_with(".tsx") || file_name.ends_with(".jsx")) && jsx == Some(1) {
+    } else if (has_ascii_file_suffix(file_name, ".tsx") || has_ascii_file_suffix(file_name, ".jsx"))
+        && jsx == Some(1)
+    {
         Ok("jsx")
-    } else if file_name.ends_with(".mts") || file_name.ends_with(".mjs") {
+    } else if has_ascii_file_suffix(file_name, ".mts") || has_ascii_file_suffix(file_name, ".mjs") {
         Ok("mjs")
-    } else if file_name.ends_with(".cts") || file_name.ends_with(".cjs") {
+    } else if has_ascii_file_suffix(file_name, ".cts") || has_ascii_file_suffix(file_name, ".cjs") {
         Ok("cjs")
-    } else if file_name.ends_with(".ts")
-        || file_name.ends_with(".tsx")
-        || file_name.ends_with(".js")
-        || file_name.ends_with(".jsx")
+    } else if has_ascii_file_suffix(file_name, ".ts")
+        || has_ascii_file_suffix(file_name, ".tsx")
+        || has_ascii_file_suffix(file_name, ".js")
+        || has_ascii_file_suffix(file_name, ".jsx")
     {
         Ok("js")
     } else {
         Err(EmitFailure::UnsupportedSourceExtension {
-            path: path.to_path_buf(),
+            path: path.to_owned(),
         })
     }
 }
@@ -703,29 +712,35 @@ fn get_output_extension(path: &Path, jsx: Option<i32>) -> Result<&'static str, E
 /// tsc-port: getDeclarationEmitOutputFilePath @6.0.3
 /// tsc-hash: 151a4fa19404c1a458b703798d1ed757d717f8c180604136d049b7d4ad38d464
 /// tsc-span: _tsc.js:16580-16591
-pub(crate) fn declaration_output_path(source_file: &Path, host: &dyn EmitHost) -> PathBuf {
+pub(crate) fn declaration_output_path(source_file: JsStr<'_>, host: &dyn EmitHost) -> JsString {
     let options = host.compiler_options();
     let relocated = options
         .declaration_dir
-        .as_deref()
+        .as_ref()
+        .map(JsString::as_js)
         .filter(|directory| !directory.is_empty())
         .or(options
             .out_dir
-            .as_deref()
+            .as_ref()
+            .map(JsString::as_js)
             .filter(|directory| !directory.is_empty()))
         .map(|directory| source_file_path_in_new_dir(source_file, host, directory))
-        .unwrap_or_else(|| source_file.to_path_buf());
-    let lower = relocated.to_string_lossy().to_ascii_lowercase();
-    let extension = if lower.ends_with(".mts") || lower.ends_with(".mjs") {
+        .unwrap_or_else(|| source_file.to_owned());
+    let lower = relocated.as_js();
+    let extension = if has_ascii_file_suffix(lower, ".mts") || has_ascii_file_suffix(lower, ".mjs")
+    {
         "d.mts"
-    } else if lower.ends_with(".cts") || lower.ends_with(".cjs") {
+    } else if has_ascii_file_suffix(lower, ".cts") || has_ascii_file_suffix(lower, ".cjs") {
         "d.cts"
-    } else if lower.ends_with(".json") {
+    } else if has_ascii_file_suffix(lower, ".json") {
         "d.json.ts"
     } else {
         "d.ts"
     };
-    relocated.with_extension(extension)
+    paths::append_suffix(
+        paths::remove_file_extension(&relocated).as_js(),
+        &format!(".{extension}"),
+    )
 }
 
 /// tsc-port: verifyEmitFilePath @6.0.3
@@ -733,10 +748,10 @@ pub(crate) fn declaration_output_path(source_file: &Path, host: &dyn EmitHost) -
 /// tsc-span: _tsc.js:125018-125045
 fn verify_emit_file_path(
     host: &dyn EmitHost,
-    path: &Path,
-    input_paths: &BTreeSet<PathBuf>,
-    emitted_paths: &mut BTreeSet<PathBuf>,
-    blocked_outputs: &mut BTreeSet<PathBuf>,
+    path: JsStr<'_>,
+    input_paths: &BTreeSet<JsString>,
+    emitted_paths: &mut BTreeSet<JsString>,
+    blocked_outputs: &mut BTreeSet<JsString>,
     diagnostics: &mut DiagnosticList,
 ) {
     let canonical = canonical_case_key(host, path);
@@ -753,57 +768,58 @@ fn verify_emit_file_path(
     }
 }
 
-fn canonical_case_key(host: &dyn EmitHost, path: &Path) -> PathBuf {
+fn canonical_case_key(host: &dyn EmitHost, path: JsStr<'_>) -> JsString {
     let canonical = host.canonical_output_path(path);
     tsc_program::canonical_emit_path(
-        &canonical,
+        canonical.as_js(),
         host.current_directory(),
         host.use_case_sensitive_file_names(),
     )
 }
 
 fn source_file_path_in_new_dir(
-    source_file: &Path,
+    source_file: JsStr<'_>,
     host: &dyn EmitHost,
-    output_directory: &str,
-) -> PathBuf {
-    // EmitHost exposes a native directory Path, whose trailing separator is
-    // optional. The tsc string worker requires the common-directory separator.
-    let common = host.common_source_directory().to_string_lossy();
-    let common = if !common.is_empty() && !common.ends_with('/') {
-        std::borrow::Cow::Owned(format!("{common}/"))
+    output_directory: JsStr<'_>,
+) -> JsString {
+    let common = host.common_source_directory();
+    let common = if common.is_empty() {
+        common.to_owned()
     } else {
-        common
+        paths::ensure_trailing_directory_separator(common)
     };
     tsc_program::source_file_path_in_new_directory(
         source_file,
         output_directory,
-        Path::new(common.as_ref()),
+        common.as_js(),
         host.current_directory(),
         host.use_case_sensitive_file_names(),
     )
 }
 
-fn is_declaration_file_name(path: &Path) -> bool {
-    let name = path.to_string_lossy().to_ascii_lowercase();
-    name.ends_with(".d.ts")
-        || name.ends_with(".d.mts")
-        || name.ends_with(".d.cts")
-        || name
-            .rsplit(['/', '\\'])
-            .next()
-            .is_some_and(|base| base.contains(".d.") && base.ends_with(".ts"))
+fn is_declaration_file_name(path: JsStr<'_>) -> bool {
+    let path = paths::normalize_slashes(path);
+    let name = path.as_js();
+    let base = name.split_ascii(b'/').next_back().unwrap_or(name);
+    [".d.ts", ".d.mts", ".d.cts"]
+        .into_iter()
+        .any(|ext| has_ascii_file_suffix(name, ext))
+        || base
+            .as_bytes()
+            .windows(3)
+            .any(|bytes| bytes.eq_ignore_ascii_case(b".d."))
+            && has_ascii_file_suffix(base, ".ts")
 }
 
 fn compiler_diagnostic(
     message: &'static tsc_diagnostics::DiagnosticMessage,
-    path: &Path,
+    path: JsStr<'_>,
 ) -> Diagnostic {
     Diagnostic::new(
         None,
         None,
         None,
-        MessageChain::new(message, &[path.to_string_lossy().into_owned()]),
+        MessageChain::new_js(message, &[path.to_owned()]),
     )
 }
 
@@ -811,10 +827,10 @@ fn option_diagnostic(message: &'static tsc_diagnostics::DiagnosticMessage) -> Di
     Diagnostic::new(None, None, None, MessageChain::new(message, &[]))
 }
 
-fn overwrite_input_diagnostic(host: &dyn EmitHost, path: &Path) -> Diagnostic {
-    let mut message = MessageChain::new(
+fn overwrite_input_diagnostic(host: &dyn EmitHost, path: JsStr<'_>) -> Diagnostic {
+    let mut message = MessageChain::new_js(
         &gen::Cannot_write_file_0_because_it_would_overwrite_input_file,
-        &[path.to_string_lossy().into_owned()],
+        &[path.to_owned()],
     );
     if host.config_file_path().is_none() {
         message = message.with_next(vec![MessageChain::new(

@@ -7,8 +7,8 @@ use tsc_binder::SymbolId;
 use tsc_diagnostics::gen as diagnostics;
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{
-    InternalSymbolName, ModifierFlags, NodeFlags, ObjectFlags, ScriptTarget, SymbolFlags,
-    TypeFlags, TypeId,
+    EscapedName, InternalSymbolName, JsStr, JsString, ModifierFlags, NodeFlags, ObjectFlags,
+    ScriptTarget, SymbolFlags, TypeFlags, TypeId,
 };
 
 use crate::state::{CheckResult, CheckerState, IndexInfo};
@@ -203,22 +203,22 @@ impl<'a> CheckerState<'a> {
                     let related = prop_declaration
                         .filter(|&prop_declaration| error_node != prop_declaration)
                         .map(|prop_declaration| {
-                            self.related_info_for_node(
+                            self.related_info_for_node_js(
                                 prop_declaration,
                                 &diagnostics::_0_is_declared_here,
-                                &[&prop_display],
+                                &[prop_display.as_js()],
                             )
                         })
                         .into_iter()
                         .collect();
-                    self.error_at_with_related(
+                    self.error_at_with_related_js(
                         Some(error_node),
                         &diagnostics::Property_0_of_type_1_is_not_assignable_to_2_index_type_3,
                         &[
-                            &prop_display,
-                            &prop_type_display,
-                            &key_display,
-                            &value_display,
+                            prop_display.as_js(),
+                            (&prop_type_display).into(),
+                            (&key_display).into(),
+                            (&value_display).into(),
                         ],
                         related,
                     );
@@ -303,14 +303,14 @@ impl<'a> CheckerState<'a> {
                     let check_value_display = self.type_to_string_slice(check_info.value_type)?;
                     let key_display = self.type_to_string_slice(info.key_type)?;
                     let value_display = self.type_to_string_slice(info.value_type)?;
-                    self.error_at(
+                    self.error_at_js(
                         Some(error_node),
                         &diagnostics::_0_index_type_1_is_not_assignable_to_2_index_type_3,
                         &[
-                            &check_key_display,
-                            &check_value_display,
-                            &key_display,
-                            &value_display,
+                            (&check_key_display).into(),
+                            (&check_value_display).into(),
+                            (&key_display).into(),
+                            (&value_display).into(),
                         ],
                     );
                 }
@@ -371,10 +371,10 @@ impl<'a> CheckerState<'a> {
             if entry_declarations.len() > 1 {
                 let display = self.type_to_string_slice(entry_type)?;
                 for declaration in entry_declarations {
-                    self.error_at(
+                    self.error_at_js(
                         Some(declaration),
                         &diagnostics::Duplicate_index_signature_for_type_0,
-                        &[&display],
+                        &[(&display).into()],
                     );
                 }
             }
@@ -397,7 +397,7 @@ impl<'a> CheckerState<'a> {
             NodeData::InterfaceDeclaration(data) => data.members,
             _ => None,
         };
-        let mut names: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let mut names: std::collections::HashSet<JsString> = std::collections::HashSet::new();
         for member in self.nodes_of(members) {
             if self.kind_of(member) != SyntaxKind::PropertySignature {
                 continue;
@@ -407,9 +407,9 @@ impl<'a> CheckerState<'a> {
             };
             let member_name = match self.data_of(name) {
                 NodeData::StringLiteral(data) => data.text.clone(),
-                NodeData::NumericLiteral(data) => data.text.clone(),
+                NodeData::NumericLiteral(data) => data.text.clone().into(),
                 NodeData::Identifier(data) => {
-                    tsc_binder::unescape_leading_underscores(&data.escaped_text).to_owned()
+                    tsc_syntax::unescape_leading_underscores(&data.escaped_text).into()
                 }
                 _ => continue,
             };
@@ -420,15 +420,15 @@ impl<'a> CheckerState<'a> {
                     .and_then(|symbol| self.binder.symbol(symbol).value_declaration);
                 let first_name =
                     value_declaration.and_then(|declaration| self.name_of_node(declaration));
-                self.error_at(
+                self.error_at_js(
                     first_name,
                     &diagnostics::Duplicate_identifier_0,
-                    &[&member_name],
+                    &[member_name.as_js()],
                 );
-                self.error_at(
+                self.error_at_js(
                     Some(name),
                     &diagnostics::Duplicate_identifier_0,
-                    &[&member_name],
+                    &[member_name.as_js()],
                 );
             } else {
                 names.insert(member_name);
@@ -1164,10 +1164,10 @@ impl<'a> CheckerState<'a> {
             let name = self.symbol_display_name(symbol);
             for declaration in declarations {
                 let declaration_name = self.name_of_node(declaration);
-                self.error_at(
+                self.error_at_js(
                     declaration_name,
                     &diagnostics::All_declarations_of_0_must_have_identical_type_parameters,
-                    &[&name],
+                    &[name.as_js()],
                 );
             }
         }
@@ -1211,7 +1211,9 @@ impl<'a> CheckerState<'a> {
                     self.effective_constraint_of_type_parameter_node(source);
                 let source_default_node = source_data.default;
                 let source_text = source_name.and_then(|name| match self.data_of(name) {
-                    NodeData::Identifier(data) => Some(data.escaped_text.clone()),
+                    NodeData::Identifier(data) => Some(EscapedName::from_identifier_escaped_text(
+                        &data.escaped_text,
+                    )),
                     _ => None,
                 });
                 let target_name =
@@ -1274,15 +1276,16 @@ impl<'a> CheckerState<'a> {
         const GET_OR_SET_ACCESSOR: u32 = GET_ACCESSOR | SET_ACCESSOR;
         const METHOD: u32 = 8;
         const PRIVATE_STATIC: u32 = 16;
-        let mut instance_names: std::collections::HashMap<String, u32> = Default::default();
-        let mut static_names: std::collections::HashMap<String, u32> = Default::default();
-        let mut private_identifiers: std::collections::HashMap<String, u32> = Default::default();
+        let mut instance_names: std::collections::HashMap<EscapedName, u32> = Default::default();
+        let mut static_names: std::collections::HashMap<EscapedName, u32> = Default::default();
+        let mut private_identifiers: std::collections::HashMap<EscapedName, u32> =
+            Default::default();
         // addName (81402-81423): the meaning-merge lattice.
         fn add_name(
             state: &mut CheckerState<'_>,
-            names: &mut std::collections::HashMap<String, u32>,
+            names: &mut std::collections::HashMap<EscapedName, u32>,
             location: NodeId,
-            name: String,
+            name: EscapedName,
             meaning: u32,
         ) -> CheckResult<()> {
             match names.get(&name).copied() {
@@ -1343,7 +1346,9 @@ impl<'a> CheckerState<'a> {
                         };
                         if let Some(param_name) = param_name {
                             if let NodeData::Identifier(name_data) = self.data_of(param_name) {
-                                let text = name_data.escaped_text.clone();
+                                let text = EscapedName::from_identifier_escaped_text(
+                                    &name_data.escaped_text,
+                                );
                                 add_name(
                                     self,
                                     &mut instance_names,
@@ -1367,7 +1372,7 @@ impl<'a> CheckerState<'a> {
                     0
                 };
                 let member_name = self.effective_property_name_for_property_name_node(name)?;
-                if let Some(member_name) = member_name.filter(|name| !name.is_empty()) {
+                if let Some(member_name) = member_name.filter(|name| !name.as_js().is_empty()) {
                     let meaning = match self.kind_of(member) {
                         SyntaxKind::GetAccessor => GET_ACCESSOR,
                         SyntaxKind::SetAccessor => SET_ACCESSOR,
@@ -1429,21 +1434,20 @@ impl<'a> CheckerState<'a> {
                 // (18251: explicit value, else target >= ES2022) — NOT
                 // emitStandardClassFields (staticPropertyNameConflicts
                 // pins the es5+useDefineForClassFields=true rows silent).
-                "name" | "length" | "caller" | "arguments" => {
+                Some("name" | "length" | "caller" | "arguments") => {
                     !self.options.use_define_for_class_fields_effective()
                 }
-                "prototype" => true,
+                Some("prototype") => true,
                 _ => false,
             };
             if conflicts {
                 let symbol = self.get_symbol_of_declaration(node)?;
                 let class_name = self.symbol_name_as_written_slice(symbol);
-                let display_name =
-                    tsc_binder::unescape_leading_underscores(&member_name).to_owned();
-                self.error_at(
+                let display_name = member_name.unescape();
+                self.error_at_js(
                     Some(member_name_node),
                     &diagnostics::Static_property_0_conflicts_with_built_in_property_Function_0_of_constructor_function_1,
-                    &[&display_name, &class_name],
+                    &[display_name, class_name.as_js()],
                 );
             }
         }
@@ -1455,7 +1459,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:15861-15887
     ///
     /// The JsxNamespacedName arm is unreachable from property names.
-    pub(crate) fn property_name_for_property_name_node(&self, name: NodeId) -> Option<String> {
+    pub(crate) fn property_name_for_property_name_node(&self, name: NodeId) -> Option<EscapedName> {
         let source = self.binder.source_of_node(name);
         match self.kind_of(name) {
             SyntaxKind::Identifier
@@ -1485,11 +1489,14 @@ impl<'a> CheckerState<'a> {
                                     NodeData::NumericLiteral(literal) => Some(literal.text.clone()),
                                     _ => None,
                                 })?;
-                        return Some(if unary.operator == SyntaxKind::MinusToken {
-                            format!("-{operand_text}")
-                        } else {
-                            operand_text
-                        });
+                        return Some(EscapedName::from_escaped_value(
+                            if unary.operator == SyntaxKind::MinusToken {
+                                format!("-{operand_text}")
+                            } else {
+                                operand_text
+                            }
+                            .into(),
+                        ));
                     }
                 }
                 None
@@ -1504,7 +1511,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn effective_property_name_for_property_name_node(
         &mut self,
         name: NodeId,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<EscapedName>> {
         if let Some(text) = self.property_name_for_property_name_node(name) {
             return Ok(Some(text));
         }
@@ -1652,9 +1659,9 @@ impl<'a> CheckerState<'a> {
         &mut self,
         error_node: Option<NodeId>,
         message: &'static tsc_diagnostics::DiagnosticMessage,
-        args: &[&str],
+        args: &[JsStr<'_>],
     ) {
-        self.error_at(error_node, message, args);
+        self.error_at_js(error_node, message, args);
     }
 
     /// tsc-port: checkMemberForOverrideModifier @6.0.3
@@ -1735,7 +1742,7 @@ impl<'a> CheckerState<'a> {
                                 self.report_override_error(
                                     error_node,
                                     message,
-                                    &[&base_class_name, &suggestion_name],
+                                    &[(&base_class_name).into(), suggestion_name.as_js()],
                                 );
                             }
                             None => {
@@ -1747,7 +1754,7 @@ impl<'a> CheckerState<'a> {
                                 self.report_override_error(
                                     error_node,
                                     message,
-                                    &[&base_class_name],
+                                    &[(&base_class_name).into()],
                                 );
                             }
                         }
@@ -1781,14 +1788,18 @@ impl<'a> CheckerState<'a> {
                             } else {
                                 &diagnostics::This_member_must_have_an_override_modifier_because_it_overrides_a_member_in_the_base_class_0
                             };
-                            self.report_override_error(error_node, message, &[&base_class_name]);
+                            self.report_override_error(
+                                error_node,
+                                message,
+                                &[(&base_class_name).into()],
+                            );
                             return Ok(());
                         }
                         if member_has_abstract_modifier && base_has_abstract {
                             self.report_override_error(
                                 error_node,
                                 &diagnostics::This_member_must_have_an_override_modifier_because_it_overrides_an_abstract_method_that_is_declared_in_the_base_class_0,
-                                &[&base_class_name],
+                                &[(&base_class_name).into()],
                             );
                             return Ok(());
                         }
@@ -1802,7 +1813,7 @@ impl<'a> CheckerState<'a> {
             } else {
                 &diagnostics::This_member_cannot_have_an_override_modifier_because_its_containing_class_0_does_not_extend_another_class
             };
-            self.report_override_error(error_node, message, &[&class_name]);
+            self.report_override_error(error_node, message, &[(&class_name).into()]);
         }
         Ok(())
     }
@@ -1852,9 +1863,9 @@ impl<'a> CheckerState<'a> {
                     let prop_name = self.symbol_name_as_written_slice(declared_prop);
                     let type_text = self.type_to_string_slice(type_with_this)?;
                     let base_text = self.type_to_string_slice(base_with_this)?;
-                    let root = tsc_diagnostics::MessageChain::new(
+                    let root = tsc_diagnostics::MessageChain::new_js_parts(
                         &diagnostics::Property_0_in_type_1_is_not_assignable_to_the_same_property_in_base_type_2,
-                        &[prop_name, type_text, base_text],
+                        &[prop_name.as_js(), (&type_text).into(), (&base_text).into()],
                     );
                     let output = self.relation_error_output_with_context(
                         prop_type,
@@ -1924,10 +1935,10 @@ impl<'a> CheckerState<'a> {
         let within = self.is_node_within_class(node, type_class_declaration);
         if !within {
             let name = self.fully_qualified_name_slice(type_symbol)?;
-            self.error_at(
+            self.error_at_js(
                 Some(node),
                 &diagnostics::Cannot_extend_a_class_0_Class_constructor_is_marked_as_private,
-                &[&name],
+                &[(&name).into()],
             );
         }
         Ok(())
@@ -1941,7 +1952,7 @@ impl<'a> CheckerState<'a> {
     /// parent-chain face, including external source-file roots. Keep
     /// this diagnostic consumer on that implementation rather than a
     /// second parentless-only display slice.
-    fn fully_qualified_name_slice(&self, symbol: SymbolId) -> CheckResult<String> {
+    fn fully_qualified_name_slice(&self, symbol: SymbolId) -> CheckResult<tsc_types::JsString> {
         Ok(self.get_fully_qualified_name(symbol))
     }
 
@@ -1960,9 +1971,21 @@ impl<'a> CheckerState<'a> {
         base_type: TypeId,
     ) -> CheckResult<()> {
         struct NotImplementedInfo {
-            base_type_name: String,
-            type_name: String,
-            missed_properties: Vec<String>,
+            base_type_name: tsc_types::JsString,
+            type_name: tsc_types::JsString,
+            missed_properties: Vec<JsString>,
+        }
+        fn quoted_member_list(names: &[JsString]) -> JsString {
+            let mut result = JsString::new();
+            for (index, name) in names.iter().enumerate() {
+                if index != 0 {
+                    result.push_str(", ");
+                }
+                result.push('\'');
+                result.push_js(name.as_js());
+                result.push('\'');
+            }
+            result
         }
         let base_properties = self.get_properties_of_type(base_type)?;
         let mut not_implemented_info: Vec<(Option<NodeId>, NotImplementedInfo)> = Vec::new();
@@ -2093,10 +2116,14 @@ impl<'a> CheckerState<'a> {
                         let base_type_text = self.type_to_string_slice(base_type)?;
                         let type_text = self.type_to_string_slice(ty)?;
                         let error_node = self.derived_error_node(derived);
-                        self.error_at(
+                        self.error_at_js(
                             error_node,
                             message,
-                            &[&base_name, &base_type_text, &type_text],
+                            &[
+                                base_name.as_js(),
+                                (&base_type_text).into(),
+                                (&type_text).into(),
+                            ],
                         );
                     } else if self.options.use_define_for_class_fields_effective() {
                         let derived_declarations = self.binder.symbol(derived).declarations.clone();
@@ -2162,10 +2189,10 @@ impl<'a> CheckerState<'a> {
                                     let base_name = self.symbol_display_name(base);
                                     let base_type_text = self.type_to_string_slice(base_type)?;
                                     let error_node = self.derived_error_node(derived);
-                                    self.error_at(
+                                    self.error_at_js(
                                         error_node,
                                         &diagnostics::Property_0_will_overwrite_the_base_property_in_1_If_this_is_intentional_add_an_initializer_Otherwise_add_a_declare_modifier_or_remove_the_redundant_declaration,
-                                        &[&base_name, &base_type_text],
+                                        &[base_name.as_js(), (&base_type_text).into()],
                                     );
                                 }
                             }
@@ -2195,10 +2222,14 @@ impl<'a> CheckerState<'a> {
                 let base_name = self.symbol_display_name(base);
                 let type_text = self.type_to_string_slice(ty)?;
                 let error_node = self.derived_error_node(derived);
-                self.error_at(
+                self.error_at_js(
                     error_node,
                     message,
-                    &[&base_type_text, &base_name, &type_text],
+                    &[
+                        (&base_type_text).into(),
+                        base_name.as_js(),
+                        (&type_text).into(),
+                    ],
                 );
             }
         }
@@ -2208,55 +2239,47 @@ impl<'a> CheckerState<'a> {
             let missed = &info.missed_properties;
             if missed.len() == 1 {
                 if is_class_expression {
-                    self.error_at(
+                    self.error_at_js(
                         error_node,
                         &diagnostics::Non_abstract_class_expression_does_not_implement_inherited_abstract_member_0_from_class_1,
-                        &[&missed[0], &info.base_type_name],
+                        &[missed[0].as_js(), (&info.base_type_name).into()],
                     );
                 } else {
-                    self.error_at(
+                    self.error_at_js(
                         error_node,
                         &diagnostics::Non_abstract_class_0_does_not_implement_inherited_abstract_member_1_from_class_2,
-                        &[&info.type_name, &missed[0], &info.base_type_name],
+                        &[(&info.type_name).into(), missed[0].as_js(), (&info.base_type_name).into()],
                     );
                 }
             } else if missed.len() > 5 {
-                let quoted = missed[..4]
-                    .iter()
-                    .map(|prop| format!("'{prop}'"))
-                    .collect::<Vec<_>>()
-                    .join(", ");
+                let quoted = quoted_member_list(&missed[..4]);
                 let remaining = (missed.len() - 4).to_string();
                 if is_class_expression {
-                    self.error_at(
+                    self.error_at_js(
                         error_node,
                         &diagnostics::Non_abstract_class_expression_is_missing_implementations_for_the_following_members_of_0_1_and_2_more,
-                        &[&info.base_type_name, &quoted, &remaining],
+                        &[(&info.base_type_name).into(), quoted.as_js(), (&remaining).into()],
                     );
                 } else {
-                    self.error_at(
+                    self.error_at_js(
                         error_node,
                         &diagnostics::Non_abstract_class_0_is_missing_implementations_for_the_following_members_of_1_2_and_3_more,
-                        &[&info.type_name, &info.base_type_name, &quoted, &remaining],
+                        &[(&info.type_name).into(), (&info.base_type_name).into(), quoted.as_js(), (&remaining).into()],
                     );
                 }
             } else {
-                let quoted = missed
-                    .iter()
-                    .map(|prop| format!("'{prop}'"))
-                    .collect::<Vec<_>>()
-                    .join(", ");
+                let quoted = quoted_member_list(missed);
                 if is_class_expression {
-                    self.error_at(
+                    self.error_at_js(
                         error_node,
                         &diagnostics::Non_abstract_class_expression_is_missing_implementations_for_the_following_members_of_0_1,
-                        &[&info.base_type_name, &quoted],
+                        &[(&info.base_type_name).into(), quoted.as_js()],
                     );
                 } else {
-                    self.error_at(
+                    self.error_at_js(
                         error_node,
                         &diagnostics::Non_abstract_class_0_is_missing_implementations_for_the_following_members_of_1_2,
-                        &[&info.type_name, &info.base_type_name, &quoted],
+                        &[(&info.type_name).into(), (&info.base_type_name).into(), quoted.as_js()],
                     );
                 }
             }
@@ -2312,7 +2335,7 @@ impl<'a> CheckerState<'a> {
             prop: SymbolId,
             containing_type: TypeId,
         }
-        let mut seen: std::collections::HashMap<String, SeenEntry> = Default::default();
+        let mut seen: std::collections::HashMap<EscapedName, SeenEntry> = Default::default();
         let declared_members = self.resolve_declared_members(ty)?;
         for prop in self.members_of(declared_members).properties.clone() {
             let escaped_name = self.binder.symbol(prop).escaped_name.clone();
@@ -2357,16 +2380,16 @@ impl<'a> CheckerState<'a> {
                                 // names keep their written spelling.
                                 let prop_name = self.symbol_name_as_written_slice(prop);
                                 let type_display = self.type_to_string_slice(ty)?;
-                                let mut diagnostic = self.create_error(
+                                let mut diagnostic = self.create_error_js(
                                     Some(type_node),
                                     &diagnostics::Interface_0_cannot_simultaneously_extend_types_1_and_2,
-                                    &[&type_display, &type_name1, &type_name2],
+                                    &[(&type_display).into(), (&type_name1).into(), (&type_name2).into()],
                                 );
                                 diagnostic.message.next_present = true;
                                 diagnostic.message.next = vec![
-                                    tsc_diagnostics::MessageChain::new(
+                                    tsc_diagnostics::MessageChain::new_js_parts(
                                         &diagnostics::Named_property_0_of_types_1_and_2_are_not_identical,
-                                        &[prop_name, type_name1, type_name2],
+                                        &[prop_name.as_js(), (&type_name1).into(), (&type_name2).into()],
                                     ),
                                 ];
                                 self.push_error_diagnostic(diagnostic);

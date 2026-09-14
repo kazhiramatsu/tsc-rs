@@ -482,7 +482,7 @@ impl SyntacticBuilderResolver for TestResolver {
         _context: &mut NodeBuilderContext<'_>,
         _parent: TransformNode,
         _literal: TransformNode,
-    ) -> Result<Option<String>, EmitResolverError> {
+    ) -> Result<Option<tsc_types::JsString>, EmitResolverError> {
         Ok(None)
     }
 
@@ -1086,7 +1086,7 @@ fn declaration_comment_parameter_lookup_matches_upstream_node_identity() {
                             let record = session.arena.node(node).unwrap();
                             serde_json::json!({"kind":format!("{:?}",record.kind),
                                 "pos":record.pos as i32,"end":record.end as i32,
-                                "file":session.arena.source(node.source()).unwrap().syntax().file_name})
+                                "file":session.arena.source(node.source()).unwrap().syntax().file_name.as_str().expect("scalar filename observation")})
                         })
                         };
                         for (&parameter, expected) in parameters.iter().zip(expected) {

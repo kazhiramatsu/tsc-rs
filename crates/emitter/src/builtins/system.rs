@@ -1,9 +1,9 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use tsc_syntax::{
     try_visit_each_child, NodeArrayId, NodeData, NodeDataChildVisitor, NodeId, SyntaxKind,
 };
-use tsc_types::{CompilerOptions, NodeFlags};
+use tsc_types::{CompilerOptions, JsStr, JsString, NodeFlags};
 
 use crate::{
     factory::EmitHelperName, EmitExportContainerMode, EmitHint, EmitHost, EmitResolver,
@@ -15,10 +15,10 @@ use crate::{
 use super::target_bindings::TargetBinding;
 use super::{
     first_runtime_declaration_original, flags_after_update, generated_module_name, has_modifier,
-    identifier_or_literal_text, is_identifier_export_name, is_prologue_statement, node_array_nodes,
-    parsed_source_file_statement_array, source_contains_dynamic_import,
-    source_file_statement_nodes, string_literal_text, variable_declarations, CommonJsModuleInfo,
-    ImportBinding,
+    identifier_or_literal_text, identifier_text_owned, is_identifier_export_name,
+    is_prologue_statement, node_array_nodes, parsed_source_file_statement_array,
+    source_contains_dynamic_import, source_file_statement_nodes, string_literal_text,
+    variable_declarations, CommonJsModuleInfo, ImportBinding,
 };
 
 /// tsc-port: transformSystemModule @6.0.3
@@ -142,7 +142,7 @@ fn source_contains_import_meta(
                 && data
                     .name
                     .and_then(|name| arena.node_ref(root.source(), name))
-                    .and_then(|name| identifier_or_literal_text(arena, name).ok())
+                    .and_then(|name| identifier_text_owned(arena, name).ok())
                     .as_deref()
                     == Some("meta")
             {
@@ -163,7 +163,7 @@ fn source_contains_import_meta(
 
 #[derive(Clone, Debug)]
 struct SystemDependencyGroup {
-    module_specifier: Box<str>,
+    module_specifier: JsString,
     entries: Vec<NodeId>,
 }
 
@@ -171,7 +171,7 @@ struct SystemDependencyGroup {
 struct SystemModuleInfo {
     common: CommonJsModuleInfo,
     dependency_groups: Vec<SystemDependencyGroup>,
-    non_function_exported_names: Vec<Box<str>>,
+    non_function_exported_names: Vec<JsString>,
 }
 
 impl SystemModuleInfo {
@@ -184,9 +184,9 @@ impl SystemModuleInfo {
         host: Option<&dyn EmitHost>,
     ) -> Result<Self, TransformError> {
         let statements = source_file_statement_nodes(arena, source, root)?;
-        let mut group_indices = BTreeMap::<String, usize>::new();
+        let mut group_indices = HashMap::<JsString, usize>::new();
         let mut dependency_groups = Vec::<SystemDependencyGroup>::new();
-        let mut non_function_exported_names = Vec::<Box<str>>::new();
+        let mut non_function_exported_names = Vec::<JsString>::new();
 
         for statement in &statements {
             let record = arena.node(*statement)?;
@@ -208,6 +208,7 @@ impl SystemModuleInfo {
                 let text = crate::external_module_names::resolved_external_module_name_literal(
                     host, resolver, arena, *statement,
                 )?
+                .map(JsString::from)
                 .unwrap_or_else(|| original_text.to_owned());
                 let index = if let Some(index) = group_indices.get(&text).copied() {
                     index
@@ -215,7 +216,7 @@ impl SystemModuleInfo {
                     let index = dependency_groups.len();
                     group_indices.insert(text.clone(), index);
                     dependency_groups.push(SystemDependencyGroup {
-                        module_specifier: text.clone().into_boxed_str(),
+                        module_specifier: text.clone(),
                         entries: Vec::new(),
                     });
                     index
@@ -231,12 +232,11 @@ impl SystemModuleInfo {
                     {
                         if let NodeData::VariableDeclaration(data) = &arena.node(declaration)?.data
                         {
-                            collect_binding_names(
-                                arena,
-                                source,
-                                data.name,
-                                &mut non_function_exported_names,
-                            )?;
+                            let mut locals = Vec::new();
+                            collect_binding_names(arena, source, data.name, &mut locals)?;
+                            for local in locals {
+                                push_unique(&mut non_function_exported_names, local.as_ref());
+                            }
                         }
                     }
                 }
@@ -292,9 +292,10 @@ impl SystemModuleInfo {
     }
 }
 
-fn push_unique(values: &mut Vec<Box<str>>, value: &str) {
-    if value != "default" && !values.iter().any(|current| current.as_ref() == value) {
-        values.push(value.into());
+fn push_unique<'a>(values: &mut Vec<JsString>, value: impl Into<JsStr<'a>>) {
+    let value = value.into();
+    if value != "default" && !values.iter().any(|current| current.as_js() == value) {
+        values.push(value.to_owned());
     }
 }
 
@@ -308,7 +309,11 @@ fn collect_binding_names(
         return Ok(());
     };
     match &arena.node(name)?.data {
-        NodeData::Identifier(data) => push_unique(output, &data.text),
+        NodeData::Identifier(data) => {
+            if data.text != "default" && !output.iter().any(|name| name.as_ref() == data.text) {
+                output.push(data.text.clone().into_boxed_str());
+            }
+        }
         NodeData::ObjectBindingPattern(data) => {
             for element in node_array_nodes(arena, source, data.elements)? {
                 if let NodeData::BindingElement(data) = &arena.node(element)?.data {
@@ -458,7 +463,7 @@ struct SystemBindingElement {
 
 #[derive(Clone, Debug)]
 enum SystemExcludedProperty {
-    Named(Box<str>),
+    Named(JsString),
     Computed(TransformNode),
 }
 
@@ -645,7 +650,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             .info
             .dependency_groups
             .iter()
-            .map(|group| group.module_specifier.to_string())
+            .map(|group| group.module_specifier.clone())
             .collect::<Vec<_>>();
         let mut dependency_literals = Vec::with_capacity(dependency_names.len());
         for name in dependency_names {
@@ -736,9 +741,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                     if let Some(name) = data
                         .name
                         .and_then(|id| self.context.arena().node_ref(self.source, id))
-                        .and_then(|name| {
-                            identifier_or_literal_text(self.context.arena(), name).ok()
-                        })
+                        .and_then(|name| identifier_text_owned(self.context.arena(), name).ok())
                     {
                         self.push_hoisted_name(&name);
                     }
@@ -779,7 +782,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                 let name = data
                     .name
                     .and_then(|id| self.context.arena().node_ref(self.source, id))
-                    .and_then(|name| identifier_or_literal_text(self.context.arena(), name).ok())
+                    .and_then(|name| identifier_text_owned(self.context.arena(), name).ok())
                     .or_else(|| {
                         self.info
                             .common
@@ -921,7 +924,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         let local = data
             .name
             .and_then(|id| self.context.arena().node_ref(self.source, id))
-            .and_then(|name| identifier_or_literal_text(self.context.arena(), name).ok());
+            .and_then(|name| identifier_text_owned(self.context.arena(), name).ok());
         let exports = if publish_exports {
             local
                 .as_deref()
@@ -1357,12 +1360,12 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         declaration: TransformNode,
         local_name: TransformNode,
     ) -> Result<(), TransformError> {
-        let local = identifier_or_literal_text(self.context.arena(), local_name)?;
+        let local = identifier_text_owned(self.context.arena(), local_name)?;
         let exports = self
             .info
             .common
             .export_specifiers_by_local
-            .get(local.as_str())
+            .get(local.as_bytes())
             .cloned()
             .unwrap_or_default();
         if exports.is_empty() {
@@ -1689,12 +1692,12 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             {
                 continue;
             }
-            let local = identifier_or_literal_text(self.context.arena(), leaf.name)?;
+            let local = identifier_text_owned(self.context.arena(), leaf.name)?;
             let exports = self
                 .info
                 .common
                 .export_specifiers_by_local
-                .get(local.as_str())
+                .get(local.as_bytes())
                 .cloned()
                 .unwrap_or_default();
             if exports.is_empty() {
@@ -1956,13 +1959,15 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         ) {
             let argument = self.context.factory()?.clone_node(property_name)?;
             self.create_element_access(base, argument)?
-        } else if is_identifier_export_name(&text) {
-            self.create_property_access(base, &text)?
+        } else if let Some(identifier) =
+            text.as_str().filter(|text| is_identifier_export_name(text))
+        {
+            self.create_property_access(base, identifier)?
         } else {
             let argument = self.create_string_literal(&text)?;
             self.create_element_access(base, argument)?
         };
-        Ok((access, SystemExcludedProperty::Named(text.into())))
+        Ok((access, SystemExcludedProperty::Named(text)))
     }
 
     fn create_system_object_rest(
@@ -2044,7 +2049,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         let local = data
             .name
             .and_then(|id| self.context.arena().node_ref(self.source, id))
-            .and_then(|name| identifier_or_literal_text(self.context.arena(), name).ok())
+            .and_then(|name| identifier_text_owned(self.context.arena(), name).ok())
             .or_else(|| {
                 self.info
                     .common
@@ -2198,7 +2203,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             let same_name = match first {
                 Some(argument) => {
                     self.context.arena().node(argument)?.kind == SyntaxKind::StringLiteral
-                        && string_literal_text(self.context.arena(), argument)? == name
+                        && string_literal_text(self.context.arena(), argument)? == name.as_js()
                 }
                 None => false,
             };
@@ -2226,7 +2231,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             && data
                 .name
                 .and_then(|id| self.context.arena().node_ref(self.source, id))
-                .and_then(|name| identifier_or_literal_text(self.context.arena(), name).ok())
+                .and_then(|name| identifier_text_owned(self.context.arena(), name).ok())
                 .as_deref()
                 == Some("meta");
         if !is_import_meta {
@@ -2339,7 +2344,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             return Ok(update);
         }
         let operand_text = original_operand
-            .and_then(|operand| identifier_or_literal_text(self.context.arena(), operand).ok())
+            .and_then(|operand| identifier_text_owned(self.context.arena(), operand).ok())
             .unwrap_or_default();
         if value_is_discarded {
             // tsc-port: transformSystemModule.visitPrefixOrPostfixUnaryExpression @6.0.3
@@ -2518,12 +2523,12 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         if !exported_from_source {
             return Ok(Vec::new());
         }
-        let name = identifier_or_literal_text(self.context.arena(), node)?;
+        let name = identifier_text_owned(self.context.arena(), node)?;
         Ok(self
             .info
             .common
             .exports_by_local
-            .get(name.as_str())
+            .get(name.as_bytes())
             .cloned()
             .unwrap_or_default())
     }
@@ -2546,7 +2551,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         let mut exported_names = self.info.non_function_exported_names.clone();
         for exports in &self.info.common.hoisted_function_exports {
             for publication in &exports.publications {
-                push_unique(&mut exported_names, &publication.name);
+                push_unique(&mut exported_names, publication.name.as_js());
             }
         }
         let local_names = if exported_names.is_empty() {
@@ -2694,7 +2699,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                             .name
                             .and_then(|id| self.context.arena().node_ref(self.source, id))
                             .and_then(|name| {
-                                identifier_or_literal_text(self.context.arena(), name).ok()
+                                identifier_text_owned(self.context.arena(), name).ok()
                             });
                         break;
                     }
@@ -2753,9 +2758,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                         let name = data
                             .name
                             .and_then(|id| self.context.arena().node_ref(self.source, id))
-                            .and_then(|name| {
-                                identifier_or_literal_text(self.context.arena(), name).ok()
-                            })
+                            .and_then(|name| identifier_text_owned(self.context.arena(), name).ok())
                             .ok_or(TransformError::RequiredChildRemoved {
                                 parent: SyntaxKind::ImportEqualsDeclaration,
                                 field: "name",
@@ -2959,9 +2962,9 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         Ok(call)
     }
 
-    fn create_export_call(
+    fn create_export_call<'a>(
         &mut self,
-        name: &str,
+        name: impl Into<JsStr<'a>>,
         value: TransformNode,
     ) -> Result<TransformNode, TransformError> {
         let exports = self.create_identifier(&self.exports_name.clone())?;
@@ -3068,7 +3071,11 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         Ok(identifier)
     }
 
-    fn create_string_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
+    fn create_string_literal<'a>(
+        &mut self,
+        text: impl Into<JsStr<'a>>,
+    ) -> Result<TransformNode, TransformError> {
+        let text = text.into();
         self.context.factory()?.create_node(
             self.source,
             NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {

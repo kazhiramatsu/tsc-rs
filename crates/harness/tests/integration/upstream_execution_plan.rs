@@ -485,7 +485,7 @@ fn compiler_config_root_plans_match_the_frozen_typescript_oracle() {
             .as_ref()
             .expect("config fixture owns a root plan");
         assert!(
-            json_values_equivalent(config_plan.raw(), &expected["raw_config"]),
+            json_values_equivalent(&scalar_json(config_plan.raw()), &expected["raw_config"]),
             "raw config drifted for source {source}: Rust={:?} oracle={:?}",
             config_plan.raw(),
             expected["raw_config"]
@@ -555,10 +555,13 @@ fn compiler_config_root_plans_match_the_frozen_typescript_oracle() {
                 .as_bool()
                 .expect("resolve_json_module is boolean")
         );
-        assert_eq!(discovery.out_dir(), expected_discovery["out_dir"].as_str());
+        assert_eq!(
+            discovery.out_dir(),
+            (expected_discovery["out_dir"].as_str()).map(Into::into)
+        );
         assert_eq!(
             discovery.declaration_dir(),
-            expected_discovery["declaration_dir"].as_str()
+            (expected_discovery["declaration_dir"].as_str()).map(Into::into)
         );
         let expected_host_log = expected["host_log"]
             .as_array()
@@ -920,6 +923,7 @@ fn general_project_no_emit_loader_handles_root_modes_and_rejects_emit_requests()
         .any(|source| source
             .path()
             .display()
+            .scalar_test_path()
             .display()
             .to_string()
             .ends_with("/emit.ts")));
@@ -986,7 +990,7 @@ fn compiler_loader_preserves_drive_rooted_triple_slash_reference_paths() {
     let drive_sources = prepared
         .source_files()
         .iter()
-        .map(|source| source.path().display().to_string_lossy())
+        .map(|source| source.path().display().scalar_test_path().to_string_lossy())
         .filter(|path| path.starts_with("C:/"))
         .map(|path| path.into_owned())
         .collect::<Vec<_>>();
@@ -1012,13 +1016,13 @@ fn focused_project_source_names(
         .source_files()
         .iter()
         .map(|source| {
-            let path = source.path().display();
+            let path = source.path().display().scalar_test_path();
             if let Ok(relative) = path.strip_prefix(&library_directory) {
                 return relative.to_string_lossy().replace('\\', "/");
             }
             let path = path.to_string_lossy().replace('\\', "/");
             path.strip_prefix(current_directory)
-                .and_then(|tail| tail.strip_prefix('/'))
+                .and_then(|tail| tail.strip_prefix("/"))
                 .unwrap_or(&path)
                 .to_owned()
         })
@@ -1303,8 +1307,11 @@ fn node_modules_search_project_configs_load_all_six_variants_without_claiming_em
         );
         let raw_no_emit = execution.config_root_plan.raw()["compilerOptions"]
             .get("noEmit")
-            .unwrap_or(&serde_json::Value::Null);
-        assert_eq!(raw_no_emit, &expected_options["raw_no_emit"]);
+            .unwrap_or(&tsc_program::JsonValue::Null);
+        assert_eq!(
+            &scalar_json(&(raw_no_emit)),
+            &expected_options["raw_no_emit"]
+        );
         let current_directory = project.fixture.current_directory.trim_end_matches('/');
         let actual_out_dir = execution
             .config_root_plan
@@ -1313,10 +1320,13 @@ fn node_modules_search_project_configs_load_all_six_variants_without_claiming_em
             .map(|value| {
                 value
                     .strip_prefix(current_directory)
-                    .and_then(|tail| tail.strip_prefix('/'))
+                    .and_then(|tail| tail.strip_prefix("/"))
                     .unwrap_or(value)
             });
-        assert_eq!(actual_out_dir, expected_options["out_dir"].as_str());
+        assert_eq!(
+            actual_out_dir,
+            (expected_options["out_dir"].as_str()).map(Into::into)
+        );
 
         let actual_sources = focused_project_source_names(
             &workspace,
@@ -1352,6 +1362,7 @@ fn node_modules_search_project_configs_load_all_six_variants_without_claiming_em
                     source
                         .path()
                         .display()
+                        .scalar_test_path()
                         .to_string_lossy()
                         .replace('\\', "/")
                         .ends_with("/maxDepthExceeded/node_modules/m2/entry.js")
@@ -1393,3 +1404,11 @@ fn node_modules_search_project_configs_load_all_six_variants_without_claiming_em
         oracle["summary"]["pre_emit_diagnostic_total"]
     );
 }
+
+#[path = "../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;
+
+#[path = "../../../program/tests/support/scalar_json.rs"]
+mod utf16_scalar_json;
+use utf16_scalar_json::observe as scalar_json;

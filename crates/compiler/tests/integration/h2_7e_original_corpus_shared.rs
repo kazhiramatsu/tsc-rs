@@ -55,7 +55,7 @@ fn options(value: &Value) -> CompilerOptions {
             "noErrorTruncation" => options.no_error_truncation = value.as_bool(),
             "skipDefaultLibCheck" => options.skip_default_lib_check = value.as_bool(),
             "strict" => options.strict = value.as_bool(),
-            "outFile" => options.out_file = value.as_str().map(str::to_owned),
+            "outFile" => options.out_file = value.as_str().map(Into::into),
             other => panic!("unprojected original option {other}"),
         }
     }
@@ -107,7 +107,7 @@ fn message(chain: &MessageChain, indent: usize, text: &mut String) {
         text.push('\n');
         text.push_str(&"  ".repeat(indent));
     }
-    text.push_str(&chain.text);
+    text.push_str(chain.text.as_str().expect("scalar corpus diagnostic"));
     for next in &chain.next {
         message(next, indent + 1, text);
     }
@@ -119,9 +119,9 @@ fn diagnostics(diagnostics: &[Diagnostic]) -> Value {
         let related = (d.related_information_present || !d.related.is_empty()).then(|| d.related.iter().map(|r| {
             let mut text = String::new(); message(&r.message, 0, &mut text);
             json!({"code":r.message.code,"category":format!("{:?}",r.message.category),
-                "file":r.file_name,"start":r.start,"length":r.length,"message":text,"related_information":null})
+                "file":r.file_name.as_ref().map(|value| value.as_str().expect("scalar corpus filename")),"start":r.start,"length":r.length,"message":text,"related_information":null})
         }).collect::<Vec<_>>());
-        json!({"code":d.code(),"category":format!("{:?}",d.category()),"file":d.file_name,
+        json!({"code":d.code(),"category":format!("{:?}",d.category()),"file":d.file_name.as_ref().map(|value| value.as_str().expect("scalar corpus filename")),
             "start":d.start,"length":d.length,"message":text,"related_information":related})
     }).collect::<Vec<_>>())
 }
@@ -156,7 +156,7 @@ fn write(index: usize, artifact: &EmitArtifact) -> Value {
         "materialized_utf8_base64":base64::engine::general_purpose::STANDARD.encode(artifact.materialized_bytes()),
         "materialized_utf8_bytes":artifact.materialized_bytes().len(),
         // OutputSink::write's Result is the typed equivalent of onError.
-        "on_error_callback_present":true,"source_files":artifact.source_files(),
+        "on_error_callback_present":true,"source_files":artifact.source_files().map(|values| values.iter().map(|value| value.as_str().expect("scalar corpus source path")).collect::<Vec<_>>()),
         "data_present":artifact.metadata().is_some(),"data_keys":keys,
         "data_source_map_url_pos":position,"data_diagnostics":data_diagnostics,"data_build_info":null})
 }
@@ -195,14 +195,14 @@ fn assert_program(case: &Value, expected: &Value) {
     }
     let maps = outcome.source_maps().map(|maps| {
         maps.iter().map(|map| json!({
-        "input_source_file_names":map.input_source_files(),"source_map_json":map.canonical_json()
+        "input_source_file_names":map.input_source_files().iter().map(|value| value.as_str().expect("scalar corpus source path")).collect::<Vec<_>>(),"source_map_json":map.canonical_json()
     })).collect::<Vec<_>>()
     });
     let actual = json!({"program_source_order":sources,"standard_libraries":libraries,
         "writes":sink.writes().iter().enumerate().map(|(i,a)| write(i,a)).collect::<Vec<_>>(),
         "reported_diagnostics":diagnostics(command.diagnostics()),"emit_refused":outcome.emit_skipped(),
         "emit_result":{"emit_skipped":outcome.emit_skipped(),"diagnostics":diagnostics(outcome.diagnostics()),
-            "emitted_files":outcome.emitted_files(),"source_maps":maps},"status_writes":command.status_writes(),"exit_code":command.exit_code()});
+            "emitted_files":outcome.emitted_files().map(|values| values.iter().map(|value| value.as_str().expect("scalar corpus output path")).collect::<Vec<_>>()),"source_maps":maps},"status_writes":command.status_writes().iter().map(|value| value.as_str().expect("scalar corpus status text")).collect::<Vec<_>>(),"exit_code":command.exit_code()});
     assert_eq!(
         actual.as_object().unwrap().keys().collect::<Vec<_>>(),
         expected.as_object().unwrap().keys().collect::<Vec<_>>()

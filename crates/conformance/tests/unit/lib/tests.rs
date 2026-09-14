@@ -607,7 +607,7 @@ fn fn_partial_boundary_audit_requires_a_reached_semantic_range() {
     semantic.pass = Some("semantic".to_owned());
     let key = t0_key(&semantic);
     let partial = PartialCheck {
-        file_name: "a.ts".to_owned(),
+        file_name: "a.ts".to_owned().into(),
         start: 4,
         length: 3,
         reason: "recognized ceiling".to_owned(),
@@ -740,7 +740,7 @@ fn package_resolution_conditions_reach_compiler_options() {
     assert_eq!(options.resolve_package_json_imports, Some(true));
     assert_eq!(
         options.custom_conditions,
-        Some(vec!["webpack".to_owned(), "browser".to_owned()])
+        Some(vec!["webpack".into(), "browser".into()])
     );
     assert_eq!(options.no_dts_resolution, Some(true));
 }
@@ -928,4 +928,33 @@ fn ratchet_parser_rejects_duplicate_sections_and_keys() {
     assert!(err.contains("allowed_regression must be finite"), "{err}");
 
     fs::remove_file(&path).ok();
+}
+
+#[test]
+fn golden_message_boundary_preserves_scalars_and_refuses_unpaired_units() {
+    use tsc_diagnostics::JsString;
+    let mut chain = MessageChain {
+        code: 1234,
+        category: tsc_diagnostics::DiagnosticCategory::Error,
+        text: "scalar".into(),
+        next_present: false,
+        next: Vec::new(),
+    };
+    for units in [vec![0xd800], vec![0xd801], vec![0xdc00]] {
+        chain.text = JsString::from_code_units(&units);
+        assert!(GoldenMessageChain::from_tsrs(&chain).is_err());
+    }
+    for text in ["�", "\\uD800", "𐀀"] {
+        chain.text = text.into();
+        assert_eq!(GoldenMessageChain::from_tsrs(&chain).unwrap().text, text);
+    }
+    chain.next_present = true;
+    chain.next.push(MessageChain {
+        code: 1235,
+        category: tsc_diagnostics::DiagnosticCategory::Error,
+        text: JsString::from_code_units(&[0xd800]),
+        next_present: false,
+        next: Vec::new(),
+    });
+    assert!(GoldenMessageChain::from_tsrs(&chain).is_err());
 }

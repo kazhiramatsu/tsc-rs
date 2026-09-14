@@ -7,7 +7,7 @@
 //! Comments, source maps, and source text are deliberately not emitted.
 
 use tsc_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
-use tsc_types::NodeFlags;
+use tsc_types::{JsString, NodeFlags};
 
 use crate::state::{CheckResult, CheckerState};
 
@@ -26,7 +26,7 @@ impl<'program> CheckerState<'program> {
     pub(crate) fn display_clone_module_statement_text(
         &mut self,
         node: NodeId,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<JsString>> {
         let saved_indent = self.slice_display_clone_indent;
         let saved_line_start = self.slice_display_clone_at_line_start;
         let result = DisplayCloneModulePrinter { state: self }.node(node);
@@ -37,7 +37,7 @@ impl<'program> CheckerState<'program> {
 }
 
 impl DisplayCloneModulePrinter<'_, '_> {
-    fn node(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn node(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         match self.state.kind_of(node) {
             SyntaxKind::ModuleDeclaration => self.module_declaration(node),
             SyntaxKind::ModuleBlock => self.module_block(node),
@@ -59,12 +59,12 @@ impl DisplayCloneModulePrinter<'_, '_> {
             // The standard printer emits no text for this parser-recovery
             // declaration. Keeping it empty is safer than manufacturing a
             // declaration face if it reaches an otherwise reusable tree.
-            SyntaxKind::MissingDeclaration => Ok(Some(String::new())),
+            SyntaxKind::MissingDeclaration => Ok(Some(JsString::new())),
             _ => Ok(None),
         }
     }
 
-    fn module_declaration(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn module_declaration(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::ModuleDeclaration(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -73,11 +73,14 @@ impl DisplayCloneModulePrinter<'_, '_> {
         };
         let flags = self.state.node_flags(node);
         if flags & NodeFlags::GLOBAL_AUGMENTATION.bits() == 0 {
-            text.push_str(if flags & NodeFlags::NAMESPACE.bits() != 0 {
-                "namespace "
-            } else {
-                "module "
-            });
+            text.push_js(
+                (if flags & NodeFlags::NAMESPACE.bits() != 0 {
+                    "namespace "
+                } else {
+                    "module "
+                })
+                .into(),
+            );
         }
         let Some(name) = data.name else {
             return Ok(None);
@@ -85,7 +88,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
         let Some(name) = self.module_name(name)? else {
             return Ok(None);
         };
-        text.push_str(&name);
+        text.push_js((&name).into());
 
         let Some(mut body) = data.body else {
             text.push(';');
@@ -102,7 +105,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
                 return Ok(None);
             };
             text.push('.');
-            text.push_str(&name);
+            text.push_js((&name).into());
             let Some(nested_body) = nested.body else {
                 // emitModuleDeclaration's dotted-name loop has already
                 // consumed this declaration; it writes one space and emits
@@ -117,11 +120,11 @@ impl DisplayCloneModulePrinter<'_, '_> {
         let Some(body) = self.node(body)? else {
             return Ok(None);
         };
-        text.push_str(&body);
+        text.push_js((&body).into());
         Ok(Some(text))
     }
 
-    fn module_block(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn module_block(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::ModuleBlock(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -137,14 +140,14 @@ impl DisplayCloneModulePrinter<'_, '_> {
                 _ => true,
             };
             return Ok(Some(if single_line {
-                "{ }".to_owned()
+                JsString::from("{ }")
             } else {
-                format!("{{{}}}", self.indent_text())
+                crate::concat_js(&[&"{", &(self.indent_text()), &"}"])
             }));
         }
 
         let rendered = self.with_increased_indent(|printer| {
-            let mut rendered = String::new();
+            let mut rendered = JsString::new();
             for statement in statements {
                 let Some(statement) = printer
                     .state
@@ -155,58 +158,63 @@ impl DisplayCloneModulePrinter<'_, '_> {
                 if statement.is_empty() {
                     continue;
                 }
-                rendered.push_str(&printer.indent_text());
-                rendered.push_str(&statement);
+                rendered.push_js((&printer.indent_text()).into());
+                rendered.push_js((&statement).into());
             }
             Ok(Some(rendered))
         })?;
         let Some(rendered) = rendered else {
             return Ok(None);
         };
-        Ok(Some(format!("{{{rendered}{}}}", self.indent_text())))
+        Ok(Some(crate::concat_js(&[
+            &"{",
+            &(rendered),
+            &(self.indent_text()),
+            &"}",
+        ])))
     }
 
-    fn import_equals_declaration(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn import_equals_declaration(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::ImportEqualsDeclaration(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
         let Some(mut text) = self.modifiers(data.modifiers)? else {
             return Ok(None);
         };
-        text.push_str("import ");
+        text.push_js(("import ").into());
         if data.is_type_only {
-            text.push_str("type ");
+            text.push_js(("type ").into());
         }
         let Some(name) = data.name.and_then(|name| self.identifier(name)) else {
             return Ok(None);
         };
-        text.push_str(&name);
-        text.push_str(" = ");
+        text.push_js((&name).into());
+        text.push_js((" = ").into());
         let Some(module_reference) = data.module_reference else {
             return Ok(None);
         };
         let Some(module_reference) = self.module_reference(module_reference)? else {
             return Ok(None);
         };
-        text.push_str(&module_reference);
+        text.push_js((&module_reference).into());
         text.push(';');
         Ok(Some(text))
     }
 
-    fn import_declaration(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn import_declaration(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::ImportDeclaration(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
         let Some(mut text) = self.modifiers(data.modifiers)? else {
             return Ok(None);
         };
-        text.push_str("import ");
+        text.push_js(("import ").into());
         if let Some(clause) = data.import_clause {
             let Some(clause) = self.import_clause(clause)? else {
                 return Ok(None);
             };
-            text.push_str(&clause);
-            text.push_str(" from ");
+            text.push_js((&clause).into());
+            text.push_js((" from ").into());
         }
         let Some(module_specifier) = data.module_specifier else {
             return Ok(None);
@@ -214,73 +222,73 @@ impl DisplayCloneModulePrinter<'_, '_> {
         let Some(module_specifier) = self.expression(module_specifier)? else {
             return Ok(None);
         };
-        text.push_str(&module_specifier);
+        text.push_js((&module_specifier).into());
         if let Some(attributes) = data.attributes {
             let Some(attributes) = self.import_attributes(attributes)? else {
                 return Ok(None);
             };
             text.push(' ');
-            text.push_str(&attributes);
+            text.push_js((&attributes).into());
         }
         text.push(';');
         Ok(Some(text))
     }
 
-    fn import_clause(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn import_clause(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::ImportClause(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
-        let mut text = String::new();
+        let mut text = JsString::new();
         if let Some(phase) = data.phase_modifier {
             let Some(phase) = tsc_syntax::tokens::token_to_string(phase) else {
                 return Ok(None);
             };
-            text.push_str(phase);
+            text.push_js((phase).into());
             text.push(' ');
         }
         if let Some(name) = data.name {
             let Some(name) = self.identifier(name) else {
                 return Ok(None);
             };
-            text.push_str(&name);
+            text.push_js((&name).into());
         }
         if data.name.is_some() && data.named_bindings.is_some() {
-            text.push_str(", ");
+            text.push_js((", ").into());
         }
         if let Some(bindings) = data.named_bindings {
             let Some(bindings) = self.node(bindings)? else {
                 return Ok(None);
             };
-            text.push_str(&bindings);
+            text.push_js((&bindings).into());
         }
         Ok(Some(text))
     }
 
-    fn namespace_import(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn namespace_import(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::NamespaceImport(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
         let Some(name) = data.name.and_then(|name| self.identifier(name)) else {
             return Ok(None);
         };
-        Ok(Some(format!("* as {name}")))
+        Ok(Some(crate::concat_js(&[&"* as ", &(name)])))
     }
 
-    fn named_imports(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn named_imports(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::NamedImports(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
         self.named_imports_or_exports(data.elements, SyntaxKind::ImportSpecifier)
     }
 
-    fn import_specifier(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn import_specifier(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::ImportSpecifier(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
         self.import_or_export_specifier(data.is_type_only, data.property_name, data.name)
     }
 
-    fn export_assignment(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn export_assignment(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::ExportAssignment(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -297,30 +305,33 @@ impl DisplayCloneModulePrinter<'_, '_> {
             self.export_default_needs_parentheses(expression)
         };
         if needs_parentheses {
-            expression_text = format!("({expression_text})");
+            expression_text = crate::concat_js(&[&"(", &(expression_text), &")"]);
         }
-        Ok(Some(format!(
-            "export {} {expression_text};",
-            if export_equals { "=" } else { "default" }
-        )))
+        Ok(Some(crate::concat_js(&[
+            &"export ",
+            &(if export_equals { "=" } else { "default" }),
+            &" ",
+            &(expression_text),
+            &";",
+        ])))
     }
 
-    fn export_declaration(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn export_declaration(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::ExportDeclaration(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
         let Some(mut text) = self.modifiers(data.modifiers)? else {
             return Ok(None);
         };
-        text.push_str("export ");
+        text.push_js(("export ").into());
         if data.is_type_only {
-            text.push_str("type ");
+            text.push_js(("type ").into());
         }
         if let Some(clause) = data.export_clause {
             let Some(clause) = self.node(clause)? else {
                 return Ok(None);
             };
-            text.push_str(&clause);
+            text.push_js((&clause).into());
         } else {
             text.push('*');
         }
@@ -328,21 +339,21 @@ impl DisplayCloneModulePrinter<'_, '_> {
             let Some(module_specifier) = self.expression(module_specifier)? else {
                 return Ok(None);
             };
-            text.push_str(" from ");
-            text.push_str(&module_specifier);
+            text.push_js((" from ").into());
+            text.push_js((&module_specifier).into());
         }
         if let Some(attributes) = data.attributes {
             let Some(attributes) = self.import_attributes(attributes)? else {
                 return Ok(None);
             };
             text.push(' ');
-            text.push_str(&attributes);
+            text.push_js((&attributes).into());
         }
         text.push(';');
         Ok(Some(text))
     }
 
-    fn namespace_export(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn namespace_export(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::NamespaceExport(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -352,41 +363,45 @@ impl DisplayCloneModulePrinter<'_, '_> {
         let Some(name) = self.module_export_name(name)? else {
             return Ok(None);
         };
-        Ok(Some(format!("* as {name}")))
+        Ok(Some(crate::concat_js(&[&"* as ", &(name)])))
     }
 
-    fn named_exports(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn named_exports(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::NamedExports(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
         self.named_imports_or_exports(data.elements, SyntaxKind::ExportSpecifier)
     }
 
-    fn export_specifier(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn export_specifier(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::ExportSpecifier(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
         self.import_or_export_specifier(data.is_type_only, data.property_name, data.name)
     }
 
-    fn namespace_export_declaration(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn namespace_export_declaration(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::NamespaceExportDeclaration(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
         let Some(name) = data.name.and_then(|name| self.identifier(name)) else {
             return Ok(None);
         };
-        Ok(Some(format!("export as namespace {name};")))
+        Ok(Some(crate::concat_js(&[
+            &"export as namespace ",
+            &(name),
+            &";",
+        ])))
     }
 
     fn named_imports_or_exports(
         &mut self,
         elements: Option<NodeArrayId>,
         expected_kind: SyntaxKind,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<JsString>> {
         let (elements, has_trailing_comma) = self.node_array(elements);
         if elements.is_empty() {
-            return Ok(Some("{}".to_owned()));
+            return Ok(Some(JsString::from("{}")));
         }
         let mut rendered = Vec::with_capacity(elements.len());
         for element in elements {
@@ -398,11 +413,11 @@ impl DisplayCloneModulePrinter<'_, '_> {
             };
             rendered.push(element);
         }
-        let mut text = format!("{{ {}", rendered.join(", "));
+        let mut text = crate::concat_js(&[&"{", &" ", &(crate::join_js_texts(&rendered, ", "))]);
         if has_trailing_comma {
             text.push(',');
         }
-        text.push_str(" }");
+        text.push_js((" }").into());
         Ok(Some(text))
     }
 
@@ -411,17 +426,17 @@ impl DisplayCloneModulePrinter<'_, '_> {
         is_type_only: bool,
         property_name: Option<NodeId>,
         name: Option<NodeId>,
-    ) -> CheckResult<Option<String>> {
-        let mut text = String::new();
+    ) -> CheckResult<Option<JsString>> {
+        let mut text = JsString::new();
         if is_type_only {
-            text.push_str("type ");
+            text.push_js(("type ").into());
         }
         if let Some(property_name) = property_name {
             let Some(property_name) = self.module_export_name(property_name)? else {
                 return Ok(None);
             };
-            text.push_str(&property_name);
-            text.push_str(" as ");
+            text.push_js((&property_name).into());
+            text.push_js((" as ").into());
         }
         let Some(name) = name else {
             return Ok(None);
@@ -429,11 +444,11 @@ impl DisplayCloneModulePrinter<'_, '_> {
         let Some(name) = self.module_export_name(name)? else {
             return Ok(None);
         };
-        text.push_str(&name);
+        text.push_js((&name).into());
         Ok(Some(text))
     }
 
-    fn import_attributes(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn import_attributes(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::ImportAttributes(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -442,15 +457,15 @@ impl DisplayCloneModulePrinter<'_, '_> {
         };
         let elements = self.nodes(data.elements);
         if elements.is_empty() {
-            return Ok(Some(format!("{keyword} {{}}")));
+            return Ok(Some(crate::concat_js(&[&(keyword), &" {", &"}"])));
         }
         let leading_new_line = self.list_has_leading_line(node, elements[0]);
         let closing_new_line =
             self.list_has_closing_line(node, *elements.last().expect("nonempty import attributes"));
         let contents = self.with_increased_indent(|printer| {
-            let mut contents = String::new();
+            let mut contents = JsString::new();
             if leading_new_line {
-                contents.push_str(&printer.indent_text());
+                contents.push_js((&printer.indent_text()).into());
             } else {
                 contents.push(' ');
             }
@@ -460,7 +475,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
                 if let Some(previous) = previous {
                     contents.push(',');
                     if printer.list_has_separating_line(previous, element) {
-                        contents.push_str(&printer.indent_text());
+                        contents.push_js((&printer.indent_text()).into());
                         at_line_start = true;
                     } else {
                         contents.push(' ');
@@ -474,7 +489,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
                 else {
                     return Ok(None);
                 };
-                contents.push_str(&element_text);
+                contents.push_js((&element_text).into());
                 previous = Some(element);
             }
             Ok(Some(contents))
@@ -483,14 +498,19 @@ impl DisplayCloneModulePrinter<'_, '_> {
             return Ok(None);
         };
         if closing_new_line {
-            contents.push_str(&self.indent_text());
+            contents.push_js((&self.indent_text()).into());
         } else {
             contents.push(' ');
         }
-        Ok(Some(format!("{keyword} {{{contents}}}")))
+        Ok(Some(crate::concat_js(&[
+            &(keyword),
+            &" {",
+            &(contents),
+            &"}",
+        ])))
     }
 
-    fn import_attribute(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn import_attribute(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::ImportAttribute(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -506,10 +526,10 @@ impl DisplayCloneModulePrinter<'_, '_> {
         let Some(value) = self.expression(value)? else {
             return Ok(None);
         };
-        Ok(Some(format!("{name}: {value}")))
+        Ok(Some(crate::concat_js(&[&(name), &": ", &(value)])))
     }
 
-    fn external_module_reference(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn external_module_reference(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::ExternalModuleReference(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -519,10 +539,10 @@ impl DisplayCloneModulePrinter<'_, '_> {
         let Some(expression) = self.expression(expression)? else {
             return Ok(None);
         };
-        Ok(Some(format!("require({expression})")))
+        Ok(Some(crate::concat_js(&[&"require(", &(expression), &")"])))
     }
 
-    fn module_reference(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn module_reference(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         match self.state.kind_of(node) {
             SyntaxKind::Identifier | SyntaxKind::QualifiedName => Ok(self.entity_name(node)),
             SyntaxKind::ExternalModuleReference => self.external_module_reference(node),
@@ -530,19 +550,19 @@ impl DisplayCloneModulePrinter<'_, '_> {
         }
     }
 
-    fn entity_name(&self, node: NodeId) -> Option<String> {
+    fn entity_name(&self, node: NodeId) -> Option<JsString> {
         match self.state.data_of(node) {
             NodeData::Identifier(_) => self.identifier(node),
             NodeData::QualifiedName(data) => {
                 let left = self.entity_name(data.left?)?;
                 let right = self.identifier(data.right?)?;
-                Some(format!("{left}.{right}"))
+                Some(crate::concat_js(&[&(left), &".", &(right)]))
             }
             _ => None,
         }
     }
 
-    fn module_name(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn module_name(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         match self.state.kind_of(node) {
             SyntaxKind::Identifier => Ok(self.identifier(node)),
             SyntaxKind::StringLiteral => self.expression(node),
@@ -550,7 +570,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
         }
     }
 
-    fn module_export_name(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn module_export_name(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         match self.state.kind_of(node) {
             SyntaxKind::Identifier => Ok(self.identifier(node)),
             SyntaxKind::StringLiteral => self.expression(node),
@@ -558,7 +578,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
         }
     }
 
-    fn modifiers(&self, modifiers: Option<NodeArrayId>) -> CheckResult<Option<String>> {
+    fn modifiers(&self, modifiers: Option<NodeArrayId>) -> CheckResult<Option<JsString>> {
         let mut rendered = Vec::new();
         for modifier in self.nodes(modifiers) {
             if matches!(self.state.data_of(modifier), NodeData::Decorator(_)) {
@@ -571,13 +591,13 @@ impl DisplayCloneModulePrinter<'_, '_> {
             rendered.push(token);
         }
         Ok(Some(if rendered.is_empty() {
-            String::new()
+            JsString::new()
         } else {
-            format!("{} ", rendered.join(" "))
+            crate::concat_js(&[&(crate::join_js_texts(&rendered, " ")), &" "])
         }))
     }
 
-    fn expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn expression(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         self.state
             .display_clone_expression_text_at_line_start(node, false)
     }
@@ -638,11 +658,11 @@ impl DisplayCloneModulePrinter<'_, '_> {
         }
     }
 
-    fn identifier(&self, node: NodeId) -> Option<String> {
+    fn identifier(&self, node: NodeId) -> Option<JsString> {
         match self.state.data_of(node) {
-            NodeData::Identifier(data) => {
-                Some(tsc_binder::unescape_leading_underscores(&data.escaped_text).to_owned())
-            }
+            NodeData::Identifier(data) => Some(JsString::from(
+                tsc_syntax::unescape_leading_underscores(&data.escaped_text),
+            )),
             _ => None,
         }
     }

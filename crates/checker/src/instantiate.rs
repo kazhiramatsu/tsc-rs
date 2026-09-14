@@ -123,8 +123,10 @@ pub(crate) enum IntrinsicTypeKind {
 
 /// tsrs-native: Rust enum projection of tsc's intrinsicTypeKinds map;
 /// the map lookup is inline state, not a standalone tsc function.
-pub(crate) fn intrinsic_type_kind(name: &str) -> Option<IntrinsicTypeKind> {
-    match name {
+pub(crate) fn intrinsic_type_kind<'n>(
+    name: impl Into<tsc_types::JsStr<'n>>,
+) -> Option<IntrinsicTypeKind> {
+    match name.into().as_str()? {
         "Uppercase" => Some(IntrinsicTypeKind::Uppercase),
         "Lowercase" => Some(IntrinsicTypeKind::Lowercase),
         "Capitalize" => Some(IntrinsicTypeKind::Capitalize),

@@ -436,10 +436,10 @@ impl<'a> CheckerState<'a> {
                 })
             {
                 let display = self.declaration_name_display(name);
-                self.error_at(
+                self.error_at_js(
                     Some(name),
                     &diagnostics::All_declarations_of_0_must_have_identical_modifiers,
-                    &[&display],
+                    &[(&display).into()],
                 );
             }
         } else {
@@ -495,10 +495,10 @@ impl<'a> CheckerState<'a> {
             if let Some(value_declaration) = value_declaration {
                 if !self.are_declaration_flags_identical(node, value_declaration) {
                     let display = self.declaration_name_display(name);
-                    self.error_at(
+                    self.error_at_js(
                         Some(name),
                         &diagnostics::All_declarations_of_0_must_have_identical_modifiers,
-                        &[&display],
+                        &[(&display).into()],
                     );
                 }
             }
@@ -556,10 +556,14 @@ impl<'a> CheckerState<'a> {
             })
             .into_iter()
             .collect();
-        self.error_at_with_related(
+        self.error_at_with_related_js(
             next_declaration_name.or(Some(next_declaration)),
             message,
-            &[&decl_name, &first_text, &next_text],
+            &[
+                (&decl_name).into(),
+                (&first_text).into(),
+                (&next_text).into(),
+            ],
             related,
         );
         Ok(())
@@ -686,10 +690,10 @@ impl<'a> CheckerState<'a> {
         });
         if !names_share_scope {
             let display = self.symbol_display_name(local);
-            self.error_at(
+            self.error_at_js(
                 Some(node),
                 &diagnostics::Cannot_initialize_outer_scoped_variable_0_in_the_same_scope_as_block_scoped_declaration_1,
-                &[&display, &display],
+                &[(&display).into(), (&display).into()],
             );
         }
         Ok(())
@@ -2190,10 +2194,10 @@ impl<'a> CheckerState<'a> {
                 )?)
         {
             let display = self.type_to_string_slice(right_type)?;
-            self.error_at(
+            self.error_at_js(
                 expression,
                 &diagnostics::The_right_hand_side_of_a_for_in_statement_must_be_of_type_any_an_object_type_or_a_type_parameter_but_here_has_type_0,
-                &[&display],
+                &[(&display).into()],
             );
         }
         self.check_source_element(statement);
@@ -2895,10 +2899,10 @@ impl<'a> CheckerState<'a> {
                                         let display =
                                             tsc_binder::unescape_leading_underscores(caught_name)
                                                 .to_owned();
-                                        self.grammar_error_on_node(
+                                        self.grammar_error_on_node_js(
                                             value_declaration,
                                             &diagnostics::Cannot_redeclare_identifier_0_in_catch_clause,
-                                            &[&display],
+                                            &[(&display).into()],
                                         );
                                     }
                                 }

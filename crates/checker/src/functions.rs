@@ -2397,15 +2397,16 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: reportErrorForInvalidReturnType @6.0.3
     /// tsc-hash: 68bdaf8612162ca45dca17e487ff403f74597f51bd614ce380fdc26ae9120998
     /// tsc-span: _tsc.js:82571-82578
-    fn report_error_for_invalid_async_return_type(
+    fn report_error_for_invalid_async_return_type<'n>(
         &mut self,
         return_type_node: NodeId,
         return_type_error_location: NodeId,
         message: &'static DiagnosticMessage,
-        type_name: &str,
+        type_name: impl Into<tsc_types::JsStr<'n>>,
     ) {
+        let type_name = type_name.into();
         if return_type_node == return_type_error_location {
-            self.error_at(Some(return_type_error_location), message, &[type_name]);
+            self.error_at_js(Some(return_type_error_location), message, &[type_name]);
             return;
         }
         let diagnostic = self.error_at(
@@ -2413,7 +2414,7 @@ impl<'a> CheckerState<'a> {
             &diagnostics::The_return_type_of_an_async_function_or_method_must_be_the_global_Promise_T_type,
             &[],
         );
-        let related = self.related_info_for_node(return_type_node, message, &[type_name]);
+        let related = self.related_info_for_node_js(return_type_node, message, &[type_name]);
         self.diagnostics[diagnostic].related.push(related);
     }
 
@@ -3548,10 +3549,10 @@ impl<'a> CheckerState<'a> {
                 };
                 if let Some(diagnostic) = diagnostic {
                     let error_node = self.name_of_node(declaration).unwrap_or(declaration);
-                    self.error_at_with_related(
+                    self.error_at_with_related_js(
                         Some(error_node),
                         diagnostic,
-                        &[&symbol_name],
+                        &[(&symbol_name).into()],
                         related.clone(),
                     );
                 }
@@ -5488,7 +5489,7 @@ impl<'a> CheckerState<'a> {
     ) {
         let source = self.binder.source_of_node(node);
         let args: Vec<String> = args.iter().map(|arg| (*arg).to_owned()).collect();
-        let mut diagnostic = tsc_diagnostics::Diagnostic::new(
+        let mut diagnostic = tsc_diagnostics::Diagnostic::new_js(
             Some(source.file_name.clone()),
             Some(span.0),
             Some(span.1),

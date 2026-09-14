@@ -397,7 +397,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
     fn create_string_literal(
         &mut self,
         source: TransformSourceId,
-        text: impl Into<String>,
+        text: impl Into<tsc_types::JsString>,
     ) -> Result<TransformNode, EmitResolverError> {
         self.create_node(
             source,
@@ -1229,12 +1229,14 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
                     };
                     if self.kind(literal)? == SyntaxKind::StringLiteral {
                         let text = self.literal_text(literal)?.to_owned();
-                        if is_identifier_text_for_target(&text, self.builder.script_target) {
+                        if let Some(text) = text.as_str().filter(|text| {
+                            is_identifier_text_for_target(text, self.builder.script_target)
+                        }) {
                             return self.create_identifier(source, text).map(Some);
                         }
                     }
                     if self.kind(literal)? == SyntaxKind::NumericLiteral
-                        && !self.literal_text(literal)?.starts_with('-')
+                        && !self.literal_text(literal)?.starts_with("-")
                     {
                         return Ok(Some(literal));
                     }
@@ -3712,12 +3714,12 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         }
     }
 
-    fn literal_text(&self, node: TransformNode) -> Result<&str, EmitResolverError> {
+    fn literal_text(&self, node: TransformNode) -> Result<tsc_types::JsStr<'_>, EmitResolverError> {
         match &self.node(node)?.data {
-            NodeData::StringLiteral(data) => Ok(&data.text),
-            NodeData::NumericLiteral(data) => Ok(&data.text),
-            NodeData::BigIntLiteral(data) => Ok(&data.text),
-            NodeData::NoSubstitutionTemplateLiteral(data) => Ok(&data.text),
+            NodeData::StringLiteral(data) => Ok((&data.text).into()),
+            NodeData::NumericLiteral(data) => Ok((&data.text).into()),
+            NodeData::BigIntLiteral(data) => Ok((&data.text).into()),
+            NodeData::NoSubstitutionTemplateLiteral(data) => Ok((&data.text).into()),
             _ => Err(self.required_child_error(self.kind(node)?, "text")),
         }
     }

@@ -83,7 +83,13 @@ fn selected_pairs_and_every_split_preserve_concatenation() {
                 let complete = JsString::from_code_units(&units);
                 for split in 0..=units.len() {
                     let mut left = JsString::from_code_units(&units[..split]);
-                    left.push_js(JsString::from_code_units(&units[split..]).as_js());
+                    let right = JsString::from_code_units(&units[split..]);
+                    let mut length = JsStringByteLength::default();
+                    length.append(left.as_js()).unwrap();
+                    length.append(JsStr::from_str("")).unwrap();
+                    length.append(right.as_js()).unwrap();
+                    assert_eq!(length.bytes(), complete.as_bytes().len());
+                    left.push_js(right.as_js());
                     assert_eq!(left, complete, "units {units:X?}, split {split}");
                 }
             }
@@ -205,7 +211,124 @@ fn prefix_views_and_buffer_reuse_preserve_canonical_values() {
 }
 
 #[test]
+fn arbitrary_prefixes_suffixes_and_substrings_operate_on_utf16_units() {
+    let alphabet = [0, 0x41, 0xd800, 0xd801, 0xdc00, 0xdfff, 0xfffd];
+    for a in alphabet {
+        for b in alphabet {
+            for c in alphabet {
+                let units = [a, b, c];
+                let text = JsString::from_code_units(&units);
+                for start in 0..=4 {
+                    for end in 0..=4 {
+                        let left = start.min(3);
+                        let right = end.min(3);
+                        let expected = &units[left.min(right)..left.max(right)];
+                        let substring = text.as_js().substring(start, end);
+                        assert_eq!(substring.to_utf16(), expected);
+                        assert_eq!(substring, JsString::from_code_units(expected));
+                        assert_eq!(
+                            text.as_js().starts_with_js(substring.as_js()),
+                            units.starts_with(expected)
+                        );
+                        assert_eq!(
+                            text.as_js().ends_with_js(substring.as_js()),
+                            units.ends_with(expected)
+                        );
+                    }
+                }
+                assert_eq!(text.as_js().substring(usize::MAX, 0), text);
+                let longer = JsString::from_code_units(&[a, b, c, a]);
+                assert!(!text.as_js().starts_with_js(longer.as_js()));
+                assert!(!text.as_js().ends_with_js(longer.as_js()));
+            }
+        }
+    }
+    let pair = JsString::from("😀");
+    let lead = JsString::from_code_units(&[0xd83d]);
+    let trail = JsString::from_code_units(&[0xde00]);
+    assert!(pair.as_js().starts_with_js(lead.as_js()));
+    assert!(pair.as_js().ends_with_js(trail.as_js()));
+    assert!(!pair.as_bytes().starts_with(lead.as_bytes()));
+    assert!(!pair.as_bytes().ends_with(trail.as_bytes()));
+}
+
+#[test]
+fn scalar_separators_return_canonical_views_around_surrogates() {
+    let text = JsString::from_code_units(&[0xd800, 0x2a, 0xdc00, 0x2f]);
+    let (prefix, suffix) = text.as_js().split_once("*").unwrap();
+    assert_eq!(prefix.to_utf16(), [0xd800]);
+    assert_eq!(suffix.to_utf16(), [0xdc00, 0x2f]);
+    assert!(text.contains("*"));
+    assert!(text.ends_with("/"));
+    assert_eq!(suffix.strip_suffix("/").unwrap().to_utf16(), [0xdc00]);
+    assert_eq!(prefix.strip_suffix(""), Some(prefix));
+    assert!(text.contains(""));
+    assert!(!text.contains("😀"));
+}
+
+#[test]
+fn last_separator_preserves_path_components_and_matches_scalar_str() {
+    for text in ["", "/", "a/b/c", "//server/a/", "a𐀀b𐀀c", "é/é"] {
+        let value = JsString::from(text);
+        for separator in ["", "/", "𐀀", "é", "missing"] {
+            let actual = value.as_js().rsplit_once(separator);
+            assert_eq!(
+                actual.map(|(left, right)| (left.as_str().unwrap(), right.as_str().unwrap())),
+                text.rsplit_once(separator),
+            );
+        }
+    }
+    let units = [0xd800, 0x2f, 0xd801, 0x2f, 0xd800, 0xdc00, 0x2f, 0xdc01];
+    let path = JsString::from_code_units(&units);
+    let (directory, basename) = path.as_js().rsplit_once("/").unwrap();
+    assert_eq!(directory.to_utf16(), units[..6]);
+    assert_eq!(basename.to_utf16(), [0xdc01]);
+    let (left, right) = path.as_js().rsplit_once("𐀀").unwrap();
+    assert_eq!(left.to_utf16(), units[..4]);
+    assert_eq!(right.to_utf16(), [0x2f, 0xdc01]);
+    assert_eq!(
+        path.as_js().rsplit_once(""),
+        Some((path.as_js(), "".into()))
+    );
+    assert_eq!(path.as_js().rsplit_once("missing"), None);
+}
+
+#[test]
+fn byte_views_require_whole_wtf8_code_points() {
+    let text = JsString::from_code_units(&[0x41, 0xd800, 0xdc00, 0xd801, 0x2a, 0xdc01]);
+    let boundaries = [0, 1, 5, 8, 9, 12];
+    for index in 0..=text.as_bytes().len() + 1 {
+        let pieces = text.as_js().split_at_byte(index);
+        assert_eq!(pieces.is_some(), boundaries.contains(&index));
+        if let Some((before, after)) = pieces {
+            assert_eq!(before.as_bytes().len(), index);
+            let mut round_trip = before.to_owned();
+            round_trip.push_js(after);
+            assert_eq!(round_trip, text);
+        }
+    }
+    assert!(text.as_js().split_at_byte(usize::MAX).is_none());
+    assert_eq!(text.as_js().substring(1, 2).to_utf16(), [0xd800]);
+}
+
+#[test]
 #[should_panic(expected = "JavaScript code point is at most U+10FFFF")]
 fn out_of_range_code_point_requires_scanner_recovery() {
     JsString::new().push_code_point(0x110000);
+}
+
+#[test]
+fn byte_truncation_preserves_canonical_prefixes_and_rejects_partial_code_points() {
+    let original = JsString::from_code_units(&[0x41, 0xd83d, 0xde00, 0xd800, 0x2f, 0xdc00]);
+    for index in 0..=original.as_bytes().len() + 1 {
+        let mut truncated = original.clone();
+        if let Some((prefix, _)) = original.as_js().split_at_byte(index) {
+            assert!(truncated.truncate_bytes(index));
+            assert_eq!(truncated, prefix.to_owned());
+            assert_eq!(truncated, JsString::from_code_units(&truncated.to_utf16()));
+        } else {
+            assert!(!truncated.truncate_bytes(index));
+            assert_eq!(truncated, original);
+        }
+    }
 }

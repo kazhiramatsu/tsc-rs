@@ -50,7 +50,7 @@ pub(crate) enum EffectiveArg {
 /// chooses and combines its rows.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct DiagSpan {
-    pub(crate) file_name: String,
+    pub(crate) file_name: tsc_types::JsString,
     pub(crate) start: u32,
     pub(crate) length: u32,
 }
@@ -1342,7 +1342,7 @@ impl<'a> CheckerState<'a> {
         );
         match self.data_of(name) {
             NodeData::Identifier(data) => {
-                let text = tsc_binder::unescape_leading_underscores(&data.escaped_text).to_owned();
+                let text = tsc_syntax::unescape_leading_underscores(&data.escaped_text).to_owned();
                 Ok(self.tables.get_string_literal_type(&text))
             }
             NodeData::NumericLiteral(data) => {
@@ -1413,7 +1413,7 @@ impl<'a> CheckerState<'a> {
         let name_type = if is_private {
             let text = match self.data_of(name) {
                 NodeData::PrivateIdentifier(data) => {
-                    tsc_binder::unescape_leading_underscores(&data.escaped_text).to_owned()
+                    tsc_syntax::unescape_leading_underscores(&data.escaped_text).to_owned()
                 }
                 _ => unreachable!("kind/data agree"),
             };
@@ -1480,9 +1480,18 @@ impl<'a> CheckerState<'a> {
         let static_value = boolean_literal(self, is_static);
         let static_prop = self.create_synthetic_property("static", static_value);
         let mut members = tsc_binder::SymbolTable::default();
-        members.insert("name".to_owned(), name_prop);
-        members.insert("private".to_owned(), private_prop);
-        members.insert("static".to_owned(), static_prop);
+        members.insert(
+            tsc_types::EscapedName::from_identifier_escaped_text("name"),
+            name_prop,
+        );
+        members.insert(
+            tsc_types::EscapedName::from_identifier_escaped_text("private"),
+            private_prop,
+        );
+        members.insert(
+            tsc_types::EscapedName::from_identifier_escaped_text("static"),
+            static_prop,
+        );
         let override_type = self.create_resolved_empty_anonymous_type(None);
         let members_id = self
             .links
@@ -1583,9 +1592,10 @@ impl<'a> CheckerState<'a> {
     /// tsc createParameter (47659): a transient function-scoped
     /// variable symbol with links.type.
     fn create_synthetic_parameter(&mut self, name: &str, ty: TypeId) -> SymbolId {
-        let symbol = self
-            .binder
-            .create_symbol(SymbolFlags::FUNCTION_SCOPED_VARIABLE, name.to_owned());
+        let symbol = self.binder.create_symbol(
+            SymbolFlags::FUNCTION_SCOPED_VARIABLE,
+            tsc_types::EscapedName::from_identifier_escaped_text(name),
+        );
         self.links
             .set_fresh_symbol_type(symbol, LinkSlot::Resolved(ty));
         symbol
@@ -1593,9 +1603,10 @@ impl<'a> CheckerState<'a> {
 
     /// tsc createProperty (47664): the transient Property twin.
     fn create_synthetic_property(&mut self, name: &str, ty: TypeId) -> SymbolId {
-        let symbol = self
-            .binder
-            .create_symbol(SymbolFlags::PROPERTY, name.to_owned());
+        let symbol = self.binder.create_symbol(
+            SymbolFlags::PROPERTY,
+            tsc_types::EscapedName::from_identifier_escaped_text(name),
+        );
         self.links
             .set_fresh_symbol_type(symbol, LinkSlot::Resolved(ty));
         symbol
@@ -1692,7 +1703,7 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: Rust Diagnostic constructor adapter for a
     /// precomputed DiagSpan; tsc has no standalone counterpart.
     pub(crate) fn diagnostic_at_span(&self, span: &DiagSpan, chain: MessageChain) -> Diagnostic {
-        Diagnostic::new(
+        Diagnostic::new_js(
             Some(span.file_name.clone()),
             Some(span.start),
             Some(span.length),
@@ -2782,7 +2793,10 @@ impl<'a> CheckerState<'a> {
         } else {
             source_text
         };
-        Ok(self.diagnostic_at_span(span, MessageChain::new(head, &[source_text, target_text])))
+        Ok(self.diagnostic_at_span(
+            span,
+            MessageChain::new_js(head, &[source_text, target_text]),
+        ))
     }
 
     fn build_relation_error_with_head_and_containing_chain(
@@ -2866,7 +2880,10 @@ impl<'a> CheckerState<'a> {
         } else {
             source_text
         };
-        Ok(self.diagnostic_at_span(span, MessageChain::new(head, &[source_text, target_text])))
+        Ok(self.diagnostic_at_span(
+            span,
+            MessageChain::new_js(head, &[source_text, target_text]),
+        ))
     }
 
     /// tsc-port: getExactOptionalUnassignableProperties @6.0.3
@@ -3438,7 +3455,8 @@ impl<'a> CheckerState<'a> {
         }
         let span = self.diag_span_of_node(tag_name);
         let tag_text = self.text_of_node(tag_name)?;
-        let factory_text = format!("{factory_namespace}.createElement");
+        let mut factory_text = factory_namespace.as_js().to_owned();
+        factory_text.push_str(".createElement");
         let mut related: Vec<RelatedInfo> = Vec::new();
         if let Some(tag_symbol) = self.links.node(tag_name).resolved_symbol.resolved() {
             if let Some(declaration) = self.binder.symbol(tag_symbol).value_declaration {
@@ -3453,13 +3471,13 @@ impl<'a> CheckerState<'a> {
             ApplicabilityMode::Report => {
                 let mut diagnostic = self.diagnostic_at_span(
                     &span,
-                    MessageChain::new(
+                    MessageChain::new_js(
                         &diagnostics::Tag_0_expects_at_least_1_arguments_but_the_JSX_factory_2_provides_at_most_3,
                         &[
-                            tag_text.clone(),
-                            absolute_min_arg_count.to_string(),
+                            tag_text.clone().into(),
+                            absolute_min_arg_count.to_string().into(),
                             factory_text,
-                            max_param_count.to_string(),
+                            max_param_count.to_string().into(),
                         ],
                     ),
                 );
@@ -4219,7 +4237,7 @@ impl<'a> CheckerState<'a> {
                 ) {
                     Ok(errors) => errors.unwrap_or_else(|| {
                         panic!(
-                            "No error for last overload signature @{}",
+                            "No error for last overload signature @{:?}",
                             self.binder.source_of_node(node).file_name
                         )
                     }),
@@ -4274,7 +4292,7 @@ impl<'a> CheckerState<'a> {
                     ) {
                         Ok(errors) => errors.unwrap_or_else(|| {
                             panic!(
-                                "No error for 3 or fewer overload signatures @{}",
+                                "No error for 3 or fewer overload signatures @{:?}",
                                 self.binder.source_of_node(node).file_name
                             )
                         }),
@@ -4296,12 +4314,12 @@ impl<'a> CheckerState<'a> {
                             .diagnostic
                             .as_mut()
                             .expect("Report mode builds diagnostics");
-                        let overload = MessageChain::new(
+                        let overload = MessageChain::new_js(
                             &diagnostics::Overload_0_of_1_2_gave_the_following_error,
                             &[
-                                (i + 1).to_string(),
-                                ctx.candidates.len().to_string(),
-                                signature_text.clone(),
+                                ((i + 1).to_string()).into(),
+                                (ctx.candidates.len().to_string()).into(),
+                                (signature_text.clone()).into(),
                             ],
                         );
                         diagnostic.message =
@@ -5470,9 +5488,9 @@ impl<'a> CheckerState<'a> {
         fn prepend(
             details: Option<MessageChain>,
             message: &'static DiagnosticMessage,
-            args: &[String],
+            args: &[tsc_types::JsString],
         ) -> MessageChain {
-            MessageChain::new(message, args).with_next(details.into_iter().collect())
+            MessageChain::new_js(message, args).with_next(details.into_iter().collect())
         }
 
         let is_call = kind == SignatureKind::Call;
@@ -5737,10 +5755,10 @@ impl<'a> CheckerState<'a> {
         if call_signatures.is_empty() {
             if num_construct_signatures != 0 {
                 let display = self.type_to_string_slice(func_type)?;
-                self.error_at(
+                self.error_at_js(
                     Some(node),
                     &diagnostics::Value_of_type_0_is_not_callable_Did_you_mean_to_include_new,
-                    &[&display],
+                    &[(&display).into()],
                 );
             } else {
                 // 77023-77034: the missing-semicolon hint on a
@@ -5807,10 +5825,10 @@ impl<'a> CheckerState<'a> {
         }
         if has_jsdoc_class_signature {
             let display = self.type_to_string_slice(func_type)?;
-            self.error_at(
+            self.error_at_js(
                 Some(node),
                 &diagnostics::Value_of_type_0_is_not_callable_Did_you_mean_to_include_new,
-                &[&display],
+                &[(&display).into()],
             );
             return self.resolve_error_call(node);
         }
@@ -6064,18 +6082,18 @@ impl<'a> CheckerState<'a> {
             }
             if modifiers.intersects(ModifierFlags::PRIVATE) {
                 let display = self.type_to_string_slice(declaring_class)?;
-                self.error_at(
+                self.error_at_js(
                     Some(node),
                     &diagnostics::Constructor_of_class_0_is_private_and_only_accessible_within_the_class_declaration,
-                    &[&display],
+                    &[(&display).into()],
                 );
             }
             if modifiers.intersects(ModifierFlags::PROTECTED) {
                 let display = self.type_to_string_slice(declaring_class)?;
-                self.error_at(
+                self.error_at_js(
                     Some(node),
                     &diagnostics::Constructor_of_class_0_is_protected_and_only_accessible_within_the_class_declaration,
-                    &[&display],
+                    &[(&display).into()],
                 );
             }
             return Ok(false);
@@ -6505,10 +6523,10 @@ impl<'a> CheckerState<'a> {
             || !self.is_type_assignable_to(specifier_type, self.tables.intrinsics.string)?
         {
             let display = self.type_to_string_slice(specifier_type)?;
-            self.error_at(
+            self.error_at_js(
                 Some(specifier),
                 &diagnostics::Dynamic_import_s_specifier_must_be_of_type_string_but_here_has_type_0,
-                &[&display],
+                &[(&display).into()],
             );
         }
         if let Some(options_type) = options_type {
@@ -6526,7 +6544,13 @@ impl<'a> CheckerState<'a> {
             }
             // TypeScript 6.0 silences this deprecated `assert` property only
             // for the exact `ignoreDeprecations: "6.0"` value.
-            if self.options.ignore_deprecations.as_deref() != Some("6.0") {
+            if self
+                .options
+                .ignore_deprecations
+                .as_ref()
+                .map(tsc_types::JsString::as_js)
+                != Some("6.0".into())
+            {
                 if let NodeData::ObjectLiteralExpression(literal) = self.data_of(args[1]) {
                     let properties = literal.properties;
                     for property in self.nodes_of(properties) {

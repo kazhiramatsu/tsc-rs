@@ -293,7 +293,7 @@ pub enum TypeData {
     /// escaped_name = `__@<symbol.escapedName>@<symbolId>` — the
     /// late-bound member name known-symbol lookups compare against.
     UniqueESSymbol {
-        escaped_name: String,
+        escaped_name: crate::EscapedName,
     },
     Union {
         types: Box<[TypeId]>,

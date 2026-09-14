@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "scope": "focused ES5 JavaScript emit only; no diagnostics/declaration/complete-command comparison",
+  "typescript": "6.0.3",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "a19e20da0edb71f0218d7760f4735741ed696199ceee774e9189fed8fdac6aa9",
+  "repetitions": 2,
+  "cases": [
+    {
+      "case_id": "underscore-identifier-literal",
+      "source": "class C { get __x() { return 1; } set \"__x\"(value) {} }",
+      "expected": "var C = /** @class */ (function () {\n    function C() {\n    }\n    Object.defineProperty(C.prototype, \"__x\", {\n        get: function () { return 1; },\n        set: function (value) { },\n        enumerable: false,\n        configurable: true\n    });\n    return C;\n}());\n"
+    },
+    {
+      "case_id": "surrogate-accessor-pairs",
+      "source": "class C { get \"\\ud800\"() { return 1; } set [\"\\ud800\"](value) {} get \"\\ud801\"() { return 2; } set [\"\\ud801\"](value) {} get \"\\ufffd\"() { return 3; } set [\"\\ufffd\"](value) {} }",
+      "expected": "var C = /** @class */ (function () {\n    function C() {\n    }\n    Object.defineProperty(C.prototype, \"\\ud800\", {\n        get: function () { return 1; },\n        set: function (value) { },\n        enumerable: false,\n        configurable: true\n    });\n    Object.defineProperty(C.prototype, \"\\ud801\", {\n        get: function () { return 2; },\n        set: function (value) { },\n        enumerable: false,\n        configurable: true\n    });\n    Object.defineProperty(C.prototype, \"\\ufffd\", {\n        get: function () { return 3; },\n        set: function (value) { },\n        enumerable: false,\n        configurable: true\n    });\n    return C;\n}());\n"
+    }
+  ]
+}

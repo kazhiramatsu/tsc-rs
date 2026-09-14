@@ -1,0 +1,512 @@
+{
+  "scope": "String.replace first-star and global-star values only; Buffer byteLength agrees with canonical WTF-8 length but is not an observation of its surrogate bytes",
+  "compiler_sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
+  "observer_sha256": "037bc9de65764204068f4019f378fd9a4c7bb3b79c4cfc4a495de0ac61a43f43",
+  "node": "v25.2.1",
+  "repetitions": 2,
+  "cases": [
+    {
+      "id": "empty",
+      "target": [],
+      "replacement": [],
+      "first": [],
+      "all": [],
+      "first_bytes": 0,
+      "all_bytes": 0
+    },
+    {
+      "id": "no-star",
+      "target": [
+        97,
+        55296,
+        98
+      ],
+      "replacement": [
+        36,
+        36,
+        36,
+        38,
+        36,
+        96,
+        36,
+        39
+      ],
+      "first": [
+        97,
+        55296,
+        98
+      ],
+      "all": [
+        97,
+        55296,
+        98
+      ],
+      "first_bytes": 5,
+      "all_bytes": 5
+    },
+    {
+      "id": "remove-star-forms-pair",
+      "target": [
+        55296,
+        42,
+        56320
+      ],
+      "replacement": [],
+      "first": [
+        55296,
+        56320
+      ],
+      "all": [
+        55296,
+        56320
+      ],
+      "first_bytes": 4,
+      "all_bytes": 4
+    },
+    {
+      "id": "replacement-forms-pair-left",
+      "target": [
+        55296,
+        42
+      ],
+      "replacement": [
+        56320
+      ],
+      "first": [
+        55296,
+        56320
+      ],
+      "all": [
+        55296,
+        56320
+      ],
+      "first_bytes": 4,
+      "all_bytes": 4
+    },
+    {
+      "id": "replacement-forms-pair-right",
+      "target": [
+        42,
+        56320
+      ],
+      "replacement": [
+        55296
+      ],
+      "first": [
+        55296,
+        56320
+      ],
+      "all": [
+        55296,
+        56320
+      ],
+      "first_bytes": 4,
+      "all_bytes": 4
+    },
+    {
+      "id": "distinct-surrogates",
+      "target": [
+        97,
+        42,
+        47,
+        42,
+        98
+      ],
+      "replacement": [
+        55297,
+        55296
+      ],
+      "first": [
+        97,
+        55297,
+        55296,
+        47,
+        42,
+        98
+      ],
+      "all": [
+        97,
+        55297,
+        55296,
+        47,
+        55297,
+        55296,
+        98
+      ],
+      "first_bytes": 10,
+      "all_bytes": 15
+    },
+    {
+      "id": "paired-input",
+      "target": [
+        55357,
+        56832,
+        42,
+        55357,
+        56832,
+        42
+      ],
+      "replacement": [
+        55357,
+        56832
+      ],
+      "first": [
+        55357,
+        56832,
+        55357,
+        56832,
+        55357,
+        56832,
+        42
+      ],
+      "all": [
+        55357,
+        56832,
+        55357,
+        56832,
+        55357,
+        56832,
+        55357,
+        56832
+      ],
+      "first_bytes": 13,
+      "all_bytes": 16
+    },
+    {
+      "id": "all-context-tokens",
+      "target": [
+        97,
+        98,
+        42,
+        99,
+        100,
+        42,
+        101,
+        102
+      ],
+      "replacement": [
+        36,
+        36,
+        124,
+        36,
+        38,
+        124,
+        36,
+        96,
+        124,
+        36,
+        39,
+        124,
+        36,
+        49,
+        124,
+        36,
+        60,
+        110,
+        97,
+        109,
+        101,
+        62,
+        124,
+        36
+      ],
+      "first": [
+        97,
+        98,
+        36,
+        124,
+        42,
+        124,
+        97,
+        98,
+        124,
+        99,
+        100,
+        42,
+        101,
+        102,
+        124,
+        36,
+        49,
+        124,
+        36,
+        60,
+        110,
+        97,
+        109,
+        101,
+        62,
+        124,
+        36,
+        99,
+        100,
+        42,
+        101,
+        102
+      ],
+      "all": [
+        97,
+        98,
+        36,
+        124,
+        42,
+        124,
+        97,
+        98,
+        124,
+        99,
+        100,
+        42,
+        101,
+        102,
+        124,
+        36,
+        49,
+        124,
+        36,
+        60,
+        110,
+        97,
+        109,
+        101,
+        62,
+        124,
+        36,
+        99,
+        100,
+        36,
+        124,
+        42,
+        124,
+        97,
+        98,
+        42,
+        99,
+        100,
+        124,
+        101,
+        102,
+        124,
+        36,
+        49,
+        124,
+        36,
+        60,
+        110,
+        97,
+        109,
+        101,
+        62,
+        124,
+        36,
+        101,
+        102
+      ],
+      "first_bytes": 32,
+      "all_bytes": 56
+    },
+    {
+      "id": "surrogate-context-tokens",
+      "target": [
+        55296,
+        42,
+        56320,
+        42,
+        55297
+      ],
+      "replacement": [
+        36,
+        96,
+        36,
+        39,
+        36,
+        38,
+        36,
+        36
+      ],
+      "first": [
+        55296,
+        55296,
+        56320,
+        42,
+        55297,
+        42,
+        36,
+        56320,
+        42,
+        55297
+      ],
+      "all": [
+        55296,
+        55296,
+        56320,
+        42,
+        55297,
+        42,
+        36,
+        56320,
+        55296,
+        42,
+        56320,
+        55297,
+        42,
+        36,
+        55297
+      ],
+      "first_bytes": 20,
+      "all_bytes": 31
+    },
+    {
+      "id": "empty-contexts",
+      "target": [
+        42
+      ],
+      "replacement": [
+        36,
+        96,
+        36,
+        39,
+        36,
+        96,
+        36,
+        39
+      ],
+      "first": [],
+      "all": [],
+      "first_bytes": 0,
+      "all_bytes": 0
+    },
+    {
+      "id": "unknown-dollar-token",
+      "target": [
+        97,
+        42,
+        98
+      ],
+      "replacement": [
+        36,
+        55296
+      ],
+      "first": [
+        97,
+        36,
+        55296,
+        98
+      ],
+      "all": [
+        97,
+        36,
+        55296,
+        98
+      ],
+      "first_bytes": 6,
+      "all_bytes": 6
+    },
+    {
+      "id": "trailing-dollar",
+      "target": [
+        97,
+        42,
+        98
+      ],
+      "replacement": [
+        55296,
+        36
+      ],
+      "first": [
+        97,
+        55296,
+        36,
+        98
+      ],
+      "all": [
+        97,
+        55296,
+        36,
+        98
+      ],
+      "first_bytes": 6,
+      "all_bytes": 6
+    },
+    {
+      "id": "literal-escape-spelling",
+      "target": [
+        42,
+        47,
+        42
+      ],
+      "replacement": [
+        92,
+        117,
+        68,
+        56,
+        48,
+        48
+      ],
+      "first": [
+        92,
+        117,
+        68,
+        56,
+        48,
+        48,
+        47,
+        42
+      ],
+      "all": [
+        92,
+        117,
+        68,
+        56,
+        48,
+        48,
+        47,
+        92,
+        117,
+        68,
+        56,
+        48,
+        48
+      ],
+      "first_bytes": 8,
+      "all_bytes": 13
+    },
+    {
+      "id": "replacement-star-is-literal",
+      "target": [
+        97,
+        42,
+        98,
+        42,
+        99
+      ],
+      "replacement": [
+        42,
+        55296,
+        42
+      ],
+      "first": [
+        97,
+        42,
+        55296,
+        42,
+        98,
+        42,
+        99
+      ],
+      "all": [
+        97,
+        42,
+        55296,
+        42,
+        98,
+        42,
+        55296,
+        42,
+        99
+      ],
+      "first_bytes": 9,
+      "all_bytes": 13
+    }
+  ]
+}

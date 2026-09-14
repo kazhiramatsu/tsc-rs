@@ -15,7 +15,7 @@ use tsc_syntax::nodes::{
     WithStatementData,
 };
 use tsc_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
-use tsc_types::NodeFlags;
+use tsc_types::{JsString, NodeFlags};
 
 use crate::state::{CheckResult, CheckerState};
 
@@ -34,7 +34,7 @@ impl<'program> CheckerState<'program> {
     pub(crate) fn display_clone_body_expression_text(
         &mut self,
         node: NodeId,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<JsString>> {
         DisplayCloneBodyPrinter { state: self }.node(node)
     }
 
@@ -43,7 +43,7 @@ impl<'program> CheckerState<'program> {
         &mut self,
         node: NodeId,
         at_line_start: bool,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<JsString>> {
         let saved_indent = self.slice_display_clone_indent;
         let saved = self.slice_display_clone_at_line_start;
         self.slice_display_clone_at_line_start = at_line_start;
@@ -57,7 +57,7 @@ impl<'program> CheckerState<'program> {
     pub(crate) fn display_clone_computed_property_expression_text(
         &mut self,
         expression: NodeId,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<JsString>> {
         let saved = self.slice_display_clone_at_line_start;
         self.slice_display_clone_at_line_start = false;
         let result =
@@ -70,7 +70,7 @@ impl<'program> CheckerState<'program> {
     pub(crate) fn display_clone_parameter_nodes_text(
         &mut self,
         nodes: Vec<NodeId>,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<JsString>> {
         let saved = self.slice_display_clone_at_line_start;
         self.slice_display_clone_at_line_start = false;
         let result = DisplayCloneBodyPrinter { state: self }.parameter_nodes_text(nodes);
@@ -82,7 +82,7 @@ impl<'program> CheckerState<'program> {
     pub(crate) fn display_clone_function_body_text(
         &mut self,
         node: NodeId,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<JsString>> {
         let saved_indent = self.slice_display_clone_indent;
         let saved_line_start = self.slice_display_clone_at_line_start;
         self.slice_display_clone_at_line_start = false;
@@ -94,14 +94,14 @@ impl<'program> CheckerState<'program> {
 }
 
 impl DisplayCloneBodyPrinter<'_, '_> {
-    fn node(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn node(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         if self.node_enters_reuse_scope(node) {
             return self.with_reuse_scope(node, |printer| printer.node_worker(node));
         }
         self.node_worker(node)
     }
 
-    fn node_worker(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn node_worker(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         match self.state.kind_of(node) {
             SyntaxKind::FunctionExpression => self.function_expression(node),
             SyntaxKind::ArrowFunction => self.arrow_function(node),
@@ -162,7 +162,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         }
     }
 
-    fn expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn expression(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         self.expression_at_line_start(node, false)
     }
 
@@ -170,12 +170,12 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         &mut self,
         node: NodeId,
         at_line_start: bool,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<JsString>> {
         self.state
             .display_clone_expression_text_at_line_start(node, at_line_start)
     }
 
-    fn function_expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn function_expression(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::FunctionExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -190,7 +190,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         )
     }
 
-    fn function_declaration(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn function_declaration(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::FunctionDeclaration(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -215,12 +215,12 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         parameters: Option<NodeArrayId>,
         return_type: Option<NodeId>,
         body: Option<NodeId>,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<JsString>> {
         let Some(modifiers) = self.modifiers(modifiers)? else {
             return Ok(None);
         };
         let mut text = modifiers;
-        text.push_str("function");
+        text.push_js(("function").into());
         if generator {
             text.push('*');
         }
@@ -229,19 +229,19 @@ impl DisplayCloneBodyPrinter<'_, '_> {
             let Some(name) = self.identifier_name(name) else {
                 return Ok(None);
             };
-            text.push_str(&name);
+            text.push_js((&name).into());
         }
         let Some(type_parameters) = self.type_parameter_nodes_text(type_parameters, false)? else {
             return Ok(None);
         };
-        text.push_str(&type_parameters);
+        text.push_js((&type_parameters).into());
         let Some(parameters) = self.parameter_nodes_text(self.nodes(parameters))? else {
             return Ok(None);
         };
         text.push('(');
-        text.push_str(&parameters);
+        text.push_js((&parameters).into());
         text.push(')');
-        text.push_str(&self.return_type_annotation(return_type)?);
+        text.push_js((&self.return_type_annotation(return_type)?).into());
         match body {
             Some(body) => {
                 let Some(body) =
@@ -250,14 +250,14 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                     return Ok(None);
                 };
                 text.push(' ');
-                text.push_str(&body);
+                text.push_js((&body).into());
             }
             None => text.push(';'),
         }
         Ok(Some(text))
     }
 
-    fn arrow_function(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn arrow_function(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::ArrowFunction(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -268,15 +268,15 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         else {
             return Ok(None);
         };
-        text.push_str(&type_parameters);
+        text.push_js((&type_parameters).into());
         let Some(parameters) = self.parameter_nodes_text(self.nodes(data.parameters))? else {
             return Ok(None);
         };
         text.push('(');
-        text.push_str(&parameters);
+        text.push_js((&parameters).into());
         text.push(')');
-        text.push_str(&self.return_type_annotation(data.r#type)?);
-        text.push_str(" => ");
+        text.push_js((&self.return_type_annotation(data.r#type)?).into());
+        text.push_js((" => ").into());
         let Some(body) = data.body else {
             return Ok(None);
         };
@@ -286,20 +286,20 @@ impl DisplayCloneBodyPrinter<'_, '_> {
             else {
                 return Ok(None);
             };
-            text.push_str(&body);
+            text.push_js((&body).into());
         } else {
             let Some(mut body_text) = self.expression(body)? else {
                 return Ok(None);
             };
             if self.arrow_body_needs_parentheses(body) {
-                body_text = format!("({body_text})");
+                body_text = crate::concat_js(&[&"(", &(body_text), &")"]);
             }
-            text.push_str(&body_text);
+            text.push_js((&body_text).into());
         }
         Ok(Some(text))
     }
 
-    fn class_expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn class_expression(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::ClassExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -312,7 +312,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         )
     }
 
-    fn class_declaration(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn class_declaration(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::ClassDeclaration(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -332,32 +332,32 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         type_parameters: Option<NodeArrayId>,
         heritage_clauses: Option<NodeArrayId>,
         members: Option<NodeArrayId>,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<JsString>> {
         let Some(mut text) = self.decorated_modifiers(modifiers)? else {
             return Ok(None);
         };
-        text.push_str("class");
+        text.push_js(("class").into());
         if let Some(name) = name {
             let Some(name) = self.identifier_name(name) else {
                 return Ok(None);
             };
             text.push(' ');
-            text.push_str(&name);
+            text.push_js((&name).into());
         }
         let Some(type_parameters) = self.type_parameter_nodes_text(type_parameters, false)? else {
             return Ok(None);
         };
-        text.push_str(&type_parameters);
+        text.push_js((&type_parameters).into());
         for heritage in self.nodes(heritage_clauses) {
             let Some(heritage) = self.heritage_clause(heritage)? else {
                 return Ok(None);
             };
-            text.push_str(&heritage);
+            text.push_js((&heritage).into());
         }
         let members = self.nodes(members);
         if members.is_empty() {
             text.push(' ');
-            text.push_str(&self.empty_multiline_braces());
+            text.push_js((&self.empty_multiline_braces()).into());
             return Ok(Some(text));
         }
         let mut retained = Vec::with_capacity(members.len());
@@ -369,11 +369,11 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         }
         if retained.is_empty() {
             text.push(' ');
-            text.push_str(&self.empty_multiline_braces());
+            text.push_js((&self.empty_multiline_braces()).into());
             return Ok(Some(text));
         }
         let rendered = self.with_increased_indent(|printer| {
-            let mut rendered = String::new();
+            let mut rendered = JsString::new();
             for member in retained {
                 let Some(member) = printer.with_line_start(true, |printer| printer.node(member))?
                 else {
@@ -382,22 +382,22 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                 if member.is_empty() {
                     continue;
                 }
-                rendered.push_str(&printer.indent_text());
-                rendered.push_str(&member);
+                rendered.push_js((&printer.indent_text()).into());
+                rendered.push_js((&member).into());
             }
             Ok(Some(rendered))
         })?;
         let Some(rendered) = rendered else {
             return Ok(None);
         };
-        text.push_str(" {");
-        text.push_str(&rendered);
-        text.push_str(&self.indent_text());
+        text.push_js((" {").into());
+        text.push_js((&rendered).into());
+        text.push_js((&self.indent_text()).into());
         text.push('}');
         Ok(Some(text))
     }
 
-    fn block(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn block(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::Block(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -411,13 +411,13 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                 _ => true,
             };
             return Ok(Some(if !self.node_is_multi_line(node) && same_line {
-                "{ }".to_owned()
+                JsString::from("{ }")
             } else {
-                format!("{{{}}}", self.indent_text())
+                crate::concat_js(&[&"{", &(self.indent_text()), &"}"])
             }));
         }
         let rendered = self.with_increased_indent(|printer| {
-            let mut rendered = String::new();
+            let mut rendered = JsString::new();
             for statement in statements {
                 let Some(statement) =
                     printer.with_line_start(true, |printer| printer.node(statement))?
@@ -427,25 +427,30 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                 if statement.is_empty() {
                     continue;
                 }
-                rendered.push_str(&printer.indent_text());
-                rendered.push_str(&statement);
+                rendered.push_js((&printer.indent_text()).into());
+                rendered.push_js((&statement).into());
             }
             Ok(Some(rendered))
         })?;
         let Some(rendered) = rendered else {
             return Ok(None);
         };
-        Ok(Some(format!("{{{rendered}{}}}", self.indent_text())))
+        Ok(Some(crate::concat_js(&[
+            &"{",
+            &(rendered),
+            &(self.indent_text()),
+            &"}",
+        ])))
     }
 
-    fn function_body_block(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn function_body_block(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::Block(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
         let statements = self.nodes(data.statements);
         if self.function_body_is_single_line(node) {
             if statements.is_empty() {
-                return Ok(Some("{ }".to_owned()));
+                return Ok(Some(JsString::from("{ }")));
             }
             let mut rendered = Vec::with_capacity(statements.len());
             for statement in statements {
@@ -456,14 +461,19 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                 };
                 rendered.push(statement);
             }
-            return Ok(Some(format!("{{ {} }}", rendered.join(" "))));
+            return Ok(Some(crate::concat_js(&[
+                &"{",
+                &" ",
+                &(crate::join_js_texts(&rendered, " ")),
+                &" }",
+            ])));
         }
 
         if statements.is_empty() {
-            return Ok(Some(format!("{{{}}}", self.indent_text())));
+            return Ok(Some(crate::concat_js(&[&"{", &(self.indent_text()), &"}"])));
         }
         let rendered = self.with_increased_indent(|printer| {
-            let mut rendered = String::new();
+            let mut rendered = JsString::new();
             for statement in statements {
                 let Some(statement) =
                     printer.with_line_start(true, |printer| printer.node(statement))?
@@ -473,18 +483,23 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                 if statement.is_empty() {
                     continue;
                 }
-                rendered.push_str(&printer.indent_text());
-                rendered.push_str(&statement);
+                rendered.push_js((&printer.indent_text()).into());
+                rendered.push_js((&statement).into());
             }
             Ok(Some(rendered))
         })?;
         let Some(rendered) = rendered else {
             return Ok(None);
         };
-        Ok(Some(format!("{{{rendered}{}}}", self.indent_text())))
+        Ok(Some(crate::concat_js(&[
+            &"{",
+            &(rendered),
+            &(self.indent_text()),
+            &"}",
+        ])))
     }
 
-    fn statement(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn statement(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         if matches!(
             self.state.kind_of(node),
             SyntaxKind::ModuleDeclaration
@@ -499,7 +514,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         }
         match self.state.data_of(node).clone() {
             NodeData::Block(_) => self.block(node),
-            NodeData::EmptyStatement(_) => Ok(Some(";".to_owned())),
+            NodeData::EmptyStatement(_) => Ok(Some(JsString::from(";"))),
             NodeData::VariableStatement(data) => {
                 let Some(mut text) = self.modifiers(data.modifiers)? else {
                     return Ok(None);
@@ -510,7 +525,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                 let Some(list) = self.variable_declaration_list(list)? else {
                     return Ok(None);
                 };
-                text.push_str(&list);
+                text.push_js((&list).into());
                 text.push(';');
                 Ok(Some(text))
             }
@@ -533,7 +548,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                     return Ok(None);
                 };
                 if needs_parentheses {
-                    text = format!("({text})");
+                    text = crate::concat_js(&[&"(", &(text), &")"]);
                 }
                 text.push(';');
                 Ok(Some(text))
@@ -563,7 +578,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                 else {
                     return Ok(None);
                 };
-                Ok(Some(format!("{label}: {statement}")))
+                Ok(Some(crate::concat_js(&[&(label), &": ", &(statement)])))
             }
             NodeData::ThrowStatement(data) => match data.expression {
                 Some(expression) => {
@@ -572,7 +587,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                 None => Ok(None),
             },
             NodeData::TryStatement(data) => self.try_statement(data),
-            NodeData::DebuggerStatement(_) => Ok(Some("debugger;".to_owned())),
+            NodeData::DebuggerStatement(_) => Ok(Some(JsString::from("debugger;"))),
             NodeData::FunctionDeclaration(_) => self.function_declaration(node),
             NodeData::ClassDeclaration(_) => self.class_declaration(node),
             NodeData::InterfaceDeclaration(_) => self.interface_declaration(node),
@@ -582,7 +597,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         }
     }
 
-    fn interface_declaration(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn interface_declaration(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::InterfaceDeclaration(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -592,28 +607,28 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         let Some(name) = data.name.and_then(|name| self.identifier_name(name)) else {
             return Ok(None);
         };
-        text.push_str("interface ");
-        text.push_str(&name);
+        text.push_js(("interface ").into());
+        text.push_js((&name).into());
         let Some(type_parameters) = self.type_parameter_nodes_text(data.type_parameters, false)?
         else {
             return Ok(None);
         };
-        text.push_str(&type_parameters);
+        text.push_js((&type_parameters).into());
         for heritage in self.nodes(data.heritage_clauses) {
             let Some(heritage) = self.heritage_clause(heritage)? else {
                 return Ok(None);
             };
-            text.push_str(&heritage);
+            text.push_js((&heritage).into());
         }
 
         let members = self.nodes(data.members);
         if members.is_empty() {
             text.push(' ');
-            text.push_str(&self.empty_multiline_braces());
+            text.push_js((&self.empty_multiline_braces()).into());
             return Ok(Some(text));
         }
         let rendered = self.with_increased_indent(|printer| {
-            let mut rendered = String::new();
+            let mut rendered = JsString::new();
             for member_node in members {
                 if printer.named_declaration_is_removed(member_node)? {
                     continue;
@@ -626,8 +641,8 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                 if member.is_empty() {
                     continue;
                 }
-                rendered.push_str(&printer.indent_text());
-                rendered.push_str(&member);
+                rendered.push_js((&printer.indent_text()).into());
+                rendered.push_js((&member).into());
                 if !printer.type_member_has_body(member_node) {
                     rendered.push(';');
                 }
@@ -639,17 +654,17 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         };
         if rendered.is_empty() {
             text.push(' ');
-            text.push_str(&self.empty_multiline_braces());
+            text.push_js((&self.empty_multiline_braces()).into());
         } else {
-            text.push_str(" {");
-            text.push_str(&rendered);
-            text.push_str(&self.indent_text());
+            text.push_js((" {").into());
+            text.push_js((&rendered).into());
+            text.push_js((&self.indent_text()).into());
             text.push('}');
         }
         Ok(Some(text))
     }
 
-    fn type_member(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn type_member(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         match self.state.data_of(node).clone() {
             NodeData::PropertySignature(data) => {
                 let Some(mut text) = self.modifiers(data.modifiers)? else {
@@ -658,15 +673,15 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                 let Some(name) = data.name else {
                     return Ok(None);
                 };
-                text.push_str(&self.member_name_text(name)?);
+                text.push_js((&self.member_name_text(name)?).into());
                 if data.question_token.is_some() {
                     text.push('?');
                 }
                 if let Some(ty) = data.r#type {
-                    text.push_str(": ");
-                    text.push_str(&self.type_annotation_text(ty)?);
+                    text.push_js((": ").into());
+                    text.push_js((&self.type_annotation_text(ty)?).into());
                 } else if data.initializer.is_none() {
-                    text.push_str(": any");
+                    text.push_js((": any").into());
                 }
                 Ok(Some(text))
             }
@@ -677,7 +692,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                 let Some(name) = data.name else {
                     return Ok(None);
                 };
-                text.push_str(&self.member_name_text(name)?);
+                text.push_js((&self.member_name_text(name)?).into());
                 if data.question_token.is_some() {
                     text.push('?');
                 }
@@ -686,15 +701,15 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                 else {
                     return Ok(None);
                 };
-                text.push_str(&type_parameters);
+                text.push_js((&type_parameters).into());
                 let Some(parameters) = self.parameter_nodes_text(self.nodes(data.parameters))?
                 else {
                     return Ok(None);
                 };
                 text.push('(');
-                text.push_str(&parameters);
+                text.push_js((&parameters).into());
                 text.push(')');
-                text.push_str(&self.return_type_annotation(data.r#type)?);
+                text.push_js((&self.return_type_annotation(data.r#type)?).into());
                 Ok(Some(text))
             }
             NodeData::CallSignature(data) => {
@@ -707,9 +722,9 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                     return Ok(None);
                 };
                 text.push('(');
-                text.push_str(&parameters);
+                text.push_js((&parameters).into());
                 text.push(')');
-                text.push_str(&self.return_type_annotation(data.r#type)?);
+                text.push_js((&self.return_type_annotation(data.r#type)?).into());
                 Ok(Some(text))
             }
             NodeData::ConstructSignature(data) => {
@@ -722,8 +737,9 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                 else {
                     return Ok(None);
                 };
-                let mut text = format!("new {type_parameters}({parameters})");
-                text.push_str(&self.return_type_annotation(data.r#type)?);
+                let mut text =
+                    crate::concat_js(&[&"new ", &(type_parameters), &"(", &(parameters), &")"]);
+                text.push_js((&self.return_type_annotation(data.r#type)?).into());
                 Ok(Some(text))
             }
             NodeData::IndexSignature(data) => {
@@ -735,9 +751,9 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                     return Ok(None);
                 };
                 text.push('[');
-                text.push_str(&parameters);
+                text.push_js((&parameters).into());
                 text.push(']');
-                text.push_str(&self.return_type_annotation(data.r#type)?);
+                text.push_js((&self.return_type_annotation(data.r#type)?).into());
                 Ok(Some(text))
             }
             NodeData::GetAccessor(data) => self.type_accessor_member(
@@ -762,7 +778,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         }
     }
 
-    fn type_member_entry(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn type_member_entry(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         if self.node_enters_reuse_scope(node) {
             self.with_reuse_scope(node, |printer| printer.type_member(node))
         } else {
@@ -780,27 +796,27 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         parameters: Option<NodeArrayId>,
         return_type: Option<NodeId>,
         body: Option<NodeId>,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<JsString>> {
         let Some(mut text) = self.decorated_modifiers(modifiers)? else {
             return Ok(None);
         };
         let Some(name) = name else {
             return Ok(None);
         };
-        text.push_str(keyword);
+        text.push_js((keyword).into());
         text.push(' ');
-        text.push_str(&self.member_name_text(name)?);
+        text.push_js((&self.member_name_text(name)?).into());
         let Some(type_parameters) = self.type_parameter_nodes_text(type_parameters, false)? else {
             return Ok(None);
         };
-        text.push_str(&type_parameters);
+        text.push_js((&type_parameters).into());
         let Some(parameters) = self.parameter_nodes_text(self.nodes(parameters))? else {
             return Ok(None);
         };
         text.push('(');
-        text.push_str(&parameters);
+        text.push_js((&parameters).into());
         text.push(')');
-        text.push_str(&self.return_type_annotation(return_type)?);
+        text.push_js((&self.return_type_annotation(return_type)?).into());
         if let Some(body) = body {
             let Some(body) =
                 self.with_line_start(false, |printer| printer.function_body_block(body))?
@@ -808,7 +824,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                 return Ok(None);
             };
             text.push(' ');
-            text.push_str(&body);
+            text.push_js((&body).into());
         }
         Ok(Some(text))
     }
@@ -821,7 +837,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         }
     }
 
-    fn type_alias_declaration(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn type_alias_declaration(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::TypeAliasDeclaration(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -834,20 +850,20 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         let Some(ty) = data.r#type else {
             return Ok(None);
         };
-        text.push_str("type ");
-        text.push_str(&name);
+        text.push_js(("type ").into());
+        text.push_js((&name).into());
         let Some(type_parameters) = self.type_parameter_nodes_text(data.type_parameters, false)?
         else {
             return Ok(None);
         };
-        text.push_str(&type_parameters);
-        text.push_str(" = ");
-        text.push_str(&self.type_annotation_text(ty)?);
+        text.push_js((&type_parameters).into());
+        text.push_js((" = ").into());
+        text.push_js((&self.type_annotation_text(ty)?).into());
         text.push(';');
         Ok(Some(text))
     }
 
-    fn enum_declaration(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn enum_declaration(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::EnumDeclaration(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -857,12 +873,12 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         let Some(name) = data.name.and_then(|name| self.identifier_name(name)) else {
             return Ok(None);
         };
-        text.push_str("enum ");
-        text.push_str(&name);
+        text.push_js(("enum ").into());
+        text.push_js((&name).into());
         let members = self.nodes(data.members);
         if members.is_empty() {
             text.push(' ');
-            text.push_str(&self.empty_multiline_braces());
+            text.push_js((&self.empty_multiline_braces()).into());
             return Ok(Some(text));
         }
         let mut retained = Vec::with_capacity(members.len());
@@ -874,35 +890,35 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         }
         if retained.is_empty() {
             text.push(' ');
-            text.push_str(&self.empty_multiline_braces());
+            text.push_js((&self.empty_multiline_braces()).into());
             return Ok(Some(text));
         }
         let rendered = self.with_increased_indent(|printer| {
-            let mut rendered = String::new();
+            let mut rendered = JsString::new();
             for (index, member) in retained.into_iter().enumerate() {
                 if index != 0 {
                     rendered.push(',');
                 }
-                rendered.push_str(&printer.indent_text());
+                rendered.push_js((&printer.indent_text()).into());
                 let Some(member) = printer.with_line_start(true, |printer| printer.node(member))?
                 else {
                     return Ok(None);
                 };
-                rendered.push_str(&member);
+                rendered.push_js((&member).into());
             }
             Ok(Some(rendered))
         })?;
         let Some(rendered) = rendered else {
             return Ok(None);
         };
-        text.push_str(" {");
-        text.push_str(&rendered);
-        text.push_str(&self.indent_text());
+        text.push_js((" {").into());
+        text.push_js((&rendered).into());
+        text.push_js((&self.indent_text()).into());
         text.push('}');
         Ok(Some(text))
     }
 
-    fn enum_member(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn enum_member(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::EnumMember(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -915,15 +931,15 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                 return Ok(None);
             };
             if self.is_comma_sequence(initializer) {
-                initializer_text = format!("({initializer_text})");
+                initializer_text = crate::concat_js(&[&"(", &(initializer_text), &")"]);
             }
-            text.push_str(" = ");
-            text.push_str(&initializer_text);
+            text.push_js((" = ").into());
+            text.push_js((&initializer_text).into());
         }
         Ok(Some(text))
     }
 
-    fn if_statement(&mut self, data: IfStatementData) -> CheckResult<Option<String>> {
+    fn if_statement(&mut self, data: IfStatementData) -> CheckResult<Option<JsString>> {
         let (Some(condition), Some(then_statement)) = (data.expression, data.then_statement) else {
             return Ok(None);
         };
@@ -933,10 +949,10 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         let Some(then_statement_text) = self.embedded_statement(then_statement)? else {
             return Ok(None);
         };
-        let mut text = format!("if ({condition}){then_statement_text}");
+        let mut text = crate::concat_js(&[&"if (", &(condition), &")", &(then_statement_text)]);
         if let Some(else_statement) = data.else_statement {
-            text.push_str(&self.indent_text());
-            text.push_str("else");
+            text.push_js((&self.indent_text()).into());
+            text.push_js(("else").into());
             if self.state.kind_of(else_statement) == SyntaxKind::IfStatement {
                 let Some(else_statement) =
                     self.with_line_start(false, |printer| printer.node(else_statement))?
@@ -944,18 +960,18 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                     return Ok(None);
                 };
                 text.push(' ');
-                text.push_str(&else_statement);
+                text.push_js((&else_statement).into());
             } else {
                 let Some(else_statement) = self.embedded_statement(else_statement)? else {
                     return Ok(None);
                 };
-                text.push_str(&else_statement);
+                text.push_js((&else_statement).into());
             }
         }
         Ok(Some(text))
     }
 
-    fn do_statement(&mut self, data: DoStatementData) -> CheckResult<Option<String>> {
+    fn do_statement(&mut self, data: DoStatementData) -> CheckResult<Option<JsString>> {
         let (Some(statement), Some(expression)) = (data.statement, data.expression) else {
             return Ok(None);
         };
@@ -970,12 +986,17 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         } else {
             self.indent_text()
         };
-        Ok(Some(format!(
-            "do{statement_text}{before_while}while ({expression});"
-        )))
+        Ok(Some(crate::concat_js(&[
+            &"do",
+            &(statement_text),
+            &(before_while),
+            &"while (",
+            &(expression),
+            &");",
+        ])))
     }
 
-    fn while_statement(&mut self, data: WhileStatementData) -> CheckResult<Option<String>> {
+    fn while_statement(&mut self, data: WhileStatementData) -> CheckResult<Option<JsString>> {
         let (Some(expression), Some(statement)) = (data.expression, data.statement) else {
             return Ok(None);
         };
@@ -985,10 +1006,15 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         let Some(statement) = self.embedded_statement(statement)? else {
             return Ok(None);
         };
-        Ok(Some(format!("while ({expression}){statement}")))
+        Ok(Some(crate::concat_js(&[
+            &"while (",
+            &(expression),
+            &")",
+            &(statement),
+        ])))
     }
 
-    fn for_statement(&mut self, data: ForStatementData) -> CheckResult<Option<String>> {
+    fn for_statement(&mut self, data: ForStatementData) -> CheckResult<Option<JsString>> {
         let initializer = match data.initializer {
             Some(initializer) => {
                 let Some(initializer) = self.for_initializer(initializer)? else {
@@ -996,7 +1022,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                 };
                 initializer
             }
-            None => String::new(),
+            None => JsString::new(),
         };
         let condition = match data.condition {
             Some(condition) => {
@@ -1005,7 +1031,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                 };
                 condition
             }
-            None => String::new(),
+            None => JsString::new(),
         };
         let incrementor = match data.incrementor {
             Some(incrementor) => {
@@ -1014,7 +1040,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                 };
                 incrementor
             }
-            None => String::new(),
+            None => JsString::new(),
         };
         let Some(statement) = data.statement else {
             return Ok(None);
@@ -1024,12 +1050,21 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         };
         let condition_space = if condition.is_empty() { "" } else { " " };
         let incrementor_space = if incrementor.is_empty() { "" } else { " " };
-        Ok(Some(format!(
-            "for ({initializer};{condition_space}{condition};{incrementor_space}{incrementor}){statement}"
-        )))
+        Ok(Some(crate::concat_js(&[
+            &"for (",
+            &(initializer),
+            &";",
+            &(condition_space),
+            &(condition),
+            &";",
+            &(incrementor_space),
+            &(incrementor),
+            &")",
+            &(statement),
+        ])))
     }
 
-    fn for_in_statement(&mut self, data: ForInStatementData) -> CheckResult<Option<String>> {
+    fn for_in_statement(&mut self, data: ForInStatementData) -> CheckResult<Option<JsString>> {
         let (Some(initializer), Some(expression), Some(statement)) =
             (data.initializer, data.expression, data.statement)
         else {
@@ -1044,12 +1079,17 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         let Some(statement) = self.embedded_statement(statement)? else {
             return Ok(None);
         };
-        Ok(Some(format!(
-            "for ({initializer} in {expression}){statement}"
-        )))
+        Ok(Some(crate::concat_js(&[
+            &"for (",
+            &(initializer),
+            &" in ",
+            &(expression),
+            &")",
+            &(statement),
+        ])))
     }
 
-    fn for_of_statement(&mut self, data: ForOfStatementData) -> CheckResult<Option<String>> {
+    fn for_of_statement(&mut self, data: ForOfStatementData) -> CheckResult<Option<JsString>> {
         let (Some(initializer), Some(expression), Some(statement)) =
             (data.initializer, data.expression, data.statement)
         else {
@@ -1069,12 +1109,19 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         } else {
             ""
         };
-        Ok(Some(format!(
-            "for {await_text}({initializer} of {expression}){statement}"
-        )))
+        Ok(Some(crate::concat_js(&[
+            &"for ",
+            &(await_text),
+            &"(",
+            &(initializer),
+            &" of ",
+            &(expression),
+            &")",
+            &(statement),
+        ])))
     }
 
-    fn with_statement(&mut self, data: WithStatementData) -> CheckResult<Option<String>> {
+    fn with_statement(&mut self, data: WithStatementData) -> CheckResult<Option<JsString>> {
         let (Some(expression), Some(statement)) = (data.expression, data.statement) else {
             return Ok(None);
         };
@@ -1084,10 +1131,15 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         let Some(statement) = self.embedded_statement(statement)? else {
             return Ok(None);
         };
-        Ok(Some(format!("with ({expression}){statement}")))
+        Ok(Some(crate::concat_js(&[
+            &"with (",
+            &(expression),
+            &")",
+            &(statement),
+        ])))
     }
 
-    fn switch_statement(&mut self, data: SwitchStatementData) -> CheckResult<Option<String>> {
+    fn switch_statement(&mut self, data: SwitchStatementData) -> CheckResult<Option<JsString>> {
         let (Some(expression), Some(case_block)) = (data.expression, data.case_block) else {
             return Ok(None);
         };
@@ -1097,10 +1149,15 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         let Some(case_block) = self.case_block(case_block)? else {
             return Ok(None);
         };
-        Ok(Some(format!("switch ({expression}) {case_block}")))
+        Ok(Some(crate::concat_js(&[
+            &"switch (",
+            &(expression),
+            &") ",
+            &(case_block),
+        ])))
     }
 
-    fn try_statement(&mut self, data: TryStatementData) -> CheckResult<Option<String>> {
+    fn try_statement(&mut self, data: TryStatementData) -> CheckResult<Option<JsString>> {
         let Some(try_block) = data.try_block else {
             return Ok(None);
         };
@@ -1108,15 +1165,15 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         else {
             return Ok(None);
         };
-        let mut text = format!("try {try_block}");
+        let mut text = crate::concat_js(&[&"try ", &(try_block)]);
         if let Some(catch_clause) = data.catch_clause {
             let Some(catch_clause) =
                 self.with_line_start(true, |printer| printer.catch_clause(catch_clause))?
             else {
                 return Ok(None);
             };
-            text.push_str(&self.indent_text());
-            text.push_str(&catch_clause);
+            text.push_js((&self.indent_text()).into());
+            text.push_js((&catch_clause).into());
         }
         if let Some(finally_block) = data.finally_block {
             let Some(finally_block) =
@@ -1124,14 +1181,14 @@ impl DisplayCloneBodyPrinter<'_, '_> {
             else {
                 return Ok(None);
             };
-            text.push_str(&self.indent_text());
-            text.push_str("finally ");
-            text.push_str(&finally_block);
+            text.push_js((&self.indent_text()).into());
+            text.push_js(("finally ").into());
+            text.push_js((&finally_block).into());
         }
         Ok(Some(text))
     }
 
-    fn case_block(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn case_block(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::CaseBlock(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -1140,7 +1197,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
             return Ok(Some(self.empty_multiline_braces()));
         }
         let rendered = self.with_increased_indent(|printer| {
-            let mut rendered = String::new();
+            let mut rendered = JsString::new();
             for clause in clauses {
                 let Some(clause) = printer.with_line_start(true, |printer| printer.node(clause))?
                 else {
@@ -1149,18 +1206,23 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                 if clause.is_empty() {
                     continue;
                 }
-                rendered.push_str(&printer.indent_text());
-                rendered.push_str(&clause);
+                rendered.push_js((&printer.indent_text()).into());
+                rendered.push_js((&clause).into());
             }
             Ok(Some(rendered))
         })?;
         let Some(rendered) = rendered else {
             return Ok(None);
         };
-        Ok(Some(format!("{{{rendered}{}}}", self.indent_text())))
+        Ok(Some(crate::concat_js(&[
+            &"{",
+            &(rendered),
+            &(self.indent_text()),
+            &"}",
+        ])))
     }
 
-    fn case_or_default_clause(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn case_or_default_clause(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let (head, statements) = match self.state.data_of(node).clone() {
             NodeData::CaseClause(data) => {
                 let Some(expression) = data.expression else {
@@ -1170,11 +1232,14 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                     return Ok(None);
                 };
                 if self.is_comma_sequence(expression) {
-                    expression_text = format!("({expression_text})");
+                    expression_text = crate::concat_js(&[&"(", &(expression_text), &")"]);
                 }
-                (format!("case {expression_text}:"), data.statements)
+                (
+                    crate::concat_js(&[&"case ", &(expression_text), &":"]),
+                    data.statements,
+                )
             }
-            NodeData::DefaultClause(data) => ("default:".to_owned(), data.statements),
+            NodeData::DefaultClause(data) => (JsString::from("default:"), data.statements),
             _ => return Ok(None),
         };
         let statements = self.nodes(statements);
@@ -1187,10 +1252,10 @@ impl DisplayCloneBodyPrinter<'_, '_> {
             else {
                 return Ok(None);
             };
-            return Ok(Some(format!("{head} {statement}")));
+            return Ok(Some(crate::concat_js(&[&(head), &" ", &(statement)])));
         }
         let rendered = self.with_increased_indent(|printer| {
-            let mut rendered = String::new();
+            let mut rendered = JsString::new();
             for statement in statements {
                 let Some(statement) =
                     printer.with_line_start(true, |printer| printer.node(statement))?
@@ -1200,25 +1265,25 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                 if statement.is_empty() {
                     continue;
                 }
-                rendered.push_str(&printer.indent_text());
-                rendered.push_str(&statement);
+                rendered.push_js((&printer.indent_text()).into());
+                rendered.push_js((&statement).into());
             }
             Ok(Some(rendered))
         })?;
-        Ok(rendered.map(|rendered| format!("{head}{rendered}")))
+        Ok(rendered.map(|rendered| crate::concat_js(&[&(head), &(rendered)])))
     }
 
-    fn catch_clause(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn catch_clause(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::CatchClause(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
-        let mut text = "catch".to_owned();
+        let mut text = JsString::from("catch");
         if let Some(variable) = data.variable_declaration {
             let Some(variable) = self.variable_declaration(variable)? else {
                 return Ok(None);
             };
-            text.push_str(" (");
-            text.push_str(&variable);
+            text.push_js((" (").into());
+            text.push_js((&variable).into());
             text.push(')');
         }
         let Some(block) = data.block else {
@@ -1228,11 +1293,11 @@ impl DisplayCloneBodyPrinter<'_, '_> {
             return Ok(None);
         };
         text.push(' ');
-        text.push_str(&block);
+        text.push_js((&block).into());
         Ok(Some(text))
     }
 
-    fn variable_declaration_list(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn variable_declaration_list(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::VariableDeclarationList(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -1260,10 +1325,14 @@ impl DisplayCloneBodyPrinter<'_, '_> {
             };
             rendered.push(declaration);
         }
-        Ok(Some(format!("{keyword} {}", rendered.join(", "))))
+        Ok(Some(crate::concat_js(&[
+            &(keyword),
+            &" ",
+            &(crate::join_js_texts(&rendered, ", ")),
+        ])))
     }
 
-    fn variable_declaration(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn variable_declaration(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::VariableDeclaration(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -1277,23 +1346,23 @@ impl DisplayCloneBodyPrinter<'_, '_> {
             text.push('!');
         }
         if let Some(ty) = data.r#type {
-            text.push_str(": ");
-            text.push_str(&self.type_annotation_text(ty)?);
+            text.push_js((": ").into());
+            text.push_js((&self.type_annotation_text(ty)?).into());
         }
         if let Some(initializer) = data.initializer {
             let Some(mut initializer_text) = self.expression(initializer)? else {
                 return Ok(None);
             };
             if self.is_comma_sequence(initializer) {
-                initializer_text = format!("({initializer_text})");
+                initializer_text = crate::concat_js(&[&"(", &(initializer_text), &")"]);
             }
-            text.push_str(" = ");
-            text.push_str(&initializer_text);
+            text.push_js((" = ").into());
+            text.push_js((&initializer_text).into());
         }
         Ok(Some(text))
     }
 
-    fn heritage_clause(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn heritage_clause(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::HeritageClause(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -1311,10 +1380,15 @@ impl DisplayCloneBodyPrinter<'_, '_> {
             };
             rendered.push(ty);
         }
-        Ok(Some(format!(" {keyword} {}", rendered.join(", "))))
+        Ok(Some(crate::concat_js(&[
+            &" ",
+            &(keyword),
+            &" ",
+            &(crate::join_js_texts(&rendered, ", ")),
+        ])))
     }
 
-    fn class_or_object_member(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn class_or_object_member(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         match self.state.data_of(node).clone() {
             NodeData::PropertyDeclaration(data) => {
                 let Some(mut text) = self.decorated_modifiers(data.modifiers)? else {
@@ -1323,7 +1397,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                 let Some(name) = data.name else {
                     return Ok(None);
                 };
-                text.push_str(&self.member_name_text(name)?);
+                text.push_js((&self.member_name_text(name)?).into());
                 if data.question_token.is_some() {
                     text.push('?');
                 }
@@ -1331,20 +1405,20 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                     text.push('!');
                 }
                 if let Some(ty) = data.r#type {
-                    text.push_str(": ");
-                    text.push_str(&self.type_annotation_text(ty)?);
+                    text.push_js((": ").into());
+                    text.push_js((&self.type_annotation_text(ty)?).into());
                 } else if data.initializer.is_none() {
-                    text.push_str(": any");
+                    text.push_js((": any").into());
                 }
                 if let Some(initializer) = data.initializer {
                     let Some(mut initializer_text) = self.expression(initializer)? else {
                         return Ok(None);
                     };
                     if self.is_comma_sequence(initializer) {
-                        initializer_text = format!("({initializer_text})");
+                        initializer_text = crate::concat_js(&[&"(", &(initializer_text), &")"]);
                     }
-                    text.push_str(" = ");
-                    text.push_str(&initializer_text);
+                    text.push_js((" = ").into());
+                    text.push_js((&initializer_text).into());
                 }
                 text.push(';');
                 Ok(Some(text))
@@ -1372,21 +1446,21 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                 let Some(mut text) = self.modifiers(data.modifiers)? else {
                     return Ok(None);
                 };
-                text.push_str("constructor");
+                text.push_js(("constructor").into());
                 let Some(type_parameters) =
                     self.type_parameter_nodes_text(data.type_parameters, false)?
                 else {
                     return Ok(None);
                 };
-                text.push_str(&type_parameters);
+                text.push_js((&type_parameters).into());
                 let Some(parameters) = self.parameter_nodes_text(self.nodes(data.parameters))?
                 else {
                     return Ok(None);
                 };
                 text.push('(');
-                text.push_str(&parameters);
+                text.push_js((&parameters).into());
                 text.push(')');
-                text.push_str(&self.return_type_annotation(data.r#type)?);
+                text.push_js((&self.return_type_annotation(data.r#type)?).into());
                 self.finish_member_body(text, data.body)
             }
             NodeData::ClassStaticBlockDeclaration(data) => {
@@ -1398,7 +1472,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                 else {
                     return Ok(None);
                 };
-                Ok(Some(format!("static {body}")))
+                Ok(Some(crate::concat_js(&[&"static ", &(body)])))
             }
             NodeData::IndexSignature(data) => {
                 let Some(mut text) = self.modifiers(data.modifiers)? else {
@@ -1409,20 +1483,20 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                     return Ok(None);
                 };
                 text.push('[');
-                text.push_str(&parameters);
+                text.push_js((&parameters).into());
                 text.push(']');
-                text.push_str(&self.return_type_annotation(data.r#type)?);
+                text.push_js((&self.return_type_annotation(data.r#type)?).into());
                 text.push(';');
                 Ok(Some(text))
             }
             NodeData::Token if self.state.kind_of(node) == SyntaxKind::SemicolonClassElement => {
-                Ok(Some(";".to_owned()))
+                Ok(Some(JsString::from(";")))
             }
             _ => Ok(None),
         }
     }
 
-    fn method_declaration(&mut self, data: MethodDeclarationData) -> CheckResult<Option<String>> {
+    fn method_declaration(&mut self, data: MethodDeclarationData) -> CheckResult<Option<JsString>> {
         let Some(mut text) = self.decorated_modifiers(data.modifiers)? else {
             return Ok(None);
         };
@@ -1432,7 +1506,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         let Some(name) = data.name else {
             return Ok(None);
         };
-        text.push_str(&self.member_name_text(name)?);
+        text.push_js((&self.member_name_text(name)?).into());
         if data.question_token.is_some() {
             text.push('?');
         }
@@ -1440,14 +1514,14 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         else {
             return Ok(None);
         };
-        text.push_str(&type_parameters);
+        text.push_js((&type_parameters).into());
         let Some(parameters) = self.parameter_nodes_text(self.nodes(data.parameters))? else {
             return Ok(None);
         };
         text.push('(');
-        text.push_str(&parameters);
+        text.push_js((&parameters).into());
         text.push(')');
-        text.push_str(&self.return_type_annotation(data.r#type)?);
+        text.push_js((&self.return_type_annotation(data.r#type)?).into());
         self.finish_member_body(text, data.body)
     }
 
@@ -1461,35 +1535,35 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         parameters: Option<NodeArrayId>,
         return_type: Option<NodeId>,
         body: Option<NodeId>,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<JsString>> {
         let Some(mut text) = self.decorated_modifiers(modifiers)? else {
             return Ok(None);
         };
         let Some(name) = name else {
             return Ok(None);
         };
-        text.push_str(keyword);
+        text.push_js((keyword).into());
         text.push(' ');
-        text.push_str(&self.member_name_text(name)?);
+        text.push_js((&self.member_name_text(name)?).into());
         let Some(type_parameters) = self.type_parameter_nodes_text(type_parameters, false)? else {
             return Ok(None);
         };
-        text.push_str(&type_parameters);
+        text.push_js((&type_parameters).into());
         let Some(parameters) = self.parameter_nodes_text(self.nodes(parameters))? else {
             return Ok(None);
         };
         text.push('(');
-        text.push_str(&parameters);
+        text.push_js((&parameters).into());
         text.push(')');
-        text.push_str(&self.return_type_annotation(return_type)?);
+        text.push_js((&self.return_type_annotation(return_type)?).into());
         self.finish_member_body(text, body)
     }
 
     fn finish_member_body(
         &mut self,
-        mut text: String,
+        mut text: JsString,
         body: Option<NodeId>,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<JsString>> {
         match body {
             Some(body) => {
                 let Some(body) =
@@ -1498,21 +1572,21 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                     return Ok(None);
                 };
                 text.push(' ');
-                text.push_str(&body);
+                text.push_js((&body).into());
             }
             None => text.push(';'),
         }
         Ok(Some(text))
     }
 
-    fn modifiers(&mut self, modifiers: Option<NodeArrayId>) -> CheckResult<Option<String>> {
+    fn modifiers(&mut self, modifiers: Option<NodeArrayId>) -> CheckResult<Option<JsString>> {
         self.modifiers_worker(modifiers, false)
     }
 
     fn decorated_modifiers(
         &mut self,
         modifiers: Option<NodeArrayId>,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<JsString>> {
         self.modifiers_worker(modifiers, true)
     }
 
@@ -1520,12 +1594,12 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         &mut self,
         modifiers: Option<NodeArrayId>,
         allow_decorators: bool,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<JsString>> {
         let modifiers = self.nodes(modifiers);
         if modifiers.is_empty() {
-            return Ok(Some(String::new()));
+            return Ok(Some(JsString::new()));
         }
-        let mut text = String::new();
+        let mut text = JsString::new();
         let mut index = 0;
         let mut at_line_start = self.state.slice_display_clone_at_line_start;
         while index < modifiers.len() {
@@ -1543,7 +1617,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                 // a list caller may already have materialized indentation
                 // while deliberately retaining the virtual line-start bit.
                 if !at_line_start {
-                    text.push_str(&self.indent_text());
+                    text.push_js((&self.indent_text()).into());
                 }
                 let mut first = true;
                 while index < modifiers.len() {
@@ -1552,7 +1626,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                         break;
                     };
                     if !first {
-                        text.push_str(&self.indent_text());
+                        text.push_js((&self.indent_text()).into());
                     }
                     let Some(expression) = data.expression else {
                         return Ok(None);
@@ -1561,14 +1635,14 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                         return Ok(None);
                     };
                     text.push('@');
-                    text.push_str(&expression);
+                    text.push_js((&expression).into());
                     first = false;
                     index += 1;
                 }
                 // Decorators use a MultiLine list. With the display writer's
                 // empty newline text, its trailing writeLine contributes only
                 // the current indentation before the declaration/modifier.
-                text.push_str(&self.indent_text());
+                text.push_js((&self.indent_text()).into());
                 at_line_start = true;
                 continue;
             }
@@ -1585,7 +1659,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                 else {
                     return Ok(None);
                 };
-                text.push_str(token);
+                text.push_js((token).into());
                 first = false;
                 index += 1;
                 at_line_start = false;
@@ -1607,20 +1681,20 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         Ok(!self.state.has_bindable_name(node)?)
     }
 
-    fn return_type_annotation(&mut self, ty: Option<NodeId>) -> CheckResult<String> {
+    fn return_type_annotation(&mut self, ty: Option<NodeId>) -> CheckResult<JsString> {
         Ok(match ty {
-            Some(ty) => format!(": {}", self.type_annotation_text(ty)?),
-            None => ": any".to_owned(),
+            Some(ty) => crate::concat_js(&[&": ", &(self.type_annotation_text(ty)?)]),
+            None => JsString::from(": any"),
         })
     }
 
-    fn type_annotation_text(&mut self, node: NodeId) -> CheckResult<String> {
+    fn type_annotation_text(&mut self, node: NodeId) -> CheckResult<JsString> {
         self.with_line_start(false, |printer| {
             printer.state.type_annotation_text_slice(node)
         })
     }
 
-    fn member_name_text(&mut self, node: NodeId) -> CheckResult<String> {
+    fn member_name_text(&mut self, node: NodeId) -> CheckResult<JsString> {
         self.with_line_start(false, |printer| {
             printer.state.member_name_node_text_slice(node)
         })
@@ -1630,15 +1704,15 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         &mut self,
         nodes: Option<NodeArrayId>,
         allow_trailing_comma: bool,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<JsString>> {
         let Some(nodes) = nodes else {
-            return Ok(Some(String::new()));
+            return Ok(Some(JsString::new()));
         };
         let node_array = self.state.binder.node_array(nodes);
         let parameters = node_array.nodes.clone();
         let has_trailing_comma = node_array.has_trailing_comma;
         if parameters.is_empty() {
-            return Ok(Some(String::new()));
+            return Ok(Some(JsString::new()));
         }
 
         let mut rendered = Vec::with_capacity(parameters.len());
@@ -1646,7 +1720,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
             let NodeData::TypeParameter(data) = self.state.data_of(parameter).clone() else {
                 return Ok(None);
             };
-            let mut text = String::new();
+            let mut text = JsString::new();
             for modifier in self.nodes(data.modifiers) {
                 if matches!(self.state.data_of(modifier), NodeData::Decorator(_)) {
                     continue;
@@ -1655,27 +1729,27 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                 else {
                     return Ok(None);
                 };
-                text.push_str(token);
+                text.push_js((token).into());
                 text.push(' ');
             }
             let Some(name) = data.name.and_then(|name| self.identifier_name(name)) else {
                 return Ok(None);
             };
-            text.push_str(&name);
+            text.push_js((&name).into());
             if let Some(constraint) = data.constraint {
                 let constraint = self.type_annotation_text(constraint)?;
-                text.push_str(" extends ");
-                text.push_str(&constraint);
+                text.push_js((" extends ").into());
+                text.push_js((&constraint).into());
             }
             if let Some(default) = data.r#default {
                 let default = self.type_annotation_text(default)?;
-                text.push_str(" = ");
-                text.push_str(&default);
+                text.push_js((" = ").into());
+                text.push_js((&default).into());
             }
             rendered.push(text);
         }
 
-        let mut text = format!("<{}", rendered.join(", "));
+        let mut text = crate::concat_js(&[&"<", &(crate::join_js_texts(&rendered, ", "))]);
         if allow_trailing_comma && has_trailing_comma {
             text.push(',');
         }
@@ -1683,7 +1757,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         Ok(Some(text))
     }
 
-    fn parameter_nodes_text(&mut self, nodes: Vec<NodeId>) -> CheckResult<Option<String>> {
+    fn parameter_nodes_text(&mut self, nodes: Vec<NodeId>) -> CheckResult<Option<JsString>> {
         let mut rendered = Vec::with_capacity(nodes.len());
         for node in nodes {
             let NodeData::Parameter(data) = self.state.data_of(node).clone() else {
@@ -1701,10 +1775,10 @@ impl DisplayCloneBodyPrinter<'_, '_> {
             } else {
                 // visitExistingNodeTreeSymbols strips parameter modifiers in
                 // the same branch that synthesizes a missing `any` type.
-                String::new()
+                JsString::new()
             };
             if data.dot_dot_dot_token.is_some() {
-                text.push_str("...");
+                text.push_js(("...").into());
             }
             let Some(name) = data.name else {
                 return Ok(None);
@@ -1712,32 +1786,32 @@ impl DisplayCloneBodyPrinter<'_, '_> {
             let Some(name) = self.binding_name(name)? else {
                 return Ok(None);
             };
-            text.push_str(&name);
+            text.push_js((&name).into());
             if data.question_token.is_some() {
                 text.push('?');
             }
             if let Some(ty) = data.r#type {
-                text.push_str(": ");
-                text.push_str(&self.type_annotation_text(ty)?);
+                text.push_js((": ").into());
+                text.push_js((&self.type_annotation_text(ty)?).into());
             } else if data.initializer.is_none() {
-                text.push_str(": any");
+                text.push_js((": any").into());
             }
             if let Some(initializer) = data.initializer {
                 let Some(mut initializer_text) = self.expression(initializer)? else {
                     return Ok(None);
                 };
                 if self.is_comma_sequence(initializer) {
-                    initializer_text = format!("({initializer_text})");
+                    initializer_text = crate::concat_js(&[&"(", &(initializer_text), &")"]);
                 }
-                text.push_str(" = ");
-                text.push_str(&initializer_text);
+                text.push_js((" = ").into());
+                text.push_js((&initializer_text).into());
             }
             rendered.push(text);
         }
-        Ok(Some(rendered.join(", ")))
+        Ok(Some(crate::join_js_texts(&rendered, ", ")))
     }
 
-    fn binding_name(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn binding_name(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         match self.state.data_of(node) {
             NodeData::Identifier(_) => Ok(self.identifier_name(node)),
             NodeData::ObjectBindingPattern(_) | NodeData::ArrayBindingPattern(_) => {
@@ -1747,7 +1821,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         }
     }
 
-    fn binding_pattern(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn binding_pattern(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let (elements, has_trailing_comma, open, close, padded) =
             match self.state.data_of(node).clone() {
                 NodeData::ObjectBindingPattern(data) => {
@@ -1762,7 +1836,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
             };
 
         if elements.is_empty() {
-            return Ok(Some(format!("{open}{close}")));
+            return Ok(Some(crate::concat_js(&[&(open), &(close)])));
         }
         let mut rendered = Vec::with_capacity(elements.len());
         for element in elements {
@@ -1773,33 +1847,33 @@ impl DisplayCloneBodyPrinter<'_, '_> {
             };
             rendered.push(element);
         }
-        let mut contents = rendered.join(", ");
+        let mut contents = crate::join_js_texts(&rendered, ", ");
         if has_trailing_comma {
             contents.push(',');
         }
         Ok(Some(if padded {
-            format!("{open} {contents} {close}")
+            crate::concat_js(&[&(open), &" ", &(contents), &" ", &(close)])
         } else {
-            format!("{open}{contents}{close}")
+            crate::concat_js(&[&(open), &(contents), &(close)])
         }))
     }
 
-    fn binding_element(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn binding_element(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let data = match self.state.data_of(node).clone() {
-            NodeData::OmittedExpression(_) => return Ok(Some(String::new())),
+            NodeData::OmittedExpression(_) => return Ok(Some(JsString::new())),
             NodeData::BindingElement(data) => data,
             _ => return Ok(None),
         };
-        let mut text = String::new();
+        let mut text = JsString::new();
         if data.dot_dot_dot_token.is_some() {
-            text.push_str("...");
+            text.push_js(("...").into());
         }
         if let Some(property_name) = data.property_name {
             let Some(property_name) = self.binding_property_name(property_name)? else {
                 return Ok(None);
             };
-            text.push_str(&property_name);
-            text.push_str(": ");
+            text.push_js((&property_name).into());
+            text.push_js((": ").into());
         }
         let Some(name) = data.name else {
             return Ok(None);
@@ -1807,21 +1881,21 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         let Some(name) = self.binding_name(name)? else {
             return Ok(None);
         };
-        text.push_str(&name);
+        text.push_js((&name).into());
         if let Some(initializer) = data.initializer {
             let Some(mut initializer_text) = self.expression(initializer)? else {
                 return Ok(None);
             };
             if self.is_comma_sequence(initializer) {
-                initializer_text = format!("({initializer_text})");
+                initializer_text = crate::concat_js(&[&"(", &(initializer_text), &")"]);
             }
-            text.push_str(" = ");
-            text.push_str(&initializer_text);
+            text.push_js((" = ").into());
+            text.push_js((&initializer_text).into());
         }
         Ok(Some(text))
     }
 
-    fn binding_property_name(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn binding_property_name(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::ComputedPropertyName(data) = self.state.data_of(node).clone() else {
             return Ok(Some(self.member_name_text(node)?));
         };
@@ -1834,17 +1908,20 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         self.computed_property_expression(expression)
     }
 
-    fn computed_property_expression(&mut self, expression: NodeId) -> CheckResult<Option<String>> {
+    fn computed_property_expression(
+        &mut self,
+        expression: NodeId,
+    ) -> CheckResult<Option<JsString>> {
         let Some(mut expression_text) = self.expression(expression)? else {
             return Ok(None);
         };
         if self.is_comma_sequence(expression) {
-            expression_text = format!("({expression_text})");
+            expression_text = crate::concat_js(&[&"(", &(expression_text), &")"]);
         }
-        Ok(Some(format!("[{expression_text}]")))
+        Ok(Some(crate::concat_js(&[&"[", &(expression_text), &"]"])))
     }
 
-    fn for_initializer(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn for_initializer(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         if self.state.kind_of(node) == SyntaxKind::VariableDeclarationList {
             self.variable_declaration_list(node)
         } else {
@@ -1852,11 +1929,11 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         }
     }
 
-    fn embedded_statement(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn embedded_statement(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         if self.state.kind_of(node) == SyntaxKind::Block {
             return Ok(self
                 .with_line_start(false, |printer| printer.node(node))?
-                .map(|statement| format!(" {statement}")));
+                .map(|statement| crate::concat_js(&[&" ", &(statement)])));
         }
         self.with_increased_indent(|printer| {
             let Some(statement) = printer.with_line_start(true, |printer| printer.node(node))?
@@ -1864,10 +1941,10 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                 return Ok(None);
             };
             if statement.is_empty() {
-                return Ok(Some(String::new()));
+                return Ok(Some(JsString::new()));
             }
-            let mut text = printer.indent_text();
-            text.push_str(&statement);
+            let mut text = JsString::from(printer.indent_text());
+            text.push_js((&statement).into());
             Ok(Some(text))
         })
     }
@@ -1876,12 +1953,12 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         &self,
         keyword: &'static str,
         label: Option<NodeId>,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<JsString>> {
         match label {
             Some(label) => Ok(self
                 .identifier_name(label)
-                .map(|label| format!("{keyword} {label};"))),
-            None => Ok(Some(format!("{keyword};"))),
+                .map(|label| crate::concat_js(&[&(keyword), &" ", &(label), &";"]))),
+            None => Ok(Some(crate::concat_js(&[&(keyword), &";"]))),
         }
     }
 
@@ -1889,14 +1966,14 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         &mut self,
         keyword: &'static str,
         expression: Option<NodeId>,
-    ) -> CheckResult<Option<String>> {
-        let mut text = keyword.to_owned();
+    ) -> CheckResult<Option<JsString>> {
+        let mut text = JsString::from(keyword);
         if let Some(expression) = expression {
             let Some(expression) = self.expression(expression)? else {
                 return Ok(None);
             };
             text.push(' ');
-            text.push_str(&expression);
+            text.push_js((&expression).into());
         }
         text.push(';');
         Ok(Some(text))
@@ -1976,12 +2053,12 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         }
     }
 
-    fn identifier_name(&self, node: NodeId) -> Option<String> {
+    fn identifier_name(&self, node: NodeId) -> Option<JsString> {
         match self.state.data_of(node) {
-            NodeData::Identifier(data) => {
-                Some(tsc_binder::unescape_leading_underscores(&data.escaped_text).to_owned())
-            }
-            NodeData::PrivateIdentifier(data) => Some(data.text.clone()),
+            NodeData::Identifier(data) => Some(JsString::from(
+                tsc_syntax::unescape_leading_underscores(&data.escaped_text),
+            )),
+            NodeData::PrivateIdentifier(data) => Some(data.text.clone().into()),
             _ => None,
         }
     }
@@ -2053,8 +2130,8 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         self.state.display_clone_line_indent()
     }
 
-    fn empty_multiline_braces(&self) -> String {
-        format!("{{{}}}", self.indent_text())
+    fn empty_multiline_braces(&self) -> JsString {
+        crate::concat_js(&[&"{", &(self.indent_text()), &"}"])
     }
 
     fn node_is_multi_line(&self, node: NodeId) -> bool {
