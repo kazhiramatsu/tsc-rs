@@ -12,7 +12,11 @@ use tsc_emitter::{EmitArtifact, EmitArtifactKind, EmitWriteMetadata};
 use tsc_harness::upstream_suites::execution::{
     load_qualified_compiler_emit_with_option_floor, EmitOptionFloor,
 };
-use tsc_program::{PreparedProgram, ProgramLoadLimits};
+use tsc_host::MemoryCompilerHost;
+use tsc_program::{
+    load_program, CompilerOptions, LibraryCatalog, PreparedProgram, ProgramLoadLimits,
+    ProgramOptions,
+};
 
 fn workspace() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -52,6 +56,53 @@ fn prepare(case: &Value) -> PreparedProgram {
             )
         })
         .collect::<Vec<_>>();
+    // The qualified emit loader intentionally rejects noEmit. These two new
+    // controls use the no-emit loader with the fixture's complete options;
+    // original corpus rows retain their established qualified route below.
+    if case["options"]["noEmit"] == true {
+        assert_eq!(case["group"], "focused");
+        let library_directory = workspace()
+            .join("vendor/typescript-6.0.3/lib")
+            .canonicalize()
+            .unwrap();
+        let mut host = MemoryCompilerHost::builder(input["current_directory"].as_str().unwrap());
+        for (path, bytes) in &files {
+            host = host.file(path, bytes.clone());
+        }
+        for entry in std::fs::read_dir(&library_directory).unwrap() {
+            let entry = entry.unwrap();
+            let name = entry.file_name().into_string().unwrap();
+            if name.starts_with("lib.") && name.ends_with(".d.ts") {
+                host = host.file(entry.path(), std::fs::read(entry.path()).unwrap());
+            }
+        }
+        let mut options = CompilerOptions::default();
+        for (name, value) in case["options"].as_object().unwrap() {
+            match name.as_str() {
+                "target" => options.target = Some(i32::try_from(value.as_i64().unwrap()).unwrap()),
+                "newLine" => {
+                    options.new_line = Some(i32::try_from(value.as_i64().unwrap()).unwrap())
+                }
+                "noResolve" => options.no_resolve = Some(value.as_bool().unwrap()),
+                "strict" => options.strict = Some(value.as_bool().unwrap()),
+                "noErrorTruncation" => options.no_error_truncation = Some(value.as_bool().unwrap()),
+                "skipDefaultLibCheck" => {
+                    options.skip_default_lib_check = Some(value.as_bool().unwrap())
+                }
+                "noEmit" => options.no_emit = Some(value.as_bool().unwrap()),
+                other => panic!("unowned no-emit control option {other}"),
+            }
+        }
+        return load_program(
+            &host.build().unwrap(),
+            &roots,
+            options,
+            ProgramOptions::default(),
+            &LibraryCatalog::typescript_6_0_3(library_directory),
+            ProgramLoadLimits::new(256, 2048, 64, 16 * 1024 * 1024, 128 * 1024 * 1024),
+        )
+        .unwrap();
+    }
     load_qualified_compiler_emit_with_option_floor(
         &workspace(),
         input["current_directory"].as_str().unwrap(),

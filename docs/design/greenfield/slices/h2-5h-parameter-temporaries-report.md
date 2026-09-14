@@ -1,6 +1,6 @@
 # H2.5h parameter temporary 実装記録
 
-2026-09-14。状態: **upstream before 完了 / native before 待ち / production 未変更**。
+2026-09-14。状態: **upstream / native before 完了、Rust trace 待ち、production 未変更**。
 [依頼](h2-5h-parameter-temporaries.md) と [設計](h2-5h-parameter-temporaries-design.md) に従う。
 この記録は作業途中であり、修復成功・runtime-ready・統合完了を表さない。
 
@@ -54,18 +54,45 @@ Rust 側の first-divergence は native before/trace で確認するため未確
 ES5 initializer では multiline が失われ、binding pattern では余分な binding も発生する。
 これは Rust before と照合する予測であり、native 修復の証拠には算入しない。
 
-## 3. 未完了の gate と次の実行
+## 3. Native before
 
-1. 先行する Claude の重い native 実行枠の引き継ぎ。
-2. 専用 runner の fresh native before（原12 + controls56、全136 captures）。
-3. Rust trace、原因分類、設計 gate の未解決0。
-4. production 修正、最終 source の after と関連回帰。
-5. 原因別 commits と証拠の提出、両担当の合流、必要 manifest 純削除、PR/hosted acceptance。
+Claude の focused battery と原因別 commits の引き継ぎを final report で確認した。
+head `886e60771d104b698dc560018450339b40ecec55` は clean、production 4ファイルは
+すべて binder/checker 内で、Codex の許可2ファイルとの交差0。
+`target/parameter-temporaries-runs/claude-handoff-review.json` に実 diff と final steps を記録した。
+先行 native job が終了したことを確認してから Codex の実行を開始した。
+
+| run directory（`target/parameter-temporaries-runs/` 配下） | exit / 秒 | 実結果 |
+| --- | --- | --- |
+| `before-20260914-1740` | 101 / 534.23 | compile 成功。64ケース128 captures。新規 `noEmit` control を emit 専用 loader に渡した test adapter の不備で focused group が停止 |
+| `before-complete-20260914-1656` | 101 / 83.62 | adapter 修正後、全68ケース136 captures。37 exact、31差分。すべて反復不変、実行中の source 不変 |
+
+directory の suffix は識別子であり、正確な実行時刻は各 `receipt.json` の UTC 値を使う。
+両 command は `cargo test --offline -p tsc-rs-compiler --test h2_5h_parameter_temporaries -- --nocapture --test-threads=1`。
+compile / command / test の exit を区別し、expectation は一切更新していない。
+
+adapter 修正は、新規 `noEmit` 2件だけを `load_program` に渡し、fixture の全 effective options と
+同じ input/library files を MemoryCompilerHost に設定するもの。原12件と他54 controls は従来の
+qualified loader のまま。最初の128 captures は修正後と全 field が一致した。
+noEmit 2件と noEmitOnError/ES5 は exact、noEmitOnError/ES2015 は既存 comment 差分を観測する。
+
+原4件の actual は、上流の target 条件だけを外す counterfactual の全 tuple と完全一致。
+原 ES2015/ESNext 8件は無改造 TS と完全一致。追加 controls の差分には ES5 の先行 lowering と、
+ES2015 にも存在する parameter initializer の comment/source-map metadata の差がある。
+後者は `lower_parameter_default` と pinned `addDefaultValueAssignmentForInitializer` の
+clone/range/flags を Rust trace で分離する。before summary の SHA-256 は
+`419bab1f6da5563653c8180daa5412a92244dbbb6d0881c3c649c751fb906aa5`。
+
+## 4. 未完了の gate と次の実行
+
+1. Rust trace、原因分類、設計 gate の未解決0。
+2. production 修正、最終 source の after と関連回帰。
+3. 原因別 commits と証拠の提出、両担当の合流、必要 manifest 純削除、PR/hosted acceptance。
 
 native command は `target/parameter-temporaries-runs/run-step.py` で real returncode、
 UTC 時刻、前後 source hash、stdout/stderr、capture/binary hash を保存する。
 各 directory は新規作成とし、既存 captures を上書きしない。
 Cargo target は `target/parameter-temporaries`、jobs 2、低優先度、test threads 1。
 
-未実施: native before/after、production 修正、今回の hosted acceptance。
+未実施: Rust trace、native after、production 修正、今回の hosted acceptance。
 full developer CI / certificate walk / global profile 再 mint は、現行 schedule に従い実行しない。
