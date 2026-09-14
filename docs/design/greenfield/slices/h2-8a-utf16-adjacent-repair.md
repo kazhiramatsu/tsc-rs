@@ -3621,3 +3621,47 @@ Copied from the review response §0.2 (the review's requested "対応表"):
 | C-4 ES2018 retained | `es2018-retained-invalid` | exact ×2 |
 | C-5 既存 ES5 控除と 64 件 exact 維持 | `utf16-literals-template-literals.json`（26）, `-string-literals.json`（36）, `-bundle-prologues.json`（2） | exact ×2 |
 | v1 / v2 receipt の保存 | `utf16-tagged-template-review-v1.json` SHA `92fbb23e…`（§10.3 の値と一致、test が pin）, `-v2.json` | 維持 |
+
+
+## 34. Combined PR and the first hosted acceptance (2026-09-14)
+
+The user requested a combined PR including every unmerged PR and hosted CI.
+[PR #521](https://github.com/kazhiramatsu/tsc-rs/pull/521) includes the original
+heads of #520 and #516 as ancestors. Those two PRs were closed as superseded;
+their branches and commit histories are retained. The reviewed dirty tree
+was reconstructed in a separate worktree, split into a coordinated ownership
+migration and per-finding repair commits, and checked against the closing
+freeze: all 477 recorded files match at `af13581fa`. The original review
+worktree remains unchanged.
+
+The #516 merge at `a90a02948` adds its Program-owned declaration-specifier
+option projection and unchanged fixtures. Its integration adapter retains
+`pathsBasePath`, `rootDirs`, and the config path as JavaScript values; the
+existing scalar test adapter rejects non-scalar observations explicitly.
+The combined workspace all-targets type check passes (exit 0, inputs
+unchanged; `target/integration-evidence/focused-20260914-132427/receipt.json`
+in `~/dev/tsc-rs-utf16-integration`).
+
+[The first hosted run, 34805824585](https://github.com/kazhiramatsu/tsc-rs/actions/runs/34805824585),
+on `a90a02948`, builds successfully and passes diagnostic conformance with
+49,024/49,024 matches, FP=0 and FN=0, then H1. It fails at H2.1a because
+`invalidTaggedTemplateEscapeSequences.ts#target%3Desnext` now emits instead
+of satisfying the historical source-deferred refusal expectation.
+
+This corrects the blanket statement in sections 32–33 that all 50 newly
+admitted corpus rows are disconnected from hosted execution until a profile
+re-mint. One of those rows is actively checked for refusal by H2.1a. The other
+49 occur only in the H2.5a/H2.5g/H2.5h deferred projections and remain deferred
+there. Their profiles are not re-minted by this integration.
+
+Use H2.1a's existing current-source-promotion path for that one row, with
+its exact case ID, fingerprint
+`fb4e084b24b8ab291c29e50a94b555fe1db39d802b301ee58c80a6d740794eb0`,
+and original required slice `H2.9`. The historical qualification and both
+TypeScript observations stay unchanged. The promoted row must match its
+one output write, all three TS1125 diagnostics and command observables twice;
+other source deferrals retain their existing checks. The promotion guard
+pins the required slice separately for each row, including the existing
+`commentsAfterSpread` promotion. The added focused test compares both rows
+and rejects changed fingerprints or owners. Combined-test receipts and the
+final hosted result are recorded on PR #521.

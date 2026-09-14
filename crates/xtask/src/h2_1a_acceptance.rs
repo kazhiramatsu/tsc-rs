@@ -72,23 +72,33 @@ static CURRENT_EXACT_DIAGNOSTIC_PROMOTIONS: &[CurrentExactDiagnosticPromotion] =
 
 // H2.8a source repairs measured against the unchanged historical input and
 // both complete TypeScript observations. Keep the old qualification immutable.
-static CURRENT_EXACT_SOURCE_PROMOTIONS: &[(&str, &str)] = &[(
-    "typescript-6.0.3/compiler/commentsAfterSpread.ts#default",
-    "3f5e9e8bd16bab126774402dea7896f6391aaa67bb4f1952b48811ac3ca1f879",
-)];
+static CURRENT_EXACT_SOURCE_PROMOTIONS: &[(&str, &str, &str)] = &[
+    (
+        "typescript-6.0.3/compiler/commentsAfterSpread.ts#default",
+        "3f5e9e8bd16bab126774402dea7896f6391aaa67bb4f1952b48811ac3ca1f879",
+        "H2.8a",
+    ),
+    // Literal-only recovery now emits this historical H2.9 refusal. Compare
+    // its original output and all three TS1125 diagnostics twice.
+    (
+        "typescript-6.0.3/conformance/es2018/invalidTaggedTemplateEscapeSequences.ts#target%3Desnext",
+        "fb4e084b24b8ab291c29e50a94b555fe1db39d802b301ee58c80a6d740794eb0",
+        "H2.9",
+    ),
+];
 
 fn current_exact_source_promotion(case: &Value) -> Result<bool, Box<dyn Error>> {
     let case_id = string(case, "case_id")?;
-    let Some((_, fingerprint)) = CURRENT_EXACT_SOURCE_PROMOTIONS
+    let Some((_, fingerprint, required_slice)) = CURRENT_EXACT_SOURCE_PROMOTIONS
         .iter()
-        .find(|(id, _)| *id == case_id)
+        .find(|(id, _, _)| *id == case_id)
     else {
         return Ok(false);
     };
     let observations = array(case, "typescript_runs")?;
     if case["case_fingerprint_sha256"] != *fingerprint
         || case["disposition"] != "deferred-to-slices"
-        || case["required_slices"] != json!(["H2.8a"])
+        || case["required_slices"] != json!([required_slice])
         || case["diagnostic_disposition"]["state"] != "not-observed-source-deferred"
         || case["rust_expectation"] != "typed-failure-before-first-sink-write"
         || observations.len() != 2

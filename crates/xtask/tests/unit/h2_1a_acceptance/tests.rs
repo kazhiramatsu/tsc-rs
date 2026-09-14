@@ -120,3 +120,43 @@ fn historical_diagnostic_controls_are_currently_exact() {
             .is_some()
     }));
 }
+
+#[test]
+fn current_source_promotions_compare_original_observations_and_pin_their_owner() {
+    let workspace = workspace();
+    let artifact: serde_json::Value = serde_json::from_slice(
+        &fs::read(workspace.join(super::QUALIFICATION_RELATIVE_PATH))
+            .expect("read H2.1a qualification"),
+    )
+    .expect("parse H2.1a qualification");
+    let cases = artifact["cases"].as_array().expect("qualification cases");
+    assert_eq!(super::CURRENT_EXACT_SOURCE_PROMOTIONS.len(), 2);
+    let mut writes = 0;
+    let mut diagnostics = 0;
+    for (case_id, _, required_slice) in super::CURRENT_EXACT_SOURCE_PROMOTIONS {
+        let case = cases
+            .iter()
+            .find(|case| case["case_id"] == *case_id)
+            .expect("recorded source promotion");
+        let (case_writes, case_diagnostics) = super::execute_observed(
+            &workspace,
+            case,
+            super::DiagnosticExpectation::CurrentExactSourcePromotion,
+        )
+        .unwrap_or_else(|error| panic!("{case_id}: {error}"));
+        writes += case_writes;
+        diagnostics += case_diagnostics;
+
+        let mut wrong_owner = case.clone();
+        wrong_owner["required_slices"] = serde_json::json!([if *required_slice == "H2.9" {
+            "H2.8a"
+        } else {
+            "H2.9"
+        }]);
+        assert!(super::current_exact_source_promotion(&wrong_owner).is_err());
+        let mut wrong_identity = case.clone();
+        wrong_identity["case_fingerprint_sha256"] = serde_json::json!("changed");
+        assert!(super::current_exact_source_promotion(&wrong_identity).is_err());
+    }
+    assert_eq!((writes, diagnostics), (2, 3));
+}
