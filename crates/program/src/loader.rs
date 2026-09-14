@@ -897,12 +897,7 @@ fn resolve_runtime_dependency_symlinks(
             continue;
         }
         let file = source.prepared.path();
-        if file
-            .display()
-            .to_string_lossy()
-            .replace('\\', "/")
-            .contains("/node_modules/")
-        {
+        if display_path_contains_node_modules(file.display()) {
             continue;
         }
         let Some(package) = resolver
@@ -4472,4 +4467,52 @@ pub fn load_emitting_program_js(
         limits,
         None,
     )
+}
+
+/// The `/node_modules/` membership test on a display path, evaluated on the
+/// JavaScript string itself: either separator counts on both sides, exactly
+/// like the former `replace('\\', "/").contains("/node_modules/")`, and no
+/// UTF-8 projection of the path is made.
+fn display_path_contains_node_modules(path: JsStr<'_>) -> bool {
+    const NAME: &[u8] = b"node_modules";
+    let is_separator = |byte: u8| byte == b'/' || byte == b'\\';
+    path.as_bytes().windows(NAME.len() + 2).any(|window| {
+        is_separator(window[0])
+            && &window[1..=NAME.len()] == NAME
+            && is_separator(window[NAME.len() + 1])
+    })
+}
+
+#[cfg(test)]
+mod node_modules_membership_tests {
+    use super::display_path_contains_node_modules;
+    use tsc_diagnostics::JsString;
+
+    #[test]
+    fn membership_matches_the_former_projection_on_every_separator() {
+        for (path, expected) in [
+            ("/work/node_modules/a/index.js", true),
+            ("C:\\work\\node_modules\\a\\index.js", true),
+            ("/work\\node_modules/a.js", true),
+            ("/work/node_modules", false),
+            ("/work/node_modules_x/a.js", false),
+            ("/work/xnode_modules/a.js", false),
+            ("node_modules/a.js", false),
+            ("/work/src/a.js", false),
+        ] {
+            assert_eq!(
+                display_path_contains_node_modules(path.into()),
+                expected,
+                "{path}"
+            );
+        }
+        let mut path = JsString::from("/work/");
+        path.push_code_unit(0xd800);
+        path.push_str("/node_modules/a.js");
+        assert!(display_path_contains_node_modules(path.as_js()));
+        let mut path = JsString::from("/work/node_modules");
+        path.push_code_unit(0xd800);
+        path.push_str("/a.js");
+        assert!(!display_path_contains_node_modules(path.as_js()));
+    }
 }

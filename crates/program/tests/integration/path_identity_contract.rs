@@ -67,7 +67,8 @@ fn compiler_path_identity_distinguishes_names_with_the_same_utf8_projection() {
 #[test]
 fn output_directories_preserve_distinct_js_components() {
     use tsc_program::{
-        canonical_emit_path, inferred_common_source_directory, source_file_path_in_new_directory,
+        canonical_emit_path, common_source_directory, source_file_path_in_new_directory,
+        CompilerOptions,
     };
     let sources = [0xd800, 0xd801, 0xfffd].map(|unit| {
         let mut path = JsString::from("/work/");
@@ -76,7 +77,16 @@ fn output_directories_preserve_distinct_js_components() {
         path
     });
     let paths = sources.iter().map(JsString::as_js).collect::<Vec<_>>();
-    let common = inferred_common_source_directory(&paths, "/work".into(), true);
+    // tsc getCommonSourceDirectory (_tsc.js:116460-116475) appends the trailing
+    // separator that getSourceFilePathInNewDir strips again; the inferred
+    // directory itself (computeCommonSourceDirectoryOfFilenames) carries none.
+    let common = common_source_directory(
+        &CompilerOptions::default(),
+        None,
+        &paths,
+        "/work".into(),
+        true,
+    );
     assert_eq!(common, "/work/");
     let outputs = sources
         .iter()
