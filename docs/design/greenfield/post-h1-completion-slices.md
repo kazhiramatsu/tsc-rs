@@ -25,6 +25,15 @@ The Functional-CI tail remains paused in favor of emitter implementation.
 This header owns current progress; earlier section records retain their dated
 validation and merge lineage.
 
+2026-09-14 repair checkpoint: the [G5c / parameter integration](slices/h2-8a-g5c-parameter-integration.md)
+combines the owned JSDoc return repair with the four ES5 parameter-temporary
+rows. Both components have complete focused observations and adjacent
+regressions; combined verification confirms both components, all 1738 checker
+library tests and fmt. Hosted acceptance is pending. The candidate H2.5h manifest removes only those four rows (16 → 12).
+Five additional ES2015 parameter/comment controls retain a separate printer
+gap and stay strict failures. This is a bounded repair, with H2.8a and that
+printer owner still open; no global re-mint or admission is claimed.
+
 This document turns the audited post-H1 residual into branch-sized execution
 slices. It owns post-H1 slice IDs, dependency order, and slice-specific
 acceptance. The

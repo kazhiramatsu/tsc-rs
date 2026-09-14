@@ -1,8 +1,10 @@
 # Codex 担当: H2.5h ES5 parameter temporary の引き渡し
 
-2026-09-14。Claude の [G5c JSDoc return](h2-8a-jsdoc-return.md) と並行して進める、
-Codex 側の調査・実装依頼資料。**source inventory complete / runtime design pending**。
-本コミットは資料の準備であり、production 修正、fresh native baseline、修復成功は含まない。
+2026-09-14。Claude の [G5c JSDoc return](h2-8a-jsdoc-return.md) と並行して進めた、
+Codex 側の調査・実装依頼資料。以下は準備時の境界と手順を保持する。
+現在の [実装報告](h2-5h-parameter-temporaries-report.md) は原4件 exact ×2 と関連回帰の成功、
+追加5 controls に残る別 owner の printer 差分を記録する。
+両担当の合流状況は [統合記録](h2-8a-g5c-parameter-integration.md) を参照する。
 担当と共有ファイルの扱いは [担当境界表](h2-8a-g5c-h2-5h-parameter-coordination.md)、
 短い開始文は [Codex prompt](h2-5h-parameter-temporaries-codex-prompt.md) を参照する。
 

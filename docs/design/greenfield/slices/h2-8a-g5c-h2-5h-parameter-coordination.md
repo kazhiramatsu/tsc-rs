@@ -75,6 +75,12 @@ heavy command は `taskpolicy -b nice -n 15`、`CARGO_BUILD_JOBS=2`、test threa
 5. 共有 architecture/index と review/PR body を更新し、1つの PR で既存 hosted acceptance を実行する。
    失敗は同じ train で原因別に処置し、final head の成功を確認して merge commit で統合する。
 
+2026-09-14 実行記録: Claude の final report と clean head `886e60771` を受領し、native job 終了を
+確認して Codex へ実行枠を引き継いだ。Codex は `754a2afe3`（runtime `9df833266`）まで完了。
+実 production は Claude の binder/checker 4ファイルと Codex の `es2021.rs` 1ファイルで交差0。
+独立した既存の clean integration worktree `~/dev/tsc-rs-utf16-integration` に新 branch を作成し、
+両 head を merge 済み。詳細は [統合記録](h2-8a-g5c-parameter-integration.md)。
+
 Claude に追加で渡す文:
 
 > Codex は H2.5h の ES5 引数 temporary 4ケースを担当し、production は emitter の
