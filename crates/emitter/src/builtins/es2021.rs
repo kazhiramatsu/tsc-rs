@@ -1614,22 +1614,35 @@ impl<'context> TargetVisitor<'context> {
             data.name = Some(alias_name.node());
             data.initializer = None;
         } else if let Some(initializer) = data.initializer.map(|id| self.node(id)) {
-            let name_text = self.identifier_text(name)?.to_owned();
-            let condition_name = self.create_identifier(&name_text)?;
+            // tsc-port: addDefaultValueAssignmentForInitializer @6.0.3
+            // tsc-hash: 40b44ee01a36e04f01c1117674832a11a865d16bb40a5fc6c1da6395ad60d4a2
+            // tsc-span: _tsc.js:91239-91276
+            // Preserve name identity and the parameter's assignment/block
+            // ranges while suppressing the moved initializer's own maps and
+            // comments.
+            let condition_name = self.context.factory()?.clone_node(name)?;
             let condition = self.create_strict_undefined_check(condition_name)?;
-            let assignment_name = self.create_identifier(&name_text)?;
+            let assignment_name = self.context.factory()?.clone_node(name)?;
+            self.context
+                .arena_mut()?
+                .metadata_mut(assignment_name)
+                .set_flags(EmitFlags::NO_SOURCE_MAP);
+            self.context
+                .arena_mut()?
+                .metadata_mut(initializer)
+                .add_flags(EmitFlags::NO_SOURCE_MAP | EmitFlags::NO_COMMENTS);
             let assignment = self.create_assignment(assignment_name, initializer)?;
+            self.context
+                .factory()?
+                .set_text_range(assignment, parameter)?;
             self.context
                 .arena_mut()?
                 .metadata_mut(assignment)
-                .add_flags(EmitFlags::NO_COMMENTS | EmitFlags::NO_SOURCE_MAP);
+                .set_flags(EmitFlags::NO_COMMENTS);
             let statement = self.create_expression_statement(assignment)?;
-            self.context
-                .arena_mut()?
-                .metadata_mut(statement)
-                .add_flags(EmitFlags::NO_COMMENTS);
             let block = self.create_block(vec![statement], false)?;
-            self.context.arena_mut()?.metadata_mut(block).add_flags(
+            self.context.factory()?.set_text_range(block, parameter)?;
+            self.context.arena_mut()?.metadata_mut(block).set_flags(
                 EmitFlags::SINGLE_LINE
                     | EmitFlags::NO_TRAILING_SOURCE_MAP
                     | EmitFlags::NO_TOKEN_SOURCE_MAPS
@@ -2502,16 +2515,6 @@ impl<'context> TargetVisitor<'context> {
                     .ok_or_else(|| TransformError::UnknownNode(self.node(*node)))
             })
             .collect()
-    }
-
-    fn identifier_text(&self, node: TransformNode) -> Result<&str, TransformError> {
-        match &self.context.arena().node(node)?.data {
-            NodeData::Identifier(data) => Ok(&data.text),
-            _ => Err(TransformError::RequiredChildRemoved {
-                parent: SyntaxKind::Parameter,
-                field: "identifier parameter name",
-            }),
-        }
     }
 
     fn is_prologue_statement(&self, statement: TransformNode) -> Result<bool, TransformError> {
