@@ -1,0 +1,302 @@
+{
+  "version": 1,
+  "slice": "H2.8a-DECL-SPEC1",
+  "state": "ready-for-implementation",
+  "base": "0aaf808bef9b0f5f64737821c63c273056dee2c4",
+  "allowed_production_files": [
+    "crates/checker/src/lib.rs",
+    "crates/compiler/src/lib.rs",
+    "crates/checker/src/node_builder/specifier.rs"
+  ],
+  "production_before": {
+    "crates/checker/src/lib.rs": "c6a81fab3cf83b1fe913f34ddb4d23aa5d6563b0f6db1d29d00378bc232f8fd4",
+    "crates/compiler/src/lib.rs": "c930107054c3fb3dd9fe146de37488ea4b4f4c891cc538811e9b9c95ede6fad1",
+    "crates/checker/src/node_builder/specifier.rs": "259b03b0d6a124915ef9f4559552243a59a9869b818e208d9944b16f7d3718f8"
+  },
+  "authority_files": [
+    {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "87866477f1e3ee90371f0600264540a9688a98b51517e0689926d37ca0f6bfb2"
+    },
+    {
+      "path": "docs/design/greenfield/post-h1-completion-slices.md",
+      "sha256": "df4e630f4fe348119e43714261d1193a880453fa6847b42c7bf52d086bd840fb"
+    },
+    {
+      "path": "crates/program/src/prepared.rs",
+      "sha256": "a6e3b4fcb4a511b9ca0138303df0714308637ed9bd15208b1134bbbc1a87b203"
+    },
+    {
+      "path": "crates/program/src/config.rs",
+      "sha256": "ddb04d7da7d432cb6f525f6d5147ee065090911fae7f440d2012c492d4f0784e"
+    },
+    {
+      "path": "crates/checker/src/state.rs",
+      "sha256": "d74d5d4bbf6c2dccc9bfb380d61117ba64f8cdb08bb4c84ea0f8c378349fcd26"
+    },
+    {
+      "path": "crates/checker/src/node_builder/chains.rs",
+      "sha256": "3dc45639617727687c8ce6c12afe913c8986f7d54528e6a0a9e17037d0a64d5d"
+    },
+    {
+      "path": "crates/emitter/src/declarations/tracker.rs",
+      "sha256": "add080664d2b5ce23135c6d30659d1b554e3ed39eb149f788d6bc3a1c4cf7e2e"
+    },
+    {
+      "path": "crates/emitter/src/resolver.rs",
+      "sha256": "cdd2f82a3ed89375d0d79f2541d86326e3ea85c3e29505f2e93d1f20e221f051"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+      "sha256": "90aff72e27fac502da3ff3f06980c55c4923e35554c3e64800a60213cb1b04ba"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+      "sha256": "c9332037a63761ae27dfe88c90d865197dbc01b2aa7f7fe6fa11999b9392cd6b"
+    },
+    {
+      "path": "crates/compiler/tests/h2_8a_declaration_specifiers.rs",
+      "sha256": "9d0131ed879a1313e57045fad25166c9f9cab16e56bf0d3b0ebd16098d4beb0f"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/h2-8a-declaration-specifiers-inputs.json",
+      "sha256": "8ada6fd3484cfd2513fc2444c44ead386f6b82d647aa36b4ef72e9049fa3c20c"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/h2-8a-declaration-specifiers.json",
+      "sha256": "21b9daa1c17e4b945efe2704d391e02316b6877328bb6d16b9f70fc0614ebff5"
+    },
+    {
+      "path": "scripts/observe-h2-8a-declaration-specifiers.mjs",
+      "sha256": "dd6cd7fd83d046c042bf56c01395d3c4c72aa130a53181fc97902858843a4ab1"
+    },
+    {
+      "path": "ratchets/h2-8a-candidates.v1.json",
+      "sha256": "e33fbf9b6c7eb96dae5186013e054e57eae371a48fca461a809ae4e6e2a1095c"
+    },
+    {
+      "path": "ratchets/h2-8a-candidate-inputs.v1.json",
+      "sha256": "6ff7ea8d1d986e8a9d833d45ec694ab0b8616604fdf065ba52e24a34ac86759b"
+    },
+    {
+      "path": "ratchets/h2-8a-observations.v1.json",
+      "sha256": "91fc28206d663eab46fef98f72ba296d29e02def72518e012616c4d0d01acc87"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/h2-8a-declaration-specifiers-composition-inputs.json",
+      "sha256": "903ade6f9e23599d6ee4e0493e1978ec05a478c7f61ab19977d044c5afeac4cb"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/h2-8a-declaration-specifiers-composition.json",
+      "sha256": "961be89e9e3a56d372b8b6afbe0c49262aaca7094aded71a7814f06e4a30ea6c"
+    },
+    {
+      "path": "scripts/observe-h2-8a-declaration-specifiers-composition.mjs",
+      "sha256": "2cb5ff14244648c5de30626b6e9446c1a073d458643cdb22ffd3f0eb8461675f"
+    }
+  ],
+  "source_anchors": [
+    {
+      "symbol": "getSpecifierForModuleSymbol",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start": 53060,
+      "end": 53109,
+      "sha256": "cc081ccc9162d99c71cfb5013a0786210de8d66472567a9ee1d6eab90f686463"
+    },
+    {
+      "symbol": "getPathsBasePath",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start": 16595,
+      "end": 16599,
+      "sha256": "c569002f6d6a8e7d3b4e2718964fae18fd77125393b0193997bf4cc1f38c494a"
+    },
+    {
+      "symbol": "getLocalModuleSpecifier",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start": 45579,
+      "end": 45639,
+      "sha256": "e0c4acfe0d045ce6dd2b39f1c843069c3be2b76c871ee1ab36caeb22bc9aaa02"
+    },
+    {
+      "symbol": "tryGetModuleNameFromPaths",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start": 45817,
+      "end": 45849,
+      "sha256": "4ec24fe788e16d7a27d09495ad090e154d73f0a1ff126e65bbc0b9d8fb58e417"
+    },
+    {
+      "symbol": "tryGetModuleNameFromRootDirs",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "start": 46049,
+      "end": 46063,
+      "sha256": "53d7945047cecac6bc1e65d999f856fec0383c6b829493bd307736d02897a89a"
+    }
+  ],
+  "semantic_rows": [
+    {
+      "id": "effective-paths",
+      "source_anchor": "getSpecifierForModuleSymbol",
+      "classification": "missing",
+      "step": "wire-program-options",
+      "witnesses": [
+        "declaration-specifiers/wildcard-base-url",
+        "declaration-specifiers/exact-base-url",
+        "declaration-specifiers/mapping-order-z-first",
+        "declaration-specifiers/mapping-order-a-first"
+      ]
+    },
+    {
+      "id": "paths-origin",
+      "source_anchor": "getPathsBasePath",
+      "classification": "missing",
+      "step": "project-options",
+      "witnesses": [
+        "declaration-specifiers/without-base-url",
+        "declaration-specifiers/inherited-paths-origin",
+        "declaration-specifiers/overridden-paths-origin",
+        "declaration-specifiers/direct-program-paths-origin"
+      ]
+    },
+    {
+      "id": "project-config",
+      "source_anchor": "getLocalModuleSpecifier",
+      "classification": "missing",
+      "step": "project-options",
+      "witnesses": [
+        "declaration-specifiers/base-url-only",
+        "declaration-specifiers/project-internal-control",
+        "declaration-specifiers/separate-package-scopes",
+        "declaration-specifiers/same-package-control"
+      ]
+    },
+    {
+      "id": "inverse-path-algorithm",
+      "source_anchor": "tryGetModuleNameFromPaths",
+      "classification": "partial-or-stale",
+      "step": "project-options",
+      "witnesses": [
+        "declaration-specifiers/absolute-target",
+        "declaration-specifiers/dot-segment-target",
+        "declaration-specifiers/second-substitution"
+      ]
+    },
+    {
+      "id": "root-dirs-input",
+      "source_anchor": "tryGetModuleNameFromRootDirs",
+      "classification": "missing",
+      "step": "project-options",
+      "witnesses": [
+        "declaration-specifiers/root-dirs-virtual-relative",
+        "declaration-specifiers/root-dirs-absent-control"
+      ]
+    },
+    {
+      "id": "empty-and-blocked",
+      "source_anchor": "getSpecifierForModuleSymbol",
+      "classification": "already-exact",
+      "step": "preserve-adjacent",
+      "witnesses": [
+        "declaration-specifiers/empty-paths-control",
+        "declaration-specifiers/empty-override-control",
+        "declaration-specifiers/unmatched-path-control",
+        "declaration-specifiers/no-emit-on-error-control"
+      ]
+    },
+    {
+      "id": "bundle-override",
+      "source_anchor": "getSpecifierForModuleSymbol",
+      "classification": "partial-or-stale",
+      "step": "project-options",
+      "witnesses": [
+        "declaration-specifiers-composition/bundle-relative-paths",
+        "declaration-specifiers-composition/bundle-absolute-paths",
+        "declaration-specifiers-composition/bundle-no-paths-control"
+      ]
+    }
+  ],
+  "steps": {
+    "wire-program-options": "Borrow ProgramOptions from PreparedModuleProvider; ObservedProvider forwards unchanged",
+    "project-options": "Copy paths/order/base/rootDirs/config path into local SpecifierCompilerOptions after cache lookup and before bundle override",
+    "preserve-adjacent": "Keep algorithm defaults, caches, routes, host capabilities, original identities and immutable oracle inputs"
+  },
+  "architecture_rows": [
+    {
+      "id": "E-PROTOCOL",
+      "impact": "premise-unchanged",
+      "symbols": [
+        "ProgramSession",
+        "PreparedModuleProvider",
+        "EmitResolver"
+      ],
+      "evidence": "Current source pin; whole-command diagnostic/write/exit comparisons"
+    },
+    {
+      "id": "E-RESOLVER-BASE",
+      "impact": "premise-unchanged",
+      "symbols": [
+        "CheckerSession",
+        "AuthoritativeModuleProvider"
+      ],
+      "evidence": "Existing borrowing lifetime, typed lookup errors; authority getter adds no IO"
+    },
+    {
+      "id": "E-RESOLVER-IDENTITY-G",
+      "impact": "premise-unchanged",
+      "symbols": [
+        "EmitResolverNode",
+        "TransformArena::parse_tree_resolver_node"
+      ],
+      "evidence": "No node/range/identity mutation; original command and focused complete observations"
+    },
+    {
+      "id": "E-DECL-MODULE-SPECIFIER-OPTIONS",
+      "impact": "modified-requalify",
+      "symbols": [
+        "get_specifier_for_module_symbol",
+        "SpecifierCompilerOptions",
+        "ProgramOptions"
+      ],
+      "evidence": "This packet owns effective input transport; requires baseline, focused exact twice and hosted acceptance"
+    },
+    {
+      "id": "E-DECL-SESSION/PATH/ACTIVITY",
+      "impact": "modified-requalify",
+      "symbols": [
+        "ProgramSession::emit_command_for_harness",
+        "EmitHost",
+        "EmitOutcome"
+      ],
+      "evidence": "Architecture labels active-unqualified; recheck current complete commands, maps, blocked case and final acceptance; no wholesale qualification claim; qualification limited to composition of this option projection"
+    }
+  ],
+  "baseline_receipt": "ratchets/h2-8a-declaration-specifiers-before.v1.json",
+  "unresolved": [],
+  "composition_baseline_receipt": "ratchets/h2-8a-declaration-specifiers-composition-before.v1.json",
+  "baseline_summary": {
+    "production_base": "0aaf808bef9b0f5f64737821c63c273056dee2c4",
+    "initial": {
+      "exact": 7,
+      "failed": 17,
+      "repetitions": 2
+    },
+    "composition": {
+      "exact": 4,
+      "failed": 2,
+      "repetitions": 2
+    },
+    "original": {
+      "exact": 0,
+      "failed": 1,
+      "repetitions": 2
+    },
+    "cause": "Effective Program paths/origin/rootDirs/config identity are absent at existing NodeBuilder options construction; no algorithm correction required by source/baseline analysis"
+  }
+}

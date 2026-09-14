@@ -1,0 +1,546 @@
+{
+  "head": "da69d7e4a0cdba5789bf8636195c984c2572d2ca",
+  "command": [
+    "taskpolicy",
+    "-b",
+    "nice",
+    "-n",
+    "15",
+    "cargo",
+    "test",
+    "--offline",
+    "-p",
+    "tsc-rs-compiler",
+    "--test",
+    "h2_8a_declaration_specifiers",
+    "declaration_specifier",
+    "--",
+    "--test-threads=1",
+    "--nocapture"
+  ],
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/hiramatsu/dev/tsc-rs-declaration-specifiers/target/declaration-specifier-acceptance",
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "RUSTC_WRAPPER": "",
+    "TSRS_H2_5G_WORKERS": "2",
+    "TSRS_CONFORMANCE_WORKERS": "2",
+    "TSC_RS_DECLARATION_SPECIFIER_CAPTURE_DIR": "/Users/hiramatsu/dev/tsc-rs-declaration-specifiers/target/declaration-specifier-runs/after-v1/captures",
+    "TSC_RS_H2_8A_FAILURE_DIR": "/Users/hiramatsu/dev/tsc-rs-declaration-specifiers/target/declaration-specifier-runs/after-v1/original-failures"
+  },
+  "actual_exit": 0,
+  "finished_at": "2026-09-12T02:46:28.067594+00:00",
+  "prelaunch_sha256": "9e6c9c8d68ada2554d39ebd336df16b0f3e6e6ada24cc0c0ede2926015137523",
+  "log_sha256": "f66d3c1f44c6d06694064cbe73fafe8fb6b4cecb060ccb21b30bcb1d268f12fa",
+  "suite_results": [
+    [
+      "ok",
+      "3",
+      "0",
+      "0"
+    ]
+  ],
+  "source_unchanged_after_run": true,
+  "binary": {
+    "path": "/Users/hiramatsu/dev/tsc-rs-declaration-specifiers/target/declaration-specifier-runs/after-v1/bin/h2_8a_declaration_specifiers-2562e23698b3e861",
+    "sha256": "8979ad768796faab9a979d35b0d42a0d6e57bc65affdbde9a1b2fc6a0d77e778"
+  },
+  "slice": "H2.8a-DECL-SPEC1",
+  "complete_focused_captures": 60,
+  "focused_exact": 30,
+  "focused_failed": 0,
+  "original_case": {
+    "case_id": "typescript-6.0.3/compiler/declarationEmitPathMappingMonorepo2.ts#default",
+    "repetitions": 2,
+    "exact": true,
+    "comparator": "unchanged assert_output_matrix_projection"
+  },
+  "original_failure_captures": 0,
+  "case_results": [
+    {
+      "case_id": "declaration-specifiers/wildcard-base-url",
+      "repetitions": [
+        0,
+        1
+      ],
+      "exact": true,
+      "before_exact": false,
+      "changed_capture_fields": [
+        "writes"
+      ],
+      "capture_sha256": [
+        "29ebee58e3e9bc6bad08fdf3458f7cf9c6f4348ad307f3700454771c1e8c81b5",
+        "0a18894782121356a5592f054fc0cb2d82f403ab0eec9d652429156ea4a4ff7d"
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/exact-base-url",
+      "repetitions": [
+        0,
+        1
+      ],
+      "exact": true,
+      "before_exact": false,
+      "changed_capture_fields": [
+        "writes"
+      ],
+      "capture_sha256": [
+        "7f9b5e85daf4492ab7c4f4a54e3330ccc3713c255e645fa598f70eadc1e9e625",
+        "59e7235fa5d526533707b802a35ee3dea73939097df834261de8ef7830093a36"
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/without-base-url",
+      "repetitions": [
+        0,
+        1
+      ],
+      "exact": true,
+      "before_exact": false,
+      "changed_capture_fields": [
+        "writes"
+      ],
+      "capture_sha256": [
+        "cb6a3e1f0666cfc8ed9b73e02b9af40262f7f2a2f0f2e64cd691209a98620357",
+        "6be91c77e8ef97e098ed56f126a9a53360561c6170e185bc3ef87fb97f68d213"
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/empty-paths-control",
+      "repetitions": [
+        0,
+        1
+      ],
+      "exact": true,
+      "before_exact": true,
+      "changed_capture_fields": [],
+      "capture_sha256": [
+        "e25f176ee5d8350827d8ffe1041ffaf09cecb59bc24cb9af73ccb3209b46a142",
+        "dd1da5ce2edaf1207df195a81be10c611d9842c9c50327347019b82af7d95bd5"
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/absolute-target",
+      "repetitions": [
+        0,
+        1
+      ],
+      "exact": true,
+      "before_exact": false,
+      "changed_capture_fields": [
+        "writes"
+      ],
+      "capture_sha256": [
+        "9fa1322037868c3b22cff150d3877fb36889a3dcb13a91f24c6a6de14e3d264d",
+        "7a79236ba8ac55e6fa0d81d5b9e947393ee96b9f246ba11276742b5370f311b9"
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/dot-segment-target",
+      "repetitions": [
+        0,
+        1
+      ],
+      "exact": true,
+      "before_exact": false,
+      "changed_capture_fields": [
+        "writes"
+      ],
+      "capture_sha256": [
+        "c9ae93f939f34283d5258dabe4c04fcf0943a95b009278a4e9bdf4bb911ca775",
+        "0f51c12418aec64695c0484bdffba6f8a1ec3affe89b0604164fbe714238ae3a"
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/second-substitution",
+      "repetitions": [
+        0,
+        1
+      ],
+      "exact": true,
+      "before_exact": false,
+      "changed_capture_fields": [
+        "writes"
+      ],
+      "capture_sha256": [
+        "200ee16657d875ad9fc83f0de7defbd81514dd8c81e97813c9bf3e162417d3a7",
+        "df951a13a42624dc56079245df4af19af575c5f73791b0c28d6beb795abd1246"
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/mapping-order-z-first",
+      "repetitions": [
+        0,
+        1
+      ],
+      "exact": true,
+      "before_exact": false,
+      "changed_capture_fields": [
+        "writes"
+      ],
+      "capture_sha256": [
+        "e254fc2c2241cd13f918e60747ae86672ca201ca41b4f496e7bffbabdfb065a4",
+        "2e4ce4b5b29877685fdcea099039b00503585cb47e1d9cae9cbf070a162fa457"
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/mapping-order-a-first",
+      "repetitions": [
+        0,
+        1
+      ],
+      "exact": true,
+      "before_exact": false,
+      "changed_capture_fields": [
+        "writes"
+      ],
+      "capture_sha256": [
+        "06ac8fb2576862abf04fce2d0821f032767fd1aa5a7b1dea8a36d40c3380e439",
+        "7a084d0a47ba39651f0251f44f5d11c43a55747504b4dea5682dbbb20e8b0a6c"
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/project-internal-control",
+      "repetitions": [
+        0,
+        1
+      ],
+      "exact": true,
+      "before_exact": true,
+      "changed_capture_fields": [],
+      "capture_sha256": [
+        "9994b62076a993541885b6c40cf15b3f599661510fe63576796ff6cb391875be",
+        "f0d126f079f6478918b7313fc9970f4420126b509203b4619ec8c0d2b197a970"
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/separate-package-scopes",
+      "repetitions": [
+        0,
+        1
+      ],
+      "exact": true,
+      "before_exact": false,
+      "changed_capture_fields": [
+        "writes"
+      ],
+      "capture_sha256": [
+        "ccfa10f6457d37850baa1998ec84ad4d102f42fc2eb58ad44b8eec411267ef62",
+        "4c537eea91c085b2336248baa4a36bad268ad1fa72e9e83d8fd1c4c6e1624ffa"
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/same-package-control",
+      "repetitions": [
+        0,
+        1
+      ],
+      "exact": true,
+      "before_exact": true,
+      "changed_capture_fields": [],
+      "capture_sha256": [
+        "1fef484c368db5b34259e3ec9834f67b89735e5fc1c2a3bd6dc34bab4a6b7e7c",
+        "83d341124ada6cf6ca514da83c63a2256ec1df79d2de9bc2827354eec3a66129"
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/inherited-paths-origin",
+      "repetitions": [
+        0,
+        1
+      ],
+      "exact": true,
+      "before_exact": false,
+      "changed_capture_fields": [
+        "writes"
+      ],
+      "capture_sha256": [
+        "64daf40da9a1288644370013264c226cca668eaa7f7bf7321c642567df400781",
+        "03ecf396e657f8f9db9f5d7bfdde6252d1131b025ccf99e369a99958f659ee7c"
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/overridden-paths-origin",
+      "repetitions": [
+        0,
+        1
+      ],
+      "exact": true,
+      "before_exact": false,
+      "changed_capture_fields": [
+        "writes"
+      ],
+      "capture_sha256": [
+        "1b20315b12d9d6b3be0075c9055ed3bb5e7834d0e86996477b214beea4f3e435",
+        "3687a1b70e7ca40c0bf3d4002aa45bc892aa08d901be14166a3a7f672d8522b2"
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/empty-override-control",
+      "repetitions": [
+        0,
+        1
+      ],
+      "exact": true,
+      "before_exact": true,
+      "changed_capture_fields": [],
+      "capture_sha256": [
+        "b8d52f439757b9754276c90cdeb082462ba111a4e3cc51263950ddeb65281f17",
+        "c6910bf57a9c20dfbd8fc400399c602adcef25a36c05096ebcb9921b70bbaf02"
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/root-dirs-virtual-relative",
+      "repetitions": [
+        0,
+        1
+      ],
+      "exact": true,
+      "before_exact": false,
+      "changed_capture_fields": [
+        "writes"
+      ],
+      "capture_sha256": [
+        "fec837de2d3f3110ac4b12290a5a92d7a60fba0b97ee16a002655faee06e8a35",
+        "a7361b1f4ff9fa687fc458f77bb10a7cb0aadab0d9c8b22f288c852280f98be6"
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/root-dirs-absent-control",
+      "repetitions": [
+        0,
+        1
+      ],
+      "exact": true,
+      "before_exact": true,
+      "changed_capture_fields": [],
+      "capture_sha256": [
+        "4cf70819585486e959369e4c00f46c19be10cd779925317ecb657ca00b438861",
+        "9902e365c023cfb6abb8bafec11ac5e227aa2a0122a848f36058c2523772c4de"
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/declaration-map",
+      "repetitions": [
+        0,
+        1
+      ],
+      "exact": true,
+      "before_exact": false,
+      "changed_capture_fields": [
+        "outcome_debug",
+        "writes"
+      ],
+      "capture_sha256": [
+        "54dee51672d4ccf43718a1aa771dffe052b2adf0d7ef45ed20de89cd02c2b688",
+        "d668860fa3efdefec3eb197493c4798eb0b97cc67c6e67dd69b277a708b75825"
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/declaration-only",
+      "repetitions": [
+        0,
+        1
+      ],
+      "exact": true,
+      "before_exact": false,
+      "changed_capture_fields": [
+        "writes"
+      ],
+      "capture_sha256": [
+        "85f1ff075bba9832b17a3ec810209e45c99de19dd99068a79f40cea001b02688",
+        "1ce48b0b686aa0230c320fa26161af61bb6af5e5dd1a8416eb20d382a08f6532"
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/no-emit-on-error-control",
+      "repetitions": [
+        0,
+        1
+      ],
+      "exact": true,
+      "before_exact": true,
+      "changed_capture_fields": [],
+      "capture_sha256": [
+        "2c0cb8483b9ba1ebce048ab5abcceeb72f5d63ac37f2df6bbac2f2b7262a0264",
+        "20b89d6256b8873d353a76b2bef84df9a15c344601e4ae0bae8c6c796b73f1d7"
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/base-url-only",
+      "repetitions": [
+        0,
+        1
+      ],
+      "exact": true,
+      "before_exact": false,
+      "changed_capture_fields": [
+        "writes"
+      ],
+      "capture_sha256": [
+        "a3af5ba4c79728804da654d5dd7692d3a21d7cb4a61025b53ed58f6d6690ef0b",
+        "73c700fd76e4aa71ef02de78fc6facbe5b56fe9a575f96996b21eeaa9978c743"
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/unmatched-path-control",
+      "repetitions": [
+        0,
+        1
+      ],
+      "exact": true,
+      "before_exact": true,
+      "changed_capture_fields": [],
+      "capture_sha256": [
+        "582adc3e2f826b1c1ddaabba7726193093bea655d8ff53b0864d21b746541486",
+        "09c4096f5417fe23bccf50d07a2947d2f03ad3a85167813fe7e355b8f0e526f9"
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/direct-program-with-paths",
+      "repetitions": [
+        0,
+        1
+      ],
+      "exact": true,
+      "before_exact": false,
+      "changed_capture_fields": [
+        "writes"
+      ],
+      "capture_sha256": [
+        "acab8446b0a4332d4c9903dd961ec6af1ed14ba3725db35afbe7599e13105f62",
+        "1895946096cc1f4dbe4da4623ba7c9960f5deab5bd9e58436056991440a170bb"
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers/direct-program-paths-origin",
+      "repetitions": [
+        0,
+        1
+      ],
+      "exact": true,
+      "before_exact": false,
+      "changed_capture_fields": [
+        "writes"
+      ],
+      "capture_sha256": [
+        "0811f2a35896fb2c6474adfa62aad39d8648805db5a0ad8810e5a583acb7689a",
+        "c043972809d6a1e81ce7550215cd36a230bf7d2e0b6a6a458321a05bf379ca3c"
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers-composition/valid-project-internal-control",
+      "repetitions": [
+        0,
+        1
+      ],
+      "exact": true,
+      "before_exact": true,
+      "changed_capture_fields": [],
+      "capture_sha256": [
+        "0a6417a96bb0875090e202b575964f034086a92fa915d525a49a03579d9b3965",
+        "b1f3d3f2732f5dfbf3faf6f37e58595bbe3a58adbb3f6347d1fa99006b185f0b"
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers-composition/valid-separate-package-scopes",
+      "repetitions": [
+        0,
+        1
+      ],
+      "exact": true,
+      "before_exact": false,
+      "changed_capture_fields": [
+        "writes"
+      ],
+      "capture_sha256": [
+        "693ecebc4bcb0c50e70598a7fa872372604766914e95d13c62a1af8d0513adec",
+        "ecdf1f16832c5e8a17d1ef15daf405f469d8fa593d3db352a9bd772220142706"
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers-composition/valid-same-package-control",
+      "repetitions": [
+        0,
+        1
+      ],
+      "exact": true,
+      "before_exact": true,
+      "changed_capture_fields": [],
+      "capture_sha256": [
+        "0bd9e007c957c9d6c6604e585bd5882bc6bae8b89387768e890e94d7c55dc8e5",
+        "1d181c1b10ed087ca79ef2b349f3f9619756bb405f6426b16970bde1dfb82275"
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers-composition/bundle-relative-paths",
+      "repetitions": [
+        0,
+        1
+      ],
+      "exact": true,
+      "before_exact": true,
+      "changed_capture_fields": [],
+      "capture_sha256": [
+        "0d9561a582bba0b58107454e6484351e82244f1a2552b16c16e663783a48820d",
+        "3fe84ee20ffb9c81328030010ee836d081684cc149291dc94c3a79ca2ced459f"
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers-composition/bundle-absolute-paths",
+      "repetitions": [
+        0,
+        1
+      ],
+      "exact": true,
+      "before_exact": false,
+      "changed_capture_fields": [
+        "outcome_debug",
+        "writes"
+      ],
+      "capture_sha256": [
+        "eca3b85929ad146aa5c2cd3951dafcf78513ed27dd353c0914826f8ba629d6ae",
+        "fef749298b4bf19ddf419e3ce817db794ca29b0a2b0a3d02611eb3e8c21581ef"
+      ]
+    },
+    {
+      "case_id": "declaration-specifiers-composition/bundle-no-paths-control",
+      "repetitions": [
+        0,
+        1
+      ],
+      "exact": true,
+      "before_exact": true,
+      "changed_capture_fields": [],
+      "capture_sha256": [
+        "be032093b227f289eb86dd1c5fe7725bf15e3a2deadd3726b94612b89873cf7e",
+        "8ec6d34342a28c9ac99740c389c906b90ad2b33010df79f721aa978a7c1c5d46"
+      ]
+    }
+  ],
+  "before_exact_captures_unchanged": [
+    "declaration-specifiers/empty-paths-control",
+    "declaration-specifiers/project-internal-control",
+    "declaration-specifiers/same-package-control",
+    "declaration-specifiers/empty-override-control",
+    "declaration-specifiers/root-dirs-absent-control",
+    "declaration-specifiers/no-emit-on-error-control",
+    "declaration-specifiers/unmatched-path-control",
+    "declaration-specifiers-composition/valid-project-internal-control",
+    "declaration-specifiers-composition/valid-same-package-control",
+    "declaration-specifiers-composition/bundle-relative-paths",
+    "declaration-specifiers-composition/bundle-no-paths-control"
+  ],
+  "repeat_captures_equal_excluding_repetition": true,
+  "no_input_or_expectation_changes": true,
+  "source_archive": {
+    "path": "/Users/hiramatsu/dev/tsc-rs-declaration-specifiers/target/declaration-specifier-runs/after-v1/source-and-witnesses.tar.gz",
+    "sha256": "2be788965b616a27afd28a9a5203c6e055a55f2cd27ef2c927592d45870f7d66"
+  },
+  "changed_write_counts_per_repetition": {
+    "Declaration": 19,
+    "DeclarationMap": 2
+  },
+  "all_non_declaration_writes_unchanged": true
+}
