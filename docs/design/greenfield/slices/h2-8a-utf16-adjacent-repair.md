@@ -3665,3 +3665,24 @@ pins the required slice separately for each row, including the existing
 `commentsAfterSpread` promotion. The added focused test compares both rows
 and rejects changed fingerprints or owners. Combined-test receipts and the
 final hosted result are recorded on PR #521.
+
+### 34.1. H2.5h shrink after the second hosted run
+
+[Run 34806679260](https://github.com/kazhiramatsu/tsc-rs/actions/runs/34806679260)
+on `dc1e8b091` passes diagnostic conformance (49,024/49,024, FP=0,
+FN=0), H1, the corrected H2.1a promotion and every subsequent slice through
+H2.5g. H2.5g retains 8,511 exact cases and its existing 516 deferrals.
+H2.5h executes all 932 cases before its ordered ratchet join reports exactly
+one manifest difference: `optionalChainingInLoop.ts#target%3Des5` is now
+exact. There are no new divergences or changed divergence facets in that
+run's aggregate report.
+
+Remove only that case from `ratchets/h2-5h-known-divergences.v1.json`,
+shrinking 17 entries to 16. The remaining entries, owners and facets are
+unchanged. Its SHA-256 changes from
+`644c7adc8e173f73cb3e10fb26a838fb236c614bab146422856e3500622b1bf9`
+to `720e1822ae7f21fec19f238c4f4aeee1ba35b585568cd9b2f476b25e18a86926`.
+The qualification, TypeScript observations, execution denominator and
+comparison rules are unchanged. This is the existing shrink-only ratchet's
+required retirement of a repaired row, separate from the 49 corpus rows
+that remain deferred in their historical profiles.
