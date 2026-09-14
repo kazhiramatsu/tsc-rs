@@ -174,7 +174,8 @@ impl Transformer for TargetTransformer {
         initialize_transform_flags(context.arena_mut()?, source)?;
         context.start_lexical_environment()?;
         let current_root = context.arena().root(source)?;
-        let mut visitor = TargetVisitor::new(context, source, self.pass, current_root)?;
+        let mut visitor =
+            TargetVisitor::new(context, source, self.pass, self.target, current_root)?;
         let visited = visitor.visit(current_root.node());
         let lexical_environment = visitor.context.end_lexical_environment();
         let generated_bindings = visitor.generated_bindings.source_bindings();
@@ -294,6 +295,7 @@ struct TargetVisitor<'context> {
     context: &'context mut TransformationContext,
     source: TransformSourceId,
     pass: TargetPass,
+    target: ScriptTarget,
     nodes: BTreeMap<NodeId, Option<NodeId>>,
     arrays: BTreeMap<NodeArrayId, Option<NodeArrayId>>,
     generated_bindings: GeneratedBindingScopes,
@@ -304,6 +306,7 @@ impl<'context> TargetVisitor<'context> {
         context: &'context mut TransformationContext,
         source: TransformSourceId,
         pass: TargetPass,
+        target: ScriptTarget,
         root: TransformNode,
     ) -> Result<Self, TransformError> {
         Ok(Self {
@@ -314,6 +317,7 @@ impl<'context> TargetVisitor<'context> {
             context,
             source,
             pass,
+            target,
             nodes: BTreeMap::new(),
             arrays: BTreeMap::new(),
         })
@@ -1304,12 +1308,16 @@ impl<'context> TargetVisitor<'context> {
         parameters: Option<NodeArrayId>,
     ) -> Result<ParameterHoistPlan, TransformError> {
         let nodes = self.array_nodes(parameters)?;
-        let requires_hoist = nodes
-            .iter()
-            .map(|parameter| self.subtree_requires_hoisted_temp(*parameter, true))
-            .collect::<Result<Vec<_>, _>>()?
-            .into_iter()
-            .any(|required| required);
+        // visitParameterList only moves defaults for targets retaining native
+        // parameters. ES5 leaves the binding identity and initializer for the
+        // later ES2015 pass, so it must not reserve a discarded alias here.
+        let requires_hoist = self.target >= ScriptTarget::ES2015
+            && nodes
+                .iter()
+                .map(|parameter| self.subtree_requires_hoisted_temp(*parameter, true))
+                .collect::<Result<Vec<_>, _>>()?
+                .into_iter()
+                .any(|required| required);
         let mut binding_aliases = Vec::with_capacity(nodes.len());
         for parameter in nodes {
             let alias = if requires_hoist && self.parameter_has_binding_pattern(parameter)? {
@@ -1512,6 +1520,9 @@ impl<'context> TargetVisitor<'context> {
             ))
     }
 
+    /// tsc-port: visitParameterList @6.0.3
+    /// tsc-hash: 75f4e96e0f53dac4523f71d86dc9a4216465c88b670afeb6202b7853fb27d8fa
+    /// tsc-span: _tsc.js:91168-91181
     fn visit_parameter_list(
         &mut self,
         parameters: Option<NodeArrayId>,
@@ -1538,10 +1549,11 @@ impl<'context> TargetVisitor<'context> {
                 })?;
             visited.push(self.node(node));
         }
-        if self
-            .context
-            .lexical_environment_flags()
-            .contains(LexicalEnvironmentFlags::VARIABLES_HOISTED_IN_PARAMETERS)
+        if self.target >= ScriptTarget::ES2015
+            && self
+                .context
+                .lexical_environment_flags()
+                .contains(LexicalEnvironmentFlags::VARIABLES_HOISTED_IN_PARAMETERS)
         {
             for (parameter, alias) in visited.iter_mut().zip(&plan.binding_aliases) {
                 *parameter = self.lower_parameter_default(*parameter, alias.as_ref())?;
