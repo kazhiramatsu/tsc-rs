@@ -1,8 +1,8 @@
 # H2.5h parameter temporary: implementation design
 
-2026-09-14。状態: **implementation-ready — native before / causal gate complete、after pending**。
+2026-09-14。状態: **原4件と関連回帰 verified、共通 producer は C3 printer 残差を持つ部分閉包、統合待ち**。
 [依頼資料](h2-5h-parameter-temporaries.md) の production 許可2ファイルを維持する。
-§5 に全68ケースの native before と Rust trace を記録した。after 成功はまだ主張しない。
+§5 に全68ケースの native before と Rust trace、§6 と report に final after を記録する。
 
 ## 1. 固定した入力と比較
 
@@ -225,3 +225,11 @@ emitter library、H2.5h static-this/super、UTF-16 original rows、必要な map
 既存失敗や範囲外 owner は元の期待を保持して別記録し、成功件数に算入しない。
 原因別 commit、完全 source/evidence hash、実 command/exit を report に残す。
 global manifests、共有 index/architecture、PR/hosted は合流段階の担当とする。
+
+2026-09-14 after 更新: C1 によって原4件を含む26件が exact、元37 positives は維持された。
+C2 の clone/range/flags 修復後も ES2015 の5 control は compact body の `/* body */` 欠落を持つ。
+これは上流 `emitNodeListItems` の intervening comment phase に対し、Rust printer が先頭 child
+だけを拾う別 owner（C3）。合流後の元 statement/block/array range は上流と一致している。
+[report §4](h2-5h-parameter-temporaries-report.md#4-原因別の変更と-after) に実測と OUT-OF-SCOPE を記録した。
+全68件を strict 比較した結果は63 exact / 5差分で、runner の exit 101 を維持する。
+この残差を expected value の書換えや ignore で通さない。原4件の exact と共通 producer の部分閉包を区別する。
