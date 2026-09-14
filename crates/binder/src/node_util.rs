@@ -363,6 +363,70 @@ pub fn get_jsdoc_type_tag(source: &SourceFile, host: NodeId) -> Option<NodeId> {
     })
 }
 
+fn jsdoc_type_expression_type(source: &SourceFile, expression: NodeId) -> Option<NodeId> {
+    match &source.arena.node(expression).data {
+        NodeData::JSDocTypeExpression(data) => data.r#type,
+        _ => None,
+    }
+}
+
+/// AST-only port of tsc getJSDocReturnTag: the first `@return` tag the
+/// host owns, reached through the parser's attachments and the owned
+/// comment chain (assignment statement, initializer, property
+/// assignment), never only the host's direct attachment.
+/// tsc-port: getJSDocReturnTag @6.0.3
+/// tsc-hash: 9b02cc14a58da114906e21bbb106c7cf8c0bf85e3555915f43e295c59776dd20
+/// tsc-span: _tsc.js:11708-11710
+pub fn get_jsdoc_return_tag(source: &SourceFile, host: NodeId) -> Option<NodeId> {
+    let mut first = None;
+    visit_owned_jsdoc_tags(source, host, |tag| {
+        if kind_of(source, tag) == SyntaxKind::JSDocReturnTag {
+            first = Some(tag);
+            true
+        } else {
+            false
+        }
+    });
+    first
+}
+
+/// AST-only port of tsc getJSDocReturnType: the first owned return tag's
+/// type expression decides when it exists; otherwise the callable `@type`
+/// tag's return (type literal call signature, function type, JSDoc
+/// function type).
+/// tsc-port: getJSDocReturnType @6.0.3
+/// tsc-hash: 7bcd67792fdeaceeecc2c6ff990b94e0065646e3068932012592c00efafe9eea
+/// tsc-span: _tsc.js:11728-11744
+pub fn get_jsdoc_return_type(source: &SourceFile, host: NodeId) -> Option<NodeId> {
+    if let Some(expression) =
+        get_jsdoc_return_tag(source, host).and_then(|tag| jsdoc_type_expression(source, tag))
+    {
+        return jsdoc_type_expression_type(source, expression);
+    }
+    let tag = get_jsdoc_type_tag(source, host)?;
+    let r#type = jsdoc_type_expression(source, tag)
+        .and_then(|expression| jsdoc_type_expression_type(source, expression))?;
+    match &source.arena.node(r#type).data {
+        NodeData::TypeLiteral(data) => data
+            .members
+            .and_then(|members| {
+                source
+                    .arena
+                    .node_array(members)
+                    .nodes
+                    .iter()
+                    .find_map(|&member| match &source.arena.node(member).data {
+                        NodeData::CallSignature(data) => Some(data.r#type),
+                        _ => None,
+                    })
+            })
+            .flatten(),
+        NodeData::FunctionType(data) => data.r#type,
+        NodeData::JSDocFunctionType(data) => data.r#type,
+        _ => None,
+    }
+}
+
 /// AST-only parameter lookup through the function's owned JSDoc tag chain.
 /// tsc-port: getJSDocParameterTagsWorker @6.0.3
 /// tsc-hash: c4ae77082ed964a051e20d75c5bc3a2241efe281cb9beccbb1491403bb38c5c4

@@ -3202,23 +3202,6 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         Ok(self.kind(name)? == SyntaxKind::Identifier && self.identifier_text(name)? == "const")
     }
 
-    fn direct_jsdoc_tags(
-        &self,
-        host: TransformNode,
-    ) -> Result<Vec<TransformNode>, EmitResolverError> {
-        let Some(docs) = self.node(host)?.js_doc else {
-            return Ok(Vec::new());
-        };
-        let mut tags = Vec::new();
-        for doc in self.nodes(host.source(), Some(docs))? {
-            let NodeData::JSDoc(data) = &self.node(doc)?.data else {
-                continue;
-            };
-            tags.extend(self.nodes(host.source(), data.tags)?);
-        }
-        Ok(tags)
-    }
-
     fn jsdoc_type_from_tag(
         &self,
         tag: TransformNode,
@@ -3264,35 +3247,16 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         &self,
         node: TransformNode,
     ) -> Result<Option<TransformNode>, EmitResolverError> {
-        let tags = self.direct_jsdoc_tags(node)?;
-        for &tag in &tags {
-            if self.kind(tag)? == SyntaxKind::JSDocReturnTag {
-                if let Some(r#type) = self.jsdoc_type_from_tag(tag)? {
-                    return Ok(Some(r#type));
-                }
-            }
-        }
-        for tag in tags {
-            if self.kind(tag)? != SyntaxKind::JSDocTypeTag {
-                continue;
-            }
-            let Some(r#type) = self.jsdoc_type_from_tag(tag)? else {
-                continue;
-            };
-            return Ok(match &self.node(r#type)?.data {
-                NodeData::JSDocFunctionType(data) => self.child(r#type.source(), data.r#type),
-                NodeData::FunctionType(data) => self.child(r#type.source(), data.r#type),
-                NodeData::TypeLiteral(data) => self
-                    .nodes(r#type.source(), data.members)?
-                    .into_iter()
-                    .find_map(|member| match &self.node(member).ok()?.data {
-                        NodeData::CallSignature(data) => self.child(member.source(), data.r#type),
-                        _ => None,
-                    }),
-                _ => None,
-            });
-        }
-        Ok(None)
+        // getJSDocReturnType consults the owned tag chain, like getJSDocType
+        // above: the assignment statement, initializer or property assignment
+        // that owns the function's comment, never only the direct attachment.
+        let source = self
+            .arena
+            .source(node.source())
+            .map_err(|error| self.factory_error(error))?
+            .syntax();
+        Ok(node_util::get_jsdoc_return_type(source, node.node())
+            .map(|r#type| TransformNode::new(node.source(), r#type)))
     }
 
     fn effective_type_annotation_node(
