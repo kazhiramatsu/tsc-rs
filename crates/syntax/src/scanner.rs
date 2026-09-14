@@ -663,8 +663,9 @@ impl<'text> Scanner<'text> {
                 }
                 if next == '\\' {
                     let escape_start = self.pos;
-                    if let Some(cooked) = self.scan_unicode_escape() {
+                    if let Some((cooked, escape_flag)) = self.scan_unicode_escape() {
                         if chars::is_identifier_part(cooked, self.language_version) {
+                            self.token_flags.insert(escape_flag);
                             self.token_value.push(cooked);
                             continue;
                         }
@@ -952,11 +953,12 @@ impl<'text> Scanner<'text> {
 
     fn scan_identifier_escape_start(&mut self) -> Option<SyntaxKind> {
         let start = self.pos;
-        let ch = self.scan_unicode_escape()?;
+        let (ch, escape_flag) = self.scan_unicode_escape()?;
         if !chars::is_identifier_start(ch, self.language_version) {
             self.pos = start;
             return None;
         }
+        self.token_flags.insert(escape_flag);
         self.token_value.clear();
         self.token_value.push(ch);
         self.scan_identifier_parts();
@@ -974,8 +976,9 @@ impl<'text> Scanner<'text> {
                 self.advance_char();
             } else if ch == '\\' {
                 let start = self.pos;
-                if let Some(ch) = self.scan_unicode_escape() {
+                if let Some((ch, escape_flag)) = self.scan_unicode_escape() {
                     if chars::is_identifier_part(ch, language_version) {
+                        self.token_flags.insert(escape_flag);
                         self.token_value.push(ch);
                         continue;
                     }
@@ -1023,7 +1026,10 @@ impl<'text> Scanner<'text> {
             Some('\\') => {
                 let escape_start = self.pos;
                 match self.scan_unicode_escape() {
-                    Some(ch) if chars::is_identifier_start(ch, self.language_version) => {
+                    Some((ch, escape_flag))
+                        if chars::is_identifier_start(ch, self.language_version) =>
+                    {
+                        self.token_flags.insert(escape_flag);
                         self.token_value.push(ch);
                         self.scan_identifier_parts();
                     }
@@ -1044,7 +1050,11 @@ impl<'text> Scanner<'text> {
         self.token
     }
 
-    fn scan_unicode_escape(&mut self) -> Option<char> {
+    /// tsc peekUnicodeEscape / peekExtendedUnicodeEscape (_tsc.js:9247-9273):
+    /// a peek that never moves `pos` unless the escape is consumed, returning
+    /// the cooked character with the token flag the consumer inserts once it
+    /// accepts the character (scanIdentifierParts, 9285-9305).
+    fn scan_unicode_escape(&mut self) -> Option<(char, TokenFlags)> {
         if !self.starts_with("\\u") {
             return None;
         }
@@ -1062,7 +1072,12 @@ impl<'text> Scanner<'text> {
                 self.pos = start;
                 return None;
             }
-            let value = u32::from_str_radix(&self.text[digits_start..self.pos], 16).ok()?;
+            // An overflowing value is simply not an identifier character;
+            // the peek leaves pos at the backslash.
+            let Ok(value) = u32::from_str_radix(&self.text[digits_start..self.pos], 16) else {
+                self.pos = start;
+                return None;
+            };
             self.pos += 1;
             (value, TokenFlags::EXTENDED_UNICODE_ESCAPE)
         } else {
@@ -1078,18 +1093,15 @@ impl<'text> Scanner<'text> {
             }
             self.pos = end;
             (
-                u32::from_str_radix(digits, 16).ok()?,
+                u32::from_str_radix(digits, 16).expect("four hexadecimal digits fit in u32"),
                 TokenFlags::UNICODE_ESCAPE,
             )
         };
 
         match char::from_u32(value) {
-            Some(ch) => {
-                // tsc scanIdentifierParts: a consumed identifier escape marks
-                // the token so hasUnicodeEscape/hasExtendedUnicodeEscape work.
-                self.token_flags.insert(escape_flag);
-                Some(ch)
-            }
+            // Only a consumer that accepts the character marks the token, so
+            // a rejected escape leaves the current token's flags untouched.
+            Some(ch) => Some((ch, escape_flag)),
             None => {
                 self.pos = start;
                 None
@@ -1144,9 +1156,10 @@ impl<'text> Scanner<'text> {
         let start = self.pos;
         self.pos += 1;
         if self.pos >= self.end {
-            if report_errors {
-                self.error_at(self.pos, 0, &gen::Unexpected_end_of_text);
-            }
+            // tsc scanEscapeSequence (_tsc.js:9066-9072) reports the end of
+            // text regardless of the report flag; the parser's same-position
+            // rule then drops the unterminated-literal error that follows.
+            self.error_at(self.pos, 0, &gen::Unexpected_end_of_text);
             return JsString::new();
         }
 
@@ -1267,10 +1280,12 @@ impl<'text> Scanner<'text> {
             self.advance_char();
         }
         let value_text = &self.text[escaped_start..self.pos];
+        // tsc parseInt (_tsc.js:9214-9220): a digit string that overflows is
+        // still a value, one above 0x10FFFF (9221-9226), not a missing one.
         let value = if value_text.is_empty() {
             None
         } else {
-            u32::from_str_radix(value_text, 16).ok()
+            Some(u32::from_str_radix(value_text, 16).unwrap_or(u32::MAX))
         };
 
         let mut invalid = false;
@@ -2162,7 +2177,7 @@ impl<'text> Scanner<'text> {
                 self.advance_char();
             } else if ch == '\\' {
                 let escape_start = self.pos;
-                if let Some(ch) = self.scan_unicode_escape() {
+                if let Some((ch, _)) = self.scan_unicode_escape() {
                     if chars::is_identifier_part(ch, self.language_version) {
                         continue;
                     }
