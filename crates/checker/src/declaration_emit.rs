@@ -5,6 +5,8 @@
 //! decisions, while this module owns declaration-emit memoization, alias
 //! painting, and result-shaped accessibility.
 
+mod replay_json;
+use replay_json::{json, JsonWireText};
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
@@ -923,7 +925,7 @@ impl CheckerState<'_> {
         enclosing: Option<NodeId>,
         meaning: EmitSymbolMeaning,
         format_flags: SymbolFormatFlags,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<tsc_types::JsString> {
         let mut flags = 70_221_824_u32;
         let mut internal_flags = 0_u32;
         if format_flags.contains(SymbolFormatFlags::USE_ONLY_EXTERNAL_ALIASING) {
@@ -981,7 +983,9 @@ impl CheckerState<'_> {
                 None,
             )
             .expect("symbolToString standalone printing must succeed");
-        Ok(printed.text().to_owned())
+        Ok(tsc_types::JsString::from_code_units(
+            printed.text_utf16().as_ref(),
+        ))
     }
 
     /// The default `symbolToString(propertySymbol)` face used by declaration
@@ -991,7 +995,7 @@ impl CheckerState<'_> {
     pub(crate) fn emit_symbol_to_string_default(
         &mut self,
         symbol: SymbolId,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<tsc_types::JsString> {
         self.symbol_to_string_via_node_builder(
             symbol,
             None,
@@ -1479,7 +1483,7 @@ impl CheckerState<'_> {
             return Ok(self.accessibility_result(
                 EmitSymbolAccessibility::NotResolved,
                 None,
-                Some(error_name),
+                Some(error_name.into()),
                 None,
                 Some(self.declaration_emit_resolver_node(first_identifier)),
             ));
@@ -1494,7 +1498,7 @@ impl CheckerState<'_> {
         Ok(self.accessibility_result(
             EmitSymbolAccessibility::NotAccessible,
             None,
-            Some(error_name),
+            Some(error_name.into()),
             None,
             Some(self.declaration_emit_resolver_node(first_identifier)),
         ))
@@ -1662,8 +1666,8 @@ impl CheckerState<'_> {
         &self,
         accessibility: EmitSymbolAccessibility,
         aliases_to_make_visible: Option<Vec<EmitResolverNode>>,
-        error_symbol_name: Option<String>,
-        error_module_name: Option<String>,
+        error_symbol_name: Option<tsc_types::JsString>,
+        error_module_name: Option<tsc_types::JsString>,
         error_node: Option<EmitResolverNode>,
     ) -> EmitSymbolAccessibilityResult {
         EmitSymbolAccessibilityResult {
@@ -1699,8 +1703,8 @@ thread_local! {
 }
 
 struct DeclarationReplayPending {
-    request: Option<serde_json::Value>,
-    report: Option<Result<serde_json::Value, String>>,
+    request: Option<replay_json::Value>,
+    report: Option<Result<replay_json::Value, String>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1708,8 +1712,8 @@ struct DeclarationReplayAccessibilityObservation {
     site: &'static str,
     entry: DeclarationReplayAccessibilityEntry,
     accessibility: u8,
-    error_symbol_name: String,
-    error_module_name: Option<String>,
+    error_symbol_name: tsc_types::JsString,
+    error_module_name: Option<tsc_types::JsString>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1730,8 +1734,8 @@ enum DeclarationReplayAccessibilityEntry {
 
 #[derive(Clone)]
 struct DeclarationReplayTracedAccessibilityObservation {
-    entry: serde_json::Value,
-    result: serde_json::Value,
+    entry: replay_json::Value,
+    result: replay_json::Value,
 }
 
 #[derive(Default)]
@@ -1866,8 +1870,8 @@ struct DeclarationReplayCoordinate {
 }
 
 impl DeclarationReplayCoordinate {
-    fn json(self) -> serde_json::Value {
-        serde_json::json!([self.file_tag, self.kind, self.pos, self.end])
+    fn json(self) -> replay_json::Value {
+        json!([self.file_tag, self.kind, self.pos, self.end])
     }
 }
 
@@ -1921,27 +1925,27 @@ impl From<String> for DeclarationReplayResolutionError {
 struct DeclarationReplayFrame {
     call_id: i64,
     member: String,
-    entry: serde_json::Value,
+    entry: replay_json::Value,
     maximal_domain_call: Option<i64>,
     root: bool,
-    expando_function: Option<serde_json::Value>,
+    expando_function: Option<replay_json::Value>,
 }
 
 struct DeclarationReplayRoot {
     member: String,
-    entry: serde_json::Value,
-    result: serde_json::Value,
+    entry: replay_json::Value,
+    result: replay_json::Value,
     result_sequence: u64,
-    visibility_writes: Vec<(serde_json::Value, bool)>,
+    visibility_writes: Vec<(replay_json::Value, bool)>,
     nested_edges: BTreeMap<String, u64>,
     /// h2-7a-m-3 §6.2: the ordered decision-lane events inside this root's
     /// span (withContext exits, tracker callbacks, syntactic frames,
     /// specifier-override arms) for the serialization replay comparison.
-    nested_decision_events: Vec<serde_json::Value>,
+    nested_decision_events: Vec<replay_json::Value>,
     accessibility_results: Vec<DeclarationReplayTracedAccessibilityObservation>,
     /// The nearest preceding container-property query in this transform
     /// window. Synthetic-enclosing createType roots use its function input.
-    expando_function: Option<serde_json::Value>,
+    expando_function: Option<replay_json::Value>,
 }
 
 #[derive(Default)]
@@ -2002,7 +2006,7 @@ enum DeclarationReplayDecision {
     Serialized {
         produced: crate::node_builder::replay_sink::ProducedClass,
         events: Vec<crate::node_builder::replay_sink::DecisionEvent>,
-        printed: serde_json::Value,
+        printed: replay_json::Value,
     },
 }
 
@@ -2015,7 +2019,7 @@ enum DeclarationReplaySerializedResult {
 fn declaration_replay_print_serialized_result(
     display: &mut tsc_emitter::TransformationResult<'_>,
     serialized: &DeclarationReplaySerializedResult,
-) -> Result<serde_json::Value, String> {
+) -> Result<replay_json::Value, String> {
     let mut printer = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed)
             .with_remove_comments(true)
@@ -2031,22 +2035,40 @@ fn declaration_replay_print_serialized_result(
                 },
                 None,
             )
-            .map(|printed| serde_json::Value::String(printed.text().to_owned()))
+            .map(|printed| {
+                replay_json::Value::String(tsc_types::JsString::from_code_units(
+                    printed.text_utf16().as_ref(),
+                ))
+            })
             .map_err(|error| format!("serialization standalone printing failed: {error}"))
     };
     match serialized {
-        DeclarationReplaySerializedResult::Absent => Ok(serde_json::Value::Null),
+        DeclarationReplaySerializedResult::Absent => Ok(replay_json::Value::Null),
         DeclarationReplaySerializedResult::Node(node) => print_node(*node),
         DeclarationReplaySerializedResult::Nodes(nodes) => nodes
             .iter()
             .copied()
             .map(&mut print_node)
             .collect::<Result<Vec<_>, _>>()
-            .map(serde_json::Value::Array),
+            .map(replay_json::Value::Array),
     }
 }
 
 impl CheckerState<'_> {
+    /// Compatibility entry for scalar serde callers. Arbitrary JS replay
+    /// values use `with_declaration_emit_replay_js_observer_for_harness`.
+    #[doc(hidden)]
+    pub fn with_declaration_emit_replay_observer_for_harness<T>(
+        request: serde_json::Value,
+        operation: impl FnOnce() -> T,
+    ) -> Result<(T, serde_json::Value), String> {
+        let (result, report) =
+            Self::with_declaration_emit_replay_js_observer_for_harness(request.into(), operation)?;
+        let scalar_report = serde_json::from_str(&replay_json::to_json_text(&report))
+            .map_err(|error| format!("replay report needs the JS observer value API: {error}"))?;
+        Ok((result, scalar_report))
+    }
+
     /// Run one compiler-integration operation with an owned, thread-scoped
     /// declaration replay request. The request is consumed by the live
     /// CheckerState after the ordinary check pass and before that state is
@@ -2054,10 +2076,10 @@ impl CheckerState<'_> {
     /// tsrs-native: harness-only replay observer seam (h2-7a-m-2 §7;
     /// production-inert — no request, no effect).
     #[doc(hidden)]
-    pub fn with_declaration_emit_replay_observer_for_harness<T>(
-        request: serde_json::Value,
+    pub fn with_declaration_emit_replay_js_observer_for_harness<T>(
+        request: replay_json::Value,
         operation: impl FnOnce() -> T,
-    ) -> Result<(T, serde_json::Value), String> {
+    ) -> Result<(T, replay_json::Value), String> {
         DECLARATION_REPLAY_PENDING.with(|slot| {
             let mut slot = slot.borrow_mut();
             if slot.is_some() {
@@ -2105,8 +2127,8 @@ impl CheckerState<'_> {
 
     fn declaration_emit_replay_case(
         &mut self,
-        request: &serde_json::Value,
-    ) -> Result<serde_json::Value, String> {
+        request: &replay_json::Value,
+    ) -> Result<replay_json::Value, String> {
         let case_id = replay_string_field(request, "case_id")?;
         let file_map = self.declaration_replay_file_map(request)?;
         let events = replay_array_field(request, "trace_events")?;
@@ -2218,8 +2240,8 @@ impl CheckerState<'_> {
                             printed_mismatches.push(format!(
                                 "{case_id} event {sequence} {}: expected {}, actual {}",
                                 root.member,
-                                expected,
-                                printed.unwrap_or(serde_json::Value::Null),
+                                (expected).json_text(),
+                                (printed.unwrap_or(replay_json::Value::Null)).json_text()
                             ));
                         }
                     }
@@ -2243,38 +2265,38 @@ impl CheckerState<'_> {
                     .map(|class| {
                         (
                             (*class).to_owned(),
-                            serde_json::json!(counts.excluded.get(class).copied().unwrap_or(0)),
+                            json!(counts.excluded.get(class).copied().unwrap_or(0)),
                         )
                     })
-                    .collect::<serde_json::Map<_, _>>();
+                    .collect::<replay_json::Map>();
                 (
                     member,
-                    serde_json::json!({
+                    json!({
                         "replayed": counts.replayed,
                         "excluded": excluded,
                     }),
                 )
             })
-            .collect::<serde_json::Map<_, _>>();
+            .collect::<replay_json::Map>();
         let printed_counts_json = printed_counts
             .into_iter()
             .map(|(member, counts)| {
                 (
                     member,
-                    serde_json::json!({
+                    json!({
                         "replayed": counts.replayed,
                         "skipped": counts.skipped,
                         "mismatches": counts.mismatches,
                     }),
                 )
             })
-            .collect::<serde_json::Map<_, _>>();
+            .collect::<replay_json::Map>();
         let accessibility_counts_json = accessibility_counts
             .into_iter()
             .map(|(site, counts)| {
                 (
                     site.to_owned(),
-                    serde_json::json!({
+                    json!({
                         "compared": counts.compared,
                         "excluded": counts.excluded,
                         "missing": counts.missing,
@@ -2283,9 +2305,9 @@ impl CheckerState<'_> {
                     }),
                 )
             })
-            .collect::<serde_json::Map<_, _>>();
+            .collect::<replay_json::Map>();
 
-        Ok(serde_json::json!({
+        Ok(json!({
             "case_id": case_id,
             "seed_checks": seed_checks,
             "member_counts": counts_json,
@@ -2307,7 +2329,7 @@ enum DeclarationReplayRootOutcome {
         gating_mismatch: Option<String>,
         expected_nested_edges: BTreeMap<String, u64>,
         actual_nested_edges: BTreeMap<String, u64>,
-        printed: Option<serde_json::Value>,
+        printed: Option<replay_json::Value>,
         accessibility_counts: BTreeMap<&'static str, DeclarationReplayAccessibilityCounts>,
     },
 }
@@ -2370,43 +2392,45 @@ fn replay_count_distance(left: &BTreeMap<String, u64>, right: &BTreeMap<String, 
         .sum()
 }
 
-fn replay_counts_json(counts: &BTreeMap<String, u64>) -> serde_json::Value {
-    serde_json::Value::Object(
+fn replay_counts_json(counts: &BTreeMap<String, u64>) -> replay_json::Value {
+    replay_json::Value::Object(
         counts
             .iter()
-            .map(|(key, value)| (key.clone(), serde_json::json!(value)))
+            .map(|(key, value)| (key.clone(), json!(value)))
             .collect(),
     )
 }
 
-fn replay_string_field<'a>(value: &'a serde_json::Value, field: &str) -> Result<&'a str, String> {
+fn replay_string_field<'a>(value: &'a replay_json::Value, field: &str) -> Result<&'a str, String> {
     value
         .get(field)
-        .and_then(serde_json::Value::as_str)
-        .ok_or_else(|| format!("missing string field {field:?}"))
+        .and_then(replay_json::Value::as_js)
+        // Harness control metadata (case/site identifiers), not compiler text.
+        .and_then(tsc_types::JsStr::as_str)
+        .ok_or_else(|| format!("missing scalar protocol field {field:?}"))
 }
 
-fn replay_u64_field(value: &serde_json::Value, field: &str) -> Result<u64, String> {
+fn replay_u64_field(value: &replay_json::Value, field: &str) -> Result<u64, String> {
     value
         .get(field)
-        .and_then(serde_json::Value::as_u64)
+        .and_then(replay_json::Value::as_u64)
         .ok_or_else(|| format!("missing unsigned field {field:?}"))
 }
 
-fn replay_i64_field(value: &serde_json::Value, field: &str) -> Result<i64, String> {
+fn replay_i64_field(value: &replay_json::Value, field: &str) -> Result<i64, String> {
     value
         .get(field)
-        .and_then(serde_json::Value::as_i64)
+        .and_then(replay_json::Value::as_i64)
         .ok_or_else(|| format!("missing integer field {field:?}"))
 }
 
 fn replay_array_field<'a>(
-    value: &'a serde_json::Value,
+    value: &'a replay_json::Value,
     field: &str,
-) -> Result<&'a [serde_json::Value], String> {
+) -> Result<&'a [replay_json::Value], String> {
     value
         .get(field)
-        .and_then(serde_json::Value::as_array)
+        .and_then(replay_json::Value::as_array)
         .map(Vec::as_slice)
         .ok_or_else(|| format!("missing array field {field:?}"))
 }
@@ -2424,8 +2448,8 @@ fn declaration_replay_serialization_member(member: &str) -> bool {
 }
 
 fn declaration_replay_printed_results(
-    request: &serde_json::Value,
-) -> Result<BTreeMap<u64, serde_json::Value>, String> {
+    request: &replay_json::Value,
+) -> Result<BTreeMap<u64, replay_json::Value>, String> {
     let mut results = BTreeMap::new();
     for row in replay_array_field(request, "printed_results")? {
         let row = row
@@ -2453,19 +2477,19 @@ impl DeclarationReplayRecordingTracker {
     fn raw_ref(
         access: &mut dyn tsc_emitter::EmitTrackerAccess,
         node: Option<tsc_emitter::EmitTrackerNode>,
-    ) -> serde_json::Value {
+    ) -> replay_json::Value {
         match node {
-            None => serde_json::Value::Null,
+            None => replay_json::Value::Null,
             Some(node) => {
                 let description = access.describe_node(node);
                 match (description.parse, description.original) {
                     (Some(parse), _) => {
-                        serde_json::json!([parse.source().raw(), parse.node().0])
+                        json!([parse.source().raw(), parse.node().0])
                     }
                     (None, Some(original)) => {
-                        serde_json::json!([original.source().raw(), original.node().0])
+                        json!([original.source().raw(), original.node().0])
                     }
-                    (None, None) => serde_json::json!("opaque"),
+                    (None, None) => json!("opaque"),
                 }
             }
         }
@@ -2487,7 +2511,7 @@ impl tsc_emitter::EmitSymbolTracker for DeclarationReplayRecordingTracker {
     ) -> Result<bool, tsc_emitter::EmitResolverError> {
         let description = access.describe_symbol(symbol);
         let node_payload = Self::raw_ref(access, enclosing_declaration);
-        let payload = serde_json::json!({
+        let payload = json!({
             "name": description.escaped_name,
             "node": node_payload,
             "meaning": meaning.0,
@@ -2523,8 +2547,8 @@ impl tsc_emitter::EmitSymbolTracker for DeclarationReplayRecordingTracker {
         Ok(())
     }
 
-    fn report_private_in_base_of_class_expression(&mut self, property_name: &str) {
-        let payload = serde_json::json!(property_name);
+    fn report_private_in_base_of_class_expression(&mut self, property_name: tsc_types::JsStr<'_>) {
+        let payload = json!(property_name);
         crate::node_builder::replay_sink::record(move || {
             crate::node_builder::replay_sink::DecisionEvent::Tracker {
                 site: "tracker.reportPrivateInBaseOfClassExpression",
@@ -2537,7 +2561,7 @@ impl tsc_emitter::EmitSymbolTracker for DeclarationReplayRecordingTracker {
         crate::node_builder::replay_sink::record(|| {
             crate::node_builder::replay_sink::DecisionEvent::Tracker {
                 site: "tracker.reportInaccessibleUniqueSymbolError",
-                payload: serde_json::Value::Null,
+                payload: replay_json::Value::Null,
             }
         });
     }
@@ -2546,7 +2570,7 @@ impl tsc_emitter::EmitSymbolTracker for DeclarationReplayRecordingTracker {
         crate::node_builder::replay_sink::record(|| {
             crate::node_builder::replay_sink::DecisionEvent::Tracker {
                 site: "tracker.reportCyclicStructureError",
-                payload: serde_json::Value::Null,
+                payload: replay_json::Value::Null,
             }
         });
     }
@@ -2555,22 +2579,22 @@ impl tsc_emitter::EmitSymbolTracker for DeclarationReplayRecordingTracker {
         crate::node_builder::replay_sink::record(|| {
             crate::node_builder::replay_sink::DecisionEvent::Tracker {
                 site: "tracker.reportInaccessibleThisError",
-                payload: serde_json::Value::Null,
+                payload: replay_json::Value::Null,
             }
         });
     }
 
     fn report_likely_unsafe_import_required_error(
         &mut self,
-        specifier: &str,
-        symbol_name: Option<&str>,
+        specifier: tsc_types::JsStr<'_>,
+        symbol_name: Option<tsc_types::JsStr<'_>>,
     ) {
         // The frozen probe projection is LOSSY (§6.2): is-string,
         // slash-component count, symbol name.
-        let payload = serde_json::json!([
+        let payload = json!([
             true,
-            specifier.split('/').count(),
-            symbol_name.unwrap_or(""),
+            specifier.split_ascii(b'/').count(),
+            symbol_name.unwrap_or_else(|| "".into()),
         ]);
         crate::node_builder::replay_sink::record(move || {
             crate::node_builder::replay_sink::DecisionEvent::Tracker {
@@ -2584,7 +2608,7 @@ impl tsc_emitter::EmitSymbolTracker for DeclarationReplayRecordingTracker {
         crate::node_builder::replay_sink::record(|| {
             crate::node_builder::replay_sink::DecisionEvent::Tracker {
                 site: "tracker.reportTruncationError",
-                payload: serde_json::Value::Null,
+                payload: replay_json::Value::Null,
             }
         });
     }
@@ -2597,13 +2621,13 @@ impl tsc_emitter::EmitSymbolTracker for DeclarationReplayRecordingTracker {
         crate::node_builder::replay_sink::record(|| {
             crate::node_builder::replay_sink::DecisionEvent::Tracker {
                 site: "tracker.reportNonlocalAugmentation",
-                payload: serde_json::Value::Null,
+                payload: replay_json::Value::Null,
             }
         });
     }
 
-    fn report_non_serializable_property(&mut self, property_name: &str) {
-        let payload = serde_json::json!(property_name);
+    fn report_non_serializable_property(&mut self, property_name: tsc_types::JsStr<'_>) {
+        let payload = json!(property_name);
         crate::node_builder::replay_sink::record(move || {
             crate::node_builder::replay_sink::DecisionEvent::Tracker {
                 site: "tracker.reportNonSerializableProperty",
@@ -2614,13 +2638,13 @@ impl tsc_emitter::EmitSymbolTracker for DeclarationReplayRecordingTracker {
 }
 
 fn declaration_replay_roots(
-    events: &[serde_json::Value],
+    events: &[replay_json::Value],
     case_id: &str,
 ) -> Result<(Vec<DeclarationReplayRoot>, BTreeMap<String, u64>), String> {
     let mut stack: Vec<DeclarationReplayFrame> = Vec::new();
-    let mut writes: BTreeMap<i64, Vec<(serde_json::Value, bool)>> = BTreeMap::new();
+    let mut writes: BTreeMap<i64, Vec<(replay_json::Value, bool)>> = BTreeMap::new();
     let mut nested_by_root: BTreeMap<i64, BTreeMap<String, u64>> = BTreeMap::new();
-    let mut decision_by_root: BTreeMap<i64, Vec<serde_json::Value>> = BTreeMap::new();
+    let mut decision_by_root: BTreeMap<i64, Vec<replay_json::Value>> = BTreeMap::new();
     let mut accessibility_by_root: BTreeMap<
         i64,
         Vec<DeclarationReplayTracedAccessibilityObservation>,
@@ -2760,7 +2784,7 @@ fn declaration_replay_roots(
                 .clone();
             let value = args
                 .get(2)
-                .and_then(serde_json::Value::as_bool)
+                .and_then(replay_json::Value::as_bool)
                 .ok_or_else(|| format!("{case_id}: writer {site} lacks value"))?;
             writes.entry(root_id).or_default().push((node, value));
         }
@@ -2774,7 +2798,7 @@ fn declaration_replay_roots(
 impl CheckerState<'_> {
     fn declaration_replay_file_map(
         &self,
-        request: &serde_json::Value,
+        request: &replay_json::Value,
     ) -> Result<DeclarationReplayFileMap, String> {
         let source_paths = replay_array_field(request, "source_paths")?;
         let file_table = replay_array_field(request, "file_table")?;
@@ -2789,7 +2813,8 @@ impl CheckerState<'_> {
                 return Err(format!("fileTable row {file_tag} has wrong arity"));
             }
             let class = row[0]
-                .as_str()
+                .as_js()
+                .and_then(tsc_types::JsStr::as_str)
                 .ok_or_else(|| format!("fileTable row {file_tag} lacks a class"))?;
             let (class, program_index) = match class {
                 "src" => {
@@ -2801,7 +2826,7 @@ impl CheckerState<'_> {
                         })?;
                     let source_path = source_paths
                         .get(source_index)
-                        .and_then(serde_json::Value::as_str)
+                        .and_then(replay_json::Value::as_js)
                         .ok_or_else(|| {
                             format!("fileTable row {file_tag} source index is out of range")
                         })?;
@@ -2816,7 +2841,7 @@ impl CheckerState<'_> {
                 }
                 "lib" => {
                     let basename = row[1]
-                        .as_str()
+                        .as_js()
                         .ok_or_else(|| format!("fileTable row {file_tag} lacks a lib name"))?;
                     let program_index = self
                         .declaration_replay_find_source(basename, true)
@@ -2848,13 +2873,19 @@ impl CheckerState<'_> {
         })
     }
 
-    fn declaration_replay_find_source(&self, expected: &str, basename_only: bool) -> Option<usize> {
-        let expected = expected.replace('\\', "/");
+    fn declaration_replay_find_source(
+        &self,
+        expected: tsc_types::JsStr<'_>,
+        basename_only: bool,
+    ) -> Option<usize> {
+        let expected = crate::node_builder::specifier::normalized_slashes(expected);
         let matches = (0..self.binder.file_count())
             .filter(|&index| {
-                let actual = self.binder.source(index).file_name.replace('\\', "/");
+                let actual = crate::node_builder::specifier::normalized_slashes(
+                    &self.binder.source(index).file_name,
+                );
                 if basename_only {
-                    actual.rsplit('/').next() == Some(expected.as_str())
+                    actual.as_js().split_ascii(b'/').next_back() == Some(expected.as_js())
                 } else {
                     actual == expected
                 }
@@ -2871,13 +2902,13 @@ impl CheckerState<'_> {
 
     fn declaration_replay_compare_seed(
         &self,
-        event: &serde_json::Value,
+        event: &replay_json::Value,
         file_map: &DeclarationReplayFileMap,
     ) -> Result<(), String> {
         let args = replay_array_field(event, "args")?;
         let rows = args
             .get(1)
-            .and_then(serde_json::Value::as_array)
+            .and_then(replay_json::Value::as_array)
             .ok_or_else(|| "seed event lacks rows".to_owned())?;
         let mut expected = Vec::with_capacity(rows.len());
         for row in rows {
@@ -2915,8 +2946,8 @@ impl CheckerState<'_> {
         } else {
             Err(format!(
                 "visibility seed differs: expected {}, actual {}",
-                declaration_replay_visibility_json(&expected),
-                declaration_replay_visibility_json(&actual)
+                (declaration_replay_visibility_json(&expected)).json_text(),
+                (declaration_replay_visibility_json(&actual)).json_text()
             ))
         }
     }
@@ -2963,14 +2994,15 @@ impl CheckerState<'_> {
         if actual != preparation.expected {
             mismatches.push(format!(
                 "result differs: expected {}, actual {}",
-                preparation.expected, actual
+                (preparation.expected).json_text(),
+                (actual).json_text()
             ));
         }
         if actual_paint != preparation.expected_paint {
             mismatches.push(format!(
                 "paint set differs: expected {}, actual {}",
-                declaration_replay_visibility_set_json(&preparation.expected_paint),
-                declaration_replay_visibility_set_json(&actual_paint)
+                (declaration_replay_visibility_set_json(&preparation.expected_paint)).json_text(),
+                (declaration_replay_visibility_set_json(&actual_paint)).json_text()
             ));
         }
         mismatches.extend(preparation.input_mismatches);
@@ -2997,13 +3029,16 @@ impl CheckerState<'_> {
 
 struct DeclarationReplayPreparation {
     invocation: DeclarationReplayInvocation,
-    expected: serde_json::Value,
+    expected: replay_json::Value,
     expected_paint: BTreeSet<(DeclarationReplayCoordinate, bool)>,
     input_mismatches: Vec<String>,
 }
 
-type DeclarationReplayExpectedDecision =
-    (serde_json::Value, Option<String>, Option<Option<String>>);
+type DeclarationReplayExpectedDecision = (
+    replay_json::Value,
+    Option<tsc_types::JsString>,
+    Option<Option<tsc_types::JsString>>,
+);
 
 fn declaration_replay_sort_visibility_rows(rows: &mut [(DeclarationReplayCoordinate, bool)]) {
     rows.sort_by_key(|(coordinate, value)| {
@@ -3019,17 +3054,17 @@ fn declaration_replay_sort_visibility_rows(rows: &mut [(DeclarationReplayCoordin
 
 fn declaration_replay_visibility_json(
     rows: &[(DeclarationReplayCoordinate, bool)],
-) -> serde_json::Value {
-    serde_json::Value::Array(
+) -> replay_json::Value {
+    replay_json::Value::Array(
         rows.iter()
-            .map(|(coordinate, value)| serde_json::json!([coordinate.json(), value]))
+            .map(|(coordinate, value)| json!([coordinate.json(), value]))
             .collect(),
     )
 }
 
 fn declaration_replay_visibility_set_json(
     rows: &BTreeSet<(DeclarationReplayCoordinate, bool)>,
-) -> serde_json::Value {
+) -> replay_json::Value {
     declaration_replay_visibility_json(&rows.iter().copied().collect::<Vec<_>>())
 }
 
@@ -3043,7 +3078,7 @@ fn declaration_replay_resolution_message(error: DeclarationReplayResolutionError
 }
 
 fn declaration_replay_coordinate(
-    value: &serde_json::Value,
+    value: &replay_json::Value,
     file_map: &DeclarationReplayFileMap,
     reject_library: bool,
 ) -> Result<Option<DeclarationReplayCoordinate>, DeclarationReplayResolutionError> {
@@ -3091,7 +3126,7 @@ fn declaration_replay_coordinate(
 impl CheckerState<'_> {
     fn declaration_replay_resolve_node(
         &self,
-        value: &serde_json::Value,
+        value: &replay_json::Value,
         file_map: &DeclarationReplayFileMap,
     ) -> Result<NodeId, DeclarationReplayResolutionError> {
         let coordinate = declaration_replay_coordinate(value, file_map, true)?.ok_or(
@@ -3247,7 +3282,7 @@ impl CheckerState<'_> {
                     let args = replay_array_field(event, "args")?;
                     let internal = args
                         .get(3)
-                        .and_then(serde_json::Value::as_u64)
+                        .and_then(replay_json::Value::as_u64)
                         .ok_or_else(|| "withContext result lacks internal flags".to_owned())?;
                     if internal & 2 != 0 {
                         no_syntactic_printer = true;
@@ -3278,12 +3313,12 @@ impl CheckerState<'_> {
                 )?;
                 let meaning = entry_args
                     .get(4)
-                    .and_then(serde_json::Value::as_u64)
+                    .and_then(replay_json::Value::as_u64)
                     .and_then(|value| u32::try_from(value).ok())
                     .ok_or_else(|| "isSymbolAccessible entry has invalid meaning".to_owned())?;
                 let should_compute_aliases = entry_args
                     .get(5)
-                    .and_then(serde_json::Value::as_bool)
+                    .and_then(replay_json::Value::as_bool)
                     .ok_or_else(|| {
                         "isSymbolAccessible entry lacks shouldComputeAliases".to_owned()
                     })?;
@@ -3309,7 +3344,7 @@ impl CheckerState<'_> {
                 )?;
                 let should_compute_aliases = entry_args
                     .get(4)
-                    .and_then(serde_json::Value::as_bool)
+                    .and_then(replay_json::Value::as_bool)
                     .ok_or_else(|| {
                         "isEntityNameVisible entry lacks shouldComputeAliases".to_owned()
                     })?;
@@ -3323,7 +3358,7 @@ impl CheckerState<'_> {
                 let parameter = self.declaration_replay_generic_first_node(entry_args, file_map)?;
                 let arity = entry_args
                     .get(1)
-                    .and_then(serde_json::Value::as_u64)
+                    .and_then(replay_json::Value::as_u64)
                     .ok_or_else(|| "generic entry lacks arity".to_owned())?;
                 let enclosing = if arity >= 2 {
                     Some(
@@ -3351,7 +3386,7 @@ impl CheckerState<'_> {
                 )?;
                 let set_visibility = entry_args
                     .get(2)
-                    .and_then(serde_json::Value::as_bool)
+                    .and_then(replay_json::Value::as_bool)
                     .ok_or_else(|| "collectLinkedAliases entry lacks setVisibility".to_owned())?;
                 if !set_visibility {
                     return Err(DeclarationReplayResolutionError::Invalid(
@@ -3402,7 +3437,7 @@ impl CheckerState<'_> {
 
     fn declaration_replay_generic_first_node(
         &self,
-        args: &[serde_json::Value],
+        args: &[replay_json::Value],
         file_map: &DeclarationReplayFileMap,
     ) -> Result<NodeId, DeclarationReplayResolutionError> {
         self.declaration_replay_resolve_node(
@@ -3415,25 +3450,25 @@ impl CheckerState<'_> {
     fn declaration_replay_expected_decision(
         &self,
         member: &str,
-        args: &[serde_json::Value],
+        args: &[replay_json::Value],
         file_map: &DeclarationReplayFileMap,
     ) -> Result<DeclarationReplayExpectedDecision, DeclarationReplayResolutionError> {
         match member {
             "resolver.isSymbolAccessible" | "resolver.isEntityNameVisible" => {
                 let accessibility = args
                     .get(1)
-                    .and_then(serde_json::Value::as_u64)
+                    .and_then(replay_json::Value::as_u64)
                     .ok_or_else(|| "accessibility result lacks accessibility".to_owned())?;
                 let error_symbol = args
                     .get(2)
-                    .and_then(serde_json::Value::as_str)
+                    .and_then(replay_json::Value::as_js)
                     .ok_or_else(|| "accessibility result lacks errorSymbolName".to_owned())?
                     .to_owned();
                 let error_module = match args.get(3) {
-                    Some(serde_json::Value::Null) => None,
+                    Some(replay_json::Value::Null) => None,
                     Some(value) => Some(
                         value
-                            .as_str()
+                            .as_js()
                             .ok_or_else(|| {
                                 "accessibility result has invalid errorModuleName".to_owned()
                             })?
@@ -3451,8 +3486,8 @@ impl CheckerState<'_> {
                     file_map,
                 )?;
                 let aliases = match args.get(5) {
-                    Some(serde_json::Value::Null) => serde_json::Value::Null,
-                    Some(serde_json::Value::Array(values)) => serde_json::Value::Array(
+                    Some(replay_json::Value::Null) => replay_json::Value::Null,
+                    Some(replay_json::Value::Array(values)) => replay_json::Value::Array(
                         values
                             .iter()
                             .map(|value| {
@@ -3468,12 +3503,12 @@ impl CheckerState<'_> {
                     }
                 };
                 Ok((
-                    serde_json::json!({
+                    json!({
                         "kind": "accessibility",
                         "accessibility": accessibility,
                         "error_symbol_name": error_symbol,
                         "error_module_name": error_module,
-                        "error_node": error_node.map_or(serde_json::Value::Null, DeclarationReplayCoordinate::json),
+                        "error_node": error_node.map_or(replay_json::Value::Null, DeclarationReplayCoordinate::json),
                         "aliases": aliases,
                     }),
                     None,
@@ -3483,7 +3518,7 @@ impl CheckerState<'_> {
             "resolver.getPropertiesOfContainerFunction" => {
                 let rows = args
                     .get(1)
-                    .and_then(serde_json::Value::as_array)
+                    .and_then(replay_json::Value::as_array)
                     .ok_or_else(|| "property result lacks rows".to_owned())?;
                 let rows = rows
                     .iter()
@@ -3493,28 +3528,24 @@ impl CheckerState<'_> {
                             .filter(|row| row.len() == 3)
                             .ok_or_else(|| "property row is malformed".to_owned())?;
                         let name = row[0]
-                            .as_str()
+                            .as_js()
                             .ok_or_else(|| "property row lacks name".to_owned())?;
                         let parent = declaration_replay_expected_symbol(&row[1], file_map)?;
                         let value_declaration = match &row[2] {
-                            serde_json::Value::Null => serde_json::Value::Null,
+                            replay_json::Value::Null => replay_json::Value::Null,
                             value => {
                                 declaration_replay_expected_required_node(value, file_map)?.json()
                             }
                         };
-                        Ok(serde_json::json!([name, parent, value_declaration]))
+                        Ok(json!([name, parent, value_declaration]))
                     })
                     .collect::<Result<Vec<_>, DeclarationReplayResolutionError>>()?;
-                Ok((
-                    serde_json::json!({"kind": "properties", "rows": rows}),
-                    None,
-                    None,
-                ))
+                Ok((json!({"kind": "properties", "rows": rows}), None, None))
             }
             "resolver.getEnumMemberValue" => {
                 let value_type = args
                     .get(1)
-                    .and_then(serde_json::Value::as_str)
+                    .and_then(replay_json::Value::as_js)
                     .ok_or_else(|| "enum result lacks value type".to_owned())?;
                 let value = args
                     .get(2)
@@ -3522,10 +3553,10 @@ impl CheckerState<'_> {
                     .ok_or_else(|| "enum result lacks value".to_owned())?;
                 let syntactically_string = args
                     .get(3)
-                    .and_then(serde_json::Value::as_bool)
+                    .and_then(replay_json::Value::as_bool)
                     .ok_or_else(|| "enum result lacks string marker".to_owned())?;
                 Ok((
-                    serde_json::json!({
+                    json!({
                         "kind": "enum",
                         "value_type": value_type,
                         "value": value,
@@ -3535,21 +3566,15 @@ impl CheckerState<'_> {
                     None,
                 ))
             }
-            "resolver.collectLinkedAliases" => {
-                Ok((serde_json::json!({"kind": "void"}), None, None))
-            }
+            "resolver.collectLinkedAliases" => Ok((json!({"kind": "void"}), None, None)),
             _ => {
                 let value = args
                     .get(1)
-                    .and_then(serde_json::Value::as_array)
+                    .and_then(replay_json::Value::as_array)
                     .and_then(|scalar| scalar.get(3))
-                    .and_then(serde_json::Value::as_bool)
+                    .and_then(replay_json::Value::as_bool)
                     .ok_or_else(|| "boolean result lacks scalar value".to_owned())?;
-                Ok((
-                    serde_json::json!({"kind": "boolean", "value": value}),
-                    None,
-                    None,
-                ))
+                Ok((json!({"kind": "boolean", "value": value}), None, None))
             }
         }
     }
@@ -3651,20 +3676,20 @@ impl CheckerState<'_> {
         &self,
         root: &DeclarationReplayRoot,
         file_map: &DeclarationReplayFileMap,
-    ) -> Result<serde_json::Value, String> {
+    ) -> Result<replay_json::Value, String> {
         let result_args = replay_array_field(&root.result, "args")?;
         let is_null = result_args
             .get(2)
-            .and_then(serde_json::Value::as_bool)
+            .and_then(replay_json::Value::as_bool)
             .ok_or_else(|| "serialization result lacks the null marker".to_owned())?;
         let array_len = result_args
             .get(4)
-            .and_then(serde_json::Value::as_i64)
+            .and_then(replay_json::Value::as_i64)
             .ok_or_else(|| "serialization result lacks the array length".to_owned())?;
         let produced = if is_null {
-            serde_json::json!({"class": "absent"})
+            json!({"class": "absent"})
         } else if array_len >= 0 {
-            serde_json::json!({"class": "container", "length": array_len})
+            json!({"class": "container", "length": array_len})
         } else {
             let reference = result_args
                 .get(3)
@@ -3688,23 +3713,23 @@ impl CheckerState<'_> {
                 // used solely to materialize L3 error names. Their call
                 // cardinality follows nested accessibility topology, which is
                 // explicitly non-gating; the keyed L3 lane gates their bytes.
-                if args.get(2).and_then(serde_json::Value::as_u64) == Some(70_221_824) {
+                if args.get(2).and_then(replay_json::Value::as_u64) == Some(70_221_824) {
                     continue;
                 }
-                events.push(serde_json::json!({
+                events.push(json!({
                     "site": site,
-                    "status": args.get(1).cloned().unwrap_or(serde_json::Value::Null),
-                    "flags": args.get(2).cloned().unwrap_or(serde_json::Value::Null),
-                    "internal_flags": args.get(3).cloned().unwrap_or(serde_json::Value::Null),
-                    "approximate_length": args.get(4).cloned().unwrap_or(serde_json::Value::Null),
-                    "type_stack_len": args.get(5).cloned().unwrap_or(serde_json::Value::Null),
-                    "truncating": args.get(6).cloned().unwrap_or(serde_json::Value::Null),
-                    "out_truncated": args.get(7).cloned().unwrap_or(serde_json::Value::Null),
-                    "encountered_error": args.get(8).cloned().unwrap_or(serde_json::Value::Null),
-                    "produced": if args.get(1).and_then(serde_json::Value::as_str)
-                        == Some("fallback-undefined")
+                    "status": args.get(1).cloned().unwrap_or(replay_json::Value::Null),
+                    "flags": args.get(2).cloned().unwrap_or(replay_json::Value::Null),
+                    "internal_flags": args.get(3).cloned().unwrap_or(replay_json::Value::Null),
+                    "approximate_length": args.get(4).cloned().unwrap_or(replay_json::Value::Null),
+                    "type_stack_len": args.get(5).cloned().unwrap_or(replay_json::Value::Null),
+                    "truncating": args.get(6).cloned().unwrap_or(replay_json::Value::Null),
+                    "out_truncated": args.get(7).cloned().unwrap_or(replay_json::Value::Null),
+                    "encountered_error": args.get(8).cloned().unwrap_or(replay_json::Value::Null),
+                    "produced": if args.get(1).and_then(replay_json::Value::as_js)
+                        == Some(tsc_types::JsStr::from("fallback-undefined"))
                     {
-                        serde_json::json!({"class": "absent"})
+                        json!({"class": "absent"})
                     } else {
                         declaration_replay_trace_ref_json(
                             args.get(9)
@@ -3723,10 +3748,10 @@ impl CheckerState<'_> {
             }
             if let Some(base) = site.strip_suffix(".result") {
                 if base.starts_with("syntactic.") {
-                    events.push(serde_json::json!({
+                    events.push(json!({
                         "site": base,
                         "frame": true,
-                        "fallback": args.get(2).cloned().unwrap_or(serde_json::Value::Null),
+                        "fallback": args.get(2).cloned().unwrap_or(replay_json::Value::Null),
                         "produced": declaration_replay_trace_ref_json(
                             args.get(3)
                                 .ok_or_else(|| "syntactic frame lacks a node".to_owned())?,
@@ -3738,31 +3763,31 @@ impl CheckerState<'_> {
                 }
             }
             if site.ends_with(".checkerFallback") {
-                events.push(serde_json::json!({
+                events.push(json!({
                     "site": site,
-                    "report_fallback": args.get(1).cloned().unwrap_or(serde_json::Value::Null),
+                    "report_fallback": args.get(1).cloned().unwrap_or(replay_json::Value::Null),
                 }));
                 continue;
             }
             if site == "tracker.trackSymbol" {
                 // Traced shape (:414): [site, name(symbol), nodeRef(enclosing),
                 // meaning] — the transformer probe records the NAME string.
-                events.push(serde_json::json!({
+                events.push(json!({
                     "site": site,
                     "payload": {
-                        "name": args.get(1).cloned().unwrap_or(serde_json::Value::Null),
+                        "name": args.get(1).cloned().unwrap_or(replay_json::Value::Null),
                         "node": declaration_replay_trace_ref_coordinate_json(
                             args.get(2)
                                 .ok_or_else(|| "trackSymbol lacks a node".to_owned())?,
                             file_map,
                         )?,
-                        "meaning": args.get(3).cloned().unwrap_or(serde_json::Value::Null),
+                        "meaning": args.get(3).cloned().unwrap_or(replay_json::Value::Null),
                     },
                 }));
                 continue;
             }
             if site == "tracker.reportInferenceFallback" {
-                events.push(serde_json::json!({
+                events.push(json!({
                     "site": site,
                     "payload": declaration_replay_trace_ref_coordinate_json(
                         args.get(1)
@@ -3775,18 +3800,18 @@ impl CheckerState<'_> {
             if let Some(rest) = site.strip_prefix("tracker.") {
                 let _ = rest;
                 let payload = match args.len() {
-                    1 => serde_json::Value::Null,
+                    1 => replay_json::Value::Null,
                     2 => args[1].clone(),
-                    _ => serde_json::Value::Array(args[1..].to_vec()),
+                    _ => replay_json::Value::Array(args[1..].to_vec()),
                 };
-                events.push(serde_json::json!({"site": site, "payload": payload}));
+                events.push(json!({"site": site, "payload": payload}));
                 continue;
             }
             // Expected-zero lanes (§6.4): a traced event on a zero lane is
             // carried verbatim so the actual side reds against it.
-            events.push(serde_json::json!({"site": site, "raw": args[1..].to_vec()}));
+            events.push(json!({"site": site, "raw": args[1..].to_vec()}));
         }
-        Ok(serde_json::json!({
+        Ok(json!({
             "kind": "serialized",
             "produced": produced,
             "events": events,
@@ -3958,12 +3983,12 @@ impl CheckerState<'_> {
         &self,
         decision: &DeclarationReplayDecision,
         file_map: &DeclarationReplayFileMap,
-    ) -> Result<serde_json::Value, String> {
+    ) -> Result<replay_json::Value, String> {
         match decision {
             DeclarationReplayDecision::Boolean(value) => {
-                Ok(serde_json::json!({"kind": "boolean", "value": value}))
+                Ok(json!({"kind": "boolean", "value": value}))
             }
-            DeclarationReplayDecision::Void => Ok(serde_json::json!({"kind": "void"})),
+            DeclarationReplayDecision::Void => Ok(json!({"kind": "void"})),
             DeclarationReplayDecision::Serialized {
                 produced, events, ..
             } => {
@@ -3980,7 +4005,7 @@ impl CheckerState<'_> {
                     })
                     .map(|event| self.declaration_replay_actual_event_json(event, file_map))
                     .collect::<Result<Vec<_>, _>>()?;
-                Ok(serde_json::json!({
+                Ok(json!({
                     "kind": "serialized",
                     "produced": self.declaration_replay_actual_produced_json(
                         produced, file_map, false,
@@ -3990,17 +4015,15 @@ impl CheckerState<'_> {
             }
             DeclarationReplayDecision::Enum(result) => {
                 let (value_type, value) = match &result.value {
-                    Some(crate::evaluate::EvalValue::Str(value)) => {
-                        ("string", serde_json::json!(value))
-                    }
+                    Some(crate::evaluate::EvalValue::Str(value)) => ("string", json!(value)),
                     Some(crate::evaluate::EvalValue::Num(value)) => {
                         let number = serde_json::Number::from_f64(*value)
                             .ok_or_else(|| "Rust enum value is not JSON-finite".to_owned())?;
-                        ("number", serde_json::Value::Number(number))
+                        ("number", replay_json::Value::Number(number))
                     }
-                    None => ("undefined", serde_json::Value::Null),
+                    None => ("undefined", replay_json::Value::Null),
                 };
-                Ok(serde_json::json!({
+                Ok(json!({
                     "kind": "enum",
                     "value_type": value_type,
                     "value": value,
@@ -4012,9 +4035,9 @@ impl CheckerState<'_> {
                     .error_node
                     .map(|node| self.declaration_replay_project_node(node.node(), file_map))
                     .transpose()?
-                    .map_or(serde_json::Value::Null, DeclarationReplayCoordinate::json);
+                    .map_or(replay_json::Value::Null, DeclarationReplayCoordinate::json);
                 let aliases = match &result.aliases_to_make_visible {
-                    Some(aliases) => serde_json::Value::Array(
+                    Some(aliases) => replay_json::Value::Array(
                         aliases
                             .iter()
                             .map(|node| {
@@ -4023,9 +4046,9 @@ impl CheckerState<'_> {
                             })
                             .collect::<Result<Vec<_>, _>>()?,
                     ),
-                    None => serde_json::Value::Null,
+                    None => replay_json::Value::Null,
                 };
-                Ok(serde_json::json!({
+                Ok(json!({
                     "kind": "accessibility",
                     "accessibility": result.accessibility as u8,
                     "error_symbol_name": result.error_symbol_name.clone().unwrap_or_default(),
@@ -4046,22 +4069,18 @@ impl CheckerState<'_> {
                             .value_declaration
                             .map(|node| self.declaration_replay_project_node(node.node(), file_map))
                             .transpose()?
-                            .map_or(serde_json::Value::Null, DeclarationReplayCoordinate::json);
-                        Ok(serde_json::json!([
-                            property.name,
-                            parent,
-                            value_declaration
-                        ]))
+                            .map_or(replay_json::Value::Null, DeclarationReplayCoordinate::json);
+                        Ok(json!([property.name.as_js(), parent, value_declaration]))
                     })
                     .collect::<Result<Vec<_>, String>>()?;
-                Ok(serde_json::json!({"kind": "properties", "rows": rows}))
+                Ok(json!({"kind": "properties", "rows": rows}))
             }
         }
     }
 
     fn declaration_replay_resolve_symbol(
         &mut self,
-        value: &serde_json::Value,
+        value: &replay_json::Value,
         file_map: &DeclarationReplayFileMap,
     ) -> Result<(SymbolId, Option<String>), DeclarationReplayResolutionError> {
         let values = value
@@ -4127,7 +4146,9 @@ impl CheckerState<'_> {
         Ok((
             symbol,
             Some(format!(
-                "symbol input differs: expected {expected}, actual {actual}"
+                "symbol input differs: expected {}, actual {}",
+                expected.json_text(),
+                actual.json_text()
             )),
         ))
     }
@@ -4136,7 +4157,7 @@ impl CheckerState<'_> {
         &self,
         symbol: SymbolId,
         file_map: &DeclarationReplayFileMap,
-    ) -> Result<serde_json::Value, String> {
+    ) -> Result<replay_json::Value, String> {
         let data = self.binder.symbol(symbol);
         let declarations = data
             .declarations
@@ -4147,8 +4168,8 @@ impl CheckerState<'_> {
                     .map(DeclarationReplayCoordinate::json)
             })
             .collect::<Result<Vec<_>, _>>()?;
-        Ok(serde_json::json!([
-            data.escaped_name,
+        Ok(json!([
+            data.escaped_name.as_js(),
             data.declarations.len(),
             declarations
         ]))
@@ -4156,7 +4177,7 @@ impl CheckerState<'_> {
 }
 
 fn declaration_replay_expected_required_node(
-    value: &serde_json::Value,
+    value: &replay_json::Value,
     file_map: &DeclarationReplayFileMap,
 ) -> Result<DeclarationReplayCoordinate, DeclarationReplayResolutionError> {
     declaration_replay_coordinate(value, file_map, true)?.ok_or(
@@ -4167,22 +4188,22 @@ fn declaration_replay_expected_required_node(
 }
 
 fn declaration_replay_expected_optional_node(
-    value: &serde_json::Value,
+    value: &replay_json::Value,
     file_map: &DeclarationReplayFileMap,
 ) -> Result<Option<DeclarationReplayCoordinate>, DeclarationReplayResolutionError> {
     declaration_replay_coordinate(value, file_map, true)
 }
 
 fn declaration_replay_expected_symbol(
-    value: &serde_json::Value,
+    value: &replay_json::Value,
     file_map: &DeclarationReplayFileMap,
-) -> Result<serde_json::Value, DeclarationReplayResolutionError> {
+) -> Result<replay_json::Value, DeclarationReplayResolutionError> {
     let values = value
         .as_array()
         .filter(|values| values.len() == 3)
         .ok_or_else(|| "symbol reference is malformed".to_owned())?;
     let name = values[0]
-        .as_str()
+        .as_js()
         .ok_or_else(|| "symbol reference lacks name".to_owned())?;
     let declaration_count = values[1]
         .as_u64()
@@ -4201,7 +4222,7 @@ fn declaration_replay_expected_symbol(
                 .map(DeclarationReplayCoordinate::json)
         })
         .collect::<Result<Vec<_>, _>>()?;
-    Ok(serde_json::json!([name, declaration_count, declarations]))
+    Ok(json!([name, declaration_count, declarations]))
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -4225,8 +4246,8 @@ struct DeclarationReplayAccessibilityKey {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 struct DeclarationReplayAccessibilityTriple {
     accessibility: u8,
-    error_symbol_name: String,
-    error_module_name: Option<String>,
+    error_symbol_name: tsc_types::JsString,
+    error_module_name: Option<tsc_types::JsString>,
 }
 
 fn declaration_replay_accessibility_site(site: &str) -> Option<&'static str> {
@@ -4253,8 +4274,8 @@ fn declaration_replay_traced_accessibility_counts(
 
 fn declaration_replay_accessibility_key_json(
     key: &DeclarationReplayAccessibilityKey,
-) -> serde_json::Value {
-    serde_json::json!({
+) -> replay_json::Value {
+    json!({
         "subject": key.subject,
         "enclosing": key.enclosing,
         "meaning": key.meaning,
@@ -4264,8 +4285,8 @@ fn declaration_replay_accessibility_key_json(
 
 fn declaration_replay_accessibility_triple_json(
     triple: &DeclarationReplayAccessibilityTriple,
-) -> serde_json::Value {
-    serde_json::json!([
+) -> replay_json::Value {
+    json!([
         triple.accessibility,
         triple.error_symbol_name,
         triple.error_module_name,
@@ -4282,12 +4303,12 @@ fn declaration_replay_resolution_error_text(error: DeclarationReplayResolutionEr
 }
 
 fn declaration_replay_expected_node_key(
-    value: &serde_json::Value,
+    value: &replay_json::Value,
     file_map: &DeclarationReplayFileMap,
 ) -> Result<String, String> {
     declaration_replay_coordinate(value, file_map, true)
         .map(|coordinate| {
-            coordinate.map_or_else(|| value.to_string(), |value| value.json().to_string())
+            coordinate.map_or_else(|| value.json_text(), |value| value.json().json_text())
         })
         .map_err(declaration_replay_resolution_error_text)
 }
@@ -4324,7 +4345,7 @@ impl CheckerState<'_> {
                 file_map,
             )
             .map_err(declaration_replay_resolution_error_text)?
-            .to_string();
+            .json_text();
             let enclosing = declaration_replay_expected_node_key(
                 entry
                     .get(3)
@@ -4333,12 +4354,12 @@ impl CheckerState<'_> {
             )?;
             let meaning = entry
                 .get(4)
-                .and_then(serde_json::Value::as_u64)
+                .and_then(replay_json::Value::as_u64)
                 .and_then(|value| u32::try_from(value).ok())
                 .ok_or_else(|| format!("{entry_site} lacks meaning"))?;
             let should_compute_aliases = entry
                 .get(5)
-                .and_then(serde_json::Value::as_bool)
+                .and_then(replay_json::Value::as_bool)
                 .ok_or_else(|| format!("{entry_site} lacks shouldCompute flag"))?;
             DeclarationReplayAccessibilityKey {
                 site,
@@ -4356,7 +4377,7 @@ impl CheckerState<'_> {
             )
             .map_err(declaration_replay_resolution_error_text)?
             .json()
-            .to_string();
+            .json_text();
             let enclosing = declaration_replay_expected_required_node(
                 entry
                     .get(3)
@@ -4365,10 +4386,10 @@ impl CheckerState<'_> {
             )
             .map_err(declaration_replay_resolution_error_text)?
             .json()
-            .to_string();
+            .json_text();
             let should_compute_aliases = entry
                 .get(4)
-                .and_then(serde_json::Value::as_bool)
+                .and_then(replay_json::Value::as_bool)
                 .ok_or_else(|| format!("{entry_site} lacks shouldCompute flag"))?;
             DeclarationReplayAccessibilityKey {
                 site,
@@ -4381,19 +4402,19 @@ impl CheckerState<'_> {
         let result = replay_array_field(&observation.result, "args")?;
         let accessibility = result
             .get(1)
-            .and_then(serde_json::Value::as_u64)
+            .and_then(replay_json::Value::as_u64)
             .and_then(|value| u8::try_from(value).ok())
             .ok_or_else(|| format!("{site} lacks accessibility"))?;
         let error_symbol_name = result
             .get(2)
-            .and_then(serde_json::Value::as_str)
+            .and_then(replay_json::Value::as_js)
             .ok_or_else(|| format!("{site} lacks errorSymbolName"))?
             .to_owned();
         let error_module_name = match result.get(3) {
-            Some(serde_json::Value::Null) => None,
+            Some(replay_json::Value::Null) => None,
             Some(value) => Some(
                 value
-                    .as_str()
+                    .as_js()
                     .ok_or_else(|| format!("{site} has invalid errorModuleName"))?
                     .to_owned(),
             ),
@@ -4426,13 +4447,13 @@ impl CheckerState<'_> {
                 should_compute_aliases,
             } => (
                 self.declaration_replay_project_symbol(symbol, file_map)
-                    .map(|value| value.to_string())
+                    .map(|value| value.json_text())
                     .unwrap_or_else(|error| format!("unprojectable-symbol-{}:{error}", symbol.0)),
                 if enclosing_is_synthetic {
                     "[-1,-1,-1,-1,-1,-1,-1,-1]".to_owned()
                 } else {
                     self.declaration_replay_project_node(enclosing, file_map)
-                        .map(|value| value.json().to_string())
+                        .map(|value| value.json().json_text())
                         .unwrap_or_else(|error| {
                             format!("unprojectable-node-{}:{error}", enclosing.0)
                         })
@@ -4446,12 +4467,12 @@ impl CheckerState<'_> {
                 should_compute_aliases,
             } => (
                 self.declaration_replay_project_node(entity_name, file_map)
-                    .map(|value| value.json().to_string())
+                    .map(|value| value.json().json_text())
                     .unwrap_or_else(|error| {
                         format!("unprojectable-node-{}:{error}", entity_name.0)
                     }),
                 self.declaration_replay_project_node(enclosing, file_map)
-                    .map(|value| value.json().to_string())
+                    .map(|value| value.json().json_text())
                     .unwrap_or_else(|error| format!("unprojectable-node-{}:{error}", enclosing.0)),
                 None,
                 should_compute_aliases,
@@ -4519,13 +4540,14 @@ impl CheckerState<'_> {
                 mismatches.push(format!(
                     "{} keyed result missing for {}: expected {}",
                     key.site,
-                    declaration_replay_accessibility_key_json(key),
-                    serde_json::Value::Array(
+                    (declaration_replay_accessibility_key_json(key)).json_text(),
+                    (replay_json::Value::Array(
                         expected
                             .iter()
                             .map(declaration_replay_accessibility_triple_json)
                             .collect(),
-                    ),
+                    ))
+                    .json_text()
                 ));
                 continue;
             };
@@ -4539,19 +4561,21 @@ impl CheckerState<'_> {
                 mismatches.push(format!(
                     "{} keyed triple differs for {}: expected {}, actual {}",
                     key.site,
-                    declaration_replay_accessibility_key_json(key),
-                    serde_json::Value::Array(
+                    (declaration_replay_accessibility_key_json(key)).json_text(),
+                    (replay_json::Value::Array(
                         divergent
                             .iter()
                             .map(declaration_replay_accessibility_triple_json)
                             .collect(),
-                    ),
-                    serde_json::Value::Array(
+                    ))
+                    .json_text(),
+                    (replay_json::Value::Array(
                         actual
                             .iter()
                             .map(declaration_replay_accessibility_triple_json)
                             .collect(),
-                    ),
+                    ))
+                    .json_text()
                 ));
             }
         }
@@ -5002,10 +5026,10 @@ impl CheckerState<'_> {
         produced: &crate::node_builder::replay_sink::ProducedClass,
         file_map: &DeclarationReplayFileMap,
         opaque_frames: bool,
-    ) -> Result<serde_json::Value, String> {
+    ) -> Result<replay_json::Value, String> {
         use crate::node_builder::replay_sink::ProducedClass;
         Ok(match produced {
-            ProducedClass::Absent => serde_json::json!({"class": "absent"}),
+            ProducedClass::Absent => json!({"class": "absent"}),
             ProducedClass::ParseOwn { node, .. }
             | ProducedClass::OriginalProjected { node, .. } => {
                 let coordinate = self
@@ -5016,20 +5040,20 @@ impl CheckerState<'_> {
                 } else {
                     "original"
                 };
-                serde_json::json!({"class": class, "coordinate": coordinate.json()})
+                json!({"class": class, "coordinate": coordinate.json()})
             }
             ProducedClass::SyntheticWithoutOriginal => {
                 if opaque_frames {
-                    serde_json::json!({"class": "opaque"})
+                    json!({"class": "opaque"})
                 } else {
-                    serde_json::json!({"class": "synthetic"})
+                    json!({"class": "synthetic"})
                 }
             }
             ProducedClass::Container { length } => {
                 if opaque_frames {
-                    serde_json::json!({"class": "opaque"})
+                    json!({"class": "opaque"})
                 } else {
-                    serde_json::json!({"class": "container", "length": length})
+                    json!({"class": "container", "length": length})
                 }
             }
         })
@@ -5037,14 +5061,14 @@ impl CheckerState<'_> {
 
     fn declaration_replay_actual_raw_ref_json(
         &self,
-        value: &serde_json::Value,
+        value: &replay_json::Value,
         file_map: &DeclarationReplayFileMap,
-    ) -> Result<serde_json::Value, String> {
+    ) -> Result<replay_json::Value, String> {
         if value.is_null() {
-            return Ok(serde_json::Value::Null);
+            return Ok(replay_json::Value::Null);
         }
-        if value.as_str() == Some("opaque") {
-            return Ok(serde_json::json!("opaque"));
+        if value.as_js() == Some(tsc_types::JsStr::from("opaque")) {
+            return Ok(json!("opaque"));
         }
         let pair = value
             .as_array()
@@ -5066,7 +5090,7 @@ impl CheckerState<'_> {
         &self,
         event: &crate::node_builder::replay_sink::DecisionEvent,
         file_map: &DeclarationReplayFileMap,
-    ) -> Result<serde_json::Value, String> {
+    ) -> Result<replay_json::Value, String> {
         use crate::node_builder::replay_sink::DecisionEvent;
         Ok(match event {
             DecisionEvent::WithContextResult {
@@ -5079,7 +5103,7 @@ impl CheckerState<'_> {
                 out_truncated,
                 encountered_error,
                 produced,
-            } => serde_json::json!({
+            } => json!({
                 "site": "nodebuilder.withContext.result",
                 "status": status,
                 "flags": flags,
@@ -5097,7 +5121,7 @@ impl CheckerState<'_> {
                 site,
                 fallback,
                 produced,
-            } => serde_json::json!({
+            } => json!({
                 "site": site,
                 "frame": true,
                 "fallback": fallback,
@@ -5108,13 +5132,13 @@ impl CheckerState<'_> {
             DecisionEvent::SyntacticFallback {
                 site,
                 report_fallback,
-            } => serde_json::json!({
+            } => json!({
                 "site": format!("{site}.checkerFallback"),
                 "report_fallback": report_fallback,
             }),
             DecisionEvent::Tracker { site, payload } => {
                 let payload = match *site {
-                    "tracker.trackSymbol" => serde_json::json!({
+                    "tracker.trackSymbol" => json!({
                         "name": payload["name"],
                         "node": self
                             .declaration_replay_actual_raw_ref_json(&payload["node"], file_map)?,
@@ -5125,7 +5149,7 @@ impl CheckerState<'_> {
                     }
                     _ => payload.clone(),
                 };
-                serde_json::json!({"site": site, "payload": payload})
+                json!({"site": site, "payload": payload})
             }
         })
     }
@@ -5135,10 +5159,10 @@ impl CheckerState<'_> {
 /// JSON (parse/original coordinates; sentinel -> synthetic at root level or
 /// opaque at frame level per the §6.3 frame-aware rule).
 fn declaration_replay_trace_ref_json(
-    reference: &serde_json::Value,
+    reference: &replay_json::Value,
     file_map: &DeclarationReplayFileMap,
     opaque_frames: bool,
-) -> Result<serde_json::Value, String> {
+) -> Result<replay_json::Value, String> {
     let values = reference
         .as_array()
         .filter(|values| values.len() == 8)
@@ -5157,13 +5181,13 @@ fn declaration_replay_trace_ref_json(
         ("original", &numbers[4..8])
     } else {
         return Ok(if opaque_frames {
-            serde_json::json!({"class": "opaque"})
+            json!({"class": "opaque"})
         } else {
-            serde_json::json!({"class": "synthetic"})
+            json!({"class": "synthetic"})
         });
     };
     let _ = file_map;
-    Ok(serde_json::json!({
+    Ok(json!({
         "class": class,
         "coordinate": [quad[0], quad[1], quad[2], quad[3]],
     }))
@@ -5172,15 +5196,15 @@ fn declaration_replay_trace_ref_json(
 /// Tracker payload references: null stays null; sentinel tuples project as
 /// "opaque"; coordinate tuples keep their quadruple.
 fn declaration_replay_trace_ref_coordinate_json(
-    reference: &serde_json::Value,
+    reference: &replay_json::Value,
     file_map: &DeclarationReplayFileMap,
-) -> Result<serde_json::Value, String> {
+) -> Result<replay_json::Value, String> {
     if reference.is_null() {
-        return Ok(serde_json::Value::Null);
+        return Ok(replay_json::Value::Null);
     }
     let projected = declaration_replay_trace_ref_json(reference, file_map, true)?;
-    if projected["class"] == "opaque" {
-        return Ok(serde_json::json!("opaque"));
+    if projected["class"].as_js() == Some(tsc_types::JsStr::from("opaque")) {
+        return Ok(json!("opaque"));
     }
     Ok(projected["coordinate"].clone())
 }

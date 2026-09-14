@@ -20,7 +20,8 @@ use tsc_syntax::{
     NodeId, ParseOptions, SourceFile,
 };
 use tsc_types::{
-    CompilerOptions, IdentityDomain, IdentityError, SymbolFlags, TRANSIENT_SYMBOL_BIT,
+    CompilerOptions, IdentityDomain, IdentityError, JsStr, JsString, SymbolFlags,
+    TRANSIENT_SYMBOL_BIT,
 };
 
 /// Immutable parsed source handle retained by a Program snapshot.
@@ -85,7 +86,7 @@ pub enum DocumentScriptKind {
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct DocumentAddress {
     namespace: String,
-    path: String,
+    path: JsString,
     script_kind: DocumentScriptKind,
     compiler_options: CompilerOptions,
     implied_node_format: Option<i32>,
@@ -97,7 +98,7 @@ impl DocumentAddress {
     /// tsrs-native: constructs an address for the pinned registry namespace.
     pub fn new(
         namespace: impl Into<String>,
-        path: impl Into<String>,
+        path: impl Into<JsString>,
         script_kind: DocumentScriptKind,
         compiler_options: CompilerOptions,
     ) -> Self {
@@ -131,8 +132,8 @@ impl DocumentAddress {
     }
 
     /// tsrs-native: returns the host path component.
-    pub fn path(&self) -> &str {
-        &self.path
+    pub fn path(&self) -> JsStr<'_> {
+        self.path.as_js()
     }
 
     /// tsrs-native: returns the parser script-kind component.
@@ -212,15 +213,15 @@ pub enum DocumentRegistryError {
         actual: String,
     },
     VersionTextMismatch {
-        path: String,
+        path: JsString,
         version: DocumentVersion,
     },
     BuiltDocumentDoesNotOwnSnapshot {
-        path: String,
+        path: JsString,
     },
     BuiltDocumentPathMismatch {
-        expected: String,
-        actual: String,
+        expected: JsString,
+        actual: JsString,
     },
     UnknownLease {
         generation: u64,
@@ -1293,7 +1294,11 @@ impl<'a> ProgramBinder<'a> {
     /// Checker-side symbol creation: always Transient. (tsc also seeds
     /// links.checkFlags here; ours live in LinksTables and default 0 —
     /// callers that need CheckFlags set them through the links API.)
-    pub fn create_symbol(&mut self, flags: SymbolFlags, escaped_name: String) -> SymbolId {
+    pub fn create_symbol(
+        &mut self,
+        flags: SymbolFlags,
+        escaped_name: tsc_types::EscapedName,
+    ) -> SymbolId {
         self.transient
             .alloc(flags | SymbolFlags::TRANSIENT, escaped_name)
     }

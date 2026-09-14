@@ -20,7 +20,9 @@
 //! default-options suggestion projection.
 
 use tsc_binder::{node_util, SymbolId};
-use tsc_diagnostics::{gen as diagnostics, Diagnostic, DiagnosticCategory, DiagnosticMessage};
+use tsc_diagnostics::{
+    gen as diagnostics, Diagnostic, DiagnosticCategory, DiagnosticMessage, JsString,
+};
 use tsc_syntax::nodes::{ImportTypeData, JSDocFunctionTypeData, JSDocTypeLiteralData};
 use tsc_syntax::{for_each_child, NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsc_types::{
@@ -2372,7 +2374,7 @@ impl<'a> CheckerState<'a> {
             ty
         };
         let suggestion = self.type_to_string_slice(suggestion_type)?;
-        self.grammar_error_on_node(node, diagnostic, &[token, &suggestion]);
+        self.grammar_error_on_node_js(node, diagnostic, &[token.into(), (&suggestion).into()]);
         Ok(())
     }
 
@@ -2674,10 +2676,10 @@ impl<'a> CheckerState<'a> {
         self.get_base_constraint_of_type(type_parameter)?;
         if !self.has_non_circular_type_parameter_default(type_parameter)? {
             let display = self.type_to_string_slice(type_parameter)?;
-            self.error_at(
+            self.error_at_js(
                 default,
                 &diagnostics::Type_parameter_0_has_a_circular_default,
-                &[&display],
+                &[(&display).into()],
             );
         }
         let constraint_type = self.get_constraint_of_type_parameter(type_parameter)?;
@@ -3589,10 +3591,10 @@ impl<'a> CheckerState<'a> {
                     let name = self.symbol_display_name(symbol);
                     for declaration in declarations {
                         let declaration_name = self.name_of_node(declaration);
-                        self.error_at(
+                        self.error_at_js(
                             declaration_name,
                             &diagnostics::All_declarations_of_0_must_have_identical_constraints,
-                            &[&name],
+                            &[(&name).into()],
                         );
                     }
                 }
@@ -3657,7 +3659,12 @@ impl<'a> CheckerState<'a> {
                 _ => SyntaxKind::WithKeyword,
             };
             if token != SyntaxKind::WithKeyword
-                && self.options.ignore_deprecations.as_deref() != Some("6.0")
+                && self
+                    .options
+                    .ignore_deprecations
+                    .as_ref()
+                    .map(JsString::as_js)
+                    != Some("6.0".into())
             {
                 self.grammar_error_on_first_token(
                     attributes,
@@ -4407,7 +4414,10 @@ impl<'a> CheckerState<'a> {
                     .symbol
                     .map(|symbol| self.binder.symbol(symbol).escaped_name.as_str())
                     .is_some_and(|name| {
-                        matches!(name, "IntrinsicAttributes" | "IntrinsicClassAttributes")
+                        matches!(
+                            name,
+                            Some("IntrinsicAttributes" | "IntrinsicClassAttributes")
+                        )
                     });
                 if intrinsic {
                     let Some(diagnostic) =
@@ -4487,10 +4497,10 @@ impl<'a> CheckerState<'a> {
         } else {
             source_text
         };
-        let diagnostic = self.create_error(
+        let diagnostic = self.create_error_js(
             Some(error_node),
             head_message,
-            &[&source_text, &target_text],
+            &[(&source_text).into(), (&target_text).into()],
         );
         Ok((false, Some(diagnostic)))
     }
@@ -4667,10 +4677,10 @@ impl<'a> CheckerState<'a> {
         } else {
             &diagnostics::Type_0_has_no_properties_in_common_with_type_1
         };
-        Ok(Some(self.create_error(
+        Ok(Some(self.create_error_js(
             Some(error_node),
             message,
-            &[&source_text, &target_text],
+            &[(&source_text).into(), (&target_text).into()],
         )))
     }
 
@@ -4831,7 +4841,7 @@ impl<'a> CheckerState<'a> {
             // private-identifier properties stay out of the head —
             // instance private names DO surface (privateNamesUnique-4
             // pins 2741 with '#something').
-            let is_private = name.starts_with('#') || name.starts_with("__#");
+            let is_private = name.starts_with("#") || name.starts_with("__#");
             if is_private {
                 let is_static = self
                     .binder
@@ -4898,7 +4908,7 @@ impl<'a> CheckerState<'a> {
                 let has_own_twin = self
                     .get_members_of_symbol(class_symbol)?
                     .keys()
-                    .any(|name| name.starts_with("__#") && name.ends_with(&suffix));
+                    .any(|name| name.starts_with("__#") && name.as_js().ends_with(&suffix));
                 if has_own_twin {
                     return Ok(None);
                 }
@@ -4966,18 +4976,22 @@ impl<'a> CheckerState<'a> {
             let declaration = self.binder.symbol(prop).declarations.first().copied();
             let related = declaration
                 .map(|declaration| {
-                    self.related_info_for_node(
+                    self.related_info_for_node_js(
                         declaration,
                         &diagnostics::_0_is_declared_here,
-                        &[&prop_name],
+                        &[(&prop_name).into()],
                     )
                 })
                 .into_iter()
                 .collect();
-            let mut diagnostic = self.create_error(
+            let mut diagnostic = self.create_error_js(
                 Some(error_node),
                 &diagnostics::Property_0_is_missing_in_type_1_but_required_in_type_2,
-                &[&prop_name, &source_text, &target_text],
+                &[
+                    (&prop_name).into(),
+                    (&source_text).into(),
+                    (&target_text).into(),
+                ],
             );
             diagnostic.related = related;
             return Ok(Some(diagnostic));
@@ -4985,23 +4999,32 @@ impl<'a> CheckerState<'a> {
         // 66752-66757: the multi-property lists ride plain
         // symbolToString (no WriteComputedProps) — late-bound computed
         // names print their declaration SOURCE text verbatim.
-        let mut names: Vec<String> = Vec::with_capacity(unmatched.len());
+        let mut names: Vec<JsString> = Vec::with_capacity(unmatched.len());
         for &prop in &unmatched {
             names.push(self.missing_property_display_name(prop, false)?);
         }
         let diagnostic = if unmatched.len() > 5 {
-            let head: Vec<String> = names[..4].to_vec();
+            let head: Vec<JsString> = names[..4].to_vec();
             let more = (unmatched.len() - 4).to_string();
-            self.create_error(
+            self.create_error_js(
                 Some(error_node),
                 &diagnostics::Type_0_is_missing_the_following_properties_from_type_1_2_and_3_more,
-                &[&source_text, &target_text, &head.join(", "), &more],
+                &[
+                    (&source_text).into(),
+                    (&target_text).into(),
+                    (&crate::join_js_texts(&head, ", ")).into(),
+                    (&more).into(),
+                ],
             )
         } else {
-            self.create_error(
+            self.create_error_js(
                 Some(error_node),
                 &diagnostics::Type_0_is_missing_the_following_properties_from_type_1_2,
-                &[&source_text, &target_text, &names.join(", ")],
+                &[
+                    (&source_text).into(),
+                    (&target_text).into(),
+                    (&crate::join_js_texts(&names, ", ")).into(),
+                ],
             )
         };
         Ok(Some(diagnostic))
@@ -5030,10 +5053,10 @@ impl<'a> CheckerState<'a> {
         &mut self,
         prop: SymbolId,
         write_computed_props: bool,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<JsString> {
         let escaped = self.binder.symbol(prop).escaped_name.clone();
-        if escaped.starts_with('#') {
-            return Ok(escaped);
+        if escaped.starts_with("#") {
+            return Ok(escaped.as_js().to_owned());
         }
         if escaped.starts_with("__#") {
             if let Some(declaration) = self.binder.symbol(prop).value_declaration {
@@ -5044,7 +5067,8 @@ impl<'a> CheckerState<'a> {
                     return Ok(tsc_binder::node_util::declaration_name_to_string(
                         source,
                         Some(name),
-                    ));
+                    )
+                    .into());
                 }
             }
         }
@@ -5063,10 +5087,9 @@ impl<'a> CheckerState<'a> {
                 .intersects(tsc_types::CheckFlags::LATE)
             {
                 let source = self.binder.source_of_node(name);
-                return Ok(tsc_binder::node_util::declaration_name_to_string(
-                    source,
-                    Some(name),
-                ));
+                return Ok(
+                    tsc_binder::node_util::declaration_name_to_string(source, Some(name)).into(),
+                );
             }
         } else if write_computed_props {
             if let Some(name_type) = self.links.symbol(prop).name_type {
@@ -5082,7 +5105,7 @@ impl<'a> CheckerState<'a> {
                         .expect("enum-literal/unique-symbol name types carry their symbol");
                     let enclosing = self.binder.symbol(name_symbol).value_declaration;
                     let face = self.symbol_expression_face_slice(name_symbol, enclosing, false)?;
-                    return Ok(format!("[{face}]"));
+                    return Ok(crate::concat_js(&[&"[", &(face), &"]"]));
                 }
             }
         }
@@ -5102,7 +5125,7 @@ impl<'a> CheckerState<'a> {
     /// operator. Other expression shapes (templates, bigints,
     /// element-access names) use the same synthesized-expression
     /// printer leaf below.
-    fn computed_property_name_face_slice(&mut self, name: NodeId) -> CheckResult<String> {
+    fn computed_property_name_face_slice(&mut self, name: NodeId) -> CheckResult<JsString> {
         let NodeData::ComputedPropertyName(data) = self.data_of(name) else {
             unreachable!("WriteComputedProps supplies a ComputedPropertyName node");
         };
@@ -5110,7 +5133,7 @@ impl<'a> CheckerState<'a> {
             .expression
             .expect("ComputedPropertyName carries its expression");
         let text = self.expression_text_slice(expression)?;
-        Ok(format!("[{text}]"))
+        Ok(crate::concat_js(&[&"[", &(text), &"]"]))
     }
 
     /// tsc-port: getLiteralText @6.0.3
@@ -5128,30 +5151,30 @@ impl<'a> CheckerState<'a> {
     /// leaves are included because the factory printer owns their
     /// synthesized spelling even when a recovery tree reaches this
     /// helper.
-    fn expression_text_slice(&mut self, node: NodeId) -> CheckResult<String> {
+    fn expression_text_slice(&mut self, node: NodeId) -> CheckResult<JsString> {
         match self.kind_of(node) {
-            SyntaxKind::TrueKeyword => return Ok("true".to_owned()),
-            SyntaxKind::FalseKeyword => return Ok("false".to_owned()),
-            SyntaxKind::NullKeyword => return Ok("null".to_owned()),
-            SyntaxKind::ThisKeyword => return Ok("this".to_owned()),
-            SyntaxKind::SuperKeyword => return Ok("super".to_owned()),
+            SyntaxKind::TrueKeyword => return Ok("true".into()),
+            SyntaxKind::FalseKeyword => return Ok("false".into()),
+            SyntaxKind::NullKeyword => return Ok("null".into()),
+            SyntaxKind::ThisKeyword => return Ok("this".into()),
+            SyntaxKind::SuperKeyword => return Ok("super".into()),
             _ => {}
         }
         match self.data_of(node).clone() {
             NodeData::Identifier(data) => {
-                Ok(tsc_binder::unescape_leading_underscores(&data.escaped_text).to_owned())
+                Ok(tsc_syntax::unescape_leading_underscores(&data.escaped_text).to_owned().into())
             }
-            NodeData::PrivateIdentifier(data) => Ok(data.text),
-            NodeData::StringLiteral(data) => string_literal_name_slice(&data.text, false),
-            NodeData::NumericLiteral(data) => Ok(data.text),
-            NodeData::BigIntLiteral(data) => Ok(data.text),
+            NodeData::PrivateIdentifier(data) => Ok(data.text.into()),
+            NodeData::StringLiteral(data) => string_literal_name_slice(&data.text, false).map(JsString::from),
+            NodeData::NumericLiteral(data) => Ok(data.text.into()),
+            NodeData::BigIntLiteral(data) => Ok(data.text.into()),
             NodeData::NoSubstitutionTemplateLiteral(data) => {
                 let raw = data
                     .raw_text
                     .unwrap_or_else(|| template_text_raw(&data.text));
-                Ok(format!("`{raw}`"))
+                Ok(crate::concat_js(&[&"`", &(raw), &"`"]))
             }
-            NodeData::RegularExpressionLiteral(data) => Ok(data.text),
+            NodeData::RegularExpressionLiteral(data) => Ok(data.text.into()),
             NodeData::PrefixUnaryExpression(data) => {
                 let operator = tsc_syntax::tokens::token_to_string(data.operator)
                     .expect("PrefixUnaryExpression carries a prefix operator");
@@ -5159,7 +5182,7 @@ impl<'a> CheckerState<'a> {
                     data.operand
                         .expect("PrefixUnaryExpression carries its operand"),
                 )?;
-                Ok(format!("{operator}{operand}"))
+                Ok(crate::concat_js(&[&(operator), &(operand)]))
             }
             NodeData::BinaryExpression(data) => {
                 // Existing-node parameter initializers admit arbitrary
@@ -5179,18 +5202,15 @@ impl<'a> CheckerState<'a> {
                         .expect("BinaryExpression carries its right operand"),
                 )?;
                 if operator == "," {
-                    Ok(format!("{left}, {right}"))
+                    Ok(crate::concat_js(&[&(left), &", ", &(right)]))
                 } else {
-                    Ok(format!("{left} {operator} {right}"))
+                    Ok(crate::concat_js(&[&(left), &" ", &(operator), &" ", &(right)]))
                 }
             }
-            NodeData::ParenthesizedExpression(data) => Ok(format!(
-                "({})",
-                self.expression_text_slice(
+            NodeData::ParenthesizedExpression(data) => Ok(crate::concat_js(&[&"(", &(self.expression_text_slice(
                     data.expression
                         .expect("ParenthesizedExpression carries its expression"),
-                )?
-            )),
+                )?), &")"])),
             NodeData::PropertyAccessExpression(data) => {
                 let expression = self.expression_text_slice(
                     data.expression
@@ -5204,7 +5224,7 @@ impl<'a> CheckerState<'a> {
                 } else {
                     "."
                 };
-                Ok(format!("{expression}{dot}{name}"))
+                Ok(crate::concat_js(&[&(expression), &(dot), &(name)]))
             }
             NodeData::ElementAccessExpression(data) => {
                 let expression = self.expression_text_slice(
@@ -5220,18 +5240,15 @@ impl<'a> CheckerState<'a> {
                 } else {
                     ""
                 };
-                Ok(format!("{expression}{question}[{argument}]"))
+                Ok(crate::concat_js(&[&(expression), &(question), &"[", &(argument), &"]"]))
             }
             NodeData::TemplateExpression(data) => {
                 let head = data.head.expect("TemplateExpression carries its head");
                 let NodeData::TemplateHead(head) = self.data_of(head).clone() else {
                     unreachable!("TemplateExpression head is a TemplateHead");
                 };
-                let mut text = format!(
-                    "`{}",
-                    head.raw_text
-                        .unwrap_or_else(|| template_text_raw(&head.text))
-                );
+                let mut text = crate::concat_js(&[&"`", &(head.raw_text
+                        .unwrap_or_else(|| template_text_raw(&head.text)))]);
                 for span in self.nodes_of(data.template_spans) {
                     let NodeData::TemplateSpan(span) = self.data_of(span).clone() else {
                         unreachable!("TemplateExpression spans contain TemplateSpan nodes");
@@ -5249,7 +5266,7 @@ impl<'a> CheckerState<'a> {
                             .unwrap_or_else(|| template_text_raw(&data.text)),
                         _ => unreachable!("TemplateSpan literal is TemplateMiddle/TemplateTail"),
                     };
-                    text.push_str(&format!("${{{expression}}}{literal}"));
+                    text.push_js((&crate::concat_js(&[&"${", &(expression), &"}", &(literal)])).into());
                 }
                 text.push('`');
                 Ok(text)
@@ -5266,12 +5283,12 @@ impl<'a> CheckerState<'a> {
     /// printer over that complete grammar; `None` is reserved for a
     /// malformed/recovery node and therefore arms the existing
     /// TypeNode recovery boundary.
-    fn reused_initializer_expression_text_slice(&mut self, node: NodeId) -> CheckResult<String> {
+    fn reused_initializer_expression_text_slice(&mut self, node: NodeId) -> CheckResult<JsString> {
         match self.display_clone_expression_text_at_line_start(node, false)? {
-            Some(text) => Ok(text),
+            Some(text) => Ok(text.into()),
             None => {
                 self.slice_reuse_had_error = true;
-                Ok(String::new())
+                Ok(JsString::new())
             }
         }
     }
@@ -5353,10 +5370,10 @@ impl<'a> CheckerState<'a> {
                 } else {
                     source_text
                 };
-                self.error_at(
+                self.error_at_js(
                     Some(error_node),
                     head_message,
-                    &[&source_text, &target_text],
+                    &[(&source_text).into(), (&target_text).into()],
                 );
             }
         }
@@ -5481,7 +5498,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: typeToString @6.0.3
     /// tsc-hash: 4b587962e2fb137a31ea52c35aeba733ffb4c6d97a8c54c98d5c1f1666e73dda
     /// tsc-span: _tsc.js:50717-50747
-    pub(crate) fn type_to_string_slice(&mut self, ty: TypeId) -> CheckResult<String> {
+    pub(crate) fn type_to_string_slice(&mut self, ty: TypeId) -> CheckResult<JsString> {
         self.type_to_string_slice_root(
             ty, /*fully_qualified*/ false, /*no_type_reduction*/ false,
         )
@@ -5494,7 +5511,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn type_to_string_slice_no_type_reduction(
         &mut self,
         ty: TypeId,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<JsString> {
         self.type_to_string_slice_root(
             ty, /*fully_qualified*/ false, /*no_type_reduction*/ true,
         )
@@ -5508,7 +5525,7 @@ impl<'a> CheckerState<'a> {
     /// follows the same symbol-chain/import-type construction as
     /// nodeBuilder, while structural shapes reuse the ordinary
     /// recursive renderer.
-    pub(crate) fn get_type_name_for_error_display(&mut self, ty: TypeId) -> CheckResult<String> {
+    pub(crate) fn get_type_name_for_error_display(&mut self, ty: TypeId) -> CheckResult<JsString> {
         self.type_to_string_slice_root(
             ty, /*fully_qualified*/ true, /*no_type_reduction*/ false,
         )
@@ -5524,7 +5541,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         fully_qualified: bool,
         no_type_reduction: bool,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<JsString> {
         let saved_visited = std::mem::take(&mut self.slice_visited_types);
         let saved_infer_type_parameters = std::mem::take(&mut self.slice_infer_type_parameters);
         let saved_approximate_length = std::mem::replace(&mut self.slice_approximate_length, 0);
@@ -5555,7 +5572,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         fully_qualified: bool,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<JsString> {
         Ok(self.type_to_string_slice_node(ty, fully_qualified)?.0)
     }
 
@@ -5579,25 +5596,25 @@ impl<'a> CheckerState<'a> {
     }
 
     /// JS string `.length`, used by nodeBuilder's estimate counters.
-    fn slice_js_length(text: &str) -> usize {
-        text.encode_utf16().count()
+    fn slice_js_length<'n>(text: impl Into<tsc_types::JsStr<'n>>) -> usize {
+        text.into().len_units()
     }
 
     /// createAccessFromSymbolChain on the ordinary one-symbol chain
     /// increments once while selecting the root name and once again
     /// while creating that link (53204-53231).
-    fn slice_add_bare_symbol_length(&mut self, name: &str) {
+    fn slice_add_bare_symbol_length<'n>(&mut self, name: impl Into<tsc_types::JsStr<'n>>) {
         self.slice_add_approximate_length(2 * (Self::slice_js_length(name) + 1));
     }
 
-    fn slice_truncation_type_node(&self) -> (String, SliceTypeNodeKind) {
+    fn slice_truncation_type_node(&self) -> (JsString, SliceTypeNodeKind) {
         if self.options.no_error_truncation == Some(true) {
             // NoTruncation uses `any` plus a synthetic elision
             // comment; typeToString's remove-comments printer leaves
             // the keyword face.
-            ("any".to_owned(), SliceTypeNodeKind::Keyword)
+            ("any".into(), SliceTypeNodeKind::Keyword)
         } else {
-            ("...".to_owned(), SliceTypeNodeKind::Reference)
+            ("...".into(), SliceTypeNodeKind::Reference)
         }
     }
 
@@ -5624,7 +5641,7 @@ impl<'a> CheckerState<'a> {
         types: &[TypeId],
         fully_qualified: bool,
         is_bare_list: bool,
-    ) -> CheckResult<Vec<(String, SliceTypeNodeKind)>> {
+    ) -> CheckResult<Vec<(JsString, SliceTypeNodeKind)>> {
         if types.is_empty() {
             return Ok(Vec::new());
         }
@@ -5639,10 +5656,10 @@ impl<'a> CheckerState<'a> {
                 return Ok(vec![
                     first,
                     if self.options.no_error_truncation == Some(true) {
-                        ("any".to_owned(), SliceTypeNodeKind::Keyword)
+                        ("any".into(), SliceTypeNodeKind::Keyword)
                     } else {
                         (
-                            format!("... {} more ...", types.len() - 2),
+                            crate::concat_js(&[&"... ", &(types.len() - 2), &" more ..."]),
                             SliceTypeNodeKind::Reference,
                         )
                     },
@@ -5657,10 +5674,10 @@ impl<'a> CheckerState<'a> {
             let ordinal = index + 1;
             if self.slice_check_truncation_length() && ordinal + 2 < types.len() - 1 {
                 rendered.push(if self.options.no_error_truncation == Some(true) {
-                    ("any".to_owned(), SliceTypeNodeKind::Keyword)
+                    ("any".into(), SliceTypeNodeKind::Keyword)
                 } else {
                     (
-                        format!("... {} more ...", types.len() - ordinal),
+                        crate::concat_js(&[&"... ", &(types.len() - ordinal), &" more ..."]),
                         SliceTypeNodeKind::Reference,
                     )
                 });
@@ -5672,11 +5689,12 @@ impl<'a> CheckerState<'a> {
             let node = self.type_to_string_slice_node(ty, fully_qualified)?;
             let result_index = rendered.len();
             if !fully_qualified && node.1 == SliceTypeNodeKind::Reference {
-                let head = node
-                    .0
-                    .split_once('<')
-                    .map_or(node.0.as_str(), |(head, _)| head);
-                if tsc_syntax::is_identifier_text(head) {
+                let value = node.0.as_js();
+                let head = value.split_once("<").map_or(value, |(head, _)| head);
+                if let Some(head) = head
+                    .as_str()
+                    .filter(|head| tsc_syntax::is_identifier_text(head))
+                {
                     seen_names
                         .entry(head.to_owned())
                         .or_default()
@@ -5715,7 +5733,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: SymbolId,
         fully_qualified: bool,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<JsString> {
         Ok(self.symbol_type_face_slice(symbol, fully_qualified)?.0)
     }
 
@@ -5735,7 +5753,7 @@ impl<'a> CheckerState<'a> {
         in_initial_entity_name: bool,
         use_alias_defined_outside_current_scope: bool,
         enclosing: Option<NodeId>,
-    ) -> String {
+    ) -> JsString {
         let declarations = self.binder.symbol(symbol).declarations.clone();
         if self.binder.symbol(symbol).escaped_name == tsc_types::InternalSymbolName::DEFAULT
             && !use_alias_defined_outside_current_scope
@@ -5749,7 +5767,7 @@ impl<'a> CheckerState<'a> {
                         != self.default_binding_context_slice(enclosing)
                 }))
         {
-            return tsc_types::InternalSymbolName::DEFAULT.to_owned();
+            return tsc_types::InternalSymbolName::DEFAULT.into();
         }
 
         if !declarations.is_empty() {
@@ -5769,14 +5787,14 @@ impl<'a> CheckerState<'a> {
                 if self.kind_of(parent) == SyntaxKind::VariableDeclaration {
                     let source = self.binder.source_of_node(parent);
                     if let Some(name) = node_util::get_name_of_declaration(source, parent) {
-                        return node_util::declaration_name_to_string(source, Some(name));
+                        return node_util::declaration_name_to_string(source, Some(name)).into();
                     }
                 }
             }
             match self.kind_of(declaration) {
-                SyntaxKind::ClassExpression => return "(Anonymous class)".to_owned(),
+                SyntaxKind::ClassExpression => return "(Anonymous class)".into(),
                 SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction => {
-                    return "(Anonymous function)".to_owned();
+                    return "(Anonymous function)".into();
                 }
                 _ => {}
             }
@@ -5793,42 +5811,43 @@ impl<'a> CheckerState<'a> {
     /// getNameOfSymbolFromNameType (55523-55539): declarationless and
     /// early-bound computed symbols retain the literal/unique-symbol name
     /// that produced them instead of exposing their internal escaped key.
-    fn symbol_name_from_name_type_slice(
+    pub(crate) fn symbol_name_from_name_type_slice(
         &self,
         symbol: SymbolId,
         in_initial_entity_name: bool,
         use_alias_defined_outside_current_scope: bool,
         enclosing: Option<NodeId>,
-    ) -> Option<String> {
+    ) -> Option<JsString> {
         let name_type = self.links.symbol(symbol).name_type?;
         let flags = self.tables.flags_of(name_type);
         if flags.intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL) {
-            let (name, quoted) = match &self.tables.type_of(name_type).data {
+            let name = match &self.tables.type_of(name_type).data {
                 TypeData::Literal {
                     value: tsc_types::LiteralValue::String(value),
-                } => {
-                    let Some(name) = value.to_utf8() else {
-                        return Some(format!("\"{}\"", string_literal_type_display_text(value)));
-                    };
-                    let quoted = format!("\"{}\"", string_literal_type_display_text(value));
-                    (name, quoted)
-                }
+                } => value.to_js_string(),
                 TypeData::Literal {
                     value: tsc_types::LiteralValue::Number(value),
-                } => {
-                    let name = tsc_types::js_number_to_string(*value);
-                    let quoted = format!("\"{name}\"");
-                    (name, quoted)
-                }
+                } => tsc_types::js_number_to_string(*value).into(),
                 _ => return None,
             };
-            if !tsc_syntax::is_identifier_text_for_target(&name, self.options.emit_script_target())
-                && !crate::evaluate::is_numeric_literal_name(&name)
-            {
+            let numeric = name
+                .as_str()
+                .is_some_and(crate::evaluate::is_numeric_literal_name);
+            let identifier = name.as_str().is_some_and(|name| {
+                tsc_syntax::is_identifier_text_for_target(name, self.options.emit_script_target())
+            });
+            if !identifier && !numeric {
+                let mut quoted = JsString::from("\"");
+                quoted
+                    .push_js(crate::merge::escape_double_quoted_symbol_name(name.as_js()).as_js());
+                quoted.push('"');
                 return Some(quoted);
             }
-            if crate::evaluate::is_numeric_literal_name(&name) && name.starts_with('-') {
-                return Some(format!("[{name}]"));
+            if numeric && name.starts_with("-") {
+                let mut bracketed = JsString::from("[");
+                bracketed.push_js(name.as_js());
+                bracketed.push(']');
+                return Some(bracketed);
             }
             return Some(name);
         }
@@ -5840,7 +5859,10 @@ impl<'a> CheckerState<'a> {
                 use_alias_defined_outside_current_scope,
                 enclosing,
             );
-            return Some(format!("[{name}]"));
+            let mut bracketed = JsString::from("[");
+            bracketed.push_js(name.as_js());
+            bracketed.push(']');
+            return Some(bracketed);
         }
         None
     }
@@ -5911,10 +5933,10 @@ impl<'a> CheckerState<'a> {
             AsyncIterableIterator,
         }
         let protocol_name = match self.binder.symbol(symbol).escaped_name.as_str() {
-            "Iterable" => Some(IterableProtocol::Iterable),
-            "IterableIterator" => Some(IterableProtocol::IterableIterator),
-            "AsyncIterable" => Some(IterableProtocol::AsyncIterable),
-            "AsyncIterableIterator" => Some(IterableProtocol::AsyncIterableIterator),
+            Some("Iterable") => Some(IterableProtocol::Iterable),
+            Some("IterableIterator") => Some(IterableProtocol::IterableIterator),
+            Some("AsyncIterable") => Some(IterableProtocol::AsyncIterable),
+            Some("AsyncIterableIterator") => Some(IterableProtocol::AsyncIterableIterator),
             _ => None,
         };
         let protocol_target = match protocol_name {
@@ -5973,7 +5995,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         fully_qualified: bool,
-    ) -> CheckResult<(String, SliceTypeNodeKind)> {
+    ) -> CheckResult<(JsString, SliceTypeNodeKind)> {
         // typeToTypeNodeWorker 51331-51333: typeToString's default
         // builder flags do not include NoTypeReduction, so every
         // recursive display frame reduces before selecting a node
@@ -5996,8 +6018,13 @@ impl<'a> CheckerState<'a> {
             };
             return Ok((
                 match name {
-                    Some(name) => format!("{prefix}{name}"),
-                    None => "?".to_owned(),
+                    Some(name) => crate::concat_js(&[
+                        &(prefix),
+                        &(name
+                            .as_str()
+                            .expect("variance markers refer to type parameters")),
+                    ]),
+                    None => "?".into(),
                 },
                 SliceTypeNodeKind::Reference,
             ));
@@ -6038,7 +6065,12 @@ impl<'a> CheckerState<'a> {
                             .map(|(text, _)| text)
                             .collect::<Vec<_>>();
                         Ok((
-                            format!("{name}<{}>", rendered.join(", ")),
+                            crate::concat_js(&[
+                                &(name),
+                                &"<",
+                                &(crate::join_js_texts(&rendered, ", ")),
+                                &">",
+                            ]),
                             SliceTypeNodeKind::Reference,
                         ))
                     }
@@ -6060,7 +6092,7 @@ impl<'a> CheckerState<'a> {
                     ..
                 }
             ) {
-                return Ok(("this".to_owned(), SliceTypeNodeKind::Keyword));
+                return Ok(("this".into(), SliceTypeNodeKind::Keyword));
             }
             // typeToTypeNodeWorker 51496-51512: an infer parameter is
             // a declaration only inside its conditional root's
@@ -6098,16 +6130,21 @@ impl<'a> CheckerState<'a> {
                     }
                     None => None,
                 };
+                let name = name
+                    .as_str()
+                    .expect("infer declarations name scalar type parameters");
                 let text = match constraint_text {
-                    Some(constraint) => format!("infer {name} extends {constraint}"),
-                    None => format!("infer {name}"),
+                    Some(constraint) => {
+                        crate::concat_js(&[&"infer ", &(name), &" extends ", &(constraint)])
+                    }
+                    None => crate::concat_js(&[&"infer ", &(name)]),
                 };
                 return Ok((text, SliceTypeNodeKind::Infer));
             }
             return Ok((
                 match self.tables.type_of(ty).symbol {
                     Some(symbol) => self.symbol_type_face_slice(symbol, fully_qualified)?.0,
-                    None => "?".to_owned(),
+                    None => "?".into(),
                 },
                 SliceTypeNodeKind::Reference,
             ));
@@ -6173,20 +6210,23 @@ impl<'a> CheckerState<'a> {
                     return Ok((parent_name, SliceTypeNodeKind::Reference));
                 }
                 let member_name = self.symbol_display_name(symbol);
-                if tsc_syntax::is_identifier_text(&member_name) {
+                if let Some(member_name) = member_name
+                    .as_str()
+                    .filter(|name| tsc_syntax::is_identifier_text(name))
+                {
                     return Ok((
-                        format!("{parent_name}.{member_name}"),
+                        crate::concat_js(&[&(parent_name), &".", &(member_name)]),
                         SliceTypeNodeKind::Reference,
                     ));
                 }
                 let member = string_literal_name_slice(&member_name, false)?;
                 return match parent_kind {
                     SliceTypeNodeKind::ImportType => Ok((
-                        format!("typeof {parent_name}[{member}]"),
+                        crate::concat_js(&[&"typeof ", &(parent_name), &"[", &(member), &"]"]),
                         SliceTypeNodeKind::IndexedAccess,
                     )),
                     SliceTypeNodeKind::Reference => Ok((
-                        format!("(typeof {parent_name})[{member}]"),
+                        crate::concat_js(&[&"(typeof ", &(parent_name), &")[", &(member), &"]"]),
                         SliceTypeNodeKind::IndexedAccess,
                     )),
                     _ => unreachable!(
@@ -6245,7 +6285,7 @@ impl<'a> CheckerState<'a> {
                 } else {
                     name
                 };
-                Ok((text.to_owned(), SliceTypeNodeKind::Keyword))
+                Ok((text.into(), SliceTypeNodeKind::Keyword))
             }
             TypeData::Literal { value } => match value {
                 tsc_types::LiteralValue::String(text) => {
@@ -6254,25 +6294,28 @@ impl<'a> CheckerState<'a> {
                     // runs escapeString(text, '"') WITHOUT the
                     // non-ASCII pass — `"あ"` prints raw while
                     // `"AB\r\nC"` spells its escapes (oracle-pinned).
-                    // Unpaired surrogates are carried losslessly and
-                    // spelled as `\uXXXX` at the Rust UTF-8 display
-                    // boundary.
+                    // The JS display value retains lone surrogate units;
+                    // only the final output sink may encode/project them.
                     self.slice_add_approximate_length(text.len() + 2);
                     Ok((
-                        format!("\"{}\"", string_literal_type_display_text(&text)),
+                        crate::concat_js(&[
+                            &"\"",
+                            &(string_literal_type_display_text(&text)),
+                            &"\"",
+                        ]),
                         SliceTypeNodeKind::Literal,
                     ))
                 }
                 tsc_types::LiteralValue::Number(value) => {
                     let text = tsc_types::js_number_to_string(value);
                     self.slice_add_approximate_length(Self::slice_js_length(&text));
-                    Ok((text, SliceTypeNodeKind::Literal))
+                    Ok((text.into(), SliceTypeNodeKind::Literal))
                 }
                 tsc_types::LiteralValue::BigInt(value) => {
                     // 51409-51411: pseudoBigIntToString plus the
                     // BigIntLiteral printer's `n` suffix. The pseudo
                     // value is already normalized to signed base-10.
-                    let text = format!("{}n", value.to_base10_string());
+                    let text = crate::concat_js(&[&(value.to_base10_string()), &"n"]);
                     self.slice_add_approximate_length(Self::slice_js_length(&text));
                     Ok((text, SliceTypeNodeKind::Literal))
                 }
@@ -6304,7 +6347,7 @@ impl<'a> CheckerState<'a> {
                     self.symbol_value_face_slice(symbol, true)
                 } else {
                     self.slice_add_approximate_length(13);
-                    Ok(("unique symbol".to_owned(), SliceTypeNodeKind::TypeOperator))
+                    Ok(("unique symbol".into(), SliceTypeNodeKind::TypeOperator))
                 }
             }
             _ => self.type_to_string_slice_structured(ty, fully_qualified),
@@ -6315,7 +6358,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         fully_qualified: bool,
-    ) -> CheckResult<(String, SliceTypeNodeKind)> {
+    ) -> CheckResult<(JsString, SliceTypeNodeKind)> {
         let type_of = self.tables.type_of(ty);
         if let (Some(alias_symbol), alias_arguments) =
             (type_of.alias_symbol, type_of.alias_type_arguments.clone())
@@ -6358,7 +6401,12 @@ impl<'a> CheckerState<'a> {
                         .map(|(text, _)| text)
                         .collect::<Vec<_>>();
                     Ok((
-                        format!("{name}<{}>", rendered.join(", ")),
+                        crate::concat_js(&[
+                            &(name),
+                            &"<",
+                            &(crate::join_js_texts(&rendered, ", ")),
+                            &">",
+                        ]),
                         SliceTypeNodeKind::Reference,
                     ))
                 }
@@ -6372,7 +6420,7 @@ impl<'a> CheckerState<'a> {
         // prints as the keyword, never as its members.
         if flags.intersects(TypeFlags::BOOLEAN) && flags.intersects(TypeFlags::UNION) {
             self.slice_add_approximate_length(7);
-            return Ok(("boolean".to_owned(), SliceTypeNodeKind::Keyword));
+            return Ok(("boolean".into(), SliceTypeNodeKind::Keyword));
         }
         if flags.intersects(TypeFlags::UNION | TypeFlags::INTERSECTION) {
             let (mut types, origin) = match &self.tables.type_of(ty).data {
@@ -6438,13 +6486,13 @@ impl<'a> CheckerState<'a> {
                     intersection_constituent_needs_parens(kind)
                 };
                 rendered.push(if needs_parens {
-                    format!("({text})")
+                    crate::concat_js(&[&"(", &(text), &")"])
                 } else {
                     text
                 });
             }
             return Ok((
-                rendered.join(separator),
+                crate::join_js_texts(&rendered, separator),
                 if is_union {
                     SliceTypeNodeKind::Union
                 } else {
@@ -6528,7 +6576,13 @@ impl<'a> CheckerState<'a> {
                             } else {
                                 text
                             };
-                            format!("{dot_dot_dot}{name}{question}: {member}")
+                            crate::concat_js(&[
+                                &(dot_dot_dot),
+                                &(name),
+                                &(question),
+                                &": ",
+                                &(member),
+                            ])
                         }
                         // 51966: RestTypeNode (`...T[]` for Rest,
                         // `...T` for Variadic — createRestTypeNode
@@ -6542,14 +6596,14 @@ impl<'a> CheckerState<'a> {
                                 } else {
                                     text
                                 };
-                                format!("...{member}")
+                                crate::concat_js(&[&"...", &(member)])
                             } else if flags.intersects(ElementFlags::OPTIONAL) {
                                 let member = if optional_type_operand_needs_parens(kind) {
-                                    format!("({text})")
+                                    crate::concat_js(&[&"(", &(text), &")"])
                                 } else {
                                     text
                                 };
-                                format!("{member}?")
+                                crate::concat_js(&[&(member), &"?"])
                             } else {
                                 text
                             }
@@ -6561,12 +6615,15 @@ impl<'a> CheckerState<'a> {
                 // TypeOperator (a tuple operand never parenthesizes,
                 // 20570-20576).
                 let tuple = if rendered.is_empty() {
-                    "[]".to_owned()
+                    "[]".into()
                 } else {
-                    format!("[{}]", rendered.join(", "))
+                    crate::concat_js(&[&"[", &(crate::join_js_texts(&rendered, ", ")), &"]"])
                 };
                 return Ok(if readonly {
-                    (format!("readonly {tuple}"), SliceTypeNodeKind::TypeOperator)
+                    (
+                        crate::concat_js(&[&"readonly ", &(tuple)]),
+                        SliceTypeNodeKind::TypeOperator,
+                    )
                 } else {
                     (tuple, SliceTypeNodeKind::Tuple)
                 });
@@ -6585,8 +6642,8 @@ impl<'a> CheckerState<'a> {
             // type argument is consumed here — tsc does not require
             // `typeArguments.length === 1`.
             let array_name_kind = match self.binder.symbol(symbol).escaped_name.as_str() {
-                "Array" => Some(false),
-                "ReadonlyArray" => Some(true),
+                Some("Array") => Some(false),
+                Some("ReadonlyArray") => Some(true),
                 _ => None,
             };
             let array_kind = match array_name_kind {
@@ -6615,7 +6672,10 @@ impl<'a> CheckerState<'a> {
                 // 20570-20576).
                 let array = array_type_node_text(element, kind);
                 return Ok(if readonly {
-                    (format!("readonly {array}"), SliceTypeNodeKind::TypeOperator)
+                    (
+                        crate::concat_js(&[&"readonly ", &(array)]),
+                        SliceTypeNodeKind::TypeOperator,
+                    )
                 } else {
                     (array, SliceTypeNodeKind::Array)
                 });
@@ -6631,7 +6691,7 @@ impl<'a> CheckerState<'a> {
                         unreachable!("reference targets are GenericType or symbol-less TupleTarget")
                     }
                 };
-            let mut outer_reference: Option<String> = None;
+            let mut outer_reference: Option<JsString> = None;
             let mut argument_start = 0;
             while argument_start < outer_type_parameter_count {
                 // TypeScript 6.0.3 passes this absent JSDoc-template
@@ -6672,9 +6732,14 @@ impl<'a> CheckerState<'a> {
                         .collect::<Vec<_>>();
                     let parent_name =
                         self.type_reference_symbol_name_slice(parent, fully_qualified)?;
-                    let reference = format!("{parent_name}<{}>", rendered.join(", "));
+                    let reference = crate::concat_js(&[
+                        &(parent_name),
+                        &"<",
+                        &(crate::join_js_texts(&rendered, ", ")),
+                        &">",
+                    ]);
                     outer_reference = Some(match outer_reference {
-                        Some(root) => format!("{root}.{reference}"),
+                        Some(root) => crate::concat_js(&[&(root), &".", &(reference)]),
                         None => reference,
                     });
                 }
@@ -6714,11 +6779,16 @@ impl<'a> CheckerState<'a> {
             let reference = if rendered.is_empty() {
                 name
             } else {
-                format!("{name}<{}>", rendered.join(", "))
+                crate::concat_js(&[
+                    &(name),
+                    &"<",
+                    &(crate::join_js_texts(&rendered, ", ")),
+                    &">",
+                ])
             };
             return Ok((
                 match outer_reference {
-                    Some(root) => format!("{root}.{reference}"),
+                    Some(root) => crate::concat_js(&[&(root), &".", &(reference)]),
                     None => reference,
                 },
                 SliceTypeNodeKind::Reference,
@@ -6749,14 +6819,14 @@ impl<'a> CheckerState<'a> {
                 TypeData::TemplateLiteral { texts, types } => (texts.clone(), types.clone()),
                 _ => unreachable!("TEMPLATE_LITERAL flag implies TemplateLiteral data"),
             };
-            let mut out = String::from("`");
-            out.push_str(&template_text_utf16_raw(texts[0].units()));
+            let mut out = JsString::from("`");
+            out.push_js((&template_text_utf16_raw(texts[0].units())).into());
             for (i, &span_type) in types.iter().enumerate() {
-                out.push_str("${");
+                out.push_js(("${").into());
                 let (text, _) = self.type_to_string_slice_node(span_type, fully_qualified)?;
-                out.push_str(&text);
+                out.push_js((&text).into());
                 out.push('}');
-                out.push_str(&template_text_utf16_raw(texts[i + 1].units()));
+                out.push_js((&template_text_utf16_raw(texts[i + 1].units())).into());
             }
             out.push('`');
             self.slice_add_approximate_length(2);
@@ -6786,7 +6856,10 @@ impl<'a> CheckerState<'a> {
                 .expect("string-mapping types carry their intrinsic alias symbol");
             let (argument, _) = self.type_to_string_slice_node(inner, fully_qualified)?;
             let name = self.symbol_type_face_slice(symbol, fully_qualified)?.0;
-            return Ok((format!("{name}<{argument}>"), SliceTypeNodeKind::Reference));
+            return Ok((
+                crate::concat_js(&[&(name), &"<", &(argument), &">"]),
+                SliceTypeNodeKind::Reference,
+            ));
         }
         // tsc-port: typeToTypeNodeHelper @6.0.3 (the IndexedAccess arm)
         // tsc-hash: 68490ac5787a8d01645877e13a6f9c108604b8806d7168e7566adb32f942c760
@@ -6808,14 +6881,14 @@ impl<'a> CheckerState<'a> {
             let (object_text, object_kind) =
                 self.type_to_string_slice_node(object_type, fully_qualified)?;
             let object = if non_array_postfix_operand_needs_parens(object_kind) {
-                format!("({object_text})")
+                crate::concat_js(&[&"(", &(object_text), &")"])
             } else {
                 object_text
             };
             let (index_text, _) = self.type_to_string_slice_node(index_type, fully_qualified)?;
             self.slice_add_approximate_length(2);
             return Ok((
-                format!("{object}[{index_text}]"),
+                crate::concat_js(&[&(object), &"[", &(index_text), &"]"]),
                 SliceTypeNodeKind::IndexedAccess,
             ));
         }
@@ -6826,7 +6899,7 @@ impl<'a> CheckerState<'a> {
             let (check_text, check_kind) =
                 self.type_to_string_slice_node(data.check_type, fully_qualified)?;
             let check = if conditional_check_type_needs_parens(check_kind) {
-                format!("({check_text})")
+                crate::concat_js(&[&"(", &(check_text), &")"])
             } else {
                 check_text
             };
@@ -6846,7 +6919,7 @@ impl<'a> CheckerState<'a> {
             self.slice_infer_type_parameters = saved_infer_type_parameters;
             let (extends_text, extends_kind) = extends_result?;
             let extends = if extends_kind == SliceTypeNodeKind::Conditional {
-                format!("({extends_text})")
+                crate::concat_js(&[&"(", &(extends_text), &")"])
             } else {
                 extends_text
             };
@@ -6855,7 +6928,15 @@ impl<'a> CheckerState<'a> {
             let (true_text, _) = self.type_to_string_slice_node(true_type, fully_qualified)?;
             let (false_text, _) = self.type_to_string_slice_node(false_type, fully_qualified)?;
             return Ok((
-                format!("{check} extends {extends} ? {true_text} : {false_text}"),
+                crate::concat_js(&[
+                    &(check),
+                    &" extends ",
+                    &(extends),
+                    &" ? ",
+                    &(true_text),
+                    &" : ",
+                    &(false_text),
+                ]),
                 SliceTypeNodeKind::Conditional,
             ));
         }
@@ -6868,7 +6949,10 @@ impl<'a> CheckerState<'a> {
                     self.type_to_string_slice_node(data.base_type, fully_qualified)?;
                 if let Some(symbol) = self.get_global_type_symbol("NoInfer", false)? {
                     let name = self.symbol_type_face_slice(symbol, fully_qualified)?.0;
-                    return Ok((format!("{name}<{argument}>"), SliceTypeNodeKind::Reference));
+                    return Ok((
+                        crate::concat_js(&[&(name), &"<", &(argument), &">"]),
+                        SliceTypeNodeKind::Reference,
+                    ));
                 }
             }
             return self.type_to_string_slice_node(data.base_type, fully_qualified);
@@ -6888,7 +6972,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         fully_qualified: bool,
-    ) -> CheckResult<(String, SliceTypeNodeKind)> {
+    ) -> CheckResult<(JsString, SliceTypeNodeKind)> {
         let declaration = self.mapped_type_declaration(ty);
         let NodeData::MappedType(data) = self.data_of(declaration) else {
             unreachable!("mapped payload declaration has MappedType syntax kind");
@@ -6902,8 +6986,13 @@ impl<'a> CheckerState<'a> {
             .tables
             .type_of(type_parameter)
             .symbol
-            .map(|symbol| self.symbol_display_name(symbol))
-            .unwrap_or_else(|| "?".to_owned());
+            .map(|symbol| {
+                self.symbol_display_name(symbol)
+                    .as_str()
+                    .expect("mapped type parameters have identifier names")
+                    .to_owned()
+            })
+            .unwrap_or_else(|| "?".into());
         let constraint = self.get_constraint_type_from_mapped_type(ty)?;
         let constraint = self.type_to_string_slice_ex(constraint, fully_qualified)?;
         let name_type = if has_name_type {
@@ -6938,13 +7027,25 @@ impl<'a> CheckerState<'a> {
             Some(_) => unreachable!("parser mapped question token kinds are closed"),
         };
         let name = name_type
-            .map(|name_type| format!(" as {name_type}"))
+            .map(|name_type| crate::concat_js(&[&" as ", &(name_type)]))
             .unwrap_or_default();
         self.slice_add_approximate_length(10);
         Ok((
-            format!(
-                "{{ {readonly}[{parameter_name} in {constraint}{name}]{question}: {template}; }}"
-            ),
+            crate::concat_js(&[
+                &"{",
+                &" ",
+                &(readonly),
+                &"[",
+                &(parameter_name),
+                &" in ",
+                &(constraint),
+                &(name),
+                &"]",
+                &(question),
+                &": ",
+                &(template),
+                &"; }",
+            ]),
             SliceTypeNodeKind::TypeLiteral,
         ))
     }
@@ -6962,7 +7063,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         fully_qualified: bool,
-    ) -> CheckResult<(String, SliceTypeNodeKind)> {
+    ) -> CheckResult<(JsString, SliceTypeNodeKind)> {
         let inner = match self.tables.type_of(ty).data {
             TypeData::Index { ty: inner, .. } => inner,
             _ => unreachable!("INDEX flag implies Index data"),
@@ -6970,11 +7071,14 @@ impl<'a> CheckerState<'a> {
         self.slice_add_approximate_length(6);
         let (text, kind) = self.type_to_string_slice_node(inner, fully_qualified)?;
         let operand = if type_operator_operand_needs_parens(kind) {
-            format!("({text})")
+            crate::concat_js(&[&"(", &(text), &")"])
         } else {
             text
         };
-        Ok((format!("keyof {operand}"), SliceTypeNodeKind::TypeOperator))
+        Ok((
+            crate::concat_js(&[&"keyof ", &(operand)]),
+            SliceTypeNodeKind::TypeOperator,
+        ))
     }
 
     /// tsc-port: createAnonymousTypeNode @6.0.3 (structural tail)
@@ -6995,7 +7099,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         fully_qualified: bool,
-    ) -> CheckResult<(String, SliceTypeNodeKind)> {
+    ) -> CheckResult<(JsString, SliceTypeNodeKind)> {
         // InstantiationExpressionType (51755-51770): a TypeQuery can
         // be reused only while it still resolves to this exact type.
         // Failed partial instantiations rely on that identity check to
@@ -7239,7 +7343,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: SymbolId,
         fully_qualified: bool,
-    ) -> CheckResult<(String, SliceTypeNodeKind)> {
+    ) -> CheckResult<(JsString, SliceTypeNodeKind)> {
         self.symbol_to_type_face_slice(symbol, fully_qualified, tsc_types::SymbolFlags::TYPE)
     }
 
@@ -7247,7 +7351,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: SymbolId,
         fully_qualified: bool,
-    ) -> CheckResult<(String, SliceTypeNodeKind)> {
+    ) -> CheckResult<(JsString, SliceTypeNodeKind)> {
         self.symbol_to_type_face_slice(symbol, fully_qualified, tsc_types::SymbolFlags::VALUE)
     }
 
@@ -7261,7 +7365,7 @@ impl<'a> CheckerState<'a> {
         symbol: SymbolId,
         meaning: tsc_types::SymbolFlags,
         enclosing: NodeId,
-    ) -> CheckResult<(String, SliceTypeNodeKind)> {
+    ) -> CheckResult<(JsString, SliceTypeNodeKind)> {
         let chain = self
             .symbol_chain_slice(
                 symbol,
@@ -7281,7 +7385,7 @@ impl<'a> CheckerState<'a> {
         chain: &[SymbolId],
         meaning: tsc_types::SymbolFlags,
         enclosing: Option<NodeId>,
-    ) -> CheckResult<(String, SliceTypeNodeKind)> {
+    ) -> CheckResult<(JsString, SliceTypeNodeKind)> {
         let is_type_of = meaning == tsc_types::SymbolFlags::VALUE;
         let root = chain[0];
         if self.symbol_has_external_module_declaration(root) {
@@ -7294,7 +7398,7 @@ impl<'a> CheckerState<'a> {
             self.slice_add_approximate_length(Self::slice_js_length(&specifier) + 10);
             if chain.len() == 1 {
                 return Ok((
-                    format!("{type_of}import({literal})"),
+                    crate::concat_js(&[&(type_of), &"import(", &(literal), &")"]),
                     SliceTypeNodeKind::ImportType,
                 ));
             }
@@ -7310,7 +7414,13 @@ impl<'a> CheckerState<'a> {
                 qualifier.push(name);
             }
             return Ok((
-                format!("{type_of}import({literal}).{}", qualifier.join(".")),
+                crate::concat_js(&[
+                    &(type_of),
+                    &"import(",
+                    &(literal),
+                    &").",
+                    &(crate::join_js_texts(&qualifier, ".")),
+                ]),
                 SliceTypeNodeKind::ImportType,
             ));
         }
@@ -7325,9 +7435,12 @@ impl<'a> CheckerState<'a> {
             self.slice_add_approximate_length(Self::slice_js_length(&name) + 1);
             parts.push(name);
         }
-        let text = parts.join(".");
+        let text = crate::join_js_texts(&parts, ".");
         Ok(if is_type_of {
-            (format!("typeof {text}"), SliceTypeNodeKind::TypeQuery)
+            (
+                crate::concat_js(&[&"typeof ", &(text)]),
+                SliceTypeNodeKind::TypeQuery,
+            )
         } else {
             (text, SliceTypeNodeKind::Reference)
         })
@@ -7338,7 +7451,7 @@ impl<'a> CheckerState<'a> {
         symbol: SymbolId,
         fully_qualified: bool,
         meaning: tsc_types::SymbolFlags,
-    ) -> CheckResult<(String, SliceTypeNodeKind)> {
+    ) -> CheckResult<(JsString, SliceTypeNodeKind)> {
         let is_type_of = meaning == tsc_types::SymbolFlags::VALUE;
         // 53117: some(chain[0].declarations,
         // hasNonGlobalAugmentationExternalModuleSymbol) routes the
@@ -7358,7 +7471,7 @@ impl<'a> CheckerState<'a> {
             let type_of = if is_type_of { "typeof " } else { "" };
             self.slice_add_approximate_length(Self::slice_js_length(&specifier) + 10);
             return Ok((
-                format!("{type_of}import({literal})"),
+                crate::concat_js(&[&(type_of), &"import(", &(literal), &")"]),
                 SliceTypeNodeKind::ImportType,
             ));
         }
@@ -7391,7 +7504,7 @@ impl<'a> CheckerState<'a> {
                 // leaves a length-1 chain — the bare ImportTypeNode.
                 if chain.len() == 1 {
                     return Ok((
-                        format!("{type_of}import({literal})"),
+                        crate::concat_js(&[&(type_of), &"import(", &(literal), &")"]),
                         SliceTypeNodeKind::ImportType,
                     ));
                 }
@@ -7406,9 +7519,9 @@ impl<'a> CheckerState<'a> {
                     self.slice_add_approximate_length(Self::slice_js_length(&name) + 1);
                     qualifier.push(name);
                 }
-                let qualifier = qualifier.join(".");
+                let qualifier = crate::join_js_texts(&qualifier, ".");
                 return Ok((
-                    format!("{type_of}import({literal}).{qualifier}"),
+                    crate::concat_js(&[&(type_of), &"import(", &(literal), &").", &(qualifier)]),
                     SliceTypeNodeKind::ImportType,
                 ));
             }
@@ -7434,9 +7547,12 @@ impl<'a> CheckerState<'a> {
                 self.slice_add_approximate_length(Self::slice_js_length(&name) + 1);
                 parts.push(name);
             }
-            let text = parts.join(".");
+            let text = crate::join_js_texts(&parts, ".");
             return Ok(if is_type_of {
-                (format!("typeof {text}"), SliceTypeNodeKind::TypeQuery)
+                (
+                    crate::concat_js(&[&"typeof ", &(text)]),
+                    SliceTypeNodeKind::TypeQuery,
+                )
             } else {
                 (text, SliceTypeNodeKind::Reference)
             });
@@ -7450,7 +7566,10 @@ impl<'a> CheckerState<'a> {
         );
         self.slice_add_bare_symbol_length(&name);
         Ok(if is_type_of {
-            (format!("typeof {name}"), SliceTypeNodeKind::TypeQuery)
+            (
+                crate::concat_js(&[&"typeof ", &(name)]),
+                SliceTypeNodeKind::TypeQuery,
+            )
         } else {
             (name, SliceTypeNodeKind::Reference)
         })
@@ -7475,7 +7594,7 @@ impl<'a> CheckerState<'a> {
         symbol: SymbolId,
         enclosing: Option<NodeId>,
         fully_qualified: bool,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<JsString> {
         let chain = if enclosing.is_some() || fully_qualified {
             // yield_module_symbol FALSE — symbolToExpression passes
             // nothing (53338), including tsc's FQ retry, which still
@@ -7491,7 +7610,7 @@ impl<'a> CheckerState<'a> {
         } else {
             vec![symbol]
         };
-        let mut expression = String::new();
+        let mut expression = JsString::new();
         for (index, &link) in chain.iter().enumerate() {
             let mut name = self.entity_symbol_name_as_written_slice(
                 link,
@@ -7501,7 +7620,7 @@ impl<'a> CheckerState<'a> {
             );
             if index == 0 && self.symbol_has_external_module_declaration(link) {
                 let specifier = self.specifier_for_module_symbol_slice(link)?;
-                expression = string_literal_name_slice(&specifier, false)?;
+                expression = string_literal_name_slice(&specifier, false)?.into();
                 continue;
             }
             if index == 0 || can_use_property_access_slice(&name, self.options.emit_script_target())
@@ -7509,14 +7628,21 @@ impl<'a> CheckerState<'a> {
                 expression = if index == 0 {
                     name
                 } else {
-                    format!("{expression}.{name}")
+                    crate::concat_js(&[&(expression), &".", &(name)])
                 };
                 continue;
             }
-            if name.starts_with('[') && name.ends_with(']') && name.len() >= 2 {
-                name = name[1..name.len() - 1].to_owned();
+            if let Some(body) = name
+                .as_js()
+                .strip_prefix("[")
+                .and_then(|body| body.strip_suffix("]"))
+            {
+                name = body.to_owned();
             }
-            let first = name.chars().next();
+            let first = name
+                .code_units()
+                .next()
+                .and_then(|unit| char::from_u32(u32::from(unit)));
             let argument = if matches!(first, Some('\'') | Some('"'))
                 && !self
                     .binder
@@ -7526,16 +7652,16 @@ impl<'a> CheckerState<'a> {
             {
                 let single_quote = first == Some('\'');
                 let literal = strip_symbol_name_quotes_slice(&name);
-                string_literal_name_slice(&literal, single_quote)?
+                JsString::from(string_literal_name_slice(&literal, single_quote)?)
             } else {
                 let numeric = crate::evaluate::js_string_to_number(&name);
-                if tsc_types::js_number_to_string(numeric) == name {
-                    tsc_types::js_number_to_string(numeric)
+                if name == tsc_types::js_number_to_string(numeric).as_str() {
+                    tsc_types::js_number_to_string(numeric).into()
                 } else {
                     name
                 }
             };
-            expression = format!("{expression}[{argument}]");
+            expression = crate::concat_js(&[&(expression), &"[", &(argument), &"]"]);
         }
         Ok(expression)
     }
@@ -7596,7 +7722,7 @@ impl<'a> CheckerState<'a> {
                 // (sortByBestName) — module parents key their
                 // specifier, namespace parents ride as ties (the
                 // missing-specifier `return 0`, 53014).
-                let mut specifiers: Vec<Option<String>> = Vec::with_capacity(parents.len());
+                let mut specifiers: Vec<Option<JsString>> = Vec::with_capacity(parents.len());
                 for &parent in &parents {
                     if self.symbol_has_external_module_declaration(parent) {
                         match self.specifier_for_module_symbol_slice(parent) {
@@ -7624,7 +7750,9 @@ impl<'a> CheckerState<'a> {
                     // countPathComponents (45645): the separator
                     // count.
                     (Some(a), Some(b)) => {
-                        let count = |s: &str| s.bytes().filter(|&byte| byte == b'/').count();
+                        let count = |s: &JsString| {
+                            s.as_bytes().iter().filter(|&&byte| byte == b'/').count()
+                        };
                         count(a).cmp(&count(b))
                     }
                     _ => std::cmp::Ordering::Equal,
@@ -8408,7 +8536,7 @@ impl<'a> CheckerState<'a> {
         symbol: SymbolId,
         use_alias_defined_outside_current_scope: bool,
         enclosing: Option<NodeId>,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<JsString> {
         let exports = self.get_exports_of_symbol(parent)?;
         for (name, &exported) in exports.iter() {
             if self.symbol_if_same_reference_slice(exported, symbol)?
@@ -8497,18 +8625,21 @@ impl<'a> CheckerState<'a> {
     /// fileName against the program cwd (program-host.mjs
     /// absoluteProgramFileName), the same posture as
     /// getFullyQualifiedName's source-file arm.
-    fn specifier_for_module_symbol_slice(&self, symbol: SymbolId) -> CheckResult<String> {
+    fn specifier_for_module_symbol_slice(&self, symbol: SymbolId) -> CheckResult<JsString> {
         let data = self.binder.symbol(symbol);
-        let escaped = &data.escaped_name;
+        let escaped = data.escaped_name.as_js();
         // ambientModuleSymbolRegex (46291): /^".+"$/.
-        if escaped.len() >= 3 && escaped.starts_with('"') && escaped.ends_with('"') {
-            let name = &escaped[1..escaped.len() - 1];
+        if let Some(name) = escaped
+            .strip_prefix("\"")
+            .and_then(|name| name.strip_suffix("\""))
+            .filter(|name| !name.is_empty())
+        {
             let source_file_module = data
                 .declarations
                 .iter()
                 .any(|&declaration| self.kind_of(declaration) == SyntaxKind::SourceFile);
             if source_file_module {
-                return Ok(Self::normalize_program_path(
+                return Ok(Self::normalize_js_program_path(
                     name,
                     &self.host_current_directory,
                 ));
@@ -8532,7 +8663,7 @@ impl<'a> CheckerState<'a> {
         // non-augmentation declaration.
         let declaration = declaration
             .expect("module symbol without an ambient name has a non-augmentation declaration");
-        Ok(Self::normalize_program_path(
+        Ok(Self::normalize_js_program_path(
             &self.binder.source_of_node(declaration).file_name,
             &self.host_current_directory,
         ))
@@ -8545,7 +8676,7 @@ impl<'a> CheckerState<'a> {
         &self,
         symbol: SymbolId,
         enclosing: NodeId,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<JsString> {
         let source_file_module = self
             .binder
             .symbol(symbol)
@@ -8560,32 +8691,29 @@ impl<'a> CheckerState<'a> {
         Ok(Self::relative_module_specifier_slice(importer, &specifier))
     }
 
-    fn relative_module_specifier_slice(importer: &str, target: &str) -> String {
-        let importer = Self::normalize_program_path(importer, "");
-        let target = Self::normalize_program_path(target, "");
-        let importer_dir = importer
-            .rsplit_once('/')
-            .map_or("", |(directory, _)| directory);
-        let from: Vec<_> = importer_dir
-            .split('/')
-            .filter(|segment| !segment.is_empty())
-            .collect();
+    fn relative_module_specifier_slice(importer: &JsString, target: &JsString) -> JsString {
+        let importer = Self::normalize_js_program_path(importer, "");
+        let target = Self::normalize_js_program_path(target, "");
+        let mut from: Vec<_> = importer.as_js().split_ascii(b'/').collect();
+        from.pop();
+        from.retain(|part| !part.is_empty());
         let to: Vec<_> = target
-            .split('/')
-            .filter(|segment| !segment.is_empty())
+            .as_js()
+            .split_ascii(b'/')
+            .filter(|part| !part.is_empty())
             .collect();
         let shared = from
             .iter()
             .zip(&to)
             .take_while(|(left, right)| left == right)
             .count();
-        let mut parts = vec![".."; from.len().saturating_sub(shared)];
+        let mut parts = vec![tsc_types::JsStr::from(".."); from.len().saturating_sub(shared)];
         parts.extend(to[shared..].iter().copied());
-        let relative = parts.join("/");
+        let relative = crate::join_js_texts(&parts, "/");
         if relative.starts_with("../") || relative == ".." {
             relative
         } else {
-            format!("./{relative}")
+            crate::concat_js(&[&"./", &relative])
         }
     }
 
@@ -8653,7 +8781,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         fully_qualified: bool,
-    ) -> CheckResult<(String, SliceTypeNodeKind)> {
+    ) -> CheckResult<(JsString, SliceTypeNodeKind)> {
         if self
             .tables
             .object_flags_of(ty)
@@ -8678,7 +8806,7 @@ impl<'a> CheckerState<'a> {
                 // producers are live in M8, so the local admission
                 // heuristic must not replace tsc's unconditional `{}`.
                 self.slice_add_approximate_length(2);
-                return Ok(("{}".to_owned(), SliceTypeNodeKind::TypeLiteral));
+                return Ok(("{}".into(), SliceTypeNodeKind::TypeLiteral));
             }
             // 51907-51916: the single call/construct signature
             // shorthands (`(...) => R`, `new (...) => R`); the
@@ -8764,7 +8892,7 @@ impl<'a> CheckerState<'a> {
         // TypeLiteral still charges its braces below.
         if self.slice_check_truncation_length() {
             self.slice_add_approximate_length(2);
-            return Ok(("{ ...; }".to_owned(), SliceTypeNodeKind::TypeLiteral));
+            return Ok(("{ ...; }".into(), SliceTypeNodeKind::TypeLiteral));
         }
         // createTypeNodesFromResolvedType (52137-52240): call
         // signatures, then construct signatures (the 52157 abstract
@@ -8797,7 +8925,11 @@ impl<'a> CheckerState<'a> {
             let ordinal = index + 1;
             if self.slice_check_truncation_length() && ordinal + 2 < properties.len() - 1 {
                 if self.options.no_error_truncation != Some(true) {
-                    rendered.push(format!("... {} more ...", properties.len() - ordinal));
+                    rendered.push(crate::concat_js(&[
+                        &"... ",
+                        &(properties.len() - ordinal),
+                        &" more ...",
+                    ]));
                 }
                 self.property_signature_slice(
                     properties[properties.len() - 1],
@@ -8812,11 +8944,11 @@ impl<'a> CheckerState<'a> {
             // 52238: every property skipped -> undefined members ->
             // the member-less literal face.
             self.slice_add_approximate_length(2);
-            return Ok(("{}".to_owned(), SliceTypeNodeKind::TypeLiteral));
+            return Ok(("{}".into(), SliceTypeNodeKind::TypeLiteral));
         }
         self.slice_add_approximate_length(2);
         Ok((
-            format!("{{ {}; }}", rendered.join("; ")),
+            crate::concat_js(&[&"{", &" ", &(crate::join_js_texts(&rendered, "; ")), &"; }"]),
             SliceTypeNodeKind::TypeLiteral,
         ))
     }
@@ -8833,7 +8965,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         info: &crate::state::IndexInfo,
         fully_qualified: bool,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<JsString> {
         let name = match info.declaration {
             Some(declaration) => {
                 let parameter = match self.data_of(declaration) {
@@ -8855,26 +8987,34 @@ impl<'a> CheckerState<'a> {
                     name,
                 )
             }
-            None => "x".to_owned(),
+            None => "x".into(),
         };
         let key = self.type_to_string_slice_ex(info.key_type, fully_qualified)?;
         let value = self.type_to_string_slice_ex(info.value_type, fully_qualified)?;
         self.slice_add_approximate_length(Self::slice_js_length(&name) + 4);
         let readonly = if info.is_readonly { "readonly " } else { "" };
-        Ok(format!("{readonly}[{name}: {key}]: {value}"))
+        Ok(crate::concat_js(&[
+            &(readonly),
+            &"[",
+            &(name),
+            &": ",
+            &(key),
+            &"]: ",
+            &(value),
+        ]))
     }
 
     /// tsc-port: createElidedInformationPlaceholder @6.0.3
     /// tsc-hash: 9fe24796b9c8dc49e718e88a66c16cac0341b79590fdec1e7b8edc49122e169f
     /// tsc-span: _tsc.js:52212-52222
-    fn reverse_mapped_elision_placeholder_slice(&mut self) -> (String, SliceTypeNodeKind) {
+    fn reverse_mapped_elision_placeholder_slice(&mut self) -> (JsString, SliceTypeNodeKind) {
         self.slice_add_approximate_length(3);
         if self.options.no_error_truncation == Some(true) {
             // The printer removes the synthetic `/* elided */`
             // comment from the AnyKeyword node.
-            ("any".to_owned(), SliceTypeNodeKind::Keyword)
+            ("any".into(), SliceTypeNodeKind::Keyword)
         } else {
-            ("...".to_owned(), SliceTypeNodeKind::Reference)
+            ("...".into(), SliceTypeNodeKind::Reference)
         }
     }
 
@@ -8943,7 +9083,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         property: SymbolId,
         fully_qualified: bool,
-        rendered: &mut Vec<String>,
+        rendered: &mut Vec<JsString>,
     ) -> CheckResult<()> {
         let property_is_reverse_mapped = self
             .links
@@ -9011,7 +9151,7 @@ impl<'a> CheckerState<'a> {
                         rendered.push(self.signature_to_string_slice(
                             signature,
                             SliceSignatureKind::GetAccessor,
-                            Some((&name, false)),
+                            Some((name.as_js(), false)),
                             fully_qualified,
                         )?);
                     }
@@ -9023,7 +9163,7 @@ impl<'a> CheckerState<'a> {
                         rendered.push(self.signature_to_string_slice(
                             signature,
                             SliceSignatureKind::SetAccessor,
-                            Some((&name, false)),
+                            Some((name.as_js(), false)),
                             fully_qualified,
                         )?);
                     }
@@ -9040,8 +9180,14 @@ impl<'a> CheckerState<'a> {
                 {
                     let read = self.type_to_string_slice_ex(property_type, fully_qualified)?;
                     let write = self.type_to_string_slice_ex(write_type, fully_qualified)?;
-                    rendered.push(format!("get {name}(): {read}"));
-                    rendered.push(format!("set {name}(arg: {write})"));
+                    rendered.push(crate::concat_js(&[&"get ", &(name), &"(): ", &(read)]));
+                    rendered.push(crate::concat_js(&[
+                        &"set ",
+                        &(name),
+                        &"(arg: ",
+                        &(write),
+                        &")",
+                    ]));
                     return Ok(());
                 }
             }
@@ -9070,7 +9216,7 @@ impl<'a> CheckerState<'a> {
                     rendered.push(self.signature_to_string_slice(
                         signature,
                         SliceSignatureKind::MethodSignature,
-                        Some((&name, optional)),
+                        Some((name.as_js(), optional)),
                         fully_qualified,
                     )?);
                 }
@@ -9123,7 +9269,13 @@ impl<'a> CheckerState<'a> {
             ""
         };
         let question = if optional { "?" } else { "" };
-        rendered.push(format!("{readonly}{name}{question}: {type_text}"));
+        rendered.push(crate::concat_js(&[
+            &(readonly),
+            &(name),
+            &(question),
+            &": ",
+            &(type_text),
+        ]));
         Ok(())
     }
 
@@ -9132,7 +9284,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn signature_to_string_slice_for_overload_error(
         &mut self,
         signature: SignatureId,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<JsString> {
         self.signature_to_string_slice_for_diagnostic(signature, SliceSignatureKind::CallSignature)
     }
 
@@ -9147,7 +9299,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         signature: SignatureId,
         kind: SignatureKind,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<JsString> {
         let slice_kind = match kind {
             SignatureKind::Call => SliceSignatureKind::CallSignature,
             SignatureKind::Construct => SliceSignatureKind::ConstructSignature,
@@ -9164,7 +9316,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn signature_to_string_slice_for_construct_assignment_error(
         &mut self,
         signature: SignatureId,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<JsString> {
         self.signature_to_string_slice_for_diagnostic(
             signature,
             SliceSignatureKind::ConstructorType,
@@ -9178,7 +9330,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         signature: SignatureId,
         kind: SliceSignatureKind,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<JsString> {
         let saved_visited = std::mem::take(&mut self.slice_visited_types);
         let saved_infer_type_parameters = std::mem::take(&mut self.slice_infer_type_parameters);
         let saved_approximate_length = std::mem::replace(&mut self.slice_approximate_length, 0);
@@ -9229,9 +9381,9 @@ impl<'a> CheckerState<'a> {
         &mut self,
         signature: SignatureId,
         kind: SliceSignatureKind,
-        member_name: Option<(&str, bool)>,
+        member_name: Option<(tsc_types::JsStr<'_>, bool)>,
         fully_qualified: bool,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<JsString> {
         let mapper = self.signature_of(signature).mapper;
         if let Some(mapper) = mapper {
             self.slice_display_mappers.push(mapper);
@@ -9248,9 +9400,9 @@ impl<'a> CheckerState<'a> {
         &mut self,
         signature: SignatureId,
         kind: SliceSignatureKind,
-        member_name: Option<(&str, bool)>,
+        member_name: Option<(tsc_types::JsStr<'_>, bool)>,
         fully_qualified: bool,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<JsString> {
         let expanded = self.expanded_parameter_faces_slice(signature)?;
         let sig = self.signature_of(signature);
         let type_parameters = sig.type_parameters.clone();
@@ -9292,7 +9444,7 @@ impl<'a> CheckerState<'a> {
                         let face = SliceParameterFace {
                             symbol: None,
                             declaration: None,
-                            name: Some("this".to_owned()),
+                            name: Some("this".into()),
                             ty,
                             optional: false,
                             rest: false,
@@ -9314,42 +9466,78 @@ impl<'a> CheckerState<'a> {
                         self.type_parameter_to_declaration_slice(parameter, fully_qualified)?,
                     );
                 }
-                format!("<{}>", rendered.join(", "))
+                crate::concat_js(&[&"<", &(crate::join_js_texts(&rendered, ", ")), &">"])
             }
-            _ => String::new(),
+            _ => JsString::new(),
         };
         let return_text =
             self.serialize_return_type_for_signature_slice(signature, fully_qualified)?;
-        let parameters_text = parameter_texts.join(", ");
-        let type_parameters_text = type_parameters_text.as_str();
+        let parameters_text = crate::join_js_texts(&parameter_texts, ", ");
+        let type_parameters_text = type_parameters_text.as_js();
         Ok(match kind {
-            SliceSignatureKind::FunctionType => {
-                format!("{type_parameters_text}({parameters_text}) => {return_text}")
-            }
+            SliceSignatureKind::FunctionType => crate::concat_js(&[
+                &(type_parameters_text),
+                &"(",
+                &(parameters_text),
+                &") => ",
+                &(return_text),
+            ]),
             SliceSignatureKind::ConstructorType => {
                 let modifier = if is_abstract { "abstract " } else { "" };
-                format!("{modifier}new {type_parameters_text}({parameters_text}) => {return_text}")
+                crate::concat_js(&[
+                    &(modifier),
+                    &"new ",
+                    &(type_parameters_text),
+                    &"(",
+                    &(parameters_text),
+                    &") => ",
+                    &(return_text),
+                ])
             }
-            SliceSignatureKind::CallSignature => {
-                format!("{type_parameters_text}({parameters_text}): {return_text}")
-            }
-            SliceSignatureKind::ConstructSignature => {
-                format!("new {type_parameters_text}({parameters_text}): {return_text}")
-            }
+            SliceSignatureKind::CallSignature => crate::concat_js(&[
+                &(type_parameters_text),
+                &"(",
+                &(parameters_text),
+                &"): ",
+                &(return_text),
+            ]),
+            SliceSignatureKind::ConstructSignature => crate::concat_js(&[
+                &"new ",
+                &(type_parameters_text),
+                &"(",
+                &(parameters_text),
+                &"): ",
+                &(return_text),
+            ]),
             SliceSignatureKind::MethodSignature => {
-                let (name, optional) = member_name.unwrap_or(("", false));
+                let (name, optional) = member_name.unwrap_or(("".into(), false));
                 let question = if optional { "?" } else { "" };
-                format!("{name}{question}{type_parameters_text}({parameters_text}): {return_text}")
+                crate::concat_js(&[
+                    &(name),
+                    &(question),
+                    &(type_parameters_text),
+                    &"(",
+                    &(parameters_text),
+                    &"): ",
+                    &(return_text),
+                ])
             }
             SliceSignatureKind::GetAccessor => {
                 // The accessor factories take no type parameters —
                 // the grammar admits none on accessors.
-                let (name, _) = member_name.unwrap_or(("", false));
-                format!("get {name}({parameters_text}): {return_text}")
+                let (name, _) = member_name.unwrap_or(("".into(), false));
+                crate::concat_js(&[
+                    &"get ",
+                    &(name),
+                    &"(",
+                    &(parameters_text),
+                    &"): ",
+                    &(return_text),
+                ])
             }
             SliceSignatureKind::SetAccessor => {
-                let (name, _) = member_name.unwrap_or(("", false));
-                format!("set {name}({parameters_text})")
+                let (name, _) = member_name.unwrap_or(("".into(), false));
+                crate::concat_js(&[&"set ", &(name), &"(", &(parameters_text), &")"])
             }
         })
     }
@@ -9494,6 +9682,8 @@ impl<'a> CheckerState<'a> {
                         tsc_binder::unescape_leading_underscores(
                             &self.binder.symbol(symbol).escaped_name,
                         )
+                        .as_str()
+                        .expect("rest parameter symbols have scalar identifier names")
                         .to_owned()
                     })
                     .unwrap_or_else(|| "arg".to_owned());
@@ -9525,7 +9715,7 @@ impl<'a> CheckerState<'a> {
             match self.data_of(name) {
                 NodeData::Identifier(data) => {
                     let text =
-                        tsc_binder::unescape_leading_underscores(&data.escaped_text).to_owned();
+                        tsc_syntax::unescape_leading_underscores(&data.escaped_text).to_owned();
                     if dot_dot_dot {
                         return Ok(if element_flags.intersects(ElementFlags::VARIABLE) {
                             text
@@ -9643,7 +9833,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         face: &SliceParameterFace,
         fully_qualified: bool,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<JsString> {
         let requires_undefined = match face.declaration {
             Some(declaration) => self.requires_adding_implicit_undefined_slice(declaration)?,
             None => false,
@@ -9690,7 +9880,7 @@ impl<'a> CheckerState<'a> {
             }
         };
         let name_text = match &face.name {
-            Some(name) => name.clone(),
+            Some(name) => JsString::from(name.clone()),
             None => {
                 let name_node =
                     face.declaration
@@ -9702,14 +9892,14 @@ impl<'a> CheckerState<'a> {
                 match name_node {
                     Some(name) => match self.data_of(name) {
                         NodeData::Identifier(data) => {
-                            tsc_binder::unescape_leading_underscores(&data.escaped_text).to_owned()
+                            tsc_syntax::unescape_leading_underscores(&data.escaped_text).into()
                         }
                         NodeData::QualifiedName(data) => data
                             .right
                             .and_then(|right| self.identifier_text_of(right))
-                            .map(tsc_binder::unescape_leading_underscores)
+                            .map(tsc_syntax::unescape_leading_underscores)
                             .unwrap_or_default()
-                            .to_owned(),
+                            .into(),
                         NodeData::ObjectBindingPattern(_) | NodeData::ArrayBindingPattern(_) => {
                             self.binding_pattern_text_slice(name)?
                         }
@@ -9723,7 +9913,13 @@ impl<'a> CheckerState<'a> {
         };
         let dots = if face.rest { "..." } else { "" };
         let question = if face.optional { "?" } else { "" };
-        Ok(format!("{dots}{name_text}{question}: {type_text}"))
+        Ok(crate::concat_js(&[
+            &(dots),
+            &(name_text),
+            &(question),
+            &": ",
+            &(type_text),
+        ]))
     }
 
     /// tsc-port: isOptionalParameter @6.0.3
@@ -9871,7 +10067,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         signature: SignatureId,
         fully_qualified: bool,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<JsString> {
         let return_type = self.get_return_type_of_signature(signature)?;
         let declaration = self.signature_of(signature).declaration;
         if let Some(declaration) = declaration {
@@ -9926,7 +10122,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         declaration: NodeId,
         fully_qualified: bool,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<JsString>> {
         if !matches!(
             self.kind_of(declaration),
             SyntaxKind::FunctionDeclaration
@@ -10080,7 +10276,7 @@ impl<'a> CheckerState<'a> {
         expression: NodeId,
         is_const_context: bool,
         fully_qualified: bool,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<JsString>> {
         match self.data_of(expression) {
             NodeData::ClassExpression(_) => {}
             NodeData::ArrayLiteralExpression(data) => {
@@ -10192,7 +10388,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         predicate: &crate::narrow::TypePredicate,
         fully_qualified: bool,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<JsString> {
         use crate::narrow::TypePredicateKind;
         let asserts = matches!(
             predicate.kind,
@@ -10202,15 +10398,20 @@ impl<'a> CheckerState<'a> {
             TypePredicateKind::Identifier | TypePredicateKind::AssertsIdentifier => {
                 predicate.parameter_name.clone().unwrap_or_default()
             }
-            TypePredicateKind::This | TypePredicateKind::AssertsThis => "this".to_owned(),
+            TypePredicateKind::This | TypePredicateKind::AssertsThis => "this".into(),
         };
         let asserts = if asserts { "asserts " } else { "" };
         match predicate.ty {
             Some(ty) => {
                 let text = self.type_to_string_slice_ex(ty, fully_qualified)?;
-                Ok(format!("{asserts}{parameter} is {text}"))
+                Ok(crate::concat_js(&[
+                    &(asserts),
+                    &(parameter),
+                    &" is ",
+                    &(text),
+                ]))
             }
-            None => Ok(format!("{asserts}{parameter}")),
+            None => Ok(crate::concat_js(&[&(asserts), &(parameter)])),
         }
     }
 
@@ -10234,13 +10435,13 @@ impl<'a> CheckerState<'a> {
         &mut self,
         type_parameter: TypeId,
         fully_qualified: bool,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<JsString> {
         let symbol = self
             .tables
             .type_of(type_parameter)
             .symbol
             .expect("TypeParameter types carry their declaration symbol");
-        let mut modifiers = String::new();
+        let mut modifiers = JsString::new();
         {
             let declarations = self.binder.symbol(symbol).declarations.clone();
             let mut has_const = false;
@@ -10265,13 +10466,13 @@ impl<'a> CheckerState<'a> {
                 );
             }
             if has_const {
-                modifiers.push_str("const ");
+                modifiers.push_js(("const ").into());
             }
             if has_in {
-                modifiers.push_str("in ");
+                modifiers.push_js(("in ").into());
             }
             if has_out {
-                modifiers.push_str("out ");
+                modifiers.push_js(("out ").into());
             }
         }
         let name = self.symbol_display_name(symbol);
@@ -10297,14 +10498,17 @@ impl<'a> CheckerState<'a> {
             Some(default) => Some(self.type_to_string_slice_ex(default, fully_qualified)?),
             None => None,
         };
-        let mut text = format!("{modifiers}{name}");
+        let name = name
+            .as_str()
+            .expect("type parameter declarations have identifier names");
+        let mut text = crate::concat_js(&[&(modifiers), &(name)]);
         if let Some(constraint_text) = constraint_text {
-            text.push_str(" extends ");
-            text.push_str(&constraint_text);
+            text.push_js((" extends ").into());
+            text.push_js((&constraint_text).into());
         }
         if let Some(default_text) = default_text {
-            text.push_str(" = ");
-            text.push_str(&default_text);
+            text.push_js((" = ").into());
+            text.push_js((&default_text).into());
         }
         Ok(text)
     }
@@ -10330,7 +10534,7 @@ impl<'a> CheckerState<'a> {
         requires_adding_undefined: bool,
         question_equivalence: bool,
         is_parameter: bool,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<JsString>> {
         if self.slice_display_enclosing.is_none() {
             return Ok(None);
         }
@@ -10367,7 +10571,7 @@ impl<'a> CheckerState<'a> {
         // serializeExistingTypeNode (53712-53721): the undefined
         // union appends when the annotation itself lacks it.
         if requires_adding_undefined && !self.some_type_is_undefined_slice(annotation_type) {
-            return Ok(Some(format!("{text} | undefined")));
+            return Ok(Some(crate::concat_js(&[&(text), &" | undefined"])));
         }
         Ok(Some(text))
     }
@@ -10440,7 +10644,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn type_to_string_slice_with_error_enclosing(
         &mut self,
         ty: TypeId,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<JsString> {
         let enclosing = self.slice_display_enclosing_for(ty);
         let saved = std::mem::replace(&mut self.slice_display_enclosing, enclosing);
         let result = self.type_to_string_slice(ty);
@@ -10456,7 +10660,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         enclosing: NodeId,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<JsString> {
         let saved = self.slice_display_enclosing.replace(enclosing);
         let result = self.type_to_string_slice(ty);
         self.slice_display_enclosing = saved;
@@ -10479,7 +10683,10 @@ impl<'a> CheckerState<'a> {
     /// removed, and missing declaration annotations become `any`.
     /// The printer below covers every valid TypeNode/JSDoc TypeNode
     /// shape admitted by tryReuseExistingTypeNode.
-    fn reusable_annotation_node_text_slice(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn reusable_annotation_node_text_slice(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult<Option<JsString>> {
         if !self.can_reuse_existing_type_node_slice(node)? {
             return Ok(None);
         }
@@ -10503,7 +10710,7 @@ impl<'a> CheckerState<'a> {
     /// and variadics become arrays.
     /// tsrs-native: string-face adapter over the exact existing-TypeNode
     /// visitor and standard-printer ledger blocks below.
-    pub(crate) fn type_annotation_text_slice(&mut self, node: NodeId) -> CheckResult<String> {
+    pub(crate) fn type_annotation_text_slice(&mut self, node: NodeId) -> CheckResult<JsString> {
         Ok(self.type_annotation_face_slice(node)?.text)
     }
 
@@ -10515,7 +10722,7 @@ impl<'a> CheckerState<'a> {
     fn type_annotation_text_and_kind_slice(
         &mut self,
         node: NodeId,
-    ) -> CheckResult<(String, SliceTypeNodeKind)> {
+    ) -> CheckResult<(JsString, SliceTypeNodeKind)> {
         let face = self.type_annotation_face_slice(node)?;
         Ok((face.text, face.kind))
     }
@@ -10559,7 +10766,7 @@ impl<'a> CheckerState<'a> {
         // immediately once a sibling armed the shared boundary.
         if self.slice_reuse_had_error {
             return Ok(SliceTypeNodeFace::new(
-                String::new(),
+                JsString::new(),
                 self.type_annotation_node_kind_slice(node),
             ));
         }
@@ -10581,10 +10788,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
     ) -> CheckResult<SliceTypeNodeFace> {
         if self.is_empty_jsdoc_type_reference_slice(node) {
-            return Ok(SliceTypeNodeFace::new(
-                "any".to_owned(),
-                SliceTypeNodeKind::Keyword,
-            ));
+            return Ok(SliceTypeNodeFace::new("any", SliceTypeNodeKind::Keyword));
         }
         if let Some(index) = self.jsdoc_index_signature_text_slice(node)? {
             return Ok(SliceTypeNodeFace::new(
@@ -10603,7 +10807,7 @@ impl<'a> CheckerState<'a> {
                 None => {
                     self.slice_reuse_had_error = true;
                     Ok(SliceTypeNodeFace::new(
-                        String::new(),
+                        JsString::new(),
                         SliceTypeNodeKind::Reference,
                     ))
                 }
@@ -10613,7 +10817,7 @@ impl<'a> CheckerState<'a> {
                 None => {
                     self.slice_reuse_had_error = true;
                     Ok(SliceTypeNodeFace::new(
-                        String::new(),
+                        JsString::new(),
                         SliceTypeNodeKind::TypeQuery,
                     ))
                 }
@@ -10720,12 +10924,12 @@ impl<'a> CheckerState<'a> {
             .expect("IndexedAccessType carries its index type");
         let index_face = self.visit_type_annotation_face_slice(index_node)?;
         let object = if non_array_postfix_operand_needs_parens(object_face.kind) {
-            format!("({})", object_face.text)
+            crate::concat_js(&[&"(", &(object_face.text), &")"])
         } else {
             object_face.text
         };
         Ok(Some(SliceTypeNodeFace::new(
-            format!("{object}[{}]", index_face.text),
+            crate::concat_js(&[&(object), &"[", &(index_face.text), &"]"]),
             SliceTypeNodeKind::IndexedAccess,
         )))
     }
@@ -10743,12 +10947,12 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         };
         let operand = if type_operator_operand_needs_parens(operand_face.kind) {
-            format!("({})", operand_face.text)
+            crate::concat_js(&[&"(", &(operand_face.text), &")"])
         } else {
             operand_face.text
         };
         Ok(Some(SliceTypeNodeFace::new(
-            format!("keyof {operand}"),
+            crate::concat_js(&[&"keyof ", &(operand)]),
             SliceTypeNodeKind::TypeOperator,
         )))
     }
@@ -10771,9 +10975,15 @@ impl<'a> CheckerState<'a> {
         let rendered = self.type_argument_nodes_text_slice(self.nodes_of(data.type_arguments))?;
         let name = self.entity_name_text_slice(expr_name)?;
         let text = if rendered.is_empty() {
-            format!("typeof {name}")
+            crate::concat_js(&[&"typeof ", &(name)])
         } else {
-            format!("typeof {name}<{}>", rendered.join(", "))
+            crate::concat_js(&[
+                &"typeof ",
+                &(name),
+                &"<",
+                &(crate::join_js_texts(&rendered, ", ")),
+                &">",
+            ])
         };
         Ok(Some(SliceTypeNodeFace::new(
             text,
@@ -10806,7 +11016,12 @@ impl<'a> CheckerState<'a> {
         let text = if rendered.is_empty() {
             name
         } else {
-            format!("{name}<{}>", rendered.join(", "))
+            crate::concat_js(&[
+                &(name),
+                &"<",
+                &(crate::join_js_texts(&rendered, ", ")),
+                &">",
+            ])
         };
         Ok(Some(SliceTypeNodeFace::new(
             text,
@@ -10814,11 +11029,11 @@ impl<'a> CheckerState<'a> {
         )))
     }
 
-    fn type_annotation_text_slice_raw(&mut self, node: NodeId) -> CheckResult<String> {
+    fn type_annotation_text_slice_raw(&mut self, node: NodeId) -> CheckResult<JsString> {
         // visitExistingNodeTreeSymbolsWorker's two TypeReference
         // special cases precede the ordinary TypeReference visitor.
         if self.is_empty_jsdoc_type_reference_slice(node) {
-            return Ok("any".to_owned());
+            return Ok("any".into());
         }
         if let Some(index) = self.jsdoc_index_signature_text_slice(node)? {
             return Ok(index);
@@ -10834,19 +11049,19 @@ impl<'a> CheckerState<'a> {
         }
         // Keyword type nodes are kind-distinguished tokens.
         match self.kind_of(node) {
-            SyntaxKind::StringKeyword => return Ok("string".to_owned()),
-            SyntaxKind::NumberKeyword => return Ok("number".to_owned()),
-            SyntaxKind::BooleanKeyword => return Ok("boolean".to_owned()),
-            SyntaxKind::AnyKeyword => return Ok("any".to_owned()),
-            SyntaxKind::UnknownKeyword => return Ok("unknown".to_owned()),
-            SyntaxKind::VoidKeyword => return Ok("void".to_owned()),
-            SyntaxKind::UndefinedKeyword => return Ok("undefined".to_owned()),
-            SyntaxKind::NeverKeyword => return Ok("never".to_owned()),
-            SyntaxKind::ObjectKeyword => return Ok("object".to_owned()),
-            SyntaxKind::SymbolKeyword => return Ok("symbol".to_owned()),
-            SyntaxKind::BigIntKeyword => return Ok("bigint".to_owned()),
-            SyntaxKind::IntrinsicKeyword => return Ok("intrinsic".to_owned()),
-            SyntaxKind::ThisType => return Ok("this".to_owned()),
+            SyntaxKind::StringKeyword => return Ok("string".into()),
+            SyntaxKind::NumberKeyword => return Ok("number".into()),
+            SyntaxKind::BooleanKeyword => return Ok("boolean".into()),
+            SyntaxKind::AnyKeyword => return Ok("any".into()),
+            SyntaxKind::UnknownKeyword => return Ok("unknown".into()),
+            SyntaxKind::VoidKeyword => return Ok("void".into()),
+            SyntaxKind::UndefinedKeyword => return Ok("undefined".into()),
+            SyntaxKind::NeverKeyword => return Ok("never".into()),
+            SyntaxKind::ObjectKeyword => return Ok("object".into()),
+            SyntaxKind::SymbolKeyword => return Ok("symbol".into()),
+            SyntaxKind::BigIntKeyword => return Ok("bigint".into()),
+            SyntaxKind::IntrinsicKeyword => return Ok("intrinsic".into()),
+            SyntaxKind::ThisType => return Ok("this".into()),
             _ => {}
         }
         match self.data_of(node).clone() {
@@ -10858,27 +11073,27 @@ impl<'a> CheckerState<'a> {
                 data.r#type
                     .expect("JSDocTypeExpression carries its type node"),
             ),
-            NodeData::JSDocAllType(_) | NodeData::JSDocNamepathType(_) => Ok("any".to_owned()),
-            NodeData::JSDocUnknownType(_) => Ok("unknown".to_owned()),
+            NodeData::JSDocAllType(_) | NodeData::JSDocNamepathType(_) => Ok("any".into()),
+            NodeData::JSDocUnknownType(_) => Ok("unknown".into()),
             NodeData::JSDocNullableType(data) => {
                 let inner = data.r#type.expect("JSDocNullableType carries its type");
                 let (inner_text, inner_kind) = self.visited_type_node_text_slice(inner)?;
                 let inner_text = if union_constituent_needs_parens(inner_kind) {
-                    format!("({inner_text})")
+                    crate::concat_js(&[&"(", &(inner_text), &")"])
                 } else {
                     inner_text
                 };
-                Ok(format!("{inner_text} | null"))
+                Ok(crate::concat_js(&[&(inner_text), &" | null"]))
             }
             NodeData::JSDocOptionalType(data) => {
                 let inner = data.r#type.expect("JSDocOptionalType carries its type");
                 let (inner_text, inner_kind) = self.visited_type_node_text_slice(inner)?;
                 let inner_text = if union_constituent_needs_parens(inner_kind) {
-                    format!("({inner_text})")
+                    crate::concat_js(&[&"(", &(inner_text), &")"])
                 } else {
                     inner_text
                 };
-                Ok(format!("{inner_text} | undefined"))
+                Ok(crate::concat_js(&[&(inner_text), &" | undefined"]))
             }
             NodeData::JSDocNonNullableType(data) => self.type_annotation_text_slice(
                 data.r#type.expect("JSDocNonNullableType carries its type"),
@@ -10894,7 +11109,11 @@ impl<'a> CheckerState<'a> {
             NodeData::JSDocTypeLiteral(data) => self.jsdoc_type_literal_text_slice(node, data),
             NodeData::ParenthesizedType(data) => {
                 let inner = data.r#type.expect("ParenthesizedType carries its type");
-                Ok(format!("({})", self.type_annotation_text_slice(inner)?))
+                Ok(crate::concat_js(&[
+                    &"(",
+                    &(self.type_annotation_text_slice(inner)?),
+                    &")",
+                ]))
             }
             NodeData::TypeReference(_) => {
                 unreachable!("TypeReference is handled by type_annotation_text_and_kind_slice")
@@ -10904,24 +11123,24 @@ impl<'a> CheckerState<'a> {
                 for member in self.nodes_of(data.types) {
                     let (text, kind) = self.visited_type_node_text_slice(member)?;
                     rendered.push(if union_constituent_needs_parens(kind) {
-                        format!("({text})")
+                        crate::concat_js(&[&"(", &(text), &")"])
                     } else {
                         text
                     });
                 }
-                Ok(rendered.join(" | "))
+                Ok(crate::join_js_texts(&rendered, " | "))
             }
             NodeData::IntersectionType(data) => {
                 let mut rendered = Vec::new();
                 for member in self.nodes_of(data.types) {
                     let (text, kind) = self.visited_type_node_text_slice(member)?;
                     rendered.push(if intersection_constituent_needs_parens(kind) {
-                        format!("({text})")
+                        crate::concat_js(&[&"(", &(text), &")"])
                     } else {
                         text
                     });
                 }
-                Ok(rendered.join(" & "))
+                Ok(crate::join_js_texts(&rendered, " & "))
             }
             NodeData::ArrayType(data) => {
                 let element = data
@@ -10935,7 +11154,11 @@ impl<'a> CheckerState<'a> {
                 for element in self.nodes_of(data.elements) {
                     rendered.push(self.type_annotation_text_slice(element)?);
                 }
-                Ok(format!("[{}]", rendered.join(", ")))
+                Ok(crate::concat_js(&[
+                    &"[",
+                    &(crate::join_js_texts(&rendered, ", ")),
+                    &"]",
+                ]))
             }
             NodeData::NamedTupleMember(data) => {
                 let dots = if data.dot_dot_dot_token.is_some() {
@@ -10954,21 +11177,30 @@ impl<'a> CheckerState<'a> {
                 let ty = self.type_annotation_text_slice(
                     data.r#type.expect("NamedTupleMember carries its type"),
                 )?;
-                Ok(format!("{dots}{name}{question}: {ty}"))
+                Ok(crate::concat_js(&[
+                    &(dots),
+                    &(name),
+                    &(question),
+                    &": ",
+                    &(ty),
+                ]))
             }
             NodeData::OptionalType(data) => {
                 let inner = data.r#type.expect("OptionalType carries its type");
                 let (text, kind) = self.visited_type_node_text_slice(inner)?;
                 let text = if optional_type_operand_needs_parens(kind) {
-                    format!("({text})")
+                    crate::concat_js(&[&"(", &(text), &")"])
                 } else {
                     text
                 };
-                Ok(format!("{text}?"))
+                Ok(crate::concat_js(&[&(text), &"?"]))
             }
             NodeData::RestType(data) => {
                 let inner = data.r#type.expect("RestType carries its type");
-                Ok(format!("...{}", self.type_annotation_text_slice(inner)?))
+                Ok(crate::concat_js(&[
+                    &"...",
+                    &(self.type_annotation_text_slice(inner)?),
+                ]))
             }
             NodeData::TypeOperator(data) => {
                 if data.operator == SyntaxKind::KeyOfKeyword {
@@ -10976,7 +11208,7 @@ impl<'a> CheckerState<'a> {
                         Some(face) => Ok(face.text),
                         None => {
                             self.slice_reuse_had_error = true;
-                            Ok(String::new())
+                            Ok(JsString::new())
                         }
                     };
                 }
@@ -10993,11 +11225,11 @@ impl<'a> CheckerState<'a> {
                     type_operator_operand_needs_parens(kind)
                 };
                 let text = if needs_parens {
-                    format!("({text})")
+                    crate::concat_js(&[&"(", &(text), &")"])
                 } else {
                     text
                 };
-                Ok(format!("{operator} {text}"))
+                Ok(crate::concat_js(&[&(operator), &" ", &(text)]))
             }
             NodeData::TypeQuery(_) => {
                 unreachable!("TypeQuery is handled by type_annotation_text_and_kind_slice")
@@ -11007,7 +11239,7 @@ impl<'a> CheckerState<'a> {
                     Some(face) => Ok(face.text),
                     None => {
                         self.slice_reuse_had_error = true;
-                        Ok(String::new())
+                        Ok(JsString::new())
                     }
                 }
             }
@@ -11024,7 +11256,7 @@ impl<'a> CheckerState<'a> {
                     .parameter_name
                     .expect("TypePredicate carries its parameter name");
                 let parameter = if self.kind_of(parameter_name) == SyntaxKind::ThisType {
-                    "this".to_owned()
+                    "this".into()
                 } else {
                     if self.reused_entity_name_introduces_error_slice(
                         parameter_name,
@@ -11039,11 +11271,13 @@ impl<'a> CheckerState<'a> {
                     self.entity_name_text_slice(parameter_name)?
                 };
                 match data.r#type {
-                    Some(ty) => Ok(format!(
-                        "{asserts}{parameter} is {}",
-                        self.type_annotation_text_slice(ty)?
-                    )),
-                    None => Ok(format!("{asserts}{parameter}")),
+                    Some(ty) => Ok(crate::concat_js(&[
+                        &(asserts),
+                        &(parameter),
+                        &" is ",
+                        &(self.type_annotation_text_slice(ty)?),
+                    ])),
+                    None => Ok(crate::concat_js(&[&(asserts), &(parameter)])),
                 }
             }
             NodeData::FunctionType(data) => self.with_reused_node_scope_slice(node, |state| {
@@ -11053,9 +11287,15 @@ impl<'a> CheckerState<'a> {
                     state.parameter_nodes_text_slice(state.nodes_of(data.parameters))?;
                 let ret = match data.r#type {
                     Some(ret) => state.type_annotation_text_slice(ret)?,
-                    None => "any".to_owned(),
+                    None => "any".into(),
                 };
-                Ok(format!("{type_parameters}({parameters}) => {ret}"))
+                Ok(crate::concat_js(&[
+                    &(type_parameters),
+                    &"(",
+                    &(parameters),
+                    &") => ",
+                    &(ret),
+                ]))
             }),
             NodeData::ConstructorType(data) => self.with_reused_node_scope_slice(node, |state| {
                 let is_abstract = {
@@ -11073,16 +11313,22 @@ impl<'a> CheckerState<'a> {
                     state.parameter_nodes_text_slice(state.nodes_of(data.parameters))?;
                 let ret = match data.r#type {
                     Some(ret) => state.type_annotation_text_slice(ret)?,
-                    None => "any".to_owned(),
+                    None => "any".into(),
                 };
-                Ok(format!(
-                    "{modifier}new {type_parameters}({parameters}) => {ret}"
-                ))
+                Ok(crate::concat_js(&[
+                    &(modifier),
+                    &"new ",
+                    &(type_parameters),
+                    &"(",
+                    &(parameters),
+                    &") => ",
+                    &(ret),
+                ]))
             }),
             NodeData::TypeLiteral(data) => {
                 let members = self.nodes_of(data.members);
                 if members.is_empty() {
-                    return Ok("{}".to_owned());
+                    return Ok("{}".into());
                 }
                 let mut rendered = Vec::with_capacity(members.len());
                 for member_node in members {
@@ -11090,14 +11336,19 @@ impl<'a> CheckerState<'a> {
                         rendered.push(if self.type_literal_member_has_body_slice(member_node) {
                             member
                         } else {
-                            format!("{member};")
+                            crate::concat_js(&[&(member), &";"])
                         });
                     }
                 }
                 if rendered.is_empty() {
-                    return Ok("{}".to_owned());
+                    return Ok("{}".into());
                 }
-                Ok(format!("{{ {} }}", rendered.join(" ")))
+                Ok(crate::concat_js(&[
+                    &"{",
+                    &" ",
+                    &(crate::join_js_texts(&rendered, " ")),
+                    &" }",
+                ]))
             }
             NodeData::ConditionalType(data) => {
                 let check_node = data
@@ -11105,7 +11356,7 @@ impl<'a> CheckerState<'a> {
                     .expect("ConditionalType carries its check type");
                 let (mut check, check_kind) = self.visited_type_node_text_slice(check_node)?;
                 if conditional_check_type_needs_parens(check_kind) {
-                    check = format!("({check})");
+                    check = crate::concat_js(&[&"(", &(check), &")"]);
                 }
                 // The inferred type parameters enter scope only for
                 // extendsType and trueType; checkType and falseType
@@ -11117,7 +11368,7 @@ impl<'a> CheckerState<'a> {
                     let (mut extends, extends_kind) =
                         state.visited_type_node_text_slice(extends_node)?;
                     if extends_kind == SliceTypeNodeKind::Conditional {
-                        extends = format!("({extends})");
+                        extends = crate::concat_js(&[&"(", &(extends), &")"]);
                     }
                     let when_true = state.type_annotation_text_slice(
                         data.true_type
@@ -11129,18 +11380,24 @@ impl<'a> CheckerState<'a> {
                     data.false_type
                         .expect("ConditionalType carries its false type"),
                 )?;
-                Ok(format!(
-                    "{check} extends {extends} ? {when_true} : {when_false}"
-                ))
+                Ok(crate::concat_js(&[
+                    &(check),
+                    &" extends ",
+                    &(extends),
+                    &" ? ",
+                    &(when_true),
+                    &" : ",
+                    &(when_false),
+                ]))
             }
             NodeData::InferType(data) => {
                 let parameter = data
                     .type_parameter
                     .expect("InferType carries its type parameter");
-                Ok(format!(
-                    "infer {}",
-                    self.type_parameter_node_text_slice(parameter)?
-                ))
+                Ok(crate::concat_js(&[
+                    &"infer ",
+                    &(self.type_parameter_node_text_slice(parameter)?),
+                ]))
             }
             NodeData::MappedType(data) => self.with_reused_node_scope_slice(node, |state| {
                 let readonly = mapped_modifier_text_slice(
@@ -11165,10 +11422,11 @@ impl<'a> CheckerState<'a> {
                         .expect("mapped type parameter carries its in-type"),
                 )?;
                 let name_type = match data.name_type {
-                    Some(name_type) => {
-                        format!(" as {}", state.type_annotation_text_slice(name_type)?)
-                    }
-                    None => String::new(),
+                    Some(name_type) => crate::concat_js(&[
+                        &" as ",
+                        &(state.type_annotation_text_slice(name_type)?),
+                    ]),
+                    None => JsString::new(),
                 };
                 let question = mapped_modifier_text_slice(
                     data.question_token.map(|token| state.kind_of(token)),
@@ -11176,7 +11434,7 @@ impl<'a> CheckerState<'a> {
                 );
                 let value = match data.r#type {
                     Some(value) => state.type_annotation_text_slice(value)?,
-                    None => String::new(),
+                    None => JsString::new(),
                 };
                 let mut members = Vec::new();
                 for member_node in state.nodes_of(data.members) {
@@ -11186,7 +11444,7 @@ impl<'a> CheckerState<'a> {
                             if state.type_literal_member_has_body_slice(member_node) {
                                 member
                             } else {
-                                format!("{member};")
+                                crate::concat_js(&[&(member), &";"])
                             },
                         ));
                     }
@@ -11198,7 +11456,7 @@ impl<'a> CheckerState<'a> {
                 // while a source line event contributes only the current
                 // display-writer indentation; the closing brace follows
                 // the same last-member/end-line rule.
-                let mut tail = " ".to_owned();
+                let mut tail = JsString::from(" ");
                 let mut previous = None;
                 for (member_node, member) in &members {
                     let line_event = match previous {
@@ -11218,9 +11476,9 @@ impl<'a> CheckerState<'a> {
                         ),
                     };
                     if line_event {
-                        tail.push_str(&state.display_clone_line_indent());
+                        tail.push_js((&state.display_clone_line_indent()).into());
                     }
-                    tail.push_str(member);
+                    tail.push_js((member).into());
                     previous = Some(*member_node);
                 }
                 if let Some(last) = previous {
@@ -11231,12 +11489,26 @@ impl<'a> CheckerState<'a> {
                         ),
                         (Some(parent), Some(member)) if parent != member
                     ) {
-                        tail.push_str(&state.display_clone_line_indent());
+                        tail.push_js((&state.display_clone_line_indent()).into());
                     }
                 }
-                Ok(format!(
-                    "{{ {readonly}[{name} in {constraint}{name_type}]{question}: {value};{tail}}}"
-                ))
+                Ok(crate::concat_js(&[
+                    &"{",
+                    &" ",
+                    &(readonly),
+                    &"[",
+                    &(name),
+                    &" in ",
+                    &(constraint),
+                    &(name_type),
+                    &"]",
+                    &(question),
+                    &": ",
+                    &(value),
+                    &";",
+                    &(tail),
+                    &"}",
+                ]))
             }),
             NodeData::ImportType(data) => {
                 if self.literal_import_type_has_assert_attributes_slice(&data) {
@@ -11246,28 +11518,35 @@ impl<'a> CheckerState<'a> {
                     data.argument.expect("ImportType carries its argument type"),
                 )?;
                 let attributes = match data.attributes {
-                    Some(attributes) => {
-                        format!(", {}", self.import_attributes_text_slice(attributes)?)
-                    }
-                    None => String::new(),
+                    Some(attributes) => crate::concat_js(&[
+                        &", ",
+                        &(self.import_attributes_text_slice(attributes)?),
+                    ]),
+                    None => JsString::new(),
                 };
                 let qualifier = match data.qualifier {
                     Some(qualifier) => {
-                        format!(".{}", self.entity_name_text_slice(qualifier)?)
+                        crate::concat_js(&[&".", &(self.entity_name_text_slice(qualifier)?)])
                     }
-                    None => String::new(),
+                    None => JsString::new(),
                 };
                 let arguments = self.nodes_of(data.type_arguments);
                 let type_arguments = if arguments.is_empty() {
-                    String::new()
+                    JsString::new()
                 } else {
                     let rendered = self.type_argument_nodes_text_slice(arguments)?;
-                    format!("<{}>", rendered.join(", "))
+                    crate::concat_js(&[&"<", &(crate::join_js_texts(&rendered, ", ")), &">"])
                 };
                 let type_of = if data.is_type_of { "typeof " } else { "" };
-                Ok(format!(
-                    "{type_of}import({argument}{attributes}){qualifier}{type_arguments}"
-                ))
+                Ok(crate::concat_js(&[
+                    &(type_of),
+                    &"import(",
+                    &(argument),
+                    &(attributes),
+                    &")",
+                    &(qualifier),
+                    &(type_arguments),
+                ]))
             }
             NodeData::TemplateLiteralType(data) => {
                 let head = data.head.expect("TemplateLiteralType carries its head");
@@ -11278,7 +11557,7 @@ impl<'a> CheckerState<'a> {
                         .unwrap_or_else(|| template_text_raw(&head_data.text)),
                     _ => unreachable!("TemplateLiteralType head is a TemplateHead node"),
                 };
-                let mut text = format!("`{head_text}");
+                let mut text = crate::concat_js(&[&"`", &(head_text)]);
                 for span in self.nodes_of(data.template_spans) {
                     let NodeData::TemplateLiteralTypeSpan(span_data) = self.data_of(span).clone()
                     else {
@@ -11307,7 +11586,9 @@ impl<'a> CheckerState<'a> {
                             "TemplateLiteralTypeSpan literal is TemplateMiddle/TemplateTail"
                         ),
                     };
-                    text.push_str(&format!("${{{ty}}}{literal_text}"));
+                    text.push_js(
+                        (&crate::concat_js(&[&"${", &(ty), &"}", &(literal_text)])).into(),
+                    );
                 }
                 text.push('`');
                 Ok(text)
@@ -11338,7 +11619,7 @@ impl<'a> CheckerState<'a> {
     /// `Object<string|number, V>` lowering (133431-133445).
     /// isJSDocIndexSignature is structural and does not require the
     /// TypeReference itself to carry NodeFlags::JSDoc.
-    fn jsdoc_index_signature_text_slice(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn jsdoc_index_signature_text_slice(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::TypeReference(data) = self.data_of(node).clone() else {
             return Ok(None);
         };
@@ -11359,7 +11640,14 @@ impl<'a> CheckerState<'a> {
         }
         let key = self.type_annotation_text_slice(arguments[0])?;
         let value = self.type_annotation_text_slice(arguments[1])?;
-        Ok(Some(format!("{{ [x: {key}]: {value}; }}")))
+        Ok(Some(crate::concat_js(&[
+            &"{",
+            &" [x: ",
+            &(key),
+            &"]: ",
+            &(value),
+            &"; }",
+        ])))
     }
 
     /// createRecoveryBoundary's TypeNode recovery:
@@ -11368,7 +11656,7 @@ impl<'a> CheckerState<'a> {
     fn semantic_existing_type_node_text_and_kind_slice(
         &mut self,
         node: NodeId,
-    ) -> CheckResult<(String, SliceTypeNodeKind)> {
+    ) -> CheckResult<(JsString, SliceTypeNodeKind)> {
         let face = self.semantic_existing_type_node_face_slice(node)?;
         Ok((face.text, face.kind))
     }
@@ -11410,7 +11698,7 @@ impl<'a> CheckerState<'a> {
         })
     }
 
-    fn semantic_existing_type_node_text_slice(&mut self, node: NodeId) -> CheckResult<String> {
+    fn semantic_existing_type_node_text_slice(&mut self, node: NodeId) -> CheckResult<JsString> {
         Ok(self
             .semantic_existing_type_node_text_and_kind_slice(node)?
             .0)
@@ -11444,8 +11732,8 @@ impl<'a> CheckerState<'a> {
         &mut self,
         name: NodeId,
         meaning: SymbolFlags,
-        type_arguments: &[String],
-    ) -> CheckResult<Option<(String, SliceTypeNodeKind)>> {
+        type_arguments: &[JsString],
+    ) -> CheckResult<Option<(JsString, SliceTypeNodeKind)>> {
         let Some(enclosing) = self.slice_display_enclosing else {
             return Ok(None);
         };
@@ -11480,7 +11768,7 @@ impl<'a> CheckerState<'a> {
         let (mut text, kind) = self.symbol_to_type_face_at_slice(symbol, meaning, enclosing)?;
         if !type_arguments.is_empty() {
             text.push('<');
-            text.push_str(&type_arguments.join(", "));
+            text.push_js((&crate::join_js_texts(&type_arguments, ", ")).into());
             text.push('>');
         }
         Ok(Some((text, kind)))
@@ -12161,7 +12449,7 @@ impl<'a> CheckerState<'a> {
     fn visited_type_node_text_slice(
         &mut self,
         node: NodeId,
-    ) -> CheckResult<(String, SliceTypeNodeKind)> {
+    ) -> CheckResult<(JsString, SliceTypeNodeKind)> {
         self.type_annotation_text_and_kind_slice(node)
     }
 
@@ -12228,7 +12516,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         data: JSDocFunctionTypeData,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<JsString> {
         let construct =
             node_util::is_jsdoc_construct_signature(self.binder.source_of_node(node), node);
         let type_parameters =
@@ -12252,11 +12540,11 @@ impl<'a> CheckerState<'a> {
                     .r#type
                     .is_some_and(|ty| self.kind_of(ty) == SyntaxKind::JSDocVariadicType);
             let name = if original_name.as_deref() == Some("this") {
-                "this".to_owned()
+                "this".into()
             } else if rest {
-                "args".to_owned()
+                "args".into()
             } else {
-                format!("arg{index}")
+                crate::concat_js(&[&"arg", &(index)])
             };
             let dots = if rest { "..." } else { "" };
             let question = if parameter_data.question_token.is_some() {
@@ -12264,28 +12552,35 @@ impl<'a> CheckerState<'a> {
             } else {
                 ""
             };
-            let mut text = format!("{dots}{name}{question}");
+            let mut text = crate::concat_js(&[&(dots), &(name), &(question)]);
             if let Some(annotation) = parameter_data.r#type {
-                text.push_str(": ");
-                text.push_str(&self.type_annotation_text_slice(annotation)?);
+                text.push_js((": ").into());
+                text.push_js((&self.type_annotation_text_slice(annotation)?).into());
             }
             parameters.push(text);
         }
         let return_type = return_from_new.or(data.r#type);
         let return_text = match return_type {
             Some(return_type) => self.type_annotation_text_slice(return_type)?,
-            None => "any".to_owned(),
+            None => "any".into(),
         };
         if construct {
-            Ok(format!(
-                "new {type_parameters}({}) => {return_text}",
-                parameters.join(", ")
-            ))
+            Ok(crate::concat_js(&[
+                &"new ",
+                &(type_parameters),
+                &"(",
+                &(crate::join_js_texts(&parameters, ", ")),
+                &") => ",
+                &(return_text),
+            ]))
         } else {
-            Ok(format!(
-                "{type_parameters}({}) => {return_text}",
-                parameters.join(", ")
-            ))
+            Ok(crate::concat_js(&[
+                &(type_parameters),
+                &"(",
+                &(crate::join_js_texts(&parameters, ", ")),
+                &") => ",
+                &(return_text),
+            ]))
         }
     }
 
@@ -12300,10 +12595,10 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         data: JSDocTypeLiteralData,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<JsString> {
         let properties = self.nodes_of(data.js_doc_property_tags);
         if properties.is_empty() {
-            return Ok("{}".to_owned());
+            return Ok("{}".into());
         }
         let literal_type = self.get_type_from_type_node(node)?;
         let mut rendered = Vec::with_capacity(properties.len());
@@ -12353,14 +12648,21 @@ impl<'a> CheckerState<'a> {
             } else if let Some(annotation) = annotation {
                 self.type_annotation_text_slice(annotation)?
             } else {
-                "any".to_owned()
+                "any".into()
             };
-            rendered.push(format!(
-                "{name}{}: {type_text}",
-                if optional { "?" } else { "" }
-            ));
+            rendered.push(crate::concat_js(&[
+                &(name),
+                &(if optional { "?" } else { "" }),
+                &": ",
+                &(type_text),
+            ]));
         }
-        Ok(format!("{{ {}; }}", rendered.join("; ")))
+        Ok(crate::concat_js(&[
+            &"{",
+            &" ",
+            &(crate::join_js_texts(&rendered, "; ")),
+            &"; }",
+        ]))
     }
 
     /// tsc-port: emitImportTypeNodeAttributes @6.0.3
@@ -12370,7 +12672,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: emitImportAttribute @6.0.3
     /// tsc-hash: a0edb1f08aefc12e25f1d599c3cf2229a8048fc7d56e28b1e0785d33726c6b6f
     /// tsc-span: _tsc.js:119322-119332
-    fn import_attributes_text_slice(&mut self, node: NodeId) -> CheckResult<String> {
+    fn import_attributes_text_slice(&mut self, node: NodeId) -> CheckResult<JsString> {
         let NodeData::ImportAttributes(data) = self.data_of(node).clone() else {
             unreachable!("ImportType attributes is an ImportAttributes node");
         };
@@ -12386,24 +12688,33 @@ impl<'a> CheckerState<'a> {
             )?;
             let value =
                 self.expression_text_slice(data.value.expect("ImportAttribute carries its value"))?;
-            rendered.push(format!("{name}: {value}"));
+            rendered.push(crate::concat_js(&[&(name), &": ", &(value)]));
         }
         let elements = if rendered.is_empty() {
-            "{}".to_owned()
+            "{}".into()
         } else {
-            format!("{{ {} }}", rendered.join(", "))
+            crate::concat_js(&[&"{", &" ", &(crate::join_js_texts(&rendered, ", ")), &" }"])
         };
-        Ok(format!("{{ {keyword}: {elements} }}"))
+        Ok(crate::concat_js(&[
+            &"{",
+            &" ",
+            &(keyword),
+            &": ",
+            &(elements),
+            &" }",
+        ]))
     }
 
     /// Entity names in reused annotations: Identifier / QualifiedName
     /// dots / the property-access spellings type queries carry.
-    fn entity_name_text_slice(&mut self, node: NodeId) -> CheckResult<String> {
+    fn entity_name_text_slice(&mut self, node: NodeId) -> CheckResult<JsString> {
         match self.data_of(node).clone() {
             NodeData::Identifier(data) => {
-                Ok(tsc_binder::unescape_leading_underscores(&data.escaped_text).to_owned())
+                Ok(tsc_syntax::unescape_leading_underscores(&data.escaped_text)
+                    .to_owned()
+                    .into())
             }
-            NodeData::PrivateIdentifier(data) => Ok(data.text),
+            NodeData::PrivateIdentifier(data) => Ok(data.text.into()),
             NodeData::QualifiedName(data) => {
                 let left = self.entity_name_text_slice(
                     data.left.expect("QualifiedName carries its left side"),
@@ -12411,7 +12722,7 @@ impl<'a> CheckerState<'a> {
                 let right = self.entity_name_text_slice(
                     data.right.expect("QualifiedName carries its right side"),
                 )?;
-                Ok(format!("{left}.{right}"))
+                Ok(crate::concat_js(&[&(left), &".", &(right)]))
             }
             NodeData::PropertyAccessExpression(data) => {
                 let left = self.entity_name_text_slice(
@@ -12422,7 +12733,7 @@ impl<'a> CheckerState<'a> {
                     data.name
                         .expect("PropertyAccessExpression carries its name"),
                 )?;
-                Ok(format!("{left}.{right}"))
+                Ok(crate::concat_js(&[&(left), &".", &(right)]))
             }
             NodeData::JSDocMemberName(data) => {
                 let left = self.entity_name_text_slice(
@@ -12431,7 +12742,7 @@ impl<'a> CheckerState<'a> {
                 let right = self.entity_name_text_slice(
                     data.right.expect("JSDocMemberName carries its right side"),
                 )?;
-                Ok(format!("{left}.{right}"))
+                Ok(crate::concat_js(&[&(left), &".", &(right)]))
             }
             _ => unreachable!("entity-name printer received a non-entity-name node"),
         }
@@ -12439,20 +12750,22 @@ impl<'a> CheckerState<'a> {
 
     /// LiteralTypeNode literal faces: synthesized clones print cooked
     /// numeric text and double-quoted strings (oracle-probed Q01/Q02).
-    fn literal_type_node_text_slice(&mut self, literal: NodeId) -> CheckResult<String> {
+    fn literal_type_node_text_slice(&mut self, literal: NodeId) -> CheckResult<JsString> {
         match self.kind_of(literal) {
-            SyntaxKind::TrueKeyword => return Ok("true".to_owned()),
-            SyntaxKind::FalseKeyword => return Ok("false".to_owned()),
-            SyntaxKind::NullKeyword => return Ok("null".to_owned()),
+            SyntaxKind::TrueKeyword => return Ok("true".into()),
+            SyntaxKind::FalseKeyword => return Ok("false".into()),
+            SyntaxKind::NullKeyword => return Ok("null".into()),
             _ => {}
         }
         match self.data_of(literal).clone() {
-            NodeData::StringLiteral(data) => string_literal_name_slice(&data.text, false),
-            NodeData::NumericLiteral(data) => Ok(data.text.clone()),
+            NodeData::StringLiteral(data) => {
+                string_literal_name_slice(&data.text, false).map(JsString::from)
+            }
+            NodeData::NumericLiteral(data) => Ok(data.text.clone().into()),
             // getLiteralText's BigIntLiteral arm emits the cloned
             // node's scanner-cooked text verbatim (hex remains hex;
             // binary/octal are already normalized by the scanner).
-            NodeData::BigIntLiteral(data) => Ok(data.text),
+            NodeData::BigIntLiteral(data) => Ok(data.text.into()),
             NodeData::PrefixUnaryExpression(data) => {
                 let operator = match data.operator {
                     SyntaxKind::MinusToken => "-",
@@ -12462,10 +12775,10 @@ impl<'a> CheckerState<'a> {
                 let operand = data
                     .operand
                     .expect("PrefixUnaryExpression carries its literal operand");
-                Ok(format!(
-                    "{operator}{}",
-                    self.literal_type_node_text_slice(operand)?
-                ))
+                Ok(crate::concat_js(&[
+                    &(operator),
+                    &(self.literal_type_node_text_slice(operand)?),
+                ]))
             }
             _ => unreachable!("LiteralType carries literal or +/- literal nodes"),
         }
@@ -12479,7 +12792,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn type_argument_nodes_text_slice(
         &mut self,
         nodes: Vec<NodeId>,
-    ) -> CheckResult<Vec<String>> {
+    ) -> CheckResult<Vec<JsString>> {
         let mut rendered = Vec::with_capacity(nodes.len());
         for (index, node) in nodes.into_iter().enumerate() {
             let face = self.type_annotation_face_slice(node)?;
@@ -12491,7 +12804,7 @@ impl<'a> CheckerState<'a> {
                 )
                 && face.has_type_parameters
             {
-                text = format!("({text})");
+                text = crate::concat_js(&[&"(", &(text), &")"]);
             }
             rendered.push(text);
         }
@@ -12517,44 +12830,49 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn type_parameter_nodes_text_slice(
         &mut self,
         nodes: Vec<NodeId>,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<JsString> {
         if nodes.is_empty() {
-            return Ok(String::new());
+            return Ok(JsString::new());
         }
         let mut rendered = Vec::with_capacity(nodes.len());
         for node in nodes {
             rendered.push(self.type_parameter_node_text_slice(node)?);
         }
-        Ok(format!("<{}>", rendered.join(", ")))
+        Ok(crate::concat_js(&[
+            &"<",
+            &(crate::join_js_texts(&rendered, ", ")),
+            &">",
+        ]))
     }
 
-    fn type_parameter_node_text_slice(&mut self, node: NodeId) -> CheckResult<String> {
+    fn type_parameter_node_text_slice(&mut self, node: NodeId) -> CheckResult<JsString> {
         let NodeData::TypeParameter(data) = self.data_of(node).clone() else {
             unreachable!("type-parameter lists contain TypeParameter nodes");
         };
-        let mut text = String::new();
+        let mut text = JsString::new();
         for modifier in self.nodes_of(data.modifiers) {
             if matches!(self.data_of(modifier), NodeData::Decorator(_)) {
                 continue;
             }
             let token = tsc_syntax::tokens::token_to_string(self.kind_of(modifier))
                 .expect("type-parameter modifiers are keyword tokens");
-            text.push_str(token);
+            text.push_js((token).into());
             text.push(' ');
         }
-        text.push_str(
-            &self.entity_name_text_slice(
+        text.push_js(
+            (&self.entity_name_text_slice(
                 data.name
                     .expect("TypeParameter carries its declaration name"),
-            )?,
+            )?)
+                .into(),
         );
         if let Some(constraint) = data.constraint {
-            text.push_str(" extends ");
-            text.push_str(&self.type_annotation_text_slice(constraint)?);
+            text.push_js((" extends ").into());
+            text.push_js((&self.type_annotation_text_slice(constraint)?).into());
         }
         if let Some(default) = data.r#default {
-            text.push_str(" = ");
-            text.push_str(&self.type_annotation_text_slice(default)?);
+            text.push_js((" = ").into());
+            text.push_js((&self.type_annotation_text_slice(default)?).into());
         }
         Ok(text)
     }
@@ -12564,17 +12882,20 @@ impl<'a> CheckerState<'a> {
     /// isFunctionLike/isParameter missing-type branch synthesizes
     /// `any` when no initializer supplies a type-bearing face.
     /// tsrs-native: Rust node-list adapter into the body-printer compartment.
-    pub(crate) fn parameter_nodes_text_slice(&mut self, nodes: Vec<NodeId>) -> CheckResult<String> {
+    pub(crate) fn parameter_nodes_text_slice(
+        &mut self,
+        nodes: Vec<NodeId>,
+    ) -> CheckResult<JsString> {
         match self.display_clone_parameter_nodes_text(nodes)? {
-            Some(text) => Ok(text),
+            Some(text) => Ok(text.into()),
             None => {
                 self.slice_reuse_had_error = true;
-                Ok(String::new())
+                Ok(JsString::new())
             }
         }
     }
 
-    fn modifier_nodes_text_slice(&self, modifiers: Option<NodeArrayId>) -> String {
+    fn modifier_nodes_text_slice(&self, modifiers: Option<NodeArrayId>) -> JsString {
         let mut rendered = Vec::new();
         for modifier in self.nodes_of(modifiers) {
             if matches!(self.data_of(modifier), NodeData::Decorator(_)) {
@@ -12585,9 +12906,9 @@ impl<'a> CheckerState<'a> {
             }
         }
         if rendered.is_empty() {
-            String::new()
+            JsString::new()
         } else {
-            format!("{} ", rendered.join(" "))
+            crate::concat_js(&[&(crate::join_js_texts(&rendered, " ")), &" "])
         }
     }
 
@@ -12606,7 +12927,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn type_literal_member_text_slice(
         &mut self,
         member: NodeId,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<JsString>> {
         if matches!(
             self.kind_of(member),
             SyntaxKind::MethodSignature
@@ -12626,7 +12947,7 @@ impl<'a> CheckerState<'a> {
     fn type_literal_member_text_slice_worker(
         &mut self,
         member: NodeId,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<JsString>> {
         // 133537-133543: in this error-display context
         // shouldRemoveDeclaration is true for every unresolved dynamic
         // name. Late-bindable computed names survive and are visited.
@@ -12651,12 +12972,12 @@ impl<'a> CheckerState<'a> {
                 } else {
                     ""
                 };
-                let mut text = format!("{modifiers}{name}{question}");
+                let mut text = crate::concat_js(&[&(modifiers), &(name), &(question)]);
                 if let Some(annotation) = data.r#type {
-                    text.push_str(": ");
-                    text.push_str(&self.type_annotation_text_slice(annotation)?);
+                    text.push_js((": ").into());
+                    text.push_js((&self.type_annotation_text_slice(annotation)?).into());
                 } else if data.initializer.is_none() {
-                    text.push_str(": any");
+                    text.push_js((": any").into());
                 }
                 Ok(Some(text))
             }
@@ -12673,13 +12994,20 @@ impl<'a> CheckerState<'a> {
                 let type_parameters =
                     self.type_parameter_nodes_text_slice(self.nodes_of(data.type_parameters))?;
                 let parameters = self.parameter_nodes_text_slice(self.nodes_of(data.parameters))?;
-                let mut text =
-                    format!("{modifiers}{name}{question}{type_parameters}({parameters})");
+                let mut text = crate::concat_js(&[
+                    &(modifiers),
+                    &(name),
+                    &(question),
+                    &(type_parameters),
+                    &"(",
+                    &(parameters),
+                    &")",
+                ]);
                 if let Some(annotation) = data.r#type {
-                    text.push_str(": ");
-                    text.push_str(&self.type_annotation_text_slice(annotation)?);
+                    text.push_js((": ").into());
+                    text.push_js((&self.type_annotation_text_slice(annotation)?).into());
                 } else {
-                    text.push_str(": any");
+                    text.push_js((": any").into());
                 }
                 Ok(Some(text))
             }
@@ -12687,12 +13015,12 @@ impl<'a> CheckerState<'a> {
                 let type_parameters =
                     self.type_parameter_nodes_text_slice(self.nodes_of(data.type_parameters))?;
                 let parameters = self.parameter_nodes_text_slice(self.nodes_of(data.parameters))?;
-                let mut text = format!("{type_parameters}({parameters})");
+                let mut text = crate::concat_js(&[&(type_parameters), &"(", &(parameters), &")"]);
                 if let Some(annotation) = data.r#type {
-                    text.push_str(": ");
-                    text.push_str(&self.type_annotation_text_slice(annotation)?);
+                    text.push_js((": ").into());
+                    text.push_js((&self.type_annotation_text_slice(annotation)?).into());
                 } else {
-                    text.push_str(": any");
+                    text.push_js((": any").into());
                 }
                 Ok(Some(text))
             }
@@ -12700,24 +13028,25 @@ impl<'a> CheckerState<'a> {
                 let type_parameters =
                     self.type_parameter_nodes_text_slice(self.nodes_of(data.type_parameters))?;
                 let parameters = self.parameter_nodes_text_slice(self.nodes_of(data.parameters))?;
-                let mut text = format!("new {type_parameters}({parameters})");
+                let mut text =
+                    crate::concat_js(&[&"new ", &(type_parameters), &"(", &(parameters), &")"]);
                 if let Some(annotation) = data.r#type {
-                    text.push_str(": ");
-                    text.push_str(&self.type_annotation_text_slice(annotation)?);
+                    text.push_js((": ").into());
+                    text.push_js((&self.type_annotation_text_slice(annotation)?).into());
                 } else {
-                    text.push_str(": any");
+                    text.push_js((": any").into());
                 }
                 Ok(Some(text))
             }
             NodeData::IndexSignature(data) => {
                 let modifiers = self.modifier_nodes_text_slice(data.modifiers);
                 let parameters = self.parameter_nodes_text_slice(self.nodes_of(data.parameters))?;
-                let mut text = format!("{modifiers}[{parameters}]");
+                let mut text = crate::concat_js(&[&(modifiers), &"[", &(parameters), &"]"]);
                 if let Some(annotation) = data.r#type {
-                    text.push_str(": ");
-                    text.push_str(&self.type_annotation_text_slice(annotation)?);
+                    text.push_js((": ").into());
+                    text.push_js((&self.type_annotation_text_slice(annotation)?).into());
                 } else {
-                    text.push_str(": any");
+                    text.push_js((": any").into());
                 }
                 Ok(Some(text))
             }
@@ -12729,12 +13058,20 @@ impl<'a> CheckerState<'a> {
                 let type_parameters =
                     self.type_parameter_nodes_text_slice(self.nodes_of(data.type_parameters))?;
                 let parameters = self.parameter_nodes_text_slice(self.nodes_of(data.parameters))?;
-                let mut text = format!("{modifiers}get {name}{type_parameters}({parameters})");
+                let mut text = crate::concat_js(&[
+                    &(modifiers),
+                    &"get ",
+                    &(name),
+                    &(type_parameters),
+                    &"(",
+                    &(parameters),
+                    &")",
+                ]);
                 if let Some(annotation) = data.r#type {
-                    text.push_str(": ");
-                    text.push_str(&self.type_annotation_text_slice(annotation)?);
+                    text.push_js((": ").into());
+                    text.push_js((&self.type_annotation_text_slice(annotation)?).into());
                 } else {
-                    text.push_str(": any");
+                    text.push_js((": any").into());
                 }
                 if let Some(body) = data.body {
                     let Some(body) = self.display_clone_function_body_text(body)? else {
@@ -12742,7 +13079,7 @@ impl<'a> CheckerState<'a> {
                         return Ok(None);
                     };
                     text.push(' ');
-                    text.push_str(&body);
+                    text.push_js((&body).into());
                 }
                 Ok(Some(text))
             }
@@ -12756,17 +13093,25 @@ impl<'a> CheckerState<'a> {
                 let parameters = self.parameter_nodes_text_slice(self.nodes_of(data.parameters))?;
                 let annotation = match data.r#type {
                     Some(annotation) => self.type_annotation_text_slice(annotation)?,
-                    None => "any".to_owned(),
+                    None => "any".into(),
                 };
-                let mut text =
-                    format!("{modifiers}set {name}{type_parameters}({parameters}): {annotation}");
+                let mut text = crate::concat_js(&[
+                    &(modifiers),
+                    &"set ",
+                    &(name),
+                    &(type_parameters),
+                    &"(",
+                    &(parameters),
+                    &"): ",
+                    &(annotation),
+                ]);
                 if let Some(body) = data.body {
                     let Some(body) = self.display_clone_function_body_text(body)? else {
                         self.slice_reuse_had_error = true;
                         return Ok(None);
                     };
                     text.push(' ');
-                    text.push_str(&body);
+                    text.push_js((&body).into());
                 }
                 Ok(Some(text))
             }
@@ -12780,14 +13125,18 @@ impl<'a> CheckerState<'a> {
     /// computed entity names.
     /// tsrs-native: string-face adapter over the exact property-name
     /// and entity-name ledger blocks.
-    pub(crate) fn member_name_node_text_slice(&mut self, name: NodeId) -> CheckResult<String> {
+    pub(crate) fn member_name_node_text_slice(&mut self, name: NodeId) -> CheckResult<JsString> {
         match self.data_of(name).clone() {
             NodeData::Identifier(data) => {
-                Ok(tsc_binder::unescape_leading_underscores(&data.escaped_text).to_owned())
+                Ok(tsc_syntax::unescape_leading_underscores(&data.escaped_text)
+                    .to_owned()
+                    .into())
             }
-            NodeData::PrivateIdentifier(data) => Ok(data.text),
-            NodeData::StringLiteral(data) => string_literal_name_slice(&data.text, false),
-            NodeData::NumericLiteral(data) => Ok(data.text.clone()),
+            NodeData::PrivateIdentifier(data) => Ok(data.text.into()),
+            NodeData::StringLiteral(data) => {
+                string_literal_name_slice(&data.text, false).map(JsString::from)
+            }
+            NodeData::NumericLiteral(data) => Ok(data.text.clone().into()),
             NodeData::ComputedPropertyName(data) => {
                 let expression = data
                     .expression
@@ -12805,7 +13154,7 @@ impl<'a> CheckerState<'a> {
     fn reused_computed_property_name_text_slice(
         &mut self,
         expression: NodeId,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<JsString> {
         if !self.is_entity_name_expression(expression)
             || !self.reused_entity_name_introduces_error_slice(expression, SymbolFlags::VALUE)?
         {
@@ -12822,9 +13171,13 @@ impl<'a> CheckerState<'a> {
                 value: tsc_types::LiteralValue::String(value),
             } => {
                 let Some(value_utf8) = value.to_utf8() else {
-                    return Ok(format!("[{}]", string_literal_name_text(value, false)?));
+                    return Ok(crate::concat_js(&[
+                        &"[",
+                        &(string_literal_name_text(value, false)?),
+                        &"]",
+                    ]));
                 };
-                Some(EvalValue::Str(value_utf8))
+                Some(EvalValue::Str(value_utf8.into()))
             }
             TypeData::Literal {
                 value: tsc_types::LiteralValue::Number(value),
@@ -12836,21 +13189,27 @@ impl<'a> CheckerState<'a> {
         };
         match literal {
             Some(EvalValue::Str(value)) => {
-                if tsc_syntax::is_identifier_text_for_target(
-                    &value,
-                    self.options.emit_script_target(),
-                ) {
-                    Ok(value)
+                if let Some(identifier) = value.as_str().filter(|text| {
+                    tsc_syntax::is_identifier_text_for_target(
+                        text,
+                        self.options.emit_script_target(),
+                    )
+                }) {
+                    Ok(identifier.to_owned().into())
                 } else {
-                    Ok(format!("[{}]", string_literal_name_slice(&value, false)?))
+                    Ok(crate::concat_js(&[
+                        &"[",
+                        &(string_literal_name_slice(&value, false)?),
+                        &"]",
+                    ]))
                 }
             }
             Some(EvalValue::Num(value)) => {
                 let value = tsc_types::js_number_to_string(value);
                 if value.starts_with('-') {
-                    Ok(format!("[{value}]"))
+                    Ok(crate::concat_js(&[&"[", &(value), &"]"]))
                 } else {
-                    Ok(value)
+                    Ok(value.into())
                 }
             }
             None => self.reused_computed_property_expression_text_slice(expression),
@@ -12860,12 +13219,12 @@ impl<'a> CheckerState<'a> {
     fn reused_computed_property_expression_text_slice(
         &mut self,
         expression: NodeId,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<JsString> {
         match self.display_clone_computed_property_expression_text(expression)? {
-            Some(text) => Ok(text),
+            Some(text) => Ok(text.into()),
             None => {
                 self.slice_reuse_had_error = true;
-                Ok(String::new())
+                Ok(JsString::new())
             }
         }
     }
@@ -12879,7 +13238,7 @@ impl<'a> CheckerState<'a> {
     /// but not array patterns (`[a, b]`); omitted elements print
     /// empty (`[, x]`). Computed entity names share the visitor's
     /// tracker/recovery rewrite above.
-    fn binding_pattern_text_slice(&mut self, pattern: NodeId) -> CheckResult<String> {
+    fn binding_pattern_text_slice(&mut self, pattern: NodeId) -> CheckResult<JsString> {
         self.binding_pattern_text_slice_worker(pattern, false)
     }
 
@@ -12887,7 +13246,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         pattern: NodeId,
         preserve_initializers: bool,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<JsString> {
         match self.data_of(pattern).clone() {
             NodeData::ObjectBindingPattern(data) => {
                 let (elements, has_trailing_comma) = match data.elements {
@@ -12898,17 +13257,17 @@ impl<'a> CheckerState<'a> {
                     None => (Vec::new(), false),
                 };
                 if elements.is_empty() {
-                    return Ok("{}".to_owned());
+                    return Ok("{}".into());
                 }
                 let mut rendered = Vec::with_capacity(elements.len());
                 for element in elements {
                     rendered.push(self.binding_element_text_slice(element, preserve_initializers)?);
                 }
-                let mut contents = rendered.join(", ");
+                let mut contents = crate::join_js_texts(&rendered, ", ");
                 if has_trailing_comma {
                     contents.push(',');
                 }
-                Ok(format!("{{ {contents} }}"))
+                Ok(crate::concat_js(&[&"{", &" ", &(contents), &" }"]))
             }
             NodeData::ArrayBindingPattern(data) => {
                 let (elements, has_trailing_comma) = match data.elements {
@@ -12922,11 +13281,11 @@ impl<'a> CheckerState<'a> {
                 for element in elements {
                     rendered.push(self.binding_element_text_slice(element, preserve_initializers)?);
                 }
-                let mut contents = rendered.join(", ");
+                let mut contents = crate::join_js_texts(&rendered, ", ");
                 if has_trailing_comma {
                     contents.push(',');
                 }
-                Ok(format!("[{contents}]"))
+                Ok(crate::concat_js(&[&"[", &(contents), &"]"]))
             }
             _ => unreachable!("cloneBindingName receives an object/array binding pattern"),
         }
@@ -12936,9 +13295,9 @@ impl<'a> CheckerState<'a> {
         &mut self,
         element: NodeId,
         preserve_initializers: bool,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<JsString> {
         match self.data_of(element).clone() {
-            NodeData::OmittedExpression(_) => Ok(String::new()),
+            NodeData::OmittedExpression(_) => Ok(JsString::new()),
             NodeData::BindingElement(data) => {
                 let dots = if data.dot_dot_dot_token.is_some() {
                     "..."
@@ -12946,15 +13305,16 @@ impl<'a> CheckerState<'a> {
                     ""
                 };
                 let property = match data.property_name {
-                    Some(property_name) => {
-                        format!("{}: ", self.member_name_node_text_slice(property_name)?)
-                    }
-                    None => String::new(),
+                    Some(property_name) => crate::concat_js(&[
+                        &(self.member_name_node_text_slice(property_name)?),
+                        &": ",
+                    ]),
+                    None => JsString::new(),
                 };
                 let name_node = data.name.expect("BindingElement carries its binding name");
                 let name = match self.data_of(name_node) {
                     NodeData::Identifier(data) => {
-                        tsc_binder::unescape_leading_underscores(&data.escaped_text).to_owned()
+                        tsc_syntax::unescape_leading_underscores(&data.escaped_text).into()
                     }
                     NodeData::ObjectBindingPattern(_) | NodeData::ArrayBindingPattern(_) => {
                         self.binding_pattern_text_slice_worker(name_node, preserve_initializers)?
@@ -12963,18 +13323,21 @@ impl<'a> CheckerState<'a> {
                 };
                 let initializer = if preserve_initializers {
                     match data.initializer {
-                        Some(initializer) => {
-                            format!(
-                                " = {}",
-                                self.reused_initializer_expression_text_slice(initializer)?
-                            )
-                        }
-                        None => String::new(),
+                        Some(initializer) => crate::concat_js(&[
+                            &" = ",
+                            &(self.reused_initializer_expression_text_slice(initializer)?),
+                        ]),
+                        None => JsString::new(),
                     }
                 } else {
-                    String::new()
+                    JsString::new()
                 };
-                Ok(format!("{dots}{property}{name}{initializer}"))
+                Ok(crate::concat_js(&[
+                    &(dots),
+                    &(property),
+                    &(name),
+                    &(initializer),
+                ]))
             }
             _ => unreachable!("binding arrays contain BindingElement/OmittedExpression nodes"),
         }
@@ -12997,7 +13360,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         property: SymbolId,
         fully_qualified: bool,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<JsString> {
         if let Some(value_declaration) = self.binder.symbol(property).value_declaration {
             let name = tsc_binder::node_util::get_name_of_declaration(
                 self.binder.source_of_node(value_declaration),
@@ -13008,7 +13371,7 @@ impl<'a> CheckerState<'a> {
                     // getClonedHashPrivateName (55445-55449): private
                     // property names are cloned before nameType/raw-name
                     // processing and retain their `#` face.
-                    return Ok(data.text.clone());
+                    return Ok(data.text.clone().into());
                 }
             }
         }
@@ -13035,7 +13398,8 @@ impl<'a> CheckerState<'a> {
                     TypeData::Literal { value } => match value {
                         tsc_types::LiteralValue::String(text) => {
                             let Some(text_utf8) = text.to_utf8() else {
-                                return string_literal_name_text(text, single_quote);
+                                return string_literal_name_text(text, single_quote)
+                                    .map(JsString::from);
                             };
                             text_utf8
                         }
@@ -13051,19 +13415,20 @@ impl<'a> CheckerState<'a> {
                 if !tsc_syntax::is_identifier_text(&name)
                     && (string_named || !crate::evaluate::is_numeric_literal_name(&name))
                 {
-                    return string_literal_name_slice(&name, single_quote);
+                    return string_literal_name_slice(&name, single_quote).map(JsString::from);
                 }
                 if crate::evaluate::is_numeric_literal_name(&name) && name.starts_with('-') {
                     // 53434: negative numeric names print as the
                     // computed `[-N]` face (prefix-minus numeric).
-                    return Ok(format!("[{name}]"));
+                    return Ok(crate::concat_js(&[&"[", &(name), &"]"]));
                 }
                 return identifier_or_literal_name_slice(
                     &name,
                     string_named,
                     single_quote,
                     is_method,
-                );
+                )
+                .map(JsString::from);
             }
             if flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL) {
                 // 53439-53441: createComputedPropertyName(
@@ -13089,13 +13454,14 @@ impl<'a> CheckerState<'a> {
                     .or_else(|| declarations.first().copied());
                 let face =
                     self.symbol_expression_face_slice(name_symbol, enclosing, fully_qualified)?;
-                return Ok(format!("[{face}]"));
+                return Ok(crate::concat_js(&[&"[", &(face), &"]"]));
             }
         }
         let raw =
             tsc_binder::unescape_leading_underscores(&self.binder.symbol(property).escaped_name)
                 .to_owned();
         identifier_or_literal_name_slice(&raw, string_named, single_quote, is_method)
+            .map(JsString::from)
     }
 
     /// tsc-port: isStringNamed @6.0.3 (slice face)
@@ -13227,7 +13593,7 @@ impl<'a> CheckerState<'a> {
         let text = name
             .and_then(|name| self.identifier_text(name))
             .expect("getTupleElementLabel Debug.asserts an Identifier label");
-        Ok(tsc_binder::unescape_leading_underscores(text).to_owned())
+        Ok(tsc_syntax::unescape_leading_underscores(text).to_owned())
     }
 }
 
@@ -13244,7 +13610,7 @@ enum ScopeTableKey {
 }
 
 struct SliceTypeNodeFace {
-    text: String,
+    text: JsString,
     kind: SliceTypeNodeKind,
     /// Factory `parenthesizeTypeArguments` additionally inspects
     /// whether a leading Function/Constructor TypeNode is generic;
@@ -13253,9 +13619,9 @@ struct SliceTypeNodeFace {
 }
 
 impl SliceTypeNodeFace {
-    fn new(text: String, kind: SliceTypeNodeKind) -> Self {
+    fn new(text: impl Into<JsString>, kind: SliceTypeNodeKind) -> Self {
         Self {
-            text,
+            text: text.into(),
             kind,
             has_type_parameters: false,
         }
@@ -13361,11 +13727,12 @@ fn mapped_modifier_text_slice(token: Option<SyntaxKind>, plain: &str) -> String 
 /// surrogate here and therefore requires element access.
 /// (h2-7a-m-3 widening: shared property-access spelling decision.)
 /// tsrs-native: Rust-structural helper for the h2-7a-m-3 foundation.
-pub(crate) fn can_use_property_access_slice(
-    name: &str,
+pub(crate) fn can_use_property_access_slice<'n>(
+    name: impl Into<tsc_types::JsStr<'n>>,
     language_version: tsc_types::ScriptTarget,
 ) -> bool {
-    let mut units = name.encode_utf16();
+    let name = name.into();
+    let mut units = name.code_units();
     let Some(first) = units.next() else {
         return false;
     };
@@ -13384,24 +13751,39 @@ pub(crate) fn can_use_property_access_slice(
 
 /// createExpressionFromSymbolChain's stripQuotes + `/\\./g` unescape
 /// (53368-53371).
-fn strip_symbol_name_quotes_slice(name: &str) -> String {
-    let body = if name.len() >= 2 {
-        &name[1..name.len() - 1]
+pub(crate) fn strip_symbol_name_quotes_slice<'n>(
+    name: impl Into<tsc_types::JsStr<'n>>,
+) -> JsString {
+    let name = name.into();
+    // stripQuotes requires a matching pair of quotes (including backticks).
+    // Its boundaries are ASCII, so the borrowed body remains canonical.
+    let body = if name.as_bytes().len() >= 2 {
+        ["'", "\"", "`"]
+            .into_iter()
+            .find_map(|quote| {
+                name.strip_prefix(quote)
+                    .and_then(|body| body.strip_suffix(quote))
+            })
+            .unwrap_or(name)
     } else {
-        ""
+        name
     };
-    let mut chars = body.chars();
-    let mut out = String::with_capacity(body.len());
-    while let Some(ch) = chars.next() {
-        if ch == '\\' {
-            if let Some(escaped) = chars.next() {
-                out.push(escaped);
-            }
+    let mut output = JsString::with_capacity(body.as_bytes().len());
+    let mut units = body.code_units().peekable();
+    while let Some(unit) = units.next() {
+        // _tsc.js:53369: /\\./g removes the backslash before one JS unit.
+        // Dot excludes all four line terminators and cannot match EOF.
+        if unit == u16::from(b'\\')
+            && units
+                .peek()
+                .is_some_and(|next| !matches!(*next, 0x0a | 0x0d | 0x2028 | 0x2029))
+        {
+            output.push_code_unit(units.next().expect("peek found the escaped unit"));
         } else {
-            out.push(ch);
+            output.push_code_unit(unit);
         }
     }
-    out
+    output
 }
 
 /// tsc-port: parenthesizeConstituentTypeOfUnionType @6.0.3 (kind test)
@@ -13486,8 +13868,8 @@ fn optional_type_operand_needs_parens(kind: SliceTypeNodeKind) -> bool {
 /// derives rawText = escapeTemplateSubstitution(escapeNonAsciiString
 /// (text, backtick)). The `` ` ``/`${`/`}` delimiters are the callers'
 /// (the template arm concatenation).
-fn template_text_raw(text: &str) -> String {
-    template_text_utf16_raw(&text.encode_utf16().collect::<Vec<_>>())
+fn template_text_raw<'n>(text: impl Into<tsc_types::JsStr<'n>>) -> String {
+    template_text_utf16_raw(&text.into().to_utf16())
 }
 
 /// escapeString(backtick) followed by escapeNonAsciiString, over the
@@ -13551,9 +13933,9 @@ fn encode_utf16_escape_sequence(unit: u16) -> String {
 /// U+0085; escapedCharsMap first (lowercase u-escapes), NUL digit
 /// lookahead, then the UPPERCASE 4-hex fallback. Non-ASCII passes
 /// through raw — the StringLiteral face sets NoAsciiEscaping.
-pub(crate) fn string_literal_type_display_text(text: &tsc_types::TemplateText) -> String {
+pub(crate) fn string_literal_type_display_text(text: &tsc_types::TemplateText) -> JsString {
     let units = text.units();
-    let mut out = String::new();
+    let mut out = JsString::new();
     let mut index = 0usize;
     while index < units.len() {
         let unit = units[index];
@@ -13580,19 +13962,7 @@ pub(crate) fn string_literal_type_display_text(text: &tsc_types::TemplateText) -
             0x2029 => out.push_str("\\u2029"),
             0x0085 => out.push_str("\\u0085"),
             0x0001..=0x001F => out.push_str(&encode_utf16_escape_sequence(unit)),
-            0xD800..=0xDBFF
-                if units
-                    .get(index + 1)
-                    .is_some_and(|next| (0xDC00..=0xDFFF).contains(next)) =>
-            {
-                let high = u32::from(unit - 0xD800);
-                let low = u32::from(units[index + 1] - 0xDC00);
-                let scalar = 0x10000 + (high << 10) + low;
-                out.push(char::from_u32(scalar).expect("valid surrogate pair"));
-                index += 1;
-            }
-            0xD800..=0xDFFF => out.push_str(&encode_utf16_escape_sequence(unit)),
-            _ => out.push(char::from_u32(u32::from(unit)).expect("BMP scalar")),
+            _ => out.push_code_unit(unit),
         }
         index += 1;
     }
@@ -13609,11 +13979,12 @@ fn escape_template_substitution(s: &str) -> String {
 /// tsc-port: createArrayTypeNode @6.0.3 (string form)
 /// tsc-hash: 71e29dc77eaa156837ba89b71ffc6b028e29a3da6e605952ea80b7443b0a38aa
 /// tsc-span: _tsc.js:22229-22234
-fn array_type_node_text(element: String, kind: SliceTypeNodeKind) -> String {
+fn array_type_node_text(element: impl Into<JsString>, kind: SliceTypeNodeKind) -> JsString {
+    let element = element.into();
     if non_array_postfix_operand_needs_parens(kind) {
-        format!("({element})[]")
+        crate::concat_js(&[&"(", &element, &")[]"])
     } else {
-        format!("{element}[]")
+        crate::concat_js(&[&element, &"[]"])
     }
 }
 
@@ -13624,15 +13995,21 @@ fn array_type_node_text(element: String, kind: SliceTypeNodeKind) -> String {
 /// The numeric face prints `(+name).toString()` (factory
 /// createNumericLiteral over the coerced value); the string face is
 /// the printer's quoted literal.
-fn identifier_or_literal_name_slice(
-    name: &str,
+fn identifier_or_literal_name_slice<'n>(
+    name: impl Into<tsc_types::JsStr<'n>>,
     string_named: bool,
     single_quote: bool,
     is_method: bool,
 ) -> CheckResult<String> {
+    let name = name.into();
     let is_method_named_new = is_method && name == "new";
-    if !is_method_named_new && tsc_syntax::is_identifier_text(name) {
-        return Ok(name.to_owned());
+    if !is_method_named_new {
+        if let Some(identifier) = name
+            .as_str()
+            .filter(|name| tsc_syntax::is_identifier_text(name))
+        {
+            return Ok(identifier.to_owned());
+        }
     }
     if !string_named
         && !is_method_named_new
@@ -13659,8 +14036,11 @@ fn identifier_or_literal_name_slice(
 /// `escapeString` and then escapes every non-ASCII UTF-16 code unit.
 /// Iterating code units (rather than Rust scalar values) preserves the
 /// exact surrogate-pair spelling for astral characters.
-pub(crate) fn string_literal_name_slice(name: &str, single_quote: bool) -> CheckResult<String> {
-    string_literal_name_text(&tsc_types::TemplateText::from_utf8(name), single_quote)
+pub(crate) fn string_literal_name_slice<'n>(
+    name: impl Into<tsc_types::JsStr<'n>>,
+    single_quote: bool,
+) -> CheckResult<String> {
+    string_literal_name_text(&tsc_types::TemplateText::from_js(name.into()), single_quote)
 }
 
 fn string_literal_name_text(

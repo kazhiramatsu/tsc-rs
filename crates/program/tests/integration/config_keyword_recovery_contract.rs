@@ -10,31 +10,39 @@ impl ConfigParseHost for EmptyConfigHost {
         true
     }
 
-    fn file_exists(&self, _path: &str) -> Result<bool, ConfigHostError> {
+    fn file_exists(&self, _path: tsc_diagnostics::JsStr<'_>) -> Result<bool, ConfigHostError> {
+        let _path = _path.as_str().expect("scalar config fixture query");
+
         Ok(false)
     }
 
-    fn read_file(&self, _path: &str) -> Result<Option<String>, ConfigHostError> {
+    fn read_file(
+        &self,
+        _path: tsc_diagnostics::JsStr<'_>,
+    ) -> Result<Option<String>, ConfigHostError> {
+        let _path = _path.as_str().expect("scalar config fixture query");
+
         Ok(None)
     }
 
     fn read_directory(
         &self,
-        _directory: &str,
+        _directory: tsc_diagnostics::JsStr<'_>,
         _extensions: &[&str],
-        _excludes: Option<&[String]>,
-        _includes: Option<&[String]>,
+        _excludes: Option<&[tsc_diagnostics::JsString]>,
+        _includes: Option<&[tsc_diagnostics::JsString]>,
         _depth: Option<usize>,
-    ) -> Result<Vec<String>, ConfigHostError> {
-        Ok(Vec::new())
+    ) -> Result<Vec<tsc_diagnostics::JsString>, ConfigHostError> {
+        (|| -> Result<Vec<String>, ConfigHostError> { Ok(Vec::new()) })()
+            .map(|paths| paths.into_iter().map(Into::into).collect())
     }
 }
 
 fn request(text: String) -> ConfigRootPlanRequest {
     ConfigRootPlanRequest {
-        file_name: "/project/tsconfig.json".to_owned(),
+        file_name: "/project/tsconfig.json".to_owned().into(),
         text,
-        base_path: "/".to_owned(),
+        base_path: "/".to_owned().into(),
     }
 }
 

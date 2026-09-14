@@ -49,11 +49,16 @@ pub enum CompilerOptionListElementKind {
 impl CompilerOptionListElementKind {
     /// Resolve a named string element as `convertJsonOptionOfCustomType` does.
     /// All names in TypeScript's compiler-option maps are ASCII.
-    pub fn named_string_value(self, name: &str) -> Option<&'static str> {
+    pub fn named_string_value<'n>(
+        self,
+        name: impl Into<tsc_diagnostics::JsStr<'n>>,
+    ) -> Option<&'static str> {
         let Self::NamedString(values) = self else {
             return None;
         };
-        let name = name.to_lowercase();
+        // The frozen candidate spellings are ASCII. A lowercase mapping
+        // leaves lone surrogates intact, so those values cannot match.
+        let name = name.into().as_str()?.to_lowercase();
         values
             .iter()
             .find(|candidate| candidate.name == name.as_str())
@@ -98,7 +103,10 @@ impl CompilerOptionListDescriptor {
         self.allow_config_dir_template_substitution
     }
 
-    pub fn named_string_value(self, name: &str) -> Option<&'static str> {
+    pub fn named_string_value<'n>(
+        self,
+        name: impl Into<tsc_diagnostics::JsStr<'n>>,
+    ) -> Option<&'static str> {
         self.element_kind.named_string_value(name)
     }
 
@@ -131,11 +139,13 @@ pub enum CompilerOptionValueKind {
 impl CompilerOptionValueKind {
     /// Resolve a custom option value as `convertJsonOptionOfCustomType` does.
     /// All names in TypeScript's custom compiler-option maps are ASCII.
-    pub fn named_value(self, name: &str) -> Option<i32> {
+    pub fn named_value<'n>(self, name: impl Into<tsc_diagnostics::JsStr<'n>>) -> Option<i32> {
         let Self::Named(values) = self else {
             return None;
         };
-        let name = name.to_lowercase();
+        // The frozen candidate spellings are ASCII. A lowercase mapping
+        // leaves lone surrogates intact, so those values cannot match.
+        let name = name.into().as_str()?.to_lowercase();
         values
             .iter()
             .find(|candidate| candidate.name == name.as_str())
@@ -1237,10 +1247,13 @@ pub const fn compiler_option_declarations() -> &'static [CompilerOptionDeclarati
 ///
 /// `convertOptionsFromJson` uses a case-sensitive `Map.get`, unlike CLI option
 /// lookup, so `allowJs` is recognized while `ALLOWJS` is not.
-pub fn compiler_option_declaration(name: &str) -> Option<&'static CompilerOptionDeclaration> {
+pub fn compiler_option_declaration<'n>(
+    name: impl Into<tsc_diagnostics::JsStr<'n>>,
+) -> Option<&'static CompilerOptionDeclaration> {
+    let name = name.into();
     COMPILER_OPTION_DECLARATIONS
         .iter()
-        .rfind(|declaration| declaration.name == name)
+        .rfind(|declaration| name == declaration.name)
 }
 
 /// Whether a root property participates in TypeScript's misplaced compiler
@@ -1251,11 +1264,12 @@ pub fn compiler_option_declaration(name: &str) -> Option<&'static CompilerOption
 /// declaration in the frozen catalog. Keeping this query tied to that pinned
 /// order avoids incorrectly diagnosing common build/watch options at the
 /// config root.
-pub fn is_command_option_without_build(name: &str) -> bool {
+pub fn is_command_option_without_build<'n>(name: impl Into<tsc_diagnostics::JsStr<'n>>) -> bool {
+    let name = name.into();
     COMPILER_OPTION_DECLARATIONS
         .iter()
         .skip_while(|declaration| declaration.name != "all")
-        .any(|declaration| declaration.name == name)
+        .any(|declaration| name == declaration.name)
 }
 
 /// Suggest a compiler-option spelling in TypeScript declaration order.
@@ -1263,25 +1277,29 @@ pub fn is_command_option_without_build(name: &str) -> bool {
 /// tsc-port: getSpellingSuggestion @6.0.3
 /// tsc-hash: 37b9cd417fd83af45f9fa8584ae1a3aa05e3f7ac3764438bb0627a7d61591ab6
 /// tsc-span: _tsc.js:951-975
-pub fn compiler_option_spelling_suggestion(
-    name: &str,
+pub fn compiler_option_spelling_suggestion<'n>(
+    name: impl Into<tsc_diagnostics::JsStr<'n>>,
 ) -> Option<&'static CompilerOptionDeclaration> {
     option_spelling_suggestion(name, COMPILER_OPTION_DECLARATIONS)
 }
 
-pub(crate) fn option_spelling_suggestion(
-    name: &str,
+pub(crate) fn option_spelling_suggestion<'n>(
+    name: impl Into<tsc_diagnostics::JsStr<'n>>,
     declarations: &'static [CompilerOptionDeclaration],
 ) -> Option<&'static CompilerOptionDeclaration> {
-    let name_units = name.encode_utf16().collect::<Vec<_>>();
+    let name = name.into();
+    let name_units = name.to_utf16();
     let maximum_length_difference = 2usize.max((name_units.len() as f64 * 0.34).floor() as usize);
     let mut best_distance = (name_units.len() as f64 * 0.4).floor() + 1.0;
     let mut best_candidate = None;
     for candidate in declarations {
         let candidate_units = candidate.name.encode_utf16().collect::<Vec<_>>();
         if name_units.len().abs_diff(candidate_units.len()) > maximum_length_difference
-            || candidate.name == name
-            || (candidate_units.len() < 3 && candidate.name.to_lowercase() != name.to_lowercase())
+            || name == candidate.name
+            || (candidate_units.len() < 3
+                // Catalog names are ASCII. Lowercasing a non-scalar name
+                // preserves its surrogate, so it cannot equal this candidate.
+                && name.as_str().is_none_or(|text| candidate.name.to_lowercase() != text.to_lowercase()))
         {
             continue;
         }
@@ -1502,6 +1520,32 @@ pub(crate) const COMPILE_ON_SAVE_DECLARATION: CompilerOptionDeclaration =
 mod schema_oracle {
     use super::*;
     use serde_json::{json, Value};
+
+    #[test]
+    fn lossless_option_names_match_exact_lookup_and_spelling_observations() {
+        let fixture: Value =
+            serde_json::from_str(include_str!("../tests/fixtures/utf16-config-names.json"))
+                .unwrap();
+        for case in fixture["cases"].as_array().unwrap() {
+            let units = case["units"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|unit| u16::try_from(unit.as_u64().unwrap()).unwrap())
+                .collect::<Vec<_>>();
+            let name = tsc_diagnostics::JsString::from_code_units(&units);
+            assert_eq!(
+                compiler_option_declaration(&name).map(|declaration| declaration.name()),
+                case["exact"].as_str(),
+                "exact lookup: {units:x?}"
+            );
+            assert_eq!(
+                compiler_option_spelling_suggestion(&name).map(|declaration| declaration.name()),
+                case["suggestion"].as_str(),
+                "suggestion: {units:x?}"
+            );
+        }
+    }
 
     fn shape(
         kind: CompilerOptionValueKind,

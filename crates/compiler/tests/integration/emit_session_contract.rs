@@ -53,23 +53,40 @@ struct InjectedFileSystem {
 }
 
 impl EmitFileSystem for InjectedFileSystem {
-    fn write_file(&mut self, path: &Path, bytes: &[u8]) -> Result<(), String> {
-        self.attempts.push(path.to_path_buf());
-        if path == self.fail_path {
-            return Err("injected stable write failure".to_owned());
-        }
-        self.files.insert(path.to_path_buf(), bytes.to_vec());
-        Ok(())
+    fn write_file(
+        &mut self,
+        path: tsc_diagnostics::JsStr<'_>,
+        bytes: &[u8],
+    ) -> Result<(), tsc_diagnostics::JsString> {
+        let path = std::path::Path::new(path.as_str().expect("scalar fault-injection path"));
+        (|| -> Result<(), String> {
+            self.attempts.push(path.to_path_buf());
+            if path == self.fail_path {
+                return Err("injected stable write failure".to_owned());
+            }
+            self.files.insert(path.to_path_buf(), bytes.to_vec());
+            Ok(())
+        })()
+        .map_err(Into::into)
     }
 
-    fn create_directory(&mut self, path: &Path) -> Result<(), String> {
-        panic!(
-            "existing project parent must not be created: {}",
-            path.display()
-        )
+    fn create_directory(
+        &mut self,
+        path: tsc_diagnostics::JsStr<'_>,
+    ) -> Result<(), tsc_diagnostics::JsString> {
+        let path = std::path::Path::new(path.as_str().expect("scalar fault-injection path"));
+        (|| -> Result<(), String> {
+            panic!(
+                "existing project parent must not be created: {}",
+                path.display()
+            )
+        })()
+        .map_err(Into::into)
     }
 
-    fn directory_exists(&mut self, path: &Path) -> bool {
+    fn directory_exists(&mut self, path: tsc_diagnostics::JsStr<'_>) -> bool {
+        let path = std::path::Path::new(path.as_str().expect("scalar fault-injection path"));
+
         path == Path::new("/project")
     }
 }
@@ -317,7 +334,7 @@ fn h1_4_emit_entry_runs_the_checked_transform_and_memory_sink_path() {
     assert!(outcome.source_maps().is_none());
     assert_eq!(sink.writes().len(), 1);
     assert_eq!(
-        sink.writes()[0].path(),
+        sink.writes()[0].path().scalar_test_path(),
         std::path::Path::new("/project/input.js")
     );
     assert_eq!(
@@ -490,7 +507,7 @@ fn commonjs_erased_final_import_retains_statement_list_tail_comments() {
     let importer_output = sink
         .writes()
         .iter()
-        .find(|write| write.path() == Path::new("/project/b.js"))
+        .find(|write| write.path().scalar_test_path() == Path::new("/project/b.js"))
         .expect("b.js output");
     assert_eq!(
         importer_output.callback_text(),
@@ -556,7 +573,8 @@ fn paths_option_diagnostics_restore_the_emit_report_semantic_gate() {
     let mut builder =
         PreparedProgram::emitting_builder(PathContext::new(path("/project"), true), options);
     builder.set_program_options(
-        ProgramOptions::default().with_paths(vec![PathMapping::new("*", vec!["bare".to_owned()])]),
+        ProgramOptions::default()
+            .with_paths(vec![PathMapping::new("*", vec!["bare".to_owned().into()])]),
     );
     let library = builder
         .add_source_file(PreparedSourceFile::new(path("/lib.d.ts"), MINIMAL_GLOBALS))
@@ -977,7 +995,7 @@ fn h2_1d_system_owner_closure_matches_the_pinned_transform() {
             no_emit: Some(false),
             target: Some(99),
             module: Some(4),
-            ignore_deprecations: Some("6.0".to_owned()),
+            ignore_deprecations: Some("6.0".to_owned().into()),
             es_module_interop: Some(true),
             ..CompilerOptions::default()
         },
@@ -1055,7 +1073,7 @@ fn h2_1c_amd_pragmas_and_static_dependency_order_match_the_pinned_transform() {
                 no_emit: Some(false),
                 target: Some(99),
                 module: Some(module),
-                ignore_deprecations: Some("6.0".to_owned()),
+                ignore_deprecations: Some("6.0".to_owned().into()),
                 es_module_interop: Some(true),
                 ..CompilerOptions::default()
             },
@@ -1168,7 +1186,7 @@ fn unsupported_options_and_unadmitted_extensions_fail_before_the_first_sink_call
 
     let mut out_file = base();
     out_file.module = Some(2);
-    out_file.out_file = Some("/project/bundle.js".to_owned());
+    out_file.out_file = Some("/project/bundle.js".to_owned().into());
     let mut sink = CountingSink::default();
     let error = ProgramSession::new(prepared_with_sources(
         out_file,
@@ -1190,7 +1208,10 @@ fn unsupported_options_and_unadmitted_extensions_fail_before_the_first_sink_call
     .emit(&mut sink)
     .expect("H2.3b admits TSX source/output routing");
     assert_eq!(sink.writes().len(), 1);
-    assert_eq!(sink.writes()[0].path(), Path::new("/project/module.js"));
+    assert_eq!(
+        sink.writes()[0].path().scalar_test_path(),
+        Path::new("/project/module.js")
+    );
     assert_eq!(
         sink.writes()[0].callback_text(),
         "export const value = true;\n"
@@ -1236,11 +1257,19 @@ fn h2_3a_allow_js_routes_through_program_and_blocks_only_the_colliding_output() 
     );
     assert!(outcome.emit_skipped());
     assert_eq!(
-        outcome.emitted_files(),
+        (outcome.emitted_files())
+            .map(|names| names
+                .iter()
+                .map(|name| name.as_js().scalar_test_path().to_path_buf())
+                .collect::<Vec<_>>())
+            .as_deref(),
         Some([PathBuf::from("/project/sibling.js")].as_slice())
     );
     assert_eq!(sink.writes().len(), 1);
-    assert_eq!(sink.writes()[0].path(), Path::new("/project/sibling.js"));
+    assert_eq!(
+        sink.writes()[0].path().scalar_test_path(),
+        Path::new("/project/sibling.js")
+    );
     assert_eq!(
         outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_3a),
         1
@@ -1267,7 +1296,7 @@ fn h2_3a_check_js_changes_diagnostics_without_changing_source_routing() {
                 no_emit: Some(false),
                 target: Some(99),
                 module: Some(200),
-                out_dir: Some("/project/dist".to_owned()),
+                out_dir: Some("/project/dist".to_owned().into()),
                 ..CompilerOptions::default()
             },
             &[("/project/checked.js", SOURCE)],
@@ -1287,7 +1316,7 @@ fn h2_3a_check_js_changes_diagnostics_without_changing_source_routing() {
         );
         assert_eq!(sink.writes().len(), 1);
         assert_eq!(
-            sink.writes()[0].path(),
+            sink.writes()[0].path().scalar_test_path(),
             Path::new("/project/dist/checked.js")
         );
         assert_eq!(
@@ -1310,7 +1339,7 @@ fn h2_3a_mjs_and_cjs_roots_materialize_the_planned_extension() {
                 no_emit: Some(false),
                 target: Some(99),
                 module: Some(200),
-                out_dir: Some("/project/dist".to_owned()),
+                out_dir: Some("/project/dist".to_owned().into()),
                 ..CompilerOptions::default()
             },
             &[(input.as_str(), SOURCE)],
@@ -1322,7 +1351,10 @@ fn h2_3a_mjs_and_cjs_roots_materialize_the_planned_extension() {
         assert!(diagnostics.is_empty(), "{extension}: {diagnostics:#?}");
         assert!(!outcome.emit_skipped());
         assert_eq!(sink.writes().len(), 1);
-        assert_eq!(sink.writes()[0].path(), Path::new(&output));
+        assert_eq!(
+            sink.writes()[0].path().scalar_test_path(),
+            Path::new(&output)
+        );
         assert_eq!(sink.writes()[0].callback_text(), SOURCE);
         assert_eq!(
             outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_3a),
@@ -1376,9 +1408,9 @@ fn h2_3a_javascript_owner_controls_match_pinned_typescript() {
                 no_emit: Some(false),
                 target: Some(99),
                 module: Some(200),
-                out_dir: Some("/project/dist".to_owned()),
+                out_dir: Some("/project/dist".to_owned().into()),
                 new_line: Some(1),
-                ignore_deprecations: Some("6.0".to_owned()),
+                ignore_deprecations: Some("6.0".to_owned().into()),
                 ..CompilerOptions::default()
             },
             &source_refs,
@@ -1398,10 +1430,22 @@ fn h2_3a_javascript_owner_controls_match_pinned_typescript() {
         for (actual, expected) in diagnostics.iter().zip(expected_diagnostics) {
             assert_eq!(u64::from(actual.code()), expected["code"]);
             assert_eq!(format!("{:?}", actual.category()), expected["category"]);
-            assert_eq!(actual.file_name.as_deref(), expected["file"].as_str());
+            assert_eq!(
+                actual
+                    .file_name
+                    .as_ref()
+                    .map(|value| value.as_str().expect("scalar legacy option observation")),
+                expected["file"].as_str()
+            );
             assert_eq!(actual.start.map(u64::from), expected["start"].as_u64());
             assert_eq!(actual.length.map(u64::from), expected["length"].as_u64());
-            assert_eq!(actual.message_text(), expected["message"]);
+            assert_eq!(
+                actual
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation"),
+                expected["message"]
+            );
         }
 
         let expected_writes = observation["writes"]
@@ -1410,7 +1454,7 @@ fn h2_3a_javascript_owner_controls_match_pinned_typescript() {
         assert_eq!(sink.writes().len(), expected_writes.len());
         for (actual, expected) in sink.writes().iter().zip(expected_writes) {
             assert_eq!(
-                actual.path(),
+                actual.path().scalar_test_path(),
                 Path::new(expected["path"].as_str().expect("owner output path"))
             );
             assert_eq!(actual.callback_text(), oracle_callback_text(expected));
@@ -1482,7 +1526,7 @@ fn h2_3b_classic_jsx_factories_fragments_namespaces_and_ranges_match_typescript(
             strict: Some(false),
             always_strict: Some(false),
             new_line: Some(1),
-            ignore_deprecations: Some("6.0".to_owned()),
+            ignore_deprecations: Some("6.0".to_owned().into()),
             ..CompilerOptions::default()
         },
         &[("/project/emoji-😀.tsx", SOURCE)],
@@ -1492,7 +1536,10 @@ fn h2_3b_classic_jsx_factories_fragments_namespaces_and_ranges_match_typescript(
         .emit(&mut sink)
         .expect("H2.3b classic JSX emit");
     assert_eq!(sink.writes().len(), 1);
-    assert_eq!(sink.writes()[0].path(), Path::new("/project/emoji-😀.js"));
+    assert_eq!(
+        sink.writes()[0].path().scalar_test_path(),
+        Path::new("/project/emoji-😀.js")
+    );
     assert_eq!(sink.writes()[0].callback_text(), EXPECTED);
     assert_eq!(
         outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_3b),
@@ -1531,7 +1578,7 @@ fn h2_3b_classic_factory_import_substitution_and_lexical_shadowing_match_typescr
             jsx: Some(2),
             es_module_interop: Some(true),
             new_line: Some(1),
-            ignore_deprecations: Some("6.0".to_owned()),
+            ignore_deprecations: Some("6.0".to_owned().into()),
             ..CompilerOptions::default()
         },
         SOURCE,
@@ -1542,7 +1589,10 @@ fn h2_3b_classic_factory_import_substitution_and_lexical_shadowing_match_typescr
         .expect("H2.3b classic JSX CommonJS emit");
     assert!(outcome.diagnostics().is_empty());
     assert_eq!(sink.writes().len(), 1);
-    assert_eq!(sink.writes()[0].path(), Path::new("/project/view.js"));
+    assert_eq!(
+        sink.writes()[0].path().scalar_test_path(),
+        Path::new("/project/view.js")
+    );
     assert_eq!(sink.writes()[0].callback_text(), EXPECTED);
     assert_eq!(
         outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_1b),
@@ -1576,7 +1626,7 @@ fn h2_3b_preserve_and_react_native_reconstruct_jsx_with_exact_extensions() {
             .expect("H2.3b preserved JSX emit");
         assert_eq!(sink.writes().len(), 1);
         assert_eq!(
-            sink.writes()[0].path(),
+            sink.writes()[0].path().scalar_test_path(),
             Path::new(&format!("/project/view.{extension}"))
         );
         assert_eq!(
@@ -1597,7 +1647,7 @@ fn h2_3a_narrow_out_dir_and_source_family_boundary_fails_closed() {
         no_emit: Some(false),
         target: Some(99),
         module: Some(200),
-        out_dir: Some(out_dir.to_owned()),
+        out_dir: Some(out_dir.to_owned().into()),
         ..CompilerOptions::default()
     };
     for (case, compiler_options, source) in [
@@ -1673,7 +1723,10 @@ fn h2_3a_narrow_out_dir_and_source_family_boundary_fails_closed() {
     .emit(&mut sink)
     .expect("H2.3b admits allowJs JSX-family source routing");
     assert_eq!(sink.writes().len(), 1);
-    assert_eq!(sink.writes()[0].path(), Path::new("/project/input.js"));
+    assert_eq!(
+        sink.writes()[0].path().scalar_test_path(),
+        Path::new("/project/input.js")
+    );
     assert_eq!(
         outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_3a),
         1
@@ -1705,9 +1758,9 @@ fn h2_3d_json_text_paths_bom_newlines_and_module_invariance_match_typescript() {
                 target: Some(99),
                 module: Some(module),
                 resolve_json_module: Some(true),
-                out_dir: Some("/project/dist".to_owned()),
+                out_dir: Some("/project/dist".to_owned().into()),
                 new_line: Some(1),
-                ignore_deprecations: Some("6.0".to_owned()),
+                ignore_deprecations: Some("6.0".to_owned().into()),
                 ..CompilerOptions::default()
             },
             &[("/project/data.json", SOURCE)],
@@ -1719,7 +1772,7 @@ fn h2_3d_json_text_paths_bom_newlines_and_module_invariance_match_typescript() {
         assert!(!outcome.emit_skipped(), "module={module}");
         assert_eq!(sink.writes().len(), 1, "module={module}");
         assert_eq!(
-            sink.writes()[0].path(),
+            sink.writes()[0].path().scalar_test_path(),
             Path::new("/project/dist/data.json"),
             "module={module}"
         );
@@ -1742,7 +1795,7 @@ fn h2_3d_json_text_paths_bom_newlines_and_module_invariance_match_typescript() {
             target: Some(99),
             module: Some(1),
             resolve_json_module: Some(true),
-            out_dir: Some("/project/dist".to_owned()),
+            out_dir: Some("/project/dist".to_owned().into()),
             new_line: Some(0),
             emit_bom: Some(true),
             ..CompilerOptions::default()
@@ -1765,7 +1818,7 @@ fn h2_3d_json_text_paths_bom_newlines_and_module_invariance_match_typescript() {
 
 #[test]
 fn h2_3d_json_without_distinct_output_location_is_not_written() {
-    for out_dir in [None, Some("/project".to_owned())] {
+    for out_dir in [None, Some(tsc_diagnostics::JsString::from("/project"))] {
         let prepared = prepared_with_sources(
             CompilerOptions {
                 no_emit: Some(false),
@@ -1798,8 +1851,8 @@ fn h2_3d_resolve_json_module_option_diagnostics_match_typescript_and_gate_no_emi
                     module: Some(module),
                     module_resolution: Some(module_resolution),
                     resolve_json_module: Some(true),
-                    out_dir: Some("/project/dist".to_owned()),
-                    ignore_deprecations: Some("6.0".to_owned()),
+                    out_dir: Some("/project/dist".to_owned().into()),
+                    ignore_deprecations: Some("6.0".to_owned().into()),
                     ..CompilerOptions::default()
                 },
                 &[("/project/data.json", "{\"value\":1}")],
@@ -2479,7 +2532,12 @@ fn assert_filesystem_failure_at_each_write_index(
         );
         assert!(!outcome.emit_skipped(), "failure index {failed_index}");
         assert_eq!(
-            outcome.emitted_files(),
+            (outcome.emitted_files())
+                .map(|names| names
+                    .iter()
+                    .map(|name| name.as_js().scalar_test_path().to_path_buf())
+                    .collect::<Vec<_>>())
+                .as_deref(),
             Some(output_paths.as_slice()),
             "failure index {failed_index}"
         );
@@ -2531,3 +2589,7 @@ fn assert_filesystem_failure_at_each_write_index(
         }
     }
 }
+
+#[path = "../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

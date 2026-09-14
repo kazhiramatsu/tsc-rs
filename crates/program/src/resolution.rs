@@ -1,13 +1,13 @@
 use std::error::Error;
 use std::fmt;
-use std::path::{Path, PathBuf};
 
-use tsc_diagnostics::{Diagnostic, DiagnosticList};
-use tsc_host::{to_file_name_lower_case, HostError};
+use tsc_diagnostics::{Diagnostic, DiagnosticList, JsStr, JsString};
+use tsc_host::to_file_name_lower_case_js;
 use tsc_types::ModuleSuffix;
 
 use crate::path::{CanonicalPath, ProgramPath};
 use crate::prepared::SourceFileId;
+pub use crate::resolution_error::{ResolutionError, ResolutionErrorKind};
 
 /// tsc `ResolutionMode`: CommonJS, ESNext, or the valid `undefined` mode.
 ///
@@ -25,16 +25,22 @@ pub enum ResolutionMode {
 /// The exact authoritative resolution-table key.
 ///
 /// Specifiers retain their original spelling; host case folding applies to
-/// the containing source's canonical path only.
+/// the containing source's canonical path only. JavaScript code units remain
+/// lossless through lookup and path/package mapping. Derived ordering is byte
+/// order for the authoritative table, not TypeScript's string comparer.
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct ResolutionKey {
     source: CanonicalPath,
-    specifier: String,
+    specifier: JsString,
     mode: ResolutionMode,
 }
 
 impl ResolutionKey {
-    pub fn new(source: CanonicalPath, specifier: impl Into<String>, mode: ResolutionMode) -> Self {
+    pub fn new(
+        source: CanonicalPath,
+        specifier: impl Into<JsString>,
+        mode: ResolutionMode,
+    ) -> Self {
         Self {
             source,
             specifier: specifier.into(),
@@ -46,8 +52,8 @@ impl ResolutionKey {
         &self.source
     }
 
-    pub fn specifier(&self) -> &str {
-        &self.specifier
+    pub fn specifier(&self) -> JsStr<'_> {
+        self.specifier.as_js()
     }
 
     pub const fn mode(&self) -> ResolutionMode {
@@ -81,14 +87,14 @@ impl TypeReferenceResolutionOrigin {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct TypeReferenceResolutionKey {
     origin: TypeReferenceResolutionOrigin,
-    specifier: String,
+    specifier: JsString,
     mode: ResolutionMode,
 }
 
 impl TypeReferenceResolutionKey {
     pub fn source(
         source: CanonicalPath,
-        specifier: impl Into<String>,
+        specifier: impl Into<JsString>,
         mode: ResolutionMode,
     ) -> Self {
         Self {
@@ -100,7 +106,7 @@ impl TypeReferenceResolutionKey {
 
     /// Construct an automatic `@types` request. Vendored `createProgram`
     /// always caches these requests under the `undefined` resolution mode.
-    pub fn automatic(containing_file: CanonicalPath, specifier: impl Into<String>) -> Self {
+    pub fn automatic(containing_file: CanonicalPath, specifier: impl Into<JsString>) -> Self {
         Self {
             origin: TypeReferenceResolutionOrigin::Automatic(containing_file),
             specifier: specifier.into(),
@@ -112,8 +118,8 @@ impl TypeReferenceResolutionKey {
         &self.origin
     }
 
-    pub fn specifier(&self) -> &str {
-        &self.specifier
+    pub fn specifier(&self) -> JsStr<'_> {
+        self.specifier.as_js()
     }
 
     pub const fn mode(&self) -> ResolutionMode {
@@ -151,25 +157,25 @@ pub enum ModuleExtension {
     /// as `.d.css.ts` for an arbitrary-extension declaration twin. Upstream
     /// can also retain a directory separator in this discriminant for dotted
     /// trailing package fields (`.d.css/.ts`).
-    Arbitrary(String),
+    Arbitrary(JsString),
 }
 
 impl ModuleExtension {
-    pub fn as_str(&self) -> &str {
+    pub fn as_js(&self) -> JsStr<'_> {
         match self {
-            Self::Ts => ".ts",
-            Self::Tsx => ".tsx",
-            Self::Dts => ".d.ts",
-            Self::Js => ".js",
-            Self::Jsx => ".jsx",
-            Self::Json => ".json",
-            Self::Mjs => ".mjs",
-            Self::Mts => ".mts",
-            Self::Dmts => ".d.mts",
-            Self::Cjs => ".cjs",
-            Self::Cts => ".cts",
-            Self::Dcts => ".d.cts",
-            Self::Arbitrary(extension) => extension,
+            Self::Ts => ".ts".into(),
+            Self::Tsx => ".tsx".into(),
+            Self::Dts => ".d.ts".into(),
+            Self::Js => ".js".into(),
+            Self::Jsx => ".jsx".into(),
+            Self::Json => ".json".into(),
+            Self::Mjs => ".mjs".into(),
+            Self::Mts => ".mts".into(),
+            Self::Dmts => ".d.mts".into(),
+            Self::Cjs => ".cjs".into(),
+            Self::Cts => ".cts".into(),
+            Self::Dcts => ".d.cts".into(),
+            Self::Arbitrary(extension) => extension.as_js(),
         }
     }
 
@@ -181,47 +187,58 @@ impl ModuleExtension {
         let Self::Arbitrary(extension) = self else {
             return true;
         };
-        extension.starts_with('.')
-            && extension.len() > 1
-            && !extension.contains(['\\', '\0'])
+        extension.starts_with(".")
+            && extension.len_units() > 1
+            && !extension.contains("\\")
+            && !extension.contains("\0")
             && extension.starts_with(".d.")
             && extension.ends_with(".ts")
             && !matches!(
                 extension.as_str(),
-                ".ts"
-                    | ".tsx"
-                    | ".d.ts"
-                    | ".js"
-                    | ".jsx"
-                    | ".json"
-                    | ".mjs"
-                    | ".mts"
-                    | ".d.mts"
-                    | ".cjs"
-                    | ".cts"
-                    | ".d.cts"
+                Some(
+                    ".ts"
+                        | ".tsx"
+                        | ".d.ts"
+                        | ".js"
+                        | ".jsx"
+                        | ".json"
+                        | ".mjs"
+                        | ".mts"
+                        | ".d.mts"
+                        | ".cjs"
+                        | ".cts"
+                        | ".d.cts"
+                )
             )
     }
 
-    pub(crate) fn matches_path(&self, path: &str) -> bool {
+    pub(crate) fn matches_path<'p>(&self, path: impl Into<JsStr<'p>>) -> bool {
+        let path = path.into();
         match self {
-            Self::Ts => path.ends_with(Self::Ts.as_str()) && !path.ends_with(Self::Dts.as_str()),
-            Self::Mts => path.ends_with(Self::Mts.as_str()) && !path.ends_with(Self::Dmts.as_str()),
-            Self::Cts => path.ends_with(Self::Cts.as_str()) && !path.ends_with(Self::Dcts.as_str()),
-            extension => path.ends_with(extension.as_str()),
+            Self::Ts => path.ends_with(".ts") && !path.ends_with(".d.ts"),
+            Self::Mts => path.ends_with(".mts") && !path.ends_with(".d.mts"),
+            Self::Cts => path.ends_with(".cts") && !path.ends_with(".d.cts"),
+            extension => path.ends_with_js(extension.as_js()),
         }
     }
 
-    pub(crate) fn matches_path_with_case(&self, path: &str, case_sensitive: bool) -> bool {
+    pub(crate) fn matches_path_with_case<'p>(
+        &self,
+        path: impl Into<JsStr<'p>>,
+        case_sensitive: bool,
+    ) -> bool {
+        let path = path.into();
         if case_sensitive {
             return self.matches_path(path);
         }
-        let path = to_file_name_lower_case(path);
+        let path = to_file_name_lower_case_js(path);
         match self {
-            Self::Ts => path.ends_with(Self::Ts.as_str()) && !path.ends_with(Self::Dts.as_str()),
-            Self::Mts => path.ends_with(Self::Mts.as_str()) && !path.ends_with(Self::Dmts.as_str()),
-            Self::Cts => path.ends_with(Self::Cts.as_str()) && !path.ends_with(Self::Dcts.as_str()),
-            extension => path.ends_with(&to_file_name_lower_case(extension.as_str())),
+            Self::Ts => path.ends_with(".ts") && !path.ends_with(".d.ts"),
+            Self::Mts => path.ends_with(".mts") && !path.ends_with(".d.mts"),
+            Self::Cts => path.ends_with(".cts") && !path.ends_with(".d.cts"),
+            extension => path
+                .as_js()
+                .ends_with_js(to_file_name_lower_case_js(extension.as_js()).as_js()),
         }
     }
 
@@ -236,39 +253,45 @@ impl ModuleExtension {
     /// resolving `foo.css` through `foo.d.css.ios.ts` publishes `.d.css.ts`.
     /// Reconstruct the suffix insertion before rejecting the resolver-owned
     /// row.
-    pub(crate) fn matches_path_with_case_and_module_suffixes(
+    pub(crate) fn matches_path_with_case_and_module_suffixes<'p>(
         &self,
-        path: &str,
+        path: impl Into<JsStr<'p>>,
         case_sensitive: bool,
         module_suffixes: Option<&[ModuleSuffix]>,
     ) -> bool {
+        let path = path.into();
         if self.matches_path_with_case(path, case_sensitive) {
             return true;
         }
         let Some(module_suffixes) = module_suffixes.filter(|suffixes| !suffixes.is_empty()) else {
             return false;
         };
-        let logical_extension = self.as_str();
+        let logical_extension = self.as_js();
         let recognized_extension = match self {
             Self::Arbitrary(_) => {
                 let Some(extension) = module_suffix_recognized_extension(logical_extension) else {
                     return false;
                 };
-                extension
+                extension.into()
             }
             _ => logical_extension,
         };
-        let extension_without_recognized =
-            &logical_extension[..logical_extension.len() - recognized_extension.len()];
-        let comparable_path = (!case_sensitive).then(|| to_file_name_lower_case(path));
-        let mut candidate = String::new();
+        let extension_without_recognized = logical_extension
+            .split_at_byte(
+                logical_extension.as_bytes().len() - recognized_extension.as_bytes().len(),
+            )
+            .expect("recognized extension is a canonical suffix")
+            .0;
+        let comparable_path = (!case_sensitive).then(|| to_file_name_lower_case_js(path));
+        let mut candidate = JsString::new();
 
         module_suffixes.iter().any(|suffix| {
             let suffix = suffix.runtime_text();
             let Some(candidate_length) = extension_without_recognized
+                .as_bytes()
                 .len()
-                .checked_add(suffix.len())
-                .and_then(|length| length.checked_add(recognized_extension.len()))
+                .checked_add(suffix.as_bytes().len())
+                .and_then(|length| length.checked_add(recognized_extension.as_bytes().len()))
             else {
                 return false;
             };
@@ -276,16 +299,17 @@ impl ModuleExtension {
             if candidate.try_reserve_exact(candidate_length).is_err() {
                 return false;
             }
-            candidate.push_str(extension_without_recognized);
-            candidate.push_str(suffix);
-            candidate.push_str(recognized_extension);
+            candidate.push_js(extension_without_recognized);
+            candidate.push_js(suffix);
+            candidate.push_js(recognized_extension);
             if case_sensitive {
-                path.ends_with(&candidate)
+                path.ends_with_js(candidate.as_js())
             } else {
                 comparable_path
-                    .as_deref()
+                    .as_ref()
                     .expect("case-insensitive path was folded")
-                    .ends_with(&to_file_name_lower_case(&candidate))
+                    .as_js()
+                    .ends_with_js(to_file_name_lower_case_js(candidate.as_js()).as_js())
             }
         })
     }
@@ -294,29 +318,29 @@ impl ModuleExtension {
 /// The same closed extension projection used by TypeScript's `tryFile` when
 /// inserting a module suffix. Long declaration extensions must precede their
 /// shorter TypeScript-family tails.
-fn module_suffix_recognized_extension(path: &str) -> Option<&'static str> {
+fn module_suffix_recognized_extension(path: JsStr<'_>) -> Option<&'static str> {
     [
         ".d.ts", ".d.mts", ".d.cts", ".mjs", ".mts", ".cjs", ".cts", ".ts", ".js", ".tsx", ".jsx",
         ".json",
     ]
     .into_iter()
-    .find(|extension| path.len() > extension.len() && path.ends_with(extension))
+    .find(|extension| path.len_units() > extension.len() && path.ends_with(extension))
 }
 
 /// Vendored `PackageId`, retained losslessly for diagnostic consumers.
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct PackageId {
-    name: String,
-    submodule_name: String,
-    version: String,
-    peer_dependencies: Option<String>,
+    name: JsString,
+    submodule_name: JsString,
+    version: JsString,
+    peer_dependencies: Option<JsString>,
 }
 
 impl PackageId {
     pub fn new(
-        name: impl Into<String>,
-        submodule_name: impl Into<String>,
-        version: impl Into<String>,
+        name: impl Into<JsString>,
+        submodule_name: impl Into<JsString>,
+        version: impl Into<JsString>,
     ) -> Self {
         Self {
             name: name.into(),
@@ -326,25 +350,25 @@ impl PackageId {
         }
     }
 
-    pub fn with_peer_dependencies(mut self, peer_dependencies: impl Into<String>) -> Self {
+    pub fn with_peer_dependencies(mut self, peer_dependencies: impl Into<JsString>) -> Self {
         self.peer_dependencies = Some(peer_dependencies.into());
         self
     }
 
-    pub fn name(&self) -> &str {
-        &self.name
+    pub fn name(&self) -> JsStr<'_> {
+        self.name.as_js()
     }
 
-    pub fn submodule_name(&self) -> &str {
-        &self.submodule_name
+    pub fn submodule_name(&self) -> JsStr<'_> {
+        self.submodule_name.as_js()
     }
 
-    pub fn version(&self) -> &str {
-        &self.version
+    pub fn version(&self) -> JsStr<'_> {
+        self.version.as_js()
     }
 
-    pub fn peer_dependencies(&self) -> Option<&str> {
-        self.peer_dependencies.as_deref()
+    pub fn peer_dependencies(&self) -> Option<JsStr<'_>> {
+        self.peer_dependencies.as_ref().map(JsString::as_js)
     }
 }
 
@@ -684,7 +708,7 @@ pub enum ResolutionRequestKind {
 pub struct MissingResolutionError {
     request_kind: ResolutionRequestKind,
     origin: MissingResolutionOrigin,
-    specifier: String,
+    specifier: JsString,
     mode: ResolutionMode,
 }
 
@@ -731,8 +755,8 @@ impl MissingResolutionError {
         }
     }
 
-    pub fn specifier(&self) -> &str {
-        &self.specifier
+    pub fn specifier(&self) -> JsStr<'_> {
+        self.specifier.as_js()
     }
 
     pub const fn mode(&self) -> ResolutionMode {
@@ -746,7 +770,7 @@ impl fmt::Display for MissingResolutionError {
             formatter,
             "authoritative {:?} resolution is missing for ({}, {:?}, {:?})",
             self.request_kind,
-            self.origin(),
+            self.origin().as_js().to_string_lossy(),
             self.specifier,
             self.mode
         )
@@ -754,117 +778,3 @@ impl fmt::Display for MissingResolutionError {
 }
 
 impl Error for MissingResolutionError {}
-
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub enum ResolutionErrorKind {
-    Host,
-    Unsupported,
-    Canonicalization,
-    InvalidData,
-    ResourceLimit,
-}
-
-/// A resolver failure that is structurally separate from `NotFound`.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum ResolutionError {
-    Host(HostError),
-    Unsupported {
-        feature: String,
-        detail: String,
-    },
-    Canonicalization {
-        path: Option<PathBuf>,
-        detail: String,
-    },
-    InvalidData(String),
-    ResourceLimit(String),
-}
-
-impl ResolutionError {
-    pub fn unsupported(feature: impl Into<String>, detail: impl Into<String>) -> Self {
-        Self::Unsupported {
-            feature: feature.into(),
-            detail: detail.into(),
-        }
-    }
-
-    pub fn canonicalization(path: Option<PathBuf>, detail: impl Into<String>) -> Self {
-        Self::Canonicalization {
-            path,
-            detail: detail.into(),
-        }
-    }
-
-    pub fn invalid_data(detail: impl Into<String>) -> Self {
-        Self::InvalidData(detail.into())
-    }
-
-    pub fn resource_limit(detail: impl Into<String>) -> Self {
-        Self::ResourceLimit(detail.into())
-    }
-
-    pub const fn kind(&self) -> ResolutionErrorKind {
-        match self {
-            Self::Host(_) => ResolutionErrorKind::Host,
-            Self::Unsupported { .. } => ResolutionErrorKind::Unsupported,
-            Self::Canonicalization { .. } => ResolutionErrorKind::Canonicalization,
-            Self::InvalidData(_) => ResolutionErrorKind::InvalidData,
-            Self::ResourceLimit(_) => ResolutionErrorKind::ResourceLimit,
-        }
-    }
-
-    pub fn path(&self) -> Option<&Path> {
-        match self {
-            Self::Host(error) => error.path(),
-            Self::Canonicalization { path, .. } => path.as_deref(),
-            Self::Unsupported { .. } | Self::InvalidData(_) | Self::ResourceLimit(_) => None,
-        }
-    }
-}
-
-impl From<HostError> for ResolutionError {
-    fn from(error: HostError) -> Self {
-        Self::Host(error)
-    }
-}
-
-impl fmt::Display for ResolutionError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Host(error) => write!(formatter, "host failure: {error}"),
-            Self::Unsupported { feature, detail } => {
-                write!(formatter, "unsupported resolution feature {feature}")?;
-                if !detail.is_empty() {
-                    write!(formatter, ": {detail}")?;
-                }
-                Ok(())
-            }
-            Self::Canonicalization { path, detail } => {
-                formatter.write_str("path canonicalization failed")?;
-                if let Some(path) = path {
-                    write!(formatter, " for {}", path.display())?;
-                }
-                if !detail.is_empty() {
-                    write!(formatter, ": {detail}")?;
-                }
-                Ok(())
-            }
-            Self::InvalidData(detail) => write!(formatter, "invalid resolution data: {detail}"),
-            Self::ResourceLimit(detail) => {
-                write!(formatter, "resolution resource limit exceeded: {detail}")
-            }
-        }
-    }
-}
-
-impl Error for ResolutionError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match self {
-            Self::Host(error) => Some(error),
-            Self::Unsupported { .. }
-            | Self::Canonicalization { .. }
-            | Self::InvalidData(_)
-            | Self::ResourceLimit(_) => None,
-        }
-    }
-}

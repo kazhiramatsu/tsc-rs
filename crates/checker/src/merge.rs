@@ -11,7 +11,7 @@ use tsc_binder::node_util::get_name_of_declaration;
 use tsc_binder::{SymbolId, SymbolTable};
 use tsc_diagnostics::{gen as diagnostics, RelatedInfo};
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
-use tsc_types::{NodeFlags, SymbolFlags, TypeData, TypeFlags};
+use tsc_types::{JsStr, JsString, NodeFlags, SymbolFlags, TypeData, TypeFlags};
 
 use crate::links::LinkSlot;
 use crate::state::{CheckResult, CheckerState};
@@ -19,28 +19,38 @@ use crate::state::{CheckResult, CheckerState};
 /// tsc-port: escapeString @6.0.3 (doubleQuote flavor)
 /// tsc-hash: a41f6d5932395df14118761cfc227d8ad3266e0e2f3133c4ec5857ff7e0b4d2d
 /// tsc-span: _tsc.js:16311-16314
-fn escape_double_quoted_symbol_name(text: &str) -> String {
-    let mut out = String::with_capacity(text.len());
-    let chars = text.chars().collect::<Vec<_>>();
-    for (index, &ch) in chars.iter().enumerate() {
-        match ch {
-            '\\' => out.push_str("\\\\"),
-            '"' => out.push_str("\\\""),
-            '\0' if chars.get(index + 1).is_some_and(char::is_ascii_digit) => {
-                out.push_str("\\x00");
+pub(crate) fn escape_double_quoted_symbol_name(text: JsStr<'_>) -> JsString {
+    let mut out = JsString::new();
+    let units = text.to_utf16();
+    for (index, &unit) in units.iter().enumerate() {
+        let replacement = match unit {
+            0x5C => Some(r"\\"),
+            0x22 => Some(r#"\""#),
+            0 if units
+                .get(index + 1)
+                .is_some_and(|unit| (0x30..=0x39).contains(unit)) =>
+            {
+                Some(r"\x00")
             }
-            '\0' => out.push_str("\\0"),
-            '\t' => out.push_str("\\t"),
-            '\u{000B}' => out.push_str("\\v"),
-            '\u{000C}' => out.push_str("\\f"),
-            '\u{0008}' => out.push_str("\\b"),
-            '\r' => out.push_str("\\r"),
-            '\n' => out.push_str("\\n"),
-            '\u{2028}' => out.push_str("\\u2028"),
-            '\u{2029}' => out.push_str("\\u2029"),
-            '\u{0085}' => out.push_str("\\u0085"),
-            '\u{0001}'..='\u{001F}' => out.push_str(&format!("\\u{:04X}", ch as u32)),
-            _ => out.push(ch),
+            0 => Some(r"\0"),
+            9 => Some(r"\t"),
+            11 => Some(r"\v"),
+            12 => Some(r"\f"),
+            8 => Some(r"\b"),
+            13 => Some(r"\r"),
+            10 => Some(r"\n"),
+            0x2028 => Some(r"\u2028"),
+            0x2029 => Some(r"\u2029"),
+            0x85 => Some(r"\u0085"),
+            _ => None,
+        };
+        if let Some(replacement) = replacement {
+            out.push_str(replacement);
+        } else if unit < 0x20 {
+            out.push_str(&format!("\\u{unit:04X}"));
+        } else {
+            // escapeString's regex does not match unpaired surrogates.
+            out.push_code_unit(unit);
         }
     }
     out
@@ -51,7 +61,7 @@ fn escape_double_quoted_symbol_name(text: &str) -> String {
 /// order (tsc Map semantics — flush order is observable).
 #[derive(Debug, Default)]
 pub struct FilesDuplicates {
-    pub conflicting_symbols: IndexMap<String, ConflictingSymbolInfo>,
+    pub conflicting_symbols: IndexMap<JsString, ConflictingSymbolInfo>,
 }
 
 #[derive(Debug, Default)]
@@ -375,10 +385,10 @@ impl<'a> CheckerState<'a> {
                             )
                         });
                 let name = self.symbol_display_name(target);
-                self.error_at(
+                self.error_at_js(
                     error_node,
                     &diagnostics::Cannot_augment_module_0_with_value_exports_because_it_resolves_to_a_non_module_entity,
-                    &[&name],
+                    &[name.as_js()],
                 );
             }
             target
@@ -393,9 +403,39 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: symbolToString @6.0.3
     /// tsc-hash: 483aaf1e4cc4280b31d8e18dab23b7c3bb1ed6966d92ff0e59a80ab3bdb157f5
     /// tsc-span: _tsc.js:50649-50682
-    pub fn symbol_display_name(&self, symbol: SymbolId) -> String {
+    pub fn symbol_display_name(&self, symbol: SymbolId) -> JsString {
         tsc_binder::unescape_leading_underscores(&self.binder.symbol(symbol).escaped_name)
             .to_owned()
+    }
+
+    /// tsc-port: symbolName @6.0.3
+    /// tsc-hash: 201131264fe4f6f45c2da6248df265ae411ebc24acc96f4b77c6b676a48ade0a
+    /// tsc-span: _tsc.js:11452-11457
+    ///
+    /// A private class member renders its `#name` source text
+    /// (isPrivateIdentifierClassElementDeclaration, 11944-11946); every other
+    /// symbol unescapes its escaped name. Spelling-suggestion candidates and
+    /// "Did you mean" values use this face, never the written face of
+    /// getNameOfSymbolAsWritten.
+    pub(crate) fn symbol_name(&self, symbol: SymbolId) -> JsString {
+        if let Some(declaration) = self.binder.symbol(symbol).value_declaration {
+            let source = self.binder.source_of_node(declaration);
+            let is_class_element = matches!(
+                source.arena.node(declaration).kind,
+                SyntaxKind::PropertyDeclaration
+                    | SyntaxKind::MethodDeclaration
+                    | SyntaxKind::GetAccessor
+                    | SyntaxKind::SetAccessor
+            );
+            if is_class_element {
+                if let Some(name) = get_name_of_declaration(source, declaration) {
+                    if let NodeData::PrivateIdentifier(data) = &source.arena.node(name).data {
+                        return JsString::from(data.text.as_str());
+                    }
+                }
+            }
+        }
+        self.symbol_display_name(symbol)
     }
 
     /// tsc-port: getNameOfSymbolAsWritten @6.0.3
@@ -409,7 +449,7 @@ impl<'a> CheckerState<'a> {
     /// computed names (`__@...`) deliberately keep the declaration's
     /// written `[expression]` face. Quoted and non-canonical numeric
     /// declaration names likewise retain their exact source spelling.
-    pub(crate) fn symbol_name_as_written_slice(&self, symbol: SymbolId) -> String {
+    pub(crate) fn symbol_name_as_written_slice(&self, symbol: SymbolId) -> JsString {
         for &declaration in &self.binder.symbol(symbol).declarations {
             let source = self.binder.source_of_node(declaration);
             let Some(name_node) = get_name_of_declaration(source, declaration) else {
@@ -429,17 +469,9 @@ impl<'a> CheckerState<'a> {
                     if flags.intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL) {
                         let name = match &self.tables.type_of(name_type).data {
                             TypeData::Literal { value } => match value {
-                                tsc_types::LiteralValue::String(text) => {
-                                    let Some(text_utf8) = text.to_utf8() else {
-                                        return format!(
-                                            "\"{}\"",
-                                            crate::check::string_literal_type_display_text(text)
-                                        );
-                                    };
-                                    text_utf8
-                                }
+                                tsc_types::LiteralValue::String(text) => text.to_js_string(),
                                 tsc_types::LiteralValue::Number(value) => {
-                                    tsc_types::js_number_to_string(*value)
+                                    JsString::from(tsc_types::js_number_to_string(*value))
                                 }
                                 tsc_types::LiteralValue::BigInt(_) => {
                                     unreachable!(
@@ -449,22 +481,36 @@ impl<'a> CheckerState<'a> {
                             },
                             _ => unreachable!("literal flags imply literal data"),
                         };
-                        if !tsc_syntax::is_identifier_text(&name)
-                            && !crate::evaluate::is_numeric_literal_name(&name)
-                        {
-                            return format!("\"{}\"", escape_double_quoted_symbol_name(&name));
+                        // A non-scalar value cannot be an identifier or numeric spelling.
+                        let numeric = name
+                            .as_str()
+                            .is_some_and(crate::evaluate::is_numeric_literal_name);
+                        if !name.as_str().is_some_and(tsc_syntax::is_identifier_text) && !numeric {
+                            let mut quoted = JsString::from("\"");
+                            quoted.push_js(escape_double_quoted_symbol_name(name.as_js()).as_js());
+                            quoted.push('"');
+                            return quoted;
                         }
-                        if crate::evaluate::is_numeric_literal_name(&name) && name.starts_with('-')
-                        {
-                            return format!("[{name}]");
+                        if numeric && name.starts_with("-") {
+                            let mut bracketed = JsString::from("[");
+                            bracketed.push_js(name.as_js());
+                            bracketed.push(']');
+                            return bracketed;
                         }
                         return name;
                     }
                 }
             }
-            return tsc_binder::node_util::declaration_name_to_string(source, Some(name_node));
+            return tsc_binder::node_util::declaration_name_to_string(source, Some(name_node))
+                .into();
         }
-        self.symbol_display_name(symbol)
+        // getNameOfSymbolAsWritten (_tsc.js:55586-55588): a symbol without a
+        // named declaration (a mapped-type or otherwise synthesized property)
+        // renders its nameType face before falling back to symbolName.
+        if let Some(name) = self.symbol_name_from_name_type_slice(symbol, false, false, None) {
+            return name;
+        }
+        self.symbol_name(symbol)
     }
 
     /// tsc reportMergeSymbolError (inside mergeSymbol, 47755-47775) +
@@ -603,13 +649,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: addDuplicateDeclarationErrorsForSymbols @6.0.3
     /// tsc-hash: e718d927bbdd807670fe6c275346799c2546a4c3670890477379ca1685296aa3
     /// tsc-span: _tsc.js:47784-47788
-    pub(crate) fn add_duplicate_declaration_errors_for_symbols(
+    pub(crate) fn add_duplicate_declaration_errors_for_symbols<'n>(
         &mut self,
         target: SymbolId,
         message: &'static tsc_diagnostics::DiagnosticMessage,
-        symbol_name: &str,
+        symbol_name: impl Into<JsStr<'n>>,
         source: SymbolId,
     ) {
+        let symbol_name = symbol_name.into();
         let declarations = self.binder.symbol(target).declarations.clone();
         let related = self.binder.symbol(source).declarations.clone();
         for node in declarations {
@@ -624,16 +671,17 @@ impl<'a> CheckerState<'a> {
     /// getExpandoInitializer arm (JS expando assignments) elided: those
     /// declarations only reach here from plain-JS files, which the
     /// plain-JS gate above already suppresses.
-    fn add_duplicate_declaration_error(
+    fn add_duplicate_declaration_error<'n>(
         &mut self,
         node: NodeId,
         message: &'static tsc_diagnostics::DiagnosticMessage,
-        symbol_name: &str,
+        symbol_name: impl Into<JsStr<'n>>,
         related_nodes: &[NodeId],
     ) {
+        let symbol_name = symbol_name.into();
         let error_node =
             get_name_of_declaration(self.binder.source_of_node(node), node).unwrap_or(node);
-        let index = self.lookup_or_issue_error(Some(error_node), message, &[symbol_name]);
+        let index = self.lookup_or_issue_error_js(Some(error_node), message, &[symbol_name]);
         for &related_node in related_nodes {
             let adjusted =
                 get_name_of_declaration(self.binder.source_of_node(related_node), related_node)
@@ -641,7 +689,7 @@ impl<'a> CheckerState<'a> {
             if adjusted == error_node {
                 continue;
             }
-            let leading = self.related_for_node(
+            let leading = self.related_for_node_js(
                 adjusted,
                 &diagnostics::_0_was_also_declared_here,
                 &[symbol_name],
@@ -673,7 +721,17 @@ impl<'a> CheckerState<'a> {
         message: &'static tsc_diagnostics::DiagnosticMessage,
         args: &[&str],
     ) -> RelatedInfo {
-        let diagnostic = self.diagnostic_for_node(node, message, args);
+        let args = args.iter().map(|arg| JsStr::from(*arg)).collect::<Vec<_>>();
+        self.related_for_node_js(node, message, &args)
+    }
+
+    pub(crate) fn related_for_node_js(
+        &self,
+        node: NodeId,
+        message: &'static tsc_diagnostics::DiagnosticMessage,
+        args: &[JsStr<'_>],
+    ) -> RelatedInfo {
+        let diagnostic = self.diagnostic_for_node_js(node, message, args);
         RelatedInfo {
             file_name: diagnostic.file_name,
             start: diagnostic.start,
@@ -744,10 +802,10 @@ impl<'a> CheckerState<'a> {
                 let declarations = self.binder.symbol(target_symbol).declarations.clone();
                 for declaration in declarations {
                     if !is_type_declaration(self, declaration) {
-                        let diagnostic = self.diagnostic_for_node(
+                        let diagnostic = self.diagnostic_for_node_js(
                             declaration,
                             &diagnostics::Declaration_name_conflicts_with_built_in_global_identifier_0,
-                            &[tsc_binder::unescape_leading_underscores(&name)],
+                            &[name.unescape()],
                         );
                         self.diagnostics.push(diagnostic);
                     }
@@ -1080,10 +1138,10 @@ impl<'a> CheckerState<'a> {
                 self.merge_symbol(main_module, augmentation_symbol, false);
             }
         } else {
-            self.error_at(
+            self.error_at_js(
                 Some(name),
                 &diagnostics::Cannot_augment_module_0_because_it_resolves_to_a_non_module_entity,
-                &[&name_text],
+                &[name_text.as_js()],
             );
         }
         Ok(())
@@ -1122,19 +1180,20 @@ impl<'a> CheckerState<'a> {
                     }
                 }
             } else {
-                let list = files_duplicates
-                    .conflicting_symbols
-                    .keys()
-                    .cloned()
-                    .collect::<Vec<_>>()
-                    .join(", ");
+                let mut list = JsString::new();
+                for (index, name) in files_duplicates.conflicting_symbols.keys().enumerate() {
+                    if index != 0 {
+                        list.push_str(", ");
+                    }
+                    list.push_js(name.as_js());
+                }
                 let first_root = self.root_of_file_named(&first_file);
                 let second_root = self.root_of_file_named(&second_file);
                 if let (Some(first_root), Some(second_root)) = (first_root, second_root) {
-                    let mut first_diag = self.diagnostic_for_node(
+                    let mut first_diag = self.diagnostic_for_node_js(
                         first_root,
                         &diagnostics::Definitions_of_the_following_identifiers_conflict_with_those_in_another_file_0,
-                        &[&list],
+                        &[list.as_js()],
                     );
                     first_diag.related.push(self.related_for_node(
                         second_root,
@@ -1142,10 +1201,10 @@ impl<'a> CheckerState<'a> {
                         &[],
                     ));
                     self.diagnostics.push(first_diag);
-                    let mut second_diag = self.diagnostic_for_node(
+                    let mut second_diag = self.diagnostic_for_node_js(
                         second_root,
                         &diagnostics::Definitions_of_the_following_identifiers_conflict_with_those_in_another_file_0,
-                        &[&list],
+                        &[list.as_js()],
                     );
                     second_diag.related.push(self.related_for_node(
                         first_root,
@@ -1158,15 +1217,15 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    fn root_of_file_named(&self, file_name: &str) -> Option<NodeId> {
+    fn root_of_file_named(&self, file_name: &tsc_types::JsString) -> Option<NodeId> {
         (0..self.binder.file_count())
             .map(|index| self.binder.source(index))
-            .find(|source| source.file_name == file_name)
+            .find(|source| source.file_name.as_js() == file_name.as_js())
             .map(|source| source.root)
     }
 }
 
-fn is_js_file_name(name: &str) -> bool {
+fn is_js_file_name(name: &tsc_types::JsString) -> bool {
     [".js", ".jsx", ".mjs", ".cjs"]
         .iter()
         .any(|extension| name.ends_with(extension))

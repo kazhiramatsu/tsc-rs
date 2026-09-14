@@ -1,0 +1,627 @@
+{
+  "version": 1,
+  "description": "H2.5h ca-2a-r2 adjacent probes: recorded for the handoff, never part of the default witness run (selected only by TSC_RS_UTF16_LITERAL_WITNESS_SET=adjacent-probes as a diagnostic run). Declaration initializers and object-literal property names synthesized from the checker's string literal type value / String symbol names; property-name collisions of lone surrogates; parse-diagnostic sources whose emit Rust refuses until H2.9; the ES2018 LiftRestriction lane at ES2015.",
+  "cases": [
+    {
+      "case_id": "utf16-literals/adjacent-probes/es5/declaration-const-initializer",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\u{D800}\";\nexport const y = `\\u{DC00}`;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/adjacent-probes/es2015/declaration-const-initializer",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\u{D800}\";\nexport const y = `\\u{DC00}`;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/adjacent-probes/es5/declaration-object-literal-names",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const o = { \"\\u{D800}\": 1, [\"\\u{DC00}\"]: 2 };\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/adjacent-probes/es2015/declaration-object-literal-names",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const o = { \"\\u{D800}\": 1, [\"\\u{DC00}\"]: 2 };\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/adjacent-probes/es5/class-member-name-collision",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class C {\n    static \"\\u{D800}\" = 1;\n    static [\"\\u{DC00}\"] = 2;\n    [\"\\u{D800}\"]() { return 1; }\n    \"\\u{DC00}\"() { return 2; }\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/adjacent-probes/es2015/class-member-name-collision",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export class C {\n    static \"\\u{D800}\" = 1;\n    static [\"\\u{DC00}\"] = 2;\n    [\"\\u{D800}\"]() { return 1; }\n    \"\\u{DC00}\"() { return 2; }\n}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/adjacent-probes/es5/object-literal-name-collision",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const o = { \"\\u{D800}\": 1, [\"\\u{DC00}\"]: 2 };\nexport const p = { \"\\u{D800}\": 3 };\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/adjacent-probes/es2015/object-literal-name-collision",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const o = { \"\\u{D800}\": 1, [\"\\u{DC00}\"]: 2 };\nexport const p = { \"\\u{D800}\": 3 };\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/adjacent-probes/es5/octal-escape",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\1\\u{D800}\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/adjacent-probes/es2015/octal-escape",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\1\\u{D800}\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/adjacent-probes/es5/decimal-escape-8",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\8\\u{D800}\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/adjacent-probes/es2015/decimal-escape-8",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\8\\u{D800}\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/adjacent-probes/es5/malformed-hex-escape",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\u{D800}\\xZ\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/adjacent-probes/es2015/malformed-hex-escape",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\u{D800}\\xZ\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/adjacent-probes/es5/unterminated-extended-escape-control",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\u{D800\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/adjacent-probes/es2015/unterminated-extended-escape-control",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\u{D800\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/adjacent-probes/es5/out-of-range-extended-escape",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\u{110000}\\u{D800}\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/adjacent-probes/es2015/out-of-range-extended-escape",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\u{110000}\\u{D800}\";\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/adjacent-probes/es5/unterminated-string",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\u{D800}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/adjacent-probes/es2015/unterminated-string",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = \"\\u{D800}\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/adjacent-probes/es5/template-octal-with-surrogate",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = `\\1\\u{D800}`;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 1
+      }
+    },
+    {
+      "case_id": "utf16-literals/adjacent-probes/es2015/template-octal-with-surrogate",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export const x = `\\1\\u{D800}`;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    },
+    {
+      "case_id": "utf16-literals/adjacent-probes/es2015/tagged-invalid-cooked-lift-restriction",
+      "roots": [
+        "/project/main.ts"
+      ],
+      "files": [
+        {
+          "path": "/project/main.ts",
+          "text": "export declare function t(s: TemplateStringsArray, ...v: any[]): string;\nexport const x = t`\\u{D800}${1}\\unicode`;\n"
+        }
+      ],
+      "options": {
+        "strict": true,
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "module": 99,
+        "removeComments": false,
+        "target": 2
+      }
+    }
+  ]
+}

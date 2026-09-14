@@ -5,14 +5,117 @@
 //! (crate-internal reach; runs in the lib test target).
 
 use serde_json::Value;
+use tsc_diagnostics::JsStr;
 
 use super::{SourceMapGenerator, SourceMappingFields};
+
+/// Match canonical name identity, Unicode case folding and JSON's lone-unit
+/// escaping through the real source-map generator.
+#[test]
+fn source_map_js_values_match_typescript() {
+    let fixture: Value =
+        serde_json::from_str(include_str!("../../fixtures/utf16-source-map-values.json")).unwrap();
+    let js = |value: &Value| {
+        tsc_diagnostics::JsString::from_code_units(
+            &value
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|unit| u16::try_from(unit.as_u64().unwrap()).unwrap())
+                .collect::<Vec<_>>(),
+        )
+    };
+    for case in fixture["maps"].as_array().unwrap() {
+        let mut generator = SourceMapGenerator::new(
+            js(&case["file"]),
+            js(&case["source_root"]),
+            js(&case["directory"]),
+            js(&case["cwd"]),
+            case["case_sensitive"].as_bool().unwrap(),
+        );
+        for (index, source) in case["sources"].as_array().unwrap().iter().enumerate() {
+            let source = js(source);
+            let source_index = generator.add_source(source.as_js());
+            assert_eq!(
+                source_index as u64,
+                case["source_indices"][index].as_u64().unwrap(),
+                "{}",
+                case["case_id"]
+            );
+            let content = js(&case["contents"][index]);
+            generator.set_source_content(source_index, Some(content.as_js()));
+            generator.add_mapping(
+                index as u32,
+                0,
+                Some(SourceMappingFields {
+                    source_index,
+                    source_line: index as u32,
+                    source_character: 2,
+                }),
+                None,
+            );
+        }
+        let expected_raw: Vec<_> = case["raw_sources"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(js)
+            .collect();
+        assert_eq!(generator.raw_sources(), expected_raw, "{}", case["case_id"]);
+        assert_eq!(
+            generator.to_json_string(),
+            case["json"].as_str().unwrap(),
+            "{}",
+            case["case_id"]
+        );
+    }
+}
+
+#[test]
+fn map_url_rejects_unpaired_units_without_losing_the_original_value() {
+    let fixture: Value =
+        serde_json::from_str(include_str!("../../fixtures/utf16-source-map-values.json")).unwrap();
+    let lane = crate::MapLaneInputs {
+        current_directory: "/project".into(),
+        common_source_directory: "/project/".into(),
+        use_case_sensitive_source_keys: true,
+    };
+    for case in fixture["uris"].as_array().unwrap() {
+        let input = tsc_diagnostics::JsString::from_code_units(
+            &case["input"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|unit| u16::try_from(unit.as_u64().unwrap()).unwrap())
+                .collect::<Vec<_>>(),
+        );
+        let actual = crate::source_mapping_url(
+            &lane,
+            &Default::default(),
+            "{}",
+            "/project/output.js".into(),
+            Some(input.as_js()),
+            "/project/input.ts".into(),
+        );
+        if let Some(expected) = case["url"].as_str() {
+            assert_eq!(actual.unwrap(), expected, "{input:?}");
+        } else {
+            let error = actual.unwrap_err();
+            assert_eq!(
+                error.to_string(),
+                case["error"]["message"].as_str().unwrap()
+            );
+            assert!(
+                matches!(error, crate::EmitFailure::MalformedSourceMapUrl { path } if path == input)
+            );
+        }
+    }
+}
 
 /// Replay TS mapping positions to isolate bundle path/options and URL workers.
 /// These are helper facets; the Bundle printer owns position/registration tests.
 #[test]
 fn h2_7e_bundle_declaration_map_path_lanes_match_typescript() {
-    use std::path::Path;
     let fixture: Value = serde_json::from_slice(include_bytes!(
         "../../fixtures/bundle-declaration-map-paths.json"
     ))
@@ -27,23 +130,24 @@ fn h2_7e_bundle_declaration_map_path_lanes_match_typescript() {
             source_map: raw_options["sourceMap"].as_bool(),
             inline_source_map: raw_options["inlineSourceMap"].as_bool(),
             inline_sources: raw_options["inlineSources"].as_bool(),
-            source_root: raw_options["sourceRoot"].as_str().map(str::to_owned),
-            map_root: raw_options["mapRoot"].as_str().map(str::to_owned),
+            source_root: raw_options["sourceRoot"]
+                .as_str()
+                .map(tsc_diagnostics::JsString::from),
+            map_root: raw_options["mapRoot"]
+                .as_str()
+                .map(tsc_diagnostics::JsString::from),
             ..Default::default()
         };
         let observed = &case["typescript_observation"];
         let writes = observed["writes"].as_array().unwrap();
-        let map_path = Path::new(writes[0]["path"].as_str().unwrap());
-        let declaration_path = Path::new(writes[1]["path"].as_str().unwrap());
+        let map_path = JsStr::from(writes[0]["path"].as_str().unwrap());
+        let declaration_path = JsStr::from(writes[1]["path"].as_str().unwrap());
         let map = &observed["emit_result"]["source_maps"][0];
         let frozen = map["source_map_json"].as_str().unwrap();
         let parsed: Value = serde_json::from_str(frozen).unwrap();
         let lane = crate::MapLaneInputs {
-            common_source_directory: observed["common_source_directory"]
-                .as_str()
-                .unwrap()
-                .to_owned(),
-            current_directory: case["current_directory"].as_str().unwrap().to_owned(),
+            common_source_directory: observed["common_source_directory"].as_str().unwrap().into(),
+            current_directory: case["current_directory"].as_str().unwrap().into(),
             use_case_sensitive_source_keys: case["use_case_sensitive_file_names"]
                 .as_bool()
                 .unwrap(),
@@ -59,10 +163,10 @@ fn h2_7e_bundle_declaration_map_path_lanes_match_typescript() {
                 "declaration options omit inlineSources"
             );
             let mut generator = SourceMapGenerator::new(
-                &*inputs.file,
-                &*inputs.source_root,
-                &*inputs.sources_directory_path,
-                &*inputs.current_directory,
+                &inputs.file,
+                &inputs.source_root,
+                &inputs.sources_directory_path,
+                &inputs.current_directory,
                 inputs.use_case_sensitive_source_keys,
             );
             for source in map["input_source_file_names"].as_array().unwrap() {
@@ -302,7 +406,7 @@ fn replay(case: &Value, source_root: &str, sources_directory_path: &str) {
         /* use_case_sensitive_source_keys */ true,
     );
     for raw in &raw_sources {
-        generator.add_source(raw);
+        generator.add_source(*raw);
     }
     for segment in decode_mappings(parsed["mappings"].as_str().expect("mappings string")) {
         generator.add_mapping(
@@ -336,7 +440,7 @@ fn replay(case: &Value, source_root: &str, sources_directory_path: &str) {
     let recorded: Vec<&str> = generator
         .raw_sources()
         .iter()
-        .map(|name| name.as_ref())
+        .map(|name| name.as_str().expect("scalar fixture source filename"))
         .collect();
     assert_eq!(
         recorded, expected_raw,
@@ -530,7 +634,7 @@ fn serialization_shape_key_order_and_sources_content() {
     let first = with_content.add_source("/project/a.ts");
     let second = with_content.add_source("/project/b.ts");
     assert_eq!((first, second), (0, 1));
-    with_content.set_source_content(1, Some("const b = 1;"));
+    with_content.set_source_content(1, Some("const b = 1;".into()));
     with_content.set_source_content(0, None);
     assert_eq!(
         with_content.to_json_string(),
@@ -557,7 +661,7 @@ fn add_source_dedupes_on_relative_key_and_keeps_raw_order() {
     let raw: Vec<&str> = generator
         .raw_sources()
         .iter()
-        .map(|name| name.as_ref())
+        .map(|name| name.as_str().expect("scalar fixture source filename"))
         .collect();
     assert_eq!(raw, ["/project/src/nested/input.ts", "/project/other.ts"]);
 }
@@ -880,8 +984,12 @@ fn lane_options(case: &Value) -> tsc_types::CompilerOptions {
         source_map: serialized["sourceMap"].as_bool(),
         inline_source_map: serialized["inlineSourceMap"].as_bool(),
         inline_sources: serialized["inlineSources"].as_bool(),
-        source_root: serialized["sourceRoot"].as_str().map(str::to_owned),
-        map_root: serialized["mapRoot"].as_str().map(str::to_owned),
+        source_root: serialized["sourceRoot"]
+            .as_str()
+            .map(tsc_diagnostics::JsString::from),
+        map_root: serialized["mapRoot"]
+            .as_str()
+            .map(tsc_diagnostics::JsString::from),
         ..Default::default()
     }
 }
@@ -961,8 +1069,8 @@ fn h2_6b_lane_replays_are_byte_equal() {
             let observation = &case["observation"];
             let options = lane_options(case);
             let lane = crate::execute::MapLaneInputs {
-                common_source_directory: common_source_directory_of(case),
-                current_directory: "/project".to_owned(),
+                common_source_directory: common_source_directory_of(case).into(),
+                current_directory: "/project".into(),
                 use_case_sensitive_source_keys: true,
             };
             let Some(source_maps) = observation["source_maps"].as_array() else {
@@ -998,23 +1106,23 @@ fn h2_6b_lane_replays_are_byte_equal() {
                         Some(map.to_owned()),
                     )
                 };
-                let source_path = std::path::PathBuf::from(raw_sources[0]);
+                let source_path = tsc_diagnostics::JsString::from(raw_sources[0]);
                 let inputs = crate::execute::source_map_recording_inputs_for(
                     &lane,
                     &options,
-                    std::path::Path::new(&js_path),
-                    &source_path,
+                    JsStr::from(&js_path),
+                    source_path.as_js(),
                 );
                 let mut generator = SourceMapGenerator::new(
-                    &*inputs.file,
-                    &*inputs.source_root,
-                    &*inputs.sources_directory_path,
-                    &*inputs.current_directory,
+                    &inputs.file,
+                    &inputs.source_root,
+                    &inputs.sources_directory_path,
+                    &inputs.current_directory,
                     inputs.use_case_sensitive_source_keys,
                 );
                 let parsed: Value = serde_json::from_str(frozen).expect("frozen JSON");
                 for raw in &raw_sources {
-                    let index = generator.add_source(raw);
+                    let index = generator.add_source(*raw);
                     if inputs.inline_sources {
                         let text_base64 = case["input"]["files"]
                             .as_array()
@@ -1026,7 +1134,7 @@ fn h2_6b_lane_replays_are_byte_equal() {
                             .expect("file base64");
                         let text =
                             String::from_utf8(decode_base64(text_base64)).expect("file UTF-8");
-                        generator.set_source_content(index, Some(&text));
+                        generator.set_source_content(index, Some(text.as_str().into()));
                     }
                 }
                 for segment in decode_mappings(parsed["mappings"].as_str().expect("mappings")) {
@@ -1054,9 +1162,9 @@ fn h2_6b_lane_replays_are_byte_equal() {
                     &lane,
                     &options,
                     frozen,
-                    std::path::Path::new(&js_path),
-                    map_path.as_deref().map(std::path::Path::new),
-                    &source_path,
+                    JsStr::from(&js_path),
+                    map_path.as_deref().map(JsStr::from),
+                    source_path.as_js(),
                 )
                 .expect("URL selection");
                 assert_eq!(
@@ -1102,20 +1210,20 @@ fn source_root_field_forms() {
         ..Default::default()
     };
     assert_eq!(crate::execute::source_root_field(&options), "");
-    options.source_root = Some("src".to_owned());
+    options.source_root = Some("src".into());
     assert_eq!(crate::execute::source_root_field(&options), "src/");
-    options.source_root = Some("src/".to_owned());
+    options.source_root = Some("src/".into());
     assert_eq!(crate::execute::source_root_field(&options), "src/");
-    options.source_root = Some("https://cdn.example.invalid/app".to_owned());
+    options.source_root = Some("https://cdn.example.invalid/app".into());
     assert_eq!(
         crate::execute::source_root_field(&options),
         "https://cdn.example.invalid/app/"
     );
-    options.source_root = Some("/served/sources".to_owned());
+    options.source_root = Some("/served/sources".into());
     assert_eq!(
         crate::execute::source_root_field(&options),
         "/served/sources/"
     );
-    options.source_root = Some("back\\slash".to_owned());
+    options.source_root = Some("back\\slash".into());
     assert_eq!(crate::execute::source_root_field(&options), "back/slash/");
 }

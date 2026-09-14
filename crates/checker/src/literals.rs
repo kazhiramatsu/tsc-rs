@@ -409,7 +409,7 @@ impl<'a> CheckerState<'a> {
                 self.identifier_text_of(name).unwrap_or_default(),
             ),
             SyntaxKind::NumericLiteral | SyntaxKind::StringLiteral => {
-                crate::indexed::is_numeric_literal_name(&self.literal_text_of(name))
+                crate::indexed::is_numeric_literal_name(self.literal_text_of(name))
             }
             _ => false,
         })
@@ -662,11 +662,11 @@ impl<'a> CheckerState<'a> {
 
     /// The NumericLiteral/StringLiteral `.text` read behind
     /// isNumericName's literal arms.
-    fn literal_text_of(&self, node: NodeId) -> String {
+    fn literal_text_of(&self, node: NodeId) -> tsc_types::JsStr<'_> {
         match self.data_of(node) {
-            NodeData::NumericLiteral(data) => data.text.clone(),
-            NodeData::StringLiteral(data) => data.text.clone(),
-            _ => String::new(),
+            NodeData::NumericLiteral(data) => data.text.as_str().into(),
+            NodeData::StringLiteral(data) => data.text.as_js(),
+            _ => "".into(),
         }
     }
 }
@@ -740,7 +740,7 @@ impl<'a> CheckerState<'a> {
             NodeData::ObjectLiteralExpression(data) => self.nodes_of(data.properties),
             _ => Vec::new(),
         };
-        let mut seen = std::collections::HashMap::<String, u8>::new();
+        let mut seen = std::collections::HashMap::<tsc_types::EscapedName, u8>::new();
         for member in members {
             if self.kind_of(member) == SyntaxKind::SpreadAssignment {
                 if in_destructuring_pattern {
@@ -1194,10 +1194,10 @@ impl<'a> CheckerState<'a> {
                                 let error_node = self
                                     .name_of_named_declaration(member_decl)
                                     .or(Some(member_decl));
-                                self.error_at(
+                                self.error_at_js(
                                     error_node,
                                     &diagnostics::Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1,
-                                    &[&member_display, &contextual_display],
+                                    &[member_display.as_js(), (&contextual_display).into()],
                                 );
                             }
                         }
@@ -1518,10 +1518,10 @@ impl<'a> CheckerState<'a> {
                 &[],
             );
             let left_declaration = self.binder.symbol(left).value_declaration;
-            self.error_at_with_related(
+            self.error_at_with_related_js(
                 left_declaration,
                 &diagnostics::_0_is_specified_more_than_once_so_this_usage_will_be_overwritten,
-                &[&display],
+                &[display.as_js()],
                 vec![related],
             );
         }
@@ -1809,7 +1809,7 @@ impl<'a> CheckerState<'a> {
             return self.get_intersection_type(&[left, right], tsc_types::IntersectionFlags::NONE);
         }
         let mut members = SymbolTable::default();
-        let mut skipped_private_members: std::collections::HashSet<String> =
+        let mut skipped_private_members: std::collections::HashSet<tsc_types::EscapedName> =
             std::collections::HashSet::new();
         let index_infos = if left == self.empty_object_type {
             self.get_index_infos_of_type(right)?

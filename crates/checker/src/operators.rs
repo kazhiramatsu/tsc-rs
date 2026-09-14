@@ -973,7 +973,7 @@ impl<'a> CheckerState<'a> {
             {
                 continue;
             }
-            let display = tsc_binder::unescape_leading_underscores(&name);
+            let display = name.unescape();
             self.add_duplicate_declaration_errors_for_symbols(
                 symbol,
                 &tsc_diagnostics::gen::Duplicate_identifier_0,
@@ -1119,7 +1119,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_property_name_for_known_symbol_name(
         &mut self,
         symbol_name: &str,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<tsc_types::EscapedName> {
         let ctor = self.get_global_symbol("Symbol", SymbolFlags::VALUE, None)?;
         if let Some(ctor) = ctor {
             let ctor_type = self.get_type_of_symbol(ctor)?;
@@ -1130,7 +1130,9 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        Ok(format!("__@{symbol_name}"))
+        Ok(tsc_types::EscapedName::from_escaped_value(
+            format!("__@{symbol_name}").into(),
+        ))
     }
 
     /// tsc-port: checkInExpression @6.0.3
@@ -1177,10 +1179,10 @@ impl<'a> CheckerState<'a> {
         )? && self.has_empty_object_intersection(right_type)?
         {
             let display = self.type_to_string_slice(right_type)?;
-            self.error_at(
+            self.error_at_js(
                 Some(right),
                 &tsc_diagnostics::gen::Type_0_may_represent_a_primitive_value_which_is_not_permitted_as_the_right_operand_of_the_in_operator,
-                &[&display],
+                &[(&display).into()],
             );
         }
         Ok(self.tables.intrinsics.boolean)
@@ -1776,7 +1778,11 @@ impl<'a> CheckerState<'a> {
                 err_node,
                 would_work_with_await,
                 &tsc_diagnostics::gen::Operator_0_cannot_be_applied_to_types_1_and_2,
-                &[token_text(operator), &left_str, &right_str],
+                &[
+                    (token_text(operator)).into(),
+                    (&left_str).into(),
+                    (&right_str).into(),
+                ],
             );
         }
         Ok(())
@@ -1789,8 +1795,8 @@ impl<'a> CheckerState<'a> {
         operator_token: NodeId,
         err_node: NodeId,
         maybe_missing_await: bool,
-        left_str: &str,
-        right_str: &str,
+        left_str: &tsc_types::JsString,
+        right_str: &tsc_types::JsString,
     ) -> bool {
         match self.operator_kind(operator_token) {
             SyntaxKind::EqualsEqualsEqualsToken
@@ -1801,7 +1807,7 @@ impl<'a> CheckerState<'a> {
                     err_node,
                     maybe_missing_await,
                     &tsc_diagnostics::gen::This_comparison_appears_to_be_unintentional_because_the_types_0_and_1_have_no_overlap,
-                    &[left_str, right_str],
+                    &[(left_str).into(), (right_str).into()],
                 );
                 true
             }
@@ -1956,7 +1962,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         left: TypeId,
         right: TypeId,
-    ) -> CheckResult<(String, String)> {
+    ) -> CheckResult<(tsc_types::JsString, tsc_types::JsString)> {
         let left_str = self.type_to_string_slice_with_error_enclosing(left)?;
         let right_str = self.type_to_string_slice_with_error_enclosing(right)?;
         if left_str == right_str {
@@ -2730,7 +2736,7 @@ impl<'a> CheckerState<'a> {
         let start = to_utf16(start_byte);
         let end = to_utf16(node.end as usize);
         self.diagnostics[before..].iter().any(|diagnostic| {
-            diagnostic.file_name.as_deref() == Some(source.file_name.as_str())
+            diagnostic.file_name.as_ref() == Some(&source.file_name)
                 && diagnostic.start.is_some_and(|diagnostic_start| {
                     start <= diagnostic_start && diagnostic_start < end
                 })
@@ -2833,7 +2839,7 @@ impl<'a> CheckerState<'a> {
                 node,
                 type_arguments,
                 &tsc_diagnostics::gen::Type_0_has_no_signatures_for_which_the_type_argument_list_is_applicable,
-                &[&display],
+                &[(&display).into()],
             );
         }
         Ok(result)
@@ -2901,9 +2907,12 @@ impl<'a> CheckerState<'a> {
             if instantiated_call != call_signatures
                 || instantiated_construct != construct_signatures
             {
-                let symbol = self
-                    .binder
-                    .create_symbol(SymbolFlags::NONE, "__instantiationExpression".to_owned());
+                let symbol = self.binder.create_symbol(
+                    SymbolFlags::NONE,
+                    tsc_types::EscapedName::from_identifier_escaped_text(
+                        "__instantiationExpression",
+                    ),
+                );
                 let result = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
                 self.tables.type_mut(result).object_flags = tsc_types::ObjectFlags::ANONYMOUS
                     | tsc_types::ObjectFlags::INSTANTIATION_EXPRESSION_TYPE;
@@ -3032,10 +3041,10 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         array: Option<tsc_syntax::NodeArrayId>,
         message: &'static tsc_diagnostics::DiagnosticMessage,
-        args: &[&str],
+        args: &[tsc_types::JsStr<'_>],
     ) {
         let Some(array) = array else {
-            self.error_at(Some(node), message, args);
+            self.error_at_js(Some(node), message, args);
             return;
         };
         let source = self.binder.source_of_node(node);
@@ -3049,12 +3058,12 @@ impl<'a> CheckerState<'a> {
         };
         let start = to_utf16(start_byte);
         let end = to_utf16(array.end as usize);
-        let args: Vec<String> = args.iter().map(|arg| (*arg).to_owned()).collect();
-        let diagnostic = tsc_diagnostics::Diagnostic::new(
+        let args: Vec<tsc_types::JsString> = args.iter().map(|arg| (*arg).to_owned()).collect();
+        let diagnostic = tsc_diagnostics::Diagnostic::new_js(
             Some(source.file_name.clone()),
             Some(start),
             Some(end.saturating_sub(start)),
-            tsc_diagnostics::MessageChain::new(message, &args),
+            tsc_diagnostics::MessageChain::new_js(message, &args),
         );
         self.push_error_diagnostic(diagnostic);
     }
@@ -3126,7 +3135,7 @@ impl<'a> CheckerState<'a> {
         };
         let start = to_utf16(start_byte);
         let end = to_utf16(end_byte);
-        let diagnostic = tsc_diagnostics::Diagnostic::new(
+        let diagnostic = tsc_diagnostics::Diagnostic::new_js(
             Some(source.file_name.clone()),
             Some(start),
             Some(end.saturating_sub(start)),
@@ -3255,7 +3264,7 @@ impl<'a> CheckerState<'a> {
                                 .unwrap_or(byte as u32)
                         };
                         let pos = to_utf16(raw.end as usize);
-                        let diagnostic = tsc_diagnostics::Diagnostic::new(
+                        let diagnostic = tsc_diagnostics::Diagnostic::new_js(
                             Some(source.file_name.clone()),
                             Some(pos),
                             Some(0),
@@ -3364,9 +3373,7 @@ impl<'a> CheckerState<'a> {
         let mut texts: Vec<tsc_types::TemplateText> = Vec::with_capacity(spans.len() + 1);
         match self.data_of(head) {
             NodeData::TemplateHead(data) => {
-                texts.push(tsc_types::TemplateText::from_utf16(
-                    &tsc_syntax::template_text_utf16(&data.text, data.raw_text.as_deref()),
-                ));
+                texts.push(tsc_types::TemplateText::from_js(data.text.as_js()));
             }
             _ => unreachable!("parser invariant: template heads carry TemplateHead data"),
         }
@@ -3392,14 +3399,10 @@ impl<'a> CheckerState<'a> {
             };
             match self.data_of(literal) {
                 NodeData::TemplateMiddle(data) => {
-                    texts.push(tsc_types::TemplateText::from_utf16(
-                        &tsc_syntax::template_text_utf16(&data.text, data.raw_text.as_deref()),
-                    ));
+                    texts.push(tsc_types::TemplateText::from_js(data.text.as_js()));
                 }
                 NodeData::TemplateTail(data) => {
-                    texts.push(tsc_types::TemplateText::from_utf16(
-                        &tsc_syntax::template_text_utf16(&data.text, data.raw_text.as_deref()),
-                    ));
+                    texts.push(tsc_types::TemplateText::from_js(data.text.as_js()));
                 }
                 _ => unreachable!(
                     "parser invariant: span literals are TemplateMiddle/TemplateTail (missing shape included)"
@@ -3549,10 +3552,10 @@ impl<'a> CheckerState<'a> {
                     )? {
                         let base = self.get_base_type_of_literal_type(operand_type)?;
                         let display = self.type_to_string_slice(base)?;
-                        self.error_at(
+                        self.error_at_js(
                             Some(operand),
                             &tsc_diagnostics::gen::Operator_0_cannot_be_applied_to_type_1,
-                            &[token_text(operator), &display],
+                            &[(token_text(operator)).into(), (&display).into()],
                         );
                     }
                     return Ok(self.tables.intrinsics.number);
@@ -3676,7 +3679,7 @@ impl<'a> CheckerState<'a> {
         };
         let start = to_utf16(array.end as usize - 1);
         let end = to_utf16(array.end as usize);
-        let diagnostic = tsc_diagnostics::Diagnostic::new(
+        let diagnostic = tsc_diagnostics::Diagnostic::new_js(
             Some(source.file_name.clone()),
             Some(start),
             Some(end.saturating_sub(start)),
@@ -4296,7 +4299,7 @@ impl<'a> CheckerState<'a> {
                     location,
                     true,
                     &tsc_diagnostics::gen::This_condition_will_always_return_true_since_this_0_is_always_defined,
-                    &[&display],
+                    &[(&display).into()],
                 );
             } else {
                 self.error_at(
@@ -4743,9 +4746,9 @@ impl<'a> CheckerState<'a> {
                     Some(this_type) => {
                         let type_text = self.type_to_string_slice(ty)?;
                         let this_text = self.type_to_string_slice(this_type)?;
-                        vec![tsc_diagnostics::MessageChain::new(
+                        vec![tsc_diagnostics::MessageChain::new_js(
                             &tsc_diagnostics::gen::The_this_context_of_type_0_is_not_assignable_to_method_s_this_of_type_1,
-                            &[type_text, this_text],
+                            &[(type_text).into(), (this_text).into()],
                         )]
                     }
                     None => Vec::new(),
@@ -4976,7 +4979,7 @@ impl<'a> CheckerState<'a> {
         location: NodeId,
         maybe_missing_await: bool,
         message: &'static tsc_diagnostics::DiagnosticMessage,
-        args: &[&str],
+        args: &[tsc_types::JsStr<'_>],
     ) -> usize {
         if maybe_missing_await {
             let related = self.related_info_for_node(
@@ -4984,9 +4987,9 @@ impl<'a> CheckerState<'a> {
                 &tsc_diagnostics::gen::Did_you_forget_to_use_await,
                 &[],
             );
-            self.error_at_with_related(Some(location), message, args, vec![related])
+            self.error_at_with_related_js(Some(location), message, args, vec![related])
         } else {
-            self.error_at(Some(location), message, args)
+            self.error_at_js(Some(location), message, args)
         }
     }
 }

@@ -1,13 +1,14 @@
 //! Complete planning comparisons; production emission has separate full-tuple controls.
 use serde_json::{json, Value};
+use tsc_diagnostics::{JsStr, JsString};
 use tsc_syntax::{parse_source_file, SourceFile};
 use tsc_types::CompilerOptions;
 
 use super::*;
 
 struct Source {
-    path: PathBuf,
-    canonical: PathBuf,
+    path: JsString,
+    canonical: JsString,
     syntax: SourceFile,
     may_be_emitted: bool,
     may_emit_forced_declaration: bool,
@@ -15,8 +16,8 @@ struct Source {
 
 struct Host {
     options: CompilerOptions,
-    cwd: PathBuf,
-    common: PathBuf,
+    cwd: JsString,
+    common: JsString,
     case_sensitive: bool,
     syntax_available: bool,
     module_facts_available: bool,
@@ -35,9 +36,11 @@ impl Host {
                     options.module_resolution = Some(value.as_i64().unwrap() as i32)
                 }
                 "newLine" => options.new_line = Some(value.as_i64().unwrap() as i32),
-                "outFile" => options.out_file = value.as_str().map(str::to_owned),
-                "outDir" => options.out_dir = value.as_str().map(str::to_owned),
-                "declarationDir" => options.declaration_dir = value.as_str().map(str::to_owned),
+                "outFile" => options.out_file = value.as_str().map(tsc_diagnostics::JsString::from),
+                "outDir" => options.out_dir = value.as_str().map(tsc_diagnostics::JsString::from),
+                "declarationDir" => {
+                    options.declaration_dir = value.as_str().map(tsc_diagnostics::JsString::from)
+                }
                 "declaration" => options.declaration = value.as_bool(),
                 "emitDeclarationOnly" => options.emit_declaration_only = value.as_bool(),
                 "sourceMap" => options.source_map = value.as_bool(),
@@ -82,8 +85,8 @@ impl Host {
                     source["is_external_module"].as_bool().unwrap()
                 );
                 Source {
-                    path: PathBuf::from(path),
-                    canonical: PathBuf::from(if case_sensitive {
+                    path: JsString::from(path),
+                    canonical: JsString::from(if case_sensitive {
                         path.to_owned()
                     } else {
                         path.to_lowercase()
@@ -98,8 +101,8 @@ impl Host {
             .collect::<Vec<_>>();
         Self {
             options,
-            cwd: PathBuf::from(case["current_directory"].as_str().unwrap()),
-            common: PathBuf::from(case["common_source_directory"].as_str().unwrap()),
+            cwd: JsString::from(case["current_directory"].as_str().unwrap()),
+            common: JsString::from(case["common_source_directory"].as_str().unwrap()),
             case_sensitive,
             syntax_available: true,
             module_facts_available: false,
@@ -117,7 +120,7 @@ impl Host {
                 let index = self
                     .sources
                     .iter()
-                    .position(|source| source.path == Path::new(path))
+                    .position(|source| source.path.as_js() == JsStr::from(path))
                     .unwrap();
                 EmitSelection::TargetSourceFile(self.ids[index])
             })
@@ -128,13 +131,13 @@ impl EmitHost for Host {
     fn compiler_options(&self) -> &CompilerOptions {
         &self.options
     }
-    fn current_directory(&self) -> &Path {
-        &self.cwd
+    fn current_directory(&self) -> JsStr<'_> {
+        self.cwd.as_js()
     }
-    fn common_source_directory(&self) -> &Path {
-        &self.common
+    fn common_source_directory(&self) -> JsStr<'_> {
+        self.common.as_js()
     }
-    fn config_file_path(&self) -> Option<&Path> {
+    fn config_file_path(&self) -> Option<JsStr<'_>> {
         None
     }
     fn use_case_sensitive_file_names(&self) -> bool {
@@ -148,8 +151,8 @@ impl EmitHost for Host {
         Some(
             EmitSource::new(
                 id,
-                &source.path,
-                &source.canonical,
+                source.path.as_js(),
+                source.canonical.as_js(),
                 source.may_be_emitted,
                 None,
                 self.syntax_available.then_some(&source.syntax),
@@ -166,7 +169,11 @@ impl EmitHost for Host {
 fn source_names(host: &Host, ids: &[SourceFileId]) -> Value {
     json!(ids
         .iter()
-        .map(|id| host.sources[id.index()].path.to_string_lossy().into_owned())
+        .map(|id| host.sources[id.index()]
+            .path
+            .as_str()
+            .expect("scalar fixture path")
+            .to_owned())
         .collect::<Vec<_>>())
 }
 
@@ -175,7 +182,9 @@ fn unit_value(host: &Host, paths: &EmitOutputPaths, root: &EmitRoot) -> Value {
         EmitRoot::SourceFile(id) => ("source-file", vec![*id]),
         EmitRoot::Bundle(bundle) => ("bundle", bundle.source_files().to_vec()),
     };
-    let path = |path: Option<&Path>| path.map(|path| path.to_string_lossy().into_owned());
+    let path = |path: Option<JsStr<'_>>| {
+        path.map(|path| path.as_str().expect("scalar fixture path").to_owned())
+    };
     json!({ "root_kind": kind, "source_files": source_names(host, &ids), "paths": {
         "javascript": path(paths.javascript_path()), "javascript_map": path(paths.javascript_map_path()),
         "declaration": path(paths.declaration_path()), "declaration_map": path(paths.declaration_map_path()),
@@ -188,7 +197,7 @@ fn diagnostic_value(diagnostic: &Diagnostic) -> Value {
             text.push('\n');
         }
         text.push_str(&"  ".repeat(indent));
-        text.push_str(&chain.text);
+        text.push_str(chain.text.as_str().expect("scalar fixture diagnostic"));
         for child in &chain.next {
             flatten(child, indent + 1, text);
         }
@@ -197,7 +206,7 @@ fn diagnostic_value(diagnostic: &Diagnostic) -> Value {
     flatten(&diagnostic.message, 0, &mut message);
     assert!(!diagnostic.related_information_present && diagnostic.related.is_empty());
     json!({ "code": diagnostic.code(), "category": format!("{:?}", diagnostic.category()),
-        "file": diagnostic.file_name, "start": diagnostic.start, "length": diagnostic.length,
+        "file": diagnostic.file_name.as_ref().map(|file| file.as_str().expect("scalar fixture filename")), "start": diagnostic.start, "length": diagnostic.length,
         "message": message, "related_information": null })
 }
 
@@ -281,7 +290,10 @@ fn h2_7d_bundle_plans_match_typescript_selection_paths_and_collisions() {
                 .into_iter()
                 .flatten()
                 {
-                    let prefix = format!("Cannot write file '{}' because ", path.to_string_lossy());
+                    let prefix = format!(
+                        "Cannot write file '{}' because ",
+                        path.as_str().expect("scalar fixture path")
+                    );
                     let blocked = expected["preflight_diagnostics"]
                         .as_array()
                         .unwrap()
@@ -294,14 +306,14 @@ fn h2_7d_bundle_plans_match_typescript_selection_paths_and_collisions() {
                         blocked,
                         "{} ordinary blocking for {}",
                         case["case_id"],
-                        path.display()
+                        path.as_str().expect("scalar fixture path")
                     );
                     assert_eq!(
                         forced_preflight.is_emit_blocked(&host, path),
                         blocked,
                         "{} forced blocking for {}",
                         case["case_id"],
-                        path.display()
+                        path.as_str().expect("scalar fixture path")
                     );
                 }
             }
@@ -387,7 +399,7 @@ fn h2_7d_common_directory_eligibility_includes_excluded_modules_without_syntax()
     assert_eq!(eligible.len(), 3);
     assert!(eligible
         .iter()
-        .any(|&id| host.source_file(id).unwrap().path() == Path::new("/project/mod.ts")));
+        .any(|&id| host.source_file(id).unwrap().path() == JsStr::from("/project/mod.ts")));
     assert!(bundled.iter().all(|id| eligible.contains(id)));
 }
 

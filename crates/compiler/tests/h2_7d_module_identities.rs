@@ -72,15 +72,15 @@ fn prepared(case: &Value, libraries: &[(String, Vec<u8>)]) -> Result<PreparedPro
             "target" => options.target = Some(value.as_i64().unwrap() as i32),
             "module" => options.module = Some(value.as_i64().unwrap() as i32),
             "moduleResolution" => options.module_resolution = Some(value.as_i64().unwrap() as i32),
-            "outFile" => options.out_file = value.as_str().map(str::to_owned),
-            "outDir" => options.out_dir = value.as_str().map(str::to_owned),
+            "outFile" => options.out_file = value.as_str().map(Into::into),
+            "outDir" => options.out_dir = value.as_str().map(Into::into),
             "declaration" => options.declaration = value.as_bool(),
             "listEmittedFiles" => options.list_emitted_files = value.as_bool(),
             "strict" => options.strict = value.as_bool(),
             "skipDefaultLibCheck" => options.skip_default_lib_check = value.as_bool(),
             "noErrorTruncation" => options.no_error_truncation = value.as_bool(),
             "newLine" => options.new_line = Some(value.as_i64().unwrap() as i32),
-            "baseUrl" => options.base_url = value.as_str().map(str::to_owned),
+            "baseUrl" => options.base_url = value.as_str().map(Into::into),
             "paths" => {
                 program_options = program_options.with_paths(
                     value
@@ -94,7 +94,9 @@ fn prepared(case: &Value, libraries: &[(String, Vec<u8>)]) -> Result<PreparedPro
                                     .as_array()
                                     .unwrap()
                                     .iter()
-                                    .map(|value| value.as_str().unwrap().to_owned())
+                                    .map(|value| {
+                                        tsc_diagnostics::JsString::from(value.as_str().unwrap())
+                                    })
                                     .collect(),
                             )
                         })
@@ -199,10 +201,10 @@ fn compare_facet(
     case: &Value,
 ) -> Result<(), String> {
     let expected = &case["observation"];
-    if host.current_directory() != Path::new(case["current_directory"].as_str().unwrap()) {
+    if host.current_directory() != case["current_directory"].as_str().unwrap() {
         return Err(format!(
             "actual current directory {}",
-            host.current_directory().display()
+            host.current_directory().scalar_test_path().display()
         ));
     }
     if !host.use_case_sensitive_file_names() {
@@ -215,7 +217,7 @@ fn compare_facet(
         .iter()
         .map(|id| {
             host.source_file(*id)
-                .map(|source| source.path().display().to_string())
+                .map(|source| source.path().scalar_test_path().display().to_string())
                 .ok_or_else(|| format!("missing host source {id:?}"))
         })
         .collect::<Result<Vec<_>, _>>()?;
@@ -233,7 +235,7 @@ fn compare_facet(
             .map(|source| {
                 let syntax = source.syntax().ok_or("loaded library syntax unavailable")?;
                 Ok(serde_json::json!({
-                    "path": source.path().display().to_string(),
+                    "path": source.path().scalar_test_path().display().to_string(),
                     "sha256": format!("{:x}", Sha256::digest(syntax.text().as_bytes())),
                 }))
             })
@@ -242,12 +244,10 @@ fn compare_facet(
             return Err("loaded standard-library bytes/order differ".to_owned());
         }
     }
-    if host.common_source_directory()
-        != Path::new(expected["common_source_directory"].as_str().unwrap())
-    {
+    if host.common_source_directory() != expected["common_source_directory"].as_str().unwrap() {
         return Err(format!(
             "common directory actual={}, expected={}",
-            host.common_source_directory().display(),
+            host.common_source_directory().scalar_test_path().display(),
             expected["common_source_directory"]
         ));
     }
@@ -298,10 +298,10 @@ fn compare_facet(
                 .paths()
                 .javascript_path()
                 .ok_or("plan has no JavaScript path")?;
-            if javascript_path != Path::new(expected_write["path"].as_str().unwrap()) {
+            if javascript_path != expected_write["path"].as_str().unwrap() {
                 return Err(format!(
                     "JavaScript plan path actual={}, expected={}",
-                    javascript_path.display(),
+                    javascript_path.scalar_test_path().display(),
                     expected_write["path"]
                 ));
             }
@@ -311,7 +311,7 @@ fn compare_facet(
                 .iter()
                 .map(|id| {
                     host.source_file(*id)
-                        .map(|source| source.path().display().to_string())
+                        .map(|source| source.path().scalar_test_path().display().to_string())
                         .ok_or_else(|| format!("missing planned source {id:?}"))
                 })
                 .collect::<Result<Vec<_>, _>>()?;
@@ -582,3 +582,7 @@ fn compare_cases(cases: &[&Value]) {
         failures.join("\n")
     );
 }
+
+#[path = "../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

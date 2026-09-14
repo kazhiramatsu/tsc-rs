@@ -89,7 +89,7 @@ pub(crate) enum EnumRelationError {
     StringVsUnknownNumeric {
         target_enum: SymbolId,
         target_member: SymbolId,
-        known_string: String,
+        known_string: tsc_types::JsString,
     },
 }
 

@@ -190,7 +190,7 @@ fn hosted_acceptance_and_oracle_phases_cover_h2_2c_rungs() {
     let h2_2c = fs::read_to_string(workspace.join("crates/xtask/src/h2_2c_acceptance.rs"))
         .expect("h2_2c_acceptance.rs");
     let main = fs::read_to_string(workspace.join("crates/xtask/src/main.rs")).expect("main.rs");
-    let acceptance = extract_balanced_after(&main, "fn acceptance(", '{', '}')
+    let acceptance = crate::node_codegen::extract_balanced_after(&main, "fn acceptance(", '{', '}')
         .expect("acceptance function body");
 
     let hosted_rungs = h2_2c

@@ -38,12 +38,13 @@ impl<'a> FileSystem<'a> {
 
     fn absolute(&self, path: &Path) -> String {
         canonical_emit_path(
-            path,
-            Path::new(self.case["current_directory"].as_str().unwrap()),
+            path.to_str().expect("scalar fault-injection path").into(),
+            self.case["current_directory"].as_str().unwrap().into(),
             true,
         )
-        .to_string_lossy()
-        .into_owned()
+        .as_str()
+        .expect("scalar canonical emit path observation")
+        .to_owned()
     }
 
     fn observation(&self) -> Value {
@@ -53,61 +54,78 @@ impl<'a> FileSystem<'a> {
 }
 
 impl EmitFileSystem for FileSystem<'_> {
-    fn write_file(&mut self, path: &Path, bytes: &[u8]) -> Result<(), String> {
-        let attempt = self.attempts.entry(path.to_path_buf()).or_default();
-        *attempt += 1;
-        let attempt = *attempt;
-        let absolute = self.absolute(path);
-        let parent = Path::new(&absolute).parent().unwrap().to_string_lossy();
-        let error = if self.case["fault"] == "all-writes" {
-            Some("H2.8 controlled write failure")
-        } else if self.case["fault"] == "first-write" && attempt == 1 {
-            Some("H2.8 discarded first write failure")
-        } else if !self
-            .directories
-            .iter()
-            .any(|directory| directory == parent.as_ref())
-        {
-            Some("H2.8 parent directory is missing")
-        } else {
-            None
-        };
-        let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
-        self.operations
-            .push(json!({"operation":"write-file", "path":path,
+    fn write_file(
+        &mut self,
+        path: tsc_diagnostics::JsStr<'_>,
+        bytes: &[u8],
+    ) -> Result<(), tsc_diagnostics::JsString> {
+        let path = std::path::Path::new(path.as_str().expect("scalar fault-injection path"));
+        (|| -> Result<(), String> {
+            let attempt = self.attempts.entry(path.to_path_buf()).or_default();
+            *attempt += 1;
+            let attempt = *attempt;
+            let absolute = self.absolute(path);
+            let parent = Path::new(&absolute).parent().unwrap().to_string_lossy();
+            let error = if self.case["fault"] == "all-writes" {
+                Some("H2.8 controlled write failure")
+            } else if self.case["fault"] == "first-write" && attempt == 1 {
+                Some("H2.8 discarded first write failure")
+            } else if !self
+                .directories
+                .iter()
+                .any(|directory| directory == parent.as_ref())
+            {
+                Some("H2.8 parent directory is missing")
+            } else {
+                None
+            };
+            let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
+            self.operations
+                .push(json!({"operation":"write-file", "path":path,
             "utf8_base64":encoded, "error":error}));
-        if let Some(error) = error {
-            return Err(error.to_owned());
-        }
-        let materialized = json!({"path":absolute,"utf8_base64":encoded});
-        if let Some(file) = self
-            .materialized_files
-            .iter_mut()
-            .find(|file| file["path"] == absolute)
-        {
-            *file = materialized;
-        } else {
-            self.materialized_files.push(materialized);
-        }
-        Ok(())
+            if let Some(error) = error {
+                return Err(error.to_owned());
+            }
+            let materialized = json!({"path":absolute,"utf8_base64":encoded});
+            if let Some(file) = self
+                .materialized_files
+                .iter_mut()
+                .find(|file| file["path"] == absolute)
+            {
+                *file = materialized;
+            } else {
+                self.materialized_files.push(materialized);
+            }
+            Ok(())
+        })()
+        .map_err(Into::into)
     }
 
-    fn create_directory(&mut self, path: &Path) -> Result<(), String> {
-        let error =
-            (self.case["fault"] == "create-directory").then_some("H2.8 controlled create failure");
-        self.operations
-            .push(json!({"operation":"create-directory", "path":path, "error":error}));
-        if let Some(error) = error {
-            return Err(error.to_owned());
-        }
-        let absolute = self.absolute(path);
-        if !self.directories.contains(&absolute) {
-            self.directories.push(absolute);
-        }
-        Ok(())
+    fn create_directory(
+        &mut self,
+        path: tsc_diagnostics::JsStr<'_>,
+    ) -> Result<(), tsc_diagnostics::JsString> {
+        let path = std::path::Path::new(path.as_str().expect("scalar fault-injection path"));
+        (|| -> Result<(), String> {
+            let error = (self.case["fault"] == "create-directory")
+                .then_some("H2.8 controlled create failure");
+            self.operations
+                .push(json!({"operation":"create-directory", "path":path, "error":error}));
+            if let Some(error) = error {
+                return Err(error.to_owned());
+            }
+            let absolute = self.absolute(path);
+            if !self.directories.contains(&absolute) {
+                self.directories.push(absolute);
+            }
+            Ok(())
+        })()
+        .map_err(Into::into)
     }
 
-    fn directory_exists(&mut self, path: &Path) -> bool {
+    fn directory_exists(&mut self, path: tsc_diagnostics::JsStr<'_>) -> bool {
+        let path = std::path::Path::new(path.as_str().expect("scalar fault-injection path"));
+
         let exists = self.directories.contains(&self.absolute(path));
         self.operations
             .push(json!({"operation":"directory-exists", "path":path, "exists":exists}));
@@ -144,7 +162,7 @@ fn prepare(case: &Value, libraries: &[(String, Vec<u8>)]) -> PreparedProgram {
             "target" => options.target = Some(value.as_i64().unwrap() as i32),
             "module" => options.module = Some(value.as_i64().unwrap() as i32),
             "newLine" => options.new_line = Some(value.as_i64().unwrap() as i32),
-            "outDir" => options.out_dir = value.as_str().map(str::to_owned),
+            "outDir" => options.out_dir = value.as_str().map(Into::into),
             "strict" => options.strict = value.as_bool(),
             "emitBOM" => options.emit_bom = value.as_bool(),
             "listEmittedFiles" => options.list_emitted_files = value.as_bool(),
@@ -201,7 +219,16 @@ fn output_filesystem_matches_complete_typescript_observations() {
                     id,
                     command.emit(),
                     command.diagnostics(),
-                    Some((command.status_writes().to_vec(), command.exit_code())),
+                    Some((
+                        command
+                            .status_writes()
+                            .iter()
+                            .map(|value| {
+                                super::h2_7b_w4a_controls::scalar_observation(value.as_js())
+                            })
+                            .collect(),
+                        command.exit_code(),
+                    )),
                     &writes,
                     &case["typescript_observation"],
                     true,
@@ -226,7 +253,13 @@ fn output_filesystem_matches_complete_typescript_observations() {
                         memory_command.emit(),
                         memory_command.diagnostics(),
                         Some((
-                            memory_command.status_writes().to_vec(),
+                            memory_command
+                                .status_writes()
+                                .iter()
+                                .map(|value| {
+                                    super::h2_7b_w4a_controls::scalar_observation(value.as_js())
+                                })
+                                .collect(),
                             memory_command.exit_code(),
                         )),
                         memory.writes(),

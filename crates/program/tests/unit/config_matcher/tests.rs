@@ -1,5 +1,83 @@
 use super::ConfigFilePattern;
 
+#[test]
+fn arbitrary_utf16_specs_and_candidates_match_typescript() {
+    use tsc_diagnostics::JsString;
+    let fixture: serde_json::Value =
+        serde_json::from_str(include_str!("../../fixtures/utf16-config-matching.json")).unwrap();
+    let value = |units: &serde_json::Value| -> JsString {
+        units
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|unit| u16::try_from(unit.as_u64().unwrap()).unwrap())
+            .collect()
+    };
+    let paths: Vec<_> = fixture["paths_utf16"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(value)
+        .collect();
+    for case in fixture["matching"].as_array().unwrap() {
+        let spec = value(&case["spec_utf16"]);
+        let pattern = ConfigFilePattern::new(
+            &spec,
+            case["base"].as_str().unwrap(),
+            case["case_sensitive"].as_bool().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            pattern.is_some(),
+            case["expected"]["compiled"].as_bool().unwrap(),
+            "{}",
+            case["case_id"]
+        );
+        for (path, expected) in paths
+            .iter()
+            .zip(case["expected"]["matches"].as_array().unwrap())
+        {
+            assert_eq!(
+                pattern
+                    .as_ref()
+                    .is_some_and(|pattern| pattern.matches(path)),
+                expected.as_bool().unwrap(),
+                "{}: spec={:?} path={:?}",
+                case["case_id"],
+                spec,
+                path
+            );
+        }
+    }
+}
+
+#[test]
+fn filename_case_folding_preserves_surrogates_and_context_boundaries() {
+    use tsc_diagnostics::JsString;
+    let fixture: serde_json::Value =
+        serde_json::from_str(include_str!("../../fixtures/utf16-config-matching.json")).unwrap();
+    for case in fixture["folding"].as_array().unwrap() {
+        let value: JsString = case["value_utf16"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|unit| u16::try_from(unit.as_u64().unwrap()).unwrap())
+            .collect();
+        let expected: Vec<u16> = case["expected"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|unit| u16::try_from(unit.as_u64().unwrap()).unwrap())
+            .collect();
+        assert_eq!(
+            crate::js_path::file_name_lower_case(value.as_js()).to_utf16(),
+            expected,
+            "{:?}",
+            value
+        );
+    }
+}
+
 fn pattern(spec: &str) -> ConfigFilePattern {
     ConfigFilePattern::new(spec, "/work", true)
         .expect("valid pattern")

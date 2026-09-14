@@ -1251,11 +1251,22 @@ fn collect_binding_name_events(
         events.push(BindingNameEvent::ExitScope);
         return Ok(());
     }
+    // emitSourceFileWorker (and a directly printed ModuleBlock) generates
+    // declaration names before statements. A tail can precede an earlier use.
+    if scope_root
+        && matches!(
+            record.kind,
+            SyntaxKind::SourceFile | SyntaxKind::ModuleBlock
+        )
+    {
+        collect_function_body_declaration_name_events(arena, source, node, events)?;
+    }
     // tsc-port: emitModuleBlock @6.0.3
     if !scope_root && record.kind == SyntaxKind::ModuleBlock {
         events.push(BindingNameEvent::EnterScope(
             GeneratedBindingOwner::FunctionBody,
         ));
+        collect_function_body_declaration_name_events(arena, source, node, events)?;
         let syntax = arena.source(source)?.syntax();
         let mut children = Vec::new();
         for_each_child(&syntax.arena, &record, |child| {
@@ -1364,7 +1375,9 @@ fn collect_binding_name_events(
     Ok(())
 }
 
-/// `emitBlockFunctionBody` calls `generateNames(body)` before emitting any
+/// SourceFile, ModuleBlock and `emitBlockFunctionBody` generate declaration
+/// names before emitting statements (_tsc.js:119755-119756, 119165-119167).
+/// The function body calls `generateNames(body)` before emitting any
 /// nested function. Prepare declaration identities in that enclosing scope,
 /// so an earlier reference inside a constructor cannot allocate its hoisted
 /// computed-key name in the constructor's scope (_tsc.js:119021-119032,
@@ -1387,6 +1400,8 @@ fn collect_function_body_declaration_name_events(
                 collect_binding_name_events(arena, source, node, false, events)?;
             }
         }
+        NodeData::SourceFile(data) => arrays.extend(data.statements),
+        NodeData::ModuleBlock(data) => arrays.extend(data.statements),
         NodeData::Block(data) => arrays.extend(data.statements),
         NodeData::LabeledStatement(data) => children.extend(data.statement),
         NodeData::WithStatement(data) => children.extend(data.statement),

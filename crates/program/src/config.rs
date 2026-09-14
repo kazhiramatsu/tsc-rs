@@ -26,12 +26,16 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use serde_json::{Map, Value};
-use tsc_diagnostics::{
-    gen, sort_and_dedupe_diagnostics, Diagnostic, DiagnosticMessage, DocumentVersion, MessageChain,
-    TextSnapshot,
+use crate::js_path::{
+    file_name_key, normalize_slashes, normalized_config_dir_value_path,
+    normalized_config_value_path, root_parts, starts_with_config_dir_template,
 };
-use tsc_host::{to_file_name_lower_case, CompilerHost, HostError, HostErrorKind, HostOperation};
+use crate::json_value::{JsonObject as Map, JsonValue as Value};
+use tsc_diagnostics::{
+    gen, sort_and_dedupe_diagnostics, Diagnostic, DiagnosticArgument, DiagnosticMessage,
+    DocumentVersion, JsStr, JsString, MessageChain, TextSnapshot,
+};
+use tsc_host::{CompilerHost, HostError, HostErrorKind, HostOperation};
 use tsc_syntax::{NodeId, SourceFile, SyntaxKind};
 use tsc_types::{js_number_to_string, CompilerOptionNumber, CompilerOptions, ModuleSuffix};
 
@@ -52,9 +56,7 @@ use crate::loader::{
     load_emitting_program_with_root_reasons, load_program_with_root_reasons, ProgramLoadError,
     ProgramLoadLimits, RootFileReason,
 };
-use crate::module_resolution::{
-    directory_name, normalize_absolute_path_lexical, normalized_root_parts, ModuleResolver,
-};
+use crate::module_resolution::{normalize_absolute_js_path_lexical, ModuleResolver};
 use crate::option_validation::{
     has_zero_or_one_asterisk, path_is_absolute, path_is_relative, validate_compiler_options,
     validate_paths_option_diagnostics, CompilerOptionValidationLocation, CompilerOptionViolation,
@@ -107,14 +109,14 @@ impl fmt::Display for ConfigHostOperation {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ConfigHostError {
     operation: ConfigHostOperation,
-    path: String,
+    path: JsString,
     detail: String,
 }
 
 impl ConfigHostError {
     pub fn new(
         operation: ConfigHostOperation,
-        path: impl Into<String>,
+        path: impl Into<JsString>,
         detail: impl Into<String>,
     ) -> Self {
         Self {
@@ -128,8 +130,8 @@ impl ConfigHostError {
         self.operation
     }
 
-    pub fn path(&self) -> &str {
-        &self.path
+    pub fn path(&self) -> JsStr<'_> {
+        self.path.as_js()
     }
 
     pub fn detail(&self) -> &str {
@@ -159,18 +161,18 @@ impl Error for ConfigHostError {}
 pub trait ConfigParseHost {
     fn use_case_sensitive_file_names(&self) -> bool;
 
-    fn file_exists(&self, path: &str) -> Result<bool, ConfigHostError>;
+    fn file_exists(&self, path: JsStr<'_>) -> Result<bool, ConfigHostError>;
 
-    fn read_file(&self, path: &str) -> Result<Option<String>, ConfigHostError>;
+    fn read_file(&self, path: JsStr<'_>) -> Result<Option<String>, ConfigHostError>;
 
     fn read_directory(
         &self,
-        directory: &str,
+        directory: JsStr<'_>,
         extensions: &[&str],
-        excludes: Option<&[String]>,
-        includes: Option<&[String]>,
+        excludes: Option<&[JsString]>,
+        includes: Option<&[JsString]>,
         depth: Option<usize>,
-    ) -> Result<Vec<String>, ConfigHostError>;
+    ) -> Result<Vec<JsString>, ConfigHostError>;
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -191,14 +193,18 @@ pub enum ConfigParseErrorKind {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ConfigParseError {
     kind: ConfigParseErrorKind,
-    path: Option<String>,
+    path: Option<JsString>,
     detail: String,
     diagnostics: Vec<Diagnostic>,
     host_error: Option<Box<ConfigHostError>>,
 }
 
 impl ConfigParseError {
-    fn new(kind: ConfigParseErrorKind, path: Option<String>, detail: impl Into<String>) -> Self {
+    fn new_js(
+        kind: ConfigParseErrorKind,
+        path: Option<JsString>,
+        detail: impl Into<String>,
+    ) -> Self {
         Self {
             kind,
             path,
@@ -212,8 +218,8 @@ impl ConfigParseError {
         self.kind
     }
 
-    pub fn path(&self) -> Option<&str> {
-        self.path.as_deref()
+    pub fn path(&self) -> Option<JsStr<'_>> {
+        self.path.as_ref().map(JsString::as_js)
     }
 
     pub fn detail(&self) -> &str {
@@ -266,12 +272,12 @@ impl From<ConfigHostError> for ConfigParseError {
 /// An owned source participating in the primary/extended config graph.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ConfigSourceText {
-    pub file_name: String,
+    pub file_name: JsString,
     snapshot: Arc<TextSnapshot>,
 }
 
 impl ConfigSourceText {
-    pub fn new(file_name: impl Into<String>, text: impl Into<String>) -> Self {
+    pub fn new(file_name: impl Into<JsString>, text: impl Into<String>) -> Self {
         Self {
             file_name: file_name.into(),
             snapshot: TextSnapshot::new(text.into(), DocumentVersion::default()),
@@ -291,9 +297,9 @@ impl ConfigSourceText {
 /// The origin is required for inherited path-valued options such as `paths`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ConfigOption {
-    pub name: String,
+    pub name: JsString,
     pub value: Value,
-    pub base_path: String,
+    pub base_path: JsString,
 }
 
 /// Source-order-preserving merge of raw compiler-option property values plus
@@ -306,12 +312,12 @@ pub struct ConfigOption {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ConfigOptionBag {
     entries: Vec<ConfigOption>,
-    entry_indices: BTreeMap<String, usize>,
+    entry_indices: BTreeMap<JsString, usize>,
     typed_entries: Vec<ConfigTypedOption>,
     typed_indices: BTreeMap<String, usize>,
-    raw_order: Vec<String>,
-    raw_indices: BTreeMap<String, usize>,
-    removed_names: BTreeSet<String>,
+    raw_order: Vec<JsString>,
+    raw_indices: BTreeMap<JsString, usize>,
+    removed_names: BTreeSet<JsString>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -337,13 +343,13 @@ pub enum ConfigTypedObjectShape {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ConfigTypedObjectProperty {
-    name: String,
+    name: JsString,
     value: Option<ConfigTypedJsonValue>,
 }
 
 impl ConfigTypedObjectProperty {
-    pub fn name(&self) -> &str {
-        &self.name
+    pub fn name(&self) -> JsStr<'_> {
+        self.name.as_js()
     }
 
     /// Converted own-property value. `None` means the property exists with a
@@ -370,8 +376,9 @@ impl ConfigTypedJsonValue {
                 let number = json_number_as_f64(number)
                     .expect("config JSON numbers have a JavaScript numeric projection");
                 if number.is_finite() {
-                    serde_json::from_str(&js_number_to_string(number))
+                    serde_json::from_str::<serde_json::Value>(&js_number_to_string(number))
                         .expect("a finite JavaScript number string is valid JSON")
+                        .into()
                 } else {
                     // JSON.stringify emits null for Infinity and -Infinity.
                     Value::Null
@@ -395,7 +402,7 @@ impl ConfigTypedJsonValue {
         }
     }
 
-    fn append_compiler_option_cache_identity(&self, result: &mut String) {
+    fn append_compiler_option_cache_identity(&self, result: &mut JsString) {
         match self {
             Self::Json(Value::Null) => result.push_str("null"),
             Self::Json(Value::Bool(value)) => {
@@ -406,7 +413,7 @@ impl ConfigTypedJsonValue {
                     .expect("config JSON numbers have a JavaScript numeric projection");
                 result.push_str(&js_number_to_string(value));
             }
-            Self::Json(Value::String(value)) => result.push_str(value),
+            Self::Json(Value::String(value)) => result.push_js(value.as_js()),
             Self::Array(values) => {
                 result.push('[');
                 for (index, value) in values.iter().enumerate() {
@@ -504,13 +511,13 @@ impl ConfigTypedObjectValue {
     /// tsc-port: compilerOptionValueToString @6.0.3
     /// tsc-hash: 47e7644c9afbf6ce03d7ce0591d09b74dff44bc1538ef08c02b4eb698a8f58a5
     /// tsc-span: _tsc.js:40327-40341
-    pub fn compiler_option_cache_identity(&self) -> String {
-        let mut result = String::new();
+    pub fn compiler_option_cache_identity(&self) -> JsString {
+        let mut result = JsString::new();
         self.append_compiler_option_cache_identity(&mut result);
         result
     }
 
-    fn append_compiler_option_cache_identity(&self, result: &mut String) {
+    fn append_compiler_option_cache_identity(&self, result: &mut JsString) {
         match self.shape {
             ConfigTypedObjectShape::Array => {
                 result.push('[');
@@ -529,7 +536,7 @@ impl ConfigTypedObjectValue {
             ConfigTypedObjectShape::Object => {
                 result.push('{');
                 for property in &self.properties {
-                    result.push_str(&property.name);
+                    result.push_js(property.name.as_js());
                     result.push_str(": ");
                     if let Some(value) = &property.value {
                         value.append_compiler_option_cache_identity(result);
@@ -542,10 +549,11 @@ impl ConfigTypedObjectValue {
         }
     }
 
-    fn finalize_config_dir_templates(
+    fn finalize_config_dir_templates<'j0>(
         &mut self,
-        config_base_path: &str,
+        config_base_path: impl Into<JsStr<'j0>>,
     ) -> Result<(), ConfigParseError> {
+        let config_base_path = config_base_path.into();
         let mut changed = false;
         for property in &mut self.properties {
             let Some(ConfigTypedJsonValue::Array(values)) = &mut property.value else {
@@ -609,9 +617,9 @@ impl ConfigOptionBag {
         &self.entries
     }
 
-    pub fn get(&self, name: &str) -> Option<&ConfigOption> {
+    pub fn get<'n>(&self, name: impl Into<JsStr<'n>>) -> Option<&ConfigOption> {
         self.entry_indices
-            .get(name)
+            .get(name.into().as_bytes())
             .map(|index| &self.entries[*index])
     }
 
@@ -619,8 +627,8 @@ impl ConfigOptionBag {
     /// when an own null or invalid `paths` masks the effective map, so this is
     /// deliberately not TypeScript's `getPathsBasePath` result. It is absent
     /// from the raw [`Self::entries`] and [`Self::get`] views.
-    pub fn stored_paths_base_path(&self) -> Option<&str> {
-        self.typed_value("pathsBasePath").and_then(Value::as_str)
+    pub fn stored_paths_base_path(&self) -> Option<JsStr<'_>> {
+        self.typed_value("pathsBasePath").and_then(Value::as_js)
     }
 
     pub fn typed_object_value(&self, name: &str) -> Option<&ConfigTypedObjectValue> {
@@ -711,9 +719,10 @@ impl ConfigOptionBag {
         }
     }
 
-    fn remove(&mut self, name: &str) {
+    fn remove<'n>(&mut self, name: impl Into<JsStr<'n>>) {
+        let name = name.into();
         self.observe_raw_name(name);
-        if let Some(index) = self.entry_indices.remove(name) {
+        if let Some(index) = self.entry_indices.remove(name.as_bytes()) {
             self.entries.swap_remove(index);
             if let Some(moved) = self.entries.get(index) {
                 self.entry_indices.insert(moved.name.clone(), index);
@@ -722,8 +731,9 @@ impl ConfigOptionBag {
         self.removed_names.insert(name.to_owned());
     }
 
-    fn observe_raw_name(&mut self, name: &str) {
-        if self.raw_indices.contains_key(name) {
+    fn observe_raw_name<'n>(&mut self, name: impl Into<JsStr<'n>>) {
+        let name = name.into();
+        if self.raw_indices.contains_key(name.as_bytes()) {
             return;
         }
         let index = self.raw_order.len();
@@ -771,18 +781,20 @@ impl ConfigOptionBag {
     /// tsc-port: getSubstitutedMapLikeOfStringArrayWithConfigDirTemplate @6.0.3
     /// tsc-hash: 0d887c86b4808b665c81b73f083409d2818f9bc41612c64254fa1aa817fa3e97
     /// tsc-span: _tsc.js:39229-39239
-    fn finalize_config_dir_templates(
+    fn finalize_config_dir_templates<'j0>(
         &mut self,
-        config_base_path: &str,
+        config_base_path: impl Into<JsStr<'j0>>,
     ) -> Result<(), ConfigParseError> {
+        let config_base_path = config_base_path.into();
         self.finalize_group_config_dir_templates(config_base_path, ConfigOptionGroup::Compiler)
     }
 
-    fn finalize_group_config_dir_templates(
+    fn finalize_group_config_dir_templates<'j0>(
         &mut self,
-        config_base_path: &str,
+        config_base_path: impl Into<JsStr<'j0>>,
         group: ConfigOptionGroup,
     ) -> Result<(), ConfigParseError> {
+        let config_base_path = config_base_path.into();
         for option in &mut self.typed_entries {
             let Some(declaration) = group.declaration(&option.name) else {
                 continue;
@@ -843,8 +855,8 @@ impl ConfigOptionBag {
 pub struct ConfigDiscoveryOptions {
     allow_js: bool,
     resolve_json_module: bool,
-    out_dir: Option<String>,
-    declaration_dir: Option<String>,
+    out_dir: Option<JsString>,
+    declaration_dir: Option<JsString>,
 }
 
 /// Immutable config projection consumed by [`ModuleResolver`].
@@ -879,20 +891,20 @@ impl ConfigDiscoveryOptions {
         self.resolve_json_module
     }
 
-    pub fn out_dir(&self) -> Option<&str> {
-        self.out_dir.as_deref()
+    pub fn out_dir(&self) -> Option<JsStr<'_>> {
+        self.out_dir.as_ref().map(JsString::as_js)
     }
 
-    pub fn declaration_dir(&self) -> Option<&str> {
-        self.declaration_dir.as_deref()
+    pub fn declaration_dir(&self) -> Option<JsStr<'_>> {
+        self.declaration_dir.as_ref().map(JsString::as_js)
     }
 }
 
 #[derive(Clone, Debug)]
 pub struct ConfigRootPlanRequest {
-    pub file_name: String,
+    pub file_name: JsString,
     pub text: String,
-    pub base_path: String,
+    pub base_path: JsString,
 }
 
 /// One normalized `ParsedCommandLine.projectReferences` entry.  The H0
@@ -901,8 +913,8 @@ pub struct ConfigRootPlanRequest {
 /// diagnostics that inspect a partial command line.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ConfigProjectReference {
-    pub path: String,
-    pub original_path: String,
+    pub path: JsString,
+    pub original_path: JsString,
     pub prepend: Option<bool>,
     pub circular: Option<bool>,
 }
@@ -912,14 +924,14 @@ pub struct ConfigProjectReference {
 /// avoids exposing the internal watcher enum to the no-emit loader.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ConfigWildcardDirectory {
-    pub path: String,
+    pub path: JsString,
     pub recursive: bool,
 }
 
 /// Program-owned root-planning projection, not a complete `ParsedCommandLine`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ConfigRootPlan {
-    config_file_name: String,
+    config_file_name: JsString,
     source: ConfigSourceText,
     extended_sources: Vec<ConfigSourceText>,
     raw: Value,
@@ -929,9 +941,9 @@ pub struct ConfigRootPlan {
     /// Effective root specs after the extends merge. These remain separate
     /// from `file_names`: TypeScript exposes both the declarative
     /// `ParsedCommandLine` lists and the discovered file-name projection.
-    files: Option<Vec<String>>,
-    include: Option<Vec<String>>,
-    exclude: Option<Vec<String>>,
+    files: Option<Vec<JsString>>,
+    include: Option<Vec<JsString>>,
+    exclude: Option<Vec<JsString>>,
     /// Root-level `references` are observable on the primary config only;
     /// TypeScript does not inherit them through `extends`.
     references: Option<Value>,
@@ -949,13 +961,13 @@ pub struct ConfigRootPlan {
     /// projection of the primary config and therefore cannot, by itself,
     /// distinguish a value inherited from an `extends` source.
     unsupported_root_scopes: BTreeSet<String>,
-    file_names: Vec<String>,
+    file_names: Vec<JsString>,
     root_reasons: Vec<RootFileReason>,
     wildcard_directories: Vec<ConfigWildcardDirectory>,
     root_parse_diagnostics: Vec<Diagnostic>,
     errors: Vec<Diagnostic>,
     option_diagnostics: Vec<Diagnostic>,
-    extended_source_files: Vec<String>,
+    extended_source_files: Vec<JsString>,
 }
 
 impl ConfigRootPlan {
@@ -966,14 +978,16 @@ impl ConfigRootPlan {
         let Some(config_file) = self.program_options().config_file().cloned() else {
             return self;
         };
-        let path = config_file.path().canonical().to_string();
+        let path = config_file.path().canonical().as_js().to_owned();
         for diagnostic in self
             .root_parse_diagnostics
             .iter_mut()
             .chain(&mut self.errors)
             .chain(&mut self.option_diagnostics)
         {
-            if diagnostic.file_name.as_deref() == Some(self.source.file_name.as_str()) {
+            if diagnostic.file_name.as_ref().map(JsString::as_js)
+                == Some(self.source.file_name.as_js())
+            {
                 diagnostic.file_path = Some(path.clone());
             }
         }
@@ -992,8 +1006,8 @@ impl ConfigRootPlan {
         self
     }
 
-    pub fn config_file_name(&self) -> &str {
-        &self.config_file_name
+    pub fn config_file_name(&self) -> JsStr<'_> {
+        self.config_file_name.as_js()
     }
 
     pub fn source(&self) -> &ConfigSourceText {
@@ -1022,17 +1036,17 @@ impl ConfigRootPlan {
 
     /// Effective `files` entries after extends rebasing. `None` preserves an
     /// absent/undefined property, while `Some([])` is an explicit empty list.
-    pub fn files(&self) -> Option<&[String]> {
+    pub fn files(&self) -> Option<&[JsString]> {
         self.files.as_deref()
     }
 
     /// Effective `include` entries after extends rebasing.
-    pub fn include(&self) -> Option<&[String]> {
+    pub fn include(&self) -> Option<&[JsString]> {
         self.include.as_deref()
     }
 
     /// Effective `exclude` entries after extends rebasing.
-    pub fn exclude(&self) -> Option<&[String]> {
+    pub fn exclude(&self) -> Option<&[JsString]> {
         self.exclude.as_deref()
     }
 
@@ -1103,7 +1117,7 @@ impl ConfigRootPlan {
         self.module_resolution_options.program_options()
     }
 
-    pub fn file_names(&self) -> &[String] {
+    pub fn file_names(&self) -> &[JsString] {
         &self.file_names
     }
 
@@ -1142,7 +1156,7 @@ impl ConfigRootPlan {
     /// TypeScript's identity-only `extendedSourceFiles` projection. Unlike
     /// `extended_sources`, this also represents an explicitly resolved config
     /// whose read failed and therefore has no source text.
-    pub fn extended_source_files(&self) -> &[String] {
+    pub fn extended_source_files(&self) -> &[JsString] {
         &self.extended_source_files
     }
 }
@@ -1444,9 +1458,9 @@ fn validate_config_plan_for_mode(
         emitting,
     ) {
         return Err(ConfigProgramLoadError::Program(
-            ProgramLoadError::unsupported(
+            ProgramLoadError::unsupported_js(
                 crate::loader::ProgramLoadOperation::ValidateOptions,
-                Some(PathBuf::from(plan.config_file_name())),
+                Some(plan.config_file_name().to_owned()),
                 feature,
                 detail,
             ),
@@ -1505,7 +1519,7 @@ fn load_config_program_inner(
         .file_names()
         .iter()
         .zip(&plan.root_reasons)
-        .map(|(file_name, reason)| (PathBuf::from(file_name), reason.clone()))
+        .map(|(file_name, reason)| (file_name.clone(), reason.clone()))
         .collect::<Vec<_>>();
     let mut compiler_options = plan.compiler_options().clone();
     let mut program_options = plan.program_options().clone();
@@ -1544,7 +1558,7 @@ fn load_config_program_inner(
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct ConfigLocation {
-    file_name: String,
+    file_name: JsString,
     start: u32,
     length: u32,
 }
@@ -1560,9 +1574,9 @@ struct ConfigPathsSyntaxIndex {
     // All indexed nodes belong to the root config. Store its identity once;
     // large maps retain compact UTF-16 spans instead of cloning the file name
     // into every key and element location.
-    file_name: Option<String>,
+    file_name: Option<JsString>,
     compiler_options_name: Option<ConfigSpan>,
-    mapping_locations: BTreeMap<String, ConfigPathsKeySyntax>,
+    mapping_locations: BTreeMap<JsString, ConfigPathsKeySyntax>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -1579,14 +1593,14 @@ struct ConfigPathMappingLocation {
 
 #[derive(Clone, Debug, PartialEq)]
 struct ConfigSpec {
-    text: String,
-    base_path: String,
+    text: JsString,
+    base_path: JsString,
     location: Option<ConfigLocation>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 struct ConfigExtendsSpec {
-    text: String,
+    text: JsString,
     location: Option<ConfigLocation>,
 }
 
@@ -1594,7 +1608,7 @@ struct ConfigExtendsSpec {
 struct ParsedConfigNode {
     source: ConfigSourceText,
     raw: Value,
-    raw_property_names: BTreeSet<String>,
+    raw_property_names: BTreeSet<JsString>,
     options: ConfigOptionBag,
     files: Option<Vec<ConfigSpec>>,
     files_location: Option<ConfigLocation>,
@@ -1609,7 +1623,7 @@ struct ParsedConfigNode {
     compile_on_save: Option<Value>,
     unsupported_root_scopes: BTreeSet<String>,
     extended_sources: Vec<ConfigSourceText>,
-    extended_source_files: Vec<String>,
+    extended_source_files: Vec<JsString>,
 }
 
 /// Caller-owned cache of extended configs, matching TypeScript's optional
@@ -1617,7 +1631,7 @@ struct ParsedConfigNode {
 /// A fresh parse without this object performs every read again.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ConfigExtendedCache {
-    entries: BTreeMap<String, CachedExtendedConfig>,
+    entries: BTreeMap<JsString, CachedExtendedConfig>,
 }
 
 impl ConfigExtendedCache {
@@ -1628,7 +1642,7 @@ impl ConfigExtendedCache {
 
 #[derive(Clone, Debug, PartialEq)]
 struct CachedExtendedConfig {
-    file_name: String,
+    file_name: JsString,
     source: Option<ConfigSourceText>,
     node: Option<Box<ParsedConfigNode>>,
     // Source parse/read diagnostics replay on a hit; option conversion
@@ -1639,7 +1653,7 @@ struct CachedExtendedConfig {
 struct ParseContext<'a> {
     host: &'a dyn ConfigParseHost,
     extended_cache: Option<&'a mut ConfigExtendedCache>,
-    stack: Vec<String>,
+    stack: Vec<JsString>,
     root_parse_diagnostics: Vec<Diagnostic>,
     errors: Vec<Diagnostic>,
 }
@@ -1688,7 +1702,7 @@ fn parse_config_root_plan_inner(
     extended_cache: Option<&mut ConfigExtendedCache>,
 ) -> Result<ConfigRootPlan, ConfigParseError> {
     let config_file_name = normalized_path(&request.file_name, &request.base_path)?;
-    let config_base = directory_name(&config_file_name);
+    let config_base = js_directory_name(&config_file_name);
     let mut context = ParseContext {
         host,
         extended_cache,
@@ -1770,7 +1784,7 @@ fn parse_config_root_plan_inner(
         .chain(&mut context.errors)
     {
         if diagnostic.file_name.is_some() {
-            diagnostic.file_path = Some(String::new());
+            diagnostic.file_path = Some(JsString::new());
         }
     }
     let config_diagnostics = context
@@ -1880,22 +1894,21 @@ fn unsupported_config_scope(
     None
 }
 
-fn config_project_references(
+fn config_project_references<'j0>(
     references: Option<&Value>,
-    config_base_path: &str,
+    config_base_path: impl Into<JsStr<'j0>>,
 ) -> Option<Vec<ConfigProjectReference>> {
+    let config_base_path = config_base_path.into();
     let values = references?.as_array()?;
     let mut result = Vec::new();
     for reference in values {
         let Some(object) = reference.as_object() else {
             continue;
         };
-        let Some(original_path) = object.get("path").and_then(Value::as_str) else {
+        let Some(original_path) = object.get("path").and_then(Value::as_js) else {
             continue;
         };
-        let Ok(path) = normalized_path(original_path, config_base_path) else {
-            continue;
-        };
+        let path = crate::js_path::normalized_absolute_path(original_path, config_base_path.into());
         result.push(ConfigProjectReference {
             path,
             original_path: original_path.to_owned(),
@@ -1906,12 +1919,13 @@ fn config_project_references(
     (!result.is_empty()).then_some(result)
 }
 
-fn derive_wildcard_directories(
+fn derive_wildcard_directories<'j0>(
     config: &ParsedConfigNode,
-    config_base_path: &str,
+    config_base_path: impl Into<JsStr<'j0>>,
     discovery: &ConfigDiscoveryOptions,
     case_sensitive: bool,
 ) -> Result<Vec<ConfigWildcardDirectory>, ConfigParseError> {
+    let config_base_path = config_base_path.into();
     // getWildcardDirectories consumes validated include specs even when
     // `files` is present. Only the implicit **/* depends on files being absent.
     let includes = if let Some(includes) = &config.include {
@@ -1920,7 +1934,7 @@ fn derive_wildcard_directories(
         Vec::new()
     } else {
         vec![ConfigSpec {
-            text: "**/*".to_owned(),
+            text: "**/*".into(),
             base_path: config_base_path.to_owned(),
             location: None,
         }]
@@ -1957,7 +1971,7 @@ fn derive_wildcard_directories(
         let key = if case_sensitive {
             path.clone()
         } else {
-            to_file_name_lower_case(&path)
+            file_name_key(path.as_js(), false)
         };
         if let Some(existing) =
             directories
@@ -1966,7 +1980,7 @@ fn derive_wildcard_directories(
                     let existing_key = if case_sensitive {
                         entry.path.clone()
                     } else {
-                        to_file_name_lower_case(&entry.path)
+                        file_name_key(entry.path.as_js(), false)
                     };
                     existing_key == key
                 })
@@ -1996,84 +2010,94 @@ fn derive_wildcard_directories(
     Ok(directories)
 }
 
-fn wildcard_spec_is_excluded(spec: &str, exclude: &str, case_sensitive: bool) -> bool {
-    let normalize = |value: &str| {
-        if case_sensitive {
-            value.to_owned()
-        } else {
-            to_file_name_lower_case(value)
-        }
-    };
-    let spec = normalize(spec);
-    let exclude = normalize(exclude).trim_end_matches('/').to_owned();
-    if !exclude.contains(['*', '?']) {
-        return spec == exclude
-            || spec
-                .strip_prefix(&exclude)
-                .is_some_and(|tail| tail.starts_with('/'));
+fn trim_config_path_separators(path: JsStr<'_>) -> JsStr<'_> {
+    let length = path
+        .as_bytes()
+        .iter()
+        .rposition(|byte| *byte != b'/')
+        .map_or(0, |index| index + 1);
+    path.split_at_byte(length)
+        .expect("ASCII separator boundary")
+        .0
+}
+
+fn wildcard_spec_is_excluded(spec: &JsString, exclude: &JsString, case_sensitive: bool) -> bool {
+    let spec = file_name_key(spec.as_js(), case_sensitive);
+    let exclude = file_name_key(exclude.as_js(), case_sensitive);
+    let exclude = trim_config_path_separators(exclude.as_js());
+    if !exclude
+        .as_bytes()
+        .iter()
+        .any(|byte| matches!(byte, b'*' | b'?'))
+    {
+        return spec.as_js() == exclude || path_is_descendant(exclude, spec.as_js(), true);
     }
-    ConfigFilePattern::new(&exclude, "/", case_sensitive)
+    ConfigFilePattern::new(exclude, "/", case_sensitive)
         .ok()
         .flatten()
         .is_some_and(|pattern| pattern.matches(&spec))
 }
 
-fn wildcard_directory_from_spec(spec: &str) -> Option<(String, bool)> {
-    let spec = spec.trim_end_matches('/');
+fn wildcard_directory_from_spec(spec: &JsString) -> Option<(JsString, bool)> {
+    let spec = trim_config_path_separators(spec.as_js());
     if spec.is_empty() {
         return None;
     }
-    let last_separator = spec.rfind('/');
-    let wildcard = spec.find(['*', '?']);
+    let bytes = spec.as_bytes();
+    let last_separator = bytes.iter().rposition(|byte| *byte == b'/');
+    let wildcard = bytes.iter().position(|byte| matches!(byte, b'*' | b'?'));
+    // Every measured position is an ASCII delimiter; only relative ordering
+    // is used here, so byte ordering gives the same branch as UTF-16 offsets.
+    let prefix = |index| spec.split_at_byte(index).expect("ASCII boundary").0;
     if let Some(wildcard) = wildcard {
-        let recursive = wildcard < last_separator.unwrap_or(spec.len());
+        let recursive = wildcard < last_separator.unwrap_or(bytes.len());
         let path = if recursive {
-            let component_separator = spec[..wildcard].rfind('/').unwrap_or(0);
+            let component_separator = bytes[..wildcard]
+                .iter()
+                .rposition(|byte| *byte == b'/')
+                .unwrap_or(0);
             if component_separator == 0 {
-                "/"
+                JsStr::from("/")
             } else {
-                &spec[..component_separator]
+                prefix(component_separator)
             }
         } else {
             last_separator
-                .map(|index| if index == 0 { "/" } else { &spec[..index] })
-                .unwrap_or(".")
+                .map(|index| {
+                    if index == 0 {
+                        JsStr::from("/")
+                    } else {
+                        prefix(index)
+                    }
+                })
+                .unwrap_or_else(|| ".".into())
         };
         return Some((path.to_owned(), recursive));
     }
-
-    // `include: ["src"]` is TypeScript's implicit recursive glob.
     let file_name = last_separator
-        .map(|index| &spec[index + 1..])
+        .map(|index| spec.split_at_byte(index + 1).expect("ASCII boundary").1)
         .unwrap_or(spec);
-    if !file_name.contains('.') {
-        return Some((spec.to_owned(), true));
-    }
-    None
+    (!file_name.contains(".")).then(|| (spec.to_owned(), true))
 }
 
-fn same_path(left: &str, right: &str, case_sensitive: bool) -> bool {
-    if case_sensitive {
-        left == right
-    } else {
-        to_file_name_lower_case(left) == to_file_name_lower_case(right)
-    }
+fn same_path<'l, 'r>(
+    left: impl Into<JsStr<'l>>,
+    right: impl Into<JsStr<'r>>,
+    case_sensitive: bool,
+) -> bool {
+    file_name_key(left.into(), case_sensitive) == file_name_key(right.into(), case_sensitive)
 }
 
-fn path_is_descendant(parent: &str, child: &str, case_sensitive: bool) -> bool {
-    let parent = if case_sensitive {
-        parent.to_owned()
-    } else {
-        to_file_name_lower_case(parent)
-    };
-    let child = if case_sensitive {
-        child.to_owned()
-    } else {
-        to_file_name_lower_case(child)
-    };
-    child
-        .strip_prefix(parent.trim_end_matches('/'))
-        .is_some_and(|tail| tail.starts_with('/'))
+fn path_is_descendant<'p, 'c>(
+    parent: impl Into<JsStr<'p>>,
+    child: impl Into<JsStr<'c>>,
+    case_sensitive: bool,
+) -> bool {
+    let parent = file_name_key(parent.into(), case_sensitive);
+    let child = file_name_key(child.into(), case_sensitive);
+    let mut prefix = trim_config_path_separators(parent.as_js()).to_owned();
+    prefix.push('/');
+    child.as_js().starts_with_js(prefix.as_js())
 }
 
 /// The config parser deliberately knows the complete TypeScript option
@@ -2158,8 +2182,11 @@ pub const H0_SUPPORTED_CONFIG_OPTIONS: &[&str] = &[
     "declarationDir",
 ];
 
-fn config_option_is_supported_by_h0(name: &str) -> bool {
-    H0_SUPPORTED_CONFIG_OPTIONS.contains(&name)
+fn config_option_is_supported_by_h0<'n>(name: impl Into<JsStr<'n>>) -> bool {
+    let name = name.into();
+    H0_SUPPORTED_CONFIG_OPTIONS
+        .iter()
+        .any(|candidate| name == *candidate)
 }
 
 const H1_EMIT_PROJECTED_CONFIG_OPTIONS: &[&str] = &[
@@ -2200,8 +2227,11 @@ const H1_EMIT_PROJECTED_CONFIG_OPTIONS: &[&str] = &[
     "noEmitHelpers",
 ];
 
-fn config_option_is_projected_for_h1_emit(name: &str) -> bool {
-    H1_EMIT_PROJECTED_CONFIG_OPTIONS.contains(&name)
+fn config_option_is_projected_for_h1_emit<'n>(name: impl Into<JsStr<'n>>) -> bool {
+    let name = name.into();
+    H1_EMIT_PROJECTED_CONFIG_OPTIONS
+        .iter()
+        .any(|candidate| name == *candidate)
 }
 
 fn config_value_requests_feature(value: &Value) -> bool {
@@ -2218,14 +2248,14 @@ fn parse_config_source(source: &ConfigSourceText) -> Result<SourceFile, ConfigPa
     match json_parser_preflight(source.text()) {
         JsonParserPreflight::Safe => {}
         JsonParserPreflight::UnsafeSyntax => {
-            return Err(ConfigParseError::new(
+            return Err(ConfigParseError::new_js(
                 ConfigParseErrorKind::Unsupported,
                 Some(source.file_name.clone()),
                 "config source uses syntax outside the bounded JSONC grammar",
             ));
         }
         JsonParserPreflight::ResourceLimit => {
-            return Err(ConfigParseError::new(
+            return Err(ConfigParseError::new_js(
                 ConfigParseErrorKind::ResourceLimit,
                 Some(source.file_name.clone()),
                 "config JSON nesting exceeds the 256-level parser limit",
@@ -2242,7 +2272,11 @@ impl ParseContext<'_> {
     // tsc-port: getExtendedConfig @6.0.3
     // tsc-hash: 545d6ab16e97cc943150aa4dd577a88bb693aa81ca82a86f7a75328b37d9084f
     // tsc-span: _tsc.js:39460-39500
-    fn extended_config(&mut self, path: &str) -> Result<CachedExtendedConfig, ConfigParseError> {
+    fn extended_config<'j0>(
+        &mut self,
+        path: impl Into<JsStr<'j0>>,
+    ) -> Result<CachedExtendedConfig, ConfigParseError> {
+        let path = path.into();
         let key = canonical_key(path, self.host.use_case_sensitive_file_names());
         if let Some(entry) = self
             .extended_cache
@@ -2260,14 +2294,14 @@ impl ParseContext<'_> {
             node: None,
             read_parse_diagnostics: Vec::new(),
         };
-        match self.host.read_file(path) {
+        match self.host.read_file(path.into()) {
             Ok(Some(text)) => {
                 let source = ConfigSourceText::new(path, text);
                 let parsed = parse_config_source(&source)?;
                 entry.read_parse_diagnostics = parsed.parse_diagnostics.to_vec();
                 entry.source = Some(source.clone());
                 entry.node = self
-                    .parse_node_from_source(source, parsed, path, &directory_name(path), false)?
+                    .parse_node_from_source(source, parsed, path, &js_directory_name(path), false)?
                     .map(Box::new);
             }
             Ok(None) => {
@@ -2282,7 +2316,7 @@ impl ParseContext<'_> {
             Err(error) => {
                 entry.read_parse_diagnostics.push(config_diagnostic(
                     &gen::Cannot_read_file_0_1,
-                    &[path.to_owned(), error.detail().to_owned()],
+                    &[path.to_owned(), JsString::from(error.detail())],
                     None,
                 ));
                 self.errors
@@ -2295,25 +2329,29 @@ impl ParseContext<'_> {
         Ok(entry)
     }
 
-    fn parse_node(
+    fn parse_node<'j0, 'j1>(
         &mut self,
         source: ConfigSourceText,
-        normalized_file_name: &str,
-        base_path: &str,
+        normalized_file_name: impl Into<JsStr<'j0>>,
+        base_path: impl Into<JsStr<'j1>>,
         is_root: bool,
     ) -> Result<Option<ParsedConfigNode>, ConfigParseError> {
+        let normalized_file_name = normalized_file_name.into();
+        let base_path = base_path.into();
         let parsed = parse_config_source(&source)?;
         self.parse_node_from_source(source, parsed, normalized_file_name, base_path, is_root)
     }
 
-    fn parse_node_from_source(
+    fn parse_node_from_source<'j0, 'j1>(
         &mut self,
         source: ConfigSourceText,
         parsed: SourceFile,
-        normalized_file_name: &str,
-        base_path: &str,
+        normalized_file_name: impl Into<JsStr<'j0>>,
+        base_path: impl Into<JsStr<'j1>>,
         is_root: bool,
     ) -> Result<Option<ParsedConfigNode>, ConfigParseError> {
+        let normalized_file_name = normalized_file_name.into();
+        let base_path = base_path.into();
         if !parsed.parse_diagnostics.is_empty() {
             if is_root {
                 self.root_parse_diagnostics
@@ -2324,7 +2362,7 @@ impl ParseContext<'_> {
             }
         }
         if self.stack.len() >= MAX_CONFIG_EXTENDS_DEPTH {
-            return Err(ConfigParseError::new(
+            return Err(ConfigParseError::new_js(
                 ConfigParseErrorKind::ResourceLimit,
                 Some(normalized_file_name.to_owned()),
                 format!("config extends depth exceeds the {MAX_CONFIG_EXTENDS_DEPTH}-source limit"),
@@ -2340,7 +2378,7 @@ impl ParseContext<'_> {
             // cycle arm; unported syntax shapes stay a later slice.
             if !json_source_file_is_empty(&parsed) {
                 convert_recoverable_json_source_file_to_value(&parsed).ok_or_else(|| {
-                    ConfigParseError::new(
+                    ConfigParseError::new_js(
                         ConfigParseErrorKind::Unsupported,
                         Some(source.file_name.clone()),
                         "the cyclic config syntax tree is outside the currently ported JSONC conversion surface",
@@ -2349,9 +2387,16 @@ impl ParseContext<'_> {
             }
             let mut cycle = self.stack.clone();
             cycle.push(cache_key);
+            let mut cycle_message = JsString::new();
+            for (index, path) in cycle.iter().enumerate() {
+                if index != 0 {
+                    cycle_message.push_str(" -> ");
+                }
+                cycle_message.push_js(path.as_js());
+            }
             self.errors.push(config_diagnostic(
                 &gen::Circularity_detected_while_resolving_configuration_0,
-                &[cycle.join(" -> ")],
+                &[cycle_message],
                 None,
             ));
             self.errors
@@ -2364,20 +2409,22 @@ impl ParseContext<'_> {
         result
     }
 
-    fn parse_node_uncached(
+    fn parse_node_uncached<'j0, 'j1>(
         &mut self,
         source: ConfigSourceText,
         parsed: SourceFile,
-        normalized_file_name: &str,
-        base_path: &str,
+        normalized_file_name: impl Into<JsStr<'j0>>,
+        base_path: impl Into<JsStr<'j1>>,
     ) -> Result<Option<ParsedConfigNode>, ConfigParseError> {
+        let normalized_file_name = normalized_file_name.into();
+        let base_path = base_path.into();
         let mut own_errors = config_json_conversion_diagnostics(&parsed);
         let json_conversion_error_count = own_errors.len();
         let mut raw = if json_source_file_is_empty(&parsed) {
             Value::Object(Map::new())
         } else {
             convert_recoverable_json_source_file_to_value(&parsed).ok_or_else(|| {
-                ConfigParseError::new(
+                ConfigParseError::new_js(
                     ConfigParseErrorKind::Unsupported,
                     Some(source.file_name.clone()),
                     "the recovered config syntax tree is outside the currently ported JSONC conversion surface",
@@ -2385,12 +2432,18 @@ impl ParseContext<'_> {
             })?
         };
         if !raw.is_object() {
-            let config_kind =
-                if source.file_name.rsplit(['/', '\\']).next() == Some("jsconfig.json") {
-                    "jsconfig.json"
-                } else {
-                    "tsconfig.json"
-                };
+            let config_kind = if source
+                .file_name
+                .as_js()
+                .split_ascii(b'/')
+                .next_back()
+                .and_then(|tail| tail.split_ascii(b'\\').next_back())
+                == Some("jsconfig.json".into())
+            {
+                "jsconfig.json"
+            } else {
+                "tsconfig.json"
+            };
             own_errors.push(config_diagnostic(
                 &gen::The_root_value_of_a_0_file_must_be_an_object,
                 &[config_kind.to_owned()],
@@ -2421,7 +2474,7 @@ impl ParseContext<'_> {
             config_property_get(object, &raw_property_names, "watchOptions").cloned();
         let raw_type_acquisition =
             config_property_get(object, &raw_property_names, "typeAcquisition").cloned();
-        let own_compile_on_save_present = raw_property_names.contains("compileOnSave");
+        let own_compile_on_save_present = raw_property_names.contains("compileOnSave".as_bytes());
         let own_compile_on_save =
             config_property_get(object, &raw_property_names, "compileOnSave").cloned();
 
@@ -2441,7 +2494,7 @@ impl ParseContext<'_> {
             converted_own_options.insert_typed(
                 "pathsBasePath",
                 Some(ConfigTypedOptionValue::Json(Value::String(
-                    base_path.to_owned(),
+                    base_path.into(),
                 ))),
             );
         }
@@ -2472,7 +2525,7 @@ impl ParseContext<'_> {
         {
             own_errors.push(config_diagnostic(
                 &gen::Unknown_option_excludes_Did_you_mean_exclude,
-                &[],
+                &[] as &[String],
                 config_location(&parsed, property.name_node),
             ));
         }
@@ -2634,18 +2687,18 @@ impl ParseContext<'_> {
                         Value::Array(
                             specs
                                 .iter()
-                                .map(|spec| Value::String(spec.text.clone()))
+                                .map(|spec| Value::String(spec.text.clone().into()))
                                 .collect(),
                         ),
                     );
-                    raw_property_names.insert(name.to_owned());
+                    raw_property_names.insert(name.into());
                 }
             }
         }
-        if !raw_property_names.contains("compileOnSave") {
+        if !raw_property_names.contains("compileOnSave".as_bytes()) {
             if let Some(value) = &compile_on_save {
                 raw_object.insert("compileOnSave".to_owned(), value.clone());
-                raw_property_names.insert("compileOnSave".to_owned());
+                raw_property_names.insert("compileOnSave".into());
             }
         }
         let inheritable_files =
@@ -2687,26 +2740,28 @@ impl ParseContext<'_> {
         }))
     }
 
-    fn resolve_extends(
+    fn resolve_extends<'j0>(
         &self,
         extends: &ConfigExtendsSpec,
-        base_path: &str,
+        base_path: impl Into<JsStr<'j0>>,
         errors: &mut Vec<Diagnostic>,
-    ) -> Result<Option<String>, ConfigParseError> {
-        let slashed = extends.text.replace('\\', "/");
-        if slashed.starts_with('/')
+    ) -> Result<Option<JsString>, ConfigParseError> {
+        let base_path = base_path.into();
+        let slashed = normalize_slashes(extends.text.as_js());
+        if slashed.starts_with("/")
             || is_drive_rooted(&slashed)
             || slashed.starts_with("./")
             || slashed.starts_with("../")
         {
             let candidate = normalized_path(&slashed, base_path)?;
-            let candidate_exists = self.host.file_exists(&candidate)?;
+            let candidate_exists = self.host.file_exists(candidate.as_js())?;
             if candidate_exists || candidate.ends_with(".json") {
                 return Ok(Some(candidate));
             }
             if !candidate.ends_with(".json") {
-                let json = format!("{candidate}.json");
-                if self.host.file_exists(&json)? {
+                let mut json = candidate.clone();
+                json.push_str(".json");
+                if self.host.file_exists(json.as_js())? {
                     return Ok(Some(json));
                 }
             }
@@ -2722,7 +2777,7 @@ impl ParseContext<'_> {
             let (message, args) = if extends.text.is_empty() {
                 (
                     &gen::Compiler_option_0_cannot_be_given_an_empty_string,
-                    vec!["extends".to_owned()],
+                    vec![JsString::from("extends")],
                 )
             } else {
                 (&gen::File_0_not_found, vec![extends.text.clone()])
@@ -2732,14 +2787,16 @@ impl ParseContext<'_> {
         Ok(resolved)
     }
 
-    fn resolve_package_extends(
+    fn resolve_package_extends<'j0, 'j1>(
         &self,
-        specifier: &str,
-        base_path: &str,
-    ) -> Result<Option<String>, ConfigParseError> {
+        specifier: impl Into<JsStr<'j0>>,
+        base_path: impl Into<JsStr<'j1>>,
+    ) -> Result<Option<JsString>, ConfigParseError> {
+        let specifier = specifier.into();
+        let base_path = base_path.into();
         let compiler_host = ConfigCompilerHostAdapter {
             host: self.host,
-            current_directory: base_path,
+            current_directory: base_path.into(),
         };
         let options = CompilerOptions {
             module_resolution: Some(99),
@@ -2748,24 +2805,14 @@ impl ParseContext<'_> {
         };
         let mut resolver =
             ModuleResolver::new(&compiler_host, &options).map_err(config_error_from_resolution)?;
-        let containing_file = PathBuf::from(join_path(base_path, "tsconfig.json"));
+        let containing_file = join_path(base_path, "tsconfig.json");
         match resolver
             .resolve_json_config(&containing_file, specifier)
             .map_err(config_error_from_resolution)?
         {
-            ResolutionOutcome::Resolved(module) => module
-                .resolved_file()
-                .display()
-                .to_str()
-                .map(str::to_owned)
-                .map(Some)
-                .ok_or_else(|| {
-                    ConfigParseError::new(
-                        ConfigParseErrorKind::InvalidPath,
-                        Some(module.resolved_file().display().display().to_string()),
-                        "resolved config path is not valid Unicode",
-                    )
-                }),
+            ResolutionOutcome::Resolved(module) => {
+                Ok(Some(module.resolved_file().display().to_owned()))
+            }
             ResolutionOutcome::NotFound => Ok(None),
         }
     }
@@ -2773,7 +2820,7 @@ impl ParseContext<'_> {
 
 #[derive(Clone, Debug)]
 struct ConfigPropertyNode {
-    name: String,
+    name: JsString,
     name_node: NodeId,
     initializer: NodeId,
 }
@@ -2813,7 +2860,12 @@ fn config_diagnostic_owner<'a>(
     owners
         .iter()
         .filter(|owner| {
-            owner.file_name == diagnostic.file_name.as_deref().unwrap_or_default()
+            owner.file_name.as_js()
+                == diagnostic
+                    .file_name
+                    .as_ref()
+                    .map(JsString::as_js)
+                    .unwrap_or_else(|| "".into())
                 && owner.start <= diagnostic_start
                 && diagnostic_end <= owner.start.saturating_add(owner.length)
         })
@@ -2831,7 +2883,7 @@ fn config_diagnostic_owners(source: &SourceFile) -> Vec<ConfigLocation> {
         }
         if matches!(
             property.name.as_str(),
-            "compilerOptions" | "watchOptions" | "typeAcquisition"
+            Some("compilerOptions" | "watchOptions" | "typeAcquisition")
         ) {
             owners.extend(
                 config_object_properties(source, property.initializer)
@@ -2857,12 +2909,16 @@ fn config_property_owner_location(
     })
 }
 
-fn config_diagnostic(
+fn config_diagnostic<A: DiagnosticArgument>(
     message: &'static DiagnosticMessage,
-    args: &[String],
+    args: &[A],
     location: Option<ConfigLocation>,
 ) -> Diagnostic {
-    config_diagnostic_from_chain(MessageChain::new(message, args), location)
+    let args = args
+        .iter()
+        .map(|arg| arg.diagnostic_value().to_owned())
+        .collect::<Vec<_>>();
+    config_diagnostic_from_chain(MessageChain::new_js(message, &args), location)
 }
 
 fn config_diagnostic_from_chain(
@@ -2870,7 +2926,7 @@ fn config_diagnostic_from_chain(
     location: Option<ConfigLocation>,
 ) -> Diagnostic {
     match location {
-        Some(location) => Diagnostic::new(
+        Some(location) => Diagnostic::new_js(
             Some(location.file_name),
             Some(location.start),
             Some(location.length),
@@ -2922,7 +2978,7 @@ fn config_paths_syntax_index(source: &SourceFile) -> ConfigPathsSyntaxIndex {
         if source.arena.node(paths.initializer).kind != SyntaxKind::ObjectLiteralExpression {
             continue;
         }
-        let mut object_locations = BTreeMap::<String, ConfigPathsKeySyntax>::new();
+        let mut object_locations = BTreeMap::<JsString, ConfigPathsKeySyntax>::new();
         for mapping in config_object_properties(source, paths.initializer) {
             let Some(key_location) = config_span(source, mapping.name_node) else {
                 continue;
@@ -2981,7 +3037,7 @@ enum ConfigPathsDiagnosticLocation {
 }
 
 struct PendingConfigPathsViolation<'a> {
-    key: &'a str,
+    key: JsStr<'a>,
     target: ConfigPathsDiagnosticLocation,
     kind: PathsOptionViolationKind,
 }
@@ -3063,7 +3119,7 @@ fn no_lib_lib_option_diagnostics(
             .filter(|property| property.name == "compilerOptions")
         {
             for property in config_object_properties(&parsed, compiler_options.initializer) {
-                if matches!(property.name.as_str(), "lib" | "noLib") {
+                if matches!(property.name.as_str(), Some("lib" | "noLib")) {
                     locations.push(config_location(&parsed, property.name_node));
                 }
             }
@@ -3107,13 +3163,13 @@ fn deprecation_option_diagnostics(
         .and_then(|property| config_location(&parsed, property.name_node));
     let ignore_state = options.typed_value_state("ignoreDeprecations");
     let ignore = match ignore_state {
-        ConfigOptionValueState::Value(Value::String(value)) => Some(value.as_str()),
+        ConfigOptionValueState::Value(Value::String(value)) => Some(value.as_js()),
         _ => None,
     };
     let ignore_invalid = match ignore_state {
         ConfigOptionValueState::Absent => false,
         ConfigOptionValueState::Value(Value::String(value)) => {
-            !matches!(value.as_str(), "5.0" | "6.0")
+            !matches!(value.as_str(), Some("5.0" | "6.0"))
         }
         ConfigOptionValueState::Value(_)
         | ConfigOptionValueState::Undefined
@@ -3140,7 +3196,7 @@ fn deprecation_option_diagnostics(
     // A deprecation can be silenced only by the matching 6.0 suppression
     // version. `"5.0"` remains a valid value, but intentionally does not
     // silence options deprecated in 6.0.
-    let silences_ts6 = ignore == Some("6.0");
+    let silences_ts6 = ignore.is_some_and(|value| value == "6.0");
 
     let target = config_option_i32(options, "target");
     if target == Some(0) {
@@ -3421,7 +3477,12 @@ fn emit_option_validation_diagnostic_for_properties(
     let names = violation.option_names();
     let mut locations = properties
         .iter()
-        .filter(|property| names.contains(&property.name.as_str()))
+        .filter(|property| {
+            property
+                .name
+                .as_str()
+                .is_some_and(|name| names.contains(&name))
+        })
         .filter_map(|property| {
             config_location(
                 source,
@@ -3655,11 +3716,11 @@ fn pending_paths_option_violations(
 fn push_paths_violations(
     violations: &mut Vec<PathsOptionViolation>,
     syntax: &ConfigPathsSyntaxIndex,
-    key: &str,
+    key: JsStr<'_>,
     target: ConfigPathsDiagnosticLocation,
     kind: PathsOptionViolationKind,
 ) {
-    let key_syntax = syntax.mapping_locations.get(key);
+    let key_syntax = syntax.mapping_locations.get(key.as_bytes());
     match target {
         ConfigPathsDiagnosticLocation::Key | ConfigPathsDiagnosticLocation::Value => {
             if let Some(key_syntax) = key_syntax {
@@ -3720,42 +3781,49 @@ fn config_typed_json_typeof(value: &ConfigTypedJsonValue) -> &'static str {
     }
 }
 
-fn config_typed_json_to_js_string(value: &ConfigTypedJsonValue) -> String {
-    // TypeScript 6.0.3 can reach a Debug Failure while formatting a null
-    // programmatic substitution. Config parsing should remain fail-safe after
-    // publishing TS5064, so Rust applies JavaScript ToString to every retained
-    // non-string shape instead of panicking at this diagnostic boundary.
+fn config_typed_json_to_js_string(value: &ConfigTypedJsonValue) -> JsString {
+    // Retain the existing recoverable ToString behavior for diagnosed invalid
+    // option shapes, including string values nested in arrays.
     match value {
         ConfigTypedJsonValue::Json(value) => json_value_to_js_string(value),
-        ConfigTypedJsonValue::Array(values) => values
-            .iter()
-            .map(|value| match value {
-                ConfigTypedJsonValue::Json(Value::Null) => String::new(),
-                value => config_typed_json_to_js_string(value),
-            })
-            .collect::<Vec<_>>()
-            .join(","),
-        ConfigTypedJsonValue::Object(_) => "[object Object]".to_owned(),
+        ConfigTypedJsonValue::Array(values) => {
+            let mut result = JsString::new();
+            for (index, value) in values.iter().enumerate() {
+                if index != 0 {
+                    result.push(',');
+                }
+                if !matches!(value, ConfigTypedJsonValue::Json(Value::Null)) {
+                    result.push_js(config_typed_json_to_js_string(value).as_js());
+                }
+            }
+            result
+        }
+        ConfigTypedJsonValue::Object(_) => "[object Object]".into(),
     }
 }
 
-fn json_value_to_js_string(value: &Value) -> String {
+fn json_value_to_js_string(value: &Value) -> JsString {
     match value {
-        Value::Null => "null".to_owned(),
-        Value::Bool(value) => value.to_string(),
+        Value::Null => "null".into(),
+        Value::Bool(value) => value.to_string().into(),
         Value::Number(value) => js_number_to_string(
             json_number_as_f64(value).expect("config JSON numbers have a JavaScript projection"),
-        ),
+        )
+        .into(),
         Value::String(value) => value.clone(),
-        Value::Array(values) => values
-            .iter()
-            .map(|value| match value {
-                Value::Null => String::new(),
-                value => json_value_to_js_string(value),
-            })
-            .collect::<Vec<_>>()
-            .join(","),
-        Value::Object(_) => "[object Object]".to_owned(),
+        Value::Array(values) => {
+            let mut result = JsString::new();
+            for (index, value) in values.iter().enumerate() {
+                if index != 0 {
+                    result.push(',');
+                }
+                if !matches!(value, Value::Null) {
+                    result.push_js(json_value_to_js_string(value).as_js());
+                }
+            }
+            result
+        }
+        Value::Object(_) => "[object Object]".into(),
     }
 }
 
@@ -3864,7 +3932,7 @@ fn config_json_conversion_diagnostics_from_root(
             if !is_double_quoted_json_string(source, name) {
                 diagnostics.push(config_diagnostic(
                     &gen::String_literal_with_double_quotes_expected,
-                    &[],
+                    &[] as &[String],
                     config_location(source, name),
                 ));
             }
@@ -3876,7 +3944,7 @@ fn config_json_conversion_diagnostics_from_root(
                 if !is_double_quoted_json_string(source, node_id) {
                     diagnostics.push(config_diagnostic(
                         &gen::String_literal_with_double_quotes_expected,
-                        &[],
+                        &[] as &[String],
                         config_location(source, node_id),
                     ));
                 }
@@ -3939,7 +4007,9 @@ fn config_json_conversion_diagnostics_from_root(
                                 .name
                                 .and_then(|name| config_property_name(source, name));
                             let initializer_context = match context {
-                                ConfigJsonConversionContext::Root => match property_name.as_deref()
+                                ConfigJsonConversionContext::Root => match property_name
+                                    .as_ref()
+                                    .and_then(JsString::as_str)
                                 {
                                     Some("compilerOptions") => {
                                         ConfigJsonConversionContext::Options(
@@ -3973,7 +4043,7 @@ fn config_json_conversion_diagnostics_from_root(
                                     Some(_) | None => ConfigJsonConversionContext::Generic,
                                 },
                                 ConfigJsonConversionContext::Options(group) => match property_name
-                                    .as_deref()
+                                    .as_ref()
                                     .and_then(|name| group.declaration(name))
                                 {
                                     Some(declaration) => match declaration.value_kind() {
@@ -4018,7 +4088,7 @@ fn config_json_conversion_diagnostics_from_root(
             _ if matches!(context, ConfigJsonConversionContext::Generic) => {
                 diagnostics.push(config_diagnostic(
                     &gen::Property_value_can_only_be_string_literal_numeric_literal_true_false_null_object_literal_or_array_literal,
-                    &[],
+                    &[] as &[String],
                     config_location(source, node_id),
                 ));
             }
@@ -4119,7 +4189,7 @@ fn config_object_properties(source: &SourceFile, object: NodeId) -> Vec<ConfigPr
         .collect()
 }
 
-fn config_property_name(source: &SourceFile, name: NodeId) -> Option<String> {
+fn config_property_name(source: &SourceFile, name: NodeId) -> Option<JsString> {
     let node = source.arena.node(name);
     match node.kind {
         SyntaxKind::StringLiteral => node
@@ -4129,11 +4199,11 @@ fn config_property_name(source: &SourceFile, name: NodeId) -> Option<String> {
         SyntaxKind::Identifier => node
             .data
             .as_identifier()
-            .map(|identifier| identifier.text.clone()),
+            .map(|identifier| identifier.text.clone().into()),
         SyntaxKind::NumericLiteral => node
             .data
             .as_numeric_literal()
-            .map(|literal| literal.text.clone()),
+            .map(|literal| literal.text.clone().into()),
         _ => None,
     }
 }
@@ -4149,7 +4219,12 @@ fn config_array_elements(source: &SourceFile, array: NodeId) -> Vec<NodeId> {
         .unwrap_or_default()
 }
 
-fn config_spec_location(source: &SourceFile, name: &str, value: &str) -> Option<ConfigLocation> {
+fn config_spec_location<'v>(
+    source: &SourceFile,
+    name: &str,
+    value: impl Into<JsStr<'v>>,
+) -> Option<ConfigLocation> {
+    let value = value.into();
     let root = config_root_expression(source)?;
     if source.arena.node(root).kind != SyntaxKind::ObjectLiteralExpression {
         return None;
@@ -4161,7 +4236,7 @@ fn config_spec_location(source: &SourceFile, name: &str, value: &str) -> Option<
         for element in config_array_elements(source, property.initializer) {
             if matches!(
                 convert_recoverable_json_node_to_value(source, element),
-                Some(RecoverableJsonValue::Defined(Value::String(written))) if written == value
+                Some(RecoverableJsonValue::Defined(Value::String(written))) if written.as_js() == value
             ) {
                 return config_location(source, element);
             }
@@ -4195,12 +4270,26 @@ fn config_raw_projection(value: Value) -> Value {
 /// through the caller-supplied config host.
 struct ConfigCompilerHostAdapter<'a> {
     host: &'a dyn ConfigParseHost,
-    current_directory: &'a str,
+    current_directory: JsStr<'a>,
 }
 
 impl CompilerHost for ConfigCompilerHostAdapter<'_> {
     fn current_directory(&self) -> Result<PathBuf, HostError> {
-        Ok(PathBuf::from(self.current_directory))
+        self.current_directory
+            .as_str()
+            .map(PathBuf::from)
+            .ok_or_else(|| {
+                HostError::new_js(
+                    HostErrorKind::InvalidData,
+                    HostOperation::CurrentDirectory,
+                    Some(self.current_directory),
+                    "the native current-directory callback cannot represent a non-scalar JS path",
+                )
+            })
+    }
+
+    fn current_directory_js(&self) -> Result<JsString, HostError> {
+        Ok(self.current_directory.to_owned())
     }
 
     fn use_case_sensitive_file_names(&self) -> bool {
@@ -4208,31 +4297,58 @@ impl CompilerHost for ConfigCompilerHostAdapter<'_> {
     }
 
     fn read_file(&self, path: &Path) -> Result<Option<Vec<u8>>, HostError> {
-        let path = path.to_string_lossy();
+        self.read_file_js(native_config_query(path, HostOperation::ReadFile)?)
+    }
+
+    fn read_file_js(&self, path: JsStr<'_>) -> Result<Option<Vec<u8>>, HostError> {
         self.host
-            .read_file(&path)
+            .read_file(path)
             .map(|text| text.map(String::into_bytes))
             .map_err(config_host_error_for_resolver)
     }
 
     fn file_exists(&self, path: &Path) -> Result<bool, HostError> {
-        let path = path.to_string_lossy();
+        self.file_exists_js(native_config_query(path, HostOperation::FileExists)?)
+    }
+
+    fn file_exists_js(&self, path: JsStr<'_>) -> Result<bool, HostError> {
         self.host
-            .file_exists(&path)
+            .file_exists(path)
             .map_err(config_host_error_for_resolver)
     }
 
     fn directory_exists(&self, _path: &Path) -> Result<bool, HostError> {
         Ok(true)
     }
-
+    fn directory_exists_js(&self, _path: JsStr<'_>) -> Result<bool, HostError> {
+        Ok(true)
+    }
     fn read_directory(&self, _path: &Path) -> Result<Vec<PathBuf>, HostError> {
         Ok(Vec::new())
     }
-
+    fn read_directory_js(&self, _path: JsStr<'_>) -> Result<Vec<JsString>, HostError> {
+        Ok(Vec::new())
+    }
+    fn get_directories_js(&self, _path: JsStr<'_>) -> Result<Vec<JsString>, HostError> {
+        Ok(Vec::new())
+    }
     fn realpath(&self, path: &Path) -> Result<Option<PathBuf>, HostError> {
         Ok(Some(path.to_path_buf()))
     }
+    fn realpath_js(&self, path: JsStr<'_>) -> Result<Option<JsString>, HostError> {
+        Ok(Some(path.to_owned()))
+    }
+}
+
+fn native_config_query(path: &Path, operation: HostOperation) -> Result<JsStr<'_>, HostError> {
+    path.to_str().map(JsStr::from_str).ok_or_else(|| {
+        HostError::new(
+            HostErrorKind::InvalidInput,
+            operation,
+            Some(path.to_owned()),
+            "path is not valid Unicode",
+        )
+    })
 }
 
 fn config_host_error_for_resolver(error: ConfigHostError) -> HostError {
@@ -4241,10 +4357,10 @@ fn config_host_error_for_resolver(error: ConfigHostError) -> HostError {
         ConfigHostOperation::ReadFile => HostOperation::ReadFile,
         ConfigHostOperation::ReadDirectory => HostOperation::ReadDirectory,
     };
-    HostError::new(
+    HostError::new_js(
         HostErrorKind::Other,
         operation,
-        Some(PathBuf::from(error.path())),
+        Some(error.path()),
         error.detail().to_owned(),
     )
 }
@@ -4261,54 +4377,65 @@ fn config_error_from_resolution(error: ResolutionError) -> ConfigParseError {
             if let Some(operation) = operation {
                 return ConfigHostError::new(
                     operation,
-                    error
-                        .path()
-                        .map_or_else(String::new, |path| path.display().to_string()),
+                    error.js_path().map(JsStr::to_owned).unwrap_or_else(|| {
+                        error
+                            .path()
+                            .map_or_else(JsString::new, |path| path.display().to_string().into())
+                    }),
                     error.detail().to_owned(),
                 )
                 .into();
             }
-            ConfigParseError::new(
+            ConfigParseError::new_js(
                 ConfigParseErrorKind::Host,
-                error.path().map(|path| path.display().to_string()),
+                error
+                    .js_path()
+                    .map(JsStr::to_owned)
+                    .or_else(|| error.path().map(|path| path.display().to_string().into())),
                 error.to_string(),
             )
         }
-        ResolutionError::Unsupported { feature, detail } => ConfigParseError::new(
+        ResolutionError::Unsupported { feature, detail } => ConfigParseError::new_js(
             ConfigParseErrorKind::Unsupported,
             None,
             format!("unsupported config resolution feature {feature}: {detail}"),
         ),
-        ResolutionError::Canonicalization { path, detail } => ConfigParseError::new(
+        ResolutionError::Canonicalization {
+            path,
+            js_path,
+            detail,
+        } => ConfigParseError::new_js(
             ConfigParseErrorKind::InvalidPath,
-            path.map(|path| path.display().to_string()),
+            js_path.or_else(|| path.map(|path| path.display().to_string().into())),
             detail,
         ),
         ResolutionError::InvalidData(detail) => {
-            ConfigParseError::new(ConfigParseErrorKind::InvalidConfig, None, detail)
+            ConfigParseError::new_js(ConfigParseErrorKind::InvalidConfig, None, detail)
         }
         ResolutionError::ResourceLimit(detail) => {
-            ConfigParseError::new(ConfigParseErrorKind::ResourceLimit, None, detail)
+            ConfigParseError::new_js(ConfigParseErrorKind::ResourceLimit, None, detail)
         }
     }
 }
 
-fn derive_file_names(
+fn derive_file_names<'j0, 'j1>(
     host: &dyn ConfigParseHost,
     config: &ParsedConfigNode,
-    base_path: &str,
-    config_file_name: &str,
+    base_path: impl Into<JsStr<'j0>>,
+    config_file_name: impl Into<JsStr<'j1>>,
     discovery_options: &ConfigDiscoveryOptions,
     errors: &mut Vec<Diagnostic>,
-) -> Result<Vec<String>, ConfigParseError> {
+) -> Result<Vec<JsString>, ConfigParseError> {
+    let base_path = base_path.into();
+    let config_file_name = config_file_name.into();
     let case_sensitive = host.use_case_sensitive_file_names();
-    let mut literal = Vec::<(String, String)>::new();
+    let mut literal = Vec::<(JsString, JsString)>::new();
     if let Some(files) = &config.files {
         for file in files {
             let normalized = normalized_spec_path(file, base_path)?;
             map_insert(
                 &mut literal,
-                canonical_key(&normalized, case_sensitive),
+                file_name_key(normalized.as_js(), case_sensitive),
                 normalized,
             );
         }
@@ -4317,7 +4444,7 @@ fn derive_file_names(
     let include = match &config.include {
         Some(include) => include.clone(),
         None if config.files.is_none() => vec![ConfigSpec {
-            text: "**/*".to_owned(),
+            text: "**/*".into(),
             base_path: base_path.to_owned(),
             location: None,
         }],
@@ -4377,7 +4504,7 @@ fn derive_file_names(
         Vec::new()
     } else {
         host.read_directory(
-            base_path,
+            base_path.into(),
             &flat_extensions,
             exclude_values.as_deref(),
             Some(include_values.as_slice()),
@@ -4389,7 +4516,7 @@ fn derive_file_names(
         .filter(|include| include.ends_with(".json"))
         .map(|include| {
             ConfigFilePattern::new(include, base_path, case_sensitive).map_err(|detail| {
-                ConfigParseError::new(
+                ConfigParseError::new_js(
                     ConfigParseErrorKind::InvalidPath,
                     Some(include.clone()),
                     detail,
@@ -4405,8 +4532,8 @@ fn derive_file_names(
         .iter()
         .map(|(key, _)| key.clone())
         .collect::<BTreeSet<_>>();
-    let mut wildcard = Vec::<(String, String)>::new();
-    let mut wildcard_json = Vec::<(String, String)>::new();
+    let mut wildcard = Vec::<(JsString, JsString)>::new();
+    let mut wildcard_json = Vec::<(JsString, JsString)>::new();
     for file in wildcard_candidates {
         if file_extension_is(&file, ".json") {
             if discovery_options.resolve_json_module
@@ -4414,7 +4541,7 @@ fn derive_file_names(
                     .iter()
                     .any(|include| include.matches(&file))
             {
-                let key = canonical_key(&file, case_sensitive);
+                let key = file_name_key(file.as_js(), case_sensitive);
                 if !literal_keys.contains(&key)
                     && !wildcard_json.iter().any(|(existing, _)| existing == &key)
                 {
@@ -4423,11 +4550,22 @@ fn derive_file_names(
             }
             continue;
         }
-        if has_higher_priority(&file, &literal, &wildcard, extension_groups, case_sensitive) {
+        if has_higher_priority(
+            file.as_js(),
+            &literal,
+            &wildcard,
+            extension_groups,
+            case_sensitive,
+        ) {
             continue;
         }
-        remove_lower_priority(&file, &mut wildcard, extension_groups, case_sensitive);
-        let key = canonical_key(&file, case_sensitive);
+        remove_lower_priority(
+            file.as_js(),
+            &mut wildcard,
+            extension_groups,
+            case_sensitive,
+        );
+        let key = file_name_key(file.as_js(), case_sensitive);
         if !literal_keys.contains(&key) && !wildcard.iter().any(|(existing, _)| existing == &key) {
             wildcard.push((key, file));
         }
@@ -4477,33 +4615,37 @@ fn validate_config_specs(
     validated
 }
 
-fn invalid_trailing_recursion_pattern(spec: &str) -> bool {
-    let candidate = spec.strip_suffix('/').unwrap_or(spec);
+fn invalid_trailing_recursion_pattern<'s>(spec: impl Into<JsStr<'s>>) -> bool {
+    let spec = spec.into();
+    let candidate = spec.strip_suffix("/").unwrap_or(spec);
     candidate == "**" || candidate.ends_with("/**")
 }
 
-fn invalid_dot_dot_after_recursive_wildcard(spec: &str) -> bool {
+fn invalid_dot_dot_after_recursive_wildcard<'s>(spec: impl Into<JsStr<'s>>) -> bool {
+    let spec = spec.into();
+    let bytes = spec.as_bytes();
     let wildcard_index = if spec.starts_with("**/") {
         Some(0)
     } else {
-        spec.find("/**/")
+        bytes.windows(4).position(|window| window == b"/**/")
     };
     let Some(wildcard_index) = wildcard_index else {
         return false;
     };
     let last_dot_index = if spec.ends_with("/..") {
-        Some(spec.len())
+        Some(bytes.len())
     } else {
-        spec.rfind("/../")
+        bytes.windows(4).rposition(|window| window == b"/../")
     };
-    last_dot_index.is_some_and(|last_dot_index| last_dot_index > wildcard_index)
+    last_dot_index.is_some_and(|index| index > wildcard_index)
 }
 
-fn report_empty_files(
+fn report_empty_files<'j0>(
     config: &ParsedConfigNode,
-    config_file_name: &str,
+    config_file_name: impl Into<JsStr<'j0>>,
     errors: &mut Vec<Diagnostic>,
 ) {
+    let config_file_name = config_file_name.into();
     let Some(raw) = config.raw.as_object() else {
         return;
     };
@@ -4518,7 +4660,7 @@ fn report_empty_files(
     };
     if files_are_empty
         && references_are_zero_or_absent
-        && !config.raw_property_names.contains("extends")
+        && !config.raw_property_names.contains("extends".as_bytes())
     {
         errors.push(config_diagnostic(
             &gen::The_files_list_in_config_file_0_is_empty,
@@ -4528,19 +4670,20 @@ fn report_empty_files(
     }
 }
 
-fn report_no_input_files(
+fn report_no_input_files<'j0>(
     config: &ParsedConfigNode,
-    config_file_name: &str,
-    file_names: &[String],
-    effective_excludes: Option<&[String]>,
+    config_file_name: impl Into<JsStr<'j0>>,
+    file_names: &[JsString],
+    effective_excludes: Option<&[JsString]>,
     errors: &mut Vec<Diagnostic>,
 ) {
+    let config_file_name = config_file_name.into();
     let Some(raw) = config.raw.as_object() else {
         return;
     };
     if !file_names.is_empty()
-        || config.raw_property_names.contains("files")
-        || config.raw_property_names.contains("references")
+        || config.raw_property_names.contains("files".as_bytes())
+        || config.raw_property_names.contains("references".as_bytes())
     {
         return;
     }
@@ -4549,7 +4692,7 @@ fn report_no_input_files(
         .get("include")
         .filter(|value| value.is_array())
         .cloned()
-        .unwrap_or_else(|| Value::Array(vec![Value::String("**/*".to_owned())]));
+        .unwrap_or_else(|| Value::Array(vec![Value::String("**/*".into())]));
     let exclude = raw
         .get("exclude")
         .filter(|value| value.is_array())
@@ -4560,7 +4703,7 @@ fn report_no_input_files(
                     .unwrap_or(&[])
                     .iter()
                     .cloned()
-                    .map(Value::String)
+                    .map(|value| Value::String(value.into()))
                     .collect(),
             )
         });
@@ -4568,7 +4711,7 @@ fn report_no_input_files(
     let exclude = javascript_json_stringify(&exclude);
     errors.push(config_diagnostic(
         &gen::No_inputs_were_found_in_config_file_0_Specified_include_paths_were_1_and_exclude_paths_were_2,
-        &[config_file_name.to_owned(), include, exclude],
+        &[config_file_name.to_owned(), include.into(), exclude.into()],
         None,
     ));
 }
@@ -4592,8 +4735,7 @@ fn append_javascript_json(value: &Value, result: &mut String) {
                 result.push_str("null");
             }
         }
-        Value::String(value) => result
-            .push_str(&serde_json::to_string(value).expect("a Rust string is JSON serializable")),
+        Value::String(value) => crate::append_json_quoted(value.as_js(), result),
         Value::Array(values) => {
             result.push('[');
             for (index, value) in values.iter().enumerate() {
@@ -4620,16 +4762,14 @@ fn append_javascript_json(value: &Value, result: &mut String) {
                 .chain(
                     object
                         .iter()
-                        .filter(|(name, _)| javascript_array_index(name).is_none()),
+                        .filter(|(name, _)| javascript_array_index(*name).is_none()),
                 )
             {
                 if !first {
                     result.push(',');
                 }
                 first = false;
-                result.push_str(
-                    &serde_json::to_string(name).expect("an object key is JSON serializable"),
-                );
+                crate::append_json_quoted(name.as_js(), result);
                 result.push(':');
                 append_javascript_json(value, result);
             }
@@ -4638,15 +4778,19 @@ fn append_javascript_json(value: &Value, result: &mut String) {
     }
 }
 
-fn javascript_array_index(name: &str) -> Option<u32> {
+fn javascript_array_index<'n>(name: impl Into<JsStr<'n>>) -> Option<u32> {
+    // Object index grammar is canonical ASCII decimal. Non-scalar names are
+    // ordinary string properties and keep their complete spelling elsewhere.
+    let name = name.into().as_str()?;
     let index = name.parse::<u32>().ok()?;
     (index != u32::MAX && index.to_string() == name).then_some(index)
 }
 
-fn effective_discovery_options(
+fn effective_discovery_options<'j0>(
     options: &ConfigOptionBag,
-    config_base_path: &str,
+    config_base_path: impl Into<JsStr<'j0>>,
 ) -> Result<ConfigDiscoveryOptions, ConfigParseError> {
+    let config_base_path = config_base_path.into();
     let allow_js = options
         .typed_value("allowJs")
         .and_then(Value::as_bool)
@@ -4676,14 +4820,15 @@ fn effective_discovery_options(
 /// tsc-port: getPathsBasePath @6.0.3
 /// tsc-hash: c569002f6d6a8e7d3b4e2718964fae18fd77125393b0193997bf4cc1f38c494a
 /// tsc-span: _tsc.js:16595-16599
-fn config_module_resolution_options(
+fn config_module_resolution_options<'j0>(
     options: &ConfigOptionBag,
     discovery: &ConfigDiscoveryOptions,
-    config_file_name: &str,
+    config_file_name: impl Into<JsStr<'j0>>,
     config_source: &ConfigSourceText,
     case_sensitive: bool,
     paths_option_validation: PathsOptionValidationPlan,
 ) -> Result<ConfigModuleResolutionOptions, ConfigParseError> {
+    let config_file_name = config_file_name.into();
     let compiler_options = CompilerOptions {
         allow_js: discovery.allow_js,
         force_consistent_casing_in_file_names: config_option_bool(
@@ -4872,7 +5017,7 @@ fn config_module_resolution_options(
             .collect();
         program_options = program_options.with_config_paths_validation(
             mappings,
-            options.stored_paths_base_path().map(str::to_owned),
+            options.stored_paths_base_path().map(JsStr::to_owned),
             paths_option_validation,
         );
     }
@@ -4914,14 +5059,14 @@ fn config_option_number(options: &ConfigOptionBag, name: &str) -> Option<Compile
     Some(CompilerOptionNumber::new(value))
 }
 
-fn config_option_string(options: &ConfigOptionBag, name: &str) -> Option<String> {
+fn config_option_string(options: &ConfigOptionBag, name: &str) -> Option<JsString> {
     options
         .typed_value(name)
-        .and_then(Value::as_str)
-        .map(str::to_owned)
+        .and_then(Value::as_js)
+        .map(JsStr::to_owned)
 }
 
-fn config_option_string_list(options: &ConfigOptionBag, name: &str) -> Option<Vec<String>> {
+fn config_option_string_list(options: &ConfigOptionBag, name: &str) -> Option<Vec<JsString>> {
     let ConfigOptionValueState::List(values) = options.typed_value_state(name) else {
         return None;
     };
@@ -4942,10 +5087,16 @@ fn config_option_lib(options: &ConfigOptionBag) -> Option<Vec<String>> {
         values
             .into_iter()
             .map(|file_name| {
+                // lib's element converter selects a value from the fixed
+                // ASCII library catalogue; arbitrary raw strings never reach
+                // this projection (invalid entries are Undefined).
+                let file_name = file_name
+                    .as_str()
+                    .expect("converted lib entries are scalar catalogue values");
                 typescript_6_0_3_libraries()
                     .iter()
                     .find(|entry| entry.value() == file_name)
-                    .map_or(file_name.clone(), |entry| entry.name().to_owned())
+                    .map_or(file_name.to_owned(), |entry| entry.name().to_owned())
             })
             .collect(),
     )
@@ -4986,22 +5137,24 @@ fn config_option_module_suffixes(options: &ConfigOptionBag) -> Option<Vec<Module
 /// tsc-port: getMatchedIncludeSpec @6.0.3
 /// tsc-hash: c19a07b2779a4153a04034ed25d80da875bb9796ce33f327899e55168d145ca2
 /// tsc-span: _tsc.js:129285-129299
-fn config_root_reasons(
-    file_names: &[String],
+fn config_root_reasons<'j0, 'j1>(
+    file_names: &[JsString],
     files: Option<&[ConfigSpec]>,
     include: Option<&[ConfigSpec]>,
-    config_base_path: &str,
-    config_file_name: &str,
+    config_base_path: impl Into<JsStr<'j0>>,
+    config_file_name: impl Into<JsStr<'j1>>,
     case_sensitive: bool,
 ) -> Result<Vec<RootFileReason>, ConfigParseError> {
+    let config_base_path = config_base_path.into();
+    let config_file_name = config_file_name.into();
     let mut normalized_files = Vec::with_capacity(files.map_or(0, <[ConfigSpec]>::len));
     for spec in files.unwrap_or(&[]) {
         normalized_files.push((
-            canonical_key(
-                &normalized_spec_path(spec, config_base_path)?,
+            file_name_key(
+                normalized_spec_path(spec, config_base_path)?.as_js(),
                 case_sensitive,
             ),
-            Arc::<str>::from(spec.text.as_str()),
+            Arc::new(spec.text.clone()),
         ));
     }
 
@@ -5015,23 +5168,23 @@ fn config_root_reasons(
         let host_spec = config_host_spec(spec, config_base_path)?;
         let pattern = ConfigFilePattern::new(&host_spec, config_base_path, case_sensitive)
             .map_err(|detail| {
-                ConfigParseError::new(
+                ConfigParseError::new_js(
                     ConfigParseErrorKind::InvalidPath,
                     Some(host_spec.clone()),
                     detail,
                 )
             })?;
         if let Some(pattern) = pattern {
-            include_patterns.push((pattern, host_spec, Arc::<str>::from(spec.text.as_str())));
+            include_patterns.push((pattern, host_spec, Arc::new(spec.text.clone())));
         }
     }
-    let config_file = Arc::<str>::from(config_file_name);
+    let config_file = Arc::new(config_file_name.to_owned());
     let default_include = files.is_none() && include.is_none();
 
     Ok(file_names
         .iter()
         .map(|file_name| {
-            let key = canonical_key(file_name, case_sensitive);
+            let key = file_name_key(file_name.as_js(), case_sensitive);
             if let Some((_, spec)) = normalized_files
                 .iter()
                 .find(|(candidate, _)| candidate == &key)
@@ -5056,9 +5209,13 @@ fn config_root_reasons(
         .collect())
 }
 
-fn config_program_path(path: &str, case_sensitive: bool) -> Result<ProgramPath, ConfigParseError> {
-    ProgramPath::from_trusted_parts(path, canonical_key(path, case_sensitive)).map_err(|error| {
-        ConfigParseError::new(
+fn config_program_path<'p>(
+    path: impl Into<JsStr<'p>>,
+    case_sensitive: bool,
+) -> Result<ProgramPath, ConfigParseError> {
+    let path = path.into();
+    ProgramPath::from_js_parts(path, file_name_key(path, case_sensitive).as_js()).map_err(|error| {
+        ConfigParseError::new_js(
             ConfigParseErrorKind::InvalidPath,
             Some(path.to_owned()),
             error.to_string(),
@@ -5091,7 +5248,7 @@ fn program_config_file(path: ProgramPath, source: &ConfigSourceText) -> ProgramC
     let root_properties = config_object_properties(&parsed, root);
     for property in root_properties
         .iter()
-        .filter(|property| matches!(property.name.as_str(), "files" | "include"))
+        .filter(|property| matches!(property.name.as_str(), Some("files" | "include")))
     {
         for element in config_array_elements(&parsed, property.initializer) {
             let Some(literal) = parsed.arena.node(element).data.as_string_literal() else {
@@ -5160,21 +5317,21 @@ fn program_config_file(path: ProgramPath, source: &ConfigSourceText) -> ProgramC
     config_file
 }
 
-fn normalized_option_path(
+fn normalized_option_path<'j0>(
     options: &ConfigOptionBag,
     name: &str,
-    config_base_path: &str,
-) -> Result<Option<String>, ConfigParseError> {
-    options
+    config_base_path: impl Into<JsStr<'j0>>,
+) -> Result<Option<JsString>, ConfigParseError> {
+    let config_base_path = config_base_path.into();
+    Ok(options
         .typed_value(name)
-        .and_then(Value::as_str)
+        .and_then(Value::as_js)
         .and_then(|value| {
             options.get(name).map(|option| {
-                normalized_config_dir_path(value, config_base_path)
-                    .unwrap_or_else(|| normalized_config_path(value, &option.base_path))
+                normalized_config_dir_value_path(value, config_base_path)
+                    .unwrap_or_else(|| normalized_config_value_path(value, &option.base_path))
             })
-        })
-        .transpose()
+        }))
 }
 
 fn computed_resolve_json_module(options: &ConfigOptionBag) -> bool {
@@ -5219,12 +5376,13 @@ fn typed_option_bag_json(bag: &ConfigOptionBag) -> Value {
     Value::Object(object)
 }
 
-fn default_type_acquisition(file_name: &str) -> ConfigOptionBag {
+fn default_type_acquisition<'j0>(file_name: impl Into<JsStr<'j0>>) -> ConfigOptionBag {
+    let file_name = file_name.into();
     let mut bag = ConfigOptionBag::default();
     for (name, value) in [
         (
             "enable",
-            Value::Bool(file_name.rsplit('/').next() == Some("jsconfig.json")),
+            Value::Bool(file_name.split_ascii(b'/').next_back() == Some("jsconfig.json".into())),
         ),
         ("include", Value::Array(Vec::new())),
         ("exclude", Value::Array(Vec::new())),
@@ -5235,20 +5393,21 @@ fn default_type_acquisition(file_name: &str) -> ConfigOptionBag {
             ConfigTypedOptionValue::Json(value.clone())
         };
         bag.insert(ConfigOption {
-            name: name.to_owned(),
+            name: name.into(),
             value,
-            base_path: String::new(),
+            base_path: JsString::new(),
         });
         bag.insert_typed(name, Some(typed));
     }
     bag
 }
 
-fn validate_compile_on_save(
+fn validate_compile_on_save<'j0>(
     source: &SourceFile,
-    base_path: &str,
+    base_path: impl Into<JsStr<'j0>>,
     errors: &mut Vec<Diagnostic>,
 ) -> Result<(), ConfigParseError> {
+    let base_path = base_path.into();
     for property in config_root_object(source)
         .into_iter()
         .flat_map(|root| config_object_properties(source, root))
@@ -5296,21 +5455,22 @@ impl ConfigOptionGroup {
             Self::Acquisition => "typeAcquisition",
         }
     }
-    fn declaration(
+    fn declaration<'n>(
         self,
-        name: &str,
+        name: impl Into<JsStr<'n>>,
     ) -> Option<&'static crate::config_options::CompilerOptionDeclaration> {
+        let name = name.into();
         match self {
             Self::Compiler => compiler_option_declaration(name),
             Self::Watch => crate::config_options::WATCH_OPTION_DECLARATIONS
                 .iter()
-                .find(|d| d.name() == name),
+                .find(|d| name == d.name()),
             Self::Acquisition => crate::config_options::ACQUISITION_OPTION_DECLARATIONS
                 .iter()
-                .find(|d| d.name() == name),
+                .find(|d| name == d.name()),
         }
     }
-    fn unknown(self, name: &str) -> (&'static DiagnosticMessage, Vec<String>) {
+    fn unknown(self, name: JsStr<'_>) -> (&'static DiagnosticMessage, Vec<JsString>) {
         let (plain, suggested, suggestion) = match self {
             Self::Compiler => (
                 &gen::Unknown_compiler_option_0,
@@ -5336,17 +5496,18 @@ impl ConfigOptionGroup {
         };
         suggestion.map_or_else(
             || (plain, vec![name.to_owned()]),
-            |d| (suggested, vec![name.to_owned(), d.name().to_owned()]),
+            |d| (suggested, vec![name.to_owned(), d.name().into()]),
         )
     }
 }
 
-fn config_option_group(
-    base_path: &str,
+fn config_option_group<'j0>(
+    base_path: impl Into<JsStr<'j0>>,
     group: ConfigOptionGroup,
     source: &SourceFile,
     errors: &mut Vec<Diagnostic>,
 ) -> Result<ConfigOptionBag, ConfigParseError> {
+    let base_path = base_path.into();
     let mut bag = ConfigOptionBag::default();
     let Some(root) = config_root_object(source) else {
         return Ok(bag);
@@ -5391,7 +5552,7 @@ fn config_option_group(
         // This is observably different from iterating the final JSON object:
         // earlier diagnostics remain and compilerOptions objects accumulate.
         for property in config_object_properties(source, compiler_options.initializer) {
-            let name = property.name.as_str();
+            let name = property.name.as_js();
             // Ordinary JavaScript assignment establishes property order even
             // when the recovered value is `undefined`. The legacy
             // `__proto__` setter is the exception: it may change only the
@@ -5407,6 +5568,9 @@ fn config_option_group(
             let value_location = config_location(source, property.initializer);
             let name_location = config_location(source, property.name_node);
             if let Some(declaration) = group.declaration(name) {
+                // Exact schema lookup proves this original key is the same
+                // ASCII spelling as the declaration; typed names stay scalar.
+                let name = declaration.name();
                 let typed = match value {
                     Some(RecoverableJsonValue::Defined(value)) => convert_compiler_option_value(
                         *declaration,
@@ -5468,7 +5632,7 @@ fn config_option_group(
 struct CompilerOptionConversionContext<'a> {
     source: &'a SourceFile,
     value_node: NodeId,
-    base_path: &'a str,
+    base_path: JsStr<'a>,
     value_location: Option<ConfigLocation>,
     name_location: Option<ConfigLocation>,
 }
@@ -5542,7 +5706,7 @@ fn convert_compiler_option_value(
         ))));
     }
     if let CompilerOptionValueKind::Named(values) = declaration.value_kind() {
-        let written = value.as_str().expect("named options require a string");
+        let written = value.as_js().expect("named options require a string");
         let Some(converted) = declaration.value_kind().named_value(written) else {
             let choices = config_named_option_choices(name, values);
             errors.push(config_diagnostic(
@@ -5563,14 +5727,15 @@ fn convert_compiler_option_value(
         }
     }
     if declaration.is_file_path() {
-        let written = value
-            .as_str()
-            .expect("file-path options have already passed string validation")
-            .replace('\\', "/");
+        let written = crate::js_path::normalize_slashes(
+            value
+                .as_js()
+                .expect("file-path options have already passed string validation"),
+        );
         let normalized = if starts_with_config_dir_template(&written) {
             written
         } else {
-            normalized_config_path(&written, base_path)?
+            normalized_config_value_path(written.as_js(), base_path)
         };
         return Ok(Some(ConfigTypedOptionValue::Json(Value::String(
             normalized,
@@ -5617,7 +5782,7 @@ fn convert_compiler_option_object_value(
                 .into_iter()
                 .enumerate()
                 .map(|(index, value)| ConfigTypedObjectProperty {
-                    name: index.to_string(),
+                    name: index.to_string().into(),
                     value: Some(value),
                 })
                 .collect(),
@@ -5633,7 +5798,7 @@ fn convert_compiler_option_object_value(
 enum ConfigTypedJsonConversionTask {
     Visit(NodeId),
     FinishArray(usize),
-    FinishObject(Vec<String>),
+    FinishObject(Vec<JsString>),
 }
 
 /// Preserve convertToJson's complete JavaScript value identity for object
@@ -5705,13 +5870,13 @@ fn convert_config_typed_json_node(
 }
 
 fn converted_typed_object(
-    assignments: impl IntoIterator<Item = (String, Option<ConfigTypedJsonValue>)>,
+    assignments: impl IntoIterator<Item = (JsString, Option<ConfigTypedJsonValue>)>,
 ) -> ConfigTypedObjectValue {
     let mut properties = Vec::<ConfigTypedObjectProperty>::new();
-    let mut indices = BTreeMap::<String, usize>::new();
+    let mut indices = BTreeMap::<JsString, usize>::new();
     let mut inherits_proto_setter = true;
     for (name, value) in assignments {
-        if name == "__proto__" && !indices.contains_key(&name) && inherits_proto_setter {
+        if name == "__proto__" && !indices.contains_key(name.as_bytes()) && inherits_proto_setter {
             if let Some(next_state) = value
                 .as_ref()
                 .and_then(ConfigTypedJsonValue::inherited_proto_setter)
@@ -5720,7 +5885,7 @@ fn converted_typed_object(
             }
             continue;
         }
-        if let Some(index) = indices.get(&name).copied() {
+        if let Some(index) = indices.get(name.as_bytes()).copied() {
             properties[index].value = value;
         } else {
             let index = properties.len();
@@ -5736,15 +5901,16 @@ fn converted_typed_object(
     )
 }
 
-fn convert_compiler_option_list_value(
+fn convert_compiler_option_list_value<'j0>(
     descriptor: CompilerOptionListDescriptor,
     values: &[Value],
     source: &SourceFile,
     value_node: NodeId,
-    base_path: &str,
+    base_path: impl Into<JsStr<'j0>>,
     value_location: Option<ConfigLocation>,
     errors: &mut Vec<Diagnostic>,
 ) -> Result<Vec<ConfigTypedListElement>, ConfigParseError> {
+    let base_path = base_path.into();
     // convertToJson filters unsupported syntax out of the JSON array before
     // onPropertySet invokes convertJsonOption. TypeScript nevertheless indexes
     // the original AST array with the compacted value index. Preserve that
@@ -5770,20 +5936,21 @@ fn convert_compiler_option_list_value(
     Ok(converted)
 }
 
-fn convert_compiler_option_list_element(
+fn convert_compiler_option_list_element<'j0>(
     descriptor: CompilerOptionListDescriptor,
     value: &Value,
-    base_path: &str,
+    base_path: impl Into<JsStr<'j0>>,
     location: Option<ConfigLocation>,
     errors: &mut Vec<Diagnostic>,
 ) -> Result<ConfigTypedListElement, ConfigParseError> {
+    let base_path = base_path.into();
     if value.is_null() {
         return Ok(ConfigTypedListElement::Undefined);
     }
 
     let converted = match descriptor.element_kind() {
         CompilerOptionListElementKind::String | CompilerOptionListElementKind::FilePath => {
-            let Some(written) = value.as_str() else {
+            let Some(written) = value.as_js() else {
                 errors.push(config_diagnostic(
                     &gen::Compiler_option_0_requires_a_value_of_type_1,
                     &[descriptor.element_name().to_owned(), "string".to_owned()],
@@ -5803,18 +5970,18 @@ fn convert_compiler_option_list_element(
                 descriptor.element_kind(),
                 CompilerOptionListElementKind::FilePath
             ) {
-                let written = written.replace('\\', "/");
+                let written = crate::js_path::normalize_slashes(written);
                 Value::String(if starts_with_config_dir_template(&written) {
                     written
                 } else {
-                    normalized_config_path(&written, base_path)?
+                    normalized_config_value_path(written.as_js(), base_path)
                 })
             } else {
                 Value::String(written.to_owned())
             }
         }
         CompilerOptionListElementKind::NamedString(_) => {
-            let Some(written) = value.as_str() else {
+            let Some(written) = value.as_js() else {
                 errors.push(config_diagnostic(
                     &gen::Compiler_option_0_requires_a_value_of_type_1,
                     &[descriptor.element_name().to_owned(), "string".to_owned()],
@@ -5833,7 +6000,7 @@ fn convert_compiler_option_list_element(
                 ));
                 return Ok(ConfigTypedListElement::Undefined);
             };
-            Value::String(mapped.to_owned())
+            Value::String(mapped.into())
         }
         CompilerOptionListElementKind::Object => {
             if !matches!(value, Value::Object(_) | Value::Array(_)) {
@@ -5889,8 +6056,13 @@ fn config_named_option_choices(
     }
 }
 
-fn default_compiler_options(config_file_name: &str, base_path: &str) -> ConfigOptionBag {
-    if config_file_name.rsplit('/').next() != Some("jsconfig.json") {
+fn default_compiler_options<'j0, 'j1>(
+    config_file_name: impl Into<JsStr<'j0>>,
+    base_path: impl Into<JsStr<'j1>>,
+) -> ConfigOptionBag {
+    let config_file_name = config_file_name.into();
+    let base_path = base_path.into();
+    if config_file_name.split_ascii(b'/').next_back() != Some("jsconfig.json".into()) {
         return ConfigOptionBag::default();
     }
 
@@ -5901,7 +6073,7 @@ fn default_compiler_options(config_file_name: &str, base_path: &str) -> ConfigOp
             JsConfigDefaultValue::Number(value) => Value::from(value),
         };
         options.insert(ConfigOption {
-            name: name.to_owned(),
+            name: name.into(),
             value: value.clone(),
             base_path: base_path.to_owned(),
         });
@@ -5910,12 +6082,13 @@ fn default_compiler_options(config_file_name: &str, base_path: &str) -> ConfigOp
     options
 }
 
-fn specs(
+fn specs<'j0>(
     name: &str,
-    base_path: &str,
+    base_path: impl Into<JsStr<'j0>>,
     source: &SourceFile,
     errors: &mut Vec<Diagnostic>,
 ) -> Option<Vec<ConfigSpec>> {
+    let base_path = base_path.into();
     let root = config_root_object(source)?;
     let mut result = None;
     for property in config_object_properties(source, root)
@@ -5945,13 +6118,14 @@ fn specs(
     result
 }
 
-fn inheritable_specs(
-    object: &Map<String, Value>,
-    raw_property_names: &BTreeSet<String>,
+fn inheritable_specs<'j0>(
+    object: &Map,
+    raw_property_names: &BTreeSet<JsString>,
     name: &str,
-    base_path: &str,
+    base_path: impl Into<JsStr<'j0>>,
     source: &SourceFile,
 ) -> Option<Vec<ConfigSpec>> {
+    let base_path = base_path.into();
     let value = config_property_get(object, raw_property_names, name)?;
     if !json_value_is_truthy(value) {
         return None;
@@ -5960,7 +6134,7 @@ fn inheritable_specs(
     // applyExtendedConfig deliberately maps the extended config's raw value,
     // not the validated ConfigFileSpecs projection. TypeScript's generic
     // `map` treats truthy booleans, numbers, and ordinary objects as empty
-    // array-like values, iterates strings by character, and lets falsey array
+    // array-like values, indexes strings by UTF-16 unit, and lets falsey array
     // elements flow through combinePaths as an empty path. Keep that recovery
     // separate from `specs`, which already emitted the value/type diagnostics.
     let texts = match value {
@@ -5969,8 +6143,8 @@ fn inheritable_specs(
             .filter_map(config_array_like_path_text)
             .collect::<Vec<_>>(),
         Value::String(value) => value
-            .chars()
-            .map(|character| character.to_string())
+            .code_units()
+            .map(|unit| JsString::from_code_units(&[unit]))
             .collect(),
         Value::Bool(_) | Value::Number(_) | Value::Object(_) => Vec::new(),
         Value::Null => unreachable!("falsey raw spec values returned above"),
@@ -5987,12 +6161,12 @@ fn inheritable_specs(
     )
 }
 
-fn config_array_like_path_text(value: &Value) -> Option<String> {
+fn config_array_like_path_text(value: &Value) -> Option<JsString> {
     match value {
         Value::String(value) => Some(value.clone()),
-        Value::Null | Value::Bool(false) => Some(String::new()),
+        Value::Null | Value::Bool(false) => Some(JsString::new()),
         Value::Number(value) if value.as_f64().is_some_and(|value| value == 0.0) => {
-            Some(String::new())
+            Some(JsString::new())
         }
         // For a truthy non-string element TypeScript itself throws while
         // probing the path. The Rust planner remains fail-safe and omits that
@@ -6001,14 +6175,15 @@ fn config_array_like_path_text(value: &Value) -> Option<String> {
     }
 }
 
-fn specs_from_value(
+fn specs_from_value<'j0>(
     value: &Value,
     name: &str,
-    base_path: &str,
+    base_path: impl Into<JsStr<'j0>>,
     source: &SourceFile,
     initializer: Option<NodeId>,
     errors: &mut Vec<Diagnostic>,
 ) -> Option<Vec<ConfigSpec>> {
+    let base_path = base_path.into();
     if value.is_null() {
         return None;
     }
@@ -6030,7 +6205,7 @@ fn specs_from_value(
         let location = element_nodes
             .get(index)
             .and_then(|element| config_location(source, *element));
-        if let Some(text) = value.as_str() {
+        if let Some(text) = value.as_js() {
             specs.push(ConfigSpec {
                 text: text.to_owned(),
                 base_path: base_path.to_owned(),
@@ -6052,11 +6227,11 @@ fn specs_from_value(
 }
 
 fn config_property_get<'a>(
-    object: &'a Map<String, Value>,
-    raw_property_names: &BTreeSet<String>,
+    object: &'a Map,
+    raw_property_names: &BTreeSet<JsString>,
     name: &str,
 ) -> Option<&'a Value> {
-    if raw_property_names.contains(name) {
+    if raw_property_names.contains(name.as_bytes()) {
         // A written own property whose recovered value is `undefined` still
         // shadows the JSONC object's prototype. serde_json omits that value,
         // so an own-only lookup must not fall through to the prototype.
@@ -6066,11 +6241,7 @@ fn config_property_get<'a>(
     }
 }
 
-fn property_is_truthy(
-    object: &Map<String, Value>,
-    raw_property_names: &BTreeSet<String>,
-    name: &str,
-) -> bool {
+fn property_is_truthy(object: &Map, raw_property_names: &BTreeSet<JsString>, name: &str) -> bool {
     config_property_get(object, raw_property_names, name).is_some_and(json_value_is_truthy)
 }
 
@@ -6126,7 +6297,7 @@ fn extends_values_from_value(
     source: &SourceFile,
     errors: &mut Vec<Diagnostic>,
 ) -> Vec<ConfigExtendsSpec> {
-    if let Some(value) = value.as_str() {
+    if let Some(value) = value.as_js() {
         return vec![ConfigExtendsSpec {
             text: value.to_owned(),
             location: config_location(source, initializer),
@@ -6146,7 +6317,7 @@ fn extends_values_from_value(
         let location = element_nodes
             .get(index)
             .and_then(|element| config_location(source, *element));
-        if let Some(text) = value.as_str() {
+        if let Some(text) = value.as_js() {
             result.push(ConfigExtendsSpec {
                 text: text.to_owned(),
                 location,
@@ -6162,30 +6333,36 @@ fn extends_values_from_value(
     result
 }
 
-fn rebase_config_specs(
+fn rebase_config_specs<'j0>(
     specs: &[ConfigSpec],
-    base_path: &str,
+    base_path: impl Into<JsStr<'j0>>,
     case_sensitive: bool,
 ) -> Result<Vec<ConfigSpec>, ConfigParseError> {
+    let base_path = base_path.into();
     specs
         .iter()
         .map(|spec| {
-            let text = spec.text.replace('\\', "/");
-            let rebased = if starts_with_config_dir_template(&text)
-                || normalized_root_parts(&text).is_some()
+            let text = normalize_slashes(spec.text.as_js());
+            let rebased = if starts_with_config_dir_template(text.as_js())
+                || root_parts(text.as_js()).is_some()
             {
                 text
             } else {
-                let difference =
-                    relative_directory_path(base_path, &spec.base_path, case_sensitive)?;
+                let mut difference = JsString::from(relative_directory_path(
+                    base_path,
+                    &spec.base_path,
+                    case_sensitive,
+                )?);
                 if text.is_empty() {
                     difference
                 } else if difference.is_empty() {
                     text
-                } else if difference.ends_with('/') {
-                    format!("{difference}{text}")
                 } else {
-                    format!("{difference}/{text}")
+                    if !difference.ends_with("/") {
+                        difference.push('/');
+                    }
+                    difference.push_js(text.as_js());
+                    difference
                 }
             };
             Ok(ConfigSpec {
@@ -6199,55 +6376,61 @@ fn rebase_config_specs(
         .collect()
 }
 
-fn relative_directory_path(
-    from: &str,
-    to: &str,
+fn relative_directory_path<'f, 't>(
+    from: impl Into<JsStr<'f>>,
+    to: impl Into<JsStr<'t>>,
     case_sensitive: bool,
-) -> Result<String, ConfigParseError> {
+) -> Result<JsString, ConfigParseError> {
+    let from = from.into();
+    let to = to.into();
     let (to_root, to_components) = rooted_components(to)?;
-    // convertToRelativePath only relativizes rooted disk paths. URL roots
-    // have an encoded negative root length in TypeScript and therefore pass
-    // through unchanged before the base path is inspected.
+    // URL paths pass through before the base is inspected, as in TypeScript.
     if !is_disk_root(to_root) {
         return Ok(to.to_owned());
     }
     let (from_root, from_components) = rooted_components(from)?;
-    let equal = |left: &str, right: &str| {
-        if case_sensitive {
-            left == right
-        } else {
-            canonical_key(left, false) == canonical_key(right, false)
-        }
-    };
-    // getPathComponentsRelativeTo compares the root component without case,
-    // independently from the host casing profile used by later components.
     if !config_root_eq_ignore_case(from_root, to_root) {
         return Ok(to.to_owned());
     }
     let common = from_components
         .iter()
         .zip(&to_components)
-        .take_while(|(left, right)| equal(left, right))
+        .take_while(|(left, right)| {
+            if case_sensitive {
+                left == right
+            } else {
+                canonical_key(**left, false) == canonical_key(**right, false)
+            }
+        })
         .count();
-    Ok(std::iter::repeat_n("..", from_components.len() - common)
+    let mut result = JsString::new();
+    for component in std::iter::repeat_n(JsStr::from(".."), from_components.len() - common)
         .chain(to_components[common..].iter().copied())
-        .collect::<Vec<_>>()
-        .join("/"))
+    {
+        if !result.is_empty() {
+            result.push('/');
+        }
+        result.push_js(component);
+    }
+    Ok(result)
 }
 
-fn config_root_eq_ignore_case(left: &str, right: &str) -> bool {
-    left == right || left.to_uppercase() == right.to_uppercase()
+fn config_root_eq_ignore_case(left: JsStr<'_>, right: JsStr<'_>) -> bool {
+    crate::js_path::eq_ignore_case(left, right)
 }
 
-fn is_disk_root(root: &str) -> bool {
-    root.starts_with('/')
+fn is_disk_root(root: JsStr<'_>) -> bool {
+    root.starts_with("/")
         || (root.as_bytes().first().is_some_and(u8::is_ascii_alphabetic)
             && root.as_bytes().get(1) == Some(&b':'))
 }
 
-fn rooted_components(path: &str) -> Result<(&str, Vec<&str>), ConfigParseError> {
-    let (root, tail) = normalized_root_parts(path).ok_or_else(|| {
-        ConfigParseError::new(
+fn rooted_components<'p>(
+    path: impl Into<JsStr<'p>>,
+) -> Result<(JsStr<'p>, Vec<JsStr<'p>>), ConfigParseError> {
+    let path = path.into();
+    let (root, tail) = root_parts(path).ok_or_else(|| {
+        ConfigParseError::new_js(
             ConfigParseErrorKind::InvalidPath,
             Some(path.to_owned()),
             "config directory is not rooted",
@@ -6255,52 +6438,52 @@ fn rooted_components(path: &str) -> Result<(&str, Vec<&str>), ConfigParseError> 
     })?;
     Ok((
         root,
-        tail.split('/')
+        tail.split_ascii(b'/')
             .filter(|component| !component.is_empty())
             .collect(),
     ))
 }
 
-fn normalized_spec_path(
+fn normalized_spec_path<'j0>(
     spec: &ConfigSpec,
-    config_base_path: &str,
-) -> Result<String, ConfigParseError> {
-    normalized_config_dir_path(&spec.text, config_base_path)
-        .unwrap_or_else(|| normalized_config_path(&spec.text, &spec.base_path))
+    config_base_path: impl Into<JsStr<'j0>>,
+) -> Result<JsString, ConfigParseError> {
+    let config_base_path = config_base_path.into();
+    Ok(
+        normalized_config_dir_value_path(spec.text.as_js(), config_base_path)
+            .unwrap_or_else(|| normalized_config_value_path(spec.text.as_js(), &spec.base_path)),
+    )
 }
 
-fn config_host_spec(spec: &ConfigSpec, config_base_path: &str) -> Result<String, ConfigParseError> {
-    if let Some(substituted) = normalized_config_dir_path(&spec.text, config_base_path) {
-        return substituted;
-    }
-    Ok(spec.text.clone())
+fn config_host_spec<'j0>(
+    spec: &ConfigSpec,
+    config_base_path: impl Into<JsStr<'j0>>,
+) -> Result<JsString, ConfigParseError> {
+    let config_base_path = config_base_path.into();
+    Ok(
+        normalized_config_dir_value_path(spec.text.as_js(), config_base_path)
+            .unwrap_or_else(|| spec.text.clone()),
+    )
 }
 
-fn normalized_config_dir_path(
-    value: &str,
-    config_base_path: &str,
-) -> Option<Result<String, ConfigParseError>> {
-    starts_with_ignore_case(value, CONFIG_DIR_TEMPLATE).then(|| {
-        let substituted = value.replacen(CONFIG_DIR_TEMPLATE, "./", 1);
-        normalized_path(&substituted, config_base_path)
-    })
-}
-
-fn substitute_config_dir_string(
-    value: &mut String,
-    config_base_path: &str,
+fn substitute_config_dir_string<'j0>(
+    value: &mut JsString,
+    config_base_path: impl Into<JsStr<'j0>>,
 ) -> Result<bool, ConfigParseError> {
-    let Some(substituted) = normalized_config_dir_path(value, config_base_path) else {
+    let config_base_path = config_base_path.into();
+    let Some(substituted) = normalized_config_dir_value_path(value.as_js(), config_base_path)
+    else {
         return Ok(false);
     };
-    *value = substituted?;
+    *value = substituted;
     Ok(true)
 }
 
-fn substitute_config_dir_typed_string_array(
+fn substitute_config_dir_typed_string_array<'j0>(
     values: &mut [ConfigTypedJsonValue],
-    config_base_path: &str,
+    config_base_path: impl Into<JsStr<'j0>>,
 ) -> Result<bool, ConfigParseError> {
+    let config_base_path = config_base_path.into();
     let mut changed = false;
     for value in values {
         let ConfigTypedJsonValue::Json(Value::String(value)) = value else {
@@ -6311,42 +6494,10 @@ fn substitute_config_dir_typed_string_array(
     Ok(changed)
 }
 
-const CONFIG_DIR_TEMPLATE: &str = "${configDir}";
-
-fn starts_with_config_dir_template(value: &str) -> bool {
-    starts_with_ignore_case(value, CONFIG_DIR_TEMPLATE)
-}
-
-/// TypeScript's ignore-case startsWith uppercases a UTF-16 slice instead of
-/// applying ASCII-only folding. Keep the allocation-free common ASCII path,
-/// then reproduce that Unicode behavior for spellings such as dotless-i.
-///
-/// tsc-port: equateStringsCaseInsensitive @6.0.3
-/// tsc-hash: ab81c5a8cd044f72148e7e8ecb60f7003c0c3afb2b7ecde10d6bc4f48132975a
-/// tsc-span: _tsc.js:905-906
-/// tsc-port: startsWith @6.0.3
-/// tsc-hash: b0a4b4a17f81742d08ed6267db9860c810ceb118696b1c83bd7655f9fa1b10b4
-/// tsc-span: _tsc.js:1078-1079
-fn starts_with_ignore_case(value: &str, prefix: &str) -> bool {
-    if let Some(candidate) = value.get(..prefix.len()) {
-        if candidate.eq_ignore_ascii_case(prefix) {
-            return true;
-        }
-        if candidate.is_ascii() {
-            return false;
-        }
-    }
-
-    let prefix_length = prefix.encode_utf16().count();
-    let candidate = value.encode_utf16().take(prefix_length).collect::<Vec<_>>();
-    String::from_utf16(&candidate)
-        .is_ok_and(|candidate| candidate.to_uppercase() == prefix.to_uppercase())
-}
-
 fn has_higher_priority(
-    file: &str,
-    literal: &[(String, String)],
-    wildcard: &[(String, String)],
+    file: JsStr<'_>,
+    literal: &[(JsString, JsString)],
+    wildcard: &[(JsString, JsString)],
     groups: &[&[&str]],
     case_sensitive: bool,
 ) -> bool {
@@ -6363,7 +6514,7 @@ fn has_higher_priority(
         {
             return false;
         }
-        let candidate = canonical_key(&change_extension(file, extension), case_sensitive);
+        let candidate = file_name_key(change_extension(file, extension).as_js(), case_sensitive);
         if literal.iter().any(|(key, _)| key == &candidate)
             || wildcard.iter().any(|(key, _)| key == &candidate)
         {
@@ -6379,8 +6530,8 @@ fn has_higher_priority(
 }
 
 fn remove_lower_priority(
-    file: &str,
-    wildcard: &mut Vec<(String, String)>,
+    file: JsStr<'_>,
+    wildcard: &mut Vec<(JsString, JsString)>,
     groups: &[&[&str]],
     case_sensitive: bool,
 ) {
@@ -6395,29 +6546,32 @@ fn remove_lower_priority(
         if file_extension_is(file, extension) {
             return;
         }
-        let candidate = canonical_key(&change_extension(file, extension), case_sensitive);
+        let candidate = file_name_key(change_extension(file, extension).as_js(), case_sensitive);
         wildcard.retain(|(key, _)| key != &candidate);
     }
 }
 
-fn change_extension(file: &str, extension: &str) -> String {
+fn change_extension(file: JsStr<'_>, extension: &str) -> JsString {
     let current = [
         ".d.ts", ".d.cts", ".d.mts", ".tsx", ".cts", ".mts", ".jsx", ".cjs", ".mjs", ".ts", ".js",
         ".json",
     ]
     .into_iter()
     .find(|candidate| file_extension_is(file, candidate));
-    match current {
-        Some(current) => format!("{}{extension}", &file[..file.len() - current.len()]),
-        None => format!("{file}{extension}"),
-    }
+    let mut changed = current
+        .and_then(|current| file.strip_suffix(current))
+        .unwrap_or(file)
+        .to_owned();
+    changed.push_str(extension);
+    changed
 }
 
-fn file_extension_is(file: &str, extension: &str) -> bool {
-    file.len() > extension.len() && file.ends_with(extension)
+fn file_extension_is<'p>(file: impl Into<JsStr<'p>>, extension: &str) -> bool {
+    let file = file.into();
+    file.as_bytes().len() > extension.len() && file.ends_with(extension)
 }
 
-fn map_insert(entries: &mut Vec<(String, String)>, key: String, value: String) {
+fn map_insert(entries: &mut Vec<(JsString, JsString)>, key: JsString, value: JsString) {
     if let Some((_, existing)) = entries.iter_mut().find(|(existing, _)| existing == &key) {
         *existing = value;
     } else {
@@ -6425,17 +6579,17 @@ fn map_insert(entries: &mut Vec<(String, String)>, key: String, value: String) {
     }
 }
 
-fn canonical_key(path: &str, case_sensitive: bool) -> String {
-    if case_sensitive {
-        path.to_owned()
-    } else {
-        to_file_name_lower_case(path)
-    }
+fn canonical_key<'p>(path: impl Into<JsStr<'p>>, case_sensitive: bool) -> JsString {
+    file_name_key(path.into(), case_sensitive)
 }
 
-fn normalized_path(path: &str, base: &str) -> Result<String, ConfigParseError> {
-    normalize_absolute_path_lexical(Path::new(path), Some(base)).map_err(|error| {
-        ConfigParseError::new(
+fn normalized_path<'p, 'b>(
+    path: impl Into<JsStr<'p>>,
+    base: impl Into<JsStr<'b>>,
+) -> Result<JsString, ConfigParseError> {
+    let path = path.into();
+    normalize_absolute_js_path_lexical(path, Some(base.into())).map_err(|error| {
+        ConfigParseError::new_js(
             ConfigParseErrorKind::InvalidPath,
             Some(path.to_owned()),
             error.to_string(),
@@ -6443,25 +6597,29 @@ fn normalized_path(path: &str, base: &str) -> Result<String, ConfigParseError> {
     })
 }
 
-fn normalized_config_path(path: &str, base: &str) -> Result<String, ConfigParseError> {
-    if path.is_empty() {
-        normalized_path(".", base)
-    } else {
-        normalized_path(path, base)
+fn is_drive_rooted<'p>(path: impl Into<JsStr<'p>>) -> bool {
+    let bytes = path.into().as_bytes();
+    bytes.len() >= 2
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && (bytes.len() == 2 || bytes.get(2) == Some(&b'/'))
+}
+
+fn join_path<'p, 'c>(parent: impl Into<JsStr<'p>>, child: impl Into<JsStr<'c>>) -> JsString {
+    let mut parent = parent.into();
+    let mut child = child.into();
+    while let Some(trimmed) = parent.strip_suffix("/") {
+        parent = trimmed;
     }
+    while let Some(trimmed) = child.strip_prefix("/") {
+        child = trimmed;
+    }
+    let mut result = parent.to_owned();
+    result.push('/');
+    result.push_js(child);
+    result
 }
 
-fn is_drive_rooted(path: &str) -> bool {
-    path.len() >= 2
-        && path.as_bytes()[0].is_ascii_alphabetic()
-        && path.as_bytes()[1] == b':'
-        && (path.len() == 2 || path.as_bytes().get(2) == Some(&b'/'))
-}
-
-fn join_path(parent: &str, child: &str) -> String {
-    format!(
-        "{}/{}",
-        parent.trim_end_matches('/'),
-        child.trim_start_matches('/')
-    )
+fn js_directory_name<'p>(path: impl Into<JsStr<'p>>) -> JsString {
+    crate::js_path::directory_name(path.into())
 }

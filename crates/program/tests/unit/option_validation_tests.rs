@@ -13,47 +13,47 @@ fn exact_h2_5g_option_failures_are_typed_in_tsc_order() {
         (
             CompilerOptions {
                 jsx: Some(2),
-                jsx_factory: Some("h".to_owned()),
-                jsx_fragment_factory: Some("234".to_owned()),
+                jsx_factory: Some("h".into()),
+                jsx_fragment_factory: Some("234".into()),
                 ..CompilerOptions::default()
             },
             CompilerOptionViolation::InvalidJsxFragmentFactory {
-                value: "234".to_owned(),
+                value: "234".into(),
             },
         ),
         (
             CompilerOptions {
-                jsx_factory: Some("Element.createElement".to_owned()),
-                react_namespace: Some("Element".to_owned()),
+                jsx_factory: Some("Element.createElement".into()),
+                react_namespace: Some("Element".into()),
                 ..CompilerOptions::default()
             },
             CompilerOptionViolation::ReactNamespaceConflictsWithJsxFactory,
         ),
         (
             CompilerOptions {
-                jsx_factory: Some("Element.createElement=".to_owned()),
+                jsx_factory: Some("Element.createElement=".into()),
                 ..CompilerOptions::default()
             },
             CompilerOptionViolation::InvalidJsxFactory {
-                value: "Element.createElement=".to_owned(),
+                value: "Element.createElement=".into(),
             },
         ),
         (
             CompilerOptions {
-                jsx_factory: Some("id1 id2".to_owned()),
+                jsx_factory: Some("id1 id2".into()),
                 ..CompilerOptions::default()
             },
             CompilerOptionViolation::InvalidJsxFactory {
-                value: "id1 id2".to_owned(),
+                value: "id1 id2".into(),
             },
         ),
         (
             CompilerOptions {
-                react_namespace: Some("my-React-Lib".to_owned()),
+                react_namespace: Some("my-React-Lib".into()),
                 ..CompilerOptions::default()
             },
             CompilerOptionViolation::InvalidReactNamespace {
-                value: "my-React-Lib".to_owned(),
+                value: "my-React-Lib".into(),
             },
         ),
         (
@@ -91,8 +91,8 @@ fn valid_dependency_options_close_their_relationships() {
             ..CompilerOptions::default()
         },
         CompilerOptions {
-            jsx_factory: Some("Element . createElement".to_owned()),
-            jsx_fragment_factory: Some("Element.Fragment".to_owned()),
+            jsx_factory: Some("Element . createElement".into()),
+            jsx_fragment_factory: Some("Element.Fragment".into()),
             ..CompilerOptions::default()
         },
     ] {
@@ -104,8 +104,8 @@ fn valid_dependency_options_close_their_relationships() {
 fn source_map_relationships_follow_tsc_order_and_messages() {
     assert_eq!(
         validate_compiler_options(&CompilerOptions {
-            source_root: Some("sources".to_owned()),
-            map_root: Some("maps".to_owned()),
+            source_root: Some("sources".into()),
+            map_root: Some("maps".into()),
             ..CompilerOptions::default()
         }),
         [
@@ -116,7 +116,7 @@ fn source_map_relationships_follow_tsc_order_and_messages() {
     assert_eq!(
         validate_compiler_options(&CompilerOptions {
             inline_source_map: Some(true),
-            map_root: Some("maps".to_owned()),
+            map_root: Some("maps".into()),
             ..CompilerOptions::default()
         }),
         [
@@ -164,8 +164,8 @@ fn source_map_prerequisites_retain_independent_declaration_diagnostics() {
         (
             CompilerOptions {
                 source_map: Some(true),
-                source_root: Some("sources".to_owned()),
-                map_root: Some("maps".to_owned()),
+                source_root: Some("sources".into()),
+                map_root: Some("maps".into()),
                 ..CompilerOptions::default()
             },
             vec![],
@@ -173,7 +173,7 @@ fn source_map_prerequisites_retain_independent_declaration_diagnostics() {
         (
             CompilerOptions {
                 declaration_map: Some(true),
-                map_root: Some("maps".to_owned()),
+                map_root: Some("maps".into()),
                 ..CompilerOptions::default()
             },
             vec![CompilerOptionViolation::DeclarationMapRequiresDeclaration],
@@ -181,7 +181,7 @@ fn source_map_prerequisites_retain_independent_declaration_diagnostics() {
         (
             CompilerOptions {
                 inline_source_map: Some(true),
-                source_root: Some("sources".to_owned()),
+                source_root: Some("sources".into()),
                 inline_sources: Some(true),
                 ..CompilerOptions::default()
             },
@@ -196,10 +196,10 @@ fn source_map_prerequisites_retain_independent_declaration_diagnostics() {
 fn empty_jsx_strings_follow_javascript_truthiness() {
     let options = CompilerOptions {
         jsx: Some(2),
-        jsx_factory: Some(String::new()),
-        jsx_fragment_factory: Some(String::new()),
-        jsx_import_source: Some(String::new()),
-        react_namespace: Some(String::new()),
+        jsx_factory: Some(Default::default()),
+        jsx_fragment_factory: Some(Default::default()),
+        jsx_import_source: Some(Default::default()),
+        react_namespace: Some(Default::default()),
         ..CompilerOptions::default()
     };
 
@@ -212,8 +212,8 @@ fn one_snapshot_can_report_multiple_violations_without_filtering() {
         allow_js: true,
         isolated_declarations: Some(true),
         jsx: Some(4),
-        jsx_factory: Some("not valid".to_owned()),
-        react_namespace: Some("React".to_owned()),
+        jsx_factory: Some("not valid".into()),
+        react_namespace: Some("React".into()),
         ..CompilerOptions::default()
     };
 
@@ -225,7 +225,7 @@ fn one_snapshot_can_report_multiple_violations_without_filtering() {
             CompilerOptionViolation::ReactNamespaceConflictsWithJsxFactory,
             CompilerOptionViolation::JsxFactoryConflictsWithAutomaticRuntime { jsx: "react-jsx" },
             CompilerOptionViolation::InvalidJsxFactory {
-                value: "not valid".to_owned()
+                value: "not valid".into()
             },
             CompilerOptionViolation::ReactNamespaceConflictsWithAutomaticRuntime {
                 jsx: "react-jsx"

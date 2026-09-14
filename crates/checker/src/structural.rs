@@ -10,10 +10,10 @@
 use tsc_binder::SymbolId;
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{
-    AccessFlags, CheckFlags, CheckMode, ElementFlags, IndexFlags, InferenceFlags,
-    InferencePriority, IntersectionFlags, IntersectionState, MappedTypeModifiers, ModifierFlags,
-    ObjectFlags, PseudoBigInt, RecursionFlags, SignatureFlags, SymbolFlags, TemplateText, Ternary,
-    TupleTargetFlags, TypeData, TypeFlags, TypeId, UnionReduction,
+    AccessFlags, CheckFlags, CheckMode, ElementFlags, EscapedName, IndexFlags, InferenceFlags,
+    InferencePriority, IntersectionFlags, IntersectionState, JsStr, MappedTypeModifiers,
+    ModifierFlags, ObjectFlags, PseudoBigInt, RecursionFlags, SignatureFlags, SymbolFlags,
+    TemplateText, Ternary, TupleTargetFlags, TypeData, TypeFlags, TypeId, UnionReduction,
 };
 
 use crate::engine::{is_false, is_true, ternary_and, RelationChecker};
@@ -1825,7 +1825,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
         let mut source_discriminant_types: Vec<Vec<TypeId>> =
             Vec::with_capacity(source_properties_filtered.len());
-        let mut excluded_properties: std::collections::HashSet<String> =
+        let mut excluded_properties: std::collections::HashSet<EscapedName> =
             std::collections::HashSet::new();
         for &source_property in &source_properties_filtered {
             let source_property_type = self.st.get_non_missing_type_of_symbol(source_property)?;
@@ -2133,9 +2133,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     if source_prop_flags.intersects(ModifierFlags::PRIVATE)
                         && target_prop_flags.intersects(ModifierFlags::PRIVATE)
                     {
-                        self.report_error(
+                        self.report_error_js(
                             &tsc_diagnostics::gen::Types_have_separate_declarations_of_a_private_property_0,
-                            vec![name],
+                            vec![name.into()],
                         )?;
                     } else {
                         let private_source = if source_prop_flags.intersects(ModifierFlags::PRIVATE)
@@ -2156,9 +2156,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         let public_text = self
                             .st
                             .type_to_string_slice_with_error_enclosing(public_source)?;
-                        self.report_error(
+                        self.report_error_js(
                             &tsc_diagnostics::gen::Property_0_is_private_in_type_1_but_not_in_type_2,
-                            vec![name, private_text, public_text],
+                            vec![name.into(), private_text.into(), public_text.into()],
                         )?;
                     }
                 }
@@ -2176,9 +2176,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     let target_text = self
                         .st
                         .type_to_string_slice_with_error_enclosing(target_class)?;
-                    self.report_error(
+                    self.report_error_js(
                         &tsc_diagnostics::gen::Property_0_is_protected_but_type_1_is_not_a_class_derived_from_2,
-                        vec![name, source_text, target_text],
+                        vec![name.into(), source_text.into(), target_text.into()],
                     )?;
                 }
                 return Ok(Ternary::FALSE);
@@ -2189,9 +2189,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 let name = self.st.symbol_name_as_written_slice(target_prop);
                 let source_text = self.st.type_to_string_slice_with_error_enclosing(source)?;
                 let target_text = self.st.type_to_string_slice_with_error_enclosing(target)?;
-                self.report_error(
+                self.report_error_js(
                     &tsc_diagnostics::gen::Property_0_is_protected_in_type_1_but_public_in_type_2,
-                    vec![name, source_text, target_text],
+                    vec![name.into(), source_text.into(), target_text.into()],
                 )?;
             }
             return Ok(Ternary::FALSE);
@@ -2212,7 +2212,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         if !is_true(related) {
             if report_errors {
                 let name = self.st.symbol_name_as_written_slice(target_prop);
-                self.report_incompatible_error(
+                self.report_incompatible_error_js(
                     &tsc_diagnostics::gen::Types_of_property_0_are_incompatible,
                     vec![name],
                 );
@@ -2236,9 +2236,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 let name = self.st.symbol_name_as_written_slice(target_prop);
                 let source_text = self.st.type_to_string_slice_with_error_enclosing(source)?;
                 let target_text = self.st.type_to_string_slice_with_error_enclosing(target)?;
-                self.report_error(
+                self.report_error_js(
                     &tsc_diagnostics::gen::Property_0_is_optional_in_type_1_but_required_in_type_2,
-                    vec![name, source_text, target_text],
+                    vec![name.into(), source_text.into(), target_text.into()],
                 )?;
             }
             return Ok(Ternary::FALSE);
@@ -2252,7 +2252,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     fn exclude_properties(
         &self,
         properties: Vec<SymbolId>,
-        excluded_properties: Option<&std::collections::HashSet<String>>,
+        excluded_properties: Option<&std::collections::HashSet<EscapedName>>,
     ) -> Vec<SymbolId> {
         let Some(excluded) = excluded_properties else {
             return properties;
@@ -2275,7 +2275,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         &mut self,
         source: TypeId,
         target: TypeId,
-        excluded_properties: Option<&std::collections::HashSet<String>>,
+        excluded_properties: Option<&std::collections::HashSet<EscapedName>>,
         optionals_only: bool,
         report_errors: bool,
         intersection_state: IntersectionState,
@@ -2440,7 +2440,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         }
                         if can_exclude_discriminants
                             && excluded_properties
-                                .is_some_and(|e| e.contains(&source_position.to_string()))
+                                .is_some_and(|e| e.contains(source_position.to_string().as_bytes()))
                         {
                             continue;
                         }
@@ -2549,9 +2549,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     if report_errors {
                         let prop_name = self.st.symbol_name_as_written_slice(source_prop);
                         let target_text = self.st.type_to_string_slice(target)?;
-                        self.report_error(
+                        self.report_error_js(
                             &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1,
-                            vec![prop_name, target_text],
+                            vec![prop_name.into(), target_text.into()],
                         )?;
                     }
                     return Ok(Ternary::FALSE);
@@ -2662,10 +2662,13 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                             });
                         if let Some(source_symbol) = source_symbol {
                             let suffix = format!("@{private_description}");
-                            let has_own_twin =
-                                self.st.get_members_of_symbol(source_symbol)?.keys().any(
-                                    |member| member.starts_with("__#") && member.ends_with(&suffix),
-                                );
+                            let has_own_twin = self
+                                .st
+                                .get_members_of_symbol(source_symbol)?
+                                .keys()
+                                .any(|member| {
+                                    member.starts_with("__#") && member.as_js().ends_with(&suffix)
+                                });
                             if has_own_twin {
                                 let source_name = self
                                     .st
@@ -2740,9 +2743,13 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 source_text = self.st.get_type_name_for_error_display(source)?;
                 target_text = self.st.get_type_name_for_error_display(target)?;
             }
-            self.report_error(
+            self.report_error_js(
                 &tsc_diagnostics::gen::Property_0_is_missing_in_type_1_but_required_in_type_2,
-                vec![name.clone(), source_text, target_text],
+                vec![
+                    (name.clone()).into(),
+                    (source_text).into(),
+                    (target_text).into(),
+                ],
             )?;
             if let Some(&declaration) = self
                 .st
@@ -2751,10 +2758,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 .declarations
                 .first()
             {
-                let info = self.st.related_info_for_node(
+                let info = self.st.related_info_for_node_js(
                     declaration,
                     &tsc_diagnostics::gen::_0_is_declared_here,
-                    &[&name],
+                    &[(&name).into()],
                 );
                 self.associate_related_info(info);
             }
@@ -2783,21 +2790,16 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         for &property in properties.iter().take(displayed_property_count) {
             displayed_names.push(self.st.missing_property_display_name(property, false)?);
         }
-        let names = displayed_names.join(", ");
+        let names = crate::join_js_texts(&displayed_names, ", ");
         if properties.len() > 5 {
-            self.report_error(
+            self.report_error_js(
                 &tsc_diagnostics::gen::Type_0_is_missing_the_following_properties_from_type_1_2_and_3_more,
-                vec![
-                    source_text,
-                    target_text,
-                    names,
-                    (properties.len() - 4).to_string(),
-                ],
+                vec![(source_text).into(), (target_text).into(), (names).into(), ((properties.len() - 4).to_string()).into()],
             )?;
         } else {
-            self.report_error(
+            self.report_error_js(
                 &tsc_diagnostics::gen::Type_0_is_missing_the_following_properties_from_type_1_2,
-                vec![source_text, target_text, names],
+                vec![(source_text).into(), (target_text).into(), (names).into()],
             )?;
         }
         self.override_next_error_after_unmatched_property();
@@ -2822,9 +2824,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 if report_errors {
                     let source_text = self.st.type_to_string_slice(source)?;
                     let target_text = self.st.type_to_string_slice(target)?;
-                    self.report_error(
+                    self.report_error_js(
                         &tsc_diagnostics::gen::The_type_0_is_readonly_and_cannot_be_assigned_to_the_mutable_type_1,
-                        vec![source_text, target_text],
+                        vec![(source_text).into(), (target_text).into()],
                     )?;
                 }
                 return Ok(false);
@@ -2835,9 +2837,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             if report_errors {
                 let source_text = self.st.type_to_string_slice(source)?;
                 let target_text = self.st.type_to_string_slice(target)?;
-                self.report_error(
+                self.report_error_js(
                     &tsc_diagnostics::gen::The_type_0_is_readonly_and_cannot_be_assigned_to_the_mutable_type_1,
-                    vec![source_text, target_text],
+                    vec![(source_text).into(), (target_text).into()],
                 )?;
             }
             return Ok(false);
@@ -2872,7 +2874,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         &mut self,
         source: TypeId,
         target: TypeId,
-        excluded_properties: Option<&std::collections::HashSet<String>>,
+        excluded_properties: Option<&std::collections::HashSet<EscapedName>>,
     ) -> CheckResult<Ternary> {
         if !(self.flags(source).intersects(TypeFlags::OBJECT)
             && self.flags(target).intersects(TypeFlags::OBJECT))
@@ -3130,9 +3132,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         .signature_to_string_slice_for_construct_assignment_error(
                             target_signature,
                         )?;
-                    self.report_error(
+                    self.report_error_js(
                         &tsc_diagnostics::gen::Type_0_is_not_assignable_to_type_1,
-                        vec![source_text, target_text],
+                        vec![(source_text).into(), (target_text).into()],
                     )?;
                     self.report_error(
                         &tsc_diagnostics::gen::Types_of_construct_signatures_are_incompatible,
@@ -3167,9 +3169,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     let signature_text = self
                         .st
                         .signature_to_string_slice_for_relation_error(t, kind)?;
-                    self.report_error(
+                    self.report_error_js(
                         &tsc_diagnostics::gen::Type_0_provides_no_match_for_the_signature_1,
-                        vec![source_text, signature_text],
+                        vec![(source_text).into(), (signature_text).into()],
                     )?;
                 }
                 return Ok(Ternary::FALSE);
@@ -3866,14 +3868,17 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         let source_name = self
                             .st
                             .get_parameter_name_at_position(source, i)?
-                            .unwrap_or_default();
+                            .unwrap_or_else(|| EscapedName::from_identifier_escaped_text(""));
                         let target_name = self
                             .st
                             .get_parameter_name_at_position(target, i)?
-                            .unwrap_or_default();
-                        self.report_error(
+                            .unwrap_or_else(|| EscapedName::from_identifier_escaped_text(""));
+                        self.report_error_js(
                             &tsc_diagnostics::gen::Types_of_parameters_0_and_1_are_incompatible,
-                            vec![source_name, target_name],
+                            vec![
+                                source_name.as_js().to_owned(),
+                                target_name.as_js().to_owned(),
+                            ],
                         )?;
                     }
                     return Ok(Ternary::FALSE);
@@ -3958,9 +3963,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                             source,
                             SignatureKind::Call,
                         )?;
-                        self.report_error(
+                        self.report_error_js(
                             &tsc_diagnostics::gen::Signature_0_must_be_a_type_predicate,
-                            vec![source_text],
+                            vec![(source_text).into()],
                         )?;
                     }
                     return Ok(Ternary::FALSE);
@@ -4014,7 +4019,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                             &tsc_diagnostics::gen::Construct_signatures_with_no_arguments_have_incompatible_return_types_0_and_1
                         }
                     };
-                    self.report_incompatible_error(message, vec![source_text, target_text]);
+                    self.report_incompatible_error_js(
+                        message,
+                        vec![(source_text).into(), (target_text).into()],
+                    );
                 }
             }
         }
@@ -4052,7 +4060,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 )?;
                 let source_text = self.type_predicate_to_string_for_relation_error(source)?;
                 let target_text = self.type_predicate_to_string_for_relation_error(target)?;
-                self.report_error(
+                self.report_error_js(
                     &tsc_diagnostics::gen::Type_predicate_0_is_not_assignable_to_1,
                     vec![source_text, target_text],
                 )?;
@@ -4075,7 +4083,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 )?;
                 let source_text = self.type_predicate_to_string_for_relation_error(source)?;
                 let target_text = self.type_predicate_to_string_for_relation_error(target)?;
-                self.report_error(
+                self.report_error_js(
                     &tsc_diagnostics::gen::Type_predicate_0_is_not_assignable_to_1,
                     vec![source_text, target_text],
                 )?;
@@ -4096,7 +4104,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             if is_false(related) && report_errors {
                 let source_text = self.type_predicate_to_string_for_relation_error(source)?;
                 let target_text = self.type_predicate_to_string_for_relation_error(target)?;
-                self.report_error(
+                self.report_error_js(
                     &tsc_diagnostics::gen::Type_predicate_0_is_not_assignable_to_1,
                     vec![source_text, target_text],
                 )?;
@@ -4106,7 +4114,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         if report_errors {
             let source_text = self.type_predicate_to_string_for_relation_error(source)?;
             let target_text = self.type_predicate_to_string_for_relation_error(target)?;
-            self.report_error(
+            self.report_error_js(
                 &tsc_diagnostics::gen::Type_predicate_0_is_not_assignable_to_1,
                 vec![source_text, target_text],
             )?;
@@ -4121,7 +4129,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     fn type_predicate_to_string_for_relation_error(
         &mut self,
         predicate: &crate::narrow::TypePredicate,
-    ) -> CheckResult<String> {
+    ) -> CheckResult<tsc_types::JsString> {
         let asserts = if matches!(
             predicate.kind,
             crate::narrow::TypePredicateKind::AssertsThis
@@ -4140,11 +4148,13 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             predicate.parameter_name.as_deref().unwrap_or("")
         };
         match predicate.ty {
-            Some(ty) => Ok(format!(
-                "{asserts}{name} is {}",
-                self.st.type_to_string_slice_with_error_enclosing(ty)?
-            )),
-            None => Ok(format!("{asserts}{name}")),
+            Some(ty) => Ok(crate::concat_js(&[
+                &asserts,
+                &name,
+                &" is ",
+                &self.st.type_to_string_slice_with_error_enclosing(ty)?,
+            ])),
+            None => Ok(crate::concat_js(&[&asserts, &name])),
         }
     }
 
@@ -4175,7 +4185,13 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 .tables
                 .object_flags_of(source)
                 .intersects(ObjectFlags::JSX_ATTRIBUTES)
-                && self.st.binder.symbol(prop).escaped_name.contains('-')
+                && self
+                    .st
+                    .binder
+                    .symbol(prop)
+                    .escaped_name
+                    .as_js()
+                    .contains("-")
             {
                 continue;
             }
@@ -4213,9 +4229,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             if !is_true(related) {
                 if report_errors {
                     let name = self.st.symbol_name_as_written_slice(prop);
-                    self.report_error(
+                    self.report_error_js(
                         &tsc_diagnostics::gen::Property_0_is_incompatible_with_index_signature,
-                        vec![name],
+                        vec![name.into()],
                     )?;
                 }
                 return Ok(Ternary::FALSE);
@@ -4261,17 +4277,17 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 .st
                 .type_to_string_slice_with_error_enclosing(source_info.key_type)?;
             if source_info.key_type == target_info.key_type {
-                self.report_error(
+                self.report_error_js(
                     &tsc_diagnostics::gen::_0_index_signatures_are_incompatible,
-                    vec![source_key],
+                    vec![(source_key).into()],
                 )?;
             } else {
                 let target_key = self
                     .st
                     .type_to_string_slice_with_error_enclosing(target_info.key_type)?;
-                self.report_error(
+                self.report_error_js(
                     &tsc_diagnostics::gen::_0_and_1_index_signatures_are_incompatible,
-                    vec![source_key, target_key],
+                    vec![(source_key).into(), (target_key).into()],
                 )?;
             }
         }
@@ -4372,9 +4388,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 .st
                 .type_to_string_slice_with_error_enclosing(target_info.key_type)?;
             let source_text = self.st.type_to_string_slice_with_error_enclosing(source)?;
-            self.report_error(
+            self.report_error_js(
                 &tsc_diagnostics::gen::Index_signature_for_type_0_is_missing_in_type_1,
-                vec![key, source_text],
+                vec![(key).into(), (source_text).into()],
             )?;
         }
         Ok(Ternary::FALSE)
@@ -4438,10 +4454,11 @@ pub(crate) fn end_element_count(element_flags: &[ElementFlags], flags: ElementFl
 
 /// tsc isNumericLiteralName as used by propertiesRelatedTo tuple-name
 /// filtering (canonical non-negative integers).
-fn is_numeric_name(name: &str) -> bool {
+fn is_numeric_name<'n>(name: impl Into<JsStr<'n>>) -> bool {
+    let name = name.into();
     !name.is_empty()
-        && name.bytes().all(|b| b.is_ascii_digit())
-        && (name == "0" || !name.starts_with('0'))
+        && name.as_bytes().iter().all(u8::is_ascii_digit)
+        && (name == "0" || !name.starts_with("0"))
 }
 
 /// tsc cartesianProduct (1145).
@@ -4581,22 +4598,24 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getPropertyOfObjectType @6.0.3
     /// tsc-hash: 8bd506ce7021670c0037b7ad4db75e2324fd5de9f14eb24b8c4233cf095e369e
     /// tsc-span: _tsc.js:58711-58719
-    pub fn get_property_of_object_type(
+    pub fn get_property_of_object_type<'n>(
         &mut self,
         ty: TypeId,
-        name: &str,
+        name: impl Into<JsStr<'n>>,
     ) -> CheckResult<Option<SymbolId>> {
+        let name = name.into();
         self.get_property_of_object_type_with_include_type_only_members(
             ty, name, /*include_type_only_members*/ false,
         )
     }
 
-    fn get_property_of_object_type_with_include_type_only_members(
+    fn get_property_of_object_type_with_include_type_only_members<'n>(
         &mut self,
         ty: TypeId,
-        name: &str,
+        name: impl Into<JsStr<'n>>,
         include_type_only_members: bool,
     ) -> CheckResult<Option<SymbolId>> {
+        let name = name.into();
         if !self.tables.flags_of(ty).intersects(TypeFlags::OBJECT) {
             return Ok(None);
         }
@@ -4613,7 +4632,7 @@ impl<'a> CheckerState<'a> {
                         .symbol(module_symbol)
                         .type_only_export_star_map
                         .as_ref()
-                        .is_some_and(|map| map.contains_key(name))
+                        .is_some_and(|map| map.contains_key(name.as_bytes()))
             });
         if !hidden_type_only_export && self.symbol_is_value(symbol, include_type_only_members)? {
             Ok(Some(symbol))
@@ -4660,7 +4679,7 @@ impl<'a> CheckerState<'a> {
             TypeData::Union { types, .. } | TypeData::Intersection { types } => types.to_vec(),
             _ => unreachable!("union/intersection flag implies member data"),
         };
-        let mut seen: Vec<String> = Vec::new();
+        let mut seen: Vec<EscapedName> = Vec::new();
         let mut result: Vec<SymbolId> = Vec::new();
         for current in members {
             for prop in self.get_properties_of_type_full(current)? {
@@ -4693,11 +4712,12 @@ impl<'a> CheckerState<'a> {
     /// M3 slice: the function/object global augmentation fallbacks are
     /// empty in the noLib world; late-bound and type-only members are
     /// M4.
-    pub fn get_property_of_type_full(
+    pub fn get_property_of_type_full<'n>(
         &mut self,
         ty: TypeId,
-        name: &str,
+        name: impl Into<JsStr<'n>>,
     ) -> CheckResult<Option<SymbolId>> {
+        let name = name.into();
         self.get_property_of_type_ex_with_include_type_only_members(
             ty, name, /*skip_object_function_property_augment*/ false,
             /*include_type_only_members*/ false,
@@ -4717,12 +4737,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getPropertyOfType @6.0.3
     /// tsc-hash: 39a7221f835629e1b6b6c3d3e53d7aec1032999299e682d96846922fa299498a
     /// tsc-span: _tsc.js:59348-59389
-    pub fn get_property_of_type_ex(
+    pub fn get_property_of_type_ex<'n>(
         &mut self,
         ty: TypeId,
-        name: &str,
+        name: impl Into<JsStr<'n>>,
         skip_object_function_property_augment: bool,
     ) -> CheckResult<Option<SymbolId>> {
+        let name = name.into();
         self.get_property_of_type_ex_with_include_type_only_members(
             ty,
             name,
@@ -4733,13 +4754,14 @@ impl<'a> CheckerState<'a> {
 
     /// tsrs-native: include-carrying body behind the getPropertyOfType
     /// compatibility wrappers.
-    pub(crate) fn get_property_of_type_ex_with_include_type_only_members(
+    pub(crate) fn get_property_of_type_ex_with_include_type_only_members<'n>(
         &mut self,
         ty: TypeId,
-        name: &str,
+        name: impl Into<JsStr<'n>>,
         skip_object_function_property_augment: bool,
         include_type_only_members: bool,
     ) -> CheckResult<Option<SymbolId>> {
+        let name = name.into();
         let reduced = self.get_reduced_apparent_type(ty)?;
         let flags = self.tables.flags_of(reduced);
         if flags.intersects(TypeFlags::OBJECT) {
@@ -4806,11 +4828,12 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getTypeOfPropertyOrIndexSignatureOfType @6.0.3
     /// tsc-hash: ae41aa69b4517daebd8ee32fa4aa6db6ef15902492947777622dd0cabd315099
     /// tsc-span: _tsc.js:55807-55817
-    pub fn get_type_of_property_or_index_signature_of_type(
+    pub fn get_type_of_property_or_index_signature_of_type<'n>(
         &mut self,
         ty: TypeId,
-        name: &str,
+        name: impl Into<JsStr<'n>>,
     ) -> CheckResult<Option<TypeId>> {
+        let name = name.into();
         if let Some(prop) = self.get_property_of_type_full(ty, name)? {
             return Ok(Some(self.get_type_of_symbol(prop)?));
         }
@@ -4825,12 +4848,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getPropertyOfUnionOrIntersectionType @6.0.3
     /// tsc-hash: b4f449a45ce4346e6e458eb4962ea77e413761aeff9603015c0c64c55bcb87da
     /// tsc-span: _tsc.js:59283-59286
-    pub fn get_property_of_union_or_intersection_type(
+    pub fn get_property_of_union_or_intersection_type<'n>(
         &mut self,
         ty: TypeId,
-        name: &str,
+        name: impl Into<JsStr<'n>>,
         skip_object_function_property_augment: bool,
     ) -> CheckResult<Option<SymbolId>> {
+        let name = name.into();
         let Some(property) = self.get_union_or_intersection_property(
             ty,
             name,
@@ -5089,9 +5113,9 @@ impl<'a> CheckerState<'a> {
             if self.is_discriminant_with_never_type(prop)? {
                 let type_name = self.type_to_string_slice_no_type_reduction(ty)?;
                 let prop_name = self.symbol_name_as_written_slice(prop);
-                return Ok(Some(tsc_diagnostics::MessageChain::new(
+                return Ok(Some(tsc_diagnostics::MessageChain::new_js(
                     &tsc_diagnostics::gen::The_intersection_0_was_reduced_to_never_because_property_1_has_conflicting_types_in_some_constituents,
-                    &[type_name, prop_name],
+                    &[type_name.into(), prop_name],
                 )));
             }
         }
@@ -5099,9 +5123,9 @@ impl<'a> CheckerState<'a> {
             if self.is_conflicting_private_property(prop) {
                 let type_name = self.type_to_string_slice_no_type_reduction(ty)?;
                 let prop_name = self.symbol_name_as_written_slice(prop);
-                return Ok(Some(tsc_diagnostics::MessageChain::new(
+                return Ok(Some(tsc_diagnostics::MessageChain::new_js(
                     &tsc_diagnostics::gen::The_intersection_0_was_reduced_to_never_because_property_1_exists_in_multiple_constituents_and_is_private_in_some,
-                    &[type_name, prop_name],
+                    &[type_name.into(), prop_name],
                 )));
             }
         }
@@ -5119,13 +5143,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 490f85816c9419feb271b4eda40fdda59ef8b7868f80e46af09245eef7e95ab8
     /// tsc-span: _tsc.js:59246-59261
     #[allow(clippy::only_used_in_recursion)] // the skip flag is tsc's cache-key parameter
-    fn get_union_or_intersection_property(
+    fn get_union_or_intersection_property<'n>(
         &mut self,
         ty: TypeId,
-        name: &str,
+        name: impl Into<JsStr<'n>>,
         skip: bool,
     ) -> CheckResult<Option<SymbolId>> {
-        let key = (ty, name.to_owned(), skip);
+        let name = name.into();
+        let key = (ty, EscapedName::from_escaped_value(name.to_owned()), skip);
         if let Some(cached) = self.links.union_property(&key) {
             return Ok(Some(cached));
         }
@@ -5148,12 +5173,13 @@ impl<'a> CheckerState<'a> {
     /// recipe for properties with more than two constituents. Deferral is
     /// observable: normalization can report TS2590 at the eventual read
     /// site, so eagerly combining here is not semantically equivalent.
-    fn create_union_or_intersection_property(
+    fn create_union_or_intersection_property<'n>(
         &mut self,
         containing_type: TypeId,
-        name: &str,
+        name: impl Into<JsStr<'n>>,
         skip: bool,
     ) -> CheckResult<Option<SymbolId>> {
+        let name = name.into();
         let is_union = self
             .tables
             .flags_of(containing_type)
@@ -5434,7 +5460,9 @@ impl<'a> CheckerState<'a> {
         let flags = SymbolFlags::from_bits(
             prop_flags.bits() | optional_flag.map(|f| f.bits()).unwrap_or(0),
         );
-        let result = self.binder.create_symbol(flags, name.to_owned());
+        let result = self
+            .binder
+            .create_symbol(flags, EscapedName::from_escaped_value(name.to_owned()));
         // 59224-59227: value declaration + its symbol's parent when
         // uniform.
         let parent = match (has_non_uniform_value_declaration, first_value_declaration) {
@@ -5846,7 +5874,12 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isDiscriminantProperty @6.0.3
     /// tsc-hash: 1b3d6f14be2183682f24b21ec0f57e84975ced1cf03ab31db92b2b62388d6a8a
     /// tsc-span: _tsc.js:69562-69573
-    pub(crate) fn is_discriminant_property(&mut self, ty: TypeId, name: &str) -> CheckResult<bool> {
+    pub(crate) fn is_discriminant_property<'n>(
+        &mut self,
+        ty: TypeId,
+        name: impl Into<JsStr<'n>>,
+    ) -> CheckResult<bool> {
+        let name = name.into();
         if !self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             return Ok(false);
         }
@@ -6775,7 +6808,9 @@ impl<'a> CheckerState<'a> {
             }
             let param_symbol = self.binder.create_symbol(
                 symbol_flags,
-                param_name.unwrap_or_else(|| format!("arg{i}")),
+                param_name.unwrap_or_else(|| {
+                    EscapedName::from_identifier_escaped_text(&format!("arg{i}"))
+                }),
             );
             let check_flags = if is_rest_param {
                 CheckFlags::REST_PARAMETER
@@ -6796,9 +6831,10 @@ impl<'a> CheckerState<'a> {
             params.push(param_symbol);
         }
         if needs_extra_rest_element {
-            let rest_symbol = self
-                .binder
-                .create_symbol(SymbolFlags::FUNCTION_SCOPED_VARIABLE, "args".to_owned());
+            let rest_symbol = self.binder.create_symbol(
+                SymbolFlags::FUNCTION_SCOPED_VARIABLE,
+                EscapedName::from_identifier_escaped_text("args"),
+            );
             self.links.set_symbol_check_flags(
                 self.speculation_depth,
                 rest_symbol,
@@ -6829,7 +6865,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         signature: SignatureId,
         pos: usize,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<EscapedName>> {
         let signature_data = self.signature_of(signature);
         let has_rest = signature_data
             .flags
@@ -6866,12 +6902,15 @@ impl<'a> CheckerState<'a> {
                     .get(index)
                     .copied()
                     .expect("tuple-rest parameter position is within its tuple target");
-                return Ok(Some(self.tuple_element_label_slice(
+                let label = self.tuple_element_label_slice(
                     declaration,
                     index,
                     element_flags,
                     Some(rest_parameter),
-                )?));
+                )?;
+                // The display worker unescapes the label. This consumer
+                // creates a symbol, so restore the escaped identity once.
+                return Ok(Some(EscapedName::escape(label.as_str().into())));
             }
         }
         Ok(Some(
@@ -7353,7 +7392,7 @@ impl<'a> CheckerState<'a> {
         let global_readonly_array = self.global_readonly_array_type()?;
         let array_symbol = self.tables.type_of(global_array).symbol;
         let readonly_array_symbol = self.tables.type_of(global_readonly_array).symbol;
-        let mut member_name: Option<String> = None;
+        let mut member_name: Option<EscapedName> = None;
         let mut element_types = Vec::with_capacity(constituents.len());
         let mut has_readonly_array = false;
         let mut eligible = array_symbol.is_some() && readonly_array_symbol.is_some();
@@ -7423,7 +7462,7 @@ impl<'a> CheckerState<'a> {
             let property_type = self.get_type_of_property_of_type(
                 array_type,
                 member_name
-                    .as_deref()
+                    .as_ref()
                     .expect("eligible union has a member name"),
             )?;
             match property_type {
@@ -8194,23 +8233,20 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getApplicableIndexInfoForName @6.0.3
     /// tsc-hash: f6b9b92223c2975ab3d55e4c1bc1acabbde0fdbf39ea15d47561f74bedf015b5
     /// tsc-span: _tsc.js:59479-59481
-    pub(crate) fn get_applicable_index_info_for_name_info(
+    pub(crate) fn get_applicable_index_info_for_name_info<'n>(
         &mut self,
         ty: TypeId,
-        name: &str,
+        name: impl Into<JsStr<'n>>,
     ) -> CheckResult<Option<IndexInfo>> {
+        let name = name.into();
         // getApplicableIndexInfoForName probes LATE-BOUND names
         // (isLateBoundName — the `__@` unique-symbol spellings) with
         // esSymbolType, everything else with the name's literal type.
         let name_type = if name.starts_with("__@") {
             self.tables.intrinsics.es_symbol
-        } else if is_numeric_name(name) {
-            let value: f64 = name
-                .parse()
-                .expect("is_numeric_name admits only f64-parsable digit strings");
-            self.tables.get_number_literal_type(value)
         } else {
-            self.tables.get_string_literal_type(name)
+            self.tables
+                .get_string_literal_type(tsc_binder::unescape_leading_underscores(name))
         };
         self.get_applicable_index_info(ty, name_type)
     }

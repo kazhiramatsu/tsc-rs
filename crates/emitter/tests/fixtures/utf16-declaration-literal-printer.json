@@ -1,0 +1,231 @@
+{
+  "version": 1,
+  "scope": "synthetic declaration type alias printer: literal type child with/without NoAsciiEscaping; output UTF-16 and UTF-8 bytes, not a separate full compiler command",
+  "typescript": "6.0.3",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "b80b320364dc7566eb50f5e9e44c51f40aefc81ce38b614710adb547324d8af5",
+  "repetitions": 2,
+  "cases": [
+    {
+      "id": "high/0",
+      "value": [
+        55296
+      ],
+      "emit_flags": 0,
+      "text_utf16": [
+        116,
+        121,
+        112,
+        101,
+        32,
+        84,
+        32,
+        61,
+        32,
+        34,
+        92,
+        117,
+        68,
+        56,
+        48,
+        48,
+        34,
+        59
+      ],
+      "utf8_base64": "dHlwZSBUID0gIlx1RDgwMCI7",
+      "utf8_bytes": 18
+    },
+    {
+      "id": "high/16777216",
+      "value": [
+        55296
+      ],
+      "emit_flags": 16777216,
+      "text_utf16": [
+        116,
+        121,
+        112,
+        101,
+        32,
+        84,
+        32,
+        61,
+        32,
+        34,
+        55296,
+        34,
+        59
+      ],
+      "utf8_base64": "dHlwZSBUID0gIu+/vSI7",
+      "utf8_bytes": 15
+    },
+    {
+      "id": "other-high/0",
+      "value": [
+        55297
+      ],
+      "emit_flags": 0,
+      "text_utf16": [
+        116,
+        121,
+        112,
+        101,
+        32,
+        84,
+        32,
+        61,
+        32,
+        34,
+        92,
+        117,
+        68,
+        56,
+        48,
+        49,
+        34,
+        59
+      ],
+      "utf8_base64": "dHlwZSBUID0gIlx1RDgwMSI7",
+      "utf8_bytes": 18
+    },
+    {
+      "id": "other-high/16777216",
+      "value": [
+        55297
+      ],
+      "emit_flags": 16777216,
+      "text_utf16": [
+        116,
+        121,
+        112,
+        101,
+        32,
+        84,
+        32,
+        61,
+        32,
+        34,
+        55297,
+        34,
+        59
+      ],
+      "utf8_base64": "dHlwZSBUID0gIu+/vSI7",
+      "utf8_bytes": 15
+    },
+    {
+      "id": "low/0",
+      "value": [
+        56320
+      ],
+      "emit_flags": 0,
+      "text_utf16": [
+        116,
+        121,
+        112,
+        101,
+        32,
+        84,
+        32,
+        61,
+        32,
+        34,
+        92,
+        117,
+        68,
+        67,
+        48,
+        48,
+        34,
+        59
+      ],
+      "utf8_base64": "dHlwZSBUID0gIlx1REMwMCI7",
+      "utf8_bytes": 18
+    },
+    {
+      "id": "low/16777216",
+      "value": [
+        56320
+      ],
+      "emit_flags": 16777216,
+      "text_utf16": [
+        116,
+        121,
+        112,
+        101,
+        32,
+        84,
+        32,
+        61,
+        32,
+        34,
+        56320,
+        34,
+        59
+      ],
+      "utf8_base64": "dHlwZSBUID0gIu+/vSI7",
+      "utf8_bytes": 15
+    },
+    {
+      "id": "pair/0",
+      "value": [
+        55296,
+        56320
+      ],
+      "emit_flags": 0,
+      "text_utf16": [
+        116,
+        121,
+        112,
+        101,
+        32,
+        84,
+        32,
+        61,
+        32,
+        34,
+        92,
+        117,
+        68,
+        56,
+        48,
+        48,
+        92,
+        117,
+        68,
+        67,
+        48,
+        48,
+        34,
+        59
+      ],
+      "utf8_base64": "dHlwZSBUID0gIlx1RDgwMFx1REMwMCI7",
+      "utf8_bytes": 24
+    },
+    {
+      "id": "pair/16777216",
+      "value": [
+        55296,
+        56320
+      ],
+      "emit_flags": 16777216,
+      "text_utf16": [
+        116,
+        121,
+        112,
+        101,
+        32,
+        84,
+        32,
+        61,
+        32,
+        34,
+        55296,
+        56320,
+        34,
+        59
+      ],
+      "utf8_base64": "dHlwZSBUID0gIvCQgIAiOw==",
+      "utf8_bytes": 16
+    }
+  ]
+}

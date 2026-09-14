@@ -5,6 +5,7 @@
 use std::fmt;
 
 use crate::flags::ScriptTarget;
+use crate::{JsStr, JsString};
 
 /// Hashable storage for a JavaScript `number` compiler-option value.
 ///
@@ -62,24 +63,24 @@ impl From<i32> for CompilerOptionNumber {
 /// those entries to the literal string `"undefined"` just as `_tsc.js` does.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum ModuleSuffix {
-    Value(String),
+    Value(JsString),
     Undefined,
 }
 
 impl ModuleSuffix {
-    pub fn value(value: impl Into<String>) -> Self {
+    pub fn value(value: impl Into<JsString>) -> Self {
         Self::Value(value.into())
     }
 
-    pub fn value_str(&self) -> Option<&str> {
+    pub fn value_js(&self) -> Option<JsStr<'_>> {
         match self {
-            Self::Value(value) => Some(value),
+            Self::Value(value) => Some(value.as_js()),
             Self::Undefined => None,
         }
     }
 
-    pub fn runtime_text(&self) -> &str {
-        self.value_str().unwrap_or("undefined")
+    pub fn runtime_text(&self) -> JsStr<'_> {
+        self.value_js().unwrap_or_else(|| "undefined".into())
     }
 }
 
@@ -222,16 +223,16 @@ pub struct CompilerOptions {
     /// Relocate per-source products below this normalized output directory.
     /// H1.4 owns the path calculation while the first production profile
     /// keeps an effective value unsupported.
-    pub out_dir: Option<String>,
+    pub out_dir: Option<JsString>,
     /// Explicit common-source-directory root used by output relocation.
-    pub root_dir: Option<String>,
+    pub root_dir: Option<JsString>,
     /// Dormant source-map product and path options retained so an emitting
     /// request can reject them before the first output callback.
     pub source_map: Option<bool>,
     pub inline_source_map: Option<bool>,
     pub inline_sources: Option<bool>,
-    pub source_root: Option<String>,
-    pub map_root: Option<String>,
+    pub source_root: Option<JsString>,
+    pub map_root: Option<JsString>,
     /// Dormant declaration-product options. Their output-plan slots are
     /// typed, but the H1 JavaScript profile does not execute them.
     pub declaration: Option<bool>,
@@ -239,17 +240,17 @@ pub struct CompilerOptions {
     pub emit_declaration_only: Option<bool>,
     pub isolated_declarations: Option<bool>,
     pub stable_type_ordering: Option<bool>,
-    pub declaration_dir: Option<String>,
+    pub declaration_dir: Option<JsString>,
     pub strip_internal: Option<bool>,
     /// Dormant bundle aliases retained as distinct raw option spellings.
-    pub out_file: Option<String>,
-    pub out: Option<String>,
+    pub out_file: Option<JsString>,
+    pub out: Option<JsString>,
     /// Dormant build-info options retained for preflight and the typed output
     /// topology; H1 never constructs a build-info artifact.
     pub incremental: Option<bool>,
     pub composite: Option<bool>,
     pub assume_changes_only_affect_direct_dependencies: Option<bool>,
-    pub ts_build_info_file: Option<String>,
+    pub ts_build_info_file: Option<JsString>,
     /// Legacy/import and decorator controls whose transformer branches are
     /// outside the first executable profile.
     pub imports_not_used_as_values: Option<i32>,
@@ -261,7 +262,7 @@ pub struct CompilerOptions {
     pub suppress_excess_property_errors: Option<bool>,
     pub suppress_implicit_any_index_errors: Option<bool>,
     pub no_strict_generic_checks: Option<bool>,
-    pub charset: Option<String>,
+    pub charset: Option<JsString>,
     pub emit_decorator_metadata: Option<bool>,
     /// tsc `NewLineKind` value used by the JavaScript writer
     /// (CarriageReturnLineFeed=0, LineFeed=1). H0 retains but never reads it;
@@ -335,7 +336,7 @@ pub struct CompilerOptions {
     /// mappings and their independent declaring-directory base are carried by
     /// `tsc_program::ProgramOptions`; this field remains the separate baseUrl
     /// fallback and TS5090-suppression input.
-    pub base_url: Option<String>,
+    pub base_url: Option<JsString>,
     /// Ordered file-name suffixes applied by every module-resolution file
     /// probe. `None` and an explicitly empty vector both retain the ordinary
     /// unsuffixed lookup; a nonempty vector probes only its entries, so callers
@@ -349,7 +350,7 @@ pub struct CompilerOptions {
     /// Appended to getConditions after import/require, types, and
     /// (outside Bundler) node. Order is observable when a package
     /// exports object contains more than one matching condition.
-    pub custom_conditions: Option<Vec<String>>,
+    pub custom_conditions: Option<Vec<JsString>>,
     /// Removes the `types` condition, including `types@<range>`, from
     /// package exports resolution.
     pub no_dts_resolution: Option<bool>,
@@ -377,10 +378,10 @@ pub struct CompilerOptions {
     /// membership rather than by the source's declaration-file syntax.
     pub skip_default_lib_check: Option<bool>,
     /// JSX namespace/runtime customization options.
-    pub jsx_factory: Option<String>,
-    pub jsx_fragment_factory: Option<String>,
-    pub jsx_import_source: Option<String>,
-    pub react_namespace: Option<String>,
+    pub jsx_factory: Option<JsString>,
+    pub jsx_fragment_factory: Option<JsString>,
+    pub jsx_import_source: Option<JsString>,
+    pub react_namespace: Option<JsString>,
     /// TypeScript 6.0's option-diagnostic suppression version. This is a
     /// config/driver concern rather than a checker option, but carrying the
     /// converted value through the owned option snapshot keeps
@@ -388,7 +389,7 @@ pub struct CompilerOptions {
     /// same effective option set. Only the exact supported `"6.0"` value
     /// suppresses options deprecated in 6.0; invalid values are diagnosed at
     /// the config boundary.
-    pub ignore_deprecations: Option<String>,
+    pub ignore_deprecations: Option<JsString>,
 }
 
 impl CompilerOptions {

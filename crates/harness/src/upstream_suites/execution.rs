@@ -21,9 +21,8 @@ use std::sync::Arc;
 use serde::de::{MapAccess, Visitor};
 use serde::{Deserialize, Deserializer};
 use serde_json::{json, Value};
-use tsc_host::{
-    to_file_name_lower_case, CompilerHost, FsCompilerHost, HostError, MemoryCompilerHost,
-};
+use tsc_diagnostics::{JsStr, JsString};
+use tsc_host::{CompilerHost, FsCompilerHost, HostError, MemoryCompilerHost};
 use tsc_program::{
     load_emitting_program, load_program, parse_config_root_plan, CompilerConfigHost,
     CompilerOptionNumber, CompilerOptions, ConfigFilePattern, ConfigHostError, ConfigHostOperation,
@@ -43,6 +42,7 @@ use super::{
 };
 use crate::HarnessResult;
 
+mod js_paths;
 mod project;
 
 pub use project::{
@@ -277,7 +277,7 @@ pub fn load_qualified_compiler_emit_with_symlinks(
         .map(|config_path| {
             let config_host = CompilerConfigHost::new(&fixture_host);
             let text = config_host
-                .read_file(config_path)
+                .read_file(config_path.as_str().into())
                 .map_err(|parse_error| {
                     error(format!(
                         "failed to read qualified compiler virtual config {config_path:?}: {parse_error}"
@@ -291,9 +291,9 @@ pub fn load_qualified_compiler_emit_with_symlinks(
             parse_config_root_plan(
                 &config_host,
                 ConfigRootPlanRequest {
-                    file_name: config_path.clone(),
+                    file_name: config_path.clone().into(),
                     text,
-                    base_path: current_directory.to_owned(),
+                    base_path: current_directory.into(),
                 },
             )
             .map_err(|parse_error| {
@@ -633,6 +633,7 @@ struct CompilerSuiteHost {
     fixture: MemoryCompilerHost,
     libraries: FsCompilerHost,
     library_directory: PathBuf,
+    library_directory_js: JsString,
 }
 
 impl CompilerSuiteHost {
@@ -652,7 +653,12 @@ impl CompilerSuiteHost {
                 "failed to construct compiler library filesystem host: {source}"
             ))
         })?;
+        let library_directory_js = library_directory
+            .to_str()
+            .ok_or_else(|| error("native library mount is not Unicode"))?
+            .into();
         Ok(Self {
+            library_directory_js,
             fixture,
             libraries,
             library_directory,
@@ -672,6 +678,52 @@ impl CompilerSuiteHost {
 }
 
 impl CompilerHost for CompilerSuiteHost {
+    fn current_directory_js(&self) -> Result<JsString, HostError> {
+        self.fixture.current_directory_js()
+    }
+    fn read_file_js(&self, path: JsStr<'_>) -> Result<Option<Vec<u8>>, HostError> {
+        if js_paths::library_query(path, self.library_directory_js.as_js()) {
+            self.libraries.read_file_js(path)
+        } else {
+            self.fixture.read_file_js(path)
+        }
+    }
+    fn file_exists_js(&self, path: JsStr<'_>) -> Result<bool, HostError> {
+        if js_paths::library_query(path, self.library_directory_js.as_js()) {
+            self.libraries.file_exists_js(path)
+        } else {
+            self.fixture.file_exists_js(path)
+        }
+    }
+    fn directory_exists_js(&self, path: JsStr<'_>) -> Result<bool, HostError> {
+        if js_paths::library_query(path, self.library_directory_js.as_js()) {
+            self.libraries.directory_exists_js(path)
+        } else {
+            self.fixture.directory_exists_js(path)
+        }
+    }
+    fn read_directory_js(&self, path: JsStr<'_>) -> Result<Vec<JsString>, HostError> {
+        if js_paths::library_query(path, self.library_directory_js.as_js()) {
+            self.libraries.read_directory_js(path)
+        } else {
+            self.fixture.read_directory_js(path)
+        }
+    }
+    fn get_directories_js(&self, path: JsStr<'_>) -> Result<Vec<JsString>, HostError> {
+        if js_paths::library_query(path, self.library_directory_js.as_js()) {
+            self.libraries.get_directories_js(path)
+        } else {
+            self.fixture.get_directories_js(path)
+        }
+    }
+    fn realpath_js(&self, path: JsStr<'_>) -> Result<Option<JsString>, HostError> {
+        if js_paths::library_query(path, self.library_directory_js.as_js()) {
+            self.libraries.realpath_js(path)
+        } else {
+            self.fixture.realpath_js(path)
+        }
+    }
+
     fn current_directory(&self) -> Result<PathBuf, HostError> {
         self.fixture.current_directory()
     }
@@ -959,7 +1011,7 @@ fn apply_compiler_setting(
                     .split(',')
                     .map(str::trim)
                     .filter(|entry| !entry.is_empty())
-                    .map(str::to_owned)
+                    .map(JsString::from)
                     .collect(),
             )
         }
@@ -1028,7 +1080,7 @@ fn apply_compiler_setting(
                     })?,
                 })
         }
-        "charset" => compiler_options.charset = Some(value.to_owned()),
+        "charset" => compiler_options.charset = Some(value.to_owned().into()),
         "noerrortruncation" => compiler_options.no_error_truncation = Some(boolean()?),
         "importhelpers" => compiler_options.import_helpers = Some(boolean()?),
         "downleveliteration" => compiler_options.downlevel_iteration = Some(boolean()?),
@@ -1039,7 +1091,7 @@ fn apply_compiler_setting(
             compiler_options.module_suffixes = Some(
                 value
                     .split(',')
-                    .map(|entry| ModuleSuffix::Value(entry.to_owned()))
+                    .map(|entry| ModuleSuffix::Value(entry.into()))
                     .collect(),
             )
         }
@@ -1055,7 +1107,7 @@ fn apply_compiler_setting(
                     .split(',')
                     .map(str::trim)
                     .filter(|entry| !entry.is_empty())
-                    .map(str::to_owned)
+                    .map(JsString::from)
                     .collect(),
             )
         }
@@ -1080,12 +1132,16 @@ fn apply_compiler_setting(
         "isolatedmodules" => compiler_options.isolated_modules = Some(boolean()?),
         "verbatimmodulesyntax" => compiler_options.verbatim_module_syntax = Some(boolean()?),
         "allowumdglobalaccess" => compiler_options.allow_umd_global_access = Some(boolean()?),
-        "baseurl" => compiler_options.base_url = Some(value.to_owned()),
-        "jsxfactory" => compiler_options.jsx_factory = Some(value.to_owned()),
-        "jsxfragmentfactory" => compiler_options.jsx_fragment_factory = Some(value.to_owned()),
-        "jsximportsource" => compiler_options.jsx_import_source = Some(value.to_owned()),
-        "reactnamespace" => compiler_options.react_namespace = Some(value.to_owned()),
-        "ignoredeprecations" => compiler_options.ignore_deprecations = Some(value.to_owned()),
+        "baseurl" => compiler_options.base_url = Some(value.to_owned().into()),
+        "jsxfactory" => compiler_options.jsx_factory = Some(value.to_owned().into()),
+        "jsxfragmentfactory" => {
+            compiler_options.jsx_fragment_factory = Some(value.to_owned().into())
+        }
+        "jsximportsource" => compiler_options.jsx_import_source = Some(value.to_owned().into()),
+        "reactnamespace" => compiler_options.react_namespace = Some(value.to_owned().into()),
+        "ignoredeprecations" => {
+            compiler_options.ignore_deprecations = Some(value.to_owned().into())
+        }
         "newline" => {
             compiler_options.new_line = Some(match value.to_ascii_lowercase().as_str() {
                 "crlf" => 0,
@@ -1151,7 +1207,7 @@ fn apply_compiler_setting(
                     | EmitOptionFloor::MapFamilyWithDeclarationOnly
                     | EmitOptionFloor::DeclarationFamily
             ) {
-                compiler_options.source_root = Some(value.to_owned());
+                compiler_options.source_root = Some(value.to_owned().into());
             }
         }
         "maproot" => {
@@ -1162,7 +1218,7 @@ fn apply_compiler_setting(
                     | EmitOptionFloor::MapFamilyWithDeclarationOnly
                     | EmitOptionFloor::DeclarationFamily
             ) {
-                compiler_options.map_root = Some(value.to_owned());
+                compiler_options.map_root = Some(value.to_owned().into());
             }
         }
         // W5 K21: the production emitter honors emitBOM on the JavaScript
@@ -1200,7 +1256,7 @@ fn apply_compiler_setting(
                 floor,
                 EmitOptionFloor::MapFamily | EmitOptionFloor::MapFamilyWithDeclarationOnly
             ) {
-                compiler_options.out_file = Some(value.to_owned());
+                compiler_options.out_file = Some(value.to_owned().into());
             }
         }
         "noemithelpers"
@@ -1912,12 +1968,12 @@ fn build_compiler_fixture(
             let parsed = parse_config_root_plan(
                 &host,
                 ConfigRootPlanRequest {
-                    file_name: unit.name.to_string(),
+                    file_name: unit.name.as_ref().into(),
                     text: text.to_owned(),
-                    base_path: VIRTUAL_SOURCE_ROOT.to_owned(),
+                    base_path: VIRTUAL_SOURCE_ROOT.into(),
                 },
             );
-            let config_host_log = Arc::from(host.into_log());
+            let config_host_log = Arc::from(host.into_log()?);
             let config_root_plan = parsed
                 .map_err(|parse_error| {
                     error(format!(
@@ -2096,7 +2152,7 @@ fn build_compiler_unit(
 /// `/.src` before wildcard matching.
 struct CompilerFixtureConfigHost<'a> {
     units: &'a [CompilerUnitInput],
-    log: RefCell<Vec<Value>>,
+    log: RefCell<Vec<tsc_program::JsonValue>>,
 }
 
 impl<'a> CompilerFixtureConfigHost<'a> {
@@ -2107,8 +2163,15 @@ impl<'a> CompilerFixtureConfigHost<'a> {
         }
     }
 
-    fn into_log(self) -> Vec<Value> {
-        self.log.into_inner()
+    fn into_log(self) -> HarnessResult<Vec<Value>> {
+        // The frozen corpus observer uses serde values. Preserve the complete
+        // JS trace through host execution; reject an unrepresentable observer
+        // result explicitly rather than projecting any query or lookup key.
+        self.log
+            .into_inner()
+            .iter()
+            .map(js_paths::scalar_json_observation)
+            .collect()
     }
 }
 
@@ -2117,43 +2180,50 @@ impl ConfigParseHost for CompilerFixtureConfigHost<'_> {
         false
     }
 
-    fn file_exists(&self, path: &str) -> Result<bool, ConfigHostError> {
-        let key = to_file_name_lower_case(path);
+    fn file_exists(&self, path: JsStr<'_>) -> Result<bool, ConfigHostError> {
+        let key = tsc_host::to_file_name_lower_case_js(path);
         let result = self
             .units
             .iter()
-            .any(|unit| to_file_name_lower_case(unit.name.as_ref()) == key);
-        self.log.borrow_mut().push(json!({
-            "operation": "file_exists",
-            "path": path,
-            "result": result,
-        }));
+            .any(|unit| tsc_host::to_file_name_lower_case_js(unit.name.as_ref().into()) == key);
+        self.log.borrow_mut().push(js_paths::log_entry([
+            ("operation", js_paths::json_string("file_exists".into())),
+            ("path", js_paths::json_string(path)),
+            ("result", tsc_program::JsonValue::Bool(result)),
+        ]));
         Ok(result)
     }
 
-    fn read_file(&self, path: &str) -> Result<Option<String>, ConfigHostError> {
-        let key = to_file_name_lower_case(path);
+    fn read_file(&self, path: JsStr<'_>) -> Result<Option<String>, ConfigHostError> {
+        let key = tsc_host::to_file_name_lower_case_js(path);
         let result = self.units.iter().find_map(|unit| {
-            (to_file_name_lower_case(unit.name.as_ref()) == key)
+            (tsc_host::to_file_name_lower_case_js(unit.name.as_ref().into()) == key)
                 .then(|| unit.content.as_deref().map(str::to_owned))
                 .flatten()
         });
-        self.log.borrow_mut().push(json!({
-            "operation": "read_file",
-            "path": path,
-            "result": if result.is_some() { "text" } else { "missing" },
-        }));
+        self.log.borrow_mut().push(js_paths::log_entry([
+            ("operation", js_paths::json_string("read_file".into())),
+            ("path", js_paths::json_string(path)),
+            (
+                "result",
+                js_paths::json_string(if result.is_some() {
+                    "text".into()
+                } else {
+                    "missing".into()
+                }),
+            ),
+        ]));
         Ok(result)
     }
 
     fn read_directory(
         &self,
-        directory: &str,
+        directory: JsStr<'_>,
         extensions: &[&str],
-        excludes: Option<&[String]>,
-        includes: Option<&[String]>,
+        excludes: Option<&[JsString]>,
+        includes: Option<&[JsString]>,
         depth: Option<usize>,
-    ) -> Result<Vec<String>, ConfigHostError> {
+    ) -> Result<Vec<JsString>, ConfigHostError> {
         let includes = includes.unwrap_or(&[]);
         let include_patterns = includes
             .iter()
@@ -2171,11 +2241,11 @@ impl ConfigParseHost for CompilerFixtureConfigHost<'_> {
             .collect::<Result<Vec<_>, _>>()?;
         let mut buckets = vec![Vec::new(); includes.len().max(1)];
         let mut visited = HashSet::new();
-        for base_path in config_base_paths(directory, includes) {
-            visit_config_directory(
+        for base_path in js_paths::base_paths(directory, includes) {
+            js_paths::visit_directory(
                 self.units,
                 directory,
-                &base_path,
+                base_path.as_js(),
                 extensions,
                 excludes,
                 includes,
@@ -2186,169 +2256,20 @@ impl ConfigParseHost for CompilerFixtureConfigHost<'_> {
             )?;
         }
         let result = buckets.into_iter().flatten().collect::<Vec<_>>();
-        self.log.borrow_mut().push(json!({
-            "operation": "read_directory",
-            "directory": directory,
-            "extensions": extensions,
-            "excludes": excludes,
-            "includes": includes,
-            "depth": depth,
-            "result": result,
-        }));
+        self.log.borrow_mut().push(js_paths::log_entry([
+            ("operation", js_paths::json_string("read_directory".into())),
+            ("directory", js_paths::json_string(directory)),
+            ("extensions", json!(extensions).into()),
+            (
+                "excludes",
+                excludes.map_or(tsc_program::JsonValue::Null, js_paths::json_strings),
+            ),
+            ("includes", js_paths::json_strings(includes)),
+            ("depth", json!(depth).into()),
+            ("result", js_paths::json_strings(&result)),
+        ]));
         Ok(result)
     }
-}
-
-fn config_base_paths(directory: &str, includes: &[String]) -> Vec<String> {
-    let mut include_bases = includes
-        .iter()
-        .map(|include| {
-            let absolute = absolute_config_pattern(directory, include);
-            let wildcard = absolute.find(['*', '?']);
-            match wildcard {
-                Some(wildcard) => absolute[..wildcard].rfind('/').map_or_else(
-                    || directory.to_owned(),
-                    |index| absolute[..index].to_owned(),
-                ),
-                None if path_component_has_extension(&absolute) => absolute.rfind('/').map_or_else(
-                    || directory.to_owned(),
-                    |index| absolute[..index].to_owned(),
-                ),
-                None => absolute,
-            }
-        })
-        .collect::<Vec<_>>();
-    include_bases.sort_by(|left, right| {
-        compare_utf16(
-            &to_file_name_lower_case(left),
-            &to_file_name_lower_case(right),
-        )
-    });
-    let mut bases = vec![directory.to_owned()];
-    for include_base in include_bases {
-        if bases
-            .iter()
-            .all(|base| !config_path_contains(base, &include_base))
-        {
-            bases.push(include_base);
-        }
-    }
-    bases
-}
-
-fn config_path_contains(parent: &str, child: &str) -> bool {
-    let parent = to_file_name_lower_case(parent.trim_end_matches('/'));
-    let child = to_file_name_lower_case(child.trim_end_matches('/'));
-    child == parent
-        || child
-            .strip_prefix(&parent)
-            .is_some_and(|tail| tail.starts_with('/'))
-}
-
-#[allow(clippy::too_many_arguments)]
-fn visit_config_directory(
-    units: &[CompilerUnitInput],
-    base_directory: &str,
-    directory: &str,
-    extensions: &[&str],
-    excludes: Option<&[String]>,
-    includes: &[String],
-    include_patterns: &[Option<ConfigFilePattern>],
-    depth: Option<usize>,
-    visited: &mut HashSet<String>,
-    buckets: &mut [Vec<String>],
-) -> Result<(), ConfigHostError> {
-    let directory_key = to_file_name_lower_case(directory);
-    if !visited.insert(directory_key.clone()) {
-        return Ok(());
-    }
-    let mut files = Vec::new();
-    let mut directories = Vec::new();
-    for unit in units {
-        let normalized = normalize_compiler_unit_path(unit.name.as_ref()).map_err(|error| {
-            ConfigHostError::new(
-                ConfigHostOperation::ReadDirectory,
-                unit.name.as_ref(),
-                error.to_string(),
-            )
-        })?;
-        // harnessIO's virtual ParseConfigHost intentionally uses a raw folded
-        // string prefix here rather than a path-component containment check.
-        // Preserve that observable quirk for compiler-runner compatibility.
-        if !to_file_name_lower_case(&normalized).starts_with(&directory_key) {
-            continue;
-        }
-        let Some(mut tail) = normalized.get(directory.len()..) else {
-            continue;
-        };
-        if let Some(stripped) = tail.strip_prefix('/') {
-            tail = stripped;
-        }
-        if let Some(separator) = tail.find('/') {
-            let child = &tail[..separator];
-            if !child.is_empty() && !directories.iter().any(|entry| entry == child) {
-                directories.push(child.to_owned());
-            }
-        } else if !tail.is_empty() {
-            files.push(tail.to_owned());
-        }
-    }
-    files.sort_by(|left, right| compare_utf16(left, right));
-    for file in files {
-        let path = join_config_path(directory, &file);
-        if !extensions
-            .iter()
-            .any(|extension| file_extension_is_exact(&path, extension))
-            || excludes.is_some_and(|patterns| {
-                patterns
-                    .iter()
-                    .any(|pattern| config_exclude_matches(base_directory, pattern, &path))
-            })
-        {
-            continue;
-        }
-        let include_index = if includes.is_empty() {
-            Some(0)
-        } else {
-            include_patterns.iter().position(|pattern| {
-                pattern
-                    .as_ref()
-                    .is_some_and(|pattern| pattern.matches(&path))
-            })
-        };
-        if let Some(include_index) = include_index {
-            buckets[include_index].push(path);
-        }
-    }
-
-    if depth == Some(1) {
-        return Ok(());
-    }
-    let child_depth = depth.map(|depth| depth.saturating_sub(1));
-    directories.sort_by(|left, right| compare_utf16(left, right));
-    for child in directories {
-        let path = join_config_path(directory, &child);
-        if excludes.is_some_and(|patterns| {
-            patterns
-                .iter()
-                .any(|pattern| config_exclude_matches(base_directory, pattern, &path))
-        }) {
-            continue;
-        }
-        visit_config_directory(
-            units,
-            base_directory,
-            &path,
-            extensions,
-            excludes,
-            includes,
-            include_patterns,
-            child_depth,
-            visited,
-            buckets,
-        )?;
-    }
-    Ok(())
 }
 
 fn join_config_path(directory: &str, name: &str) -> String {
@@ -2440,95 +2361,6 @@ fn compiler_fixture_root_parts(path: &str) -> Option<(&str, &str)> {
     None
 }
 
-fn file_extension_is_exact(path: &str, extension: &str) -> bool {
-    path.len() > extension.len() && path.ends_with(extension)
-}
-
-fn config_exclude_matches(base_directory: &str, pattern: &str, path: &str) -> bool {
-    if pattern.is_empty() {
-        return false;
-    }
-    let pattern = absolute_config_pattern(base_directory, pattern);
-    if pattern.contains(['*', '?']) {
-        return glob_matches(&pattern, path, false);
-    }
-    let pattern = pattern.trim_end_matches('/');
-    let folded_pattern = to_file_name_lower_case(pattern);
-    let folded_path = to_file_name_lower_case(path);
-    folded_path == folded_pattern
-        || folded_path
-            .strip_prefix(&folded_pattern)
-            .is_some_and(|tail| tail.starts_with('/'))
-}
-
-fn absolute_config_pattern(base_directory: &str, pattern: &str) -> String {
-    let pattern = pattern.replace('\\', "/");
-    if compiler_fixture_root_parts(&pattern).is_some() {
-        return normalize_compiler_rooted_path(&pattern).unwrap_or(pattern);
-    }
-    let combined = join_config_path(base_directory, &pattern);
-    normalize_compiler_rooted_path(&combined).unwrap_or(combined)
-}
-
-fn path_component_has_extension(path: &str) -> bool {
-    path.rsplit('/')
-        .next()
-        .is_some_and(|base| base.contains('.'))
-}
-
-fn glob_matches(pattern: &str, text: &str, case_sensitive: bool) -> bool {
-    let (pattern, text) = if case_sensitive {
-        (pattern.to_owned(), text.to_owned())
-    } else {
-        (
-            to_file_name_lower_case(pattern),
-            to_file_name_lower_case(text),
-        )
-    };
-    let pattern = pattern.chars().collect::<Vec<_>>();
-    let text = text.chars().collect::<Vec<_>>();
-    let mut memo = vec![vec![None; text.len() + 1]; pattern.len() + 1];
-
-    fn matches(
-        pattern: &[char],
-        text: &[char],
-        pattern_index: usize,
-        text_index: usize,
-        memo: &mut [Vec<Option<bool>>],
-    ) -> bool {
-        if let Some(result) = memo[pattern_index][text_index] {
-            return result;
-        }
-        let result = if pattern_index == pattern.len() {
-            text_index == text.len()
-        } else if pattern[pattern_index] == '*' {
-            let double = pattern.get(pattern_index + 1) == Some(&'*');
-            let after_star = pattern_index + if double { 2 } else { 1 };
-            if double && pattern.get(after_star) == Some(&'/') {
-                matches(pattern, text, after_star + 1, text_index, memo)
-                    || (text_index < text.len()
-                        && matches(pattern, text, pattern_index, text_index + 1, memo))
-            } else {
-                matches(pattern, text, after_star, text_index, memo)
-                    || (text_index < text.len()
-                        && (double || text[text_index] != '/')
-                        && matches(pattern, text, pattern_index, text_index + 1, memo))
-            }
-        } else if text_index < text.len()
-            && ((pattern[pattern_index] == '?' && text[text_index] != '/')
-                || pattern[pattern_index] == text[text_index])
-        {
-            matches(pattern, text, pattern_index + 1, text_index + 1, memo)
-        } else {
-            false
-        };
-        memo[pattern_index][text_index] = Some(result);
-        result
-    }
-
-    matches(&pattern, &text, 0, 0, &mut memo)
-}
-
 fn compare_utf16(left: &str, right: &str) -> std::cmp::Ordering {
     left.encode_utf16().cmp(right.encode_utf16())
 }
@@ -2605,7 +2437,7 @@ fn compiler_root_selection(
             if config_plan
                 .file_names()
                 .iter()
-                .any(|file_name| file_name == &normalized)
+                .any(|file_name| file_name.as_js() == normalized.as_str())
             {
                 root_units.push(id);
             } else {

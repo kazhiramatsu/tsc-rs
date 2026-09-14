@@ -7,9 +7,10 @@
 //! (tsc indexes JS strings; `s1[i-1].toLowerCase()` lowercases one
 //! code unit — surrogate halves pass through unchanged).
 
-use tsc_binder::unescape_leading_underscores;
 use tsc_syntax::NodeId;
-use tsc_types::{LiteralValue, SymbolFlags, SymbolId, TypeData, TypeFlags, TypeId};
+use tsc_types::{
+    JsStr, JsString, LiteralValue, SymbolFlags, SymbolId, TypeData, TypeFlags, TypeId,
+};
 
 use crate::state::{CheckResult, CheckerState};
 
@@ -120,15 +121,15 @@ fn levenshtein_with_max(s1: &[u16], s2: &[u16], max: f64) -> Option<f64> {
 /// Generic over candidate handles, with tsc's getName callback shape;
 /// candidates run IN ORDER and only a STRICTLY better distance
 /// replaces the best (earlier candidates win ties).
-pub(crate) fn get_spelling_suggestion<C: Copy, S>(
+pub(crate) fn get_spelling_suggestion<'n, C: Copy, S, A: Into<JsString>>(
     state: &mut S,
-    name: &str,
+    name: impl Into<JsStr<'n>>,
     candidates: &[C],
-    mut get_name: impl FnMut(&mut S, C) -> Option<String>,
+    mut get_name: impl FnMut(&mut S, C) -> Option<A>,
 ) -> Option<C> {
-    let name_units: Vec<u16> = name.encode_utf16().collect();
+    let name_units = name.into().to_utf16();
     get_spelling_suggestion_utf16(state, &name_units, candidates, |state, candidate| {
-        get_name(state, candidate).map(|name| name.encode_utf16().collect())
+        get_name(state, candidate).map(|name| name.into().to_utf16())
     })
 }
 
@@ -219,17 +220,17 @@ impl<'a> CheckerState<'a> {
     /// CheckAbort unwind inside the chase demotes to no-suggestion
     /// (tsc cannot fail here; the suggestion band is the only consumer
     /// and a missing suggestion picks the plain message flavor).
-    pub(crate) fn get_spelling_suggestion_for_name(
+    pub(crate) fn get_spelling_suggestion_for_name<'n>(
         &mut self,
-        name: &str,
+        name: impl Into<JsStr<'n>>,
         symbols: &[SymbolId],
         meaning: SymbolFlags,
     ) -> Option<SymbolId> {
         get_spelling_suggestion(self, name, symbols, |state, candidate| {
-            let candidate_name =
-                unescape_leading_underscores(&state.binder.symbol(candidate).escaped_name)
-                    .to_owned();
-            if candidate_name.starts_with('"') {
+            // getCandidateName starts from symbolName(candidate): a private
+            // member competes as `#name`, not as its `__#N@#name` key.
+            let candidate_name = state.symbol_name(candidate);
+            if candidate_name.starts_with("\"") {
                 return None;
             }
             let flags = state.binder.symbol(candidate).flags;
@@ -255,6 +256,9 @@ impl<'a> CheckerState<'a> {
         name: NodeId,
         target_module: SymbolId,
     ) -> CheckResult<Option<SymbolId>> {
+        // Upstream uses idText here; the import/export diagnostic caller
+        // checks isIdentifier first (_tsc.js:48906). Quoted export names do
+        // not enter this identifier-only suggestion path.
         let Some(name_text) = self.identifier_text_of(name).map(str::to_owned) else {
             return Ok(None);
         };
@@ -270,9 +274,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getSuggestedSymbolForNonexistentClassMember @6.0.3
     /// tsc-hash: 8e78ef31290dfaec3cc2ea2e32f9c1036bfcb5a576110ce076f2c56720b0825b
     /// tsc-span: _tsc.js:75498-75500
-    pub(crate) fn get_suggested_symbol_for_nonexistent_class_member(
+    pub(crate) fn get_suggested_symbol_for_nonexistent_class_member<'n>(
         &mut self,
-        name: &str,
+        name: impl Into<JsStr<'n>>,
         base_type: TypeId,
     ) -> CheckResult<Option<SymbolId>> {
         let properties = self.get_properties_of_type(base_type)?;
@@ -287,10 +291,10 @@ impl<'a> CheckerState<'a> {
     /// (oracle-pinned: 2551 fires freely in noLib while the name side
     /// is exhausted). The node-flavored caller filters candidates by
     /// completion validity (accessibility probe without reporting).
-    pub(crate) fn get_suggested_symbol_for_nonexistent_property(
+    pub(crate) fn get_suggested_symbol_for_nonexistent_property<'n>(
         &mut self,
         name_node: Option<tsc_syntax::NodeId>,
-        name: &str,
+        name: impl Into<JsStr<'n>>,
         containing_type: TypeId,
     ) -> CheckResult<Option<SymbolId>> {
         let mut props = self.get_properties_of_type(containing_type)?;
@@ -317,15 +321,17 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getSuggestionForNonexistentProperty @6.0.3
     /// tsc-hash: c9959d21e71cc27baff354dd7caf6abad4d7150f9c4afa48983f5e3f05fd014b
     /// tsc-span: _tsc.js:75518-75521
-    pub(crate) fn get_suggestion_for_nonexistent_property(
+    pub(crate) fn get_suggestion_for_nonexistent_property<'n>(
         &mut self,
         name_node: Option<tsc_syntax::NodeId>,
-        name: &str,
+        name: impl Into<JsStr<'n>>,
         containing_type: TypeId,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<JsString>> {
         let suggestion =
             self.get_suggested_symbol_for_nonexistent_property(name_node, name, containing_type)?;
-        Ok(suggestion.map(|symbol| self.symbol_name_as_written_slice(symbol)))
+        // symbolName(suggestion): the unescaped (or `#private`) face, never
+        // the written face with its quotes and escape spellings.
+        Ok(suggestion.map(|symbol| self.symbol_name(symbol)))
     }
 }
 
@@ -342,7 +348,9 @@ impl<'a> CheckerState<'a> {
         object_type: TypeId,
         expr: tsc_syntax::NodeId,
         keyed_type: TypeId,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<tsc_types::JsString>> {
+        // The receiver formatter accepts only identifier/property-access
+        // syntax, and the appended method is the fixed scalar "get"/"set".
         let source = self.binder.source_of_node(expr);
         let suggested_method = if tsc_binder::node_util::is_assignment_target(source, expr) {
             "set"
@@ -377,8 +385,12 @@ impl<'a> CheckerState<'a> {
         let base =
             receiver.and_then(|receiver| self.property_access_or_identifier_to_string(receiver));
         Ok(Some(match base {
-            Some(base) => format!("{base}.{suggested_method}"),
-            None => suggested_method.to_owned(),
+            Some(mut base) => {
+                base.push_str(".");
+                base.push_str(suggested_method);
+                base
+            }
+            None => suggested_method.into(),
         }))
     }
 }

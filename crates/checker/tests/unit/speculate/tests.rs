@@ -357,12 +357,14 @@ fn link_protocols_are_temporary_on_commit_and_rollback() {
         let rolled_back_type = state
             .tables
             .create_type(TypeFlags::OBJECT, TypeData::Object);
-        let committed_symbol = state
-            .binder
-            .create_symbol(SymbolFlags::VARIABLE, "committed".to_owned());
-        let rolled_back_symbol = state
-            .binder
-            .create_symbol(SymbolFlags::VARIABLE, "rolledBack".to_owned());
+        let committed_symbol = state.binder.create_symbol(
+            SymbolFlags::VARIABLE,
+            tsc_types::EscapedName::from_escaped_value(("committed".to_owned()).into()),
+        );
+        let rolled_back_symbol = state.binder.create_symbol(
+            SymbolFlags::VARIABLE,
+            tsc_types::EscapedName::from_escaped_value(("rolledBack".to_owned()).into()),
+        );
         let committed_members = state.alloc_members(ResolvedMembers::default());
         let rolled_back_members = state.alloc_members(ResolvedMembers::default());
         let exercise = |state: &mut CheckerState, node, symbol, ty, members| {
@@ -519,12 +521,14 @@ fn selected_context_state_commits_and_nested_rollback_restores() {
         let mut nodes = state.binder.source(0).arena.node_ids();
         let committed_node = nodes.next().expect("fixture root");
         let nested_node = nodes.next().expect("fixture declaration");
-        let committed_symbol = state
-            .binder
-            .create_symbol(SymbolFlags::FUNCTION_SCOPED_VARIABLE, "x".to_owned());
-        let nested_symbol = state
-            .binder
-            .create_symbol(SymbolFlags::FUNCTION_SCOPED_VARIABLE, "y".to_owned());
+        let committed_symbol = state.binder.create_symbol(
+            SymbolFlags::FUNCTION_SCOPED_VARIABLE,
+            tsc_types::EscapedName::from_escaped_value(("x".to_owned()).into()),
+        );
+        let nested_symbol = state.binder.create_symbol(
+            SymbolFlags::FUNCTION_SCOPED_VARIABLE,
+            tsc_types::EscapedName::from_escaped_value(("y".to_owned()).into()),
+        );
 
         let selected = state.begin_speculation();
         state.links.or_node_check_flags(
@@ -599,11 +603,11 @@ fn rejected_candidate_retains_completed_context_state_and_its_diagnostics() {
         let node = state.binder.source(0).root;
         let contextual_symbol = state.binder.create_symbol(
             SymbolFlags::FUNCTION_SCOPED_VARIABLE,
-            "contextual".to_owned(),
+            tsc_types::EscapedName::from_escaped_value(("contextual".to_owned()).into()),
         );
         let temporary_symbol = state.binder.create_symbol(
             SymbolFlags::FUNCTION_SCOPED_VARIABLE,
-            "temporary".to_owned(),
+            tsc_types::EscapedName::from_escaped_value(("temporary".to_owned()).into()),
         );
         let diagnostics_before = state.diagnostics.len();
 
@@ -659,7 +663,13 @@ fn rejected_candidate_retains_completed_context_state_and_its_diagnostics() {
         ));
         assert_eq!(state.diagnostics.len(), diagnostics_before + 1);
         assert_eq!(
-            state.diagnostics.last().unwrap().message_text(),
+            state
+                .diagnostics
+                .last()
+                .unwrap()
+                .message_text()
+                .as_str()
+                .expect("scalar diagnostic observation"),
             "Cannot find name 'contextual'."
         );
         assert_eq!(state.links.speculative_context_checked_mark(), 0);

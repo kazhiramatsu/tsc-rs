@@ -33,7 +33,7 @@ fn emit_diagnostic_assembly_uses_the_whole_program_semantic_stream() {
             MessageChain {
                 code,
                 category: tsc_diagnostics::DiagnosticCategory::Error,
-                text: text.to_owned(),
+                text: text.into(),
                 next_present: false,
                 next: Vec::new(),
             },
@@ -82,8 +82,8 @@ fn exact_compiler_fixture_option_diagnostics_are_fileless_and_exact() {
         (
             CompilerOptions {
                 jsx: Some(2),
-                jsx_factory: Some("h".to_owned()),
-                jsx_fragment_factory: Some("234".to_owned()),
+                jsx_factory: Some("h".into()),
+                jsx_fragment_factory: Some("234".into()),
                 ..CompilerOptions::default()
             },
             18035,
@@ -91,8 +91,8 @@ fn exact_compiler_fixture_option_diagnostics_are_fileless_and_exact() {
         ),
         (
             CompilerOptions {
-                jsx_factory: Some("Element.createElement".to_owned()),
-                react_namespace: Some("Element".to_owned()),
+                jsx_factory: Some("Element.createElement".into()),
+                react_namespace: Some("Element".into()),
                 ..CompilerOptions::default()
             },
             5053,
@@ -100,7 +100,7 @@ fn exact_compiler_fixture_option_diagnostics_are_fileless_and_exact() {
         ),
         (
             CompilerOptions {
-                jsx_factory: Some("Element.createElement=".to_owned()),
+                jsx_factory: Some("Element.createElement=".into()),
                 ..CompilerOptions::default()
             },
             5067,
@@ -108,7 +108,7 @@ fn exact_compiler_fixture_option_diagnostics_are_fileless_and_exact() {
         ),
         (
             CompilerOptions {
-                jsx_factory: Some("id1 id2".to_owned()),
+                jsx_factory: Some("id1 id2".into()),
                 ..CompilerOptions::default()
             },
             5067,
@@ -116,7 +116,7 @@ fn exact_compiler_fixture_option_diagnostics_are_fileless_and_exact() {
         ),
         (
             CompilerOptions {
-                react_namespace: Some("my-React-Lib".to_owned()),
+                react_namespace: Some("my-React-Lib".into()),
                 ..CompilerOptions::default()
             },
             5059,
@@ -161,8 +161,8 @@ fn option_dependencies_prevent_false_positive_diagnostics() {
             ..CompilerOptions::default()
         },
         CompilerOptions {
-            jsx_factory: Some("Element.createElement".to_owned()),
-            jsx_fragment_factory: Some("Element.Fragment".to_owned()),
+            jsx_factory: Some("Element.createElement".into()),
+            jsx_fragment_factory: Some("Element.Fragment".into()),
             ..CompilerOptions::default()
         },
     ] {

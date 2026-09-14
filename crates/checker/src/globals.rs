@@ -188,7 +188,7 @@ impl<'a> CheckerState<'a> {
                 self.error_at(
                     None,
                     message,
-                    &[tsc_binder::unescape_leading_underscores(name)],
+                    &[tsc_syntax::unescape_leading_underscores(name)],
                 );
                 self.suggestion_count += 1;
             }
@@ -302,7 +302,7 @@ impl<'a> CheckerState<'a> {
                 self.error_at(
                     None,
                     &diagnostics::Cannot_find_global_type_0,
-                    &[tsc_binder::unescape_leading_underscores(name)],
+                    &[tsc_syntax::unescape_leading_underscores(name)],
                 );
                 Ok(None)
             }
@@ -352,10 +352,10 @@ impl<'a> CheckerState<'a> {
         {
             let name = self.symbol_display_name(symbol);
             let declaration = self.global_type_declaration(symbol);
-            self.error_at(
+            self.error_at_js(
                 declaration,
                 &diagnostics::Global_type_0_must_be_a_class_or_interface_type,
-                &[&name],
+                &[(&name).into()],
             );
             return Ok(fallback);
         }
@@ -371,10 +371,10 @@ impl<'a> CheckerState<'a> {
         if type_parameter_count != arity {
             let name = self.symbol_display_name(symbol);
             let declaration = self.global_type_declaration(symbol);
-            self.error_at(
+            self.error_at_js(
                 declaration,
                 &diagnostics::Global_type_0_must_have_1_type_parameter_s,
-                &[&name, &arity.to_string()],
+                &[name.as_js(), (&arity.to_string()).into()],
             );
             return Ok(fallback);
         }
@@ -750,10 +750,10 @@ impl<'a> CheckerState<'a> {
                 .into_iter()
                 .find(|&declaration| self.kind_of(declaration) == SyntaxKind::TypeAliasDeclaration);
             let name_display = self.symbol_display_name(symbol);
-            self.error_at(
+            self.error_at_js(
                 decl,
                 &diagnostics::Global_type_0_must_have_1_type_parameter_s,
-                &[&name_display, &arity.to_string()],
+                &[name_display.as_js(), (&arity.to_string()).into()],
             );
             return Ok(None);
         }

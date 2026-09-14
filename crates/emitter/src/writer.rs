@@ -26,6 +26,24 @@ impl PartialEq for GeneratedText {
     }
 }
 
+impl From<String> for GeneratedText {
+    fn from(utf8: String) -> Self {
+        Self { utf8, utf16: None }
+    }
+}
+
+impl From<&str> for GeneratedText {
+    fn from(utf8: &str) -> Self {
+        Self::from(utf8.to_owned())
+    }
+}
+
+impl From<Box<str>> for GeneratedText {
+    fn from(utf8: Box<str>) -> Self {
+        Self::from(utf8.into_string())
+    }
+}
+
 impl GeneratedText {
     pub(crate) fn as_str(&self) -> &str {
         &self.utf8
@@ -38,7 +56,7 @@ impl GeneratedText {
         }
     }
 
-    fn push_str(&mut self, text: &str) {
+    pub(crate) fn push_str(&mut self, text: &str) {
         self.utf8.push_str(text);
         if let Some(units) = &mut self.utf16 {
             units.extend(text.encode_utf16());
@@ -201,7 +219,7 @@ impl TextWriter {
     pub(crate) fn record_source_map_position_for(
         &mut self,
         source: crate::TransformSourceId,
-        file_name: &str,
+        file_name: tsc_types::JsStr<'_>,
         source_line: u32,
         source_character: u32,
     ) {

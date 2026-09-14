@@ -17,7 +17,7 @@
 use tsc_binder::{node_util, SymbolId};
 use tsc_diagnostics::gen as diagnostics;
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
-use tsc_types::{CheckMode, ModifierFlags, NodeFlags, SymbolFlags};
+use tsc_types::{CheckMode, EscapedName, JsString, ModifierFlags, NodeFlags, SymbolFlags};
 
 use crate::state::{CheckResult, CheckerState};
 
@@ -25,7 +25,7 @@ use crate::state::{CheckResult, CheckerState};
 /// bigints never flow — the evaluator has no bigint arms).
 #[derive(Clone, Debug, PartialEq)]
 pub enum EvalValue {
-    Str(String),
+    Str(JsString),
     Num(f64),
 }
 
@@ -405,15 +405,19 @@ impl<'a> CheckerState<'a> {
                         ));
                     }
                 } else if operator == SyntaxKind::PlusToken {
-                    let concat = |value: &EvalValue| -> String {
+                    let concat = |value: &EvalValue| -> JsString {
                         match value {
                             EvalValue::Str(text) => text.clone(),
-                            EvalValue::Num(number) => tsc_types::js_number_to_string(*number),
+                            EvalValue::Num(number) => {
+                                tsc_types::js_number_to_string(*number).into()
+                            }
                         }
                     };
                     if let (Some(l), Some(r)) = (&left.value, &right.value) {
+                        let mut value = concat(l);
+                        value.push_js(concat(r).as_js());
                         return Ok(evaluator_result(
-                            Some(EvalValue::Str(format!("{}{}", concat(l), concat(r)))),
+                            Some(EvalValue::Str(value)),
                             is_syntactically_string,
                             resolved_other_files,
                             has_external_references,
@@ -494,13 +498,13 @@ impl<'a> CheckerState<'a> {
                 return Ok(evaluator_result(None, true, false, false));
             };
             match value {
-                EvalValue::Str(text) => result.push_str(&text),
+                EvalValue::Str(text) => result.push_js(text.as_js()),
                 EvalValue::Num(number) => result.push_str(&tsc_types::js_number_to_string(number)),
             }
             let literal = literal.expect("parser invariant: template span literal always parsed");
             match self.data_of(literal) {
-                NodeData::TemplateMiddle(data) => result.push_str(&data.text),
-                NodeData::TemplateTail(data) => result.push_str(&data.text),
+                NodeData::TemplateMiddle(data) => result.push_js(data.text.as_js()),
+                NodeData::TemplateTail(data) => result.push_js(data.text.as_js()),
                 _ => unreachable!(
                     "parser invariant: span literals are TemplateMiddle/TemplateTail (missing shape included)"
                 ),
@@ -654,7 +658,7 @@ impl<'a> CheckerState<'a> {
             .binder
             .symbol(root_symbol)
             .exports
-            .get(name.as_str())
+            .get(name.as_js())
             .copied();
         let Some(member) = member else {
             return Ok(undefined_result());
@@ -685,10 +689,10 @@ impl<'a> CheckerState<'a> {
         let Some(declaration) = declaration.filter(|&declaration| declaration != location) else {
             // evaluateEnumMember also uses symbolToString for TS2565.
             let display = self.symbol_name_as_written_slice(symbol);
-            self.error_at(
+            self.error_at_js(
                 Some(expr),
                 &diagnostics::Property_0_is_used_before_being_assigned,
-                &[&display],
+                &[display.as_js()],
             );
             return Ok(undefined_result());
         };
@@ -1477,14 +1481,18 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: tryGetTextOfPropertyName @6.0.3
     /// tsc-hash: 775dd95b7a0f4d64b4b910bb31e7dd9bdcddd1c473bf9b913b2b2adbe4afd0c2
     /// tsc-span: _tsc.js:13863-13882
-    pub(crate) fn try_get_text_of_property_name(&self, name: NodeId) -> Option<String> {
+    pub(crate) fn try_get_text_of_property_name(&self, name: NodeId) -> Option<EscapedName> {
         let source = self.binder.source_of_node(name);
         match self.data_of(name) {
             // emitNode.autoGenerate is not represented in the parsed
             // arena; parsed identifiers/private identifiers therefore
             // take the escapedText arm directly.
-            NodeData::Identifier(data) => Some(data.escaped_text.clone()),
-            NodeData::PrivateIdentifier(data) => Some(data.escaped_text.clone()),
+            NodeData::Identifier(data) => Some(EscapedName::from_identifier_escaped_text(
+                &data.escaped_text,
+            )),
+            NodeData::PrivateIdentifier(data) => Some(EscapedName::from_identifier_escaped_text(
+                &data.escaped_text,
+            )),
             NodeData::StringLiteral(data) => {
                 Some(tsc_binder::escape_leading_underscores(&data.text))
             }
@@ -1522,7 +1530,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getTextOfPropertyName @6.0.3
     /// tsc-hash: b6a070f28394bc21fdf62f528c96dee4a10060472d748602fd0bba75be70e0cd
     /// tsc-span: _tsc.js:13883-13885
-    pub(crate) fn get_text_of_property_name(&self, name: NodeId) -> CheckResult<String> {
+    pub(crate) fn get_text_of_property_name(&self, name: NodeId) -> CheckResult<EscapedName> {
         Ok(self
             .try_get_text_of_property_name(name)
             .expect("getTextOfPropertyName requires a textual property name"))
@@ -1700,14 +1708,16 @@ impl<'a> CheckerState<'a> {
 ///
 /// `(+name).toString() === name` — JS ToNumber over the name string,
 /// round-tripped through Number#toString.
-pub(crate) fn is_numeric_literal_name(name: &str) -> bool {
-    tsc_types::js_number_to_string(js_string_to_number(name)) == name
+pub(crate) fn is_numeric_literal_name<'n>(name: impl Into<tsc_types::JsStr<'n>>) -> bool {
+    let name = name.into();
+    name == tsc_types::js_number_to_string(js_string_to_number(name)).as_str()
 }
 
 /// tsc-port: isInfinityOrNaNString @6.0.3
 /// tsc-hash: 0e62fa3d1eedc96edada87bf439e9b1e08da6114503b430fd3b76fcc9ec063ef
 /// tsc-span: _tsc.js:19196-19198
-fn is_infinity_or_nan_string(name: &str) -> bool {
+fn is_infinity_or_nan_string<'n>(name: impl Into<tsc_types::JsStr<'n>>) -> bool {
+    let name = name.into();
     name == "Infinity" || name == "-Infinity" || name == "NaN"
 }
 
@@ -1719,8 +1729,14 @@ fn is_infinity_or_nan_string(name: &str) -> bool {
 /// 0x/0o/0b integer forms, signed decimal/Infinity forms, else NaN.
 /// Rust's f64 parser accepts "inf"/"infinity"/"nan" spellings that JS
 /// rejects, so those pass through the explicit special-form table.
-pub(crate) fn js_string_to_number(text: &str) -> f64 {
-    let trimmed = text.trim();
+pub(crate) fn js_string_to_number<'s>(text: impl Into<tsc_types::JsStr<'s>>) -> f64 {
+    // StringNumericLiteral and its surrounding JS whitespace contain no
+    // isolated surrogate. Such a value cannot become numeric by trimming.
+    let text = text.into();
+    let Some(text) = text.as_str() else {
+        return f64::NAN;
+    };
+    let trimmed = text.trim_matches(tsc_syntax::scanner::is_js_whitespace);
     if trimmed.is_empty() {
         return 0.0;
     }

@@ -1318,6 +1318,10 @@ fn compare_program_with_mutation_canary(
         &result.diagnostics,
         &FormatDiagnosticsHost::new(&program.cwd, &file_texts),
     )?;
+    let tsrs_rendered = tsrs_rendered
+        .as_str()
+        .ok_or("M8 rendered wire schema cannot represent an unpaired UTF-16 surrogate")?
+        .to_owned();
     let mut tsrs_values = result
         .diagnostics
         .iter()
@@ -1401,12 +1405,12 @@ fn oracle_value(diagnostic: &tsc_oracle::OracleDiag) -> Value {
 
 fn tsrs_value(diagnostic: &Diagnostic) -> Value {
     json!({
-        "file": diagnostic.file_name,
+        "file": diagnostic.file_name.as_ref().map(|value| value.as_str().expect("scalar M8 filename")),
         "start": diagnostic.start,
         "length": diagnostic.length,
         "code": diagnostic.code(),
         "category": diagnostic.category().name(),
-        "head": diagnostic.message.text,
+        "head": diagnostic.message.text.as_str().expect("scalar M8 message"),
         "chain": message_chain_value(&diagnostic.message),
         "related": diagnostic.related.iter().map(related_value).collect::<Vec<_>>(),
     })
@@ -1414,7 +1418,7 @@ fn tsrs_value(diagnostic: &Diagnostic) -> Value {
 
 fn message_chain_value(chain: &MessageChain) -> Value {
     json!({
-        "text": chain.text,
+        "text": chain.text.as_str().expect("scalar M8 message"),
         "code": chain.code,
         "category": chain.category.name(),
         "next": chain.next.iter().map(message_chain_value).collect::<Vec<_>>(),
@@ -1423,7 +1427,7 @@ fn message_chain_value(chain: &MessageChain) -> Value {
 
 fn related_value(related: &RelatedInfo) -> Value {
     json!({
-        "file": related.file_name,
+        "file": related.file_name.as_ref().map(|value| value.as_str().expect("scalar M8 filename")),
         "start": related.start,
         "length": related.length,
         "code": related.message.code,

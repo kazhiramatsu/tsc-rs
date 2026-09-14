@@ -4,11 +4,11 @@ use std::rc::Rc;
 use tsc_diagnostics::{DocumentVersion, TextSnapshot};
 use tsc_emitter::{
     create_printer, get_script_transformers, transform_nodes, CommentRange, EmitFlags, EmitHelper,
-    EmitHint, EmitResolverNode, JavaScriptString, NewLineKind, PrintRequest, PrinterError,
-    PrinterOptions, SourceByteRange, SourceFileId, SourceFileTextMode, SourceRange,
-    SyntheticComment, SyntheticCommentKind, TransformArena, TransformError, TransformFlags,
-    TransformNode, TransformRoot, TransformSourceId, TransformationContext, TransformationState,
-    Transformer, UnavailableEmitResolver,
+    EmitHint, EmitResolverNode, NewLineKind, PrintRequest, PrinterError, PrinterOptions,
+    SourceByteRange, SourceFileId, SourceFileTextMode, SourceRange, SyntheticComment,
+    SyntheticCommentKind, TransformArena, TransformError, TransformFlags, TransformNode,
+    TransformRoot, TransformSourceId, TransformationContext, TransformationState, Transformer,
+    UnavailableEmitResolver,
 };
 use tsc_syntax::{
     for_each_child,
@@ -87,27 +87,24 @@ impl Transformer for ProbeTransformer {
             .arena_mut()?
             .metadata_mut(first)
             .set_flags(EmitFlags::NO_TRAILING_COMMENTS);
-        context
-            .arena_mut()?
-            .literal_properties_mut(first)?
-            .set_javascript_string_value(JavaScriptString::from_code_units(vec![
-                0xd800, 0x0061, 0xdc00,
-            ]));
         let second_clone = context.factory()?.clone_node(first)?;
         assert_eq!(
             context.arena().metadata(second_clone).unwrap().flags(),
             EmitFlags::NO_TRAILING_COMMENTS
         );
         assert_eq!(context.arena().get_original_node(second_clone), first);
+        // Literal values are payload-owned and require a literal node;
+        // the statement above exercises emit metadata, not cooked text.
+        let literal = context.factory()?.create_string_literal_from_code_units(
+            source,
+            &[0xd800, 0x0061, 0xdc00],
+            false,
+        )?;
+        let literal_clone = context.factory()?.clone_node(literal)?;
+        assert_eq!(context.arena().get_original_node(literal_clone), literal);
         assert_eq!(
-            context
-                .arena()
-                .literal_properties(second_clone)
-                .unwrap()
-                .javascript_string_value()
-                .unwrap()
-                .code_units(),
-            [0xd800, 0x0061, 0xdc00]
+            context.arena().literal_code_units(literal_clone)?,
+            Some(vec![0xd800, 0x0061, 0xdc00])
         );
         context.hoist_function_declaration(clone)?;
         let environment = context.end_lexical_environment()?;

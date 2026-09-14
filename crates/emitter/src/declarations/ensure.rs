@@ -1025,12 +1025,9 @@ fn current_source_is_js(
     source: crate::TransformSourceId,
 ) -> Result<bool, TransformError> {
     let file_name = &cx.arena().source(source)?.syntax().file_name;
-    Ok(matches!(
-        std::path::Path::new(file_name)
-            .extension()
-            .and_then(|extension| extension.to_str()),
-        Some("js" | "jsx" | "mjs" | "cjs")
-    ))
+    Ok([".js", ".jsx", ".mjs", ".cjs"]
+        .into_iter()
+        .any(|extension| file_name.ends_with(extension)))
 }
 
 fn identifier_text(cx: &TransformationContext, node: TransformNode) -> Option<String> {

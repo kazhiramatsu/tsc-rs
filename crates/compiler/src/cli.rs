@@ -18,11 +18,11 @@ use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use tsc_diagnostics::gen;
 use tsc_diagnostics::{
     format_diagnostics_with_context, sort_and_dedupe_diagnostic_indices_with_context, Diagnostic,
     FormatDiagnosticsHost, MessageChain, TextSnapshot,
 };
+use tsc_diagnostics::{gen, JsStr, JsString};
 use tsc_host::{CompilerHost, FsCompilerHost, HostError};
 use tsc_program::{
     decode_host_text, is_non_fatal_option_diagnostic, load_config_program,
@@ -51,7 +51,7 @@ const EXIT_DIAGNOSTIC: i32 = 2;
 const EXIT_FAILURE: i32 = 2;
 const CONFIG_FILE_NAME: &str = "tsconfig.json";
 const TYPESCRIPT_VERSION: &str = "6.0.3";
-type DiagnosticSourceMap = BTreeMap<String, Arc<TextSnapshot>>;
+type DiagnosticSourceMap = BTreeMap<JsString, Arc<TextSnapshot>>;
 const DEFAULT_LIMITS: ProgramLoadLimits = ProgramLoadLimits::new(
     1_000_000,
     2_000_000,
@@ -156,24 +156,35 @@ struct ConfigCommandLineOverrides {
 struct NativeEmitFileSystem;
 
 impl EmitFileSystem for NativeEmitFileSystem {
-    fn write_file(&mut self, path: &Path, bytes: &[u8]) -> Result<(), String> {
-        fs::write(path, bytes).map_err(|error| stable_io_message(&error, "open", path))
+    fn write_file(&mut self, path: JsStr<'_>, bytes: &[u8]) -> Result<(), JsString> {
+        // This is the actual filesystem boundary; compiler path keys stay JS.
+        let native = path.to_string_lossy();
+        let native_path = Path::new(native.as_ref());
+        fs::write(native_path, bytes).map_err(|error| stable_io_message(&error, "open", path))
     }
 
-    fn create_directory(&mut self, path: &Path) -> Result<(), String> {
-        match fs::create_dir(path) {
+    fn create_directory(&mut self, path: JsStr<'_>) -> Result<(), JsString> {
+        // This is the actual filesystem boundary; compiler path keys stay JS.
+        let native = path.to_string_lossy();
+        let native_path = Path::new(native.as_ref());
+        match fs::create_dir(native_path) {
             Ok(()) => Ok(()),
-            Err(error) if error.kind() == io::ErrorKind::AlreadyExists && path.is_dir() => Ok(()),
+            Err(error) if error.kind() == io::ErrorKind::AlreadyExists && native_path.is_dir() => {
+                Ok(())
+            }
             Err(error) => Err(stable_io_message(&error, "mkdir", path)),
         }
     }
 
-    fn directory_exists(&mut self, path: &Path) -> bool {
-        path.is_dir()
+    fn directory_exists(&mut self, path: JsStr<'_>) -> bool {
+        // This is the actual filesystem boundary; compiler path keys stay JS.
+        let native = path.to_string_lossy();
+        let native_path = Path::new(native.as_ref());
+        native_path.is_dir()
     }
 }
 
-fn stable_io_message(error: &io::Error, operation: &str, path: &Path) -> String {
+fn stable_io_message(error: &io::Error, operation: &str, path: JsStr<'_>) -> JsString {
     #[cfg(unix)]
     let known = match error.raw_os_error() {
         Some(2) => Some(("ENOENT", "no such file or directory")),
@@ -189,9 +200,14 @@ fn stable_io_message(error: &io::Error, operation: &str, path: &Path) -> String 
     let known: Option<(&str, &str)> = None;
 
     if let Some((code, detail)) = known {
-        format!("{code}: {detail}, {operation} '{}'", path.display())
+        {
+            let mut message = JsString::from(format!("{code}: {detail}, {operation} '"));
+            message.push_js(path);
+            message.push_str("'");
+            message
+        }
     } else {
-        error.to_string()
+        error.to_string().into()
     }
 }
 
@@ -236,6 +252,76 @@ impl CliCompilerHost {
 }
 
 impl CompilerHost for CliCompilerHost {
+    fn current_directory_js(&self) -> Result<JsString, HostError> {
+        self.filesystem.current_directory_js()
+    }
+    fn read_file_js(&self, path: JsStr<'_>) -> Result<Option<Vec<u8>>, HostError> {
+        if let Some(path) = path
+            .as_str()
+            .map(Path::new)
+            .filter(|path| self.embedded_file_name(path).is_some())
+        {
+            return Ok(self.embedded_bytes(path).map(<[u8]>::to_vec));
+        }
+        self.filesystem.read_file_js(path)
+    }
+    fn file_exists_js(&self, path: JsStr<'_>) -> Result<bool, HostError> {
+        if let Some(path) = path
+            .as_str()
+            .map(Path::new)
+            .filter(|path| self.embedded_file_name(path).is_some())
+        {
+            return Ok(self.embedded_bytes(path).is_some());
+        }
+        self.filesystem.file_exists_js(path)
+    }
+    fn directory_exists_js(&self, path: JsStr<'_>) -> Result<bool, HostError> {
+        if path
+            .as_str()
+            .is_some_and(|path| Path::new(path) == self.library_directory)
+        {
+            return Ok(true);
+        }
+        self.filesystem.directory_exists_js(path)
+    }
+    fn read_directory_js(&self, path: JsStr<'_>) -> Result<Vec<JsString>, HostError> {
+        if path
+            .as_str()
+            .is_some_and(|path| Path::new(path) == self.library_directory)
+        {
+            return Ok(embedded_libraries::TYPESCRIPT_6_0_3_LIBRARIES
+                .iter()
+                .map(|(name, _)| {
+                    let mut entry = path.to_owned();
+                    entry.push_str("/");
+                    entry.push_str(name);
+                    entry
+                })
+                .collect());
+        }
+        self.filesystem.read_directory_js(path)
+    }
+    fn get_directories_js(&self, path: JsStr<'_>) -> Result<Vec<JsString>, HostError> {
+        if path
+            .as_str()
+            .is_some_and(|path| Path::new(path) == self.library_directory)
+        {
+            return Ok(Vec::new());
+        }
+        self.filesystem.get_directories_js(path)
+    }
+    fn realpath_js(&self, path: JsStr<'_>) -> Result<Option<JsString>, HostError> {
+        if let Some(native) = path.as_str().map(Path::new) {
+            if native == self.library_directory || self.embedded_bytes(native).is_some() {
+                return Ok(Some(path.to_owned()));
+            }
+            if self.embedded_file_name(native).is_some() {
+                return Ok(None);
+            }
+        }
+        self.filesystem.realpath_js(path)
+    }
+
     fn current_directory(&self) -> Result<PathBuf, HostError> {
         self.filesystem.current_directory()
     }
@@ -813,13 +899,13 @@ fn execute_config(
     };
     for source in prepared.source_files() {
         source_texts.insert(
-            source.path().display().display().to_string(),
+            source.path().display().to_owned(),
             Arc::clone(source.snapshot()),
         );
     }
     for source in prepared.auxiliary_files() {
         source_texts.insert(
-            source.path().display().display().to_string(),
+            source.path().display().to_owned(),
             Arc::clone(source.snapshot()),
         );
     }
@@ -877,7 +963,7 @@ fn execute_explicit_files(
     let mut source_texts = BTreeMap::new();
     for source in prepared.source_files() {
         source_texts.insert(
-            source.path().display().display().to_string(),
+            source.path().display().to_owned(),
             Arc::clone(source.snapshot()),
         );
     }
@@ -935,17 +1021,21 @@ fn execute_prepared(
 
 /// Shared command producer for real CLI execution and scoped Program emits.
 pub(crate) fn emit_command_status(
-    current_directory: &Path,
+    current_directory: JsStr<'_>,
     emit: &crate::EmitOutcome,
     diagnostics: &[Diagnostic],
-) -> (Vec<String>, i32) {
+) -> (Vec<JsString>, i32) {
     let status_writes = emit
         .emitted_files()
         .unwrap_or_default()
         .iter()
         .map(|path| {
-            let absolute = tsc_program::canonical_emit_path(path, current_directory, true);
-            format!("TSFILE: {}", absolute.display())
+            let absolute = tsc_program::canonical_emit_path(path.as_js(), current_directory, true);
+            {
+                let mut status = JsString::from("TSFILE: ");
+                status.push_js(absolute.as_js());
+                status
+            }
         })
         .collect::<Vec<_>>();
 
@@ -976,7 +1066,14 @@ fn execute_emitting_prepared(
 
     let (emit, diagnostics, work_counters) = outcome.into_reported(additional_diagnostics);
 
-    let (status_writes, exit_code) = emit_command_status(current_directory, &emit, &diagnostics);
+    let (status_writes, exit_code) = emit_command_status(
+        current_directory
+            .to_str()
+            .expect("prepared CLI cwd is Unicode")
+            .into(),
+        &emit,
+        &diagnostics,
+    );
     rendered_diagnostics_with_exit_work_status_and_h2(
         current_directory,
         &source_texts,
@@ -1073,7 +1170,7 @@ fn rendered_diagnostics_with_exit_work_and_status(
     exit_code: i32,
     work_counters: NoEmitWorkCounters,
     no_emit_activity: NoEmitActivityCounters,
-    status_writes: &[String],
+    status_writes: &[JsString],
 ) -> Result<CliOutput, CliError> {
     rendered_diagnostics_with_exit_work_status_and_h2(
         current_directory,
@@ -1098,7 +1195,7 @@ fn rendered_diagnostics_with_exit_work_status_and_h2(
     work_counters: NoEmitWorkCounters,
     no_emit_activity: NoEmitActivityCounters,
     h2_activity: H2ActivityCounters,
-    status_writes: &[String],
+    status_writes: &[JsString],
 ) -> Result<CliOutput, CliError> {
     if diagnostics.is_empty() && status_writes.is_empty() {
         return Ok(CliOutput {
@@ -1111,10 +1208,10 @@ fn rendered_diagnostics_with_exit_work_status_and_h2(
         });
     }
     if diagnostics.is_empty() {
-        let mut stdout = String::new();
+        let mut stdout = JsString::new();
         append_status_writes(&mut stdout, status_writes);
         return Ok(CliOutput {
-            stdout,
+            stdout: stdout.to_string_lossy().into_owned(),
             stderr: String::new(),
             exit_code: EXIT_SUCCESS,
             work_counters,
@@ -1125,7 +1222,7 @@ fn rendered_diagnostics_with_exit_work_status_and_h2(
     let current_directory = current_directory
         .to_str()
         .ok_or_else(|| CliError::Render("current directory is not Unicode".to_owned()))?;
-    let host = FormatDiagnosticsHost::from_snapshots(current_directory, source_texts);
+    let host = FormatDiagnosticsHost::from_js_snapshots(current_directory.into(), source_texts);
     let text = if pretty {
         let mut text = format_diagnostics_with_context(diagnostics, &host)
             .map_err(|error| CliError::Render(error.to_string()))?;
@@ -1137,13 +1234,13 @@ fn rendered_diagnostics_with_exit_work_status_and_h2(
             source_texts,
             current_directory,
         );
-        colorize_pretty_output(&text)
+        colorize_pretty_output(text.to_string_lossy().as_ref())
     } else {
         let mut text =
             format_plain_diagnostics(diagnostics, &host, source_texts, current_directory)
                 .map_err(|error| CliError::Render(error.to_string()))?;
         append_status_writes(&mut text, status_writes);
-        text
+        text.to_string_lossy().into_owned()
     };
     Ok(CliOutput {
         stdout: text,
@@ -1155,9 +1252,9 @@ fn rendered_diagnostics_with_exit_work_status_and_h2(
     })
 }
 
-fn append_status_writes(output: &mut String, status_writes: &[String]) {
+fn append_status_writes(output: &mut JsString, status_writes: &[JsString]) {
     for status in status_writes {
-        output.push_str(status);
+        output.push_js(status.as_js());
         output.push('\n');
     }
 }
@@ -1168,14 +1265,14 @@ fn append_status_writes(output: &mut String, status_writes: &[String]) {
 /// by the formatter, so the summary cannot count an occurrence which was not
 /// printed above.
 fn append_pretty_error_summary(
-    output: &mut String,
+    output: &mut JsString,
     diagnostics: &[Diagnostic],
     host: &FormatDiagnosticsHost<'_>,
     source_texts: &DiagnosticSourceMap,
     current_directory: &str,
 ) {
     let indices = sort_and_dedupe_diagnostic_indices_with_context(diagnostics, host);
-    let mut file_counts = BTreeMap::<String, (usize, u32)>::new();
+    let mut file_counts = BTreeMap::<JsString, (usize, u32)>::new();
     let mut total = 0usize;
     for index in indices {
         let diagnostic = &diagnostics[index];
@@ -1184,7 +1281,7 @@ fn append_pretty_error_summary(
         {
             continue;
         }
-        let file_name = diagnostic.file_name.as_deref();
+        let file_name = diagnostic.file_name.as_ref().map(JsString::as_js);
         let Some(file_name) = file_name else {
             total += 1;
             continue;
@@ -1195,12 +1292,12 @@ fn append_pretty_error_summary(
             .start
             .and_then(|start| {
                 source_texts
-                    .get(file_name)
+                    .get(file_name.as_bytes())
                     .or_else(|| {
                         let normalized = normalize_slashes(file_name);
                         source_texts
                             .iter()
-                            .find(|(candidate, _)| normalize_slashes(candidate) == normalized)
+                            .find(|(candidate, _)| normalize_slashes(*candidate) == normalized)
                             .map(|(_, text)| text)
                     })
                     .and_then(|snapshot| {
@@ -1229,20 +1326,28 @@ fn append_pretty_error_summary(
         (1, 0) => output.push_str("Found 1 error.\n"),
         (1, 1) => {
             let (file, (_, line)) = file_counts.iter().next().expect("one file exists");
-            output.push_str(&format!("Found 1 error in {file}:{line}\n"));
+            output.push_str("Found 1 error in ");
+            output.push_js(file.as_js());
+            output.push_str(&format!(":{line}\n"));
         }
         (_, 0) => output.push_str(&format!("Found {total} {noun}.\n")),
         (_, 1) => {
             let (file, (_, line)) = file_counts.iter().next().expect("one file exists");
             output.push_str(&format!(
-                "Found {total} {noun} in the same file, starting at: {file}:{line}\n"
+                "Found {total} {noun} in the same file, starting at: "
             ));
+            output.push_js(file.as_js());
+            output.push_str(&format!(":{line}\n"));
         }
         (_, file_count) => {
             output.push_str(&format!("Found {total} {noun} in {file_count} files.\n\n"));
             output.push_str("Errors  Files\n");
-            for (file, (count, line)) in file_counts {
-                output.push_str(&format!("{count:>6}  {file}:{line}\n"));
+            let mut files: Vec<_> = file_counts.into_iter().collect();
+            files.sort_by(|a, b| a.0.cmp_utf16(b.0.as_js()));
+            for (file, (count, line)) in files {
+                output.push_str(&format!("{count:>6}  "));
+                output.push_js(file.as_js());
+                output.push_str(&format!(":{line}\n"));
             }
         }
     }
@@ -1484,19 +1589,19 @@ fn format_plain_diagnostics(
     host: &FormatDiagnosticsHost<'_>,
     source_texts: &DiagnosticSourceMap,
     current_directory: &str,
-) -> Result<String, String> {
+) -> Result<JsString, String> {
     let indices = sort_and_dedupe_diagnostic_indices_with_context(diagnostics, host);
-    let mut output = String::new();
+    let mut output = JsString::new();
     for index in indices {
         let diagnostic = &diagnostics[index];
-        if let Some(file_name) = diagnostic.file_name.as_deref() {
+        if let Some(file_name) = diagnostic.file_name.as_ref().map(JsString::as_js) {
             let snapshot = source_texts
-                .get(file_name)
+                .get(file_name.as_bytes())
                 .or_else(|| {
                     let normalized = normalize_slashes(file_name);
                     source_texts
                         .iter()
-                        .find(|(candidate, _)| normalize_slashes(candidate) == normalized)
+                        .find(|(candidate, _)| normalize_slashes(*candidate) == normalized)
                         .map(|(_, snapshot)| snapshot)
                 })
                 .ok_or_else(|| {
@@ -1516,9 +1621,9 @@ fn format_plain_diagnostics(
                 .positions()
                 .line_and_character_utf16(position)
                 .expect("clamped diagnostic position has a source line");
+            output.push_js(relative_file_name(file_name, current_directory).as_js());
             output.push_str(&format!(
-                "{}({},{}): ",
-                relative_file_name(file_name, current_directory),
+                "({},{}): ",
                 location.line + 1,
                 location.character + 1
             ));
@@ -1533,37 +1638,43 @@ fn format_plain_diagnostics(
     Ok(output)
 }
 
-fn append_plain_message(message: &MessageChain, indent: usize, output: &mut String) {
+fn append_plain_message(message: &MessageChain, indent: usize, output: &mut JsString) {
     if indent != 0 {
         output.push('\n');
         output.push_str(&"  ".repeat(indent));
     }
-    output.push_str(&message.text);
+    output.push_js(message.text.as_js());
     for child in &message.next {
         append_plain_message(child, indent + 1, output);
     }
 }
 
-fn relative_file_name(file_name: &str, current_directory: &str) -> String {
+fn relative_file_name<'p>(file_name: impl Into<JsStr<'p>>, current_directory: &str) -> JsString {
     let file_name = normalize_slashes(file_name);
     let normalized_current_directory = normalize_slashes(current_directory);
-    let current_directory = normalized_current_directory.trim_end_matches('/');
-    if current_directory.is_empty() {
+    let mut directory = normalized_current_directory.as_js();
+    while let Some(parent) = directory.strip_suffix("/") {
+        directory = parent;
+    }
+    if directory.is_empty() {
         return file_name;
     }
-    if file_name == current_directory {
-        return ".".to_owned();
+    if file_name.as_js() == directory {
+        return ".".into();
     }
-    if let Some(suffix) = file_name.strip_prefix(current_directory) {
-        if let Some(suffix) = suffix.strip_prefix('/') {
+    if file_name.as_js().starts_with_js(directory) {
+        let suffix = file_name
+            .as_js()
+            .substring(directory.len_units(), file_name.len_units());
+        if let Some(suffix) = suffix.as_js().strip_prefix("/") {
             return suffix.to_owned();
         }
     }
     file_name
 }
 
-fn normalize_slashes(path: &str) -> String {
-    path.replace('\\', "/")
+fn normalize_slashes<'p>(path: impl Into<JsStr<'p>>) -> JsString {
+    super::normalize_source_slashes(path.into())
 }
 
 fn parse_config_file(
@@ -1593,9 +1704,9 @@ fn parse_config_file(
     let plan = parse_config_root_plan_with_cache(
         &adapter,
         ConfigRootPlanRequest {
-            file_name: display_file_name.to_owned(),
+            file_name: display_file_name.into(),
             text,
-            base_path: base_path.to_owned(),
+            base_path: base_path.into(),
         },
         &mut ConfigExtendedCache::default(),
     )
@@ -1603,7 +1714,7 @@ fn parse_config_file(
     .with_resolved_config_source_path();
     let mut source_texts = BTreeMap::new();
     source_texts.insert(
-        display_file_name.to_owned(),
+        display_file_name.into(),
         Arc::clone(plan.source().snapshot()),
     );
     Ok((plan, source_texts))

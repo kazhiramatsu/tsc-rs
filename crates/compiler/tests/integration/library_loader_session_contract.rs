@@ -46,11 +46,17 @@ fn catalog_loaded_library_prefix_flows_through_the_owned_program_session() {
 
     assert_eq!(prepared.library_files().len(), 1);
     assert_eq!(
-        prepared.source_files()[0].path().display(),
+        prepared.source_files()[0]
+            .path()
+            .display()
+            .scalar_test_path(),
         Path::new("/typescript/lib/lib.es5.d.ts")
     );
     assert_eq!(
-        prepared.source_files()[1].path().display(),
+        prepared.source_files()[1]
+            .path()
+            .display()
+            .scalar_test_path(),
         Path::new("/work/root.ts")
     );
 
@@ -63,3 +69,7 @@ fn catalog_loaded_library_prefix_flows_through_the_owned_program_session() {
     assert!(outcome.syntactic_diagnostics().is_empty());
     assert!(outcome.semantic_diagnostics().is_empty());
 }
+
+#[path = "../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

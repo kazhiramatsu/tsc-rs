@@ -1,6 +1,32 @@
 use super::*;
 
 #[test]
+fn source_and_diagnostic_file_names_preserve_js_units() {
+    for unit in [0xd800, 0xd801, 0xdc00, 0xfffd] {
+        let mut name = JsString::from("/virtual/file.d.");
+        name.push_code_unit(unit);
+        name.push_str(".ts");
+        let source = parse_source_file(&name, "'\\unicode';", ParseOptions::default(), None);
+        assert_eq!(source.file_name.to_utf16(), name.to_utf16());
+        assert!(source.is_declaration_file);
+        assert!(!source.parse_diagnostics.is_empty());
+        assert!(source.has_only_literal_recovery());
+        assert!(source
+            .parse_diagnostics
+            .iter()
+            .all(|d| d.file_name.as_ref() == Some(&name)));
+
+        let json = parse_json_text(&name, "{\"a\": }");
+        assert_eq!(json.file_name.to_utf16(), name.to_utf16());
+        assert!(!json.parse_diagnostics.is_empty());
+        assert!(json
+            .parse_diagnostics
+            .iter()
+            .all(|d| d.file_name.as_ref() == Some(&name)));
+    }
+}
+
+#[test]
 fn parse_source_file_creates_root_and_eof_nodes() {
     let source = parse_source_file("a.ts", "", ParseOptions::default(), None);
 

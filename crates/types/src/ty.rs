@@ -76,6 +76,16 @@ impl TemplateText {
         }
     }
 
+    pub fn from_js(text: crate::JsStr<'_>) -> Self {
+        Self {
+            units: text.to_utf16(),
+        }
+    }
+
+    pub fn to_js_string(&self) -> crate::JsString {
+        crate::JsString::from_code_units(&self.units)
+    }
+
     pub fn units(&self) -> &[u16] {
         &self.units
     }
@@ -283,7 +293,7 @@ pub enum TypeData {
     /// escaped_name = `__@<symbol.escapedName>@<symbolId>` — the
     /// late-bound member name known-symbol lookups compare against.
     UniqueESSymbol {
-        escaped_name: String,
+        escaped_name: crate::EscapedName,
     },
     Union {
         types: Box<[TypeId]>,

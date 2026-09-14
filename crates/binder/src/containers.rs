@@ -16,7 +16,7 @@ use crate::node_util::{
 };
 use crate::symbols::{SymbolId, SymbolTable};
 use std::collections::HashMap;
-use tsc_diagnostics::gen as diagnostics;
+use tsc_diagnostics::{gen as diagnostics, DiagnosticArgument, JsString};
 use tsc_syntax::{for_each_child, NodeData, NodeId, SourceFile, SyntaxKind};
 use tsc_types::{FlowFlags, ModifierFlags, NodeFlags, SymbolFlags};
 
@@ -693,11 +693,14 @@ impl<'a> BinderWorker<'a> {
         &mut self,
         node: NodeId,
         message: &'static tsc_diagnostics::DiagnosticMessage,
-        args: &[&str],
+        args: &[&dyn DiagnosticArgument],
     ) {
         let pos = self.source.arena.node(node).pos as usize;
         let (start, end) = crate::node_util::get_span_of_token_at_position(self.source, pos);
-        let args: Vec<String> = args.iter().map(|arg| (*arg).to_owned()).collect();
+        let args: Vec<JsString> = args
+            .iter()
+            .map(|arg| arg.diagnostic_value().to_owned())
+            .collect();
         let to_utf16 = |byte: usize| -> u32 {
             self.source
                 .positions()
@@ -706,12 +709,13 @@ impl<'a> BinderWorker<'a> {
         };
         let start_utf16 = to_utf16(start);
         let end_utf16 = to_utf16(end);
-        self.bind_diagnostics.push(tsc_diagnostics::Diagnostic::new(
-            Some(self.source.file_name.clone()),
-            Some(start_utf16),
-            Some(end_utf16.saturating_sub(start_utf16)),
-            tsc_diagnostics::MessageChain::new(message, &args),
-        ));
+        self.bind_diagnostics
+            .push(tsc_diagnostics::Diagnostic::new_js(
+                Some(self.source.file_name.clone()),
+                Some(start_utf16),
+                Some(end_utf16.saturating_sub(start_utf16)),
+                tsc_diagnostics::MessageChain::new_js(message, &args),
+            ));
     }
 
     /// tsc-port: bindModuleDeclaration @6.0.3

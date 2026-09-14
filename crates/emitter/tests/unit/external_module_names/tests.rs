@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use tsc_diagnostics::{JsStr, JsString};
 
 use serde_json::Value;
 use tsc_program::SourceFileId;
@@ -7,8 +7,8 @@ use tsc_types::CompilerOptions;
 use super::*;
 
 struct Host {
-    cwd: PathBuf,
-    common: PathBuf,
+    cwd: JsString,
+    common: JsString,
     case_sensitive: bool,
     options: CompilerOptions,
 }
@@ -17,13 +17,13 @@ impl EmitHost for Host {
     fn compiler_options(&self) -> &CompilerOptions {
         &self.options
     }
-    fn current_directory(&self) -> &Path {
-        &self.cwd
+    fn current_directory(&self) -> JsStr<'_> {
+        self.cwd.as_js()
     }
-    fn common_source_directory(&self) -> &Path {
-        &self.common
+    fn common_source_directory(&self) -> JsStr<'_> {
+        self.common.as_js()
     }
-    fn config_file_path(&self) -> Option<&Path> {
+    fn config_file_path(&self) -> Option<JsStr<'_>> {
         None
     }
     fn use_case_sensitive_file_names(&self) -> bool {
@@ -67,10 +67,10 @@ fn h2_7d_module_paths_match_all_typescript_helper_observations_twice() {
             assert_eq!(
                 external_module_name_from_path(
                     &host,
-                    case["file"].as_str().unwrap(),
-                    case["reference"].as_str(),
+                    case["file"].as_str().unwrap().into(),
+                    case["reference"].as_str().map(JsStr::from),
                 ),
-                case["observation"],
+                case["observation"].as_str().unwrap(),
                 "{}",
                 case["case_id"]
             );
@@ -92,7 +92,9 @@ fn h2_7d_module_identities_match_typescript_source_facts_twice() {
                 .into(),
             case_sensitive: true,
             options: CompilerOptions {
-                out_file: case["options"]["outFile"].as_str().map(str::to_owned),
+                out_file: case["options"]["outFile"]
+                    .as_str()
+                    .map(tsc_diagnostics::JsString::from),
                 ..CompilerOptions::default()
             },
         };
@@ -120,13 +122,15 @@ fn h2_7d_module_identities_match_typescript_source_facts_twice() {
                 );
                 assert_eq!(
                     get_resolved_external_module_name(&host, &source, None),
-                    identity["resolved_name"],
+                    identity["resolved_name"].as_str().unwrap(),
                     "{} {}",
                     case["case_id"],
                     identity["path"]
                 );
                 assert_eq!(
-                    try_get_module_name_from_file(Some(&host), &source).as_deref(),
+                    try_get_module_name_from_file(Some(&host), &source)
+                        .as_ref()
+                        .map(|name| name.as_str().expect("scalar fixture module name")),
                     identity["emitted_module_name"].as_str(),
                     "{} {}",
                     case["case_id"],

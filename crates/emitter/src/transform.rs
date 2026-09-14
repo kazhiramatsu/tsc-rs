@@ -1250,6 +1250,9 @@ pub enum TransformError {
     },
     ParseDiagnosticsDeferred {
         count: usize,
+        /// Committed recovery events, including silent missing nodes and
+        /// suppressed reporting attempts that carry no retained diagnostic.
+        recovery_events: usize,
         owner_slice: &'static str,
     },
     AstDepthDeferred {
@@ -1444,9 +1447,13 @@ impl fmt::Display for TransformError {
                 formatter,
                 "emitted module format {format} is deferred to {owner_slice}"
             ),
-            Self::ParseDiagnosticsDeferred { count, owner_slice } => write!(
+            Self::ParseDiagnosticsDeferred {
+                count,
+                recovery_events,
+                owner_slice,
+            } => write!(
                 formatter,
-                "emit recovery for {count} parse diagnostics is deferred to {owner_slice}"
+                "emit recovery for {count} parse diagnostics ({recovery_events} recovery events) is deferred to {owner_slice}"
             ),
             Self::AstDepthDeferred { limit, owner_slice } => write!(
                 formatter,

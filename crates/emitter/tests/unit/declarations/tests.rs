@@ -1,6 +1,6 @@
 use std::cell::RefCell;
-use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use tsc_diagnostics::{JsStr, JsString};
 
 use tsc_diagnostics::gen as d;
 use tsc_program::SourceFileId;
@@ -28,15 +28,15 @@ impl EmitHost for TestHost<'_> {
         self.options
     }
 
-    fn current_directory(&self) -> &Path {
-        Path::new("/")
+    fn current_directory(&self) -> JsStr<'_> {
+        JsStr::from("/")
     }
 
-    fn common_source_directory(&self) -> &Path {
-        Path::new("/")
+    fn common_source_directory(&self) -> JsStr<'_> {
+        JsStr::from("/")
     }
 
-    fn config_file_path(&self) -> Option<&Path> {
+    fn config_file_path(&self) -> Option<JsStr<'_>> {
         None
     }
 
@@ -52,8 +52,8 @@ impl EmitHost for TestHost<'_> {
         (id == self.ids[0]).then(|| {
             EmitSource::new(
                 id,
-                Path::new("/fixture.ts"),
-                Path::new("/fixture.ts"),
+                JsStr::from("/fixture.ts"),
+                JsStr::from("/fixture.ts"),
                 true,
                 None,
                 Some(self.syntax),
@@ -65,11 +65,11 @@ impl EmitHost for TestHost<'_> {
 struct NoPaths;
 
 impl DeclarationPathResolver for NoPaths {
-    fn declaration_file_path(&self, _source: SourceFileId) -> Option<PathBuf> {
+    fn declaration_file_path(&self, _source: SourceFileId) -> Option<JsString> {
         None
     }
 
-    fn reference_target_path(&self, _source: SourceFileId) -> Option<PathBuf> {
+    fn reference_target_path(&self, _source: SourceFileId) -> Option<JsString> {
         None
     }
 }
@@ -362,8 +362,8 @@ fn accessibility_result(
     crate::EmitSymbolAccessibilityResult {
         accessibility,
         aliases_to_make_visible: aliases,
-        error_symbol_name: Some("Hidden".to_owned()),
-        error_module_name: module.map(str::to_owned),
+        error_symbol_name: Some("Hidden".into()),
+        error_module_name: module.map(Into::into),
         error_node: None,
     }
 }

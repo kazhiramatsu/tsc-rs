@@ -80,13 +80,13 @@ pub(super) fn assert_cases_with_inspection(
             let mut program_options = ProgramOptions::default();
             let program_path = |text: &str| {
                 let canonical = tsc_program::canonical_emit_path(
-                    Path::new(text),
-                    Path::new("/project"),
+                    text.into(),
+                    "/project".into(),
                     case["use_case_sensitive_file_names"]
                         .as_bool()
                         .unwrap_or(true),
                 );
-                tsc_program::ProgramPath::from_trusted_parts(text, canonical).unwrap()
+                tsc_program::ProgramPath::from_js_parts(text.into(), canonical.as_js()).unwrap()
             };
             if let Some(config) = case["config_file_path"].as_str() {
                 program_options = program_options.with_config_file_path(program_path(config));
@@ -105,10 +105,10 @@ pub(super) fn assert_cases_with_inspection(
                     "newLine" => options.new_line = Some(value.as_i64().unwrap() as i32),
                     "declaration" => options.declaration = value.as_bool(),
                     "declarationMap" => options.declaration_map = value.as_bool(),
-                    "declarationDir" => options.declaration_dir = value.as_str().map(str::to_owned),
-                    "outDir" => options.out_dir = value.as_str().map(str::to_owned),
-                    "outFile" => options.out_file = value.as_str().map(str::to_owned),
-                    "rootDir" => options.root_dir = value.as_str().map(str::to_owned),
+                    "declarationDir" => options.declaration_dir = value.as_str().map(Into::into),
+                    "outDir" => options.out_dir = value.as_str().map(Into::into),
+                    "outFile" => options.out_file = value.as_str().map(Into::into),
+                    "rootDir" => options.root_dir = value.as_str().map(Into::into),
                     "noDtsResolution" => options.no_dts_resolution = value.as_bool(),
                     "typeRoots" => {
                         program_options = program_options.with_type_roots(
@@ -126,7 +126,7 @@ pub(super) fn assert_cases_with_inspection(
                                 .as_array()
                                 .unwrap()
                                 .iter()
-                                .map(|value| value.as_str().unwrap().to_owned())
+                                .map(|value| value.as_str().unwrap().into())
                                 .collect(),
                         )
                     }
@@ -167,9 +167,12 @@ pub(super) fn assert_cases_with_inspection(
                     let plan = parse_config_root_plan(
                         &CompilerConfigHost::new(&host),
                         ConfigRootPlanRequest {
-                            file_name: config_path.to_owned(),
+                            file_name: config_path.into(),
                             text: config.to_owned(),
-                            base_path: config_base.to_string_lossy().into_owned(),
+                            base_path: config_base
+                                .to_str()
+                                .expect("scalar fixture config base")
+                                .into(),
                         },
                     )
                     .expect("config plan");

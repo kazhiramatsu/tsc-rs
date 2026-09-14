@@ -381,14 +381,15 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: elaborateElementwise @6.0.3 (the report-pair tail)
     /// tsc-hash: c289d4a4008697be6117b4bcd7c5f21e756946f8ccf08d921769996736688326
     /// tsc-span: _tsc.js:64165-64171
-    pub(crate) fn remove_missing_for_member_report(
+    pub(crate) fn remove_missing_for_member_report<'n>(
         &mut self,
         source_type: TypeId,
         target_type: TypeId,
-        name_text: &str,
+        name_text: impl Into<tsc_types::JsStr<'n>>,
         actual: TypeId,
         expected: TypeId,
     ) -> CheckResult<(TypeId, TypeId)> {
+        let name_text = name_text.into();
         let target_is_optional = self
             .get_property_of_type_full(target_type, name_text)?
             .is_some_and(|property| {
@@ -428,7 +429,7 @@ impl<'a> CheckerState<'a> {
         name_type: TypeId,
     ) -> CheckResult<Option<RelatedInfo>> {
         let property_name = self.property_name_from_type_usable(name_type);
-        let target_property = match property_name.as_deref() {
+        let target_property = match property_name.as_ref() {
             Some(property_name) => self.get_property_of_type_full(target_type, property_name)?,
             None => None,
         };
@@ -471,16 +472,16 @@ impl<'a> CheckerState<'a> {
                 let Ok(display) = self.type_to_string_slice(name_type) else {
                     return Ok(None);
                 };
-                display
+                display.into()
             }
         };
         let Ok(target_text) = self.type_to_string_slice(target_type) else {
             return Ok(None);
         };
-        Ok(Some(self.related_info_for_node(
+        Ok(Some(self.related_info_for_node_js(
             target_node,
             &diagnostics::The_expected_type_comes_from_property_0_which_is_declared_here_on_type_1,
-            &[&property_display, &target_text],
+            &[property_display.as_js(), (&target_text).into()],
         )))
     }
 
@@ -553,7 +554,11 @@ impl<'a> CheckerState<'a> {
         source_property_type: TypeId,
         target_property_type: TypeId,
         relation: RelationKind,
-        invalid_text: Option<(&str, &str, &str)>,
+        invalid_text: Option<(
+            tsc_types::JsStr<'_>,
+            tsc_types::JsStr<'_>,
+            tsc_types::JsStr<'_>,
+        )>,
         sink: &mut ElaborationDiagnosticSink,
     ) -> CheckResult<bool> {
         if self.check_type_related_to(source_property_type, target_property_type, relation)? {
@@ -592,7 +597,7 @@ impl<'a> CheckerState<'a> {
         };
         let name_text = self
             .property_name_from_type_usable(name_type)
-            .unwrap_or_default();
+            .unwrap_or_else(|| tsc_types::EscapedName::from_identifier_escaped_text(""));
         let original_target = target_property_type;
         let (source_property_type, target_property_type) = self.remove_missing_for_member_report(
             source_container,
@@ -611,7 +616,7 @@ impl<'a> CheckerState<'a> {
         let mut used_containing_message_chain = false;
         let mut diagnostic = if let Some((tag_name, children_name, children_target)) = invalid_text
         {
-            Some(self.create_error(
+            Some(self.create_error_js(
                 Some(error_node),
                 &diagnostics::_0_components_don_t_accept_text_as_child_elements_Text_in_JSX_has_the_type_string_but_the_expected_type_of_1_is_2,
                 &[tag_name, children_name, children_target],
@@ -675,7 +680,7 @@ impl<'a> CheckerState<'a> {
         containing_element: NodeId,
         semantic_children: &[NodeId],
         array_like_target: TypeId,
-        children_name: &str,
+        children_name: tsc_types::JsStr<'_>,
         children_target: TypeId,
         tag_name_text: &str,
         relation: RelationKind,
@@ -747,9 +752,9 @@ impl<'a> CheckerState<'a> {
                 continue;
             };
             let invalid_text = (self.kind_of(child) == SyntaxKind::JsxText).then_some((
-                tag_name_text,
+                tag_name_text.into(),
                 children_name,
-                children_target_text.as_str(),
+                children_target_text.as_js(),
             ));
             if self.elaborate_jsx_child_pair(
                 child,
@@ -813,7 +818,7 @@ impl<'a> CheckerState<'a> {
         let jsx_namespace = self.get_jsx_namespace_at(attributes)?;
         let escaped_children_name = self
             .get_jsx_element_children_property_name(jsx_namespace)?
-            .unwrap_or_else(|| "children".to_owned());
+            .unwrap_or_else(|| tsc_types::EscapedName::from_identifier_escaped_text("children"));
         let children_name =
             tsc_binder::unescape_leading_underscores(&escaped_children_name).to_owned();
         let name_type = self.tables.get_string_literal_type(&children_name);
@@ -844,7 +849,7 @@ impl<'a> CheckerState<'a> {
                     containing_element,
                     &semantic_children,
                     array_like_target,
-                    &children_name,
+                    children_name.as_js(),
                     children_target,
                     &tag_name_text,
                     relation,
@@ -852,10 +857,10 @@ impl<'a> CheckerState<'a> {
                 );
             }
             if !self.check_type_related_to(source_children, children_target, relation)? {
-                let diagnostic = self.create_error(
+                let diagnostic = self.create_error_js(
                     Some(tag_name),
                     &diagnostics::This_JSX_tag_s_0_prop_expects_a_single_child_of_type_1_but_multiple_children_were_provided,
-                    &[&children_name, &children_target_text],
+                    &[(&children_name).into(), (&children_target_text).into()],
                 );
                 sink.publish_and_capture(self, diagnostic);
                 return Ok(true);
@@ -882,9 +887,9 @@ impl<'a> CheckerState<'a> {
             };
             let child = semantic_children[0];
             let invalid_text = (self.kind_of(child) == SyntaxKind::JsxText).then_some((
-                tag_name_text.as_str(),
-                children_name.as_str(),
-                children_target_text.as_str(),
+                tag_name_text.as_str().into(),
+                children_name.as_js(),
+                children_target_text.as_js(),
             ));
             return self.elaborate_jsx_child_pair(
                 child,
@@ -901,10 +906,10 @@ impl<'a> CheckerState<'a> {
             );
         }
         if !self.check_type_related_to(source_children, children_target, relation)? {
-            let diagnostic = self.create_error(
+            let diagnostic = self.create_error_js(
                 Some(tag_name),
                 &diagnostics::This_JSX_tag_s_0_prop_expects_type_1_which_requires_multiple_children_but_only_a_single_child_was_provided,
-                &[&children_name, &children_target_text],
+                &[(&children_name).into(), (&children_target_text).into()],
             );
             sink.publish_and_capture(self, diagnostic);
             return Ok(true);

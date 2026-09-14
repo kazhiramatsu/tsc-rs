@@ -204,7 +204,7 @@ impl ParsedEmitMetadata {
 mod tests {
     use super::*;
     use crate::EmitSource;
-    use std::path::Path;
+    use tsc_diagnostics::JsStr;
     use tsc_types::CompilerOptions;
 
     struct Host {
@@ -247,13 +247,13 @@ mod tests {
         fn compiler_options(&self) -> &CompilerOptions {
             &self.options
         }
-        fn current_directory(&self) -> &Path {
-            Path::new("/")
+        fn current_directory(&self) -> JsStr<'_> {
+            JsStr::from("/")
         }
-        fn common_source_directory(&self) -> &Path {
-            Path::new("/src/")
+        fn common_source_directory(&self) -> JsStr<'_> {
+            JsStr::from("/src/")
         }
-        fn config_file_path(&self) -> Option<&Path> {
+        fn config_file_path(&self) -> Option<JsStr<'_>> {
             None
         }
         fn use_case_sensitive_file_names(&self) -> bool {
@@ -265,7 +265,7 @@ mod tests {
         fn source_file(&self, id: SourceFileId) -> Option<EmitSource<'_>> {
             let index = self.ids.iter().position(|&candidate| candidate == id)?;
             let source = &self.sources[index];
-            let path = Path::new(&source.file_name);
+            let path = JsStr::from(&source.file_name);
             Some(EmitSource::new(id, path, path, true, None, Some(source)))
         }
     }

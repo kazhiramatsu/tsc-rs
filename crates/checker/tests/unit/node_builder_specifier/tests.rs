@@ -29,24 +29,24 @@ impl Default for TestModuleSpecifierHost {
 }
 
 impl EmitModuleSpecifierHost for TestModuleSpecifierHost {
-    fn get_current_directory(&self) -> String {
-        self.current_directory.clone()
+    fn get_current_directory(&self) -> JsString {
+        self.current_directory.clone().into()
     }
 
     fn use_case_sensitive_file_names(&self) -> bool {
         true
     }
 
-    fn file_exists(&self, file_name: &str) -> bool {
-        self.files.contains(file_name)
+    fn file_exists(&self, file_name: JsStr<'_>) -> bool {
+        self.files.iter().any(|name| file_name == name.as_str())
     }
 
-    fn read_file(&self, _file_name: &str) -> Option<String> {
+    fn read_file(&self, _file_name: JsStr<'_>) -> Option<String> {
         None
     }
 
-    fn get_common_source_directory(&self) -> String {
-        self.current_directory.clone()
+    fn get_common_source_directory(&self) -> JsString {
+        self.current_directory.clone().into()
     }
 
     fn get_default_resolution_mode_for_file(&self, _file: EmitResolverNode) -> EmitResolutionMode {
@@ -64,10 +64,14 @@ impl EmitModuleSpecifierHost for TestModuleSpecifierHost {
             .unwrap_or(EmitResolutionMode::None)
     }
 
-    fn import_include_reasons(&self, imported_path: &str) -> Vec<EmitImportIncludeReason> {
+    fn import_include_reasons(&self, imported_path: JsStr<'_>) -> Vec<EmitImportIncludeReason> {
         self.include_reason_calls
             .set(self.include_reason_calls.get() + 1);
-        self.reasons.get(imported_path).cloned().unwrap_or_default()
+        self.reasons
+            .iter()
+            .find(|(name, _)| imported_path == name.as_str())
+            .map(|(_, reasons)| reasons.clone())
+            .unwrap_or_default()
     }
 }
 
@@ -213,7 +217,8 @@ fn process_ending_honors_js_minimal_and_index_preferences() {
             &options,
             Some(&host),
         )
-        .as_deref(),
+        .as_ref()
+        .map(|value| value.as_js().as_str().expect("scalar name observation")),
         Some("./pkg")
     );
     host.files.insert("./pkg.js".to_owned());
@@ -224,7 +229,8 @@ fn process_ending_honors_js_minimal_and_index_preferences() {
             &options,
             Some(&host),
         )
-        .as_deref(),
+        .as_ref()
+        .map(|value| value.as_js().as_str().expect("scalar name observation")),
         Some("./pkg/index")
     );
     assert_eq!(
@@ -234,7 +240,8 @@ fn process_ending_honors_js_minimal_and_index_preferences() {
             &options,
             None,
         )
-        .as_deref(),
+        .as_ref()
+        .map(|value| value.as_js().as_str().expect("scalar name observation")),
         Some("./pkg/index")
     );
     assert_eq!(
@@ -244,7 +251,8 @@ fn process_ending_honors_js_minimal_and_index_preferences() {
             &options,
             None,
         )
-        .as_deref(),
+        .as_ref()
+        .map(|value| value.as_js().as_str().expect("scalar name observation")),
         Some("./value.js")
     );
 }
@@ -269,7 +277,10 @@ fn reuses_existing_parse_tree_specifier_when_reason_and_modes_match() {
         assert!(can_have_module_specifier(state, import_declaration));
         let literal = try_get_module_specifier_from_declaration(state, import_declaration)
             .expect("existing specifier literal");
-        assert_eq!(literal_text(state, literal), Some("chosen-package/subpath"));
+        assert_eq!(
+            literal_text(state, literal),
+            Some("chosen-package/subpath".into())
+        );
 
         let mut host = TestModuleSpecifierHost::default();
         host.index_modes.insert(0, EmitResolutionMode::CommonJs);
@@ -324,7 +335,8 @@ fn parse_tree_indices_drive_mode_and_nonrelative_reuse_gates() {
     with_program_state(&files, &CompilerOptions::default(), |state| {
         assert_eq!(
             (0..4)
-                .map(|index| get_module_name_string_literal_at(state, 1, index))
+                .map(|index| get_module_name_string_literal_at(state, 1, index)
+                    .map(|value| value.as_str().expect("scalar value observation").to_owned()))
                 .collect::<Vec<_>>(),
             [
                 Some("chosen-package/subpath".to_owned()),
@@ -338,7 +350,7 @@ fn parse_tree_indices_drive_mode_and_nonrelative_reuse_gates() {
         let importing_file = state.binder.source(1).root;
         let importing_node = EmitResolverNode::new(SourceFileId::from_raw(1), importing_file);
         let module_paths = [ModulePath {
-            path: "/project/src/target.ts".to_owned(),
+            path: ("/project/src/target.ts".to_owned()).into(),
             is_redirect: false,
             is_in_node_modules: false,
         }];
@@ -467,4 +479,36 @@ fn symbol_cache_hits_by_context_and_misses_by_resolution_mode() {
             Some(2)
         );
     });
+}
+
+#[test]
+fn supported_exclusion_regexes_match_javascript_utf16_and_unicode_values() {
+    let fixture: serde_json::Value = serde_json::from_str(include_str!(
+        "../../fixtures/utf16-specifier-regex-values.json"
+    ))
+    .unwrap();
+    assert_eq!(fixture["cases"].as_array().unwrap().len(), 12);
+    for case in fixture["cases"].as_array().unwrap() {
+        let value: JsString = case["value"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|unit| u16::try_from(unit.as_u64().unwrap()).unwrap())
+            .collect();
+        let pattern = case["pattern"].as_str().unwrap();
+        assert!(
+            matches!(
+                string_to_regex(pattern),
+                Some(CompiledExcludeRegex::Supported(_))
+            ),
+            "{}: supported subset",
+            case["id"]
+        );
+        assert_eq!(
+            is_excluded_by_regex(value.as_js(), &[pattern.to_owned()]),
+            case["matched"].as_bool().unwrap(),
+            "{}",
+            case["id"]
+        );
+    }
 }

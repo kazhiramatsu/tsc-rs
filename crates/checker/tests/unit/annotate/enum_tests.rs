@@ -185,23 +185,38 @@ fn property_name_text_switch_matches_tsc_kinds() {
             // its textual StringLiteral name; PrefixUnaryExpression
             // is not a PropertyName kind.
             assert_eq!(
-                state.try_get_text_of_property_name(string).as_deref(),
+                state
+                    .try_get_text_of_property_name(string)
+                    .as_ref()
+                    .map(|value| value.as_js().as_str().expect("scalar name observation")),
                 Some("-1")
             );
             assert_eq!(
-                state.try_get_text_of_property_name(numeric).as_deref(),
+                state
+                    .try_get_text_of_property_name(numeric)
+                    .as_ref()
+                    .map(|value| value.as_js().as_str().expect("scalar name observation")),
                 Some("42")
             );
             assert_eq!(
-                state.try_get_text_of_property_name(bigint).as_deref(),
+                state
+                    .try_get_text_of_property_name(bigint)
+                    .as_ref()
+                    .map(|value| value.as_js().as_str().expect("scalar name observation")),
                 Some("1n")
             );
             assert_eq!(
-                state.try_get_text_of_property_name(template).as_deref(),
+                state
+                    .try_get_text_of_property_name(template)
+                    .as_ref()
+                    .map(|value| value.as_js().as_str().expect("scalar name observation")),
                 Some("template")
             );
             assert_eq!(
-                state.try_get_text_of_property_name(jsx_name).as_deref(),
+                state
+                    .try_get_text_of_property_name(jsx_name)
+                    .as_ref()
+                    .map(|value| value.as_js().as_str().expect("scalar name observation")),
                 Some("ns:name")
             );
             assert_eq!(
@@ -223,7 +238,13 @@ fn property_name_text_switch_matches_tsc_kinds() {
                     };
                     (
                         state.kind_of(expression),
-                        state.try_get_text_of_property_name(name),
+                        state.try_get_text_of_property_name(name).map(|value| {
+                            value
+                                .as_js()
+                                .as_str()
+                                .expect("scalar name observation")
+                                .to_owned()
+                        }),
                     )
                 })
                 .collect::<Vec<_>>();

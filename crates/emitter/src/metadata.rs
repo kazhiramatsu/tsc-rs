@@ -428,10 +428,6 @@ impl EmitEnumMemberValue {
 /// property transition, never by setOriginalNode's emitNode merge.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct LiteralNodeProperties {
-    /// Lossless cooked text for parsed or synthetic nodes whose JavaScript
-    /// value may contain an unpaired UTF-16 surrogate. Original raw source
-    /// remains authoritative whenever the printer can copy it unchanged.
-    pub(crate) javascript_string_value: Option<JavaScriptString>,
     /// TypeScript's synthetic `StringLiteral.singleQuote` preference. JSX
     /// attribute lowering preserves the source delimiter after decoding
     /// entities, so the cooked value and quote choice must travel together.
@@ -447,10 +443,6 @@ pub struct LiteralNodeProperties {
 }
 
 impl LiteralNodeProperties {
-    pub fn javascript_string_value(&self) -> Option<&JavaScriptString> {
-        self.javascript_string_value.as_ref()
-    }
-
     pub const fn string_literal_single_quote(&self) -> Option<bool> {
         self.string_literal_single_quote
     }
@@ -461,10 +453,6 @@ impl LiteralNodeProperties {
 
     pub fn raw_template_text(&self) -> Option<&JavaScriptString> {
         self.raw_template_text.as_ref()
-    }
-
-    pub fn set_javascript_string_value(&mut self, value: JavaScriptString) {
-        self.javascript_string_value = Some(value);
     }
 
     pub fn set_string_literal_single_quote(&mut self, value: bool) {
@@ -499,6 +487,11 @@ pub struct EmitMetadata {
     pub(crate) source_map_range: Option<SourceMapRange>,
     pub(crate) token_source_map_ranges: BTreeMap<SyntaxKind, SourceMapRange>,
     pub(crate) constant_value: Option<EmitConstantValue>,
+    /// Raw synthetic identifier spelling for output (recovery options and
+    /// serialized export names). Such a node has no lexical binding;
+    /// its empty scalar payload must never be used as a semantic lookup key.
+    /// Keep the JS value through clones/updates until the UTF-16 writer.
+    pub(crate) unchecked_identifier_text: Option<tsc_diagnostics::JsString>,
     pub(crate) helpers: Vec<Box<str>>,
     /// Facts owned by the original SourceFile, not inherited by clone/update
     /// metadata merging (tsc's mergeEmitNode does not copy these fields).
@@ -845,6 +838,9 @@ impl EmitMetadata {
         }
         if source.constant_value.is_some() {
             self.constant_value = source.constant_value.clone();
+        }
+        if source.unchecked_identifier_text.is_some() {
+            self.unchecked_identifier_text = source.unchecked_identifier_text.clone();
         }
         for helper in &source.helpers {
             if !self.helpers.contains(helper) {

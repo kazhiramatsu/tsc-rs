@@ -10,7 +10,7 @@
 //! boundary to serialize the owning type semantically.
 
 use tsc_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
-use tsc_types::NodeFlags;
+use tsc_types::{JsString, NodeFlags};
 
 use crate::state::{CheckResult, CheckerState};
 
@@ -57,7 +57,7 @@ impl<'program> CheckerState<'program> {
         &mut self,
         node: NodeId,
         at_line_start: bool,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<JsString>> {
         let saved = self.slice_display_clone_at_line_start;
         self.slice_display_clone_at_line_start = at_line_start;
         let result = DisplayClonePrinter { state: self }.expression(node);
@@ -99,7 +99,7 @@ impl<'program> CheckerState<'program> {
 }
 
 impl DisplayClonePrinter<'_, '_> {
-    fn expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn expression(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         match self.state.kind_of(node) {
             // Token/name/literal leaves.
             SyntaxKind::ThisKeyword
@@ -162,8 +162,8 @@ impl DisplayClonePrinter<'_, '_> {
             // existing source annotations do not construct them.
             SyntaxKind::PartiallyEmittedExpression => self.partially_emitted_expression(node),
             SyntaxKind::CommaListExpression => self.comma_list_expression(node),
-            SyntaxKind::OmittedExpression => Ok(Some(String::new())),
-            SyntaxKind::MissingDeclaration => Ok(Some(String::new())),
+            SyntaxKind::OmittedExpression => Ok(Some(JsString::new())),
+            SyntaxKind::MissingDeclaration => Ok(Some(JsString::new())),
 
             // Bodies open the statement/declaration grammar closure and cross
             // the single companion-module hook.
@@ -178,55 +178,55 @@ impl DisplayClonePrinter<'_, '_> {
         }
     }
 
-    fn token_expression(&self, node: NodeId) -> CheckResult<Option<String>> {
-        Ok(tsc_syntax::tokens::token_to_string(self.state.kind_of(node)).map(str::to_owned))
+    fn token_expression(&self, node: NodeId) -> CheckResult<Option<JsString>> {
+        Ok(tsc_syntax::tokens::token_to_string(self.state.kind_of(node)).map(JsString::from))
     }
 
-    fn identifier(&self, node: NodeId) -> CheckResult<Option<String>> {
+    fn identifier(&self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::Identifier(data) = self.state.data_of(node) else {
             return Ok(None);
         };
-        Ok(Some(
-            tsc_binder::unescape_leading_underscores(&data.escaped_text).to_owned(),
-        ))
+        Ok(Some(JsString::from(
+            tsc_syntax::unescape_leading_underscores(&data.escaped_text),
+        )))
     }
 
-    fn private_identifier(&self, node: NodeId) -> CheckResult<Option<String>> {
+    fn private_identifier(&self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::PrivateIdentifier(data) = self.state.data_of(node) else {
             return Ok(None);
         };
-        Ok(Some(data.text.clone()))
+        Ok(Some(data.text.clone().into()))
     }
 
-    fn numeric_literal(&self, node: NodeId) -> CheckResult<Option<String>> {
+    fn numeric_literal(&self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::NumericLiteral(data) = self.state.data_of(node) else {
             return Ok(None);
         };
-        Ok(Some(data.text.clone()))
+        Ok(Some(data.text.clone().into()))
     }
 
-    fn bigint_literal(&self, node: NodeId) -> CheckResult<Option<String>> {
+    fn bigint_literal(&self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::BigIntLiteral(data) = self.state.data_of(node) else {
             return Ok(None);
         };
-        Ok(Some(data.text.clone()))
+        Ok(Some(data.text.clone().into()))
     }
 
-    fn string_literal(&self, node: NodeId) -> CheckResult<Option<String>> {
+    fn string_literal(&self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::StringLiteral(data) = self.state.data_of(node) else {
             return Ok(None);
         };
-        Ok(Some(quoted_string(&data.text)))
+        Ok(Some(quoted_string(&data.text).into()))
     }
 
-    fn regular_expression_literal(&self, node: NodeId) -> CheckResult<Option<String>> {
+    fn regular_expression_literal(&self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::RegularExpressionLiteral(data) = self.state.data_of(node) else {
             return Ok(None);
         };
-        Ok(Some(data.text.clone()))
+        Ok(Some(data.text.clone().into()))
     }
 
-    fn no_substitution_template_literal(&self, node: NodeId) -> CheckResult<Option<String>> {
+    fn no_substitution_template_literal(&self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::NoSubstitutionTemplateLiteral(data) = self.state.data_of(node) else {
             return Ok(None);
         };
@@ -234,16 +234,16 @@ impl DisplayClonePrinter<'_, '_> {
             .raw_text
             .clone()
             .unwrap_or_else(|| template_text_raw(&data.text));
-        Ok(Some(format!("`{raw}`")))
+        Ok(Some(crate::concat_js(&[&"`", &(raw), &"`"])))
     }
 
-    fn array_literal(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn array_literal(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::ArrayLiteralExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
         let (elements, has_trailing_comma) = self.node_array(data.elements);
         if elements.is_empty() {
-            return Ok(Some("[]".to_owned()));
+            return Ok(Some(JsString::from("[]")));
         }
         let prefer_new_line = self.node_is_multi_line(node);
         let leading_new_line = self.list_has_leading_line(node, elements[0], prefer_new_line);
@@ -253,9 +253,9 @@ impl DisplayClonePrinter<'_, '_> {
             prefer_new_line,
         );
         let contents = self.with_increased_indent(|printer| {
-            let mut contents = String::new();
+            let mut contents = JsString::new();
             if leading_new_line {
-                contents.push_str(&printer.state.display_clone_line_indent());
+                contents.push_js((&printer.state.display_clone_line_indent()).into());
             }
             let mut previous = None;
             for element in elements {
@@ -279,7 +279,7 @@ impl DisplayClonePrinter<'_, '_> {
                         contents.push(',');
                     }
                     if printer.list_has_separating_line(previous, element, prefer_new_line) {
-                        contents.push_str(&printer.state.display_clone_line_indent());
+                        contents.push_js((&printer.state.display_clone_line_indent()).into());
                         at_line_start = true;
                     } else {
                         contents.push(' ');
@@ -295,7 +295,7 @@ impl DisplayClonePrinter<'_, '_> {
                     else {
                         return Ok(None);
                     };
-                    contents.push_str(&text);
+                    contents.push_js((&text).into());
                 }
                 previous = Some(element);
             }
@@ -308,18 +308,18 @@ impl DisplayClonePrinter<'_, '_> {
             return Ok(None);
         };
         if closing_new_line {
-            contents.push_str(&self.state.display_clone_line_indent());
+            contents.push_js((&self.state.display_clone_line_indent()).into());
         }
-        Ok(Some(format!("[{contents}]")))
+        Ok(Some(crate::concat_js(&[&"[", &(contents), &"]"])))
     }
 
-    fn object_literal(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn object_literal(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::ObjectLiteralExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
         let (properties, has_trailing_comma) = self.node_array(data.properties);
         if properties.is_empty() {
-            return Ok(Some("{}".to_owned()));
+            return Ok(Some(JsString::from("{}")));
         }
         let mut emitted = Vec::with_capacity(properties.len());
         for property in properties {
@@ -329,7 +329,7 @@ impl DisplayClonePrinter<'_, '_> {
             emitted.push(property);
         }
         if emitted.is_empty() {
-            return Ok(Some("{}".to_owned()));
+            return Ok(Some(JsString::from("{}")));
         }
         let prefer_new_line = self.node_is_multi_line(node);
         let leading_new_line = self.list_has_leading_line(node, emitted[0], prefer_new_line);
@@ -339,9 +339,9 @@ impl DisplayClonePrinter<'_, '_> {
             prefer_new_line,
         );
         let contents = self.with_increased_indent(|printer| {
-            let mut contents = String::new();
+            let mut contents = JsString::new();
             if leading_new_line {
-                contents.push_str(&printer.state.display_clone_line_indent());
+                contents.push_js((&printer.state.display_clone_line_indent()).into());
             } else {
                 contents.push(' ');
             }
@@ -367,7 +367,7 @@ impl DisplayClonePrinter<'_, '_> {
                         contents.push(',');
                     }
                     if printer.list_has_separating_line(previous, property, prefer_new_line) {
-                        contents.push_str(&printer.state.display_clone_line_indent());
+                        contents.push_js((&printer.state.display_clone_line_indent()).into());
                         at_line_start = true;
                     } else {
                         contents.push(' ');
@@ -381,7 +381,7 @@ impl DisplayClonePrinter<'_, '_> {
                 else {
                     return Ok(None);
                 };
-                contents.push_str(&text);
+                contents.push_js((&text).into());
                 previous = Some(property);
             }
             if has_trailing_comma {
@@ -393,14 +393,14 @@ impl DisplayClonePrinter<'_, '_> {
             return Ok(None);
         };
         if closing_new_line {
-            contents.push_str(&self.state.display_clone_line_indent());
+            contents.push_js((&self.state.display_clone_line_indent()).into());
         } else {
             contents.push(' ');
         }
-        Ok(Some(format!("{{{contents}}}")))
+        Ok(Some(crate::concat_js(&[&"{", &(contents), &"}"])))
     }
 
-    fn object_member(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn object_member(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         match self.state.data_of(node).clone() {
             NodeData::PropertyAssignment(data) => {
                 let Some(name) = data.name else {
@@ -418,7 +418,7 @@ impl DisplayClonePrinter<'_, '_> {
                 else {
                     return Ok(None);
                 };
-                Ok(Some(format!("{name}: {initializer}")))
+                Ok(Some(crate::concat_js(&[&(name), &": ", &(initializer)])))
             }
             NodeData::ShorthandPropertyAssignment(data) => {
                 let Some(name) = data.name else {
@@ -434,8 +434,8 @@ impl DisplayClonePrinter<'_, '_> {
                     else {
                         return Ok(None);
                     };
-                    text.push_str(" = ");
-                    text.push_str(&initializer);
+                    text.push_js((" = ").into());
+                    text.push_js((&initializer).into());
                 }
                 Ok(Some(text))
             }
@@ -449,7 +449,7 @@ impl DisplayClonePrinter<'_, '_> {
                 else {
                     return Ok(None);
                 };
-                Ok(Some(format!("...{expression}")))
+                Ok(Some(crate::concat_js(&[&"...", &(expression)])))
             }
             NodeData::MethodDeclaration(_)
             | NodeData::GetAccessor(_)
@@ -468,7 +468,7 @@ impl DisplayClonePrinter<'_, '_> {
         Ok(!self.state.has_bindable_name(node)?)
     }
 
-    fn property_access(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn property_access(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::PropertyAccessExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -496,10 +496,10 @@ impl DisplayClonePrinter<'_, '_> {
             };
             if line_before_dot {
                 printer.state.slice_display_clone_indent += 1;
-                text.push_str(&printer.state.display_clone_line_indent());
+                text.push_js((&printer.state.display_clone_line_indent()).into());
             }
             if data.question_dot_token.is_some() {
-                text.push_str("?.");
+                text.push_js(("?.").into());
             } else {
                 if printer.numeric_access_needs_second_dot(expression) {
                     text.push('.');
@@ -508,14 +508,14 @@ impl DisplayClonePrinter<'_, '_> {
             }
             if line_after_dot {
                 printer.state.slice_display_clone_indent += 1;
-                text.push_str(&printer.state.display_clone_line_indent());
+                text.push_js((&printer.state.display_clone_line_indent()).into());
             }
-            text.push_str(&name);
+            text.push_js((&name).into());
             Ok(Some(text))
         })
     }
 
-    fn element_access(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn element_access(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::ElementAccessExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -539,10 +539,16 @@ impl DisplayClonePrinter<'_, '_> {
         } else {
             ""
         };
-        Ok(Some(format!("{expression}{optional}[{argument}]")))
+        Ok(Some(crate::concat_js(&[
+            &(expression),
+            &(optional),
+            &"[",
+            &(argument),
+            &"]",
+        ])))
     }
 
-    fn call_expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn call_expression(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::CallExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -554,9 +560,9 @@ impl DisplayClonePrinter<'_, '_> {
             return Ok(None);
         };
         if data.question_dot_token.is_some() {
-            text.push_str("?.");
+            text.push_js(("?.").into());
         }
-        text.push_str(&self.type_arguments(data.type_arguments)?);
+        text.push_js((&self.type_arguments(data.type_arguments)?).into());
         let (arguments, _) = self.node_array(data.arguments);
         let Some(arguments) =
             self.with_line_start(false, |printer| printer.expression_list(arguments, true))?
@@ -564,12 +570,12 @@ impl DisplayClonePrinter<'_, '_> {
             return Ok(None);
         };
         text.push('(');
-        text.push_str(&arguments);
+        text.push_js((&arguments).into());
         text.push(')');
         Ok(Some(text))
     }
 
-    fn new_expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn new_expression(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::NewExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -581,10 +587,11 @@ impl DisplayClonePrinter<'_, '_> {
         else {
             return Ok(None);
         };
-        let mut text = format!(
-            "new {expression}{}",
-            self.type_arguments(data.type_arguments)?
-        );
+        let mut text = crate::concat_js(&[
+            &"new ",
+            &(expression),
+            &(self.type_arguments(data.type_arguments)?),
+        ]);
         if let Some(arguments) = data.arguments {
             let (arguments, _) = self.node_array(Some(arguments));
             let Some(arguments) =
@@ -593,13 +600,13 @@ impl DisplayClonePrinter<'_, '_> {
                 return Ok(None);
             };
             text.push('(');
-            text.push_str(&arguments);
+            text.push_js((&arguments).into());
             text.push(')');
         }
         Ok(Some(text))
     }
 
-    fn tagged_template(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn tagged_template(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::TaggedTemplateExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -617,10 +624,15 @@ impl DisplayClonePrinter<'_, '_> {
         else {
             return Ok(None);
         };
-        Ok(Some(format!("{tag}{type_arguments} {template}")))
+        Ok(Some(crate::concat_js(&[
+            &(tag),
+            &(type_arguments),
+            &" ",
+            &(template),
+        ])))
     }
 
-    fn parenthesized_expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn parenthesized_expression(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::ParenthesizedExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -629,10 +641,10 @@ impl DisplayClonePrinter<'_, '_> {
         };
         Ok(self
             .with_line_start(false, |printer| printer.expression(expression))?
-            .map(|expression| format!("({expression})")))
+            .map(|expression| crate::concat_js(&[&"(", &(expression), &")"])))
     }
 
-    fn type_assertion(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn type_assertion(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::TypeAssertionExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -650,10 +662,10 @@ impl DisplayClonePrinter<'_, '_> {
         else {
             return Ok(None);
         };
-        Ok(Some(format!("<{ty}>{expression}")))
+        Ok(Some(crate::concat_js(&[&"<", &(ty), &">", &(expression)])))
     }
 
-    fn expression_with_type_arguments(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn expression_with_type_arguments(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::ExpressionWithTypeArguments(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -666,10 +678,10 @@ impl DisplayClonePrinter<'_, '_> {
             return Ok(None);
         };
         let type_arguments = self.type_arguments(data.type_arguments)?;
-        Ok(Some(format!("{expression}{type_arguments}")))
+        Ok(Some(crate::concat_js(&[&(expression), &(type_arguments)])))
     }
 
-    fn as_expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn as_expression(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::AsExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -685,10 +697,10 @@ impl DisplayClonePrinter<'_, '_> {
         let ty = self.with_line_start(false, |printer| {
             printer.state.type_annotation_text_slice(ty)
         })?;
-        Ok(Some(format!("{expression} as {ty}")))
+        Ok(Some(crate::concat_js(&[&(expression), &" as ", &(ty)])))
     }
 
-    fn satisfies_expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn satisfies_expression(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::SatisfiesExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -704,10 +716,14 @@ impl DisplayClonePrinter<'_, '_> {
         let ty = self.with_line_start(false, |printer| {
             printer.state.type_annotation_text_slice(ty)
         })?;
-        Ok(Some(format!("{expression} satisfies {ty}")))
+        Ok(Some(crate::concat_js(&[
+            &(expression),
+            &" satisfies ",
+            &(ty),
+        ])))
     }
 
-    fn non_null_expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn non_null_expression(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::NonNullExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -716,14 +732,14 @@ impl DisplayClonePrinter<'_, '_> {
         };
         Ok(self
             .left_side_of_access(expression, self.is_optional_chain(node))?
-            .map(|expression| format!("{expression}!")))
+            .map(|expression| crate::concat_js(&[&(expression), &"!"])))
     }
 
     fn keyword_unary(
         &mut self,
         node: NodeId,
         keyword: &'static str,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<JsString>> {
         let expression = match self.state.data_of(node).clone() {
             NodeData::DeleteExpression(data) => data.expression,
             NodeData::TypeOfExpression(data) => data.expression,
@@ -736,10 +752,10 @@ impl DisplayClonePrinter<'_, '_> {
         };
         Ok(self
             .with_line_start(false, |printer| printer.operand_of_prefix_unary(expression))?
-            .map(|expression| format!("{keyword} {expression}")))
+            .map(|expression| crate::concat_js(&[&(keyword), &" ", &(expression)])))
     }
 
-    fn prefix_unary(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn prefix_unary(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::PrefixUnaryExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -769,13 +785,14 @@ impl DisplayClonePrinter<'_, '_> {
         else {
             return Ok(None);
         };
-        Ok(Some(format!(
-            "{operator}{}{operand}",
-            if needs_space { " " } else { "" }
-        )))
+        Ok(Some(crate::concat_js(&[
+            &(operator),
+            &(if needs_space { " " } else { "" }),
+            &(operand),
+        ])))
     }
 
-    fn postfix_unary(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn postfix_unary(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::PostfixUnaryExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -788,10 +805,10 @@ impl DisplayClonePrinter<'_, '_> {
         let Some(operand) = self.operand_of_postfix_unary(operand)? else {
             return Ok(None);
         };
-        Ok(Some(format!("{operand}{operator}")))
+        Ok(Some(crate::concat_js(&[&(operand), &(operator)])))
     }
 
-    fn binary_expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn binary_expression(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::BinaryExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -812,14 +829,14 @@ impl DisplayClonePrinter<'_, '_> {
             };
             if line_before_operator {
                 printer.state.slice_display_clone_indent += 1;
-                text.push_str(&printer.state.display_clone_line_indent());
+                text.push_js((&printer.state.display_clone_line_indent()).into());
             } else if operator_kind != SyntaxKind::CommaToken {
                 text.push(' ');
             }
-            text.push_str(operator);
+            text.push_js((operator).into());
             if line_after_operator {
                 printer.state.slice_display_clone_indent += 1;
-                text.push_str(&printer.state.display_clone_line_indent());
+                text.push_js((&printer.state.display_clone_line_indent()).into());
             } else {
                 text.push(' ');
             }
@@ -829,12 +846,12 @@ impl DisplayClonePrinter<'_, '_> {
             else {
                 return Ok(None);
             };
-            text.push_str(&right);
+            text.push_js((&right).into());
             Ok(Some(text))
         })
     }
 
-    fn conditional_expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn conditional_expression(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::ConditionalExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -864,18 +881,18 @@ impl DisplayClonePrinter<'_, '_> {
                 return Ok(None);
             };
             if condition_needs_parentheses {
-                text = format!("({text})");
+                text = crate::concat_js(&[&"(", &(text), &")"]);
             }
             if line_before_question {
                 printer.state.slice_display_clone_indent += 1;
-                text.push_str(&printer.state.display_clone_line_indent());
+                text.push_js((&printer.state.display_clone_line_indent()).into());
             } else {
                 text.push(' ');
             }
             text.push('?');
             if line_after_question {
                 printer.state.slice_display_clone_indent += 1;
-                text.push_str(&printer.state.display_clone_line_indent());
+                text.push_js((&printer.state.display_clone_line_indent()).into());
             } else {
                 text.push(' ');
             }
@@ -885,7 +902,7 @@ impl DisplayClonePrinter<'_, '_> {
             else {
                 return Ok(None);
             };
-            text.push_str(&when_true_text);
+            text.push_js((&when_true_text).into());
             if line_after_question {
                 printer.state.slice_display_clone_indent -= 1;
             }
@@ -894,14 +911,14 @@ impl DisplayClonePrinter<'_, '_> {
             }
             if line_before_colon {
                 printer.state.slice_display_clone_indent += 1;
-                text.push_str(&printer.state.display_clone_line_indent());
+                text.push_js((&printer.state.display_clone_line_indent()).into());
             } else {
                 text.push(' ');
             }
             text.push(':');
             if line_after_colon {
                 printer.state.slice_display_clone_indent += 1;
-                text.push_str(&printer.state.display_clone_line_indent());
+                text.push_js((&printer.state.display_clone_line_indent()).into());
             } else {
                 text.push(' ');
             }
@@ -911,16 +928,16 @@ impl DisplayClonePrinter<'_, '_> {
             else {
                 return Ok(None);
             };
-            text.push_str(&when_false_text);
+            text.push_js((&when_false_text).into());
             Ok(Some(text))
         })
     }
 
-    fn yield_expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn yield_expression(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::YieldExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
-        let mut text = "yield".to_owned();
+        let mut text = JsString::from("yield");
         if data.asterisk_token.is_some() {
             text.push('*');
         }
@@ -932,12 +949,12 @@ impl DisplayClonePrinter<'_, '_> {
                 return Ok(None);
             };
             text.push(' ');
-            text.push_str(&expression);
+            text.push_js((&expression).into());
         }
         Ok(Some(text))
     }
 
-    fn spread_element(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn spread_element(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::SpreadElement(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -948,10 +965,10 @@ impl DisplayClonePrinter<'_, '_> {
             .with_line_start(false, |printer| {
                 printer.expression_for_disallowed_comma(expression)
             })?
-            .map(|expression| format!("...{expression}")))
+            .map(|expression| crate::concat_js(&[&"...", &(expression)])))
     }
 
-    fn template_expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn template_expression(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::TemplateExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -964,7 +981,7 @@ impl DisplayClonePrinter<'_, '_> {
         let raw = head
             .raw_text
             .unwrap_or_else(|| template_text_raw(&head.text));
-        let mut text = format!("`{raw}");
+        let mut text = crate::concat_js(&[&"`", &(raw)]);
         let (spans, _) = self.node_array(data.template_spans);
         for span in spans {
             let NodeData::TemplateSpan(span) = self.state.data_of(span).clone() else {
@@ -990,16 +1007,16 @@ impl DisplayClonePrinter<'_, '_> {
                     .unwrap_or_else(|| template_text_raw(&data.text)),
                 _ => return Ok(None),
             };
-            text.push_str("${");
-            text.push_str(&expression);
+            text.push_js(("${").into());
+            text.push_js((&expression).into());
             text.push('}');
-            text.push_str(&raw);
+            text.push_js((&raw).into());
         }
         text.push('`');
         Ok(Some(text))
     }
 
-    fn meta_property(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn meta_property(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::MetaProperty(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -1009,10 +1026,10 @@ impl DisplayClonePrinter<'_, '_> {
         let Some(name) = data.name.and_then(|name| self.identifier_name(name)) else {
             return Ok(None);
         };
-        Ok(Some(format!("{keyword}.{name}")))
+        Ok(Some(crate::concat_js(&[&(keyword), &".", &(name)])))
     }
 
-    fn partially_emitted_expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn partially_emitted_expression(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::PartiallyEmittedExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -1022,7 +1039,7 @@ impl DisplayClonePrinter<'_, '_> {
         }
     }
 
-    fn comma_list_expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn comma_list_expression(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let NodeData::CommaListExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -1030,7 +1047,7 @@ impl DisplayClonePrinter<'_, '_> {
         self.expression_list(elements, false)
     }
 
-    fn jsx(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn jsx(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         match self.state.data_of(node).clone() {
             NodeData::JsxElement(data) => {
                 let (Some(opening), Some(closing)) = (data.opening_element, data.closing_element)
@@ -1082,7 +1099,14 @@ impl DisplayClonePrinter<'_, '_> {
                 else {
                     return Ok(None);
                 };
-                Ok(Some(format!("<{tag_name}{type_arguments} {attributes}/>")))
+                Ok(Some(crate::concat_js(&[
+                    &"<",
+                    &(tag_name),
+                    &(type_arguments),
+                    &" ",
+                    &(attributes),
+                    &"/>",
+                ])))
             }
             NodeData::JsxOpeningElement(data) => {
                 let Some(tag_name) = data.tag_name else {
@@ -1103,9 +1127,14 @@ impl DisplayClonePrinter<'_, '_> {
                     return Ok(None);
                 };
                 let separator = if attributes.is_empty() { "" } else { " " };
-                Ok(Some(format!(
-                    "<{tag_name}{type_arguments}{separator}{attributes}>"
-                )))
+                Ok(Some(crate::concat_js(&[
+                    &"<",
+                    &(tag_name),
+                    &(type_arguments),
+                    &(separator),
+                    &(attributes),
+                    &">",
+                ])))
             }
             NodeData::JsxClosingElement(data) => {
                 let Some(tag_name) = data.tag_name else {
@@ -1113,10 +1142,10 @@ impl DisplayClonePrinter<'_, '_> {
                 };
                 Ok(self
                     .with_line_start(false, |printer| printer.jsx_tag_name(tag_name))?
-                    .map(|tag_name| format!("</{tag_name}>")))
+                    .map(|tag_name| crate::concat_js(&[&"</", &(tag_name), &">"])))
             }
             NodeData::JsxFragment(data) => {
-                let mut text = "<>".to_owned();
+                let mut text = JsString::from("<>");
                 let (children, _) = self.node_array(data.children);
                 for child in children {
                     let child_at_line_start = text_ends_at_line_start(&text);
@@ -1145,7 +1174,7 @@ impl DisplayClonePrinter<'_, '_> {
                     };
                     rendered.push(property);
                 }
-                Ok(Some(rendered.join(" ")))
+                Ok(Some(crate::join_js_texts(&rendered, " ")))
             }
             NodeData::JsxAttribute(data) => {
                 let Some(name) = data.name else {
@@ -1162,7 +1191,7 @@ impl DisplayClonePrinter<'_, '_> {
                         return Ok(None);
                     };
                     text.push('=');
-                    text.push_str(&initializer);
+                    text.push_js((&initializer).into());
                 }
                 Ok(Some(text))
             }
@@ -1172,13 +1201,13 @@ impl DisplayClonePrinter<'_, '_> {
                 };
                 Ok(self
                     .with_line_start(false, |printer| printer.expression(expression))?
-                    .map(|expression| format!("{{...{expression}}}")))
+                    .map(|expression| crate::concat_js(&[&"{", &"...", &(expression), &"}"])))
             }
             NodeData::JsxExpression(data) => {
                 let Some(expression) = data.expression else {
                     // With removeComments enabled, an empty JSX expression
                     // (normally a comment container) emits nothing.
-                    return Ok(Some(String::new()));
+                    return Ok(Some(JsString::new()));
                 };
                 let multi_line = self.node_raw_range_is_multi_line(node);
                 self.with_restored_indent(|printer| {
@@ -1195,22 +1224,27 @@ impl DisplayClonePrinter<'_, '_> {
                     } else {
                         ""
                     };
-                    Ok(Some(format!("{{{dots}{expression}}}")))
+                    Ok(Some(crate::concat_js(&[
+                        &"{",
+                        &(dots),
+                        &(expression),
+                        &"}",
+                    ])))
                 })
             }
             NodeData::JsxNamespacedName(_) => Ok(self.jsx_attribute_name(node)),
-            NodeData::JsxText(data) => Ok(Some(data.text)),
+            NodeData::JsxText(data) => Ok(Some(data.text.into())),
             NodeData::Token if self.state.kind_of(node) == SyntaxKind::JsxOpeningFragment => {
-                Ok(Some("<>".to_owned()))
+                Ok(Some(JsString::from("<>")))
             }
             NodeData::Token if self.state.kind_of(node) == SyntaxKind::JsxClosingFragment => {
-                Ok(Some("</>".to_owned()))
+                Ok(Some(JsString::from("</>")))
             }
             _ => Ok(None),
         }
     }
 
-    fn jsx_child(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn jsx_child(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         match self.state.kind_of(node) {
             SyntaxKind::JsxText
             | SyntaxKind::JsxTextAllWhiteSpaces
@@ -1222,7 +1256,7 @@ impl DisplayClonePrinter<'_, '_> {
         }
     }
 
-    fn jsx_attribute_value(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn jsx_attribute_value(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         if let NodeData::StringLiteral(data) = self.state.data_of(node) {
             return Ok(Some(quoted_jsx_attribute(&data.text)));
         }
@@ -1235,7 +1269,7 @@ impl DisplayClonePrinter<'_, '_> {
         }
     }
 
-    fn jsx_tag_name(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn jsx_tag_name(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         match self.state.kind_of(node) {
             SyntaxKind::Identifier
             | SyntaxKind::ThisKeyword
@@ -1245,36 +1279,40 @@ impl DisplayClonePrinter<'_, '_> {
         }
     }
 
-    fn jsx_attribute_name(&self, node: NodeId) -> Option<String> {
+    fn jsx_attribute_name(&self, node: NodeId) -> Option<JsString> {
         match self.state.data_of(node) {
-            NodeData::Identifier(data) => {
-                Some(tsc_binder::unescape_leading_underscores(&data.escaped_text).to_owned())
-            }
+            NodeData::Identifier(data) => Some(JsString::from(
+                tsc_syntax::unescape_leading_underscores(&data.escaped_text),
+            )),
             NodeData::JsxNamespacedName(data) => {
                 let namespace = data.namespace.and_then(|node| self.identifier_name(node))?;
                 let name = data.name.and_then(|node| self.identifier_name(node))?;
-                Some(format!("{namespace}:{name}"))
+                Some(crate::concat_js(&[&(namespace), &":", &(name)]))
             }
             _ => None,
         }
     }
 
-    fn type_arguments(&mut self, nodes: Option<NodeArrayId>) -> CheckResult<String> {
+    fn type_arguments(&mut self, nodes: Option<NodeArrayId>) -> CheckResult<JsString> {
         let Some(nodes) = nodes else {
-            return Ok(String::new());
+            return Ok(JsString::new());
         };
         let nodes = self.state.binder.node_array(nodes).nodes.clone();
         let rendered = self.with_line_start(false, |printer| {
             printer.state.type_argument_nodes_text_slice(nodes)
         })?;
-        Ok(format!("<{}>", rendered.join(", ")))
+        Ok(crate::concat_js(&[
+            &"<",
+            &(crate::join_js_texts(&rendered, ", ")),
+            &">",
+        ]))
     }
 
     fn expression_list(
         &mut self,
         nodes: Vec<NodeId>,
         disallow_comma: bool,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<JsString>> {
         let mut rendered = Vec::with_capacity(nodes.len());
         let first_at_line_start = self.state.slice_display_clone_at_line_start;
         for (index, node) in nodes.into_iter().enumerate() {
@@ -1291,10 +1329,10 @@ impl DisplayClonePrinter<'_, '_> {
             };
             rendered.push(text);
         }
-        Ok(Some(rendered.join(", ")))
+        Ok(Some(crate::join_js_texts(&rendered, ", ")))
     }
 
-    fn conditional_branch(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn conditional_branch(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let needs_parentheses = self.is_comma_sequence(node);
         let child_at_line_start = if needs_parentheses {
             false
@@ -1307,12 +1345,12 @@ impl DisplayClonePrinter<'_, '_> {
             return Ok(None);
         };
         if needs_parentheses {
-            text = format!("({text})");
+            text = crate::concat_js(&[&"(", &(text), &")"]);
         }
         Ok(Some(text))
     }
 
-    fn expression_for_disallowed_comma(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn expression_for_disallowed_comma(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let needs_parentheses = self.expression_precedence(node) <= PRECEDENCE_COMMA;
         let child_at_line_start = if needs_parentheses {
             false
@@ -1325,12 +1363,12 @@ impl DisplayClonePrinter<'_, '_> {
             return Ok(None);
         };
         if needs_parentheses {
-            text = format!("({text})");
+            text = crate::concat_js(&[&"(", &(text), &")"]);
         }
         Ok(Some(text))
     }
 
-    fn operand_of_prefix_unary(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn operand_of_prefix_unary(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let needs_parentheses = !self.is_unary_expression(node);
         let child_at_line_start = if needs_parentheses {
             false
@@ -1343,12 +1381,12 @@ impl DisplayClonePrinter<'_, '_> {
             return Ok(None);
         };
         if needs_parentheses {
-            text = format!("({text})");
+            text = crate::concat_js(&[&"(", &(text), &")"]);
         }
         Ok(Some(text))
     }
 
-    fn operand_of_postfix_unary(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn operand_of_postfix_unary(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let needs_parentheses = !self.is_left_hand_side_expression(node);
         let child_at_line_start = if needs_parentheses {
             false
@@ -1361,7 +1399,7 @@ impl DisplayClonePrinter<'_, '_> {
             return Ok(None);
         };
         if needs_parentheses {
-            text = format!("({text})");
+            text = crate::concat_js(&[&"(", &(text), &")"]);
         }
         Ok(Some(text))
     }
@@ -1370,7 +1408,7 @@ impl DisplayClonePrinter<'_, '_> {
         &mut self,
         node: NodeId,
         optional_chain: bool,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<JsString>> {
         let needs_parentheses = !self.is_left_hand_side_expression(node)
             || (self.state.kind_of(self.skip_partially_emitted(node)) == SyntaxKind::NewExpression
                 && !self.new_expression_has_arguments(node))
@@ -1386,12 +1424,12 @@ impl DisplayClonePrinter<'_, '_> {
             return Ok(None);
         };
         if needs_parentheses {
-            text = format!("({text})");
+            text = crate::concat_js(&[&"(", &(text), &")"]);
         }
         Ok(Some(text))
     }
 
-    fn expression_of_new(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn expression_of_new(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let leftmost = self.leftmost_expression(node, true);
         let leftmost_kind = self.state.kind_of(leftmost);
         let needs_parentheses = leftmost_kind == SyntaxKind::CallExpression
@@ -1410,7 +1448,7 @@ impl DisplayClonePrinter<'_, '_> {
             return Ok(None);
         };
         if needs_parentheses {
-            text = format!("({text})");
+            text = crate::concat_js(&[&"(", &(text), &")"]);
         }
         Ok(Some(text))
     }
@@ -1424,7 +1462,7 @@ impl DisplayClonePrinter<'_, '_> {
         operand: NodeId,
         is_left: bool,
         left_operand: Option<NodeId>,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<JsString>> {
         let needs_parentheses =
             self.binary_operand_needs_parentheses(operator, operand, is_left, left_operand);
         let child_at_line_start = if needs_parentheses {
@@ -1438,7 +1476,7 @@ impl DisplayClonePrinter<'_, '_> {
             return Ok(None);
         };
         if needs_parentheses {
-            text = format!("({text})");
+            text = crate::concat_js(&[&"(", &(text), &")"]);
         }
         Ok(Some(text))
     }
@@ -1724,12 +1762,12 @@ impl DisplayClonePrinter<'_, '_> {
         node
     }
 
-    fn identifier_name(&self, node: NodeId) -> Option<String> {
+    fn identifier_name(&self, node: NodeId) -> Option<JsString> {
         match self.state.data_of(node) {
-            NodeData::Identifier(data) => {
-                Some(tsc_binder::unescape_leading_underscores(&data.escaped_text).to_owned())
-            }
-            NodeData::PrivateIdentifier(data) => Some(data.text.clone()),
+            NodeData::Identifier(data) => Some(JsString::from(
+                tsc_syntax::unescape_leading_underscores(&data.escaped_text),
+            )),
+            NodeData::PrivateIdentifier(data) => Some(data.text.clone().into()),
             _ => None,
         }
     }
@@ -1934,11 +1972,19 @@ impl DisplayClonePrinter<'_, '_> {
         }
     }
 
-    fn append_jsx_write(&self, text: &mut String, fragment: &str, extra_indent: usize) {
+    fn append_jsx_write<'n>(
+        &self,
+        text: &mut JsString,
+        fragment: impl Into<tsc_types::JsStr<'n>>,
+        extra_indent: usize,
+    ) {
+        let fragment = fragment.into();
         if !fragment.is_empty() && text_ends_at_line_start(text) {
-            text.push_str(&"    ".repeat(self.state.slice_display_clone_indent + extra_indent));
+            text.push_js(
+                (&"    ".repeat(self.state.slice_display_clone_indent + extra_indent)).into(),
+            );
         }
-        text.push_str(fragment);
+        text.push_js((fragment).into());
     }
 }
 
@@ -1949,10 +1995,11 @@ fn display_clone_line_of_byte(source: &tsc_syntax::SourceFile, byte: usize) -> O
         .map(|location| location.line as usize)
 }
 
-fn text_ends_at_line_start(text: &str) -> bool {
-    text.chars()
-        .next_back()
-        .is_some_and(tsc_syntax::is_line_break)
+fn text_ends_at_line_start(text: &JsString) -> bool {
+    matches!(
+        text.code_units().last(),
+        Some(0x000A | 0x000D | 0x2028 | 0x2029)
+    )
 }
 
 fn binary_operator_precedence(operator: SyntaxKind) -> i8 {
@@ -2052,9 +2099,10 @@ fn operator_has_associative_property(operator: SyntaxKind) -> bool {
     )
 }
 
-fn quoted_string(text: &str) -> String {
-    let units = text.encode_utf16().collect::<Vec<_>>();
-    let mut escaped = String::with_capacity(text.len());
+fn quoted_string<'n>(text: impl Into<tsc_types::JsStr<'n>>) -> String {
+    let text = text.into();
+    let units = text.to_utf16();
+    let mut escaped = String::with_capacity(text.as_bytes().len());
     for (index, &unit) in units.iter().enumerate() {
         match unit {
             0 if units
@@ -2086,24 +2134,28 @@ fn quoted_string(text: &str) -> String {
     format!("\"{escaped}\"")
 }
 
-fn quoted_jsx_attribute(text: &str) -> String {
-    let mut escaped = String::with_capacity(text.len());
-    for character in text.chars() {
-        match character {
-            '\0' => escaped.push_str("&#0;"),
-            '"' => escaped.push_str("&quot;"),
-            '\u{0001}'..='\u{001F}' | '\u{0085}' | '\u{2028}' | '\u{2029}' => {
-                escaped.push_str(&format!("&#x{:X};", character as u32));
+// JSX entity escaping preserves non-ASCII code units, including lone surrogates.
+// The display writer owns JS text until its final output boundary.
+fn quoted_jsx_attribute<'n>(text: impl Into<tsc_types::JsStr<'n>>) -> JsString {
+    let mut escaped = JsString::from("\"");
+    for unit in text.into().code_units() {
+        match unit {
+            0 => escaped.push_str("&#0;"),
+            0x0022 => escaped.push_str("&quot;"),
+            0x0001..=0x001F | 0x0085 | 0x2028 | 0x2029 => {
+                escaped.push_str(&format!("&#x{unit:X};"));
             }
-            _ => escaped.push(character),
+            _ => escaped.push_code_unit(unit),
         }
     }
-    format!("\"{escaped}\"")
+    escaped.push('"');
+    escaped
 }
 
-fn template_text_raw(text: &str) -> String {
-    let units = text.encode_utf16().collect::<Vec<_>>();
-    let mut out = String::with_capacity(text.len());
+fn template_text_raw<'n>(text: impl Into<tsc_types::JsStr<'n>>) -> String {
+    let text = text.into();
+    let units = text.to_utf16();
+    let mut out = String::with_capacity(text.as_bytes().len());
     let mut index = 0usize;
     while index < units.len() {
         let unit = units[index];

@@ -163,10 +163,7 @@ pub(super) fn observe(
     if row.current_option != current_option
         || !active
         || sink_writes != [0, 0]
-        || options
-            .out_file
-            .as_deref()
-            .is_none_or(|path| path.is_empty())
+        || options.out_file.as_ref().is_none_or(|path| path.is_empty())
     {
         return Err(failure(format!(
             "{case_id}: current typed refusal boundary differs"
@@ -178,7 +175,7 @@ pub(super) fn observe(
         "repetitions": 2,
         "result": {"kind": "DriverError::Emit(EmitFailure::UnsupportedCompilerOption)", "option": current_option},
         "sink_write_counts": sink_writes,
-        "actual_input_facets": {"outFile": options.out_file, "outDir": options.out_dir, "case_sensitive": case_sensitive},
+        "actual_input_facets": {"outFile": options.out_file.as_ref().map(|value| value.as_str().expect("scalar refusal input option")), "outDir": options.out_dir.as_ref().map(|value| value.as_str().expect("scalar refusal input option")), "case_sensitive": case_sensitive},
         "emit_result": null, "reported_diagnostics": null, "command_exit": null, "runtime_activity": null
     });
     let actual = sha256(serde_json::to_vec(&observation)?);

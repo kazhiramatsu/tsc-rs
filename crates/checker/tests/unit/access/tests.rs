@@ -219,7 +219,10 @@ module.exports = { Quack: 2 };\n";
             .diagnostics
             .iter()
             .map(|diagnostic| (
-                diagnostic.file_name.as_deref(),
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .map(|value| value.as_js().as_str().expect("scalar name observation")),
                 diagnostic.code(),
                 diagnostic.start.unwrap_or(u32::MAX),
                 diagnostic.length.unwrap_or(u32::MAX),
@@ -399,7 +402,9 @@ fn insertion_typo_reports_2551_with_related_2728() {
             (2551, Some(52), Some(4))
         );
         assert_eq!(
-            diag.message_text(),
+            diag.message_text()
+                .as_str()
+                .expect("scalar diagnostic observation"),
             "Property 'helo' does not exist on type 'O'. Did you mean 'hello'?"
         );
         assert_eq!(diag.related.len(), 1);
@@ -455,7 +460,9 @@ fn union_chain_names_first_lacking_constituent() {
         let diag = diags[0];
         assert_eq!((diag.code(), diag.start), (2339, Some(100)));
         assert_eq!(
-            diag.message_text(),
+            diag.message_text()
+                .as_str()
+                .expect("scalar diagnostic observation"),
             "Property 'd' does not exist on type 'A | B'."
         );
         assert_eq!(diag.message.next.len(), 1);
@@ -491,7 +498,7 @@ fn empty_dom_intersection_gets_the_missing_dom_library_hint() {
             assert_eq!(diagnostics.len(), 1, "{diagnostics:#?}");
             assert_eq!(diagnostics[0].code(), 2812);
             assert_eq!(
-                diagnostics[0].message_text(),
+                diagnostics[0].message_text().as_str().expect("scalar diagnostic observation"),
                 "Property 'value' does not exist on type 'EventTarget & HTMLInputElement'. Try changing the 'lib' compiler option to include 'dom'."
             );
         },
@@ -594,7 +601,7 @@ fn element_literal_miss_reports_7053_chain() {
             (7053, Some(50), Some(8))
         );
         assert_eq!(
-                diag.message_text(),
+                diag.message_text().as_str().expect("scalar diagnostic observation"),
                 "Element implicitly has an 'any' type because expression of type '\"xyz\"' can't be used to index type 'O'."
             );
         assert_eq!(diag.message.next.len(), 1);
@@ -633,6 +640,8 @@ fn element_get_method_probe_reports_7052() {
         );
         assert!(diag
             .message_text()
+            .as_str()
+            .expect("scalar diagnostic observation")
             .ends_with("Did you mean to call 'o.get'?"));
     });
 }
@@ -652,9 +661,14 @@ fn element_set_method_probe_omits_non_entity_receiver_text() {
         assert!(
             diagnostic
                 .message_text()
+                .as_str()
+                .expect("scalar diagnostic observation")
                 .ends_with("Did you mean to call 'set'?"),
             "{}",
-            diagnostic.message_text(),
+            diagnostic
+                .message_text()
+                .as_str()
+                .expect("scalar diagnostic observation"),
         );
     });
 }
@@ -700,9 +714,13 @@ fn element_static_member_reports_2576_with_bracket_text() {
         );
         assert!(
             diag.message_text()
+                .as_str()
+                .expect("scalar diagnostic observation")
                 .ends_with("Did you mean to access the static member 'C[\"s\"]' instead?"),
             "{}",
             diag.message_text()
+                .as_str()
+                .expect("scalar diagnostic observation")
         );
     });
 }
@@ -937,7 +955,13 @@ fn private_access_diagnostic_uses_the_anonymous_class_sentinel() {
             .diagnostics
             .iter()
             .filter(|diagnostic| diagnostic.code() == 18013)
-            .map(|diagnostic| diagnostic.message_text().to_owned())
+            .map(|diagnostic| {
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation")
+                    .to_owned()
+            })
             .collect::<Vec<_>>()
     });
     assert_eq!(
@@ -983,7 +1007,11 @@ fn shadowed_private_access_reports_both_declaration_sites() {
             diagnostic
                 .related
                 .iter()
-                .map(|related| related.message.text.as_str())
+                .map(|related| related
+                    .message
+                    .text
+                    .as_str()
+                    .expect("scalar diagnostic observation"))
                 .collect::<Vec<_>>(),
             [
                 "The shadowing declaration of '#x' is defined here",
@@ -1098,7 +1126,11 @@ fn jsdoc_deprecated_symbols_and_selected_signatures_match_tsc() {
                 (
                     diagnostic.code(),
                     diagnostic.category(),
-                    diagnostic.message_text().to_owned(),
+                    diagnostic
+                        .message_text()
+                        .as_str()
+                        .expect("scalar diagnostic observation")
+                        .to_owned(),
                     diagnostic
                         .related
                         .iter()

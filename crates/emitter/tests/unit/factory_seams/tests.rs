@@ -94,6 +94,81 @@ fn synthetic_arena() -> (TransformArena, TransformSourceId) {
     (arena, source)
 }
 
+#[test]
+fn synthetic_export_names_preserve_ts_utf16_values_through_clones() {
+    let fixture: serde_json::Value = serde_json::from_str(include_str!(
+        "../../fixtures/utf16-synthetic-export-names.json"
+    ))
+    .unwrap();
+    for case in fixture["cases"].as_array().unwrap() {
+        let units = |field: &str| -> Vec<u16> {
+            case[field]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|value| u16::try_from(value.as_u64().unwrap()).unwrap())
+                .collect()
+        };
+        let name_units = units("name");
+        let expected = units("text");
+        let clone = case["clone"].as_bool().unwrap();
+        assert_eq!(case["kind"], "Identifier");
+        let (mut arena, source) = synthetic_arena();
+        let name = tsc_diagnostics::JsString::from_code_units(&name_units);
+        let mut name = arena
+            .factory()
+            .create_unchecked_identifier(source, name.as_js())
+            .unwrap();
+        if clone {
+            name = arena.factory().clone_node(name).unwrap();
+        }
+        let property = arena.factory().create_identifier(source, "_name").unwrap();
+        let specifier = arena
+            .factory()
+            .create_export_specifier(source, false, Some(property), name)
+            .unwrap();
+        let elements = arena
+            .factory()
+            .create_node_array(source, vec![specifier])
+            .unwrap();
+        let exports = arena
+            .factory()
+            .create_named_exports(source, elements)
+            .unwrap();
+        let declaration = arena
+            .factory()
+            .create_export_declaration(source, None, false, Some(exports), None, None)
+            .unwrap();
+        let mut transformation = crate::transform_nodes(
+            arena,
+            vec![crate::TransformRoot::SourceFile(source)],
+            Vec::new(),
+            false,
+        )
+        .unwrap();
+        for _ in 0..2 {
+            let result =
+                crate::create_printer(crate::PrinterOptions::new(crate::NewLineKind::LineFeed))
+                    .print(
+                        &mut transformation,
+                        crate::PrintRequest::StandaloneNode {
+                            node: declaration,
+                            writer: crate::StandaloneWriter::MultiLine,
+                        },
+                        None,
+                    )
+                    .unwrap();
+            assert_eq!(
+                result.text_utf16().as_ref(),
+                expected,
+                "name {:?}, clone {}",
+                name_units,
+                clone
+            );
+        }
+    }
+}
+
 fn assert_parenthesized(factory: &NodeFactory<'_>, result: TransformNode, original: TransformNode) {
     assert_ne!(result, original, "rule must allocate a fresh wrapper");
     let NodeData::ParenthesizedType(data) = &factory.arena.node(result).unwrap().data else {
@@ -516,7 +591,7 @@ fn unique_names_allocate_arena_owned_generated_binding_identities() {
 }
 
 #[test]
-fn not_emitted_type_element_and_utf16_literal_metadata_are_exact() {
+fn not_emitted_type_element_and_utf16_literal_ownership_are_exact() {
     let (mut arena, source) = synthetic_arena();
     let mut factory = arena.factory();
     let erased = factory.create_not_emitted_type_element(source).unwrap();
@@ -536,11 +611,165 @@ fn not_emitted_type_element_and_utf16_literal_metadata_are_exact() {
             .unwrap();
         let metadata = factory.arena.literal_properties(literal).unwrap();
         assert_eq!(
-            metadata.javascript_string_value().unwrap().code_units(),
-            units.as_slice(),
+            factory.arena.literal_code_units(literal).unwrap(),
+            Some(units.clone()),
         );
         assert_eq!(metadata.string_literal_single_quote(), Some(single_quote));
     }
+}
+
+#[test]
+fn literal_code_units_follow_owned_values_independently_of_source_provenance() {
+    let source_file = parsed(
+        "literal.ts",
+        "\"\\u{D800}\";\n`\\u{DC00}${1}\\uD800`;\n'plain';\n\"\\u{D800}",
+    );
+    let statements = {
+        let NodeData::SourceFile(data) = &source_file.arena.node(source_file.root).data else {
+            panic!("source file")
+        };
+        source_file
+            .arena
+            .node_array(data.statements.unwrap())
+            .nodes
+            .clone()
+    };
+    let expression = |statement: NodeId| match &source_file.arena.node(statement).data {
+        NodeData::ExpressionStatement(data) => data.expression.unwrap(),
+        _ => panic!("expression statement"),
+    };
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&source_file, None);
+    let parsed_literal = arena.node_ref(source, expression(statements[0])).unwrap();
+    let template = arena.node_ref(source, expression(statements[1])).unwrap();
+    let plain = arena.node_ref(source, expression(statements[2])).unwrap();
+    let unterminated = arena.node_ref(source, expression(statements[3])).unwrap();
+
+    // Positioned and unterminated literals both own their scanner values.
+    assert_eq!(
+        arena.literal_code_units(parsed_literal).unwrap(),
+        Some(vec![0xD800])
+    );
+    assert_eq!(
+        arena.literal_code_units(plain).unwrap(),
+        Some("plain".encode_utf16().collect())
+    );
+    assert_eq!(
+        arena.literal_code_units(unterminated).unwrap(),
+        Some(vec![0xD800])
+    );
+    // Template fragments own cooked values separately from raw text.
+    let (head, tail) = {
+        let NodeData::TemplateExpression(data) = &arena.node(template).unwrap().data else {
+            panic!("template expression")
+        };
+        let spans = &source_file
+            .arena
+            .node_array(data.template_spans.unwrap())
+            .nodes;
+        let NodeData::TemplateSpan(span) = &source_file.arena.node(spans[0]).data else {
+            panic!("template span")
+        };
+        (
+            arena.node_ref(source, data.head.unwrap()).unwrap(),
+            arena.node_ref(source, span.literal.unwrap()).unwrap(),
+        )
+    };
+    assert_eq!(arena.literal_code_units(head).unwrap(), Some(vec![0xDC00]));
+    assert_eq!(arena.literal_code_units(tail).unwrap(), Some(vec![0xD800]));
+
+    // Cloning copies the owned value, with or without a copied range.
+    let clone = arena.factory().clone_node(parsed_literal).unwrap();
+    assert_eq!(arena.literal_code_units(clone).unwrap(), Some(vec![0xD800]));
+    let ranged_clone = arena.factory().clone_node(parsed_literal).unwrap();
+    arena
+        .factory()
+        .set_text_range(ranged_clone, parsed_literal)
+        .unwrap();
+    assert_eq!(
+        arena.literal_code_units(ranged_clone).unwrap(),
+        Some(vec![0xD800])
+    );
+
+    // Neither an original link nor a copied range changes a newly-owned value.
+    let changed = arena
+        .factory()
+        .create_string_literal(source, "changed", false)
+        .unwrap();
+    arena
+        .set_original_node(changed, Some(parsed_literal))
+        .unwrap();
+    assert_eq!(
+        arena.literal_code_units(changed).unwrap(),
+        Some("changed".encode_utf16().collect())
+    );
+    let changed_ranged = arena
+        .factory()
+        .create_string_literal(source, "changed", false)
+        .unwrap();
+    arena
+        .factory()
+        .set_text_range(changed_ranged, parsed_literal)
+        .unwrap();
+    assert_eq!(
+        arena.literal_code_units(changed_ranged).unwrap(),
+        Some("changed".encode_utf16().collect())
+    );
+    // A replacement character is its own value, distinct from a surrogate.
+    let unrelated = arena
+        .factory()
+        .create_string_literal(source, "\u{FFFD}", false)
+        .unwrap();
+    assert_eq!(
+        arena.literal_code_units(unrelated).unwrap(),
+        Some(vec![0xFFFD])
+    );
+
+    // Values constructed from units survive cloning without auxiliary metadata.
+    let owned = arena
+        .factory()
+        .create_string_literal_from_code_units(source, &[0xDC00, 0x0061], true)
+        .unwrap();
+    assert_eq!(
+        arena.literal_code_units(owned).unwrap(),
+        Some(vec![0xDC00, 0x0061])
+    );
+    let owned_clone = arena.factory().clone_node(owned).unwrap();
+    assert_eq!(
+        arena.literal_code_units(owned_clone).unwrap(),
+        Some(vec![0xDC00, 0x0061])
+    );
+    arena
+        .set_literal_value(owned_clone, tsc_types::JsString::from_code_units(&[0xDC01]))
+        .unwrap();
+    assert_eq!(
+        arena.literal_code_units(owned_clone).unwrap(),
+        Some(vec![0xDC01])
+    );
+    assert_eq!(
+        arena.literal_code_units(owned).unwrap(),
+        Some(vec![0xDC00, 0x0061])
+    );
+
+    let fragment = arena
+        .factory()
+        .create_template_literal_like_from_code_units(
+            source,
+            SyntaxKind::TemplateHead,
+            &[0xD800],
+            Some(&"\\u{D800}".encode_utf16().collect::<Vec<_>>()),
+        )
+        .unwrap();
+    assert_eq!(
+        arena.literal_code_units(fragment).unwrap(),
+        Some(vec![0xD800])
+    );
+    // A synthetic fragment has a value even with no raw spelling.
+    let bare = arena
+        .factory()
+        .create_template_head(source, "\u{FFFD}", None)
+        .unwrap();
+    assert_eq!(arena.literal_code_units(bare).unwrap(), Some(vec![0xFFFD]));
 }
 
 struct Utf16LiteralTransformer {

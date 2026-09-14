@@ -19,7 +19,7 @@ fn flatten_message(chain: &MessageChain, indent: usize, output: &mut String) {
             output.push_str("  ");
         }
     }
-    output.push_str(&chain.text);
+    output.push_str(chain.text.as_str().expect("scalar corpus diagnostic"));
     for child in &chain.next {
         flatten_message(child, indent + 1, output);
     }
@@ -33,14 +33,14 @@ pub(super) fn diagnostic_json(diagnostic: &Diagnostic) -> Value {
             let mut message = String::new();
             flatten_message(&related.message, 0, &mut message);
             json!({"code":related.message.code,"category":format!("{:?}", related.message.category),
-                "file":related.file_name,"start":related.start,"length":related.length,
+                "file":related.file_name.as_ref().map(|value| value.as_str().expect("scalar corpus filename")),"start":related.start,"length":related.length,
                 "message":message,"related_information":null})
         }).collect())
     } else {
         Value::Null
     };
     json!({"code":diagnostic.code(),"category":format!("{:?}", diagnostic.category()),
-        "file":diagnostic.file_name,"start":diagnostic.start,"length":diagnostic.length,
+        "file":diagnostic.file_name.as_ref().map(|value| value.as_str().expect("scalar corpus filename")),"start":diagnostic.start,"length":diagnostic.length,
         "message":message,"related_information":related})
 }
 

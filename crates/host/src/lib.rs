@@ -10,13 +10,16 @@
 
 mod error;
 mod filesystem;
+mod js_path;
 mod memory;
 mod ordering;
 
 use std::path::{Path, PathBuf};
+use tsc_diagnostics::{JsStr, JsString};
 
 pub use error::{HostError, HostErrorKind, HostOperation};
 pub use filesystem::FsCompilerHost;
+pub use js_path::to_file_name_lower_case_js;
 pub use memory::{MemoryCompilerHost, MemoryCompilerHostBuilder};
 
 /// TypeScript's locale-independent file-name case fold.
@@ -67,6 +70,25 @@ pub fn to_file_name_lower_case(path: &str) -> String {
 /// interface: H0 remains a mandatory no-emit execution track, and H1 writes
 /// through its separate `OutputSink` boundary.
 pub trait CompilerHost {
+    /// Compiler-facing queries retain JavaScript path values. Implementations
+    /// must select their own boundary: a filesystem host encodes a native
+    /// filename at I/O, while a virtual host compares the original JS value.
+    fn current_directory_js(&self) -> Result<JsString, HostError>;
+
+    fn read_file_js(&self, path: JsStr<'_>) -> Result<Option<Vec<u8>>, HostError>;
+
+    fn file_exists_js(&self, path: JsStr<'_>) -> Result<bool, HostError>;
+
+    fn directory_exists_js(&self, path: JsStr<'_>) -> Result<bool, HostError>;
+
+    fn read_directory_js(&self, path: JsStr<'_>) -> Result<Vec<JsString>, HostError>;
+
+    fn get_directories_js(&self, path: JsStr<'_>) -> Result<Vec<JsString>, HostError>;
+
+    fn realpath_js(&self, path: JsStr<'_>) -> Result<Option<JsString>, HostError>;
+
+    /// Native-path compatibility entry points. Compiler identity-bearing
+    /// callers use the JS methods above; these accept scalar native paths.
     fn current_directory(&self) -> Result<PathBuf, HostError>;
 
     fn use_case_sensitive_file_names(&self) -> bool;

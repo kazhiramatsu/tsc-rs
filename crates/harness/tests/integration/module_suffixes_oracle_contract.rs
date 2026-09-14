@@ -1,3 +1,8 @@
+include!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../host/tests/support/scalar_query_bridge.rs"
+));
+
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -42,28 +47,38 @@ impl ConfigParseHost for OracleConfigHost {
         false
     }
 
-    fn file_exists(&self, path: &str) -> Result<bool, ConfigHostError> {
+    fn file_exists(&self, path: tsc_diagnostics::JsStr<'_>) -> Result<bool, ConfigHostError> {
+        let path = path.as_str().expect("scalar config fixture query");
+
         Ok(self.files.contains_key(&path.to_ascii_lowercase()))
     }
 
-    fn read_file(&self, path: &str) -> Result<Option<String>, ConfigHostError> {
+    fn read_file(
+        &self,
+        path: tsc_diagnostics::JsStr<'_>,
+    ) -> Result<Option<String>, ConfigHostError> {
+        let path = path.as_str().expect("scalar config fixture query");
+
         Ok(self.files.get(&path.to_ascii_lowercase()).cloned())
     }
 
     fn read_directory(
         &self,
-        _directory: &str,
+        _directory: tsc_diagnostics::JsStr<'_>,
         extensions: &[&str],
-        _excludes: Option<&[String]>,
-        _includes: Option<&[String]>,
+        _excludes: Option<&[tsc_diagnostics::JsString]>,
+        _includes: Option<&[tsc_diagnostics::JsString]>,
         _depth: Option<usize>,
-    ) -> Result<Vec<String>, ConfigHostError> {
-        Ok(self
-            .files
-            .keys()
-            .filter(|path| extensions.iter().any(|extension| path.ends_with(extension)))
-            .cloned()
-            .collect())
+    ) -> Result<Vec<tsc_diagnostics::JsString>, ConfigHostError> {
+        (|| -> Result<Vec<String>, ConfigHostError> {
+            Ok(self
+                .files
+                .keys()
+                .filter(|path| extensions.iter().any(|extension| path.ends_with(extension)))
+                .cloned()
+                .collect())
+        })()
+        .map(|paths| paths.into_iter().map(Into::into).collect())
     }
 }
 
@@ -73,6 +88,7 @@ struct RecordingCompilerHost {
 }
 
 impl CompilerHost for RecordingCompilerHost {
+    scalar_host_query_bridge!();
     fn current_directory(&self) -> Result<PathBuf, HostError> {
         self.inner.current_directory()
     }
@@ -139,19 +155,19 @@ fn resolution_record(outcome: ResolutionOutcome<HostResolvedModule>) -> Value {
     };
     let package_id = resolved.package_id().map(|package_id| {
         json!({
-            "name": package_id.name(),
-            "sub_module_name": package_id.submodule_name(),
-            "version": package_id.version(),
-            "peer_dependencies": package_id.peer_dependencies(),
+            "name": scalar_json(&package_id.name()),
+            "sub_module_name": scalar_json(&package_id.submodule_name()),
+            "version": scalar_json(&package_id.version()),
+            "peer_dependencies": scalar_json(&package_id.peer_dependencies()),
         })
     });
     json!({
         "state": "resolved",
-        "resolved_file_name": resolved.resolved_file().display().to_string_lossy(),
+        "resolved_file_name": resolved.resolved_file().display().scalar_test_path().to_string_lossy(),
         "original_path": resolved
             .original_path()
             .map(|path| path.display().to_string_lossy().into_owned()),
-        "extension": resolved.extension().as_str(),
+        "extension": resolved.extension().as_js().as_str().expect("scalar extension observation"),
         "is_external_library_import": resolved.is_external_library_import(),
         "package_id": package_id,
     })
@@ -316,9 +332,9 @@ fn official_module_suffix_fixtures_match_the_frozen_typescript_oracle() {
         let root_plan = parse_config_root_plan(
             &config_host,
             ConfigRootPlanRequest {
-                file_name: config_name.to_owned(),
+                file_name: config_name.to_owned().into(),
                 text: config_text.to_owned(),
-                base_path: "/".to_owned(),
+                base_path: "/".to_owned().into(),
             },
         )
         .unwrap_or_else(|error| panic!("{fixture_id}: parse config root plan: {error}"));
@@ -346,11 +362,7 @@ fn official_module_suffix_fixtures_match_the_frozen_typescript_oracle() {
                 projected.program_options(),
             )
             .unwrap_or_else(|error| panic!("{fixture_id}: construct resolver: {error}"))
-            .resolve(
-                Path::new(containing_file),
-                specifier,
-                ResolutionMode::Unspecified,
-            )
+            .resolve(containing_file, specifier, ResolutionMode::Unspecified)
             .unwrap_or_else(|error| {
                 panic!("{fixture_id}: resolve {specifier:?} from {containing_file}: {error}")
             });
@@ -372,3 +384,11 @@ fn official_module_suffix_fixtures_match_the_frozen_typescript_oracle() {
     }
     assert_eq!(seen_cases.len(), 16);
 }
+
+#[path = "../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;
+
+#[path = "../../../program/tests/support/scalar_json.rs"]
+mod utf16_scalar_json;
+use utf16_scalar_json::observe as scalar_json;

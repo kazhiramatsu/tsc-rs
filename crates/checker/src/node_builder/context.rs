@@ -72,7 +72,7 @@ pub(crate) struct NodeBuilderContext<'tracker> {
     /// Locals installed on upstream's synthesized `pushFakeScope` Block.
     /// Rust keeps the owning parse declaration separately, so preserve the
     /// lookup overlay explicitly.
-    pub(crate) synthetic_scope_locals: Option<HashMap<String, SymbolId>>,
+    pub(crate) synthetic_scope_locals: Option<HashMap<tsc_types::EscapedName, SymbolId>>,
     /// Kind of the synthesized declaration represented by the overlay.
     /// Upstream observes this through `context.enclosingDeclaration.kind`.
     pub(crate) synthetic_scope_kind: Option<SyntaxKind>,
@@ -132,7 +132,7 @@ pub(crate) fn with_context<'program, 'tracker, T: ReplayProduced>(
     let bundled = checker
         .options
         .out_file
-        .as_deref()
+        .as_ref()
         .is_some_and(|out_file| !out_file.is_empty())
         && enclosing_declaration
             .is_some_and(|node| checker.binder.is_external_or_common_js_module_of_node(node));

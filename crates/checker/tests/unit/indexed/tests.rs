@@ -329,7 +329,11 @@ fn double_underscore_suggestion_args_stay_escaped() {
             diagnostic.message.text.contains("'___helo'")
                 && diagnostic.message.text.contains("'__hello'"),
             "{}",
-            diagnostic.message.text
+            diagnostic
+                .message
+                .text
+                .as_str()
+                .expect("scalar diagnostic observation")
         );
     });
 }
@@ -354,7 +358,10 @@ fn indexed_access_missing_property_uses_raw_string_literal_value() {
             .collect();
         assert_eq!(rows.len(), 1, "{rows:#?}");
         assert_eq!(
-            rows[0].message_text(),
+            rows[0]
+                .message_text()
+                .as_str()
+                .expect("scalar diagnostic observation"),
             "Property '\"ambientModule\"' does not exist on type 'typeof globalThis'."
         );
     });
@@ -438,7 +445,12 @@ fn checked_js_empty_this_assignment_uses_widened_index_error_face() {
             (
                 diagnostic.start,
                 diagnostic.length,
-                diagnostic.message.text.clone(),
+                diagnostic
+                    .message
+                    .text
+                    .as_str()
+                    .expect("scalar diagnostic observation")
+                    .to_owned(),
             )
         })
         .collect::<Vec<_>>();

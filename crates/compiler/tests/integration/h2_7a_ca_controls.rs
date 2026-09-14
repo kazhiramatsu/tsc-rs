@@ -37,15 +37,21 @@ impl EmitHost for ControlHost {
         &self.options
     }
 
-    fn current_directory(&self) -> &Path {
-        Path::new("/control")
+    fn current_directory(&self) -> tsc_diagnostics::JsStr<'_> {
+        (Path::new("/control"))
+            .to_str()
+            .expect("scalar mock host directory")
+            .into()
     }
 
-    fn common_source_directory(&self) -> &Path {
-        Path::new("/control")
+    fn common_source_directory(&self) -> tsc_diagnostics::JsStr<'_> {
+        (Path::new("/control"))
+            .to_str()
+            .expect("scalar mock host directory")
+            .into()
     }
 
-    fn config_file_path(&self) -> Option<&Path> {
+    fn config_file_path(&self) -> Option<tsc_diagnostics::JsStr<'_>> {
         None
     }
 
@@ -60,7 +66,14 @@ impl EmitHost for ControlHost {
     fn source_file(&self, id: SourceFileId) -> Option<tsc_emitter::EmitSource<'_>> {
         (id == self.sources[0]).then(|| {
             let path = Path::new("/control/input.ts");
-            tsc_emitter::EmitSource::new(id, path, path, true, None, None)
+            tsc_emitter::EmitSource::new(
+                id,
+                path.to_str().expect("scalar control source").into(),
+                path.to_str().expect("scalar control source").into(),
+                true,
+                None,
+                None,
+            )
         })
     }
 }
@@ -202,7 +215,7 @@ fn declaration_family_options_remain_typed_refusals() {
         Ok(()),
     );
     let bundle = control_host(CompilerOptions {
-        out_file: Some("/control/bundle.js".to_owned()),
+        out_file: Some("/control/bundle.js".to_owned().into()),
         ..CompilerOptions::default()
     });
     assert_eq!(

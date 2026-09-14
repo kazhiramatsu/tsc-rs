@@ -7,7 +7,7 @@
 //! test-locally and never substituted inside printed bytes.
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use base64::Engine as _;
 use serde_json::Value;
@@ -72,14 +72,19 @@ pub(crate) fn case_compiler_options(serialized: &Value) -> CompilerOptions {
             "module" => options.module = Some(value.as_i64().expect("module") as i32),
             "newLine" => options.new_line = Some(value.as_i64().expect("newLine") as i32),
             "ignoreDeprecations" => {
-                options.ignore_deprecations =
-                    Some(value.as_str().expect("ignoreDeprecations").to_owned());
+                options.ignore_deprecations = Some(
+                    value
+                        .as_str()
+                        .expect("ignoreDeprecations")
+                        .to_owned()
+                        .into(),
+                );
             }
             "sourceMap" => options.source_map = Some(value.as_bool().expect("sourceMap")),
             "removeComments" => {
                 options.remove_comments = Some(value.as_bool().expect("removeComments"));
             }
-            "outDir" => options.out_dir = Some(value.as_str().expect("outDir").to_owned()),
+            "outDir" => options.out_dir = Some(value.as_str().expect("outDir").to_owned().into()),
             "resolveJsonModule" => {
                 options.resolve_json_module = Some(value.as_bool().expect("resolveJsonModule"));
             }
@@ -99,9 +104,11 @@ pub(crate) fn case_compiler_options(serialized: &Value) -> CompilerOptions {
             // The boundary-controls family (m-3 emit gate): H2.6b-owned
             // options mapped so the production refusal rows can fire.
             "sourceRoot" => {
-                options.source_root = Some(value.as_str().expect("sourceRoot").to_owned());
+                options.source_root = Some(value.as_str().expect("sourceRoot").to_owned().into());
             }
-            "mapRoot" => options.map_root = Some(value.as_str().expect("mapRoot").to_owned()),
+            "mapRoot" => {
+                options.map_root = Some(value.as_str().expect("mapRoot").to_owned().into())
+            }
             "inlineSourceMap" => {
                 options.inline_source_map = Some(value.as_bool().expect("inlineSourceMap"));
             }
@@ -217,7 +224,7 @@ fn drive_case(case_id: &str, case: &Value, library_files: &[(String, Vec<u8>)]) 
         .expect("js path")
         .to_owned();
     let target_js = js_path.clone();
-    let recording_target = PathBuf::from(&target_js);
+    let recording_target = tsc_diagnostics::JsString::from(target_js.as_str());
     let file = target_js
         .rsplit('/')
         .next()
@@ -225,22 +232,23 @@ fn drive_case(case_id: &str, case: &Value, library_files: &[(String, Vec<u8>)]) 
         .to_owned();
     let directory = target_js[..target_js.rfind('/').expect("js directory")].to_owned();
 
-    let selector = move |unit_path: &Path| -> Option<SourceMapRecordingInputs> {
-        (unit_path == recording_target).then(|| SourceMapRecordingInputs {
-            file: file.clone().into(),
-            source_root: "".into(),
-            sources_directory_path: directory.clone().into(),
-            current_directory: "/project".into(),
-            use_case_sensitive_source_keys: true,
-            inline_sources: false,
-        })
-    };
+    let selector =
+        move |unit_path: tsc_diagnostics::JsStr<'_>| -> Option<SourceMapRecordingInputs> {
+            (unit_path == recording_target.as_js()).then(|| SourceMapRecordingInputs {
+                file: file.clone().into(),
+                source_root: "".into(),
+                sources_directory_path: directory.clone().into(),
+                current_directory: "/project".into(),
+                use_case_sensitive_source_keys: true,
+                inline_sources: false,
+            })
+        };
     let printed_units = ProgramSession::new(prepared)
         .print_units_with_source_map_recording_for_harness(&selector)
         .unwrap_or_else(|error| panic!("{case_id}: harness print failed: {error:?}"));
     let (_, printed) = printed_units
         .into_iter()
-        .find(|(path, _)| path == Path::new(&js_path))
+        .find(|(path, _)| *path == js_path.as_str())
         .unwrap_or_else(|| panic!("{case_id}: no printed unit for {js_path}"));
 
     let ends_at_line_start = printed.end().column() == 0;
@@ -542,8 +550,8 @@ fn drive_case_6b(
     let observation = &case["observation"];
     let options = case_compiler_options(&case["input"]["compiler_options"]);
     let lane = tsc_emitter::MapLaneInputs {
-        common_source_directory: common_source_directory_of(case),
-        current_directory: "/project".to_owned(),
+        common_source_directory: common_source_directory_of(case).into(),
+        current_directory: "/project".to_owned().into(),
         use_case_sensitive_source_keys: true,
     };
     let inline = options.inline_source_map == Some(true);
@@ -562,31 +570,32 @@ fn drive_case_6b(
                 .to_owned()
         })
         .expect("mapped unit");
-    let source_path = PathBuf::from(
+    let source_path = tsc_diagnostics::JsString::from(
         observation["source_maps"][0]["input_source_file_names"][0]
             .as_str()
             .expect("raw source"),
     );
-    let recording_target = PathBuf::from(&js_path);
+    let recording_target = tsc_diagnostics::JsString::from(js_path.as_str());
     let selector_options = options.clone();
     let selector_lane = lane.clone();
     let selector_source = source_path.clone();
-    let selector = move |unit_path: &Path| -> Option<SourceMapRecordingInputs> {
-        (unit_path == recording_target).then(|| {
-            tsc_emitter::source_map_recording_inputs_for(
-                &selector_lane,
-                &selector_options,
-                unit_path,
-                &selector_source,
-            )
-        })
-    };
+    let selector =
+        move |unit_path: tsc_diagnostics::JsStr<'_>| -> Option<SourceMapRecordingInputs> {
+            (unit_path == recording_target.as_js()).then(|| {
+                tsc_emitter::source_map_recording_inputs_for(
+                    &selector_lane,
+                    &selector_options,
+                    unit_path,
+                    selector_source.as_js(),
+                )
+            })
+        };
     let printed_units = ProgramSession::new(prepared)
         .print_units_with_source_map_recording_for_harness(&selector)
         .unwrap_or_else(|error| panic!("{case_id}: harness print failed: {error:?}"));
     let (_, printed) = printed_units
         .into_iter()
-        .find(|(path, _)| path == Path::new(&js_path))
+        .find(|(path, _)| *path == js_path.as_str())
         .unwrap_or_else(|| panic!("{case_id}: no printed unit for {js_path}"));
     let ends_at_line_start = printed.end().column() == 0;
     let new_line = match case["input"]["compiler_options"]["newLine"].as_i64() {
@@ -598,14 +607,14 @@ fn drive_case_6b(
         .cloned()
         .unwrap_or_else(|| panic!("{case_id}: no source map recorded"));
     let map_json = generator.to_json_string();
-    let map_path = (!inline).then(|| PathBuf::from(format!("{js_path}.map")));
+    let map_path = (!inline).then(|| tsc_diagnostics::JsString::from(format!("{js_path}.map")));
     let url = tsc_emitter::source_mapping_url(
         &lane,
         &options,
         &map_json,
-        Path::new(&js_path),
-        map_path.as_deref(),
-        &source_path,
+        js_path.as_str().into(),
+        map_path.as_ref().map(tsc_diagnostics::JsString::as_js),
+        source_path.as_js(),
     )
     .unwrap_or_else(|error| panic!("{case_id}: URL selection failed: {error:?}"));
     let mut js = printed.text().to_owned();

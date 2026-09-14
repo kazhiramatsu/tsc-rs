@@ -1,5 +1,5 @@
 use std::collections::VecDeque;
-use std::path::Path;
+use tsc_diagnostics::{JsStr, JsString};
 
 use tsc_diagnostics::{gen as d, DiagnosticMessage, RelatedInfo};
 use tsc_program::SourceFileId;
@@ -35,7 +35,7 @@ impl TrackerAnchor {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum DiagnosticArgument {
-    Text(String),
+    Text(tsc_types::JsString),
     NodeText(TrackerAnchor),
     DeclarationName {
         anchor: TrackerAnchor,
@@ -496,7 +496,7 @@ impl EmitSymbolTracker for DeclarationSymbolTracker<'_> {
     /// tsc-port: reportPrivateInBaseOfClassExpression @6.0.3
     /// tsc-hash: 507c8b075bab67d7e5288b77f7f6847880c83a6ae134508088ae4ab4ae156ec1
     /// tsc-span: _tsc.js:114371-114380
-    fn report_private_in_base_of_class_expression(&mut self, property_name: &str) {
+    fn report_private_in_base_of_class_expression(&mut self, property_name: tsc_types::JsStr<'_>) {
         let Some(anchor) = self.current_error_anchor() else {
             return;
         };
@@ -524,7 +524,7 @@ impl EmitSymbolTracker for DeclarationSymbolTracker<'_> {
     fn report_inaccessible_unique_symbol_error(&mut self) {
         self.report_at_current_anchor(
             &d::The_inferred_type_of_0_references_an_inaccessible_1_type_A_type_annotation_is_necessary,
-            vec![DiagnosticArgument::Text("unique symbol".to_owned())],
+            vec![DiagnosticArgument::Text("unique symbol".into())],
         );
     }
 
@@ -544,7 +544,7 @@ impl EmitSymbolTracker for DeclarationSymbolTracker<'_> {
     fn report_inaccessible_this_error(&mut self) {
         self.report_at_current_anchor(
             &d::The_inferred_type_of_0_references_an_inaccessible_1_type_A_type_annotation_is_necessary,
-            vec![DiagnosticArgument::Text("this".to_owned())],
+            vec![DiagnosticArgument::Text("this".into())],
         );
     }
 
@@ -553,8 +553,8 @@ impl EmitSymbolTracker for DeclarationSymbolTracker<'_> {
     /// tsc-span: _tsc.js:114399-114407
     fn report_likely_unsafe_import_required_error(
         &mut self,
-        specifier: &str,
-        symbol_name: Option<&str>,
+        specifier: tsc_types::JsStr<'_>,
+        symbol_name: Option<tsc_types::JsStr<'_>>,
     ) {
         if let Some(symbol_name) = symbol_name {
             self.report_at_current_anchor(
@@ -618,7 +618,7 @@ impl EmitSymbolTracker for DeclarationSymbolTracker<'_> {
     /// tsc-port: reportNonSerializableProperty @6.0.3
     /// tsc-hash: eec5bea72529fcb719dc83610b55061075d7969c74aad2e479de13ccf64e7474
     /// tsc-span: _tsc.js:114426-114430
-    fn report_non_serializable_property(&mut self, property_name: &str) {
+    fn report_non_serializable_property(&mut self, property_name: tsc_types::JsStr<'_>) {
         let Some(anchor) = self.current_error_anchor() else {
             return;
         };
@@ -659,29 +659,26 @@ struct ModuleSpecifierHostAdapter<'t> {
 }
 
 impl EmitModuleSpecifierHost for ModuleSpecifierHostAdapter<'_> {
-    fn get_current_directory(&self) -> String {
-        self.host.current_directory().to_string_lossy().into_owned()
+    fn get_current_directory(&self) -> JsString {
+        self.host.current_directory().to_owned()
     }
 
     fn use_case_sensitive_file_names(&self) -> bool {
         self.host.use_case_sensitive_file_names()
     }
 
-    fn file_exists(&self, file_name: &str) -> bool {
+    fn file_exists(&self, file_name: JsStr<'_>) -> bool {
         self.find_source(file_name).is_some()
     }
 
-    fn read_file(&self, file_name: &str) -> Option<String> {
+    fn read_file(&self, file_name: JsStr<'_>) -> Option<String> {
         self.find_source(file_name)
             .and_then(crate::EmitSource::syntax)
             .map(|source| source.text().to_owned())
     }
 
-    fn get_common_source_directory(&self) -> String {
-        self.host
-            .common_source_directory()
-            .to_string_lossy()
-            .into_owned()
+    fn get_common_source_directory(&self) -> JsString {
+        self.host.common_source_directory().to_owned()
     }
 
     fn get_default_resolution_mode_for_file(
@@ -703,18 +700,18 @@ impl EmitModuleSpecifierHost for ModuleSpecifierHostAdapter<'_> {
         EmitResolutionMode::None
     }
 
-    fn symlinked_directories(&self) -> Vec<(String, String)> {
+    fn symlinked_directories(&self) -> Vec<(JsString, JsString)> {
         self.host.symlinked_directories()
     }
 
-    fn symlinked_files(&self) -> Vec<(String, String)> {
+    fn symlinked_files(&self) -> Vec<(JsString, JsString)> {
         self.host.symlinked_files()
     }
 }
 
 impl ModuleSpecifierHostAdapter<'_> {
-    fn find_source(&self, file_name: &str) -> Option<crate::EmitSource<'_>> {
-        let wanted = self.host.canonical_output_path(Path::new(file_name));
+    fn find_source(&self, file_name: JsStr<'_>) -> Option<crate::EmitSource<'_>> {
+        let wanted = self.host.canonical_output_path(file_name);
         self.host.source_file_ids().iter().find_map(|&source| {
             let candidate = self.host.source_file(source)?;
             (self.host.canonical_output_path(candidate.path()) == wanted).then_some(candidate)
@@ -800,7 +797,7 @@ fn materialize_arguments(
     cx: &TransformationContext,
     host: &dyn EmitHost,
     args: &[DiagnosticArgument],
-) -> Result<Vec<String>, TransformError> {
+) -> Result<Vec<tsc_types::JsString>, TransformError> {
     args.iter()
         .map(|arg| match arg {
             DiagnosticArgument::Text(text) => Ok(text.clone()),
@@ -860,20 +857,24 @@ fn with_anchor<R>(
     }
 }
 
-pub(crate) fn text_of_node(source: &SourceFile, node: NodeId) -> String {
+pub(crate) fn text_of_node(source: &SourceFile, node: NodeId) -> tsc_types::JsString {
     let node = source.arena.node(node);
     if let NodeData::Identifier(identifier) = &node.data {
-        return identifier.text.clone();
+        return identifier.text.clone().into();
     }
     let start = tsc_syntax::skip_trivia(source.text(), node.pos as usize);
     source
         .text()
         .get(start..node.end as usize)
         .unwrap_or_default()
-        .to_owned()
+        .into()
 }
 
-fn declaration_name_to_string(source: &SourceFile, node: NodeId, node_is_name: bool) -> String {
+fn declaration_name_to_string(
+    source: &SourceFile,
+    node: NodeId,
+    node_is_name: bool,
+) -> tsc_types::JsString {
     let name = if node_is_name {
         Some(node)
     } else {
@@ -882,16 +883,16 @@ fn declaration_name_to_string(source: &SourceFile, node: NodeId, node_is_name: b
     let Some(name) = name else {
         if let NodeData::ExportAssignment(export) = &source.arena.node(node).data {
             return if export.is_export_equals == Some(true) {
-                "export=".to_owned()
+                "export=".into()
             } else {
-                "default".to_owned()
+                "default".into()
             };
         }
-        return "(Missing)".to_owned();
+        return "(Missing)".into();
     };
     let name_node = source.arena.node(name);
     if name_node.end == name_node.pos {
-        return "(Missing)".to_owned();
+        return "(Missing)".into();
     }
     text_of_node(source, name)
 }

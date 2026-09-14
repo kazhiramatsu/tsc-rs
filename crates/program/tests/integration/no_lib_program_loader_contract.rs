@@ -148,7 +148,7 @@ fn module_key(program: &PreparedProgram, source_path: &str, specifier: &str) -> 
     let source = program
         .source_files()
         .iter()
-        .find(|source| source.path().display() == Path::new(source_path))
+        .find(|source| source.path().display().scalar_test_path() == Path::new(source_path))
         .expect("source is owned by program");
     plan_source_requests(source, program.compiler_options())
         .expect("re-plan source requests")
@@ -179,9 +179,17 @@ fn assert_source_module_target(
     else {
         panic!("module target must join source membership: {source_path} -> {specifier}");
     };
-    assert_eq!(resolved_file.display(), Path::new(expected_path));
     assert_eq!(
-        program.source_file(*source).unwrap().path().display(),
+        resolved_file.display().scalar_test_path(),
+        Path::new(expected_path)
+    );
+    assert_eq!(
+        program
+            .source_file(*source)
+            .unwrap()
+            .path()
+            .display()
+            .scalar_test_path(),
         Path::new(expected_path)
     );
 }
@@ -207,7 +215,10 @@ fn assert_unloaded_module_target(
     else {
         panic!("module target must remain unloaded: {source_path} -> {specifier}");
     };
-    assert_eq!(resolved_file.display(), Path::new(expected_path));
+    assert_eq!(
+        resolved_file.display().scalar_test_path(),
+        Path::new(expected_path)
+    );
     assert_eq!(*reason, expected_reason);
 }
 
@@ -219,7 +230,7 @@ fn type_reference_key(
     let source = program
         .source_files()
         .iter()
-        .find(|source| source.path().display() == Path::new(source_path))
+        .find(|source| source.path().display().scalar_test_path() == Path::new(source_path))
         .expect("source is owned by program");
     plan_source_requests(source, program.compiler_options())
         .expect("re-plan source requests")
@@ -269,7 +280,7 @@ fn source_paths(program: &PreparedProgram) -> Vec<&Path> {
     program
         .source_files()
         .iter()
-        .map(|source| source.path().display())
+        .map(|source| source.path().display().scalar_test_path())
         .collect()
 }
 
@@ -277,7 +288,7 @@ fn root_paths(program: &PreparedProgram) -> Vec<&Path> {
     program
         .roots()
         .iter()
-        .map(|root| root.path().display())
+        .map(|root| root.path().display().scalar_test_path())
         .collect()
 }
 
@@ -332,12 +343,12 @@ fn paths_and_base_url_candidates_join_recursive_source_membership() {
         .build()
         .expect("build paths host");
     let options = CompilerOptions {
-        base_url: Some("/work/base".to_owned()),
+        base_url: Some("/work/base".to_owned().into()),
         ..compiler_options()
     };
     let program_options = program_options().with_paths(vec![PathMapping::new(
         "@app/*",
-        vec!["../src/*".to_owned()],
+        vec!["../src/*".to_owned().into()],
     )]);
 
     let program = load_with_options(
@@ -372,7 +383,10 @@ fn paths_and_base_url_candidates_join_recursive_source_membership() {
         let ResolvedModuleTarget::Source { resolved_file, .. } = resolved.target() else {
             panic!("mapped TypeScript target must join source membership");
         };
-        assert_eq!(resolved_file.display(), Path::new(expected));
+        assert_eq!(
+            resolved_file.display().scalar_test_path(),
+            Path::new(expected)
+        );
     }
 }
 
@@ -433,7 +447,7 @@ fn root_dirs_admit_alternate_sources_in_dependency_postorder() {
         panic!("rootDirs TypeScript target must join source membership");
     };
     assert_eq!(
-        resolved_file.display(),
+        resolved_file.display().scalar_test_path(),
         Path::new("/work/generated/shared.ts")
     );
     assert_eq!(resolved.original_path(), None);
@@ -442,7 +456,7 @@ fn root_dirs_admit_alternate_sources_in_dependency_postorder() {
         assert!(
             source.may_be_emitted(),
             "non-external rootDirs source must remain emit-eligible: {}",
-            source.path().display().display()
+            source.path().display().scalar_test_path().display()
         );
     }
 }
@@ -498,7 +512,7 @@ fn windows_root_dirs_dependencies_retain_emit_eligibility() {
         .iter()
         .map(|source| {
             (
-                source.path().display().to_path_buf(),
+                source.path().display().scalar_test_path().to_path_buf(),
                 source.may_be_emitted(),
             )
         })
@@ -535,12 +549,12 @@ fn a_matched_paths_miss_suppresses_base_url_but_keeps_package_fallback() {
         .build()
         .expect("build fallback host");
     let options = CompilerOptions {
-        base_url: Some("/work/base".to_owned()),
+        base_url: Some("/work/base".to_owned().into()),
         ..compiler_options()
     };
     let program_options = program_options().with_paths(vec![PathMapping::new(
         "pkg",
-        vec!["missing/pkg".to_owned()],
+        vec!["missing/pkg".to_owned().into()],
     )]);
 
     let program = load_with_options(
@@ -646,7 +660,7 @@ fn classic_and_node10_load_triple_slash_types_into_the_authoritative_table() {
         assert!(reference.primary());
         assert!(reference.is_external_library_import());
         assert_eq!(
-            reference.target().display(),
+            reference.target().display().scalar_test_path(),
             Path::new("/work/node_modules/@types/legacy-types/index.d.ts")
         );
         assert!(resolution.diagnostics().is_empty());
@@ -712,9 +726,10 @@ fn type_reference_targets_admit_implementation_and_arbitrary_typescript_sources(
         &host,
         &["/work/automatic.ts"],
         options,
-        ProgramOptions::default()
-            .with_no_lib(true)
-            .with_types(vec!["implementation".to_owned(), "styles".to_owned()]),
+        ProgramOptions::default().with_no_lib(true).with_types(vec![
+            "implementation".to_owned().into(),
+            "styles".to_owned().into(),
+        ]),
         generous_limits(),
     )
     .expect("load automatic TypeScript type-reference targets");
@@ -1121,7 +1136,10 @@ fn root_extension_preflight_handles_json_unknown_and_extensionless_boundaries() 
         [6054, 6054]
     );
     assert!(disabled.diagnostics().program().iter().all(|diagnostic| {
-        let message = diagnostic.message_text();
+        let message = diagnostic
+            .message_text()
+            .as_str()
+            .expect("scalar diagnostic observation");
         message.contains(TYPESCRIPT_ROOT_EXTENSION_LIST) && !message.contains("'.js'")
     }));
 
@@ -1141,6 +1159,8 @@ fn root_extension_preflight_handles_json_unknown_and_extensionless_boundaries() 
     assert_eq!(allow_js_unknown.diagnostics().program()[0].code(), 6054);
     assert!(allow_js_unknown.diagnostics().program()[0]
         .message_text()
+        .as_str()
+        .expect("scalar diagnostic observation")
         .contains(ALL_ROOT_EXTENSION_LIST));
 
     let enabled_host = MemoryCompilerHost::builder("/work")
@@ -1171,7 +1191,7 @@ fn root_extension_preflight_handles_json_unknown_and_extensionless_boundaries() 
             module: Some(1),
             module_resolution: Some(2),
             resolve_json_module: Some(true),
-            out_dir: Some("/work/dist".to_owned()),
+            out_dir: Some("/work/dist".to_owned().into()),
             ..compiler_options()
         },
         program_options(),
@@ -1197,7 +1217,8 @@ fn root_extension_preflight_handles_json_unknown_and_extensionless_boundaries() 
             .source_file(root_source)
             .expect("root source belongs to the prepared program")
             .path()
-            .display(),
+            .display()
+            .scalar_test_path(),
         Path::new("/work/root.ts")
     );
     assert!(extensionless.diagnostics().program().is_empty());
@@ -1272,9 +1293,13 @@ fn extensionless_roots_preserve_requests_probe_first_group_and_report_ts6231() {
     assert_eq!(diagnostics[0].code(), 6231);
     assert!(diagnostics[0]
         .message_text()
+        .as_str()
+        .expect("scalar diagnostic observation")
         .contains("Could not resolve the path '/work/missing'"));
     assert!(diagnostics[0]
         .message_text()
+        .as_str()
+        .expect("scalar diagnostic observation")
         .contains(TYPESCRIPT_ROOT_EXTENSION_LIST));
     assert!(diagnostics[0].message.next_present);
     assert_eq!(diagnostics[0].message.next.len(), 1);
@@ -1319,11 +1344,13 @@ fn extensionless_roots_preserve_requests_probe_first_group_and_report_ts6231() {
             .collect::<Vec<_>>(),
         [6231, 6231]
     );
-    assert!(allow_js
-        .diagnostics()
-        .program()
-        .iter()
-        .all(|diagnostic| { diagnostic.message_text().contains(ALL_ROOT_EXTENSION_LIST) }));
+    assert!(allow_js.diagnostics().program().iter().all(|diagnostic| {
+        diagnostic
+            .message_text()
+            .as_str()
+            .expect("scalar diagnostic observation")
+            .contains(ALL_ROOT_EXTENSION_LIST)
+    }));
 
     let read_failure = HostError::new(
         HostErrorKind::Other,
@@ -1365,7 +1392,11 @@ fn extensionless_root_trailing_separator_is_part_of_the_probe_spelling() {
         .expect("a root trailing separator is retained before adding .ts");
     assert_eq!(source_paths(&program), [Path::new("/work/directory/.ts")]);
     assert_eq!(
-        program.roots()[0].path().display().to_str(),
+        program.roots()[0]
+            .path()
+            .display()
+            .scalar_test_path()
+            .to_str(),
         Some("/work/directory/")
     );
 }
@@ -1387,11 +1418,15 @@ fn extensionless_missing_roots_deduplicate_by_display_text_not_path_components()
     assert!(program.diagnostics().program().iter().any(|diagnostic| {
         diagnostic
             .message_text()
+            .as_str()
+            .expect("scalar diagnostic observation")
             .contains("Could not resolve the path '/work/missing' with")
     }));
     assert!(program.diagnostics().program().iter().any(|diagnostic| {
         diagnostic
             .message_text()
+            .as_str()
+            .expect("scalar diagnostic observation")
             .contains("Could not resolve the path '/work/missing/' with")
     }));
 }
@@ -1435,7 +1470,16 @@ fn case_insensitive_missing_spellings_keep_distinct_ts6053_messages() {
     assert!(diagnostics
         .iter()
         .all(|diagnostic| diagnostic.code() == 6053));
-    assert_ne!(diagnostics[0].message_text(), diagnostics[1].message_text());
+    assert_ne!(
+        diagnostics[0]
+            .message_text()
+            .as_str()
+            .expect("scalar diagnostic observation"),
+        diagnostics[1]
+            .message_text()
+            .as_str()
+            .expect("scalar diagnostic observation")
+    );
 }
 
 #[test]
@@ -1454,7 +1498,11 @@ fn loaded_case_alias_reports_ts1149_and_retains_the_alternate_spelling() {
     .expect("case aliases remain one source with a tsc diagnostic");
     assert_eq!(program.source_files().len(), 1);
     assert_eq!(
-        program.source_files()[0].alternate_display_paths(),
+        program.source_files()[0]
+            .alternate_display_paths()
+            .iter()
+            .map(|path| path.as_js().scalar_test_path())
+            .collect::<Vec<_>>(),
         [Path::new("/work/root.ts")]
     );
     assert_eq!(program.diagnostics().program().len(), 1);
@@ -1468,7 +1516,11 @@ fn loaded_case_alias_reports_ts1149_and_retains_the_alternate_spelling() {
         .next
         .iter()
         .all(|reason| reason.code == 1427));
-    assert!(diagnostic.message_text().contains("/work/root.ts"));
+    assert!(diagnostic
+        .message_text()
+        .as_str()
+        .expect("scalar diagnostic observation")
+        .contains("/work/root.ts"));
 }
 
 #[test]
@@ -1488,14 +1540,24 @@ fn path_reference_case_alias_reports_ts1149_outside_the_root_boundary() {
         .expect("path-reference aliases remain one source with a tsc diagnostic");
     assert_eq!(program.source_files().len(), 2);
     assert_eq!(
-        program.source_files()[0].alternate_display_paths(),
+        program.source_files()[0]
+            .alternate_display_paths()
+            .iter()
+            .map(|path| path.as_js().scalar_test_path())
+            .collect::<Vec<_>>(),
         [Path::new("/Work/child.ts")]
     );
     assert_eq!(program.diagnostics().program().len(), 1);
     let diagnostic = &program.diagnostics().program()[0];
     assert_eq!(diagnostic.code(), 1149);
     let start = root_text.find("./child.ts").expect("reference span") as u32;
-    assert_eq!(diagnostic.file_name.as_deref(), Some("/Work/Root.ts"));
+    assert_eq!(
+        diagnostic
+            .file_name
+            .as_ref()
+            .map(|value| value.as_str().expect("scalar legacy option observation")),
+        Some("/Work/Root.ts")
+    );
     assert_eq!(diagnostic.start, Some(start));
     assert_eq!(diagnostic.length, Some("./child.ts".len() as u32));
 }
@@ -1519,7 +1581,11 @@ fn explicit_false_force_consistent_casing_suppresses_alias_diagnostic() {
     .expect("explicit false keeps the collapsed source valid");
     assert!(program.diagnostics().program().is_empty());
     assert_eq!(
-        program.source_files()[0].alternate_display_paths(),
+        program.source_files()[0]
+            .alternate_display_paths()
+            .iter()
+            .map(|path| path.as_js().scalar_test_path())
+            .collect::<Vec<_>>(),
         [Path::new("/work/root.ts")]
     );
 }
@@ -1593,11 +1659,25 @@ fn case_sensitive_files_differing_only_in_case_remain_distinct_and_report_tsc_ca
             panic!("case-only physical collision must publish one diagnostic");
         };
         assert_eq!(diagnostic.code(), code);
-        assert!(diagnostic.message_text().contains(first_name));
-        assert!(diagnostic.message_text().contains(second_name));
+        assert!(diagnostic
+            .message_text()
+            .as_str()
+            .expect("scalar diagnostic observation")
+            .contains(first_name));
+        assert!(diagnostic
+            .message_text()
+            .as_str()
+            .expect("scalar diagnostic observation")
+            .contains(second_name));
         match location {
             Some((file, start, length)) => {
-                assert_eq!(diagnostic.file_name.as_deref(), Some(file));
+                assert_eq!(
+                    diagnostic
+                        .file_name
+                        .as_ref()
+                        .map(|value| value.as_str().expect("scalar legacy option observation")),
+                    Some(file)
+                );
                 assert_eq!(diagnostic.start, Some(start));
                 assert_eq!(diagnostic.length, Some(length));
             }
@@ -1695,7 +1775,7 @@ process.stdout.write(JSON.stringify(cases.map(probe)));
     fn chain_json(message: &MessageChain) -> Value {
         json!({
             "code": message.code,
-            "text": message.text,
+            "text": scalar_json(&message.text),
             "next": message.next_present.then(|| {
                 message.next.iter().map(chain_json).collect::<Vec<_>>()
             }),
@@ -1752,20 +1832,20 @@ process.stdout.write(JSON.stringify(cases.map(probe)));
             .expect("load Rust case-sensitive oracle program");
             json!({
                 "sources": program.source_files().iter().map(|source| {
-                    source.path().display().to_str().expect("source path is Unicode")
+                    source.path().display().scalar_test_path().to_str().expect("source path is Unicode")
                 }).collect::<Vec<_>>(),
                 "diagnostics": program.diagnostics().program().iter()
                     .filter(|diagnostic| matches!(diagnostic.code(), 1149 | 1261))
                     .map(|diagnostic| json!({
                         "code": diagnostic.code(),
-                        "file": diagnostic.file_name,
+                        "file": scalar_json(&diagnostic.file_name),
                         "start": diagnostic.start,
                         "length": diagnostic.length,
                         "message": chain_json(&diagnostic.message),
                         "relatedPresent": diagnostic.related_information_present,
                         "related": diagnostic.related.iter().map(|related| json!({
                             "code": related.message.code,
-                            "file": related.file_name,
+                            "file": scalar_json(&related.file_name),
                             "start": related.start,
                             "length": related.length,
                             "message": chain_json(&related.message),
@@ -1818,7 +1898,13 @@ fn missing_explicit_path_reference_produces_located_ts6053() {
     let diagnostic = &diagnostics[0];
     let start = root_text.find("./missing.ts").expect("reference span") as u32;
     assert_eq!(diagnostic.code(), 6053);
-    assert_eq!(diagnostic.file_name.as_deref(), Some("/work/root.ts"));
+    assert_eq!(
+        diagnostic
+            .file_name
+            .as_ref()
+            .map(|value| value.as_str().expect("scalar legacy option observation")),
+        Some("/work/root.ts")
+    );
     assert_eq!(diagnostic.start, Some(start));
     assert_eq!(diagnostic.length, Some("./missing.ts".len() as u32));
 }
@@ -1882,7 +1968,13 @@ fn explicit_path_references_gate_json_and_report_javascript_or_unknown_extension
     );
     let diagnostic = &disabled_json.diagnostics().program()[0];
     assert_eq!(diagnostic.code(), 6054);
-    assert_eq!(diagnostic.file_name.as_deref(), Some("/work/json-root.ts"));
+    assert_eq!(
+        diagnostic
+            .file_name
+            .as_ref()
+            .map(|value| value.as_str().expect("scalar legacy option observation")),
+        Some("/work/json-root.ts")
+    );
     assert_eq!(
         diagnostic.start,
         Some(json_root.find("./data.json").unwrap() as u32)
@@ -1904,7 +1996,13 @@ fn explicit_path_references_gate_json_and_report_javascript_or_unknown_extension
         let diagnostics = program.diagnostics().program();
         assert_eq!(diagnostics.len(), 1);
         assert_eq!(diagnostics[0].code(), expected_code);
-        assert_eq!(diagnostics[0].file_name.as_deref(), Some(root));
+        assert_eq!(
+            diagnostics[0]
+                .file_name
+                .as_ref()
+                .map(|value| value.as_str().expect("scalar legacy option observation")),
+            Some(root)
+        );
         assert_eq!(
             diagnostics[0].start,
             Some(root_text.find(specifier).unwrap() as u32)
@@ -1925,7 +2023,11 @@ fn explicit_path_references_gate_json_and_report_javascript_or_unknown_extension
     .expect("allowJs keeps unknown explicit path references diagnostic-only");
     let diagnostic = &allow_js_unknown.diagnostics().program()[0];
     assert_eq!(diagnostic.code(), 6054);
-    assert!(diagnostic.message_text().contains(ALL_ROOT_EXTENSION_LIST));
+    assert!(diagnostic
+        .message_text()
+        .as_str()
+        .expect("scalar diagnostic observation")
+        .contains(ALL_ROOT_EXTENSION_LIST));
 }
 
 #[test]
@@ -1981,7 +2083,10 @@ fn extensionless_path_references_probe_ts_then_tsx_then_dts_and_report_ts6231() 
     let diagnostic = &diagnostics[0];
     assert_eq!(diagnostic.code(), 6231);
     assert_eq!(
-        diagnostic.file_name.as_deref(),
+        diagnostic
+            .file_name
+            .as_ref()
+            .map(|value| value.as_str().expect("scalar legacy option observation")),
         Some("/work/root-missing.ts")
     );
     assert_eq!(
@@ -2006,12 +2111,18 @@ fn empty_path_references_probe_the_containing_directory_and_report_located_ts623
         panic!("empty path reference must publish one TS6231 diagnostic");
     };
     assert_eq!(diagnostic.code(), 6231);
-    assert_eq!(diagnostic.file_name.as_deref(), Some("/work/main.ts"));
+    assert_eq!(
+        diagnostic
+            .file_name
+            .as_ref()
+            .map(|value| value.as_str().expect("scalar legacy option observation")),
+        Some("/work/main.ts")
+    );
     let empty_value = root_text.find("\"\"").expect("empty reference literal") as u32 + 1;
     assert_eq!(diagnostic.start, Some(empty_value));
     assert_eq!(diagnostic.length, Some(0));
     assert_eq!(
-        diagnostic.message_text(),
+        diagnostic.message_text().as_str().expect("scalar diagnostic observation"),
         "Could not resolve the path '/work' with the extensions: '.ts', '.tsx', '.d.ts', '.cts', '.d.cts', '.mts', '.d.mts'."
     );
 
@@ -2088,10 +2199,10 @@ process.stdout.write(JSON.stringify({
     assert_eq!(
         json!({
             "code": diagnostic.code(),
-            "file": diagnostic.file_name,
+            "file": scalar_json(&diagnostic.file_name),
             "start": diagnostic.start,
             "length": diagnostic.length,
-            "message": diagnostic.message_text(),
+            "message": scalar_json(&diagnostic.message_text().as_str().expect("scalar diagnostic observation")),
         }),
         oracle
     );
@@ -2173,6 +2284,8 @@ fn allow_js_path_references_admit_explicit_and_extensionless_js_after_ts() {
     assert_eq!(diagnostics[0].code(), 6231);
     assert!(diagnostics[0]
         .message_text()
+        .as_str()
+        .expect("scalar diagnostic observation")
         .contains(ALL_ROOT_EXTENSION_LIST));
 }
 
@@ -2218,7 +2331,11 @@ fn duplicate_missing_type_references_share_one_row_but_keep_each_ts2688_span() {
         expected_starts
     );
     assert!(diagnostics.iter().all(|diagnostic| {
-        diagnostic.file_name.as_deref() == Some("/work/root.ts")
+        diagnostic
+            .file_name
+            .as_ref()
+            .map(|value| value.as_str().expect("scalar legacy option observation"))
+            == Some("/work/root.ts")
             && diagnostic.length == Some("missing-types".len() as u32)
     }));
 }
@@ -2277,7 +2394,10 @@ fn no_resolve_keeps_module_resolution_but_skips_reference_source_discovery() {
     else {
         panic!("noResolve must keep the target out of source membership");
     };
-    assert_eq!(resolved_file.display(), Path::new("/work/dependency.ts"));
+    assert_eq!(
+        resolved_file.display().scalar_test_path(),
+        Path::new("/work/dependency.ts")
+    );
     assert_eq!(*reason, UnloadedModuleReason::NoResolve);
 }
 
@@ -2318,7 +2438,10 @@ fn module_not_found_and_unloaded_javascript_are_both_authoritative_rows() {
         panic!("allowJs=false must keep the JavaScript target out of source membership");
     };
     assert_eq!(*reason, UnloadedModuleReason::JavaScriptNotAdmitted);
-    assert_eq!(path.display(), Path::new("/work/dependency.js"));
+    assert_eq!(
+        path.display().scalar_test_path(),
+        Path::new("/work/dependency.js")
+    );
 }
 
 #[test]
@@ -2377,9 +2500,17 @@ fn allow_js_loads_local_javascript_dependencies_in_postorder_and_binds_source_ro
         else {
             panic!("allowJs local target must join source membership: {specifier}");
         };
-        assert_eq!(resolved_file.display(), Path::new(expected_path));
         assert_eq!(
-            program.source_file(*source).unwrap().path().display(),
+            resolved_file.display().scalar_test_path(),
+            Path::new(expected_path)
+        );
+        assert_eq!(
+            program
+                .source_file(*source)
+                .unwrap()
+                .path()
+                .display()
+                .scalar_test_path(),
             Path::new(expected_path)
         );
     }
@@ -2427,9 +2558,17 @@ fn allow_js_loader_consumes_the_complete_written_jsx_replacement_group() {
     else {
         panic!("allowJs admits the replacement JavaScript source");
     };
-    assert_eq!(resolved_file.display(), Path::new("/work/target.js"));
     assert_eq!(
-        program.source_file(*source).unwrap().path().display(),
+        resolved_file.display().scalar_test_path(),
+        Path::new("/work/target.js")
+    );
+    assert_eq!(
+        program
+            .source_file(*source)
+            .unwrap()
+            .path()
+            .display()
+            .scalar_test_path(),
         Path::new("/work/target.js")
     );
     assert!(!resolved.is_external_library_import());
@@ -2483,7 +2622,7 @@ fn arbitrary_declaration_twins_follow_the_resolution_diagnostic_admission_bounda
     };
     assert_eq!(
         resolved.extension(),
-        &ModuleExtension::Arbitrary(".d.json.ts".to_owned())
+        &ModuleExtension::Arbitrary(".d.json.ts".to_owned().into())
     );
     let ResolvedModuleTarget::Unloaded { reason, .. } = resolved.target() else {
         panic!("TS6263 prevents source membership when the option is disabled");
@@ -2641,7 +2780,10 @@ fn jsx_without_mode_stays_unloaded_and_gates_tsx_jsx_and_package_reads() {
         else {
             panic!("JSX without a mode must remain unloaded: {specifier}");
         };
-        assert_eq!(resolved_file.display(), Path::new(expected_path));
+        assert_eq!(
+            resolved_file.display().scalar_test_path(),
+            Path::new(expected_path)
+        );
         assert_eq!(*reason, UnloadedModuleReason::JsxWithoutJsxOption);
         assert_eq!(resolved.is_external_library_import(), external);
     }
@@ -2705,7 +2847,10 @@ fn allow_js_keeps_default_depth_external_package_javascript_unloaded() {
     };
     assert_eq!(*reason, UnloadedModuleReason::NodeModulesDepth);
     assert!(resolved.is_external_library_import());
-    assert_eq!(path.display(), Path::new("/work/node_modules/pkg/index.js"));
+    assert_eq!(
+        path.display().scalar_test_path(),
+        Path::new("/work/node_modules/pkg/index.js")
+    );
 }
 
 #[test]
@@ -3103,14 +3248,16 @@ fn depth_zero_root_promotion_reprocesses_path_reference_descendants() {
         let source = program
             .source_files()
             .iter()
-            .find(|source| source.path().display() == Path::new(path))
+            .find(|source| source.path().display().scalar_test_path() == Path::new(path))
             .expect("promoted source is owned");
         assert!(source.may_be_emitted(), "{path}");
     }
     let leaf = program
         .source_files()
         .iter()
-        .find(|source| source.path().display() == Path::new("/work/node_modules/a/leaf.js"))
+        .find(|source| {
+            source.path().display().scalar_test_path() == Path::new("/work/node_modules/a/leaf.js")
+        })
         .expect("external leaf is owned");
     assert!(!leaf.may_be_emitted());
 }
@@ -3326,7 +3473,10 @@ fn allow_js_marks_augmentation_only_javascript_as_resolution_only() {
     else {
         panic!("augmentation-only JavaScript remains unloaded");
     };
-    assert_eq!(resolved_file.display(), Path::new(target_path));
+    assert_eq!(
+        resolved_file.display().scalar_test_path(),
+        Path::new(target_path)
+    );
     assert_eq!(*reason, UnloadedModuleReason::ResolutionOnly);
 }
 
@@ -3378,7 +3528,10 @@ fn resolved_json_dependency_is_loaded_without_planning_requests_from_json_string
     else {
         panic!("enabled resolveJsonModule loads JSON into source membership");
     };
-    assert_eq!(resolved_file.display(), Path::new("/work/data.json"));
+    assert_eq!(
+        resolved_file.display().scalar_test_path(),
+        Path::new("/work/data.json")
+    );
     assert_eq!(
         program.source_file(*source),
         Some(&program.source_files()[0])
@@ -3508,9 +3661,17 @@ fn augmentation_target_binds_to_source_when_a_later_root_loads_the_same_file() {
     else {
         panic!("the later root must bind the augmentation to an owned source");
     };
-    assert_eq!(resolved_file.display(), Path::new("/work/target.ts"));
     assert_eq!(
-        program.source_file(*source).unwrap().path().display(),
+        resolved_file.display().scalar_test_path(),
+        Path::new("/work/target.ts")
+    );
+    assert_eq!(
+        program
+            .source_file(*source)
+            .unwrap()
+            .path()
+            .display()
+            .scalar_test_path(),
         Path::new("/work/target.ts")
     );
 }
@@ -3571,13 +3732,24 @@ fn preserve_symlinks_memory_canary_keeps_lexical_program_membership() {
         else {
             panic!("module target must join source membership: {specifier}");
         };
-        assert_eq!(resolved_file.display(), Path::new(expected_target));
         assert_eq!(
-            program.source_file(*source).unwrap().path().display(),
+            resolved_file.display().scalar_test_path(),
             Path::new(expected_target)
         );
         assert_eq!(
-            module.original_path().map(ProgramPath::display),
+            program
+                .source_file(*source)
+                .unwrap()
+                .path()
+                .display()
+                .scalar_test_path(),
+            Path::new(expected_target)
+        );
+        assert_eq!(
+            module
+                .original_path()
+                .map(ProgramPath::display)
+                .map(|path| path.scalar_test_path()),
             expected_original_path.map(Path::new)
         );
         *source
@@ -3593,17 +3765,24 @@ fn preserve_symlinks_memory_canary_keeps_lexical_program_membership() {
             let ResolutionOutcome::Resolved(directive) = resolution.outcome() else {
                 panic!("type-reference request must resolve");
             };
-            assert_eq!(directive.target().display(), Path::new(expected_target));
+            assert_eq!(
+                directive.target().display().scalar_test_path(),
+                Path::new(expected_target)
+            );
             assert_eq!(
                 program
                     .source_file(directive.source())
                     .unwrap()
                     .path()
-                    .display(),
+                    .display()
+                    .scalar_test_path(),
                 Path::new(expected_target)
             );
             assert_eq!(
-                directive.original_path().map(ProgramPath::display),
+                directive
+                    .original_path()
+                    .map(ProgramPath::display)
+                    .map(|path| path.scalar_test_path()),
                 expected_original_path.map(Path::new)
             );
             directive.source()
@@ -3757,13 +3936,24 @@ fn loaded_package_uses_lexical_extension_for_an_extensionless_physical_source() 
         panic!("physical package target must be loaded");
     };
     assert_eq!(module.extension(), &ModuleExtension::Ts);
-    assert_eq!(resolved_file.display(), Path::new(physical));
     assert_eq!(
-        program.source_file(*source).unwrap().path().display(),
+        resolved_file.display().scalar_test_path(),
         Path::new(physical)
     );
     assert_eq!(
-        module.original_path().map(ProgramPath::display),
+        program
+            .source_file(*source)
+            .unwrap()
+            .path()
+            .display()
+            .scalar_test_path(),
+        Path::new(physical)
+    );
+    assert_eq!(
+        module
+            .original_path()
+            .map(ProgramPath::display)
+            .map(|path| path.scalar_test_path()),
         Some(Path::new(lexical))
     );
 
@@ -3782,7 +3972,7 @@ fn loaded_package_uses_lexical_extension_for_an_extensionless_physical_source() 
             if matches!(
                 leaf.target(),
                 ResolvedModuleTarget::Source { resolved_file, .. }
-                    if resolved_file.display() == Path::new("/store/pkg/leaf.ts")
+                    if resolved_file.display().scalar_test_path() == Path::new("/store/pkg/leaf.ts")
             )
     ));
 }
@@ -3855,13 +4045,24 @@ fn lexical_symlink_root_and_physical_dependency_remain_distinct_sources() {
     else {
         panic!("physical package target must be loaded");
     };
-    assert_eq!(resolved_file.display(), Path::new(physical));
     assert_eq!(
-        program.source_file(*source).unwrap().path().display(),
+        resolved_file.display().scalar_test_path(),
         Path::new(physical)
     );
     assert_eq!(
-        module.original_path().map(ProgramPath::display),
+        program
+            .source_file(*source)
+            .unwrap()
+            .path()
+            .display()
+            .scalar_test_path(),
+        Path::new(physical)
+    );
+    assert_eq!(
+        module
+            .original_path()
+            .map(ProgramPath::display)
+            .map(|path| path.scalar_test_path()),
         Some(Path::new(lexical_package))
     );
 }
@@ -3946,7 +4147,7 @@ fn local_actual_then_bare_symlink_share_one_physical_source_id() {
     else {
         panic!("local actual must be loaded");
     };
-    assert_eq!(local_file.display(), Path::new(actual));
+    assert_eq!(local_file.display().scalar_test_path(), Path::new(actual));
     assert_eq!(local.original_path(), None);
 
     let bare_resolution = program
@@ -3964,13 +4165,20 @@ fn local_actual_then_bare_symlink_share_one_physical_source_id() {
         panic!("bare symlink target must join the owned actual source");
     };
     assert_eq!(local_source, bare_source);
-    assert_eq!(bare_file.display(), Path::new(actual));
+    assert_eq!(bare_file.display().scalar_test_path(), Path::new(actual));
     assert_eq!(
-        bare.original_path().map(ProgramPath::display),
+        bare.original_path()
+            .map(ProgramPath::display)
+            .map(|path| path.scalar_test_path()),
         Some(Path::new(bare_lexical))
     );
     assert_eq!(
-        program.source_file(*bare_source).unwrap().path().display(),
+        program
+            .source_file(*bare_source)
+            .unwrap()
+            .path()
+            .display()
+            .scalar_test_path(),
         Path::new(actual)
     );
 }
@@ -4051,7 +4259,7 @@ fn two_local_symlink_spellings_remain_two_lexical_sources() {
     assert!(program
         .source_files()
         .iter()
-        .all(|source| source.path().display() != Path::new(physical)));
+        .all(|source| source.path().display().scalar_test_path() != Path::new(physical)));
 }
 
 #[test]
@@ -4128,13 +4336,22 @@ fn direct_and_nested_symlink_type_references_share_one_source_id() {
         panic!("both type references must resolve");
     };
     assert_eq!(direct.source(), nested_directive.source());
-    assert_eq!(direct.target().display(), Path::new(actual));
-    assert_eq!(nested_directive.target().display(), Path::new(actual));
+    assert_eq!(
+        direct.target().display().scalar_test_path(),
+        Path::new(actual)
+    );
+    assert_eq!(
+        nested_directive.target().display().scalar_test_path(),
+        Path::new(actual)
+    );
     assert!(!direct.primary());
     assert!(!nested_directive.primary());
     assert_eq!(direct.original_path(), None);
     assert_eq!(
-        nested_directive.original_path().map(ProgramPath::display),
+        nested_directive
+            .original_path()
+            .map(ProgramPath::display)
+            .map(|path| path.scalar_test_path()),
         Some(Path::new(nested))
     );
     assert_eq!(
@@ -4142,7 +4359,8 @@ fn direct_and_nested_symlink_type_references_share_one_source_id() {
             .source_file(nested_directive.source())
             .unwrap()
             .path()
-            .display(),
+            .display()
+            .scalar_test_path(),
         Path::new(actual)
     );
 }
@@ -4209,13 +4427,13 @@ fn equal_package_ids_retain_resolution_path_but_share_one_source_id() {
     let first = program
         .source_files()
         .iter()
-        .find(|source| source.path().display() == Path::new(FIRST))
+        .find(|source| source.path().display().scalar_test_path() == Path::new(FIRST))
         .expect("first package source is owned");
     assert_eq!(
         first
             .package_redirect_paths()
             .iter()
-            .map(ProgramPath::display)
+            .map(|path| path.display().scalar_test_path())
             .collect::<Vec<_>>(),
         [Path::new(REDIRECT)],
     );
@@ -4242,7 +4460,10 @@ fn equal_package_ids_retain_resolution_path_but_share_one_source_id() {
         panic!("redirect must remain a loaded source target");
     };
     assert_eq!(*source, first_id);
-    assert_eq!(resolved_file.display(), Path::new(REDIRECT));
+    assert_eq!(
+        resolved_file.display().scalar_test_path(),
+        Path::new(REDIRECT)
+    );
     assert_eq!(module.original_path(), None);
 }
 
@@ -4292,17 +4513,24 @@ fn loaded_custom_type_root_reference_uses_physical_source_and_original_path() {
     let ResolutionOutcome::Resolved(directive) = resolution.outcome() else {
         panic!("type-reference request must resolve");
     };
-    assert_eq!(directive.target().display(), Path::new(physical));
+    assert_eq!(
+        directive.target().display().scalar_test_path(),
+        Path::new(physical)
+    );
     assert_eq!(
         program
             .source_file(directive.source())
             .unwrap()
             .path()
-            .display(),
+            .display()
+            .scalar_test_path(),
         Path::new(physical)
     );
     assert_eq!(
-        directive.original_path().map(ProgramPath::display),
+        directive
+            .original_path()
+            .map(ProgramPath::display)
+            .map(|path| path.scalar_test_path()),
         Some(Path::new(lexical))
     );
 }
@@ -4369,10 +4597,16 @@ fn unloaded_package_javascript_retains_each_physical_resolution_and_original_pat
             panic!("JavaScript package must remain unloaded");
         };
         assert_eq!(module.extension(), &ModuleExtension::Js);
-        assert_eq!(resolved_file.display(), Path::new(physical));
+        assert_eq!(
+            resolved_file.display().scalar_test_path(),
+            Path::new(physical)
+        );
         assert_eq!(*reason, expected_reason);
         assert_eq!(
-            module.original_path().map(ProgramPath::display),
+            module
+                .original_path()
+                .map(ProgramPath::display)
+                .map(|path| path.scalar_test_path()),
             Some(Path::new(lexical))
         );
     }
@@ -4509,12 +4743,14 @@ fn memory_and_filesystem_hosts_build_identical_prepared_programs() {
     let memory = memory.build().expect("construct memory host");
     let root_path = tree.path("src/root.ts");
     let root_text = root_path.to_str().expect("temp path is Unicode");
-    let program_options =
-        program_options().with_paths(vec![PathMapping::new("@src/*", vec!["src/*".to_owned()])]);
+    let program_options = program_options().with_paths(vec![PathMapping::new(
+        "@src/*",
+        vec!["src/*".to_owned().into()],
+    )]);
 
     for module_resolution in [1, 2, 100] {
         let options = CompilerOptions {
-            base_url: Some(tree.root().to_string_lossy().into_owned()),
+            base_url: Some(tree.root().to_string_lossy().into_owned().into()),
             module_resolution: Some(module_resolution),
             ..compiler_options()
         };
@@ -4716,7 +4952,7 @@ fn windows_and_unc_root_spellings_use_typescript_lexical_normalization() {
         program
             .roots()
             .iter()
-            .map(|root| root.path().display())
+            .map(|root| root.path().display().scalar_test_path())
             .collect::<Vec<_>>(),
         expected
     );
@@ -4829,6 +5065,7 @@ process.stdout.write(JSON.stringify(program.getSourceFiles().map(source => sourc
         .map(|source| source
             .path()
             .display()
+            .scalar_test_path()
             .to_str()
             .expect("source path is Unicode"))
         .collect::<Vec<_>>());
@@ -4876,7 +5113,7 @@ fn later_root_promotes_its_own_emit_eligibility_but_not_external_relative_childr
         let source = external_only
             .source_files()
             .iter()
-            .find(|source| source.path().display() == Path::new(path))
+            .find(|source| source.path().display().scalar_test_path() == Path::new(path))
             .expect("external package source is loaded");
         assert!(!source.may_be_emitted(), "{path}");
     }
@@ -4895,13 +5132,27 @@ fn later_root_promotes_its_own_emit_eligibility_but_not_external_relative_childr
     let index = promoted
         .source_files()
         .iter()
-        .find(|source| source.path().display() == Path::new("/work/node_modules/pkg/index.ts"))
+        .find(|source| {
+            source.path().display().scalar_test_path()
+                == Path::new("/work/node_modules/pkg/index.ts")
+        })
         .expect("promoted package entry is loaded");
     assert!(index.may_be_emitted());
     let child = promoted
         .source_files()
         .iter()
-        .find(|source| source.path().display() == Path::new("/work/node_modules/pkg/child.ts"))
+        .find(|source| {
+            source.path().display().scalar_test_path()
+                == Path::new("/work/node_modules/pkg/child.ts")
+        })
         .expect("relative package child is loaded");
     assert!(!child.may_be_emitted());
 }
+
+#[path = "../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;
+
+#[path = "../support/scalar_json.rs"]
+mod utf16_scalar_json;
+use utf16_scalar_json::observe as scalar_json;

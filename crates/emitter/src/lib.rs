@@ -32,7 +32,8 @@ mod writer;
 
 pub use activity::{H2ActivityCanary, H2ActivityCounters, H2RuntimeSlice};
 pub use artifact::{
-    EmitArtifact, EmitArtifactKind, EmitBuildInfoMetadata, EmitTextMetadata, EmitWriteMetadata,
+    EmitArtifact, EmitArtifactKind, EmitBuildInfoMetadata, EmitCallbackText, EmitTextMetadata,
+    EmitWriteMetadata,
 };
 pub use builtins::{
     get_script_transformers, get_script_transformers_for_source, transform_class_fields,

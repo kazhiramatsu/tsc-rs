@@ -1,0 +1,864 @@
+{
+  "version": 1,
+  "repetitions": 2,
+  "cases": [
+    {
+      "case_id": "declaration-comment-range/module-exports",
+      "trace": [
+        {
+          "owner": "G4a",
+          "declaration": {
+            "kind": "FunctionExpression",
+            "pos": 92,
+            "end": 130,
+            "file": "/project/main.js"
+          },
+          "parent": {
+            "kind": "BinaryExpression",
+            "pos": 0,
+            "end": 130,
+            "file": "/project/main.js"
+          },
+          "location": {
+            "kind": "FunctionExpression",
+            "pos": 92,
+            "end": 130,
+            "file": "/project/main.js"
+          },
+          "assignment_kind": 2
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-comment-range/exports-property",
+      "trace": [
+        {
+          "owner": "G4a",
+          "declaration": {
+            "kind": "FunctionExpression",
+            "pos": 63,
+            "end": 101,
+            "file": "/project/main.js"
+          },
+          "parent": {
+            "kind": "BinaryExpression",
+            "pos": 0,
+            "end": 101,
+            "file": "/project/main.js"
+          },
+          "location": {
+            "kind": "FunctionExpression",
+            "pos": 63,
+            "end": 101,
+            "file": "/project/main.js"
+          },
+          "assignment_kind": 1
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-comment-range/module-exports-property",
+      "trace": [
+        {
+          "owner": "G4a",
+          "declaration": {
+            "kind": "FunctionExpression",
+            "pos": 70,
+            "end": 108,
+            "file": "/project/main.js"
+          },
+          "parent": {
+            "kind": "BinaryExpression",
+            "pos": 0,
+            "end": 108,
+            "file": "/project/main.js"
+          },
+          "location": {
+            "kind": "FunctionExpression",
+            "pos": 70,
+            "end": 108,
+            "file": "/project/main.js"
+          },
+          "assignment_kind": 1
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-comment-range/ordinary-property",
+      "trace": [
+        {
+          "owner": "G4a",
+          "declaration": {
+            "kind": "FunctionDeclaration",
+            "pos": 0,
+            "end": 18,
+            "file": "/project/main.js"
+          },
+          "parent": {
+            "kind": "SourceFile",
+            "pos": 0,
+            "end": 140,
+            "file": "/project/main.js"
+          },
+          "location": {
+            "kind": "FunctionDeclaration",
+            "pos": 0,
+            "end": 18,
+            "file": "/project/main.js"
+          },
+          "assignment_kind": null
+        },
+        {
+          "owner": "G4a",
+          "declaration": {
+            "kind": "FunctionExpression",
+            "pos": 77,
+            "end": 115,
+            "file": "/project/main.js"
+          },
+          "parent": {
+            "kind": "BinaryExpression",
+            "pos": 18,
+            "end": 115,
+            "file": "/project/main.js"
+          },
+          "location": {
+            "kind": "BinaryExpression",
+            "pos": 18,
+            "end": 115,
+            "file": "/project/main.js"
+          },
+          "assignment_kind": 5
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-comment-range/variable",
+      "trace": [
+        {
+          "owner": "G4a",
+          "declaration": {
+            "kind": "FunctionExpression",
+            "pos": 57,
+            "end": 91,
+            "file": "/project/main.js"
+          },
+          "parent": {
+            "kind": "VariableDeclaration",
+            "pos": 51,
+            "end": 91,
+            "file": "/project/main.js"
+          },
+          "location": {
+            "kind": "VariableDeclarationList",
+            "pos": 0,
+            "end": 91,
+            "file": "/project/main.js"
+          },
+          "assignment_kind": null
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-comment-range/function-declaration",
+      "trace": [
+        {
+          "owner": "G4a",
+          "declaration": {
+            "kind": "FunctionDeclaration",
+            "pos": 0,
+            "end": 88,
+            "file": "/project/main.js"
+          },
+          "parent": {
+            "kind": "SourceFile",
+            "pos": 0,
+            "end": 128,
+            "file": "/project/main.js"
+          },
+          "location": {
+            "kind": "FunctionDeclaration",
+            "pos": 0,
+            "end": 88,
+            "file": "/project/main.js"
+          },
+          "assignment_kind": null
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-comment-range/prototype-dot",
+      "trace": [
+        {
+          "owner": "G4a",
+          "declaration": {
+            "kind": "FunctionDeclaration",
+            "pos": 0,
+            "end": 15,
+            "file": "/project/main.js"
+          },
+          "parent": {
+            "kind": "SourceFile",
+            "pos": 0,
+            "end": 138,
+            "file": "/project/main.js"
+          },
+          "location": {
+            "kind": "FunctionDeclaration",
+            "pos": 0,
+            "end": 15,
+            "file": "/project/main.js"
+          },
+          "assignment_kind": null
+        },
+        {
+          "owner": "G4b",
+          "declaration": {
+            "kind": "FunctionExpression",
+            "pos": 82,
+            "end": 116,
+            "file": "/project/main.js"
+          },
+          "parent": {
+            "kind": "BinaryExpression",
+            "pos": 15,
+            "end": 116,
+            "file": "/project/main.js"
+          },
+          "location": {
+            "kind": "BinaryExpression",
+            "pos": 15,
+            "end": 116,
+            "file": "/project/main.js"
+          },
+          "assignment_kind": 3
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-comment-range/prototype-element",
+      "trace": [
+        {
+          "owner": "G4a",
+          "declaration": {
+            "kind": "FunctionDeclaration",
+            "pos": 0,
+            "end": 15,
+            "file": "/project/main.js"
+          },
+          "parent": {
+            "kind": "SourceFile",
+            "pos": 0,
+            "end": 144,
+            "file": "/project/main.js"
+          },
+          "location": {
+            "kind": "FunctionDeclaration",
+            "pos": 0,
+            "end": 15,
+            "file": "/project/main.js"
+          },
+          "assignment_kind": null
+        },
+        {
+          "owner": "G4b",
+          "declaration": {
+            "kind": "FunctionExpression",
+            "pos": 88,
+            "end": 122,
+            "file": "/project/main.js"
+          },
+          "parent": {
+            "kind": "BinaryExpression",
+            "pos": 15,
+            "end": 122,
+            "file": "/project/main.js"
+          },
+          "location": {
+            "kind": "BinaryExpression",
+            "pos": 15,
+            "end": 122,
+            "file": "/project/main.js"
+          },
+          "assignment_kind": 3
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-comment-range/static-method",
+      "trace": [
+        {
+          "owner": "G4a",
+          "declaration": {
+            "kind": "FunctionDeclaration",
+            "pos": 0,
+            "end": 15,
+            "file": "/project/main.js"
+          },
+          "parent": {
+            "kind": "SourceFile",
+            "pos": 0,
+            "end": 128,
+            "file": "/project/main.js"
+          },
+          "location": {
+            "kind": "FunctionDeclaration",
+            "pos": 0,
+            "end": 15,
+            "file": "/project/main.js"
+          },
+          "assignment_kind": null
+        },
+        {
+          "owner": "G4a",
+          "declaration": {
+            "kind": "FunctionExpression",
+            "pos": 72,
+            "end": 106,
+            "file": "/project/main.js"
+          },
+          "parent": {
+            "kind": "BinaryExpression",
+            "pos": 15,
+            "end": 106,
+            "file": "/project/main.js"
+          },
+          "location": {
+            "kind": "BinaryExpression",
+            "pos": 15,
+            "end": 106,
+            "file": "/project/main.js"
+          },
+          "assignment_kind": 5
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-comment-range/this-property",
+      "trace": [
+        {
+          "owner": "G4a",
+          "declaration": {
+            "kind": "FunctionDeclaration",
+            "pos": 0,
+            "end": 113,
+            "file": "/project/main.js"
+          },
+          "parent": {
+            "kind": "SourceFile",
+            "pos": 0,
+            "end": 134,
+            "file": "/project/main.js"
+          },
+          "location": {
+            "kind": "FunctionDeclaration",
+            "pos": 0,
+            "end": 113,
+            "file": "/project/main.js"
+          },
+          "assignment_kind": null
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-comment-range/ordinary-method",
+      "trace": [
+        {
+          "owner": "G4b",
+          "declaration": {
+            "kind": "MethodDeclaration",
+            "pos": 9,
+            "end": 87,
+            "file": "/project/main.js"
+          },
+          "parent": {
+            "kind": "ClassDeclaration",
+            "pos": 0,
+            "end": 89,
+            "file": "/project/main.js"
+          },
+          "location": {
+            "kind": "MethodDeclaration",
+            "pos": 9,
+            "end": 87,
+            "file": "/project/main.js"
+          },
+          "assignment_kind": null
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-comment-range/prototype-parenthesized",
+      "trace": [
+        {
+          "owner": "G4a",
+          "declaration": {
+            "kind": "FunctionDeclaration",
+            "pos": 0,
+            "end": 15,
+            "file": "/project/main.js"
+          },
+          "parent": {
+            "kind": "SourceFile",
+            "pos": 0,
+            "end": 158,
+            "file": "/project/main.js"
+          },
+          "location": {
+            "kind": "FunctionDeclaration",
+            "pos": 0,
+            "end": 15,
+            "file": "/project/main.js"
+          },
+          "assignment_kind": null
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-comment-range/remove-comments",
+      "trace": [
+        {
+          "owner": "G4a",
+          "declaration": {
+            "kind": "FunctionDeclaration",
+            "pos": 0,
+            "end": 15,
+            "file": "/project/main.js"
+          },
+          "parent": {
+            "kind": "SourceFile",
+            "pos": 0,
+            "end": 138,
+            "file": "/project/main.js"
+          },
+          "location": {
+            "kind": "FunctionDeclaration",
+            "pos": 0,
+            "end": 15,
+            "file": "/project/main.js"
+          },
+          "assignment_kind": null
+        },
+        {
+          "owner": "G4b",
+          "declaration": {
+            "kind": "FunctionExpression",
+            "pos": 82,
+            "end": 116,
+            "file": "/project/main.js"
+          },
+          "parent": {
+            "kind": "BinaryExpression",
+            "pos": 15,
+            "end": 116,
+            "file": "/project/main.js"
+          },
+          "location": {
+            "kind": "BinaryExpression",
+            "pos": 15,
+            "end": 116,
+            "file": "/project/main.js"
+          },
+          "assignment_kind": 3
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-comment-range/declaration-only",
+      "trace": [
+        {
+          "owner": "G4a",
+          "declaration": {
+            "kind": "FunctionDeclaration",
+            "pos": 0,
+            "end": 15,
+            "file": "/project/main.js"
+          },
+          "parent": {
+            "kind": "SourceFile",
+            "pos": 0,
+            "end": 138,
+            "file": "/project/main.js"
+          },
+          "location": {
+            "kind": "FunctionDeclaration",
+            "pos": 0,
+            "end": 15,
+            "file": "/project/main.js"
+          },
+          "assignment_kind": null
+        },
+        {
+          "owner": "G4b",
+          "declaration": {
+            "kind": "FunctionExpression",
+            "pos": 82,
+            "end": 116,
+            "file": "/project/main.js"
+          },
+          "parent": {
+            "kind": "BinaryExpression",
+            "pos": 15,
+            "end": 116,
+            "file": "/project/main.js"
+          },
+          "location": {
+            "kind": "BinaryExpression",
+            "pos": 15,
+            "end": 116,
+            "file": "/project/main.js"
+          },
+          "assignment_kind": 3
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-comment-range/lf-bom-listings",
+      "trace": [
+        {
+          "owner": "G4a",
+          "declaration": {
+            "kind": "FunctionDeclaration",
+            "pos": 0,
+            "end": 15,
+            "file": "/project/main.js"
+          },
+          "parent": {
+            "kind": "SourceFile",
+            "pos": 0,
+            "end": 138,
+            "file": "/project/main.js"
+          },
+          "location": {
+            "kind": "FunctionDeclaration",
+            "pos": 0,
+            "end": 15,
+            "file": "/project/main.js"
+          },
+          "assignment_kind": null
+        },
+        {
+          "owner": "G4b",
+          "declaration": {
+            "kind": "FunctionExpression",
+            "pos": 82,
+            "end": 116,
+            "file": "/project/main.js"
+          },
+          "parent": {
+            "kind": "BinaryExpression",
+            "pos": 15,
+            "end": 116,
+            "file": "/project/main.js"
+          },
+          "location": {
+            "kind": "BinaryExpression",
+            "pos": 15,
+            "end": 116,
+            "file": "/project/main.js"
+          },
+          "assignment_kind": 3
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-comment-range/esnext",
+      "trace": [
+        {
+          "owner": "G4a",
+          "declaration": {
+            "kind": "FunctionDeclaration",
+            "pos": 0,
+            "end": 15,
+            "file": "/project/main.js"
+          },
+          "parent": {
+            "kind": "SourceFile",
+            "pos": 0,
+            "end": 138,
+            "file": "/project/main.js"
+          },
+          "location": {
+            "kind": "FunctionDeclaration",
+            "pos": 0,
+            "end": 15,
+            "file": "/project/main.js"
+          },
+          "assignment_kind": null
+        },
+        {
+          "owner": "G4b",
+          "declaration": {
+            "kind": "FunctionExpression",
+            "pos": 82,
+            "end": 116,
+            "file": "/project/main.js"
+          },
+          "parent": {
+            "kind": "BinaryExpression",
+            "pos": 15,
+            "end": 116,
+            "file": "/project/main.js"
+          },
+          "location": {
+            "kind": "BinaryExpression",
+            "pos": 15,
+            "end": 116,
+            "file": "/project/main.js"
+          },
+          "assignment_kind": 3
+        }
+      ]
+    },
+    {
+      "case_id": "declaration-comment-range/blocked-semantic",
+      "trace": []
+    }
+  ],
+  "predicates": [
+    {
+      "case_id": "property/js",
+      "source": "o.m = function() {};",
+      "assignment_kind": 5,
+      "signature_uses_assignment": true,
+      "method_uses_assignment": false
+    },
+    {
+      "case_id": "exports/js",
+      "source": "exports.m = function() {};",
+      "assignment_kind": 1,
+      "signature_uses_assignment": false,
+      "method_uses_assignment": false
+    },
+    {
+      "case_id": "module/js",
+      "source": "module.exports = function() {};",
+      "assignment_kind": 2,
+      "signature_uses_assignment": false,
+      "method_uses_assignment": false
+    },
+    {
+      "case_id": "module-property/js",
+      "source": "module.exports.m = function() {};",
+      "assignment_kind": 1,
+      "signature_uses_assignment": false,
+      "method_uses_assignment": false
+    },
+    {
+      "case_id": "prototype/js",
+      "source": "C.prototype.m = function() {};",
+      "assignment_kind": 3,
+      "signature_uses_assignment": false,
+      "method_uses_assignment": true
+    },
+    {
+      "case_id": "prototype-element/js",
+      "source": "C[\"prototype\"][\"m\"] = function() {};",
+      "assignment_kind": 3,
+      "signature_uses_assignment": false,
+      "method_uses_assignment": true
+    },
+    {
+      "case_id": "this/js",
+      "source": "this.m = function() {};",
+      "assignment_kind": 4,
+      "signature_uses_assignment": false,
+      "method_uses_assignment": false
+    },
+    {
+      "case_id": "plain-assignment/js",
+      "source": "m = function() {};",
+      "assignment_kind": 0,
+      "signature_uses_assignment": false,
+      "method_uses_assignment": false
+    },
+    {
+      "case_id": "compound/js",
+      "source": "o.m += function() {};",
+      "assignment_kind": 0,
+      "signature_uses_assignment": false,
+      "method_uses_assignment": false
+    },
+    {
+      "case_id": "dynamic-receiver/js",
+      "source": "make().m = function() {};",
+      "assignment_kind": 0,
+      "signature_uses_assignment": false,
+      "method_uses_assignment": false
+    },
+    {
+      "case_id": "void-zero/js",
+      "source": "o.m = void 0;",
+      "assignment_kind": 0,
+      "signature_uses_assignment": false,
+      "method_uses_assignment": false
+    },
+    {
+      "case_id": "parenthesized-key/js",
+      "source": "C[\"prototype\"][(\"m\")] = function() {};",
+      "assignment_kind": 3,
+      "signature_uses_assignment": false,
+      "method_uses_assignment": true
+    },
+    {
+      "case_id": "property/ts",
+      "source": "o.m = function() {};",
+      "assignment_kind": 5,
+      "signature_uses_assignment": true,
+      "method_uses_assignment": false
+    },
+    {
+      "case_id": "exports/ts",
+      "source": "exports.m = function() {};",
+      "assignment_kind": 0,
+      "signature_uses_assignment": false,
+      "method_uses_assignment": false
+    },
+    {
+      "case_id": "module/ts",
+      "source": "module.exports = function() {};",
+      "assignment_kind": 0,
+      "signature_uses_assignment": false,
+      "method_uses_assignment": false
+    },
+    {
+      "case_id": "module-property/ts",
+      "source": "module.exports.m = function() {};",
+      "assignment_kind": 0,
+      "signature_uses_assignment": false,
+      "method_uses_assignment": false
+    },
+    {
+      "case_id": "prototype/ts",
+      "source": "C.prototype.m = function() {};",
+      "assignment_kind": 0,
+      "signature_uses_assignment": false,
+      "method_uses_assignment": false
+    },
+    {
+      "case_id": "prototype-element/ts",
+      "source": "C[\"prototype\"][\"m\"] = function() {};",
+      "assignment_kind": 0,
+      "signature_uses_assignment": false,
+      "method_uses_assignment": false
+    },
+    {
+      "case_id": "this/ts",
+      "source": "this.m = function() {};",
+      "assignment_kind": 0,
+      "signature_uses_assignment": false,
+      "method_uses_assignment": false
+    },
+    {
+      "case_id": "plain-assignment/ts",
+      "source": "m = function() {};",
+      "assignment_kind": 0,
+      "signature_uses_assignment": false,
+      "method_uses_assignment": false
+    },
+    {
+      "case_id": "compound/ts",
+      "source": "o.m += function() {};",
+      "assignment_kind": 0,
+      "signature_uses_assignment": false,
+      "method_uses_assignment": false
+    },
+    {
+      "case_id": "dynamic-receiver/ts",
+      "source": "make().m = function() {};",
+      "assignment_kind": 0,
+      "signature_uses_assignment": false,
+      "method_uses_assignment": false
+    },
+    {
+      "case_id": "void-zero/ts",
+      "source": "o.m = void 0;",
+      "assignment_kind": 0,
+      "signature_uses_assignment": false,
+      "method_uses_assignment": false
+    },
+    {
+      "case_id": "parenthesized-key/ts",
+      "source": "C[\"prototype\"][(\"m\")] = function() {};",
+      "assignment_kind": 0,
+      "signature_uses_assignment": false,
+      "method_uses_assignment": false
+    }
+  ],
+  "sentinels": [
+    {
+      "case_id": "missing-declaration",
+      "selected": "absent"
+    },
+    {
+      "case_id": "parentless-declaration",
+      "selected": "declaration"
+    },
+    {
+      "case_id": "variable-without-list",
+      "selected": "declaration"
+    },
+    {
+      "case_id": "variable-with-list",
+      "selected": "variable-list"
+    }
+  ],
+  "ranges": [
+    {
+      "case_id": "same-source",
+      "observation": {
+        "same_identity": true,
+        "pos": 4,
+        "end": 10,
+        "original": {
+          "kind": "Identifier",
+          "pos": 4,
+          "end": 10,
+          "file": "/project/a.ts"
+        }
+      }
+    },
+    {
+      "case_id": "foreign-source",
+      "observation": {
+        "same_identity": true,
+        "pos": -1,
+        "end": -1,
+        "original": {
+          "kind": "Identifier",
+          "pos": 4,
+          "end": 12,
+          "file": "/project/b.ts"
+        }
+      }
+    },
+    {
+      "case_id": "no-location",
+      "observation": {
+        "same_identity": true,
+        "pos": -1,
+        "end": -1,
+        "original": {
+          "kind": "Identifier",
+          "pos": 4,
+          "end": 10,
+          "file": "/project/a.ts"
+        }
+      }
+    },
+    {
+      "case_id": "parsed-input",
+      "observation": {
+        "same_identity": false,
+        "pos": 4,
+        "end": 10,
+        "original": {
+          "kind": "Identifier",
+          "pos": 4,
+          "end": 10,
+          "file": "/project/a.ts"
+        }
+      }
+    }
+  ]
+}

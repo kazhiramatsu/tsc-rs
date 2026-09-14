@@ -279,12 +279,14 @@ fn string_mapping_applies_to_literals_unions_and_generics() {
         &[("a.ts", "function f<T extends string>() { var v: T; }\n")],
         &CompilerOptions::default(),
         |state| {
-            let uppercase = state
-                .binder
-                .create_symbol(SymbolFlags::TYPE_ALIAS, "Uppercase".to_owned());
-            let capitalize = state
-                .binder
-                .create_symbol(SymbolFlags::TYPE_ALIAS, "Capitalize".to_owned());
+            let uppercase = state.binder.create_symbol(
+                SymbolFlags::TYPE_ALIAS,
+                tsc_types::EscapedName::from_escaped_value(("Uppercase".to_owned()).into()),
+            );
+            let capitalize = state.binder.create_symbol(
+                SymbolFlags::TYPE_ALIAS,
+                tsc_types::EscapedName::from_escaped_value(("Capitalize".to_owned()).into()),
+            );
             let abc = state.tables.get_string_literal_type("abc");
             let mapped = state
                 .get_string_mapping_type(uppercase, abc)
@@ -346,12 +348,14 @@ fn string_mapping_relations_and_constraints() {
         &[("a.ts", "function f<T extends string>() { var v: T; }\n")],
         &CompilerOptions::default(),
         |state| {
-            let uppercase = state
-                .binder
-                .create_symbol(SymbolFlags::TYPE_ALIAS, "Uppercase".to_owned());
-            let lowercase = state
-                .binder
-                .create_symbol(SymbolFlags::TYPE_ALIAS, "Lowercase".to_owned());
+            let uppercase = state.binder.create_symbol(
+                SymbolFlags::TYPE_ALIAS,
+                tsc_types::EscapedName::from_escaped_value(("Uppercase".to_owned()).into()),
+            );
+            let lowercase = state.binder.create_symbol(
+                SymbolFlags::TYPE_ALIAS,
+                tsc_types::EscapedName::from_escaped_value(("Lowercase".to_owned()).into()),
+            );
             let string = state.tables.intrinsics.string;
             let upper_string = state
                 .get_string_mapping_type(uppercase, string)

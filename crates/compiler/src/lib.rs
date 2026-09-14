@@ -13,7 +13,7 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::error::Error;
 use std::fmt;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use tsc_checker::emit::CheckerSession;
@@ -31,7 +31,9 @@ use tsc_checker::{
     LibraryPrefixCompletion, OwnedHarnessLibBundle, ProgramSnapshot,
     UnsupportedAuthoritativeResolution,
 };
-use tsc_diagnostics::{gen, sort_and_dedupe_diagnostics, Diagnostic, DiagnosticList, MessageChain};
+use tsc_diagnostics::{
+    gen, sort_and_dedupe_diagnostics, Diagnostic, DiagnosticList, JsStr, JsString, MessageChain,
+};
 use tsc_emitter::{
     emit_files_with_activity, preflight_emit, print_script_units_with_recording_for_harness,
     validate_bootstrap_emit_request, EmitDiagnosticGate, EmitHost, EmitSource, H2ActivityCanary,
@@ -78,6 +80,10 @@ pub(crate) struct CliEmitSessionOutcome {
     pub(crate) options_diagnostics: DiagnosticList,
     pub(crate) global_diagnostics: DiagnosticList,
     pub(crate) semantic_diagnostics: DiagnosticList,
+    /// `noEmit && getEmitDeclarations(options)` only: the declaration getter's
+    /// rows after a clean semantic pass (emitFilesAndReportErrors,
+    /// _tsc.js:129433-129440). Emitting programs leave this empty.
+    pub(crate) declaration_diagnostics: DiagnosticList,
     pub(crate) work_counters: NoEmitWorkCounters,
 }
 
@@ -99,7 +105,14 @@ impl CliEmitSessionOutcome {
             let global_is_empty = self.global_diagnostics.is_empty();
             diagnostics.extend(self.global_diagnostics);
             if options_are_empty && global_is_empty {
+                let semantic_is_empty = self.semantic_diagnostics.is_empty();
                 diagnostics.extend(self.semantic_diagnostics);
+                // getDeclarationDiagnostics joins only while allDiagnostics still
+                // holds the config-file parsing rows alone (129433-129440); the
+                // caller fills this stream under the same gate.
+                if semantic_is_empty {
+                    diagnostics.extend(self.declaration_diagnostics);
+                }
             }
         }
         diagnostics.extend(self.emit.diagnostics().iter().cloned());
@@ -108,18 +121,25 @@ impl CliEmitSessionOutcome {
     }
 }
 
+/// tsc-port: getEmitDeclarations @6.0.3
+/// tsc-hash: f385c1e1ef2b314fab891cf63605d192e845fd49775c89849d96a7fa96389541
+/// tsc-span: _tsc.js:18151-18156
+fn get_emit_declarations(options: &CompilerOptions) -> bool {
+    options.declaration == Some(true) || options.composite == Some(true)
+}
+
 /// One ordinary whole-Program emit with its command reporting observation.
 /// File writes are delivered to the caller's OutputSink; these status entries
 /// are the same TSFILE strings consumed by the command-line driver.
 pub struct EmitCommandOutcome {
     emit: EmitOutcome,
     diagnostics: DiagnosticList,
-    status_writes: Vec<String>,
+    status_writes: Vec<JsString>,
     exit_code: i32,
 }
 
 impl EmitCommandOutcome {
-    fn new(outcome: CliEmitSessionOutcome, current_directory: &std::path::Path) -> Self {
+    fn new(outcome: CliEmitSessionOutcome, current_directory: JsStr<'_>) -> Self {
         let (emit, diagnostics, _) = outcome.into_reported(&[]);
         let (status_writes, exit_code) =
             cli::emit_command_status(current_directory, &emit, &diagnostics);
@@ -137,7 +157,7 @@ impl EmitCommandOutcome {
     pub fn diagnostics(&self) -> &[Diagnostic] {
         &self.diagnostics
     }
-    pub fn status_writes(&self) -> &[String] {
+    pub fn status_writes(&self) -> &[JsString] {
         &self.status_writes
     }
     pub fn exit_code(&self) -> i32 {
@@ -198,6 +218,7 @@ impl ProgramDiagnostics {
             options_diagnostics: self.options,
             global_diagnostics: self.global,
             semantic_diagnostics: self.semantic,
+            declaration_diagnostics: DiagnosticList::new(),
             work_counters,
         }
     }
@@ -211,7 +232,7 @@ struct PreparedModuleProvider<'a> {
 struct PreparedEmitHost<'program> {
     prepared: &'program PreparedProgram,
     source_files: Vec<SourceFileId>,
-    common_source_directory: PathBuf,
+    common_source_directory: JsString,
     symlinks: tsc_program::SymlinkFacts,
 }
 
@@ -224,7 +245,7 @@ impl<'program> PreparedEmitHost<'program> {
                 prepared
                     .source_id(source.path().canonical())
                     .ok_or_else(|| DriverError::MissingPreparedSourceIdentity {
-                        path: source.path().display().to_path_buf(),
+                        path: source.path().display().to_owned(),
                     })
             })
             .collect::<Result<Vec<_>, _>>()?;
@@ -232,7 +253,7 @@ impl<'program> PreparedEmitHost<'program> {
         let mut host = Self {
             prepared,
             source_files,
-            common_source_directory: prepared.current_directory().display().to_path_buf(),
+            common_source_directory: prepared.current_directory().display().to_owned(),
             symlinks,
         };
         // getCommonSourceDirectory2 first applies ordinary sourceFileMayBeEmitted
@@ -262,23 +283,23 @@ impl EmitHost for PreparedEmitHost<'_> {
         self.prepared.compiler_options()
     }
 
-    fn symlinked_files(&self) -> Vec<(String, String)> {
+    fn symlinked_files(&self) -> Vec<(JsString, JsString)> {
         self.symlinks.files.clone()
     }
 
-    fn symlinked_directories(&self) -> Vec<(String, String)> {
+    fn symlinked_directories(&self) -> Vec<(JsString, JsString)> {
         self.symlinks.directories.clone()
     }
 
-    fn current_directory(&self) -> &Path {
+    fn current_directory(&self) -> JsStr<'_> {
         self.prepared.current_directory().display()
     }
 
-    fn common_source_directory(&self) -> &Path {
-        &self.common_source_directory
+    fn common_source_directory(&self) -> JsStr<'_> {
+        self.common_source_directory.as_js()
     }
 
-    fn config_file_path(&self) -> Option<&Path> {
+    fn config_file_path(&self) -> Option<JsStr<'_>> {
         self.prepared
             .program_options()
             .config_file_path()
@@ -299,7 +320,7 @@ impl EmitHost for PreparedEmitHost<'_> {
             EmitSource::new(
                 id,
                 source.path().display(),
-                source.path().canonical().as_path(),
+                source.path().canonical().as_js(),
                 source.may_be_emitted(),
                 source.implied_node_format_for_emit(),
                 None,
@@ -320,23 +341,23 @@ impl EmitHost for CheckedEmitHost<'_, '_> {
         self.prepared.compiler_options()
     }
 
-    fn symlinked_files(&self) -> Vec<(String, String)> {
+    fn symlinked_files(&self) -> Vec<(JsString, JsString)> {
         self.prepared.symlinked_files()
     }
 
-    fn symlinked_directories(&self) -> Vec<(String, String)> {
+    fn symlinked_directories(&self) -> Vec<(JsString, JsString)> {
         self.prepared.symlinked_directories()
     }
 
-    fn current_directory(&self) -> &Path {
+    fn current_directory(&self) -> JsStr<'_> {
         self.prepared.current_directory()
     }
 
-    fn common_source_directory(&self) -> &Path {
+    fn common_source_directory(&self) -> JsStr<'_> {
         self.prepared.common_source_directory()
     }
 
-    fn config_file_path(&self) -> Option<&Path> {
+    fn config_file_path(&self) -> Option<JsStr<'_>> {
         self.prepared.config_file_path()
     }
 
@@ -350,24 +371,24 @@ impl EmitHost for CheckedEmitHost<'_, '_> {
 
     fn source_file(&self, id: SourceFileId) -> Option<EmitSource<'_>> {
         let source = self.prepared.prepared.source_file(id)?;
-        let expected_name = source.path().display().to_string_lossy();
+        let expected_name = source.path().display();
         let syntax = self
             .snapshot
             .documents()
             .get(id.index())
-            .filter(|document| document.source().file_name == expected_name)
+            .filter(|document| document.source().file_name.as_js() == expected_name)
             .or_else(|| {
                 self.snapshot
                     .documents()
                     .iter()
-                    .find(|document| document.source().file_name == expected_name)
+                    .find(|document| document.source().file_name.as_js() == expected_name)
             })
             .map(|document| document.source());
         Some(
             EmitSource::new(
                 id,
                 source.path().display(),
-                source.path().canonical().as_path(),
+                source.path().canonical().as_js(),
                 source.may_be_emitted(),
                 source.implied_node_format_for_emit(),
                 syntax,
@@ -381,7 +402,7 @@ impl EmitHost for CheckedEmitHost<'_, '_> {
 fn common_emit_source_directory(
     prepared: &PreparedProgram,
     source_files: &[SourceFileId],
-) -> PathBuf {
+) -> JsString {
     let sources = source_files
         .iter()
         .filter_map(|id| prepared.source_file(*id))
@@ -448,6 +469,10 @@ impl PreparedModuleProvider<'_> {
 }
 
 impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
+    fn program_options_for_module_specifiers(&self) -> Option<&tsc_program::ProgramOptions> {
+        Some(self.prepared.program_options())
+    }
+
     fn resolve_module(
         &self,
         request: AuthoritativeModuleRequest<'_>,
@@ -499,14 +524,7 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
         let ResolutionOutcome::Resolved(module) = resolution.outcome() else {
             let alternate_result = resolution
                 .alternate_result()
-                .map(|path| {
-                    path.display().to_str().map(str::to_owned).ok_or(
-                        AuthoritativeModuleLookupFailure::Unsupported(
-                            UnsupportedAuthoritativeResolution::ResolvedFileIdentity,
-                        ),
-                    )
-                })
-                .transpose()?;
+                .map(|path| path.display().to_owned());
             return Ok(AuthoritativeModuleResolution::NotFound(
                 AuthoritativeNotFoundModule { alternate_result },
             ));
@@ -557,21 +575,14 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                 // must receive the missed face used by both branches.
                 let alternate_result = resolution
                     .alternate_result()
-                    .map(|path| {
-                        path.display().to_str().map(str::to_owned).ok_or(
-                            AuthoritativeModuleLookupFailure::Unsupported(
-                                UnsupportedAuthoritativeResolution::ResolvedFileIdentity,
-                            ),
-                        )
-                    })
-                    .transpose()?;
+                    .map(|path| path.display().to_owned());
                 return Ok(AuthoritativeModuleResolution::NotFound(
                     AuthoritativeNotFoundModule { alternate_result },
                 ));
             }
             let node_modules_depth_applies = module.is_external_library_import()
                 && (module.original_path().is_none()
-                    || path_contains_node_modules(resolved_file.canonical().as_path()));
+                    || path_contains_node_modules(resolved_file.canonical().as_js()));
             // At the first external layer, TypeScript tests `1 > maximum`
             // before allowJs. Negating that exact comparison, rather than
             // testing maximum's sign, also preserves NaN and fractional
@@ -629,23 +640,10 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                     ));
                 }
             };
-            let resolved_file_name = resolved_file
-                .display()
-                .to_str()
-                .ok_or(AuthoritativeModuleLookupFailure::Unsupported(
-                    UnsupportedAuthoritativeResolution::ResolvedFileIdentity,
-                ))?
-                .to_owned();
+            let resolved_file_name = resolved_file.display().to_owned();
             let alternate_result = resolution
                 .alternate_result()
-                .map(|path| {
-                    path.display().to_str().map(str::to_owned).ok_or(
-                        AuthoritativeModuleLookupFailure::Unsupported(
-                            UnsupportedAuthoritativeResolution::ResolvedFileIdentity,
-                        ),
-                    )
-                })
-                .transpose()?;
+                .map(|path| path.display().to_owned());
             if let Some(diagnostic) = resolution_diagnostic {
                 return Ok(AuthoritativeModuleResolution::ResolutionDiagnostic(
                     AuthoritativeResolutionDiagnosticModule {
@@ -683,13 +681,7 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
         Ok(AuthoritativeModuleResolution::Resolved(
             AuthoritativeResolvedModule {
                 target_token: AuthoritativeSourceToken(source.raw()),
-                resolved_file_name: resolved_file
-                    .display()
-                    .to_str()
-                    .ok_or(AuthoritativeModuleLookupFailure::Unsupported(
-                        UnsupportedAuthoritativeResolution::ResolvedFileIdentity,
-                    ))?
-                    .to_owned(),
+                resolved_file_name: resolved_file.display().to_owned(),
                 resolved_using_ts_extension: module.resolved_using_ts_extension(),
                 is_tsx: matches!(
                     module.extension(),
@@ -703,18 +695,11 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                         name: package_id.name().to_owned(),
                         submodule_name: package_id.submodule_name().to_owned(),
                         version: package_id.version().to_owned(),
-                        peer_dependencies: package_id.peer_dependencies().map(str::to_owned),
+                        peer_dependencies: package_id.peer_dependencies().map(JsStr::to_owned),
                     }),
                 alternate_result: resolution
                     .alternate_result()
-                    .map(|path| {
-                        path.display().to_str().map(str::to_owned).ok_or(
-                            AuthoritativeModuleLookupFailure::Unsupported(
-                                UnsupportedAuthoritativeResolution::ResolvedFileIdentity,
-                            ),
-                        )
-                    })
-                    .transpose()?,
+                    .map(|path| path.display().to_owned()),
                 types_package_exists: resolution.types_package_exists(),
                 package_bundles_types: resolution.package_bundles_types(),
             },
@@ -722,22 +707,21 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
     }
 }
 
-fn path_contains_node_modules(path: &Path) -> bool {
-    path.to_str()
-        .is_some_and(|path| path.split('/').any(|component| component == "node_modules"))
+fn path_contains_node_modules(path: JsStr<'_>) -> bool {
+    path.split_ascii(b'/')
+        .any(|component| component == "node_modules")
 }
 
-fn is_declaration_file_name(path: &Path) -> bool {
-    path.to_str().is_some_and(|file_name| {
-        if file_name.ends_with(".d.ts")
-            || file_name.ends_with(".d.cts")
-            || file_name.ends_with(".d.mts")
-        {
-            return true;
-        }
-        let base_name = file_name.rsplit(['/', '\\']).next().unwrap_or(file_name);
-        base_name.ends_with(".ts") && base_name.contains(".d.")
-    })
+fn is_declaration_file_name(file_name: JsStr<'_>) -> bool {
+    if [".d.ts", ".d.cts", ".d.mts"]
+        .iter()
+        .any(|suffix| file_name.ends_with(suffix))
+    {
+        return true;
+    }
+    let base = file_name.split_ascii(b'/').next_back().unwrap_or(file_name);
+    let base = base.split_ascii(b'\\').next_back().unwrap_or(base);
+    base.ends_with(".ts") && base.contains(".d.")
 }
 
 const fn program_resolution_mode(mode: AuthoritativeResolutionMode) -> ResolutionMode {
@@ -954,9 +938,51 @@ impl ProgramSession {
         self,
         sink: &mut dyn OutputSink,
     ) -> Result<EmitCommandOutcome, DriverError> {
-        let current_directory = self.prepared.current_directory().display().to_path_buf();
+        let current_directory = self.prepared.current_directory().display().to_owned();
+        if self.prepared.mode() == PreparedProgramMode::NoEmit {
+            let options = self.prepared.compiler_options().clone();
+            // tsc emitFilesAndReportErrors (_tsc.js:129433-129440): with noEmit
+            // and getEmitDeclarations(options), program.getDeclarationDiagnostics()
+            // joins the report after the semantic pass, only while nothing
+            // beyond the config-file parsing diagnostics was reported. run()
+            // keeps H0's separate no-emitter contract, so the getter uses a
+            // second consuming session over a clone of the prepared program,
+            // opened only when that gate holds.
+            let declaration_program = (options.no_emit == Some(true)
+                && get_emit_declarations(&options))
+            .then(|| self.prepared.clone());
+            let outcome = self.run()?;
+            // Preserve H0's separate typed execution and zero emitter activity.
+            // Only the upstream whole-program empty build-info return value is
+            // added for the command observer; no sink or resolver is invoked.
+            let emit =
+                EmitOutcome::no_emit_without_build_info(&options).map_err(DriverError::Emit)?;
+            let declaration_diagnostics = match declaration_program {
+                Some(prepared)
+                    if outcome.syntactic_diagnostics.is_empty()
+                        && outcome.options_diagnostics.is_empty()
+                        && outcome.global_diagnostics.is_empty()
+                        && outcome.semantic_diagnostics.is_empty() =>
+                {
+                    ProgramSession::new(prepared)
+                        .get_declaration_diagnostics(EmitSelection::WholeProgram)?
+                }
+                _ => DiagnosticList::new(),
+            };
+            let reported = CliEmitSessionOutcome {
+                emit,
+                config_diagnostics: outcome.config_diagnostics,
+                syntactic_diagnostics: outcome.syntactic_diagnostics,
+                options_diagnostics: outcome.options_diagnostics,
+                global_diagnostics: outcome.global_diagnostics,
+                semantic_diagnostics: outcome.semantic_diagnostics,
+                declaration_diagnostics,
+                work_counters: outcome.work_counters,
+            };
+            return Ok(EmitCommandOutcome::new(reported, current_directory.as_js()));
+        }
         self.emit_for_cli(sink)
-            .map(|outcome| EmitCommandOutcome::new(outcome, &current_directory))
+            .map(|outcome| EmitCommandOutcome::new(outcome, current_directory.as_js()))
     }
 
     /// Emit through the harness-only bounded library-prefix scope.
@@ -1012,6 +1038,12 @@ impl ProgramSession {
             failure: RefCell<Option<AuthoritativeModuleFailure>>,
         }
         impl AuthoritativeModuleProvider for ObservedProvider<'_> {
+            fn program_options_for_module_specifiers(
+                &self,
+            ) -> Option<&tsc_program::ProgramOptions> {
+                self.inner.program_options_for_module_specifiers()
+            }
+
             fn resolve_module(
                 &self,
                 request: AuthoritativeModuleRequest<'_>,
@@ -1093,8 +1125,8 @@ impl ProgramSession {
     #[doc(hidden)]
     pub fn print_units_with_source_map_recording_for_harness(
         self,
-        recording_inputs_for: &dyn Fn(&std::path::Path) -> Option<SourceMapRecordingInputs>,
-    ) -> Result<Vec<(std::path::PathBuf, PrintedText)>, DriverError> {
+        recording_inputs_for: &dyn Fn(JsStr<'_>) -> Option<SourceMapRecordingInputs>,
+    ) -> Result<Vec<(JsString, PrintedText)>, DriverError> {
         self.require_mode(PreparedProgramMode::Emit)?;
         let prepared = self.prepared;
         let emit_host = PreparedEmitHost::new(&prepared)?;
@@ -1106,8 +1138,7 @@ impl ProgramSession {
             prepared: &prepared,
             request_plans: RefCell::new(BTreeMap::new()),
         };
-        let mut print_result: Option<Result<Vec<(std::path::PathBuf, PrintedText)>, DriverError>> =
-            None;
+        let mut print_result: Option<Result<Vec<(JsString, PrintedText)>, DriverError>> = None;
         let mut operation =
             |snapshot: &ProgramSnapshot, checker: &CheckerSession<'_>, checked: &CheckResult| {
                 if print_result.is_some() {
@@ -1409,25 +1440,31 @@ impl ProgramSession {
                 .iter()
                 .chain(program_diagnostics.iter())
                 .filter(|diagnostic| {
-                    diagnostic.file_name.as_deref().is_some_and(|file_name| {
-                        prepared_source_owns_diagnostic(&self.prepared, file_name)
-                    })
+                    diagnostic
+                        .file_name
+                        .as_ref()
+                        .map(JsString::as_js)
+                        .is_some_and(|file_name| {
+                            prepared_source_owns_diagnostic(&self.prepared, file_name)
+                        })
                 })
                 .cloned(),
         );
         retain_source_diagnostic_paths(&self.prepared, &mut conformance_diagnostics);
         sort_and_dedupe_diagnostics(&mut conformance_diagnostics);
 
-        let mut route_program_diagnostic =
-            |diagnostic: &Diagnostic| {
-                if diagnostic.file_name.as_deref().is_some_and(|file_name| {
-                    prepared_source_owns_diagnostic(&self.prepared, file_name)
-                }) {
-                    available_semantic.push(diagnostic.clone());
-                } else {
-                    available_options.push(diagnostic.clone());
-                }
-            };
+        let mut route_program_diagnostic = |diagnostic: &Diagnostic| {
+            if diagnostic
+                .file_name
+                .as_ref()
+                .map(JsString::as_js)
+                .is_some_and(|file_name| prepared_source_owns_diagnostic(&self.prepared, file_name))
+            {
+                available_semantic.push(diagnostic.clone());
+            } else {
+                available_options.push(diagnostic.clone());
+            }
+        };
         for diagnostic in preparation.program() {
             route_program_diagnostic(diagnostic);
         }
@@ -1643,14 +1680,14 @@ pub enum DriverError {
         source_file: SourceFileId,
     },
     MissingPreparedSourceIdentity {
-        path: PathBuf,
+        path: JsString,
     },
     NonUnicodeDisplayPath {
         source_file: Option<SourceFileId>,
         path: PathBuf,
     },
     IncompleteCheck {
-        file_name: String,
+        file_name: JsString,
         start: u32,
         length: u32,
         reason: String,
@@ -1684,7 +1721,7 @@ impl fmt::Display for DriverError {
             Self::MissingPreparedSourceIdentity { path } => write!(
                 formatter,
                 "project prepared program for no-emit execution: source {} has no stable SourceFileId",
-                path.display()
+                path.to_string_lossy()
             ),
             Self::NonUnicodeDisplayPath { path, .. } => write!(
                 formatter,
@@ -1699,7 +1736,7 @@ impl fmt::Display for DriverError {
                 additional_partial_checks,
             } => write!(
                 formatter,
-                "no-emit check was incomplete at {file_name}:{start}+{length}: {reason} ({additional_partial_checks} additional partial checks)",
+                "no-emit check was incomplete at {}:{start}+{length}: {reason} ({additional_partial_checks} additional partial checks)", file_name.to_string_lossy(),
             ),
             Self::MissingResolution(error) => error.fmt(formatter),
             Self::AuthoritativeResolution(error) => error.fmt(formatter),
@@ -1730,7 +1767,7 @@ struct ProjectedCheckerInputs {
     files: Vec<InputFile>,
     lib_metadata: Vec<AuthoritativeSourceMetadata>,
     file_metadata: Vec<AuthoritativeSourceMetadata>,
-    current_directory: String,
+    current_directory: JsString,
 }
 
 fn project_checker_inputs(
@@ -1762,7 +1799,7 @@ fn project_checker_inputs(
         let source_file = prepared
             .source_id(source.path().canonical())
             .ok_or_else(|| DriverError::MissingPreparedSourceIdentity {
-                path: source.path().display().to_path_buf(),
+                path: source.path().display().to_owned(),
             })?;
         let (input, metadata) = project_source(source, source_file)?;
         files.push(input);
@@ -1771,13 +1808,7 @@ fn project_checker_inputs(
 
     for package in prepared.packages() {
         let display_path = package.package_json().display();
-        let name = display_path
-            .to_str()
-            .ok_or_else(|| DriverError::NonUnicodeDisplayPath {
-                source_file: None,
-                path: display_path.to_path_buf(),
-            })?
-            .to_owned();
+        let name = display_path.to_owned();
         files.push(InputFile::host_only_from_snapshot(
             name,
             Arc::clone(package.snapshot()),
@@ -1785,13 +1816,7 @@ fn project_checker_inputs(
     }
 
     let current_directory_path = prepared.current_directory().display();
-    let current_directory = current_directory_path
-        .to_str()
-        .ok_or_else(|| DriverError::NonUnicodeDisplayPath {
-            source_file: None,
-            path: current_directory_path.to_path_buf(),
-        })?
-        .to_owned();
+    let current_directory = current_directory_path.to_owned();
     Ok(ProjectedCheckerInputs {
         libs,
         files,
@@ -1806,13 +1831,7 @@ fn project_source(
     source_file: SourceFileId,
 ) -> Result<(InputFile, AuthoritativeSourceMetadata), DriverError> {
     let display_path = source.path().display();
-    let name = display_path
-        .to_str()
-        .ok_or_else(|| DriverError::NonUnicodeDisplayPath {
-            source_file: Some(source_file),
-            path: display_path.to_path_buf(),
-        })?
-        .to_owned();
+    let name = display_path.to_owned();
     let metadata = AuthoritativeSourceMetadata {
         token: AuthoritativeSourceToken(source_file.raw()),
         file_name: name.clone(),
@@ -1849,21 +1868,16 @@ fn retain_source_diagnostic_paths(prepared: &PreparedProgram, diagnostics: &mut 
     let paths = prepared
         .source_files()
         .iter()
-        .filter_map(|source| {
-            Some((
-                source.path().display().to_str()?,
-                source.path().canonical().as_path().to_str()?,
-            ))
-        })
+        .map(|source| (source.path().display(), source.path().canonical().as_js()))
         .collect::<std::collections::BTreeMap<_, _>>();
     for diagnostic in diagnostics {
         if diagnostic.file_path.is_some() {
             continue;
         }
-        let Some(name) = diagnostic.file_name.as_deref() else {
+        let Some(name) = diagnostic.file_name.as_ref().map(JsString::as_js) else {
             continue;
         };
-        if let Some(&path) = paths.get(name).filter(|&&path| path != name) {
+        if let Some(&path) = paths.get(&name).filter(|&&path| path != name) {
             diagnostic.file_path = Some(path.to_owned());
         }
     }
@@ -1915,7 +1929,8 @@ fn emit_session_diagnostics(
     {
         if diagnostic
             .file_name
-            .as_deref()
+            .as_ref()
+            .map(JsString::as_js)
             .is_some_and(|file_name| prepared_source_owns_diagnostic(prepared, file_name))
         {
             semantic.push(diagnostic.clone());
@@ -2038,14 +2053,16 @@ fn programmatic_option_diagnostics(prepared: &PreparedProgram) -> DiagnosticList
         (
             options
                 .charset
-                .as_deref()
+                .as_ref()
+                .map(JsString::as_js)
                 .is_some_and(|value| !value.is_empty()),
             "charset",
         ),
         (
             options
                 .out
-                .as_deref()
+                .as_ref()
+                .map(JsString::as_js)
                 .is_some_and(|value| !value.is_empty()),
             "out",
         ),
@@ -2074,12 +2091,12 @@ fn programmatic_option_diagnostics(prepared: &PreparedProgram) -> DiagnosticList
         );
     }
 
-    if let Some(value) = options.ignore_deprecations.as_deref() {
+    if let Some(value) = options.ignore_deprecations.as_ref().map(JsString::as_js) {
         // tsc getIgnoreDeprecationsVersion (_tsc.js:125052-125061) accepts
         // exactly "5.0" and "6.0"; any other value reports 5103 once
         // (reportInvalidIgnoreDeprecations, _tsc.js:122639) while the
         // deprecation rows below still fire.
-        if !matches!(value, "5.0" | "6.0") {
+        if !matches!(value.as_str(), Some("5.0" | "6.0")) {
             push_programmatic_option_diagnostic(
                 prepared,
                 &mut diagnostics,
@@ -2090,7 +2107,7 @@ fn programmatic_option_diagnostics(prepared: &PreparedProgram) -> DiagnosticList
             );
         }
     }
-    if options.ignore_deprecations.as_deref() != Some("6.0") {
+    if options.ignore_deprecations.as_ref().map(JsString::as_js) != Some(JsStr::from("6.0")) {
         if options.target == Some(1) {
             push_programmatic_option_deprecation_value(
                 prepared,
@@ -2212,7 +2229,7 @@ fn push_programmatic_option_diagnostic(
         .external_config_option_diagnostics()
         && names
             .iter()
-            .any(|name| !config_file.compiler_option_name_locations(name).is_empty())
+            .any(|name| !config_file.compiler_option_name_locations(*name).is_empty())
     {
         return;
     }
@@ -2221,10 +2238,10 @@ fn push_programmatic_option_diagnostic(
         .iter()
         .flat_map(|name| match location {
             ProgrammaticOptionDiagnosticLocation::Name => {
-                config_file.compiler_option_name_locations(name)
+                config_file.compiler_option_name_locations(*name)
             }
             ProgrammaticOptionDiagnosticLocation::Value => {
-                config_file.compiler_option_value_locations(name)
+                config_file.compiler_option_value_locations(*name)
             }
         })
         .copied()
@@ -2240,7 +2257,7 @@ fn push_programmatic_option_diagnostic(
 
     let file_name = config_file.diagnostic_file_name().to_owned();
     diagnostics.extend(locations.into_iter().map(|location| {
-        Diagnostic::new(
+        Diagnostic::new_js(
             Some(file_name.clone()),
             Some(location.start()),
             Some(location.length()),
@@ -2362,23 +2379,34 @@ fn check_work_counters(checked: &CheckResult) -> NoEmitWorkCounters {
     }
 }
 
-fn prepared_source_owns_diagnostic(prepared: &PreparedProgram, file_name: &str) -> bool {
-    let names_equal = |candidate: &std::path::Path| {
-        candidate.to_str().is_some_and(|candidate| {
-            candidate == file_name || candidate.replace('\\', "/") == file_name.replace('\\', "/")
-        })
+fn prepared_source_owns_diagnostic(prepared: &PreparedProgram, file_name: JsStr<'_>) -> bool {
+    let normalized = normalize_source_slashes(file_name);
+    let names_equal = |candidate: JsStr<'_>| {
+        candidate == file_name || normalize_source_slashes(candidate) == normalized
     };
     prepared.source_files().iter().any(|source| {
         names_equal(source.path().display())
-            || names_equal(source.path().canonical().as_path())
+            || names_equal(source.path().canonical().as_js())
             || source
                 .alternate_display_paths()
                 .iter()
-                .any(|path| names_equal(path))
+                .any(|path| names_equal(path.as_js()))
             || source.real_path().is_some_and(|path| {
-                names_equal(path.display()) || names_equal(path.canonical().as_path())
+                names_equal(path.display()) || names_equal(path.canonical().as_js())
             })
     })
+}
+
+fn normalize_source_slashes(path: JsStr<'_>) -> JsString {
+    let mut result = JsString::with_capacity(path.as_bytes().len());
+    for unit in path.code_units() {
+        result.push_code_unit(if unit == b'\\' as u16 {
+            b'/' as u16
+        } else {
+            unit
+        });
+    }
+    result
 }
 
 #[cfg(test)]

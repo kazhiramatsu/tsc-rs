@@ -173,7 +173,15 @@ fn bare_generic_alias_reference_reports_2314_with_plain_display() {
             let rendered: Vec<(u32, String)> = state
                 .diagnostics
                 .iter()
-                .map(|d| (d.code(), d.message_text().to_owned()))
+                .map(|d| {
+                    (
+                        d.code(),
+                        d.message_text()
+                            .as_str()
+                            .expect("scalar diagnostic observation")
+                            .to_owned(),
+                    )
+                })
                 .collect();
             assert_eq!(
                 rendered,

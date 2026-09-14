@@ -9,6 +9,7 @@ pub mod kind;
 pub mod nodes;
 pub mod observable_fields;
 mod parser;
+mod recovery;
 pub mod regex;
 mod regex_unicode;
 mod relocate;
@@ -17,7 +18,7 @@ pub mod tokens;
 
 use std::sync::Arc;
 
-use tsc_diagnostics::{DiagnosticList, DocumentVersion, PositionIndex, TextSnapshot};
+use tsc_diagnostics::{DiagnosticList, DocumentVersion, JsString, PositionIndex, TextSnapshot};
 use tsc_types::{
     IdentityAllocationPolicy, IdentityDomain, IdentityError, IdentityLease, IdentitySpace,
     ScriptTarget,
@@ -40,14 +41,15 @@ pub use nodes::{
 };
 pub use observable_fields::{for_each_observable_field, ObservableField};
 pub use parser::{
-    is_entity_name_text, is_identifier_text, is_identifier_text_for_target, JSDocParsingMode,
-    ParseOptions,
+    is_entity_name_js_text, is_entity_name_text, is_identifier_text, is_identifier_text_for_target,
+    parse_entity_name_components, JSDocParsingMode, ParseOptions,
 };
+pub use recovery::{ParseDiagnosticOrigin, ParseRecovery, ParseRecoveryEvent, ParseRecoveryKind};
 pub use scanner::{
     is_js_whitespace, is_line_break, is_whitespace_like, js_trim_start, scan_big_int_string,
-    scan_byte_tokens, scan_token_kinds, scan_tokens, skip_trivia, template_text_utf16,
-    BigIntStringScan, ByteTokenIter, ByteTokenRecord, CommentDirective, CommentDirectiveKind,
-    LanguageVariant, TokenRecord,
+    scan_byte_tokens, scan_token_kinds, scan_tokens, skip_trivia, string_literal_text_utf16,
+    template_text_utf16, BigIntStringScan, ByteTokenIter, ByteTokenRecord, CommentDirective,
+    CommentDirectiveKind, LanguageVariant, TokenRecord,
 };
 
 /// Return the keyword kind represented by an identifier's escaped text.
@@ -79,7 +81,7 @@ pub enum TypeReferenceDirectiveResolutionMode {
 /// only the exact `preserve="true"` pragma value.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FileReference {
-    pub file_name: String,
+    pub file_name: JsString,
     pub pos: u32,
     pub end: u32,
     pub preserve: bool,
@@ -91,7 +93,7 @@ pub struct FileReference {
 /// value, matching the vendored `FileReference` contract and TS2688 span.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TypeReferenceDirective {
-    pub file_name: String,
+    pub file_name: JsString,
     pub pos: u32,
     pub end: u32,
     pub resolution_mode: Option<TypeReferenceDirectiveResolutionMode>,
@@ -104,13 +106,13 @@ pub struct TypeReferenceDirective {
 /// TypeScript ignores the pragma when its required `path` attribute is absent.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AmdDependency {
-    pub path: String,
+    pub path: JsString,
     pub name: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SourceFile {
-    pub file_name: String,
+    pub file_name: JsString,
     snapshot: Arc<TextSnapshot>,
     /// tsc SourceFile.languageVersion: the effective target used by the
     /// parser and scanner for this file.
@@ -123,6 +125,7 @@ pub struct SourceFile {
     pub root: NodeId,
     pub external_module_indicator: Option<NodeId>,
     pub parse_diagnostics: DiagnosticList,
+    parse_recovery: ParseRecovery,
     /// tsc SourceFile.jsDocDiagnostics: diagnostics produced while
     /// parsing attached JSDoc. They are merged into bind/check diagnostics
     /// only for checked JavaScript files, never into syntactic diagnostics.
@@ -158,6 +161,30 @@ pub struct SourceFile {
 }
 
 impl SourceFile {
+    /// Committed syntactic recovery facts, including suppressed diagnostics.
+    pub fn parse_recovery(&self) -> &ParseRecovery {
+        &self.parse_recovery
+    }
+
+    /// True for a clean parse or recovery confined to string/template tokens.
+    /// Structural events and scanner errors in trivia never pass this boundary.
+    pub fn has_only_literal_recovery(&self) -> bool {
+        self.parse_recovery
+            .is_literal_only(self.parse_diagnostics.len())
+    }
+
+    /// Harness only: drop every retained parse diagnostic together with the
+    /// committed recovery record, so a contract test can drive the transform
+    /// pipeline over a deliberately erroneous tree that upstream still emits.
+    /// Production never clears either field; the emit preflight reads the
+    /// recovery record, and clearing the diagnostic list alone is exactly the
+    /// mismatch it refuses. A tree emptied here is the caller's own claim.
+    #[doc(hidden)]
+    pub fn discard_parse_recovery_for_harness(&mut self) {
+        self.parse_diagnostics.clear();
+        self.parse_recovery = ParseRecovery::default();
+    }
+
     pub fn snapshot(&self) -> &Arc<TextSnapshot> {
         &self.snapshot
     }
@@ -266,7 +293,7 @@ fn syntax_leases(
 }
 
 pub fn parse_source_file(
-    file_name: impl Into<String>,
+    file_name: impl Into<JsString>,
     text: impl Into<String>,
     options: ParseOptions,
     cursor: Option<&SyntaxCursor>,
@@ -276,7 +303,7 @@ pub fn parse_source_file(
 }
 
 pub fn parse_source_file_from_snapshot(
-    file_name: impl Into<String>,
+    file_name: impl Into<JsString>,
     snapshot: Arc<TextSnapshot>,
     options: ParseOptions,
     cursor: Option<&SyntaxCursor>,
@@ -288,7 +315,7 @@ pub fn parse_source_file_from_snapshot(
 /// directly at a sealed tail; reclaiming domains relocate the completed local
 /// tree after reserving exact counts.
 pub fn parse_source_file_from_snapshot_in_identity_domain(
-    file_name: impl Into<String>,
+    file_name: impl Into<JsString>,
     snapshot: Arc<TextSnapshot>,
     mut options: ParseOptions,
     cursor: Option<&SyntaxCursor>,
@@ -323,20 +350,20 @@ pub fn parse_source_file_from_snapshot_in_identity_domain(
 }
 
 /// tsc parseJsonText: .json inputs parse as a single JSON value expression.
-pub fn parse_json_text(file_name: impl Into<String>, text: impl Into<String>) -> SourceFile {
+pub fn parse_json_text(file_name: impl Into<JsString>, text: impl Into<String>) -> SourceFile {
     let snapshot = TextSnapshot::new(text.into(), DocumentVersion::default());
     parser::parse_json_text_from_snapshot(file_name.into(), snapshot)
 }
 
 pub fn parse_json_text_from_snapshot(
-    file_name: impl Into<String>,
+    file_name: impl Into<JsString>,
     snapshot: Arc<TextSnapshot>,
 ) -> SourceFile {
     parser::parse_json_text_from_snapshot(file_name.into(), snapshot)
 }
 
 pub fn parse_json_text_from_snapshot_in_identity_domain(
-    file_name: impl Into<String>,
+    file_name: impl Into<JsString>,
     snapshot: Arc<TextSnapshot>,
     domain: &IdentityDomain,
 ) -> Result<SourceFile, IdentityError> {
@@ -369,7 +396,7 @@ pub fn parse_json_text_from_snapshot_in_identity_domain(
 
 /// `parse_json_text` with explicit arena bases for a multi-file program.
 pub fn parse_json_text_with_bases(
-    file_name: impl Into<String>,
+    file_name: impl Into<JsString>,
     text: impl Into<String>,
     node_id_base: u32,
     node_array_id_base: u32,
@@ -384,7 +411,7 @@ pub fn parse_json_text_with_bases(
 }
 
 pub fn parse_json_text_from_snapshot_with_bases(
-    file_name: impl Into<String>,
+    file_name: impl Into<JsString>,
     snapshot: Arc<TextSnapshot>,
     node_id_base: u32,
     node_array_id_base: u32,

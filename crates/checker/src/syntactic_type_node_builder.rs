@@ -397,7 +397,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
     fn create_string_literal(
         &mut self,
         source: TransformSourceId,
-        text: impl Into<String>,
+        text: impl Into<tsc_types::JsString>,
     ) -> Result<TransformNode, EmitResolverError> {
         self.create_node(
             source,
@@ -1229,12 +1229,14 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
                     };
                     if self.kind(literal)? == SyntaxKind::StringLiteral {
                         let text = self.literal_text(literal)?.to_owned();
-                        if is_identifier_text_for_target(&text, self.builder.script_target) {
+                        if let Some(text) = text.as_str().filter(|text| {
+                            is_identifier_text_for_target(text, self.builder.script_target)
+                        }) {
                             return self.create_identifier(source, text).map(Some);
                         }
                     }
                     if self.kind(literal)? == SyntaxKind::NumericLiteral
-                        && !self.literal_text(literal)?.starts_with('-')
+                        && !self.literal_text(literal)?.starts_with("-")
                     {
                         return Ok(Some(literal));
                     }
@@ -3249,28 +3251,9 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
             return self.jsdoc_type_from_tag(TransformNode::new(node.source(), tag));
         }
         if self.kind(node)? == SyntaxKind::Parameter {
-            let name_text = self
-                .name_of(node)?
-                .filter(|name| self.kind(*name).ok() == Some(SyntaxKind::Identifier))
-                .and_then(|name| self.identifier_text(name).ok())
-                .map(str::to_owned);
-            if let Some(parent) = self.parent(node) {
-                for tag in self.direct_jsdoc_tags(parent)? {
-                    let NodeData::JSDocParameterTag(data) = self.node(tag)?.data.clone() else {
-                        continue;
-                    };
-                    let tag_name = self
-                        .child(tag.source(), data.name)
-                        .map(|name| self.rightmost_name(name))
-                        .transpose()?
-                        .filter(|name| self.kind(*name).ok() == Some(SyntaxKind::Identifier))
-                        .and_then(|name| self.identifier_text(name).ok())
-                        .map(str::to_owned);
-                    if name_text.is_some() && name_text == tag_name {
-                        if let Some(r#type) = self.jsdoc_type_from_tag(tag)? {
-                            return Ok(Some(r#type));
-                        }
-                    }
+            for tag in node_util::get_jsdoc_parameter_tags(source, node.node()) {
+                if node_util::jsdoc_type_expression(source, tag).is_some() {
+                    return self.jsdoc_type_from_tag(TransformNode::new(node.source(), tag));
                 }
             }
         }
@@ -3731,12 +3714,12 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         }
     }
 
-    fn literal_text(&self, node: TransformNode) -> Result<&str, EmitResolverError> {
+    fn literal_text(&self, node: TransformNode) -> Result<tsc_types::JsStr<'_>, EmitResolverError> {
         match &self.node(node)?.data {
-            NodeData::StringLiteral(data) => Ok(&data.text),
-            NodeData::NumericLiteral(data) => Ok(&data.text),
-            NodeData::BigIntLiteral(data) => Ok(&data.text),
-            NodeData::NoSubstitutionTemplateLiteral(data) => Ok(&data.text),
+            NodeData::StringLiteral(data) => Ok((&data.text).into()),
+            NodeData::NumericLiteral(data) => Ok((&data.text).into()),
+            NodeData::BigIntLiteral(data) => Ok((&data.text).into()),
+            NodeData::NoSubstitutionTemplateLiteral(data) => Ok((&data.text).into()),
             _ => Err(self.required_child_error(self.kind(node)?, "text")),
         }
     }

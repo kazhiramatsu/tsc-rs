@@ -4,7 +4,6 @@ use tsc_host::to_file_name_lower_case;
 use tsc_types::CompilerOptions;
 
 use crate::config_options::{typescript_6_0_3_libraries, typescript_6_0_3_library_value};
-use crate::module_resolution::normalized_root_parts;
 use crate::path::ProgramPath;
 
 /// Translate one catalog basename into the package request used by
@@ -78,7 +77,13 @@ impl LibraryCatalog {
     }
 
     /// Resolve the exact spelling admitted by `/// <reference lib="...">`.
-    pub fn reference_file_name(&self, value: &str) -> Option<&'static str> {
+    pub fn reference_file_name<'a>(
+        &self,
+        value: impl Into<tsc_diagnostics::JsStr<'a>>,
+    ) -> Option<&'static str> {
+        // Every catalog name is scalar; an unpaired unit cannot be equal to one.
+        let value = value.into();
+        let value = value.as_str()?;
         let normalized = to_file_name_lower_case(value);
         typescript_6_0_3_library_value(&normalized)
     }
@@ -142,29 +147,35 @@ impl LibraryCatalog {
         source: &ProgramPath,
         default_library_directory: &ProgramPath,
     ) -> usize {
-        let source = source.display().to_str().expect("Unicode source path");
-        let directory = default_library_directory
-            .display()
-            .to_str()
-            .expect("Unicode library directory");
+        let source = source.display();
+        let directory = default_library_directory.display();
         let (source_root, source_tail) =
-            normalized_root_parts(source).expect("normalized source path is rooted");
+            crate::js_path::root_parts(source).expect("normalized source path is rooted");
         let (directory_root, directory_tail) =
-            normalized_root_parts(directory).expect("normalized library directory is rooted");
+            crate::js_path::root_parts(directory).expect("normalized library directory is rooted");
         // containsPath(..., false) still compares the root without case;
         // subsequent components use the display spelling, not the host key.
-        let same_root = source_root == directory_root
-            || source_root.to_uppercase() == directory_root.to_uppercase();
-        let mut source_components = source_tail.split('/').filter(|part| !part.is_empty());
+        let same_root = crate::js_path::eq_ignore_case(source_root, directory_root);
+        let mut source_components = source_tail
+            .split_ascii(b'/')
+            .filter(|part| !part.is_empty());
         let contained = same_root
             && directory_tail
-                .split('/')
+                .split_ascii(b'/')
                 .filter(|part| !part.is_empty())
                 .all(|part| source_components.next() == Some(part));
         if !contained {
             return self.logical_entry_count() + 2;
         }
-        self.file_name_priority(source.rsplit('/').next().expect("source basename"))
+        // Every catalog basename is scalar; a non-scalar basename cannot be
+        // an exact member. The directory identity above remains unrestricted.
+        source
+            .split_ascii(b'/')
+            .next_back()
+            .and_then(|name| name.as_str())
+            .map_or(self.logical_entry_count() + 2, |name| {
+                self.file_name_priority(name)
+            })
     }
 
     /// Rank a basename after confirming it lies inside the library directory.
@@ -180,13 +191,22 @@ impl LibraryCatalog {
             .map_or(typescript_6_0_3_libraries().len() + 2, |index| index + 1)
     }
 
-    pub(crate) fn spelling_suggestion(&self, value: &str) -> Option<&'static str> {
-        let normalized = to_file_name_lower_case(value);
+    pub(crate) fn spelling_suggestion<'a>(
+        &self,
+        value: impl Into<tsc_diagnostics::JsStr<'a>>,
+    ) -> Option<&'static str> {
+        let normalized = tsc_host::to_file_name_lower_case_js(value.into());
         let unqualified = normalized
+            .as_js()
             .strip_prefix("lib.")
-            .unwrap_or(&normalized)
+            .unwrap_or(normalized.as_js())
             .strip_suffix(".d.ts")
-            .unwrap_or_else(|| normalized.strip_prefix("lib.").unwrap_or(&normalized));
+            .unwrap_or_else(|| {
+                normalized
+                    .as_js()
+                    .strip_prefix("lib.")
+                    .unwrap_or(normalized.as_js())
+            });
         spelling_suggestion(
             unqualified,
             typescript_6_0_3_libraries()
@@ -200,19 +220,22 @@ impl LibraryCatalog {
 /// tsc-hash: 37b9cd417fd83af45f9fa8584ae1a3aa05e3f7ac3764438bb0627a7d61591ab6
 /// tsc-span: _tsc.js:951-975
 fn spelling_suggestion(
-    name: &str,
+    name: tsc_diagnostics::JsStr<'_>,
     candidates: impl IntoIterator<Item = &'static str>,
 ) -> Option<&'static str> {
     let name_text = name;
-    let name_units = name_text.encode_utf16().collect::<Vec<_>>();
+    let name_units = name_text.to_utf16();
     let maximum_length_difference = 2usize.max(name_units.len() * 34 / 100);
     let mut best_distance = (name_units.len() * 40 / 100 + 1) as f64;
     let mut best_candidate = None;
     for candidate in candidates {
         let candidate_units = candidate.encode_utf16().collect::<Vec<_>>();
         if name_units.len().abs_diff(candidate_units.len()) > maximum_length_difference
-            || candidate == name_text
-            || (candidate_units.len() < 3 && candidate.to_lowercase() != name_text.to_lowercase())
+            || name_text == candidate
+            || (candidate_units.len() < 3
+                && name_text
+                    .as_str()
+                    .is_none_or(|name| candidate.to_lowercase() != name.to_lowercase()))
         {
             continue;
         }

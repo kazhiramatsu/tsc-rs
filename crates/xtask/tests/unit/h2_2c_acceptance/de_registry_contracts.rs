@@ -145,7 +145,7 @@ fn populated_registry_identity_and_error_fingerprint_reject_mutations() {
     assert_eq!(observed.current_option, input.current_option);
 
     let mut changed = input.options.clone();
-    changed.out_file = Some(format!("{}-changed", changed.out_file.as_deref().unwrap()));
+    changed.out_file.as_mut().unwrap().push_str("-changed");
     let error = h2_6c_refusal_migrations::observe(
         id,
         &changed,

@@ -122,3 +122,16 @@ fn inline_no_lib_is_consumed_before_the_closed_checker_projection() {
     assert!(execute_wire_program(&program, |phase| phases.push(phase)).is_err());
     assert!(phases.is_empty());
 }
+
+#[test]
+fn scalar_wire_boundary_distinguishes_replacement_text_from_unpaired_units() {
+    use tsc_diagnostics::JsString;
+    for units in [vec![0xd800], vec![0xd801], vec![0xdc00]] {
+        let text = JsString::from_code_units(&units);
+        assert!(scalar_wire_text(text.as_js(), "diagnostic").is_err());
+    }
+    for text in ["�", "\\uD800", "𐀀"] {
+        let value = JsString::from(text);
+        assert_eq!(scalar_wire_text(value.as_js(), "diagnostic").unwrap(), text);
+    }
+}

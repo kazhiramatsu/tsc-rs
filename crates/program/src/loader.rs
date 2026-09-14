@@ -1,11 +1,12 @@
-use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use crate::js_string_ops::types_package_name;
+use std::collections::{BTreeMap, BTreeSet, HashSet, VecDeque};
 use std::error::Error;
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use tsc_diagnostics::{gen, Diagnostic, MessageChain, RelatedInfo};
-use tsc_host::{to_file_name_lower_case, CompilerHost, HostError};
+use tsc_diagnostics::{gen, Diagnostic, JsStr, JsString, MessageChain, RelatedInfo};
+use tsc_host::{to_file_name_lower_case_js, CompilerHost, HostError};
 use tsc_types::CompilerOptions;
 
 use crate::json::{json_object_get, parse_json_object};
@@ -15,8 +16,7 @@ use crate::module_requests::{
     PlannedPathReference, PlannedTypeReferenceDirective,
 };
 use crate::module_resolution::{
-    directory_name, make_program_path, normalize_absolute_path, HostModuleResolution,
-    HostResolvedTypeReferenceDirective, ModuleResolver,
+    make_program_path, HostModuleResolution, HostResolvedTypeReferenceDirective, ModuleResolver,
 };
 use crate::path::{CanonicalPath, ProgramPath};
 use crate::prepared::{
@@ -132,6 +132,7 @@ impl ProgramLoadLimit {
 pub struct ProgramLoadLimitExceeded {
     limit: ProgramLoadLimit,
     path: Option<PathBuf>,
+    js_path: Option<JsString>,
     maximum: usize,
     observed: usize,
 }
@@ -143,6 +144,10 @@ impl ProgramLoadLimitExceeded {
 
     pub fn path(&self) -> Option<&Path> {
         self.path.as_deref()
+    }
+
+    pub fn js_path(&self) -> Option<JsStr<'_>> {
+        self.js_path.as_ref().map(JsString::as_js)
     }
 
     pub const fn maximum(&self) -> usize {
@@ -212,17 +217,20 @@ pub enum ProgramLoadError {
     InvalidInput {
         operation: ProgramLoadOperation,
         path: Option<PathBuf>,
+        js_path: Option<JsString>,
         detail: String,
     },
     Unsupported {
         operation: ProgramLoadOperation,
         path: Option<PathBuf>,
+        js_path: Option<JsString>,
         feature: String,
         detail: String,
     },
     InvalidData {
         operation: ProgramLoadOperation,
         path: Option<PathBuf>,
+        js_path: Option<JsString>,
         detail: String,
     },
     LimitExceeded {
@@ -232,17 +240,20 @@ pub enum ProgramLoadError {
     Host {
         operation: ProgramLoadOperation,
         path: Option<PathBuf>,
+        js_path: Option<JsString>,
         source: HostError,
     },
     Decode {
         operation: ProgramLoadOperation,
         path: PathBuf,
+        js_path: Option<JsString>,
         source: HostTextDecodeError,
     },
     Resolution {
         operation: ProgramLoadOperation,
         path: Option<PathBuf>,
-        specifier: Option<String>,
+        js_path: Option<JsString>,
+        specifier: Option<JsString>,
         source: ResolutionError,
     },
     Preparation {
@@ -305,6 +316,10 @@ impl ProgramLoadError {
     ) -> Self {
         Self::InvalidInput {
             operation,
+            js_path: path
+                .as_ref()
+                .and_then(|path| path.to_str())
+                .map(JsString::from),
             path,
             detail: detail.into(),
         }
@@ -318,6 +333,10 @@ impl ProgramLoadError {
     ) -> Self {
         Self::Unsupported {
             operation,
+            js_path: path
+                .as_ref()
+                .and_then(|path| path.to_str())
+                .map(JsString::from),
             path,
             feature: feature.into(),
             detail: detail.into(),
@@ -331,6 +350,10 @@ impl ProgramLoadError {
     ) -> Self {
         Self::InvalidData {
             operation,
+            js_path: path
+                .as_ref()
+                .and_then(|path| path.to_str())
+                .map(JsString::from),
             path,
             detail: detail.into(),
         }
@@ -339,6 +362,10 @@ impl ProgramLoadError {
     fn host(operation: ProgramLoadOperation, path: Option<PathBuf>, source: HostError) -> Self {
         Self::Host {
             operation,
+            js_path: path
+                .as_ref()
+                .and_then(|path| path.to_str())
+                .map(JsString::from),
             path,
             source,
         }
@@ -347,13 +374,118 @@ impl ProgramLoadError {
     fn resolution(
         operation: ProgramLoadOperation,
         path: Option<PathBuf>,
-        specifier: Option<String>,
+        specifier: Option<JsString>,
         source: ResolutionError,
     ) -> Self {
         Self::Resolution {
             operation,
+            js_path: path
+                .as_ref()
+                .and_then(|path| path.to_str())
+                .map(JsString::from),
             path,
             specifier,
+            source,
+        }
+    }
+
+    pub fn js_path(&self) -> Option<JsStr<'_>> {
+        match self {
+            Self::InvalidInput { js_path, .. }
+            | Self::Unsupported { js_path, .. }
+            | Self::InvalidData { js_path, .. }
+            | Self::Host { js_path, .. }
+            | Self::Resolution { js_path, .. }
+            | Self::Decode { js_path, .. } => js_path.as_ref().map(JsString::as_js),
+            Self::LimitExceeded { exceeded, .. } => exceeded.js_path(),
+            Self::Preparation { source, .. } => source.js_path(),
+        }
+    }
+
+    fn with_js_path(mut self, value: Option<JsString>) -> Self {
+        match &mut self {
+            Self::InvalidInput { js_path, .. }
+            | Self::Unsupported { js_path, .. }
+            | Self::InvalidData { js_path, .. }
+            | Self::Host { js_path, .. }
+            | Self::Resolution { js_path, .. }
+            | Self::Decode { js_path, .. } => *js_path = value,
+            Self::LimitExceeded { .. } | Self::Preparation { .. } => {
+                unreachable!("this error owns its path in its source")
+            }
+        }
+        self
+    }
+
+    fn invalid_input_js(
+        operation: ProgramLoadOperation,
+        path: Option<JsString>,
+        detail: impl Into<String>,
+    ) -> Self {
+        Self::invalid_input(operation, error_display_path(path.as_ref()), detail).with_js_path(path)
+    }
+
+    pub(crate) fn unsupported_js(
+        operation: ProgramLoadOperation,
+        path: Option<JsString>,
+        feature: impl Into<String>,
+        detail: impl Into<String>,
+    ) -> Self {
+        Self::unsupported(
+            operation,
+            error_display_path(path.as_ref()),
+            feature,
+            detail,
+        )
+        .with_js_path(path)
+    }
+
+    fn invalid_data_js(
+        operation: ProgramLoadOperation,
+        path: Option<JsString>,
+        detail: impl Into<String>,
+    ) -> Self {
+        Self::invalid_data(operation, error_display_path(path.as_ref()), detail).with_js_path(path)
+    }
+
+    fn host_js(operation: ProgramLoadOperation, path: Option<JsString>, source: HostError) -> Self {
+        Self::host(operation, error_display_path(path.as_ref()), source).with_js_path(path)
+    }
+
+    fn resolution_js(
+        operation: ProgramLoadOperation,
+        path: Option<JsString>,
+        specifier: Option<JsString>,
+        source: ResolutionError,
+    ) -> Self {
+        Self::resolution(
+            operation,
+            error_display_path(path.as_ref()),
+            specifier,
+            source,
+        )
+        .with_js_path(path)
+    }
+
+    fn resolution_with_source_path(
+        operation: ProgramLoadOperation,
+        specifier: Option<JsString>,
+        source: ResolutionError,
+    ) -> Self {
+        let js_path = source.js_path().map(JsStr::to_owned);
+        let native_path = source.path().map(Path::to_owned);
+        Self::resolution(operation, native_path, specifier, source).with_js_path(js_path)
+    }
+
+    fn decode_js(
+        operation: ProgramLoadOperation,
+        path: JsString,
+        source: HostTextDecodeError,
+    ) -> Self {
+        Self::Decode {
+            operation,
+            path: error_display_path(Some(&path)).expect("decode has a source"),
+            js_path: Some(path),
             source,
         }
     }
@@ -361,6 +493,12 @@ impl ProgramLoadError {
     fn preparation(operation: ProgramLoadOperation, source: PreparationError) -> Self {
         Self::Preparation { operation, source }
     }
+}
+
+/// Only the infrastructure error's native display context uses this encoding.
+/// JS path identity is retained independently and never reconstructed from it.
+fn error_display_path(path: Option<&JsString>) -> Option<PathBuf> {
+    path.map(|path| PathBuf::from(path.to_string_lossy().into_owned()))
 }
 
 impl fmt::Display for ProgramLoadError {
@@ -439,7 +577,7 @@ pub fn load_no_lib_program(
     load_program_worker(
         PreparedProgramMode::NoEmit,
         host,
-        root_names,
+        RootNames::Native(root_names),
         compiler_options,
         program_options,
         None,
@@ -472,7 +610,7 @@ pub fn load_program(
     load_program_worker(
         PreparedProgramMode::NoEmit,
         host,
-        root_names,
+        RootNames::Native(root_names),
         compiler_options,
         program_options,
         Some(library_catalog),
@@ -501,7 +639,7 @@ pub fn load_emitting_program(
     load_program_worker(
         PreparedProgramMode::Emit,
         host,
-        root_names,
+        RootNames::Native(root_names),
         compiler_options,
         program_options,
         Some(library_catalog),
@@ -519,11 +657,11 @@ pub fn load_emitting_program(
 pub(crate) enum RootFileReason {
     Explicit,
     FilesList {
-        spec: Arc<str>,
+        spec: Arc<JsString>,
     },
     IncludePattern {
-        spec: Arc<str>,
-        config_file: Arc<str>,
+        spec: Arc<JsString>,
+        config_file: Arc<JsString>,
     },
     DefaultInclude,
 }
@@ -532,7 +670,7 @@ pub(crate) enum RootFileReason {
 /// spelling for TypeScript's inclusion-chain diagnostics.
 pub(crate) fn load_program_with_root_reasons(
     host: &dyn CompilerHost,
-    roots: &[(PathBuf, RootFileReason)],
+    roots: &[(JsString, RootFileReason)],
     compiler_options: CompilerOptions,
     program_options: ProgramOptions,
     library_catalog: &LibraryCatalog,
@@ -549,7 +687,7 @@ pub(crate) fn load_program_with_root_reasons(
     load_program_worker(
         PreparedProgramMode::NoEmit,
         host,
-        &root_names,
+        RootNames::Js(&root_names),
         compiler_options,
         program_options,
         Some(library_catalog),
@@ -561,7 +699,7 @@ pub(crate) fn load_program_with_root_reasons(
 
 pub(crate) fn load_emitting_program_with_root_reasons(
     host: &dyn CompilerHost,
-    roots: &[(PathBuf, RootFileReason)],
+    roots: &[(JsString, RootFileReason)],
     compiler_options: CompilerOptions,
     program_options: ProgramOptions,
     library_catalog: &LibraryCatalog,
@@ -578,7 +716,7 @@ pub(crate) fn load_emitting_program_with_root_reasons(
     load_program_worker(
         PreparedProgramMode::Emit,
         host,
-        &root_names,
+        RootNames::Js(&root_names),
         compiler_options,
         program_options,
         Some(library_catalog),
@@ -588,11 +726,48 @@ pub(crate) fn load_emitting_program_with_root_reasons(
     )
 }
 
+#[derive(Clone, Copy)]
+enum RootNames<'a> {
+    Native(&'a [PathBuf]),
+    Js(&'a [JsString]),
+}
+
+impl<'a> RootNames<'a> {
+    fn len(self) -> usize {
+        match self {
+            Self::Native(names) => names.len(),
+            Self::Js(names) => names.len(),
+        }
+    }
+
+    fn name(self, index: usize) -> Result<JsStr<'a>, ProgramLoadError> {
+        match self {
+            Self::Native(names) => {
+                native_load_path(&names[index], ProgramLoadOperation::NormalizeRoot)
+            }
+            Self::Js(names) => Ok(names[index].as_js()),
+        }
+    }
+}
+
+fn native_load_path(
+    path: &Path,
+    operation: ProgramLoadOperation,
+) -> Result<JsStr<'_>, ProgramLoadError> {
+    path.to_str().map(JsStr::from_str).ok_or_else(|| {
+        ProgramLoadError::invalid_input(
+            operation,
+            Some(path.to_owned()),
+            "path is not valid Unicode",
+        )
+    })
+}
+
 #[allow(clippy::too_many_arguments)] // Root provenance is an orthogonal config-only input.
 fn load_program_worker(
     mode: PreparedProgramMode,
     host: &dyn CompilerHost,
-    root_names: &[PathBuf],
+    root_names: RootNames<'_>,
     compiler_options: CompilerOptions,
     program_options: ProgramOptions,
     library_catalog: Option<&LibraryCatalog>,
@@ -611,9 +786,8 @@ fn load_program_worker(
     let mut resolver =
         ModuleResolver::new_with_program_options(host, &compiler_options, &program_options)
             .map_err(|error| {
-                ProgramLoadError::resolution(
+                ProgramLoadError::resolution_with_source_path(
                     ProgramLoadOperation::InitializeResolver,
-                    error.path().map(Path::to_path_buf),
                     None,
                     error,
                 )
@@ -630,7 +804,7 @@ fn load_program_worker(
     .then(|| ModuleResolver::new(host, &library_resolution_options))
     .transpose()
     .map_err(|error| {
-        ProgramLoadError::resolution(ProgramLoadOperation::InitializeResolver, None, None, error)
+        ProgramLoadError::resolution_js(ProgramLoadOperation::InitializeResolver, None, None, error)
     })?;
     let path_context = resolver.path_context().clone();
     validate_type_roots(&program_options, &path_context)?;
@@ -653,15 +827,15 @@ fn load_program_worker(
         resolver: &mut resolver,
         library_resolver: library_resolver.as_mut(),
     });
-    for (index, root_name) in root_names.iter().enumerate() {
-        let root_spelling = root_name.clone();
-        let root = normalize_root(root_name, &path_context)?;
+    for index in 0..root_names.len() {
+        let root_spelling = root_names.name(index)?;
+        let root = normalize_root(root_spelling, &path_context)?;
         let reason = root_reasons
             .and_then(|reasons| reasons.get(index).cloned())
             .unwrap_or(RootFileReason::Explicit);
-        graph.load_root(root, &root_spelling, reason)?;
+        graph.load_root(root, root_spelling, reason)?;
     }
-    if !root_names.is_empty() {
+    if root_names.len() != 0 {
         graph.load_automatic_type_directives()?;
         if program_options.no_lib() != Some(true) {
             graph.load_selected_libraries()?;
@@ -723,20 +897,15 @@ fn resolve_runtime_dependency_symlinks(
             continue;
         }
         let file = source.prepared.path();
-        if file
-            .display()
-            .to_string_lossy()
-            .replace('\\', "/")
-            .contains("/node_modules/")
-        {
+        if display_path_contains_node_modules(file.display()) {
             continue;
         }
         let Some(package) = resolver
             .package_scope_for_file(file.display())
             .map_err(|error| {
-                ProgramLoadError::resolution(
+                ProgramLoadError::resolution_js(
                     ProgramLoadOperation::ObservePackageScope,
-                    Some(file.display().to_path_buf()),
+                    Some(file.display().to_owned()),
                     None,
                     error,
                 )
@@ -755,10 +924,10 @@ fn resolve_runtime_dependency_symlinks(
                     ResolutionMode::Unspecified,
                 )
                 .map_err(|error| {
-                    ProgramLoadError::resolution(
+                    ProgramLoadError::resolution_js(
                         ProgramLoadOperation::ResolveModule,
-                        Some(package.package_json().display().to_path_buf()),
-                        Some(name.clone()),
+                        Some(package.package_json().display().to_owned()),
+                        Some((name.clone()).into()),
                         error,
                     )
                 })?;
@@ -783,16 +952,16 @@ fn resolve_runtime_dependency_symlinks(
 /// tsc-port: getAllRuntimeDependencies @6.0.3
 /// tsc-hash: 62d9e01fb8c9f3f49fcd53deafb8cb72ff3d1b91d8b9f86ad573d1f29900a484
 /// tsc-span: _tsc.js:45707-45716
-fn runtime_dependency_names(package_json: &ProgramPath, text: &str) -> Vec<String> {
+fn runtime_dependency_names(package_json: &ProgramPath, text: &str) -> Vec<JsString> {
     let (_, object) = parse_json_object(package_json.display(), text.to_owned());
     let mut names = Vec::new();
     for field in ["dependencies", "peerDependencies", "optionalDependencies"] {
-        if let Some(serde_json::Value::Object(dependencies)) = json_object_get(&object, field) {
+        if let Some(crate::JsonValue::Object(dependencies)) = json_object_get(&object, field) {
             names.extend(
                 dependencies
                     .keys()
                     .filter_map(|key| crate::json::decode_user_object_key(key))
-                    .map(str::to_owned),
+                    .map(JsStr::to_owned),
             );
         }
     }
@@ -807,7 +976,7 @@ fn validate_admitted_options(
     require_no_lib: bool,
 ) -> Result<(), ProgramLoadError> {
     let reject_input = |detail| {
-        ProgramLoadError::invalid_input(ProgramLoadOperation::ValidateOptions, None, detail)
+        ProgramLoadError::invalid_input_js(ProgramLoadOperation::ValidateOptions, None, detail)
     };
     match mode {
         PreparedProgramMode::NoEmit if compiler_options.no_emit != Some(true) => {
@@ -840,7 +1009,7 @@ fn validate_admitted_options(
             libs.iter()
                 .find(|value| catalog.option_file_name(value).is_none())
         }) {
-            return Err(ProgramLoadError::invalid_input(
+            return Err(ProgramLoadError::invalid_input_js(
                 ProgramLoadOperation::ValidateOptions,
                 None,
                 format!("compilerOptions.lib contains unknown library key {value:?}"),
@@ -851,7 +1020,7 @@ fn validate_admitted_options(
                 .default_library_file_name()
                 .is_some_and(|value| !catalog.contains_file_name(value))
         {
-            return Err(ProgramLoadError::invalid_input(
+            return Err(ProgramLoadError::invalid_input_js(
                 ProgramLoadOperation::ValidateOptions,
                 None,
                 format!(
@@ -870,25 +1039,29 @@ fn normalize_library_directory(
     catalog: &LibraryCatalog,
     path_context: &PathContext,
 ) -> Result<ProgramPath, ProgramLoadError> {
-    reject_unowned_drive_relative_path(catalog.directory(), ProgramLoadOperation::ValidateOptions)?;
-    let current_directory = path_context
-        .current_directory()
-        .display()
-        .to_str()
-        .expect("resolver path context is representable");
-    let normalized = normalize_absolute_path(catalog.directory(), Some(current_directory))
-        .map_err(|error| {
-            ProgramLoadError::resolution(
-                ProgramLoadOperation::ValidateOptions,
-                Some(catalog.directory().to_path_buf()),
-                None,
-                error,
-            )
-        })?;
-    make_program_path(&normalized, path_context.use_case_sensitive_file_names()).map_err(|error| {
-        ProgramLoadError::resolution(
+    let directory = native_load_path(catalog.directory(), ProgramLoadOperation::ValidateOptions)?;
+    reject_unowned_drive_relative_path(directory, ProgramLoadOperation::ValidateOptions)?;
+    let normalized = crate::module_resolution::normalize_absolute_js_path(
+        directory,
+        Some(path_context.current_directory().display()),
+        true,
+    )
+    .map_err(|error| {
+        ProgramLoadError::resolution_js(
             ProgramLoadOperation::ValidateOptions,
-            Some(catalog.directory().to_path_buf()),
+            Some(directory.to_owned()),
+            None,
+            error,
+        )
+    })?;
+    make_program_path(
+        normalized.as_js(),
+        path_context.use_case_sensitive_file_names(),
+    )
+    .map_err(|error| {
+        ProgramLoadError::resolution_js(
+            ProgramLoadOperation::ValidateOptions,
+            Some(directory.to_owned()),
             None,
             error,
         )
@@ -896,48 +1069,45 @@ fn normalize_library_directory(
 }
 
 fn normalize_root(
-    root: &Path,
+    root: JsStr<'_>,
     path_context: &PathContext,
 ) -> Result<ProgramPath, ProgramLoadError> {
-    let current_directory = path_context
-        .current_directory()
-        .display()
-        .to_str()
-        .expect("resolver path context is representable");
     reject_unowned_drive_relative_path(root, ProgramLoadOperation::NormalizeRoot)?;
-    let trailing_separator = root
-        .to_str()
-        .is_some_and(|text| text.ends_with(['/', '\\']));
-    let mut normalized =
-        normalize_absolute_path(root, Some(current_directory)).map_err(|error| {
-            ProgramLoadError::resolution(
-                ProgramLoadOperation::NormalizeRoot,
-                Some(root.to_path_buf()),
-                None,
-                error,
-            )
-        })?;
-    if trailing_separator && !normalized.ends_with('/') {
+    let trailing_separator = root.ends_with("/") || root.ends_with("\\");
+    let mut normalized = crate::module_resolution::normalize_absolute_js_path(
+        root,
+        Some(path_context.current_directory().display()),
+        true,
+    )
+    .map_err(|error| {
+        ProgramLoadError::resolution_js(
+            ProgramLoadOperation::NormalizeRoot,
+            Some(root.to_owned()),
+            None,
+            error,
+        )
+    })?;
+    if trailing_separator && !normalized.ends_with("/") {
         normalized.push('/');
     }
-    let path = make_program_path(&normalized, path_context.use_case_sensitive_file_names())
-        .map_err(|error| {
-            ProgramLoadError::resolution(
-                ProgramLoadOperation::NormalizeRoot,
-                Some(root.to_path_buf()),
-                None,
-                error,
-            )
-        })?;
-    Ok(path)
+    make_program_path(
+        normalized.as_js(),
+        path_context.use_case_sensitive_file_names(),
+    )
+    .map_err(|error| {
+        ProgramLoadError::resolution_js(
+            ProgramLoadOperation::NormalizeRoot,
+            Some(root.to_owned()),
+            None,
+            error,
+        )
+    })
 }
 
-fn path_has_extension(path: &Path) -> bool {
-    path.to_str()
-        .expect("program paths are representable")
-        .rsplit(['/', '\\'])
-        .next()
-        .is_some_and(|base_name| base_name.contains('.'))
+fn path_has_extension(path: JsStr<'_>) -> bool {
+    let basename = path.split_ascii(b'/').next_back().unwrap_or(path);
+    let basename = basename.split_ascii(b'\\').next_back().unwrap_or(basename);
+    basename.contains(".")
 }
 
 fn validate_type_roots(
@@ -947,40 +1117,38 @@ fn validate_type_roots(
     let Some(type_roots) = options.type_roots() else {
         return Ok(());
     };
-    let current_directory = path_context
-        .current_directory()
-        .display()
-        .to_str()
-        .expect("resolver path context is representable");
     for type_root in type_roots {
-        reject_unowned_drive_relative_path(
-            type_root.display(),
-            ProgramLoadOperation::ValidateOptions,
-        )?;
-        let normalized = normalize_absolute_path(type_root.display(), Some(current_directory))
-            .map_err(|error| {
-                ProgramLoadError::resolution(
-                    ProgramLoadOperation::ValidateOptions,
-                    Some(type_root.display().to_path_buf()),
-                    None,
-                    error,
-                )
-            })?;
-        let normalized =
-            make_program_path(&normalized, path_context.use_case_sensitive_file_names()).map_err(
-                |error| {
-                    ProgramLoadError::resolution(
-                        ProgramLoadOperation::ValidateOptions,
-                        Some(type_root.display().to_path_buf()),
-                        None,
-                        error,
-                    )
-                },
-            )?;
-        if &normalized != type_root {
-            return Err(ProgramLoadError::invalid_input(
+        let path = type_root.display();
+        reject_unowned_drive_relative_path(path, ProgramLoadOperation::ValidateOptions)?;
+        let normalized = crate::module_resolution::normalize_absolute_js_path(
+            path,
+            Some(path_context.current_directory().display()),
+            true,
+        )
+        .map_err(|error| {
+            ProgramLoadError::resolution_js(
                 ProgramLoadOperation::ValidateOptions,
-                Some(type_root.display().to_path_buf()),
+                Some(path.to_owned()),
+                None,
+                error,
+            )
+        })?;
+        let normalized = make_program_path(
+            normalized.as_js(),
+            path_context.use_case_sensitive_file_names(),
+        )
+        .map_err(|error| {
+            ProgramLoadError::resolution_js(
+                ProgramLoadOperation::ValidateOptions,
+                Some(path.to_owned()),
+                None,
+                error,
+            )
+        })?;
+        if &normalized != type_root {
+            return Err(ProgramLoadError::invalid_input_js(
+                ProgramLoadOperation::ValidateOptions,
+                Some(path.to_owned()),
                 "typeRoots entries must already carry normalized display and canonical identities",
             ));
         }
@@ -989,25 +1157,17 @@ fn validate_type_roots(
 }
 
 fn reject_unowned_drive_relative_path(
-    path: &Path,
+    path: JsStr<'_>,
     operation: ProgramLoadOperation,
 ) -> Result<(), ProgramLoadError> {
-    let Some(text) = path.to_str() else {
-        return Err(ProgramLoadError::invalid_input(
-            operation,
-            Some(path.to_path_buf()),
-            "path is not valid Unicode",
-        ));
-    };
-    let slashed = text.replace('\\', "/");
-    let drive_relative = slashed.len() > 2
-        && slashed.as_bytes()[0].is_ascii_alphabetic()
-        && slashed.as_bytes()[1] == b':'
-        && slashed.as_bytes()[2] != b'/';
+    let slashed = crate::js_path::normalize_slashes(path);
+    let bytes = slashed.as_bytes();
+    let drive_relative =
+        bytes.len() > 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' && bytes[2] != b'/';
     if drive_relative {
-        return Err(ProgramLoadError::unsupported(
+        return Err(ProgramLoadError::unsupported_js(
             operation,
-            Some(path.to_path_buf()),
+            Some(path.to_owned()),
             "windows-path-form",
             "drive-relative root spellings are not yet owned",
         ));
@@ -1040,25 +1200,25 @@ impl VisitState {
 enum SourceInclusionReason {
     Root(RootFileReason),
     Import {
-        parent: PathBuf,
+        parent: JsString,
         reference_text: String,
         pos: u32,
         end: u32,
     },
     PathReference {
-        parent: PathBuf,
-        specifier: String,
+        parent: JsString,
+        specifier: JsString,
         pos: u32,
         end: u32,
     },
     TypeReference {
-        parent: PathBuf,
-        specifier: String,
+        parent: JsString,
+        specifier: JsString,
         pos: u32,
         end: u32,
     },
     AutomaticType {
-        name: String,
+        name: JsString,
     },
     Synthetic,
     Library,
@@ -1094,7 +1254,7 @@ impl DiscoveryReason {
         }
     }
 
-    fn automatic_type(is_external_library_import: bool, name: String) -> Self {
+    fn automatic_type(is_external_library_import: bool, name: JsString) -> Self {
         Self {
             seeds_non_external_reachability: !is_external_library_import,
             inclusion: SourceInclusionReason::AutomaticType { name },
@@ -1144,9 +1304,9 @@ struct StagedSource {
     /// canonical source identity.  They are observable in the TS1149
     /// program-preprocessing message chain when two root spellings collapse
     /// on a case-insensitive host.
-    root_inclusions: Vec<PathBuf>,
+    root_inclusions: Vec<JsString>,
     inclusion_reasons: Vec<SourceInclusionReason>,
-    alternate_inclusion_reasons: Vec<(PathBuf, SourceInclusionReason)>,
+    alternate_inclusion_reasons: Vec<(JsString, SourceInclusionReason)>,
     has_non_external_reason: bool,
     /// Program-owned default-library membership is independent of how the
     /// source first entered the graph. A replacement declaration may already
@@ -1184,7 +1344,7 @@ impl StagedSource {
 /// remain in the program; this record exists only to publish TS1149/TS1261.
 struct CaseSensitiveCasingConflict {
     existing_source: usize,
-    incoming_path: PathBuf,
+    incoming_path: JsString,
     incoming_reason: SourceInclusionReason,
 }
 
@@ -1248,7 +1408,7 @@ struct StagedGraph<'host, 'options, 'resolver> {
     resolved_library_paths: BTreeMap<String, ProgramPath>,
     states: BTreeMap<CanonicalPath, VisitState>,
     package_id_to_source: BTreeMap<PackageId, usize>,
-    files_by_name_ignore_case: BTreeMap<String, usize>,
+    files_by_name_ignore_case: BTreeMap<JsString, usize>,
     case_sensitive_casing_conflicts: Vec<CaseSensitiveCasingConflict>,
     sources: Vec<StagedSource>,
     source_edges: Vec<Vec<(usize, bool)>>,
@@ -1258,8 +1418,8 @@ struct StagedGraph<'host, 'options, 'resolver> {
     module_resolutions: Vec<StagedModuleResolution>,
     type_resolution_by_key: BTreeMap<TypeReferenceResolutionKey, usize>,
     type_resolutions: Vec<StagedTypeResolution>,
-    diagnosed_missing_roots: BTreeSet<String>,
-    diagnosed_missing_library_roots: BTreeSet<PathBuf>,
+    diagnosed_missing_roots: BTreeSet<JsString>,
+    diagnosed_missing_library_roots: BTreeSet<JsString>,
     program_diagnostics: Vec<Diagnostic>,
     request_edges: usize,
     total_source_bytes: usize,
@@ -1314,7 +1474,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
     fn load_root(
         &mut self,
         path: ProgramPath,
-        root_spelling: &Path,
+        root_spelling: JsStr<'_>,
         root_reason: RootFileReason,
     ) -> Result<(), ProgramLoadError> {
         if !path_has_extension(path.display()) {
@@ -1329,7 +1489,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             )?;
             if self
                 .diagnosed_missing_roots
-                .insert(path_text(path.display())?)
+                .insert(path.display().to_owned())
             {
                 self.program_diagnostics.push(diagnostic.clone());
             }
@@ -1350,7 +1510,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         if let Some(source) = source {
             self.sources[source]
                 .root_inclusions
-                .push(path.display().to_path_buf());
+                .push(path.display().to_owned());
         }
         let missing_diagnostic = source
             .is_none()
@@ -1358,7 +1518,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         if let Some(diagnostic) = missing_diagnostic.clone() {
             if self
                 .diagnosed_missing_roots
-                .insert(path_text(path.display())?)
+                .insert(path.display().to_owned())
             {
                 self.program_diagnostics.push(diagnostic);
             }
@@ -1374,23 +1534,21 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
     fn load_extensionless_root(
         &mut self,
         path: ProgramPath,
-        root_spelling: &Path,
+        root_spelling: JsStr<'_>,
         root_reason: RootFileReason,
     ) -> Result<(), ProgramLoadError> {
-        let requested_text = path
-            .display()
-            .to_str()
-            .expect("program paths are representable");
+        let requested_text = path.display();
         for &extension in extensionless_source_probe_extensions(self.compiler_options.allow_js) {
-            let candidate_text = format!("{requested_text}{extension}");
+            let mut candidate_text = requested_text.to_owned();
+            candidate_text.push_str(extension);
             let candidate = make_program_path(
                 &candidate_text,
                 self.resolver.path_context().use_case_sensitive_file_names(),
             )
             .map_err(|error| {
-                ProgramLoadError::resolution(
+                ProgramLoadError::resolution_js(
                     ProgramLoadOperation::NormalizeRoot,
-                    Some(path.display().to_path_buf()),
+                    Some(path.display().to_owned()),
                     None,
                     error,
                 )
@@ -1404,7 +1562,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             )? {
                 self.sources[source]
                     .root_inclusions
-                    .push(path.display().to_path_buf());
+                    .push(path.display().to_owned());
                 self.roots.push(StagedRoot {
                     path,
                     source: Some(source),
@@ -1421,7 +1579,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         )?;
         if self
             .diagnosed_missing_roots
-            .insert(path_text(path.display())?)
+            .insert(path.display().to_owned())
         {
             self.program_diagnostics.push(diagnostic.clone());
         }
@@ -1444,7 +1602,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         self.enforce_limit(
             ProgramLoadOperation::DiscoverAutomaticTypes,
             ProgramLoadLimit::RequestEdges,
-            Some(containing_file.display().to_path_buf()),
+            Some(containing_file.display().to_owned()),
             self.limits.max_request_edges,
             request_edges,
         )?;
@@ -1469,10 +1627,10 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                         type_roots.as_deref(),
                     )
                     .map_err(|error| {
-                        ProgramLoadError::resolution(
+                        ProgramLoadError::resolution_js(
                             ProgramLoadOperation::ResolveTypeReference,
-                            Some(containing_file.display().to_path_buf()),
-                            Some(name.clone()),
+                            Some(containing_file.display().to_owned()),
+                            Some((name.clone()).into()),
                             error,
                         )
                     })?;
@@ -1506,7 +1664,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 self.type_resolutions[index]
                     .diagnostics
                     .push(automatic_type_reference_diagnostic(
-                        &name,
+                        name.as_js(),
                         uses_wildcard,
                         self.program_options.config_file(),
                     ));
@@ -1516,9 +1674,9 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 continue;
             }
             if !is_loadable_typescript_extension(&extension) {
-                return Err(ProgramLoadError::invalid_data(
+                return Err(ProgramLoadError::invalid_data_js(
                     ProgramLoadOperation::ResolveTypeReference,
-                    Some(target.display().to_path_buf()),
+                    Some(target.display().to_owned()),
                     "a resolved automatic type-reference target is not a TypeScript source file",
                 ));
             }
@@ -1533,9 +1691,9 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 )?
                 .is_none()
             {
-                return Err(ProgramLoadError::invalid_data(
+                return Err(ProgramLoadError::invalid_data_js(
                     ProgramLoadOperation::ReadSource,
-                    Some(target.display().to_path_buf()),
+                    Some(target.display().to_owned()),
                     "resolver reported an automatic type-reference target that the host no longer returns",
                 ));
             }
@@ -1543,7 +1701,9 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         Ok(())
     }
 
-    fn automatic_type_directive_names(&mut self) -> Result<(Vec<String>, bool), ProgramLoadError> {
+    fn automatic_type_directive_names(
+        &mut self,
+    ) -> Result<(Vec<JsString>, bool), ProgramLoadError> {
         let configured = self
             .program_options
             .types()
@@ -1553,8 +1713,12 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             return Ok((configured, false));
         }
 
-        let wildcard_matches = self.discover_wildcard_type_directives()?;
-        let mut seen = BTreeSet::new();
+        let wildcard_matches: Vec<JsString> = self
+            .discover_wildcard_type_directives()?
+            .into_iter()
+            .map(JsString::from)
+            .collect();
+        let mut seen = HashSet::new();
         let mut names = Vec::new();
         for configured_name in configured {
             if configured_name == "*" {
@@ -1570,56 +1734,54 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         Ok((names, true))
     }
 
-    fn discover_wildcard_type_directives(&mut self) -> Result<Vec<String>, ProgramLoadError> {
+    fn discover_wildcard_type_directives(&mut self) -> Result<Vec<JsString>, ProgramLoadError> {
         let roots = self
             .resolver
             .effective_type_roots(self.program_options.type_roots())
             .map_err(|error| {
-                ProgramLoadError::resolution(
+                ProgramLoadError::resolution_with_source_path(
                     ProgramLoadOperation::DiscoverAutomaticTypes,
-                    error.path().map(Path::to_path_buf),
                     None,
                     error,
                 )
             })?;
         let mut matches = Vec::new();
         for root in roots {
-            let root_path = Path::new(&root);
-            if !self.host.directory_exists(root_path).map_err(|error| {
-                ProgramLoadError::host(
+            let root_path: JsStr<'_> = (&root).into();
+            if !self.host.directory_exists_js(root_path).map_err(|error| {
+                ProgramLoadError::host_js(
                     ProgramLoadOperation::DiscoverAutomaticTypes,
-                    Some(root_path.to_path_buf()),
+                    Some(root_path.to_owned()),
                     error,
                 )
             })? {
                 continue;
             }
-            let directories = self.host.get_directories(root_path).map_err(|error| {
-                ProgramLoadError::host(
+            let directories = self.host.get_directories_js(root_path).map_err(|error| {
+                ProgramLoadError::host_js(
                     ProgramLoadOperation::DiscoverAutomaticTypes,
-                    Some(root_path.to_path_buf()),
+                    Some(root_path.to_owned()),
                     error,
                 )
             })?;
             for directory in directories {
-                let name = directory
-                    .file_name()
-                    .and_then(|name| name.to_str())
-                    .ok_or_else(|| {
-                        ProgramLoadError::invalid_data(
-                            ProgramLoadOperation::DiscoverAutomaticTypes,
-                            Some(directory.clone()),
-                            "automatic type directory has no Unicode base name",
-                        )
-                    })?
-                    .to_owned();
-                let package_json = root_path.join(&name).join("package.json");
-                if self.automatic_package_has_null_typings(&package_json)? {
+                let name = crate::js_path::base_file_name(directory.as_js());
+                if name.is_empty() {
+                    return Err(ProgramLoadError::invalid_data_js(
+                        ProgramLoadOperation::DiscoverAutomaticTypes,
+                        Some(directory),
+                        "automatic type directory has no base name",
+                    ));
+                }
+                let package_directory = crate::js_path::combine_paths(root_path, name.as_js());
+                let package_json =
+                    crate::js_path::combine_paths(package_directory.as_js(), "package.json".into());
+                if self.automatic_package_has_null_typings(package_json.as_js())? {
                     continue;
                 }
                 // TypeScript probes package.json before applying the hidden
                 // directory filter, so retain that observable failure order.
-                if !name.starts_with('.') {
+                if !name.starts_with(".") {
                     matches.push(name);
                 }
             }
@@ -1629,43 +1791,46 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
 
     fn automatic_package_has_null_typings(
         &self,
-        package_json: &Path,
+        package_json: JsStr<'_>,
     ) -> Result<bool, ProgramLoadError> {
-        if !self.host.file_exists(package_json).map_err(|error| {
-            ProgramLoadError::host(
+        if !self.host.file_exists_js(package_json).map_err(|error| {
+            ProgramLoadError::host_js(
                 ProgramLoadOperation::DiscoverAutomaticTypes,
-                Some(package_json.to_path_buf()),
+                Some(package_json.to_owned()),
                 error,
             )
         })? {
             return Ok(false);
         }
-        let Some(bytes) = self.host.read_file(package_json).map_err(|error| {
-            ProgramLoadError::host(
+        let Some(bytes) = self.host.read_file_js(package_json).map_err(|error| {
+            ProgramLoadError::host_js(
                 ProgramLoadOperation::DiscoverAutomaticTypes,
-                Some(package_json.to_path_buf()),
+                Some(package_json.to_owned()),
                 error,
             )
         })?
         else {
             return Ok(false);
         };
-        let text = decode_host_text(bytes).map_err(|source| ProgramLoadError::Decode {
-            operation: ProgramLoadOperation::DiscoverAutomaticTypes,
-            path: package_json.to_path_buf(),
-            source,
+        let text = decode_host_text(bytes).map_err(|source| {
+            ProgramLoadError::decode_js(
+                ProgramLoadOperation::DiscoverAutomaticTypes,
+                package_json.to_owned(),
+                source,
+            )
         })?;
         let (_, object) = parse_json_object(package_json, text);
-        Ok(json_object_get(&object, "typings").is_some_and(serde_json::Value::is_null))
+        Ok(json_object_get(&object, "typings").is_some_and(crate::JsonValue::is_null))
     }
 
     fn automatic_types_containing_file(&self) -> Result<ProgramPath, ProgramLoadError> {
-        let normalized = normalize_absolute_path(
-            Path::new(INFERRED_TYPES_CONTAINING_FILE),
-            Some(self.resolver.type_root_base_directory()),
+        let normalized = crate::module_resolution::normalize_absolute_js_path(
+            INFERRED_TYPES_CONTAINING_FILE.into(),
+            Some(self.resolver.type_root_base_directory().into()),
+            true,
         )
         .map_err(|error| {
-            ProgramLoadError::resolution(
+            ProgramLoadError::resolution_js(
                 ProgramLoadOperation::DiscoverAutomaticTypes,
                 None,
                 None,
@@ -1677,9 +1842,9 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             self.resolver.path_context().use_case_sensitive_file_names(),
         )
         .map_err(|error| {
-            ProgramLoadError::resolution(
+            ProgramLoadError::resolution_js(
                 ProgramLoadOperation::DiscoverAutomaticTypes,
-                Some(PathBuf::from(normalized)),
+                Some(normalized),
                 None,
                 error,
             )
@@ -1738,7 +1903,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 .is_none()
                 && self
                     .diagnosed_missing_library_roots
-                    .insert(path.display().to_path_buf())
+                    .insert(path.display().to_owned())
             {
                 let diagnostic = missing_library_root_diagnostic(
                     &path,
@@ -1776,7 +1941,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                         .map(|(alias, reason)| {
                             casing_alias_diagnostic(
                                 &source.prepared,
-                                alias,
+                                alias.as_js(),
                                 &source.inclusion_reasons,
                                 reason,
                                 self.program_options.config_file(),
@@ -1798,7 +1963,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 let existing = &self.sources[conflict.existing_source];
                 casing_distinct_file_diagnostic(
                     &existing.prepared,
-                    &conflict.incoming_path,
+                    conflict.incoming_path.as_js(),
                     &existing.inclusion_reasons,
                     &conflict.incoming_reason,
                     self.program_options.config_file(),
@@ -1874,7 +2039,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             )
         } else if options
             .out_file
-            .as_deref()
+            .as_ref()
             .is_some_and(|path| !path.is_empty())
             && options.emit_declaration_only != Some(true)
             && options.module.is_none()
@@ -1891,15 +2056,8 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             .find_map(|&index| {
                 let source = &self.sources[index];
                 let (start, length) = source.external_module_diagnostic_span?;
-                Some(Diagnostic::new(
-                    Some(
-                        source
-                            .prepared
-                            .path()
-                            .display()
-                            .to_string_lossy()
-                            .into_owned(),
-                    ),
+                Some(Diagnostic::new_js(
+                    Some(source.prepared.path().display().to_owned()),
                     Some(start),
                     Some(length),
                     message.clone(),
@@ -1924,7 +2082,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         };
         let options = self.compiler_options;
         let active =
-            |value: &Option<String>| value.as_deref().is_some_and(|value| !value.is_empty());
+            |value: &Option<JsString>| value.as_ref().is_some_and(|value| !value.is_empty());
         let declarations = options.declaration == Some(true) || options.composite == Some(true);
         let config_path = self
             .program_options
@@ -1979,10 +2137,10 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         let mut root_diagnostics = Vec::new();
         let root = options
             .root_dir
-            .as_deref()
+            .as_ref()
             .filter(|root| !root.is_empty())
-            .map(str::to_owned)
-            .or_else(|| config_path.map(|config| directory_name(&config.to_string_lossy())));
+            .cloned()
+            .or_else(|| config_path.map(crate::js_path::directory_name));
         if let Some(root) = root {
             let packages = self
                 .resolver
@@ -1990,20 +2148,17 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 .map(|package| (package.package_json().canonical(), package))
                 .collect::<BTreeMap<_, _>>();
             let canonical_root =
-                canonical_emit_path(Path::new(&root), current_directory, case_sensitive);
+                canonical_emit_path(root.as_js(), current_directory, case_sensitive);
             for source in &emitted {
                 let file = canonical_emit_path(
                     source.prepared.path().display(),
                     current_directory,
                     case_sensitive,
                 );
-                if !file
-                    .to_string_lossy()
-                    .starts_with(canonical_root.to_string_lossy().as_ref())
-                {
+                if !file.as_js().starts_with_js(canonical_root.as_js()) {
                     root_diagnostics.push(root_directory_diagnostic(
                         source,
-                        &root,
+                        root.as_js(),
                         self.program_options.config_file(),
                         source
                             .prepared
@@ -2014,12 +2169,10 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             }
         }
         if active(&options.out_dir)
-            && common.as_os_str().is_empty()
+            && common.is_empty()
             && self.sources.iter().any(|source| {
-                crate::module_resolution::normalized_root_parts(
-                    &source.prepared.path().display().to_string_lossy(),
-                )
-                .is_some_and(|(root, _)| root.len() > 1)
+                crate::js_path::root_parts(source.prepared.path().display())
+                    .is_some_and(|(root, _)| root.len_units() > 1)
             })
         {
             append_output_option_diagnostic(
@@ -2036,9 +2189,9 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             let config = config_path.expect("migration requires a config path");
             let inferred =
                 inferred_common_source_directory(&paths, current_directory, case_sensitive);
-            if !inferred.as_os_str().is_empty()
-                && canonical_emit_path(&common, current_directory, case_sensitive)
-                    != canonical_emit_path(&inferred, current_directory, case_sensitive)
+            if !inferred.is_empty()
+                && canonical_emit_path(common.as_js(), current_directory, case_sensitive)
+                    != canonical_emit_path(inferred.as_js(), current_directory, case_sensitive)
             {
                 let names: &[&str] = if active(&options.out_file) {
                     &["outFile"]
@@ -2047,10 +2200,10 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 } else {
                     &["declarationDir"]
                 };
-                let message = MessageChain::new(
+                let message = MessageChain::new_js(
                     &gen::The_common_source_directory_of_0_is_1_The_rootDir_setting_must_be_explicitly_set_to_this_or_another_path_to_adjust_your_output_s_file_layout,
-                    &[config.file_name().expect("config path names a file").to_string_lossy().into_owned(),
-                        directory_relative_to_config(config, &inferred, case_sensitive)],
+                    &[crate::js_path::base_file_name(config),
+                        directory_relative_to_config(config, inferred.as_js(), case_sensitive)],
                 ).with_next(vec![MessageChain::new(&gen::Visit_https_aka_ms_ts6_for_migration_information, &[])]);
                 append_output_option_diagnostic(
                     &mut diagnostics,
@@ -2085,10 +2238,10 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             }
             return Ok(state.source());
         }
-        let bytes = self.host.read_file(path.display()).map_err(|error| {
-            ProgramLoadError::host(
+        let bytes = self.host.read_file_js(path.display()).map_err(|error| {
+            ProgramLoadError::host_js(
                 ProgramLoadOperation::ReadSource,
-                Some(path.display().to_path_buf()),
+                Some(path.display().to_owned()),
                 error,
             )
         })?;
@@ -2101,7 +2254,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         self.enforce_limit(
             ProgramLoadOperation::ReadSource,
             ProgramLoadLimit::SourceDepth,
-            Some(path.display().to_path_buf()),
+            Some(path.display().to_owned()),
             self.limits.max_source_depth.min(MAX_RECURSIVE_SOURCE_DEPTH),
             depth,
         )?;
@@ -2109,14 +2262,14 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         self.enforce_limit(
             ProgramLoadOperation::ReadSource,
             ProgramLoadLimit::SourceFiles,
-            Some(path.display().to_path_buf()),
+            Some(path.display().to_owned()),
             self.limits.max_source_files,
             source_count,
         )?;
         self.enforce_limit(
             ProgramLoadOperation::ReadSource,
             ProgramLoadLimit::SourceFileBytes,
-            Some(path.display().to_path_buf()),
+            Some(path.display().to_owned()),
             self.limits.max_source_file_bytes,
             bytes.len(),
         )?;
@@ -2124,15 +2277,17 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         self.enforce_limit(
             ProgramLoadOperation::ReadSource,
             ProgramLoadLimit::TotalSourceBytes,
-            Some(path.display().to_path_buf()),
+            Some(path.display().to_owned()),
             self.limits.max_total_source_bytes,
             total_source_bytes,
         )?;
 
-        let text = decode_host_text(bytes).map_err(|source| ProgramLoadError::Decode {
-            operation: ProgramLoadOperation::DecodeSource,
-            path: path.display().to_path_buf(),
-            source,
+        let text = decode_host_text(bytes).map_err(|source| {
+            ProgramLoadError::decode_js(
+                ProgramLoadOperation::DecodeSource,
+                path.display().to_owned(),
+                source,
+            )
         })?;
         if let Some(package_id) = reason.package_id.as_ref() {
             if let Some(source) = self.package_id_to_source.get(package_id).copied() {
@@ -2164,17 +2319,14 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             .resolver
             .package_scope_for_file(path.display())
             .map_err(|error| {
-                ProgramLoadError::resolution(
+                ProgramLoadError::resolution_js(
                     ProgramLoadOperation::ObservePackageScope,
-                    Some(path.display().to_path_buf()),
+                    Some(path.display().to_owned()),
                     None,
                     error,
                 )
             })?;
-        let file_name = path
-            .display()
-            .to_str()
-            .expect("program paths are representable");
+        let file_name = path.display();
         let implied = implied_node_format(file_name, package_scope.as_ref(), self.compiler_options);
         let implied_for_emit =
             implied_node_format_for_emit(file_name, package_scope.as_ref(), self.compiler_options);
@@ -2199,9 +2351,9 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         } else {
             Some(
                 plan_source_requests(&prepared, self.compiler_options).map_err(|error| {
-                    ProgramLoadError::resolution(
+                    ProgramLoadError::resolution_js(
                         ProgramLoadOperation::PlanSourceRequests,
-                        Some(path.display().to_path_buf()),
+                        Some(path.display().to_owned()),
                         None,
                         error,
                     )
@@ -2240,7 +2392,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         self.enforce_limit(
             ProgramLoadOperation::PlanSourceRequests,
             ProgramLoadLimit::RequestEdges,
-            Some(path.display().to_path_buf()),
+            Some(path.display().to_owned()),
             self.limits.max_request_edges,
             request_edges,
         )?;
@@ -2274,17 +2426,12 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             self.package_id_to_source.insert(package_id, source);
         }
         if self.resolver.path_context().use_case_sensitive_file_names() {
-            let canonical_text = path
-                .canonical()
-                .as_path()
-                .to_str()
-                .expect("validated program paths are Unicode");
-            let path_lower_case = to_file_name_lower_case(canonical_text);
+            let path_lower_case = crate::js_path::file_name_lower_case(path.canonical().as_js());
             if let Some(&existing_source) = self.files_by_name_ignore_case.get(&path_lower_case) {
                 self.case_sensitive_casing_conflicts
                     .push(CaseSensitiveCasingConflict {
                         existing_source,
-                        incoming_path: path.display().to_path_buf(),
+                        incoming_path: path.display().to_owned(),
                         incoming_reason: reason.inclusion.clone(),
                     });
             } else {
@@ -2299,9 +2446,9 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         if self.sources[source].library_priority.is_some()
             && !self.sources[source].path_references.is_empty()
         {
-            return Err(ProgramLoadError::unsupported(
+            return Err(ProgramLoadError::unsupported_js(
                 ProgramLoadOperation::PlanSourceRequests,
-                Some(path.display().to_path_buf()),
+                Some(path.display().to_owned()),
                 "default-library-path-references",
                 "default-library path-reference descendants have processing-prefix order without checker-visible library membership, which the current PreparedProgram prefix cannot represent",
             ));
@@ -2342,16 +2489,16 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 .remember_display_alias(path.display());
             self.sources[source]
                 .alternate_inclusion_reasons
-                .push((path.display().to_path_buf(), reason.inclusion.clone()));
+                .push((path.display().to_owned(), reason.inclusion.clone()));
         }
         let existing_class = self.sources[source].source_class();
         if existing_class.is_library() != class.is_library()
             && !existing_class.is_replacement()
             && !class.is_replacement()
         {
-            return Err(ProgramLoadError::unsupported(
+            return Err(ProgramLoadError::unsupported_js(
                 ProgramLoadOperation::ReadSource,
-                Some(path.display().to_path_buf()),
+                Some(path.display().to_owned()),
                 "library-source-classification-collision",
                 format!(
                     "the source was first discovered as {existing_class:?} and later requested as {class:?}"
@@ -2362,9 +2509,9 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             if self.sources[source].library_priority.is_none()
                 && !self.sources[source].path_references.is_empty()
             {
-                return Err(ProgramLoadError::unsupported(
+                return Err(ProgramLoadError::unsupported_js(
                     ProgramLoadOperation::PlanSourceRequests,
-                    Some(path.display().to_path_buf()),
+                    Some(path.display().to_owned()),
                     "default-library-path-references",
                     "a source promoted to default-library membership already has path-reference descendants whose checker-visible membership cannot be represented",
                 ));
@@ -2504,28 +2651,29 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             .library_directory
             .as_ref()
             .expect("library-enabled graph has a normalized catalog directory");
-        let base = directory
-            .display()
-            .to_str()
-            .expect("program paths are representable");
-        let normalized =
-            normalize_absolute_path(Path::new(file_name), Some(base)).map_err(|error| {
-                ProgramLoadError::resolution(
-                    ProgramLoadOperation::NormalizeReference,
-                    Some(directory.display().to_path_buf()),
-                    Some(file_name.to_owned()),
-                    error,
-                )
-            })?;
+        let base = directory.display();
+        let normalized = crate::module_resolution::normalize_absolute_js_path(
+            file_name.into(),
+            Some(base),
+            true,
+        )
+        .map_err(|error| {
+            ProgramLoadError::resolution_js(
+                ProgramLoadOperation::NormalizeReference,
+                Some(directory.display().to_owned()),
+                Some((file_name.to_owned()).into()),
+                error,
+            )
+        })?;
         make_program_path(
             &normalized,
             self.resolver.path_context().use_case_sensitive_file_names(),
         )
         .map_err(|error| {
-            ProgramLoadError::resolution(
+            ProgramLoadError::resolution_js(
                 ProgramLoadOperation::NormalizeReference,
-                Some(directory.display().to_path_buf()),
-                Some(file_name.to_owned()),
+                Some(directory.display().to_owned()),
+                Some((file_name.to_owned()).into()),
                 error,
             )
         })
@@ -2554,44 +2702,39 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                         .path_context()
                         .current_directory()
                         .display()
-                        .to_str()
-                        .expect("program current directory is Unicode")
                         .to_owned()
                 },
-                |config| {
-                    directory_name(
-                        config
-                            .display()
-                            .to_str()
-                            .expect("program config path is Unicode"),
-                    )
-                },
+                |config| crate::js_path::directory_name(config.display()),
             );
             let synthetic_name = format!("__lib_node_modules_lookup_{file_name}__.ts");
-            let resolve_from = normalize_absolute_path(Path::new(&synthetic_name), Some(&base))
-                .map_err(|error| {
-                    ProgramLoadError::resolution(
-                        ProgramLoadOperation::ResolveLibrary,
-                        Some(PathBuf::from(base.as_str())),
-                        Some(replacement_package_name(file_name)),
-                        error,
-                    )
-                })?;
+            let resolve_from = crate::module_resolution::normalize_absolute_js_path(
+                synthetic_name.as_str().into(),
+                Some(base.as_js()),
+                true,
+            )
+            .map_err(|error| {
+                ProgramLoadError::resolution_js(
+                    ProgramLoadOperation::ResolveLibrary,
+                    Some(base.clone()),
+                    Some((replacement_package_name(file_name)).into()),
+                    error,
+                )
+            })?;
             let package_name = replacement_package_name(file_name);
             let resolution = self
                 .library_resolver
                 .as_deref_mut()
                 .expect("libReplacement=true initializes the library resolver")
                 .resolve(
-                    Path::new(&resolve_from),
+                    resolve_from.as_js(),
                     &package_name,
                     ResolutionMode::Unspecified,
                 )
                 .map_err(|error| {
-                    ProgramLoadError::resolution(
+                    ProgramLoadError::resolution_js(
                         ProgramLoadOperation::ResolveLibrary,
-                        Some(PathBuf::from(resolve_from.as_str())),
-                        Some(package_name.clone()),
+                        Some(resolve_from.clone()),
+                        Some((package_name.clone()).into()),
                         error,
                     )
                 })?;
@@ -2618,13 +2761,13 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             .library_catalog
             .expect("library-enabled graph has an injected catalog");
         for directive in directives {
-            let lib_name = to_file_name_lower_case(directive.file_name());
+            let lib_name = to_file_name_lower_case_js(directive.file_name());
             let Some(file_name) = catalog.reference_file_name(&lib_name) else {
                 let suggestion = catalog.spelling_suggestion(&lib_name);
                 let (message, arguments) = match suggestion {
                     Some(suggestion) => (
                         &gen::Cannot_find_lib_definition_for_0_Did_you_mean_1,
-                        vec![lib_name, suggestion.to_owned()],
+                        vec![lib_name, suggestion.into()],
                     ),
                     None => (&gen::Cannot_find_lib_definition_for_0, vec![lib_name]),
                 };
@@ -2658,7 +2801,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                         directive.pos(),
                         directive.length(),
                         &gen::A_file_cannot_have_a_reference_to_itself,
-                        &[],
+                        &[] as &[String],
                     )?);
                 }
                 Some(_) => {}
@@ -2668,7 +2811,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                         directive.pos(),
                         directive.length(),
                         &gen::File_0_not_found,
-                        &[path_text(target.display())?],
+                        &[target.display().to_owned()],
                     )?);
                 }
             }
@@ -2689,18 +2832,17 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         left: &ProgramPath,
         right: &ProgramPath,
     ) -> Result<bool, ProgramLoadError> {
-        let current_directory = self
-            .resolver
-            .path_context()
-            .current_directory()
-            .display()
-            .to_str()
-            .expect("program current directory is Unicode");
+        let current_directory = self.resolver.path_context().current_directory().display();
         let normalize = |path: &ProgramPath| {
-            normalize_absolute_path(path.display(), Some(current_directory)).map_err(|error| {
-                ProgramLoadError::resolution(
+            crate::module_resolution::normalize_absolute_js_path(
+                path.display(),
+                Some(current_directory),
+                true,
+            )
+            .map_err(|error| {
+                ProgramLoadError::resolution_js(
                     ProgramLoadOperation::ReadSource,
-                    Some(path.display().to_path_buf()),
+                    Some(path.display().to_owned()),
                     None,
                     error,
                 )
@@ -2727,30 +2869,30 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         node_modules_depth: usize,
     ) -> Result<(), ProgramLoadError> {
         let source_path = self.sources[source].prepared.path().clone();
-        let source_text = source_path
-            .display()
-            .to_str()
-            .expect("program paths are representable");
-        let base = directory_name(source_text);
+        let base = crate::js_path::directory_name(source_path.display());
         let normalized = if reference.file_name().is_empty() {
             base.clone()
         } else {
-            normalize_absolute_path(Path::new(reference.file_name()), Some(&base)).map_err(
-                |error| {
-                    ProgramLoadError::resolution(
-                        ProgramLoadOperation::NormalizeReference,
-                        Some(source_path.display().to_path_buf()),
-                        Some(reference.file_name().to_owned()),
-                        error,
-                    )
-                },
-            )?
+            crate::module_resolution::normalize_absolute_js_path(
+                reference.file_name().into(),
+                Some(base.as_js()),
+                true,
+            )
+            .map_err(|error| {
+                ProgramLoadError::resolution_js(
+                    ProgramLoadOperation::NormalizeReference,
+                    Some(source_path.display().to_owned()),
+                    Some((reference.file_name().to_owned()).into()),
+                    error,
+                )
+            })?
         };
-        let has_extension = reference
-            .file_name()
-            .rsplit(['/', '\\'])
-            .next()
-            .is_some_and(|name| name.contains('.'));
+        let reference_path = crate::js_path::normalize_slashes(reference.file_name());
+        let has_extension = reference_path
+            .as_js()
+            .split_ascii(b'/')
+            .next_back()
+            .is_some_and(|name| name.contains("."));
         let child_depth = depth.saturating_add(1);
         if has_extension {
             let target = make_program_path(
@@ -2758,10 +2900,10 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 self.resolver.path_context().use_case_sensitive_file_names(),
             )
             .map_err(|error| {
-                ProgramLoadError::resolution(
+                ProgramLoadError::resolution_js(
                     ProgramLoadOperation::NormalizeReference,
-                    Some(source_path.display().to_path_buf()),
-                    Some(reference.file_name().to_owned()),
+                    Some(source_path.display().to_owned()),
+                    Some((reference.file_name().to_owned()).into()),
                     error,
                 )
             })?;
@@ -2773,15 +2915,14 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 let (message, arguments) = if is_javascript_source(target.canonical()) {
                     (
                         &gen::File_0_is_a_JavaScript_file_Did_you_mean_to_enable_the_allowJs_option,
-                        vec![path_text(target.display())?],
+                        vec![target.display().to_owned()],
                     )
                 } else {
                     (
                         &gen::File_0_has_an_unsupported_extension_The_only_supported_extensions_are_1,
                         vec![
-                            path_text(target.display())?,
-                            supported_source_extension_list(self.compiler_options.allow_js)
-                                .to_owned(),
+                            target.display().to_owned(),
+                            JsString::from(supported_source_extension_list(self.compiler_options.allow_js)),
                         ],
                     )
                 };
@@ -2799,7 +2940,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 child_depth,
                 node_modules_depth,
                 DiscoveryReason::dependency(SourceInclusionReason::PathReference {
-                    parent: source_path.display().to_path_buf(),
+                    parent: source_path.display().to_owned(),
                     specifier: reference.file_name().to_owned(),
                     pos: reference.pos(),
                     end: reference.end(),
@@ -2814,7 +2955,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                         reference.pos(),
                         reference.length(),
                         &gen::A_file_cannot_have_a_reference_to_itself,
-                        &[],
+                        &[] as &[String],
                     )?)
                 }
                 Some(target_source) => self.record_source_edge(source, target_source, false),
@@ -2823,23 +2964,24 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     reference.pos(),
                     reference.length(),
                     &gen::File_0_not_found,
-                    &[path_text(target.display())?],
+                    &[target.display().to_owned()],
                 )?),
             }
             return Ok(());
         }
 
         for &extension in extensionless_source_probe_extensions(self.compiler_options.allow_js) {
-            let target_text = format!("{normalized}{extension}");
+            let mut target_text = normalized.clone();
+            target_text.push_str(extension);
             let target = make_program_path(
                 &target_text,
                 self.resolver.path_context().use_case_sensitive_file_names(),
             )
             .map_err(|error| {
-                ProgramLoadError::resolution(
+                ProgramLoadError::resolution_js(
                     ProgramLoadOperation::NormalizeReference,
-                    Some(source_path.display().to_path_buf()),
-                    Some(reference.file_name().to_owned()),
+                    Some(source_path.display().to_owned()),
+                    Some((reference.file_name().to_owned()).into()),
                     error,
                 )
             })?;
@@ -2848,7 +2990,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 child_depth,
                 node_modules_depth,
                 DiscoveryReason::dependency(SourceInclusionReason::PathReference {
-                    parent: source_path.display().to_path_buf(),
+                    parent: source_path.display().to_owned(),
                     specifier: reference.file_name().to_owned(),
                     pos: reference.pos(),
                     end: reference.end(),
@@ -2862,7 +3004,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                         reference.pos(),
                         reference.length(),
                         &gen::A_file_cannot_have_a_reference_to_itself,
-                        &[],
+                        &[] as &[String],
                     )?);
                 }
                 return Ok(());
@@ -2875,7 +3017,9 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             &gen::Could_not_resolve_the_path_0_with_the_extensions_1,
             &[
                 normalized,
-                supported_source_extension_list(self.compiler_options.allow_js).to_owned(),
+                JsString::from(supported_source_extension_list(
+                    self.compiler_options.allow_js,
+                )),
             ],
         )?);
         Ok(())
@@ -2906,10 +3050,10 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                         type_roots.as_deref(),
                     )
                     .map_err(|error| {
-                        ProgramLoadError::resolution(
+                        ProgramLoadError::resolution_js(
                             ProgramLoadOperation::ResolveTypeReference,
-                            Some(containing_source.display().to_path_buf()),
-                            Some(key.specifier().to_owned()),
+                            Some(containing_source.display().to_owned()),
+                            Some((key.specifier().to_owned()).into()),
                             error,
                         )
                     })?;
@@ -2957,9 +3101,9 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 continue;
             };
             if !is_loadable_typescript_extension(&extension) {
-                return Err(ProgramLoadError::invalid_data(
+                return Err(ProgramLoadError::invalid_data_js(
                     ProgramLoadOperation::ResolveTypeReference,
-                    Some(target.display().to_path_buf()),
+                    Some(target.display().to_owned()),
                     "a resolved type-reference target is not a TypeScript source file",
                 ));
             }
@@ -2968,7 +3112,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 .iter()
                 .find(|directive| directive.key() == &type_key);
             let type_inclusion = SourceInclusionReason::TypeReference {
-                parent: containing_source.display().to_path_buf(),
+                parent: containing_source.display().to_owned(),
                 specifier: type_key.specifier().to_owned(),
                 pos: directive.map_or(0, PlannedTypeReferenceDirective::pos),
                 end: directive.map_or(0, PlannedTypeReferenceDirective::end),
@@ -2981,9 +3125,9 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 SourceClass::Ordinary,
             )?;
             let Some(target_source) = loaded else {
-                return Err(ProgramLoadError::invalid_data(
+                return Err(ProgramLoadError::invalid_data_js(
                     ProgramLoadOperation::ReadSource,
-                    Some(target.display().to_path_buf()),
+                    Some(target.display().to_owned()),
                     "resolver reported a type-reference target that the host no longer returns",
                 ));
             };
@@ -3003,10 +3147,8 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         node_modules_depth: usize,
     ) -> Result<(), ProgramLoadError> {
         let mut phase_indices = Vec::with_capacity(requests.len());
-        let containing_file = self.sources[source].prepared.path().display().to_path_buf();
-        let containing_file_is_declaration = containing_file
-            .to_str()
-            .is_some_and(is_declaration_file_name);
+        let containing_file = self.sources[source].prepared.path().display().to_owned();
+        let containing_file_is_declaration = is_declaration_file_name(containing_file.as_js());
         for (key, loads_source) in requests {
             let inclusion = self.sources[source]
                 .module_request_spans
@@ -3037,10 +3179,10 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     .resolver
                     .resolve_with_facts(&containing_file, key.specifier(), key.mode())
                     .map_err(|error| {
-                        ProgramLoadError::resolution(
+                        ProgramLoadError::resolution_js(
                             ProgramLoadOperation::ResolveModule,
                             Some(containing_file.clone()),
-                            Some(key.specifier().to_owned()),
+                            Some((key.specifier().to_owned()).into()),
                             error,
                         )
                     })?;
@@ -3096,7 +3238,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 // and allowJs=false as well as ordinary imports.
                 let elided_by_node_modules_depth = external
                     && (!has_original_path
-                        || path_contains_node_modules(target.canonical().as_path()))
+                        || path_contains_node_modules(target.canonical().as_js()))
                     && self
                         .compiler_options
                         .node_modules_depth_exceeds_limit(child_node_modules_depth);
@@ -3131,9 +3273,9 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             // resolution and is published as originalPath below.
             if matches!(extension, ModuleExtension::Json) {
                 if !self.compiler_options.resolve_json_module_effective() {
-                    return Err(ProgramLoadError::unsupported(
+                    return Err(ProgramLoadError::unsupported_js(
                         ProgramLoadOperation::ResolveModule,
-                        Some(target.display().to_path_buf()),
+                        Some(target.display().to_owned()),
                         "resolveJsonModule",
                         "a JSON target was resolved while resolveJsonModule is disabled",
                     ));
@@ -3147,9 +3289,9 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     SourceClass::Ordinary,
                 )?;
                 let Some(target_source) = loaded else {
-                    return Err(ProgramLoadError::invalid_data(
+                    return Err(ProgramLoadError::invalid_data_js(
                         ProgramLoadOperation::ReadSource,
-                        Some(target.display().to_path_buf()),
+                        Some(target.display().to_owned()),
                         "resolver reported a JSON module target that the host no longer returns",
                     ));
                 };
@@ -3157,13 +3299,13 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 continue;
             }
             if !is_loadable_typescript_extension(&extension) && !extension.is_javascript() {
-                return Err(ProgramLoadError::unsupported(
+                return Err(ProgramLoadError::unsupported_js(
                     ProgramLoadOperation::ResolveModule,
-                    Some(target.display().to_path_buf()),
+                    Some(target.display().to_owned()),
                     "resolved-module-extension",
                     format!(
                         "loadable target extension {} is outside the admitted source loader",
-                        extension.as_str()
+                        extension.as_js().to_string_lossy()
                     ),
                 ));
             }
@@ -3175,9 +3317,9 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 SourceClass::Ordinary,
             )?;
             let Some(target_source) = loaded else {
-                return Err(ProgramLoadError::invalid_data(
+                return Err(ProgramLoadError::invalid_data_js(
                     ProgramLoadOperation::ReadSource,
-                    Some(target.display().to_path_buf()),
+                    Some(target.display().to_owned()),
                     "resolver reported a module target that the host no longer returns",
                 ));
             };
@@ -3190,7 +3332,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         &self,
         operation: ProgramLoadOperation,
         limit: ProgramLoadLimit,
-        path: Option<PathBuf>,
+        path: Option<JsString>,
         maximum: usize,
         observed: usize,
     ) -> Result<(), ProgramLoadError> {
@@ -3201,7 +3343,8 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             operation,
             exceeded: ProgramLoadLimitExceeded {
                 limit,
-                path,
+                path: error_display_path(path.as_ref()),
+                js_path: path,
                 maximum,
                 observed,
             },
@@ -3310,9 +3453,9 @@ fn publish_program(
                 source_by_canonical.insert(redirect.canonical().clone(), source_id)
             {
                 if previous != source_id {
-                    return Err(ProgramLoadError::invalid_data(
+                    return Err(ProgramLoadError::invalid_data_js(
                         ProgramLoadOperation::BuildPreparedProgram,
-                        Some(redirect.display().to_path_buf()),
+                        Some(redirect.display().to_owned()),
                         "package redirect identity belongs to more than one staged source",
                     ));
                 }
@@ -3351,7 +3494,7 @@ fn publish_program(
             Some((module.package_id()?, module.extension()))
         }));
     for resolution in staged.module_resolutions {
-        let key_path = resolution.key.source().as_path().to_path_buf();
+        let key_path = resolution.key.source().as_js().to_owned();
         let specifier = resolution.key.specifier().to_owned();
         let bound = bind_module_resolution(
             resolution.host,
@@ -3362,10 +3505,10 @@ fn publish_program(
             compiler_options.no_resolve == Some(true),
         )
         .map_err(|error| {
-            ProgramLoadError::resolution(
+            ProgramLoadError::resolution_js(
                 ProgramLoadOperation::BindResolutions,
                 Some(key_path),
-                Some(specifier),
+                Some((specifier).into()),
                 error,
             )
         })?;
@@ -3377,19 +3520,14 @@ fn publish_program(
     }
 
     for resolution in staged.type_resolutions {
-        let key_path = resolution
-            .key
-            .origin()
-            .canonical_path()
-            .as_path()
-            .to_path_buf();
+        let key_path = resolution.key.origin().canonical_path().as_js().to_owned();
         let specifier = resolution.key.specifier().to_owned();
         let bound =
             bind_type_resolution(resolution.host, &source_by_canonical).map_err(|error| {
-                ProgramLoadError::resolution(
+                ProgramLoadError::resolution_js(
                     ProgramLoadOperation::BindResolutions,
                     Some(key_path),
-                    Some(specifier),
+                    Some((specifier).into()),
                     error,
                 )
             })?;
@@ -3414,7 +3552,7 @@ fn publish_program(
 fn bind_module_resolution(
     host: HostModuleResolution,
     source_by_canonical: &BTreeMap<CanonicalPath, SourceFileId>,
-    package_map: &BTreeMap<String, bool>,
+    package_map: &BTreeMap<JsString, bool>,
     loads_source: bool,
     unloaded_reason: Option<UnloadedModuleReason>,
     no_resolve: bool,
@@ -3432,7 +3570,10 @@ fn bind_module_resolution(
         module.package_id().map_or((false, false), |package_id| {
             (
                 package_map.contains_key(&types_package_name(package_id.name())),
-                package_map.get(package_id.name()).copied().unwrap_or(false),
+                package_map
+                    .get(package_id.name().as_bytes())
+                    .copied()
+                    .unwrap_or(false),
             )
         });
     let owned_source = source_by_canonical.get(module.resolved_file().canonical());
@@ -3451,7 +3592,7 @@ fn bind_module_resolution(
             "unexplained-unloaded-javascript",
             format!(
                 "resolved JavaScript target {} has no source-membership exclusion",
-                module.resolved_file().display().display()
+                module.resolved_file().display().to_string_lossy()
             ),
         ));
     } else if is_arbitrary_declaration_extension(module.extension()) && owned_source.is_none() {
@@ -3473,7 +3614,7 @@ fn bind_module_resolution(
             "resolution-only-source-target",
             format!(
                 "resolved non-JavaScript target {} has no independent program membership",
-                module.resolved_file().display().display()
+                module.resolved_file().display().to_string_lossy()
             ),
         ));
     };
@@ -3497,7 +3638,7 @@ fn bind_type_resolution(
     let Some(source) = source_by_canonical.get(host.resolved_file().canonical()) else {
         return Err(ResolutionError::invalid_data(format!(
             "resolved type-reference target {} is not owned by the prepared program",
-            host.resolved_file().display().display()
+            host.resolved_file().display().to_string_lossy()
         )));
     };
     let target = host.resolved_file().clone();
@@ -3508,7 +3649,7 @@ fn bind_type_resolution(
 
 fn package_map_from_facts<'a>(
     facts: impl IntoIterator<Item = (&'a PackageId, &'a ModuleExtension)>,
-) -> BTreeMap<String, bool> {
+) -> BTreeMap<JsString, bool> {
     let mut packages = BTreeMap::new();
     for (package_id, extension) in facts {
         let bundles_declaration = matches!(extension, ModuleExtension::Dts);
@@ -3520,16 +3661,8 @@ fn package_map_from_facts<'a>(
     packages
 }
 
-fn types_package_name(package_name: &str) -> String {
-    let mangled = match package_name.strip_prefix('@') {
-        Some(scoped) => scoped.replace('/', "__"),
-        None => package_name.to_owned(),
-    };
-    format!("@types/{mangled}")
-}
-
 fn implied_node_format(
-    file_name: &str,
+    file_name: JsStr<'_>,
     package_scope: Option<&PackageMetadata>,
     options: &CompilerOptions,
 ) -> Option<ResolutionMode> {
@@ -3547,7 +3680,7 @@ fn implied_node_format(
     {
         let package_lookup = matches!(options.emit_module_resolution_kind(), 3..=99)
             || file_name
-                .split('/')
+                .split_ascii(b'/')
                 .any(|segment| segment == "node_modules");
         if !package_lookup {
             return None;
@@ -3564,7 +3697,7 @@ fn implied_node_format(
 }
 
 fn implied_node_format_for_emit(
-    file_name: &str,
+    file_name: JsStr<'_>,
     package_scope: Option<&PackageMetadata>,
     options: &CompilerOptions,
 ) -> Option<ResolutionMode> {
@@ -3583,11 +3716,9 @@ fn implied_node_format_for_emit(
 }
 
 fn is_typescript_source(path: &CanonicalPath) -> bool {
-    path.as_path().to_str().is_some_and(|path| {
-        TYPESCRIPT_SOURCE_EXTENSIONS
-            .iter()
-            .any(|extension| path.ends_with(extension))
-    })
+    TYPESCRIPT_SOURCE_EXTENSIONS
+        .iter()
+        .any(|extension| path.as_js().ends_with(extension))
 }
 
 /// tsc-port: getSupportedExtensions/getSupportedExtensionsWithJsonIfResolveJsonModule @6.0.3
@@ -3608,22 +3739,18 @@ const fn supported_source_extension_list(allow_js: bool) -> &'static str {
 }
 
 fn is_json_source(path: &CanonicalPath) -> bool {
-    path.as_path()
-        .to_str()
-        .is_some_and(|path| path.ends_with(".json"))
+    path.as_js().ends_with(".json")
 }
 
 fn is_javascript_source(path: &CanonicalPath) -> bool {
-    path.as_path().to_str().is_some_and(|path| {
-        JAVASCRIPT_SOURCE_EXTENSIONS
-            .iter()
-            .any(|extension| path.ends_with(extension))
-    })
+    JAVASCRIPT_SOURCE_EXTENSIONS
+        .iter()
+        .any(|extension| path.as_js().ends_with(extension))
 }
 
-fn path_contains_node_modules(path: &Path) -> bool {
-    path.to_str()
-        .is_some_and(|path| path.split('/').any(|component| component == "node_modules"))
+fn path_contains_node_modules(path: JsStr<'_>) -> bool {
+    path.split_ascii(b'/')
+        .any(|component| component == "node_modules")
 }
 
 /// tsc-port: getResolutionDiagnostic @6.0.3 (source-admission projection)
@@ -3671,7 +3798,7 @@ fn unloaded_javascript_reason(
         return Some(UnloadedModuleReason::ResolutionOnly);
     }
     if external
-        && (!has_original_path || path_contains_node_modules(resolved_file.as_path()))
+        && (!has_original_path || path_contains_node_modules(resolved_file.as_js()))
         && options.node_modules_depth_exceeds_limit(node_modules_depth)
     {
         return Some(UnloadedModuleReason::NodeModulesDepth);
@@ -3706,19 +3833,12 @@ fn is_loadable_typescript_extension(extension: &ModuleExtension) -> bool {
 /// tsc-span: _tsc.js:124173-124209
 fn unsupported_root_extension_diagnostic(
     path: &ProgramPath,
-    root_spelling: &Path,
+    root_spelling: JsStr<'_>,
     allow_js: bool,
     root_reason: RootFileReason,
 ) -> Result<Diagnostic, ProgramLoadError> {
     let javascript = is_javascript_source(path.canonical());
-    let path = root_spelling.to_str().ok_or_else(|| {
-        ProgramLoadError::invalid_input(
-            ProgramLoadOperation::NormalizeRoot,
-            Some(root_spelling.to_path_buf()),
-            "root spelling is not valid Unicode",
-        )
-    })?;
-    let path = path.to_owned();
+    let path = root_spelling.to_owned();
     let (message, arguments) = if javascript {
         (
             &gen::File_0_is_a_JavaScript_file_Did_you_mean_to_enable_the_allowJs_option,
@@ -3727,7 +3847,10 @@ fn unsupported_root_extension_diagnostic(
     } else {
         (
             &gen::File_0_has_an_unsupported_extension_The_only_supported_extensions_are_1,
-            vec![path, supported_source_extension_list(allow_js).to_owned()],
+            vec![
+                path,
+                JsString::from(supported_source_extension_list(allow_js)),
+            ],
         )
     };
     let root_reason = root_file_reason_message(&root_reason);
@@ -3737,11 +3860,11 @@ fn unsupported_root_extension_diagnostic(
         None,
         None,
         None,
-        MessageChain::new(message, &arguments).with_next(vec![inclusion]),
+        MessageChain::new_js(message, &arguments).with_next(vec![inclusion]),
     ))
 }
 
-fn missing_root_diagnostic(path: &Path, root_file_reason: RootFileReason) -> Diagnostic {
+fn missing_root_diagnostic(path: JsStr<'_>, root_file_reason: RootFileReason) -> Diagnostic {
     let root_reason = root_file_reason_message(&root_file_reason);
     let inclusion = MessageChain::new(&gen::The_file_is_in_the_program_because, &[])
         .with_next(vec![root_reason]);
@@ -3749,19 +3872,12 @@ fn missing_root_diagnostic(path: &Path, root_file_reason: RootFileReason) -> Dia
         None,
         None,
         None,
-        MessageChain::new(
-            &gen::File_0_not_found,
-            &[path
-                .to_str()
-                .expect("root paths are representable")
-                .to_owned()],
-        )
-        .with_next(vec![inclusion]),
+        MessageChain::new_js_parts(&gen::File_0_not_found, &[path]).with_next(vec![inclusion]),
     )
 }
 
 fn unresolved_extensionless_root_diagnostic(
-    path: &Path,
+    path: JsStr<'_>,
     allow_js: bool,
     root_reason: RootFileReason,
 ) -> Result<Diagnostic, ProgramLoadError> {
@@ -3772,20 +3888,9 @@ fn unresolved_extensionless_root_diagnostic(
         None,
         None,
         None,
-        MessageChain::new(
+        MessageChain::new_js_parts(
             &gen::Could_not_resolve_the_path_0_with_the_extensions_1,
-            &[
-                path.to_str()
-                    .ok_or_else(|| {
-                        ProgramLoadError::invalid_input(
-                            ProgramLoadOperation::NormalizeRoot,
-                            Some(path.to_path_buf()),
-                            "root spelling is not valid Unicode",
-                        )
-                    })?
-                    .to_owned(),
-                supported_source_extension_list(allow_js).to_owned(),
-            ],
+            &[path, supported_source_extension_list(allow_js).into()],
         )
         .with_next(vec![inclusion]),
     ))
@@ -3802,9 +3907,9 @@ fn root_file_reason_message(reason: &RootFileReason) -> MessageChain {
         RootFileReason::FilesList { .. } => {
             MessageChain::new(&gen::Part_of_files_list_in_tsconfig_json, &[])
         }
-        RootFileReason::IncludePattern { spec, config_file } => MessageChain::new(
+        RootFileReason::IncludePattern { spec, config_file } => MessageChain::new_js(
             &gen::Matched_by_include_pattern_0_in_1,
-            &[spec.to_string(), config_file.to_string()],
+            &[spec.as_ref().clone(), config_file.as_ref().clone()],
         ),
         RootFileReason::DefaultInclude => {
             MessageChain::new(&gen::Matched_by_default_include_pattern, &[])
@@ -3833,15 +3938,8 @@ fn missing_library_root_diagnostic(
         None,
         None,
         None,
-        MessageChain::new(
-            &gen::File_0_not_found,
-            &[path
-                .display()
-                .to_str()
-                .expect("program paths are representable")
-                .to_owned()],
-        )
-        .with_next(vec![inclusion]),
+        MessageChain::new_js_parts(&gen::File_0_not_found, &[path.display()])
+            .with_next(vec![inclusion]),
     );
     if let LibraryRootReason::Default { target } = reason {
         if let Some((config_file, location)) = config_file.and_then(|config_file| {
@@ -3851,14 +3949,7 @@ fn missing_library_root_diagnostic(
         }) {
             diagnostic.related_information_present = true;
             diagnostic.related.push(RelatedInfo {
-                file_name: Some(
-                    config_file
-                        .path()
-                        .display()
-                        .to_str()
-                        .expect("validated config paths are Unicode")
-                        .to_owned(),
-                ),
+                file_name: Some(config_file.path().display().to_owned()),
                 start: Some(location.start()),
                 length: Some(location.length()),
                 message: MessageChain::new(
@@ -3872,11 +3963,11 @@ fn missing_library_root_diagnostic(
 }
 
 fn automatic_type_reference_diagnostic(
-    name: &str,
+    name: JsStr<'_>,
     uses_wildcard: bool,
     config_file: Option<&ProgramConfigFile>,
 ) -> Diagnostic {
-    let reason = MessageChain::new(
+    let reason = MessageChain::new_js(
         if uses_wildcard {
             &gen::Entry_point_for_implicit_type_library_0
         } else {
@@ -3885,18 +3976,18 @@ fn automatic_type_reference_diagnostic(
         &[name.to_owned()],
     );
     let inclusion =
-        MessageChain::new(&gen::The_file_is_in_the_program_because, &[]).with_next(vec![reason]);
+        MessageChain::new_js(&gen::The_file_is_in_the_program_because, &[]).with_next(vec![reason]);
     let mut diagnostic = Diagnostic::new(
         None,
         None,
         None,
-        MessageChain::new(
+        MessageChain::new_js(
             &gen::Cannot_find_type_definition_file_for_0,
             &[name.to_owned()],
         )
         .with_next(vec![inclusion]),
     );
-    let syntax_name = if uses_wildcard { "*" } else { name };
+    let syntax_name = if uses_wildcard { "*".into() } else { name };
     if let Some((config_file, location)) = config_file.and_then(|config_file| {
         config_file
             .automatic_type_directive_location(syntax_name)
@@ -3904,17 +3995,10 @@ fn automatic_type_reference_diagnostic(
     }) {
         diagnostic.related_information_present = true;
         diagnostic.related.push(RelatedInfo {
-            file_name: Some(
-                config_file
-                    .path()
-                    .display()
-                    .to_str()
-                    .expect("validated config paths are Unicode")
-                    .to_owned(),
-            ),
+            file_name: Some(config_file.path().display().to_owned()),
             start: Some(location.start()),
             length: Some(location.length()),
-            message: MessageChain::new(
+            message: MessageChain::new_js(
                 &gen::File_is_entry_point_of_type_library_specified_here,
                 &[],
             ),
@@ -3970,7 +4054,7 @@ fn unresolved_type_reference_diagnostic(
 /// tsc-span: _tsc.js:125971-125985
 fn casing_alias_diagnostic(
     existing: &PreparedSourceFile,
-    incoming: &Path,
+    incoming: JsStr<'_>,
     existing_reasons: &[SourceInclusionReason],
     incoming_reason: &SourceInclusionReason,
     config_file: Option<&ProgramConfigFile>,
@@ -3995,7 +4079,7 @@ fn casing_alias_diagnostic(
 /// tsc-span: _tsc.js:124396-124402
 fn casing_distinct_file_diagnostic(
     existing: &PreparedSourceFile,
-    incoming: &Path,
+    incoming: JsStr<'_>,
     existing_reasons: &[SourceInclusionReason],
     incoming_reason: &SourceInclusionReason,
     config_file: Option<&ProgramConfigFile>,
@@ -4020,12 +4104,12 @@ fn append_output_option_diagnostic(
     message: MessageChain,
 ) {
     let Some(config) = config else {
-        diagnostics.push(Diagnostic::new(None, None, None, message));
+        diagnostics.push(Diagnostic::new_js(None, None, None, message));
         return;
     };
     let mut locations = names
         .iter()
-        .flat_map(|name| config.compiler_option_name_locations(name))
+        .flat_map(|name| config.compiler_option_name_locations(*name))
         .copied()
         .collect::<Vec<_>>();
     locations.sort_by_key(|location| location.start());
@@ -4033,10 +4117,10 @@ fn append_output_option_diagnostic(
         locations.extend(config.compiler_options_location());
     }
     if locations.is_empty() {
-        diagnostics.push(Diagnostic::new(None, None, None, message));
+        diagnostics.push(Diagnostic::new_js(None, None, None, message));
     } else {
         for location in locations {
-            diagnostics.push(Diagnostic::new(
+            diagnostics.push(Diagnostic::new_js(
                 Some(config.diagnostic_file_name().to_owned()),
                 Some(location.start()),
                 Some(location.length()),
@@ -4051,7 +4135,7 @@ fn append_output_option_diagnostic(
 /// tsc-span: _tsc.js:125851-125932
 fn root_directory_diagnostic(
     source: &StagedSource,
-    root: &str,
+    root: JsStr<'_>,
     config: Option<&ProgramConfigFile>,
     package: Option<&PackageMetadata>,
 ) -> Diagnostic {
@@ -4059,17 +4143,9 @@ fn root_directory_diagnostic(
     let located = reasons.iter().enumerate().find_map(|(index, reason)| {
         source_inclusion_location(reason).map(|location| (index, location))
     });
-    let mut message = MessageChain::new(
+    let mut message = MessageChain::new_js_parts(
         &gen::File_0_is_not_under_rootDir_1_rootDir_is_expected_to_contain_all_source_files,
-        &[
-            source
-                .prepared
-                .path()
-                .display()
-                .to_string_lossy()
-                .into_owned(),
-            root.to_owned(),
-        ],
+        &[source.prepared.path().display(), root],
     );
     if !reasons.is_empty() && (reasons.len() != 1 || located.is_none()) {
         message = message.with_next(vec![MessageChain::new(
@@ -4097,7 +4173,7 @@ fn root_directory_diagnostic(
                     Some(end.saturating_sub(*start)),
                 )
             });
-    let mut diagnostic = Diagnostic::new(file, start, length, message);
+    let mut diagnostic = Diagnostic::new_js(file, start, length, message);
     for (index, reason) in reasons.iter().enumerate() {
         if located
             .as_ref()
@@ -4140,7 +4216,7 @@ fn root_module_format_detail(
     if source.is_external_module() != Some(true) {
         return None;
     }
-    let name = source.path().display().to_string_lossy();
+    let name = source.path().display();
     // The TS implied-format worker returns a bare format for fixed module
     // extensions, with no packageJsonScope or packageJsonLocations fields.
     if [".mts", ".mjs", ".cts", ".cjs"]
@@ -4151,17 +4227,13 @@ fn root_module_format_detail(
     }
     match source.implied_node_format_for_emit()? {
         ResolutionMode::EsNext => package.map(|package| {
-            MessageChain::new(
+            MessageChain::new_js(
                 &gen::File_is_ECMAScript_module_because_0_has_field_type_with_value_module,
-                &[package
-                    .package_json()
-                    .display()
-                    .to_string_lossy()
-                    .into_owned()],
+                &[package.package_json().display().to_owned()],
             )
         }),
         ResolutionMode::CommonJs => Some(match package {
-            Some(package) => MessageChain::new(
+            Some(package) => MessageChain::new_js(
                 if package
                     .type_field_truthiness()
                     .expect("loader package parser supplies type truthiness")
@@ -4170,11 +4242,7 @@ fn root_module_format_detail(
                 } else {
                     &gen::File_is_CommonJS_module_because_0_does_not_have_field_type
                 },
-                &[package
-                    .package_json()
-                    .display()
-                    .to_string_lossy()
-                    .into_owned()],
+                &[package.package_json().display().to_owned()],
             ),
             None => MessageChain::new(
                 &gen::File_is_CommonJS_module_because_package_json_was_not_found,
@@ -4206,16 +4274,9 @@ fn root_inclusion_related_information(
         RootFileReason::Explicit | RootFileReason::DefaultInclude => return None,
     };
     let config = config?;
-    let location = config.root_option_array_location(option, spec)?;
+    let location = config.root_option_array_location(option, spec.as_ref())?;
     Some(RelatedInfo {
-        file_name: Some(
-            config
-                .path()
-                .display()
-                .to_str()
-                .expect("validated config paths are Unicode")
-                .to_owned(),
-        ),
+        file_name: Some(config.path().display().to_owned()),
         start: Some(location.start()),
         length: Some(location.length()),
         message: MessageChain::new(message, &[]),
@@ -4224,20 +4285,14 @@ fn root_inclusion_related_information(
 
 fn casing_diagnostic(
     existing: &PreparedSourceFile,
-    incoming: &Path,
+    incoming: JsStr<'_>,
     existing_reasons: &[SourceInclusionReason],
     incoming_reason: &SourceInclusionReason,
     config_file: Option<&ProgramConfigFile>,
     incoming_reason_is_recorded_on_existing: bool,
 ) -> Diagnostic {
-    let existing_name = existing
-        .path()
-        .display()
-        .to_str()
-        .expect("validated program paths are Unicode");
-    let incoming_name = incoming
-        .to_str()
-        .expect("alternate display aliases come from validated program paths");
+    let existing_name = existing.path().display();
+    let incoming_name = incoming;
     let existing_has_reference = existing_reasons
         .iter()
         .any(SourceInclusionReason::is_referenced);
@@ -4271,7 +4326,7 @@ fn casing_diagnostic(
     if incoming_reason_is_recorded_on_existing && root_arrived_after_reference {
         reasons.dedup();
     }
-    let message = MessageChain::new(message, &arguments).with_next(vec![MessageChain::new(
+    let message = MessageChain::new_js(message, &arguments).with_next(vec![MessageChain::new(
         &gen::The_file_is_in_the_program_because,
         &[],
     )
@@ -4288,7 +4343,7 @@ fn casing_diagnostic(
         .map_or((None, None, None), |(path, start, end)| {
             (Some(path), Some(start), Some(end.saturating_sub(start)))
         });
-    let mut diagnostic = Diagnostic::new(file_name, start, length, message);
+    let mut diagnostic = Diagnostic::new_js(file_name, start, length, message);
     for reason in all_reasons {
         if let Some(related) = root_inclusion_related_information(reason, config_file) {
             diagnostic.related.push(related);
@@ -4299,30 +4354,29 @@ fn casing_diagnostic(
 }
 
 fn source_inclusion_reason_message(reason: &SourceInclusionReason) -> Option<MessageChain> {
-    let path_text = |path: &Path| path.to_str().map(str::to_owned);
     match reason {
         SourceInclusionReason::Root(root) => Some(root_file_reason_message(root)),
         SourceInclusionReason::Import {
             parent,
             reference_text,
             ..
-        } => Some(MessageChain::new(
+        } => Some(MessageChain::new_js(
             &gen::Imported_via_0_from_file_1,
-            &[reference_text.clone(), path_text(parent)?],
+            &[reference_text.clone().into(), parent.clone()],
         )),
         SourceInclusionReason::PathReference {
             parent, specifier, ..
-        } => Some(MessageChain::new(
+        } => Some(MessageChain::new_js(
             &gen::Referenced_via_0_from_file_1,
-            &[specifier.clone(), path_text(parent)?],
+            &[specifier.clone().into(), parent.clone()],
         )),
         SourceInclusionReason::TypeReference {
             parent, specifier, ..
-        } => Some(MessageChain::new(
+        } => Some(MessageChain::new_js(
             &gen::Type_library_referenced_via_0_from_file_1,
-            &[specifier.clone(), path_text(parent)?],
+            &[specifier.clone(), parent.clone()],
         )),
-        SourceInclusionReason::AutomaticType { name } => Some(MessageChain::new(
+        SourceInclusionReason::AutomaticType { name } => Some(MessageChain::new_js(
             &gen::Entry_point_of_type_library_0_specified_in_compilerOptions,
             std::slice::from_ref(name),
         )),
@@ -4333,7 +4387,7 @@ fn source_inclusion_reason_message(reason: &SourceInclusionReason) -> Option<Mes
     }
 }
 
-fn source_inclusion_location(reason: &SourceInclusionReason) -> Option<(String, u32, u32)> {
+fn source_inclusion_location(reason: &SourceInclusionReason) -> Option<(JsString, u32, u32)> {
     let (parent, pos, end) = match reason {
         SourceInclusionReason::Import {
             parent, pos, end, ..
@@ -4346,37 +4400,119 @@ fn source_inclusion_location(reason: &SourceInclusionReason) -> Option<(String, 
         } => (parent, *pos, *end),
         _ => return None,
     };
-    Some((parent.to_str()?.to_owned(), pos, end))
+    Some((parent.clone(), pos, end))
 }
 
-fn located_diagnostic(
+fn located_diagnostic<A: tsc_diagnostics::DiagnosticArgument>(
     source: &PreparedSourceFile,
     start: u32,
     length: u32,
     message: &'static tsc_diagnostics::DiagnosticMessage,
-    args: &[String],
+    args: &[A],
 ) -> Result<Diagnostic, ProgramLoadError> {
-    let file_name = source.path().display().to_str().ok_or_else(|| {
-        ProgramLoadError::invalid_data(
-            ProgramLoadOperation::BuildPreparedProgram,
-            Some(source.path().display().to_path_buf()),
-            "diagnostic source path is not valid Unicode",
-        )
-    })?;
-    Ok(Diagnostic::new(
+    let file_name = source.path().display();
+    Ok(Diagnostic::new_js(
         Some(file_name.to_owned()),
         Some(start),
         Some(length),
-        MessageChain::new(message, args),
+        MessageChain::new_js(
+            message,
+            &args
+                .iter()
+                .map(|arg| arg.diagnostic_value().to_owned())
+                .collect::<Vec<_>>(),
+        ),
     ))
 }
 
-fn path_text(path: &Path) -> Result<String, ProgramLoadError> {
-    path.to_str().map(str::to_owned).ok_or_else(|| {
-        ProgramLoadError::invalid_data(
-            ProgramLoadOperation::BuildPreparedProgram,
-            Some(path.to_path_buf()),
-            "program path is not valid Unicode",
-        )
+/// JavaScript root-name entry point; retains every UTF-16 unit until the host boundary.
+pub fn load_program_js(
+    host: &dyn CompilerHost,
+    root_names: &[JsString],
+    compiler_options: CompilerOptions,
+    program_options: ProgramOptions,
+    library_catalog: &LibraryCatalog,
+    limits: ProgramLoadLimits,
+) -> Result<PreparedProgram, ProgramLoadError> {
+    load_program_worker(
+        PreparedProgramMode::NoEmit,
+        host,
+        RootNames::Js(root_names),
+        compiler_options,
+        program_options,
+        Some(library_catalog),
+        false,
+        limits,
+        None,
+    )
+}
+
+/// JavaScript root-name entry point; retains every UTF-16 unit until the host boundary.
+pub fn load_emitting_program_js(
+    host: &dyn CompilerHost,
+    root_names: &[JsString],
+    compiler_options: CompilerOptions,
+    program_options: ProgramOptions,
+    library_catalog: &LibraryCatalog,
+    limits: ProgramLoadLimits,
+) -> Result<PreparedProgram, ProgramLoadError> {
+    load_program_worker(
+        PreparedProgramMode::Emit,
+        host,
+        RootNames::Js(root_names),
+        compiler_options,
+        program_options,
+        Some(library_catalog),
+        false,
+        limits,
+        None,
+    )
+}
+
+/// The `/node_modules/` membership test on a display path, evaluated on the
+/// JavaScript string itself: either separator counts on both sides, exactly
+/// like the former `replace('\\', "/").contains("/node_modules/")`, and no
+/// UTF-8 projection of the path is made.
+fn display_path_contains_node_modules(path: JsStr<'_>) -> bool {
+    const NAME: &[u8] = b"node_modules";
+    let is_separator = |byte: u8| byte == b'/' || byte == b'\\';
+    path.as_bytes().windows(NAME.len() + 2).any(|window| {
+        is_separator(window[0])
+            && &window[1..=NAME.len()] == NAME
+            && is_separator(window[NAME.len() + 1])
     })
+}
+
+#[cfg(test)]
+mod node_modules_membership_tests {
+    use super::display_path_contains_node_modules;
+    use tsc_diagnostics::JsString;
+
+    #[test]
+    fn membership_matches_the_former_projection_on_every_separator() {
+        for (path, expected) in [
+            ("/work/node_modules/a/index.js", true),
+            ("C:\\work\\node_modules\\a\\index.js", true),
+            ("/work\\node_modules/a.js", true),
+            ("/work/node_modules", false),
+            ("/work/node_modules_x/a.js", false),
+            ("/work/xnode_modules/a.js", false),
+            ("node_modules/a.js", false),
+            ("/work/src/a.js", false),
+        ] {
+            assert_eq!(
+                display_path_contains_node_modules(path.into()),
+                expected,
+                "{path}"
+            );
+        }
+        let mut path = JsString::from("/work/");
+        path.push_code_unit(0xd800);
+        path.push_str("/node_modules/a.js");
+        assert!(display_path_contains_node_modules(path.as_js()));
+        let mut path = JsString::from("/work/node_modules");
+        path.push_code_unit(0xd800);
+        path.push_str("/a.js");
+        assert!(!display_path_contains_node_modules(path.as_js()));
+    }
 }

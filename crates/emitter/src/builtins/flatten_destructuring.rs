@@ -2077,10 +2077,10 @@ fn create_string_literal_from_property_name<H: FlattenHost>(
     property_name: TransformNode,
 ) -> Result<TransformNode, TransformError> {
     let text = match &host.context_ref().arena().node(property_name)?.data {
-        NodeData::Identifier(data) => data.text.clone(),
+        NodeData::Identifier(data) => tsc_diagnostics::JsString::from(&data.text),
         NodeData::StringLiteral(data) => data.text.clone(),
-        NodeData::NumericLiteral(data) => data.text.clone(),
-        NodeData::BigIntLiteral(data) => data.text.clone(),
+        NodeData::NumericLiteral(data) => data.text.clone().into(),
+        NodeData::BigIntLiteral(data) => data.text.clone().into(),
         _ => {
             return Err(TransformError::RequiredChildRemoved {
                 parent: host.context_ref().arena().node(property_name)?.kind,
@@ -2098,15 +2098,15 @@ fn create_string_literal_from_property_name<H: FlattenHost>(
     Ok(literal)
 }
 
-fn create_string_literal<H: FlattenHost>(
+fn create_string_literal<'a, H: FlattenHost>(
     host: &mut H,
-    text: &str,
+    text: impl Into<tsc_diagnostics::JsStr<'a>>,
 ) -> Result<TransformNode, TransformError> {
     let source = host.flatten_source();
     host.context().factory()?.create_node(
         source,
         NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
-            text: text.to_owned(),
+            text: text.into().to_owned(),
             has_extended_unicode_escape: None,
         }),
         TransformFlags::NONE,

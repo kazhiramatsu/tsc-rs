@@ -145,10 +145,27 @@ impl<'a> CheckerState<'a> {
         message: &'static tsc_diagnostics::DiagnosticMessage,
         args: &[&str],
     ) {
+        self.add_unused_diagnostic_at_js(
+            containing_node,
+            kind,
+            location,
+            message,
+            &args.iter().map(|&arg| arg.into()).collect::<Vec<_>>(),
+        );
+    }
+
+    fn add_unused_diagnostic_at_js(
+        &mut self,
+        containing_node: NodeId,
+        kind: UnusedIdentifierKind,
+        location: Option<NodeId>,
+        message: &'static tsc_diagnostics::DiagnosticMessage,
+        args: &[tsc_types::JsStr<'_>],
+    ) {
         if self.is_recovery_only_unused_declaration(containing_node) {
             return;
         }
-        let mut diagnostic = self.create_error(location, message, args);
+        let mut diagnostic = self.create_error_js(location, message, args);
         if !self.unused_is_error(containing_node, kind) {
             diagnostic.message.category = DiagnosticCategory::Suggestion;
         }
@@ -223,12 +240,12 @@ impl<'a> CheckerState<'a> {
                             .intersects(NodeFlags::AMBIENT)
                     {
                         let display = self.declaration_name_display(name);
-                        self.add_unused_diagnostic_at(
+                        self.add_unused_diagnostic_at_js(
                             member,
                             UnusedIdentifierKind::Local,
                             Some(name),
                             &diagnostics::_0_is_declared_but_its_value_is_never_read,
-                            &[&display],
+                            &[(&display).into()],
                         );
                     }
                 }
@@ -252,12 +269,12 @@ impl<'a> CheckerState<'a> {
                             continue;
                         };
                         let display = self.symbol_display_name(symbol);
-                        self.add_unused_diagnostic_at(
+                        self.add_unused_diagnostic_at_js(
                             parameter,
                             UnusedIdentifierKind::Local,
                             Some(name),
                             &diagnostics::Property_0_is_declared_but_its_value_is_never_read,
-                            &[&display],
+                            &[(&display).into()],
                         );
                     }
                 }
@@ -558,12 +575,12 @@ impl<'a> CheckerState<'a> {
                                         &self.binder.symbol(local).escaped_name,
                                     )
                                     .to_owned();
-                                    self.add_unused_diagnostic_at(
+                                    self.add_unused_diagnostic_at_js(
                                         parameter,
                                         UnusedIdentifierKind::Parameter,
                                         Some(name),
                                         &diagnostics::_0_is_declared_but_its_value_is_never_read,
-                                        &[&display],
+                                        &[(&display).into()],
                                     );
                                 }
                             }
@@ -590,12 +607,12 @@ impl<'a> CheckerState<'a> {
                         .name_of_node(unused)
                         .map(|name| self.declaration_name_display(name))
                         .unwrap_or_default();
-                    self.add_unused_diagnostic_at(
+                    self.add_unused_diagnostic_at_js(
                         import_decl,
                         UnusedIdentifierKind::Local,
                         Some(import_decl),
                         &diagnostics::_0_is_declared_but_its_value_is_never_read,
-                        &[&display],
+                        &[(&display).into()],
                     );
                 } else {
                     self.add_unused_diagnostic_at(
@@ -642,12 +659,12 @@ impl<'a> CheckerState<'a> {
                         .name_of_node(binding_elements[0])
                         .map(|name| self.unused_binding_name_text(name))
                         .unwrap_or_default();
-                    self.add_unused_diagnostic_at(
+                    self.add_unused_diagnostic_at_js(
                         binding_pattern,
                         kind,
                         Some(binding_pattern),
                         &diagnostics::_0_is_declared_but_its_value_is_never_read,
-                        &[&display],
+                        &[(&display).into()],
                     );
                 } else {
                     self.add_unused_diagnostic_at(
@@ -664,12 +681,12 @@ impl<'a> CheckerState<'a> {
                         .name_of_node(element)
                         .map(|name| self.unused_binding_name_text(name))
                         .unwrap_or_default();
-                    self.add_unused_diagnostic_at(
+                    self.add_unused_diagnostic_at_js(
                         element,
                         kind,
                         Some(element),
                         &diagnostics::_0_is_declared_but_its_value_is_never_read,
-                        &[&display],
+                        &[(&display).into()],
                     );
                 }
             }
@@ -689,12 +706,12 @@ impl<'a> CheckerState<'a> {
                     let display = name
                         .map(|name| self.unused_binding_name_text(name))
                         .unwrap_or_default();
-                    self.add_unused_diagnostic_at(
+                    self.add_unused_diagnostic_at_js(
                         declaration_list,
                         UnusedIdentifierKind::Local,
                         name,
                         &diagnostics::_0_is_declared_but_its_value_is_never_read,
-                        &[&display],
+                        &[(&display).into()],
                     );
                 } else {
                     let range = self
@@ -715,12 +732,12 @@ impl<'a> CheckerState<'a> {
                         .name_of_node(declaration)
                         .map(|name| self.unused_binding_name_text(name))
                         .unwrap_or_default();
-                    self.add_unused_diagnostic_at(
+                    self.add_unused_diagnostic_at_js(
                         declaration,
                         UnusedIdentifierKind::Local,
                         Some(declaration),
                         &diagnostics::_0_is_declared_but_its_value_is_never_read,
-                        &[&display],
+                        &[(&display).into()],
                     );
                 }
             }
@@ -746,12 +763,12 @@ impl<'a> CheckerState<'a> {
         } else {
             &diagnostics::_0_is_declared_but_its_value_is_never_read
         };
-        self.add_unused_diagnostic_at(
+        self.add_unused_diagnostic_at_js(
             declaration,
             UnusedIdentifierKind::Local,
             Some(node),
             message,
-            &[&display],
+            &[(&display).into()],
         );
     }
 

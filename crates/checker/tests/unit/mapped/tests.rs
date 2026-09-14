@@ -75,8 +75,8 @@ fn finite_mapped_members_remap_duplicate_keys_and_instantiate_values() {
             assert!(state.symbol_flags(a).intersects(SymbolFlags::OPTIONAL));
             let a_type = state.get_type_of_symbol(a).expect("mapped value types");
             let a_text = state.type_to_string_slice(a_type).expect("value renders");
-            assert!(a_text.contains("\"a\""), "{a_text}");
-            assert!(a_text.contains("undefined"), "{a_text}");
+            assert!(a_text.contains("\"a\""), "{a_text:?}");
+            assert!(a_text.contains("undefined"), "{a_text:?}");
 
             let remapped = annotation_type(state, "remapped");
             let remapped_names: Vec<_> = state
@@ -138,8 +138,8 @@ fn mapped_members_copy_modifiers_create_index_info_and_report_keyof() {
                 .get_index_type(remapped, IndexFlags::NONE)
                 .expect("keyof remapped mapped type");
             let key_text = state.type_to_string_slice(keys).expect("key union renders");
-            assert!(key_text.contains("\"xa\""), "{key_text}");
-            assert!(key_text.contains("\"xb\""), "{key_text}");
+            assert!(key_text.contains("\"xa\""), "{key_text:?}");
+            assert!(key_text.contains("\"xb\""), "{key_text:?}");
         },
     );
 }
@@ -178,7 +178,7 @@ fn homomorphic_mapped_instantiation_preserves_array_and_tuple_shapes() {
                 .expect("mutable renders");
             assert!(
                 state.is_array_type(mutable).expect("array predicate"),
-                "{mutable_text}: {:?}",
+                "{mutable_text:?}: {:?}",
                 state.tables.type_of(mutable).data
             );
             assert!(!state
@@ -229,7 +229,7 @@ fn apparent_homomorphic_mapped_type_uses_array_base_constraint() {
                 state
                     .is_readonly_array_type(apparent)
                     .expect("apparent readonly array"),
-                "{apparent_text}: {:?}",
+                "{apparent_text:?}: {:?}",
                 state.tables.type_of(apparent).data
             );
             assert_eq!(
@@ -297,8 +297,8 @@ fn generic_indexed_mapped_substitution_preserves_template_and_optionality() {
             let rendered = state
                 .type_to_string_slice(substituted)
                 .expect("optional substitution renders");
-            assert!(rendered.contains('K'), "{rendered}");
-            assert!(rendered.contains("undefined"), "{rendered}");
+            assert!(rendered.contains("K"), "{rendered:?}");
+            assert!(rendered.contains("undefined"), "{rendered:?}");
         },
     );
 }
@@ -358,7 +358,7 @@ fn mapped_circularity_preserves_quoted_property_name() {
                 .find(|diagnostic| diagnostic.code() == 2615)
                 .expect("mapped circularity diagnostic");
             assert_eq!(
-                diagnostic.message_text(),
+                diagnostic.message_text().as_str().expect("scalar diagnostic observation"),
                 "Type of property '\"each\"' circularly references itself in mapped type '{ [P in keyof ListWidget]: undefined extends ListWidget[P] ? never : P; }'."
             );
         },
@@ -388,7 +388,10 @@ fn recursively_expanding_union_defers_generic_mapped_indexed_access() {
                         diagnostic.code(),
                         diagnostic.start,
                         diagnostic.length,
-                        diagnostic.message_text(),
+                        diagnostic
+                            .message_text()
+                            .as_str()
+                            .expect("scalar diagnostic observation"),
                     )
                 })
                 .collect();

@@ -1329,18 +1329,23 @@ impl<'a> CheckerState<'a> {
 
     /// tsc getElementOrPropertyAccessName (15134-15145): the identifier
     /// name or the string/numeric literal argument text (un-escaped).
-    fn element_or_property_access_name(&self, node: NodeId) -> Option<String> {
+    fn element_or_property_access_name(&self, node: NodeId) -> Option<tsc_types::EscapedName> {
         match self.data_of(node) {
             NodeData::PropertyAccessExpression(data) => {
                 let name = data.name?;
-                self.identifier_text_of(name).map(str::to_owned)
+                self.identifier_text_of(name)
+                    .map(tsc_types::EscapedName::from_identifier_escaped_text)
             }
             NodeData::ElementAccessExpression(data) => {
                 let source = self.binder.source_of_node(node);
                 let arg = node_util::skip_parentheses_pub(source, data.argument_expression?);
                 match self.data_of(arg) {
-                    NodeData::StringLiteral(data) => Some(data.text.clone()),
-                    NodeData::NumericLiteral(data) => Some(data.text.clone()),
+                    NodeData::StringLiteral(data) => {
+                        Some(tsc_types::EscapedName::escape(data.text.as_js()))
+                    }
+                    NodeData::NumericLiteral(data) => {
+                        Some(tsc_types::EscapedName::escape(data.text.as_str().into()))
+                    }
                     _ => None,
                 }
             }
@@ -1431,12 +1436,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getTypeOfPropertyOfContextualType @6.0.3
     /// tsc-hash: ec4d63f5248309d0acfd4a38b4b9e2e26840d7b409f04390cd5d3333d849d0cd
     /// tsc-span: _tsc.js:73112-73162
-    pub(crate) fn get_type_of_property_of_contextual_type(
+    pub(crate) fn get_type_of_property_of_contextual_type<'n>(
         &mut self,
         ty: TypeId,
-        name: &str,
+        name: impl Into<tsc_types::JsStr<'n>>,
         name_type: Option<TypeId>,
     ) -> CheckResult<Option<TypeId>> {
+        let name = name.into();
         let name = name.to_owned();
         self.map_type(
             ty,
@@ -1570,12 +1576,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getIndexedMappedTypeSubstitutedTypeOfContextualType @6.0.3
     /// tsc-hash: 80d9c33b479640b8d3f675320d8bb2a6a4602849210e0bbf5eccdda16ffc9e84
     /// tsc-span: _tsc.js:73166-73177
-    fn get_indexed_mapped_type_substituted_type_of_contextual_type(
+    fn get_indexed_mapped_type_substituted_type_of_contextual_type<'n>(
         &mut self,
         ty: TypeId,
-        name: &str,
+        name: impl Into<tsc_types::JsStr<'n>>,
         name_type: Option<TypeId>,
     ) -> CheckResult<Option<TypeId>> {
+        let name = name.into();
         let property_name_type = name_type.unwrap_or_else(|| {
             self.tables
                 .get_string_literal_type(tsc_binder::unescape_leading_underscores(name))
@@ -1623,11 +1630,12 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getTypeOfConcretePropertyOfContextualType @6.0.3
     /// tsc-hash: a43fe4c12bceede221999a4ac05100e280a4f8caab2099195e2bc86334d2afe8
     /// tsc-span: _tsc.js:73178-73184
-    fn get_type_of_concrete_property_of_contextual_type(
+    fn get_type_of_concrete_property_of_contextual_type<'n>(
         &mut self,
         ty: TypeId,
-        name: &str,
+        name: impl Into<tsc_types::JsStr<'n>>,
     ) -> CheckResult<Option<TypeId>> {
+        let name = name.into();
         let Some(prop) = self.get_property_of_type_full(ty, name)? else {
             return Ok(None);
         };
@@ -1661,14 +1669,15 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getTypeFromIndexInfosOfContextualType @6.0.3
     /// tsc-hash: 7cc354d24fafe9c954bd57a3d377d49dfb4d52f364497d10d612f50d2d95c28d
     /// tsc-span: _tsc.js:73185-73203
-    fn get_type_from_index_infos_of_contextual_type(
+    fn get_type_from_index_infos_of_contextual_type<'n>(
         &mut self,
         ty: TypeId,
-        name: &str,
+        name: impl Into<tsc_types::JsStr<'n>>,
         name_type: Option<TypeId>,
     ) -> CheckResult<Option<TypeId>> {
+        let name = name.into();
         if self.tables.is_tuple_type(ty) && is_numeric_literal_name(name) {
-            let parsed = name.parse::<f64>().unwrap_or(-1.0);
+            let parsed = crate::evaluate::js_string_to_number(name);
             if parsed >= 0.0 {
                 let target = self.tables.reference_target(ty);
                 let fixed_length = match &self.tables.type_of(target).data {
@@ -2032,7 +2041,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(self.set_cached_type(key, matched));
         }
-        let mut discriminators: Vec<(ContextualDiscriminator, String)> = Vec::new();
+        let mut discriminators: Vec<(ContextualDiscriminator, tsc_types::EscapedName)> = Vec::new();
         let properties = match self.data_of(node) {
             NodeData::ObjectLiteralExpression(data) => data.properties,
             _ => None,
@@ -2078,7 +2087,7 @@ impl<'a> CheckerState<'a> {
             .node_symbol(node)
             .map(|s| &self.binder.symbol(s).members);
         let has_members = node_members.is_some_and(|m| !m.is_empty());
-        let mut absent_optional: Vec<String> = Vec::new();
+        let mut absent_optional: Vec<tsc_types::EscapedName> = Vec::new();
         if has_members {
             for s in self.get_properties_of_type(contextual_type)? {
                 if !self.symbol_flags(s).intersects(SymbolFlags::OPTIONAL) {
@@ -2121,7 +2130,7 @@ impl<'a> CheckerState<'a> {
         let jsx_namespace = self.get_jsx_namespace_at(node)?;
         let jsx_children_property_name =
             self.get_jsx_element_children_property_name(jsx_namespace)?;
-        let mut discriminators: Vec<(ContextualDiscriminator, String)> = Vec::new();
+        let mut discriminators: Vec<(ContextualDiscriminator, tsc_types::EscapedName)> = Vec::new();
         let properties = match self.data_of(node) {
             NodeData::JsxAttributes(data) => data.properties,
             _ => None,
@@ -2157,7 +2166,7 @@ impl<'a> CheckerState<'a> {
         let has_members = self
             .node_symbol(node)
             .is_some_and(|s| !self.binder.symbol(s).members.is_empty());
-        let mut absent_optional: Vec<String> = Vec::new();
+        let mut absent_optional: Vec<tsc_types::EscapedName> = Vec::new();
         if has_members {
             for s in self.get_properties_of_type(contextual_type)? {
                 if !self.symbol_flags(s).intersects(SymbolFlags::OPTIONAL) {
@@ -2166,7 +2175,11 @@ impl<'a> CheckerState<'a> {
                 let name = self.binder.symbol(s).escaped_name.clone();
                 // 73411-73414: an absent `children` attribute does not
                 // discriminate when the element HAS semantic children.
-                if jsx_children_property_name.as_deref() == Some(name.as_str()) {
+                if jsx_children_property_name
+                    .as_ref()
+                    .map(tsc_types::JsStr::from)
+                    == Some(name.as_js())
+                {
                     let element = self.parent_of(node).and_then(|p| self.parent_of(p));
                     let has_semantic_children = element.is_some_and(|element| {
                         matches!(self.data_of(element), NodeData::JsxElement(_))
@@ -2215,7 +2228,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn discriminate_type_by_discriminable_items_contextual(
         &mut self,
         target: TypeId,
-        discriminators: &[(ContextualDiscriminator, String)],
+        discriminators: &[(ContextualDiscriminator, tsc_types::EscapedName)],
     ) -> CheckResult<TypeId> {
         let types = match &self.tables.type_of(target).data {
             TypeData::Union { types, .. } => types.to_vec(),
@@ -2708,7 +2721,9 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(None);
         }
-        let Some(children_name) = jsx_children_property_name.filter(|name| !name.is_empty()) else {
+        let Some(children_name) =
+            jsx_children_property_name.filter(|name| !name.as_js().is_empty())
+        else {
             return Ok(None);
         };
         let children = match self.data_of(node) {
@@ -2830,14 +2845,18 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc getNameFromImportAttribute (19376-19378).
-    fn get_name_from_import_attribute(&self, node: NodeId) -> Option<String> {
+    fn get_name_from_import_attribute(&self, node: NodeId) -> Option<tsc_types::EscapedName> {
         let NodeData::ImportAttribute(data) = self.data_of(node) else {
             return None;
         };
         let name = data.name?;
         match self.data_of(name) {
-            NodeData::Identifier(data) => Some(data.escaped_text.clone()),
-            NodeData::StringLiteral(data) => Some(data.text.clone()),
+            NodeData::Identifier(data) => Some(
+                tsc_types::EscapedName::from_identifier_escaped_text(&data.escaped_text),
+            ),
+            NodeData::StringLiteral(data) => {
+                Some(tsc_types::EscapedName::escape(data.text.as_js()))
+            }
             _ => None,
         }
     }
@@ -2974,9 +2993,12 @@ impl<'a> CheckerState<'a> {
                 } else {
                     SymbolFlags::from_bits(0)
                 };
-            let param_symbol = self
-                .binder
-                .create_symbol(flags, param_name.unwrap_or_else(|| format!("arg{i}")));
+            let param_symbol = self.binder.create_symbol(
+                flags,
+                param_name.unwrap_or_else(|| {
+                    tsc_types::EscapedName::from_identifier_escaped_text(&format!("arg{i}"))
+                }),
+            );
             let check_flags = if is_rest_param {
                 CheckFlags::REST_PARAMETER
             } else if is_optional {
@@ -2996,9 +3018,10 @@ impl<'a> CheckerState<'a> {
             params.push(param_symbol);
         }
         if needs_extra_rest_element {
-            let rest_param_symbol = self
-                .binder
-                .create_symbol(SymbolFlags::FUNCTION_SCOPED_VARIABLE, "args".to_owned());
+            let rest_param_symbol = self.binder.create_symbol(
+                SymbolFlags::FUNCTION_SCOPED_VARIABLE,
+                tsc_types::EscapedName::from_identifier_escaped_text("args"),
+            );
             self.links.set_symbol_check_flags(
                 self.speculation_depth,
                 rest_param_symbol,

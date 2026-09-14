@@ -14,9 +14,9 @@ fn options(value: &Value) -> CompilerOptions {
             "module" => options.module = Some(value.as_i64().unwrap() as i32),
             "moduleResolution" => options.module_resolution = Some(value.as_i64().unwrap() as i32),
             "newLine" => options.new_line = Some(value.as_i64().unwrap() as i32),
-            "outFile" => options.out_file = value.as_str().map(str::to_owned),
-            "outDir" => options.out_dir = value.as_str().map(str::to_owned),
-            "declarationDir" => options.declaration_dir = value.as_str().map(str::to_owned),
+            "outFile" => options.out_file = value.as_str().map(Into::into),
+            "outDir" => options.out_dir = value.as_str().map(Into::into),
+            "declarationDir" => options.declaration_dir = value.as_str().map(Into::into),
             "declaration" => options.declaration = value.as_bool(),
             "emitDeclarationOnly" => options.emit_declaration_only = value.as_bool(),
             "sourceMap" => options.source_map = value.as_bool(),
@@ -105,13 +105,14 @@ fn h2_7d_discovery_retains_exact_bundle_source_facts_and_input_order() {
                         operation: tsc_program::ProgramLoadOperation::ValidateOptions,
                         detail,
                         path: None,
+                        js_path: None,
                     }) if detail == "emitting program rejects effective compilerOptions.noEmit=true"
                 ));
                 continue;
             }
             let prepared = loaded.unwrap_or_else(|error| panic!("{}: {error}", case["case_id"]));
             for source in prepared.source_files() {
-                let name = source.path().display().to_string_lossy();
+                let name = source.path().display().scalar_test_path().to_string_lossy();
                 let expected = expected_sources
                     .iter()
                     .find(|source| source["path"] == name.as_ref())
@@ -133,7 +134,14 @@ fn h2_7d_discovery_retains_exact_bundle_source_facts_and_input_order() {
             let actual_order = prepared
                 .source_files()
                 .iter()
-                .map(|source| source.path().display().to_string_lossy().into_owned())
+                .map(|source| {
+                    source
+                        .path()
+                        .display()
+                        .scalar_test_path()
+                        .to_string_lossy()
+                        .into_owned()
+                })
                 .filter(|name| is_input(name))
                 .collect::<Vec<_>>();
             let expected_order = expected_sources
@@ -149,3 +157,7 @@ fn h2_7d_discovery_retains_exact_bundle_source_facts_and_input_order() {
         }
     }
 }
+
+#[path = "../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

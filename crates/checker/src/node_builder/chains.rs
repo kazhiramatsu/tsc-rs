@@ -18,7 +18,8 @@ use tsc_syntax::nodes::{
 };
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{
-    CheckFlags, LiteralValue, NodeFlags, ObjectFlags, SymbolFlags, TypeData, TypeFlags, TypeId,
+    CheckFlags, JsStr, JsString, LiteralValue, NodeFlags, ObjectFlags, SymbolFlags, TypeData,
+    TypeFlags, TypeId,
 };
 
 use crate::check::can_use_property_access_slice;
@@ -29,7 +30,8 @@ use super::signatures::type_parameter_to_declaration;
 use super::specifier::{get_specifier_for_module_symbol, module_name_literals};
 use super::type_nodes::{
     add_approximate_length, checker_abort_error, create_identifier, create_node, create_node_array,
-    factory_error, set_no_ascii_escaping, type_to_type_node_helper, BuildResult,
+    create_output_identifier, factory_error, set_no_ascii_escaping, type_to_type_node_helper,
+    BuildResult,
 };
 use super::NodeBuilderContext;
 
@@ -49,8 +51,8 @@ fn has_flag(context: &NodeBuilderContext<'_>, flag: u32) -> bool {
     context.flags.0 & flag != 0
 }
 
-fn js_len(text: &str) -> usize {
-    text.encode_utf16().count()
+fn js_len<'t>(text: impl Into<JsStr<'t>>) -> usize {
+    text.into().len_units()
 }
 
 fn value_meaning(meaning: EmitSymbolMeaning) -> bool {
@@ -192,11 +194,11 @@ impl CheckerTrackerAccess<'_, '_> {
     fn accessibility_error_module_symbol(
         &mut self,
         symbol: SymbolId,
-        error_module_name: &str,
+        error_module_name: tsc_types::JsStr<'_>,
     ) -> BuildResult<Option<SymbolId>> {
         let mut parent = self.checker.binder.symbol(symbol).parent;
         while let Some(candidate) = parent {
-            if self.checker.symbol_display_name(candidate) == error_module_name {
+            if self.checker.symbol_display_name(candidate).as_js() == error_module_name {
                 return Ok(Some(candidate));
             }
             parent = self.checker.binder.symbol(candidate).parent;
@@ -207,7 +209,7 @@ impl CheckerTrackerAccess<'_, '_> {
                 .get_external_module_container(declaration)
                 .map_err(|abort| tracker_error(self.checker, Some(declaration), abort))?
             {
-                if self.checker.symbol_display_name(candidate) == error_module_name {
+                if self.checker.symbol_display_name(candidate).as_js() == error_module_name {
                     return Ok(Some(candidate));
                 }
             }
@@ -300,7 +302,11 @@ impl EmitTrackerAccess for CheckerTrackerAccess<'_, '_> {
                     meaning,
                 )?;
             }
-            if let Some(error_module_name) = result.error_module_name.as_deref() {
+            if let Some(error_module_name) = result
+                .error_module_name
+                .as_ref()
+                .map(tsc_types::JsString::as_js)
+            {
                 if let Some(module_symbol) =
                     self.accessibility_error_module_symbol(symbol, error_module_name)?
                 {
@@ -369,7 +375,7 @@ impl EmitTrackerAccess for CheckerTrackerAccess<'_, '_> {
             })
             .collect();
         EmitTrackerSymbolDescription {
-            escaped_name: data.escaped_name.clone(),
+            escaped_name: data.escaped_name.as_js().to_owned(),
             declaration_count: u32::try_from(data.declarations.len()).unwrap_or(u32::MAX),
             declarations,
         }
@@ -390,20 +396,20 @@ impl EmitTrackerAccess for CheckerTrackerAccess<'_, '_> {
 
 #[derive(Clone)]
 struct BasicModuleSpecifierHost {
-    current_directory: String,
-    files: HashMap<String, Option<String>>,
+    current_directory: JsString,
+    files: HashMap<JsString, Option<String>>,
     modes: HashMap<u32, EmitResolutionMode>,
 }
 
 impl BasicModuleSpecifierHost {
     fn new(checker: &CheckerState<'_>) -> Self {
-        let current_directory = checker.host_current_directory.clone();
+        let current_directory = JsString::from(checker.host_current_directory.clone());
         let mut files = HashMap::new();
         let mut modes = HashMap::with_capacity(checker.binder.file_count());
         for index in 0..checker.binder.file_count() {
             let source = checker.binder.source(index);
             let normalized =
-                CheckerState::normalize_program_path(&source.file_name, &current_directory);
+                CheckerState::normalize_js_program_path(&source.file_name, &current_directory);
             files.insert(normalized, Some(source.text().to_owned()));
             modes.insert(
                 program_source_id(checker, index).raw(),
@@ -413,20 +419,20 @@ impl BasicModuleSpecifierHost {
         let mut host_file_paths = checker.host_file_paths.iter().collect::<Vec<_>>();
         host_file_paths.sort_unstable();
         for path in host_file_paths {
-            let normalized = CheckerState::normalize_program_path(path, &current_directory);
+            let normalized = CheckerState::normalize_js_program_path(path, &current_directory);
             files.entry(normalized).or_insert(None);
         }
-        // Prepared package manifests are checker host-only inputs. Their
-        // parsed values deliberately override an equal-path Program JSON
-        // source for host reads, while the binder and authoritative token
-        // table continue to own the Program source itself.
-        let mut host_package_json_values =
-            checker.host_package_json_values.iter().collect::<Vec<_>>();
-        host_package_json_values.sort_unstable_by_key(|(path, _)| *path);
-        for (path, value) in host_package_json_values {
-            let normalized = CheckerState::normalize_program_path(path, &current_directory);
-            files.insert(normalized, Some(value.to_string()));
+        // readFile returns the host's original input text. Host-only manifests
+        // override an equal-path Program source without changing its binder
+        // identity. Re-serializing parsed JSON would lose the original text
+        // and expose its internal object representation at this boundary.
+        let mut host_inputs = checker.host_input_snapshots.iter().collect::<Vec<_>>();
+        host_inputs.sort_unstable_by(|(left, _), (right, _)| left.cmp_utf16(right.as_js()));
+        for (path, snapshot) in host_inputs {
+            let normalized = CheckerState::normalize_js_program_path(path, &current_directory);
+            files.insert(normalized, Some(snapshot.text().to_owned()));
         }
+
         Self {
             current_directory,
             files,
@@ -434,8 +440,8 @@ impl BasicModuleSpecifierHost {
         }
     }
 
-    fn normalized(&self, path: &str) -> String {
-        CheckerState::normalize_program_path(path, &self.current_directory)
+    fn normalized(&self, path: JsStr<'_>) -> JsString {
+        CheckerState::normalize_js_program_path(path, &self.current_directory)
     }
 }
 
@@ -474,7 +480,7 @@ fn default_resolution_mode_for_checker_file(
     let file_name = &source.file_name;
     let extension_implies_common_js = file_name.ends_with(".cts") || file_name.ends_with(".cjs");
     let extension_implies_es_next = file_name.ends_with(".mts") || file_name.ends_with(".mjs");
-    let package_type = checker_package_scope_module_type(checker, file_name);
+    let package_type = checker_package_scope_module_type(checker, file_name.as_js());
     match implied {
         Some(ModuleResolutionMode::CommonJs)
             if extension_implies_common_js
@@ -496,29 +502,30 @@ fn default_resolution_mode_for_checker_file(
 
 fn checker_package_scope_module_type(
     checker: &CheckerState<'_>,
-    file_name: &str,
+    file_name: JsStr<'_>,
 ) -> Option<PackageJsonModuleType> {
-    let normalized = CheckerState::normalize_program_path(file_name, "");
+    let normalized = CheckerState::normalize_js_program_path(file_name, "");
     let mut directory = normalized
-        .rsplit_once('/')
+        .as_js()
+        .rsplit_once("/")
         .map(|(directory, _)| directory)
-        .unwrap_or("");
+        .unwrap_or("".into());
     loop {
         let package_json = if directory.is_empty() {
-            "/package.json".to_owned()
+            JsString::from("/package.json")
         } else {
-            format!("{directory}/package.json")
+            crate::concat_js(&[&directory, &"/package.json"])
         };
         if let Some(&module_type) = checker.host_package_json_module_types.get(&package_json) {
             return Some(module_type);
         }
-        let (parent, _) = directory.rsplit_once('/')?;
+        let (parent, _) = directory.rsplit_once("/")?;
         directory = parent;
     }
 }
 
 impl EmitModuleSpecifierHost for BasicModuleSpecifierHost {
-    fn get_current_directory(&self) -> String {
+    fn get_current_directory(&self) -> JsString {
         self.current_directory.clone()
     }
 
@@ -526,17 +533,17 @@ impl EmitModuleSpecifierHost for BasicModuleSpecifierHost {
         true
     }
 
-    fn file_exists(&self, file_name: &str) -> bool {
+    fn file_exists(&self, file_name: JsStr<'_>) -> bool {
         self.files.contains_key(&self.normalized(file_name))
     }
 
-    fn read_file(&self, file_name: &str) -> Option<String> {
+    fn read_file(&self, file_name: JsStr<'_>) -> Option<String> {
         self.files
             .get(&self.normalized(file_name))
             .and_then(Clone::clone)
     }
 
-    fn get_common_source_directory(&self) -> String {
+    fn get_common_source_directory(&self) -> JsString {
         self.current_directory.clone()
     }
 
@@ -571,7 +578,7 @@ struct ModuleSpecifierHostWithFallback<'a> {
 }
 
 impl EmitModuleSpecifierHost for ModuleSpecifierHostWithFallback<'_> {
-    fn get_current_directory(&self) -> String {
+    fn get_current_directory(&self) -> JsString {
         self.primary.get_current_directory()
     }
 
@@ -579,17 +586,17 @@ impl EmitModuleSpecifierHost for ModuleSpecifierHostWithFallback<'_> {
         self.primary.use_case_sensitive_file_names()
     }
 
-    fn file_exists(&self, file_name: &str) -> bool {
+    fn file_exists(&self, file_name: JsStr<'_>) -> bool {
         self.primary.file_exists(file_name) || self.fallback.file_exists(file_name)
     }
 
-    fn read_file(&self, file_name: &str) -> Option<String> {
+    fn read_file(&self, file_name: JsStr<'_>) -> Option<String> {
         self.primary
             .read_file(file_name)
             .or_else(|| self.fallback.read_file(file_name))
     }
 
-    fn get_common_source_directory(&self) -> String {
+    fn get_common_source_directory(&self) -> JsString {
         self.primary.get_common_source_directory()
     }
 
@@ -605,37 +612,40 @@ impl EmitModuleSpecifierHost for ModuleSpecifierHostWithFallback<'_> {
         self.primary.get_mode_for_resolution_at_index(file, index)
     }
 
-    fn symlinked_directories(&self) -> Vec<(String, String)> {
+    fn symlinked_directories(&self) -> Vec<(JsString, JsString)> {
         self.primary.symlinked_directories()
     }
 
-    fn symlinked_files(&self) -> Vec<(String, String)> {
+    fn symlinked_files(&self) -> Vec<(JsString, JsString)> {
         self.primary.symlinked_files()
     }
 
-    fn get_nearest_ancestor_directory_with_package_json(&self, file_name: &str) -> Option<String> {
+    fn get_nearest_ancestor_directory_with_package_json(
+        &self,
+        file_name: JsStr<'_>,
+    ) -> Option<JsString> {
         self.primary
             .get_nearest_ancestor_directory_with_package_json(file_name)
     }
 
-    fn get_global_typings_cache_location(&self) -> Option<String> {
+    fn get_global_typings_cache_location(&self) -> Option<JsString> {
         self.primary.get_global_typings_cache_location()
     }
 
-    fn redirect_targets(&self, file_path: &str) -> Vec<String> {
+    fn redirect_targets(&self, file_path: JsStr<'_>) -> Vec<JsString> {
         self.primary.redirect_targets(file_path)
     }
 
-    fn get_redirect_from_source_file(&self, file_name: &str) -> Option<String> {
+    fn get_redirect_from_source_file(&self, file_name: JsStr<'_>) -> Option<JsString> {
         self.primary.get_redirect_from_source_file(file_name)
     }
 
-    fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool {
+    fn is_source_of_project_reference_redirect(&self, file_name: JsStr<'_>) -> bool {
         self.primary
             .is_source_of_project_reference_redirect(file_name)
     }
 
-    fn import_include_reasons(&self, imported_path: &str) -> Vec<EmitImportIncludeReason> {
+    fn import_include_reasons(&self, imported_path: JsStr<'_>) -> Vec<EmitImportIncludeReason> {
         self.primary.import_include_reasons(imported_path)
     }
 
@@ -785,12 +795,12 @@ pub(super) fn lookup_symbol_chain_worker(
         // Rust represents enterNewScope's synthesized Block as an overlay
         // rather than a binder node. Give that overlay the same first-scope
         // precedence as upstream before delegating the parse-tree walk.
-        let escaped_name = checker.binder.symbol(symbol).escaped_name.as_str();
+        let escaped_name = checker.binder.symbol(symbol).escaped_name.as_js();
         let meaning_flags = symbol_flags_for_meaning(meaning);
         let shadowed_by_synthetic_local = context
             .synthetic_scope_locals
             .as_ref()
-            .and_then(|locals| locals.get(escaped_name))
+            .and_then(|locals| locals.get(escaped_name.as_bytes()))
             .copied()
             .is_some_and(|local| {
                 checker.get_merged_symbol(local) != checker.get_merged_symbol(symbol)
@@ -807,7 +817,7 @@ pub(super) fn lookup_symbol_chain_worker(
         let global_this_is_shadowed = context
             .synthetic_scope_locals
             .as_ref()
-            .and_then(|locals| locals.get("globalThis"))
+            .and_then(|locals| locals.get("globalThis".as_bytes()))
             .copied()
             .is_some_and(|local| {
                 checker.get_merged_symbol(local)
@@ -849,11 +859,11 @@ pub(super) fn symbol_is_shadowed_in_synthetic_scope(
     if context.synthetic_scope_kind != Some(SyntaxKind::ModuleDeclaration) {
         return false;
     }
-    let escaped_name = checker.binder.symbol(symbol).escaped_name.as_str();
+    let escaped_name = checker.binder.symbol(symbol).escaped_name.as_js();
     let shadowed = context
         .synthetic_scope_locals
         .as_ref()
-        .and_then(|locals| locals.get(escaped_name))
+        .and_then(|locals| locals.get(escaped_name.as_bytes()))
         .copied()
         .is_some_and(|local| {
             checker.get_merged_symbol(local) != checker.get_merged_symbol(symbol)
@@ -984,7 +994,7 @@ fn alias_for_symbol_in_module(
     Ok(None)
 }
 
-fn module_specifier_is_relative(specifier: &str) -> bool {
+fn module_specifier_is_relative(specifier: &tsc_types::JsString) -> bool {
     specifier == "."
         || specifier == ".."
         || specifier.starts_with("./")
@@ -1025,7 +1035,7 @@ fn prefer_alternative_containing_module_chain(
         let relative_a = module_specifier_is_relative(specifier_a);
         let relative_b = module_specifier_is_relative(specifier_b);
         if relative_a == relative_b {
-            let components = |specifier: &str| {
+            let components = |specifier: &tsc_types::JsString| {
                 specifier
                     .as_bytes()
                     .iter()
@@ -1200,7 +1210,7 @@ pub(crate) fn specifier_for_module_symbol(
     context: &NodeBuilderContext<'_>,
     symbol: SymbolId,
     override_import_mode: Option<EmitResolutionMode>,
-) -> BuildResult<String> {
+) -> BuildResult<tsc_types::JsString> {
     let enclosing_file = context.enclosing_file;
     let enclosing_declaration = context.enclosing_declaration;
     let bundled = context.bundled;
@@ -1277,7 +1287,7 @@ pub(crate) fn chains_symbol_to_entity_name_node(
         target: TransformSourceId,
         symbol: SymbolId,
     ) -> BuildResult<TransformNode> {
-        let identifier = create_identifier(
+        let identifier = create_output_identifier(
             arena,
             target,
             tsc_binder::unescape_leading_underscores(&checker.binder.symbol(symbol).escaped_name),
@@ -1307,17 +1317,17 @@ fn create_literal_type(
     )
 }
 
-fn create_string_literal(
+fn create_string_literal<'t>(
     arena: &mut TransformArena,
     target: TransformSourceId,
-    text: &str,
+    text: impl Into<JsStr<'t>>,
     single_quote: bool,
 ) -> BuildResult<TransformNode> {
     let literal = create_node(
         arena,
         target,
         NodeData::StringLiteral(StringLiteralData {
-            text: text.to_owned(),
+            text: text.into().to_owned(),
             has_extended_unicode_escape: None,
         }),
     )?;
@@ -1558,7 +1568,7 @@ fn exported_name_for_chain_link(
     parent: SymbolId,
     symbol: SymbolId,
     context: &NodeBuilderContext<'_>,
-) -> BuildResult<Option<String>> {
+) -> BuildResult<Option<JsString>> {
     let exports = checker
         .get_exports_of_symbol(parent)
         .map_err(|abort| checker_abort_error(checker, context, abort))?;
@@ -1709,7 +1719,7 @@ fn create_access_from_symbol_chain(
         }
     }
 
-    let identifier = create_identifier(arena, target, &symbol_name)?;
+    let identifier = create_output_identifier(arena, target, &symbol_name)?;
     let identifier = set_no_ascii_escaping(arena, identifier);
     if index > stopper {
         let lhs = create_access_from_symbol_chain(
@@ -1950,16 +1960,17 @@ pub(crate) fn chains_symbol_to_type_node(
 /// tsc-port: typeParameterShadowsOtherTypeParameterInScope @6.0.3
 /// tsc-hash: de490c564fbc92d3c74c1148d84aa6288cf0d44e7ad0f5b816592851f91a0f62
 /// tsc-span: _tsc.js:53253-53267
-fn type_parameter_shadows_other_type_parameter_in_scope(
+fn type_parameter_shadows_other_type_parameter_in_scope<'n>(
     checker: &mut CheckerState<'_>,
-    escaped_name: &str,
+    escaped_name: impl Into<JsStr<'n>>,
     context: &NodeBuilderContext<'_>,
     r#type: TypeId,
 ) -> BuildResult<bool> {
+    let escaped_name = escaped_name.into();
     if let Some(resolved) = context
         .synthetic_scope_locals
         .as_ref()
-        .and_then(|locals| locals.get(escaped_name))
+        .and_then(|locals| locals.get(escaped_name.as_bytes()))
         .copied()
     {
         return Ok(checker
@@ -2153,7 +2164,7 @@ fn create_entity_name_from_symbol_chain(
     if index == 0 {
         context.flags.0 ^= IN_INITIAL_ENTITY_NAME;
     }
-    let identifier = create_identifier(arena, target, &name)?;
+    let identifier = create_output_identifier(arena, target, &name)?;
     let identifier = set_no_ascii_escaping(arena, identifier);
     if index == 0 {
         Ok(identifier)
@@ -2170,27 +2181,12 @@ fn create_entity_name_from_symbol_chain(
     }
 }
 
-fn strip_symbol_name_quotes(name: &str) -> String {
-    let body = name
-        .strip_prefix(['\'', '"'])
-        .and_then(|body| body.strip_suffix(['\'', '"']))
-        .unwrap_or(name);
-    let mut output = String::with_capacity(body.len());
-    let mut chars = body.chars();
-    while let Some(ch) = chars.next() {
-        if ch == '\\' {
-            if let Some(escaped) = chars.next() {
-                output.push(escaped);
-            }
-        } else {
-            output.push(ch);
-        }
-    }
-    output
+fn strip_symbol_name_quotes<'n>(name: impl Into<JsStr<'n>>) -> JsString {
+    crate::check::strip_symbol_name_quotes_slice(name)
 }
 
-fn first_utf16(text: &str) -> Option<u16> {
-    text.encode_utf16().next()
+fn first_utf16<'t>(text: impl Into<JsStr<'t>>) -> Option<u16> {
+    text.into().code_units().next()
 }
 
 /// tsc-port: symbolToExpression @6.0.3
@@ -2251,7 +2247,7 @@ fn create_expression_from_symbol_chain(
         return create_string_literal(arena, target, &specifier, false);
     }
     if index == 0 || can_use_property_access_slice(&name, checker.options.emit_script_target()) {
-        let identifier = create_identifier(arena, target, &name)?;
+        let identifier = create_output_identifier(arena, target, &name)?;
         let identifier = set_no_ascii_escaping(arena, identifier);
         add_approximate_length(context, js_len(&name) + 1);
         if index == 0 {
@@ -2269,8 +2265,12 @@ fn create_expression_from_symbol_chain(
             }),
         );
     }
-    if name.starts_with('[') && name.ends_with(']') && name.len() >= 2 {
-        name = name[1..name.len() - 1].to_owned();
+    if let Some(body) = name
+        .as_js()
+        .strip_prefix("[")
+        .and_then(|body| body.strip_suffix("]"))
+    {
+        name = body.to_owned();
         first = first_utf16(&name);
     }
     let argument = if matches!(first, Some(value) if value == u16::from(b'\'') || value == u16::from(b'"'))
@@ -2283,12 +2283,12 @@ fn create_expression_from_symbol_chain(
         create_string_literal(arena, target, &text, first == Some(u16::from(b'\'')))?
     } else {
         let numeric = crate::evaluate::js_string_to_number(&name);
-        if tsc_types::js_number_to_string(numeric) == name {
+        if name == tsc_types::js_number_to_string(numeric).as_str() {
             add_approximate_length(context, js_len(&name));
             create_numeric_literal(arena, target, numeric)?
         } else {
             add_approximate_length(context, js_len(&name));
-            let identifier = create_identifier(arena, target, &name)?;
+            let identifier = create_output_identifier(arena, target, &name)?;
             set_no_ascii_escaping(arena, identifier)
         }
     };
@@ -2344,23 +2344,33 @@ fn cloned_hash_private_name(
     clone_parse_node(checker, arena, name)
 }
 
-fn create_property_name_for_identifier_or_literal(
+fn create_property_name_for_identifier_or_literal<'n>(
     arena: &mut TransformArena,
     target: TransformSourceId,
-    name: &str,
+    name: impl Into<JsStr<'n>>,
     script_target: tsc_types::ScriptTarget,
     single_quote: bool,
     string_named: bool,
     is_method: bool,
 ) -> BuildResult<TransformNode> {
+    let name = name.into();
     let method_named_new = is_method && name == "new";
-    if !method_named_new && tsc_syntax::is_identifier_text_for_target(name, script_target) {
-        return create_identifier(arena, target, name);
-    }
-    if !string_named && !method_named_new && crate::evaluate::is_numeric_literal_name(name) {
-        let value = crate::evaluate::js_string_to_number(name);
-        if value >= 0.0 {
-            return create_numeric_literal(arena, target, value);
+    // Identifier and canonical numeric spellings cannot contain unpaired
+    // surrogates. Values outside those grammars remain string literal names.
+    if let Some(scalar_name) = name.as_str() {
+        if !method_named_new
+            && tsc_syntax::is_identifier_text_for_target(scalar_name, script_target)
+        {
+            return create_identifier(arena, target, scalar_name);
+        }
+        if !string_named
+            && !method_named_new
+            && crate::evaluate::is_numeric_literal_name(scalar_name)
+        {
+            let value = crate::evaluate::js_string_to_number(scalar_name);
+            if value >= 0.0 {
+                return create_numeric_literal(arena, target, value);
+            }
         }
     }
     create_string_literal(arena, target, name, single_quote)
@@ -2436,34 +2446,26 @@ fn get_property_name_node_for_symbol_from_name_type(
     let flags = checker.tables.flags_of(name_type);
     if flags.intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL) {
         let literal_type = checker.tables.type_of(name_type).data.clone();
-        if let TypeData::Literal {
-            value: LiteralValue::String(value),
-        } = &literal_type
-        {
-            if value.to_utf8().is_none() {
-                return arena
-                    .factory()
-                    .create_string_literal_from_code_units(target, value.units(), single_quote)
-                    .map(Some)
-                    .map_err(factory_error);
-            }
-        }
         let name = match &literal_type {
             TypeData::Literal {
                 value: LiteralValue::String(value),
-            } => value.to_utf8().expect("lossless branch handled above"),
+            } => value.to_js_string(),
             TypeData::Literal {
                 value: LiteralValue::Number(value),
-            } => tsc_types::js_number_to_string(*value),
+            } => JsString::from(tsc_types::js_number_to_string(*value)),
             _ => unreachable!("string/number literal flags carry literal data"),
         };
-        if !tsc_syntax::is_identifier_text_for_target(&name, checker.options.emit_script_target())
-            && (string_named || !crate::evaluate::is_numeric_literal_name(&name))
+        let numeric = name
+            .as_str()
+            .filter(|name| crate::evaluate::is_numeric_literal_name(*name));
+        if !name.as_str().is_some_and(|name| {
+            tsc_syntax::is_identifier_text_for_target(name, checker.options.emit_script_target())
+        }) && (string_named || numeric.is_none())
         {
             return create_string_literal(arena, target, &name, single_quote).map(Some);
         }
-        if crate::evaluate::is_numeric_literal_name(&name) && name.starts_with('-') {
-            let value = -crate::evaluate::js_string_to_number(&name);
+        if let Some(numeric) = numeric.filter(|name| name.starts_with('-')) {
+            let value = -crate::evaluate::js_string_to_number(numeric);
             let literal = create_numeric_literal(arena, target, value)?;
             let prefix = create_node(
                 arena,
@@ -2866,7 +2868,7 @@ pub(crate) fn get_module_specifier_override(
     context: &mut NodeBuilderContext<'_>,
     parent: TransformNode,
     literal: TransformNode,
-) -> BuildResult<Option<String>> {
+) -> BuildResult<Option<tsc_types::JsString>> {
     let original_name = match &arena.node(literal).map_err(factory_error)?.data {
         NodeData::StringLiteral(data) => data.text.clone(),
         _ => return Ok(None),

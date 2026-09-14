@@ -92,7 +92,12 @@ fn h2_1e_import_attribute_order_and_bytes_are_exact() {
     assert_eq!(
         sink.writes()
             .iter()
-            .map(|write| write.path())
+            .map(|write| Path::new(
+                write
+                    .path()
+                    .as_str()
+                    .expect("scalar acceptance output path")
+            ))
             .collect::<Vec<_>>(),
         [Path::new("/a.js"), Path::new("/b.js"), Path::new("/c.js")]
     );

@@ -1,3 +1,8 @@
+include!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../host/tests/support/scalar_query_bridge.rs"
+));
+
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 
@@ -22,6 +27,7 @@ struct FailingFileHost {
 }
 
 impl CompilerHost for RecordingFileHost {
+    scalar_host_query_bridge!();
     fn current_directory(&self) -> Result<PathBuf, HostError> {
         self.inner.current_directory()
     }
@@ -54,6 +60,7 @@ impl CompilerHost for RecordingFileHost {
 }
 
 impl CompilerHost for FailingFileHost {
+    scalar_host_query_bridge!();
     fn current_directory(&self) -> Result<PathBuf, HostError> {
         self.inner.current_directory()
     }
@@ -105,7 +112,11 @@ fn resolved_path(outcome: ResolutionOutcome<HostResolvedModule>) -> PathBuf {
     let ResolutionOutcome::Resolved(module) = outcome else {
         panic!("expected a resolved module")
     };
-    module.resolved_file().display().to_path_buf()
+    module
+        .resolved_file()
+        .display()
+        .scalar_test_path()
+        .to_path_buf()
 }
 
 fn resolve(
@@ -116,7 +127,7 @@ fn resolve(
 ) -> ResolutionOutcome<HostResolvedModule> {
     ModuleResolver::new_with_program_options(host, compiler_options, program_options)
         .expect("construct suffix-aware resolver")
-        .resolve(Path::new("/index.ts"), specifier, ResolutionMode::CommonJs)
+        .resolve("/index.ts", specifier, ResolutionMode::CommonJs)
         .expect("resolve suffix fixture")
 }
 
@@ -245,7 +256,7 @@ fn first_suffix_file_exists_error_stops_later_suffix_probes() {
         &ProgramOptions::default(),
     )
     .expect("construct suffix-aware resolver")
-    .resolve(Path::new("/index.ts"), "./foo", ResolutionMode::CommonJs)
+    .resolve("/index.ts", "./foo", ResolutionMode::CommonJs)
     .expect_err("host failures must not be treated as missing suffixes");
 
     assert_eq!(error, ResolutionError::Host(failure));
@@ -326,7 +337,7 @@ fn suffixes_cover_written_js_json_directory_package_and_paths_candidates() {
     let compiler_options = options(Some(vec![ModuleSuffix::value(".ios")]));
     let program_options = ProgramOptions::default().with_paths(vec![PathMapping::new(
         "mapped",
-        vec!["mapped/lib".to_owned()],
+        vec!["mapped/lib".to_owned().into()],
     )]);
 
     for (specifier, expected) in [
@@ -358,7 +369,7 @@ fn explicit_paths_substitutions_publish_the_suffix_hit() {
         .expect("exact paths suffix fixture");
     let program_options = ProgramOptions::default().with_paths(vec![PathMapping::new(
         "mapped",
-        vec!["mapped/foo.ts".to_owned()],
+        vec!["mapped/foo.ts".to_owned().into()],
     )]);
     assert_eq!(
         resolved_path(resolve(
@@ -429,18 +440,13 @@ fn type_reference_primary_roots_use_the_same_suffix_probe() {
     let mut resolver = ModuleResolver::new(&host, &compiler_options).expect("type resolver");
     let roots = [program_path("/types")];
     let outcome = resolver
-        .resolve_type_reference(
-            Path::new("/index.ts"),
-            "pkg",
-            ResolutionMode::CommonJs,
-            Some(&roots),
-        )
+        .resolve_type_reference("/index.ts", "pkg", ResolutionMode::CommonJs, Some(&roots))
         .expect("resolve suffixed type reference");
     let ResolutionOutcome::Resolved(reference) = outcome else {
         panic!("suffixed type reference must resolve")
     };
     assert_eq!(
-        reference.resolved_file().display(),
+        reference.resolved_file().display().scalar_test_path(),
         Path::new("/types/pkg/index.ios.d.ts")
     );
 }
@@ -481,14 +487,14 @@ fn recursive_loader_admits_only_the_selected_suffixed_source() {
         program
             .source_files()
             .iter()
-            .map(|source| source.path().display().to_path_buf())
+            .map(|source| source.path().display().scalar_test_path().to_path_buf())
             .collect::<Vec<_>>(),
         [PathBuf::from("/dep.native.ts"), PathBuf::from("/index.ts")]
     );
     assert!(program
         .source_files()
         .iter()
-        .all(|source| source.path().display() != Path::new("/dep.ts")));
+        .all(|source| source.path().display().scalar_test_path() != Path::new("/dep.ts")));
 }
 
 #[test]
@@ -513,7 +519,10 @@ fn separator_suffix_classifies_the_selected_classic_path_before_realpath() {
     let ResolutionOutcome::Resolved(module) = outcome else {
         panic!("separator-bearing Classic suffix must resolve")
     };
-    assert_eq!(module.resolved_file().display(), selected);
+    assert_eq!(
+        module.resolved_file().display().scalar_test_path(),
+        selected
+    );
     assert!(module.is_external_library_import());
     assert_eq!(host.realpath_calls.borrow().as_slice(), [selected]);
 }
@@ -542,7 +551,7 @@ fn relative_node_resolution_attaches_package_facts_from_the_selected_suffix_path
         panic!("relative separator-bearing suffix must resolve")
     };
     assert_eq!(
-        module.resolved_file().display(),
+        module.resolved_file().display().scalar_test_path(),
         Path::new("/dep/node_modules/pkg/index.ts")
     );
     assert!(
@@ -576,17 +585,15 @@ fn type_reference_externality_and_package_facts_use_the_selected_suffix_path() {
     let mut resolver = ModuleResolver::new(&host, &compiler_options).expect("type resolver");
     let roots = [program_path("/types")];
     let outcome = resolver
-        .resolve_type_reference(
-            Path::new("/index.ts"),
-            "pkg",
-            ResolutionMode::CommonJs,
-            Some(&roots),
-        )
+        .resolve_type_reference("/index.ts", "pkg", ResolutionMode::CommonJs, Some(&roots))
         .expect("resolve selected type-reference suffix path");
     let ResolutionOutcome::Resolved(reference) = outcome else {
         panic!("separator-bearing type-reference suffix must resolve")
     };
-    assert_eq!(reference.resolved_file().display(), selected);
+    assert_eq!(
+        reference.resolved_file().display().scalar_test_path(),
+        selected
+    );
     assert!(reference.is_external_library_import());
     assert_eq!(
         reference
@@ -610,17 +617,15 @@ fn type_reference_directory_result_reclassifies_the_selected_index_suffix() {
     let mut resolver = ModuleResolver::new(&host, &compiler_options).expect("type resolver");
     let roots = [program_path("/types")];
     let outcome = resolver
-        .resolve_type_reference(
-            Path::new("/index.ts"),
-            "pkg",
-            ResolutionMode::CommonJs,
-            Some(&roots),
-        )
+        .resolve_type_reference("/index.ts", "pkg", ResolutionMode::CommonJs, Some(&roots))
         .expect("resolve selected type-reference index suffix path");
     let ResolutionOutcome::Resolved(reference) = outcome else {
         panic!("separator-bearing type-reference index suffix must resolve")
     };
-    assert_eq!(reference.resolved_file().display(), selected);
+    assert_eq!(
+        reference.resolved_file().display().scalar_test_path(),
+        selected
+    );
     assert!(reference.is_external_library_import());
 }
 
@@ -658,14 +663,17 @@ fn loader_deduplicates_dot_segment_suffix_spellings_by_normalized_program_identi
         program
             .source_files()
             .iter()
-            .filter(|source| source.path().canonical().as_path() == Path::new("/native.ts"))
+            .filter(
+                |source| source.path().canonical().as_js().scalar_test_path()
+                    == Path::new("/native.ts")
+            )
             .count(),
         1
     );
     let root = program
         .source_files()
         .iter()
-        .find(|source| source.path().display() == Path::new("/index.ts"))
+        .find(|source| source.path().display().scalar_test_path() == Path::new("/index.ts"))
         .expect("root source");
     let requests = plan_source_requests(root, program.compiler_options())
         .expect("re-plan root requests")
@@ -688,3 +696,7 @@ fn loader_deduplicates_dot_segment_suffix_spellings_by_normalized_program_identi
         .collect::<Vec<_>>();
     assert_eq!(source_ids[0], source_ids[1]);
 }
+
+#[path = "../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

@@ -10,7 +10,7 @@ use tsc_syntax::{
     for_each_observable_field, try_visit_each_child, Node, NodeArray, NodeArrayId, NodeData,
     NodeDataChildVisitor, NodeId, ObservableField, SourceFile, SyntaxKind, TypeReferenceDirective,
 };
-use tsc_types::{ModifierFlags, NodeFlags};
+use tsc_types::{JsStr, JsString, ModifierFlags, NodeFlags};
 
 use crate::{
     transform::GeneratedBindingId, EmitFlags, EmitMetadata, EmitResolverNode, JavaScriptString,
@@ -566,6 +566,54 @@ impl TransformArena {
         Ok(self.literal_properties.entry(node).or_default())
     }
 
+    /// The node-owned JavaScript value. Source spelling, text ranges and
+    /// original-node links affect printing, never the cooked value's owner.
+    pub fn literal_value(&self, node: TransformNode) -> Result<Option<JsStr<'_>>, TransformError> {
+        let text = match &self.node(node)?.data {
+            NodeData::StringLiteral(data) => &data.text,
+            NodeData::NoSubstitutionTemplateLiteral(data) => &data.text,
+            NodeData::TemplateHead(data) => &data.text,
+            NodeData::TemplateMiddle(data) => &data.text,
+            NodeData::TemplateTail(data) => &data.text,
+            _ => return Ok(None),
+        };
+        Ok(Some(text.as_js()))
+    }
+
+    /// Update the cooked value on its node, preserving independent spelling,
+    /// quote, original-node and range properties.
+    pub fn set_literal_value(
+        &mut self,
+        node: TransformNode,
+        value: impl Into<JsString>,
+    ) -> Result<(), TransformError> {
+        self.node(node)?;
+        let record = self
+            .source_mut(node.source)?
+            .source
+            .arena
+            .node_mut(node.node);
+        let text = match &mut record.data {
+            NodeData::StringLiteral(data) => &mut data.text,
+            NodeData::NoSubstitutionTemplateLiteral(data) => &mut data.text,
+            NodeData::TemplateHead(data) => &mut data.text,
+            NodeData::TemplateMiddle(data) => &mut data.text,
+            NodeData::TemplateTail(data) => &mut data.text,
+            _ => return Err(TransformError::FactoryTokenKindExpected(record.kind)),
+        };
+        *text = value.into();
+        Ok(())
+    }
+
+    /// UTF-16 transport of the owned value; None means this is not a string
+    /// literal or template fragment, not that its source spelling is absent.
+    pub fn literal_code_units(
+        &self,
+        node: TransformNode,
+    ) -> Result<Option<Vec<u16>>, TransformError> {
+        Ok(self.literal_value(node)?.map(JsStr::to_utf16))
+    }
+
     /// cloneNode copies own properties after setOriginalNode merges emitNode.
     fn copy_literal_properties(&mut self, original: TransformNode, cloned: TransformNode) {
         if let Some(properties) = self.literal_properties.get(&original).cloned() {
@@ -863,7 +911,9 @@ impl TransformArena {
         for_each_observable_field(record, |field, value| match value {
             ObservableField::Node(id) => node_fields.push((field, id)),
             ObservableField::NodeArray(id) => array_fields.push((field, id)),
-            ObservableField::Bool(_) | ObservableField::String(_) => {}
+            ObservableField::Bool(_)
+            | ObservableField::String(_)
+            | ObservableField::JsString(_) => {}
         });
 
         let function_like = matches!(
@@ -1856,6 +1906,26 @@ impl<'arena> NodeFactory<'arena> {
         )
     }
 
+    /// TypeScript's factory accepts arbitrary JS values as synthetic
+    /// identifiers, including recovery options and serialized export names.
+    /// Non-scalar values cannot denote a lexical binding and are held in
+    /// explicit emit metadata. These nodes are for output only: callers must
+    /// not use their empty scalar IdentifierData payload for semantic lookup.
+    pub fn create_unchecked_identifier(
+        &mut self,
+        source: TransformSourceId,
+        text: tsc_diagnostics::JsStr<'_>,
+    ) -> Result<TransformNode, TransformError> {
+        if let Some(text) = text.as_str() {
+            return self.create_identifier(source, text);
+        }
+        let identifier = self.create_identifier(source, "")?;
+        self.arena
+            .metadata_mut(identifier)
+            .unchecked_identifier_text = Some(text.to_owned());
+        Ok(identifier)
+    }
+
     /// tsc-port: createPrivateIdentifier @6.0.3
     /// tsc-hash: 095d8d14824ed1e3e193ecbd3c0d5cdf52ba4c6f89d9c5c949d7d65c0d2375e7
     /// tsc-span: _tsc.js:21673-21676
@@ -1962,7 +2032,7 @@ impl<'arena> NodeFactory<'arena> {
     pub fn create_string_literal(
         &mut self,
         source: TransformSourceId,
-        text: impl Into<String>,
+        text: impl Into<JsString>,
         single_quote: bool,
     ) -> Result<TransformNode, TransformError> {
         let literal = self.create_node(
@@ -1989,12 +2059,7 @@ impl<'arena> NodeFactory<'arena> {
         units: &[u16],
         single_quote: bool,
     ) -> Result<TransformNode, TransformError> {
-        let literal =
-            self.create_string_literal(source, String::from_utf16_lossy(units), single_quote)?;
-        self.arena
-            .literal_properties_mut(literal)?
-            .set_javascript_string_value(JavaScriptString::from_code_units(units.to_vec()));
-        Ok(literal)
+        self.create_string_literal(source, JsString::from_code_units(units), single_quote)
     }
 
     /// Lossless UTF-16 spelling of createTemplateLiteralLikeNode @6.0.3.
@@ -2008,7 +2073,7 @@ impl<'arena> NodeFactory<'arena> {
         units: &[u16],
         raw: Option<&[u16]>,
     ) -> Result<TransformNode, TransformError> {
-        let text = String::from_utf16_lossy(units);
+        let text = JsString::from_code_units(units);
         let raw_text = raw.map(String::from_utf16_lossy);
         let data = match kind {
             SyntaxKind::NoSubstitutionTemplateLiteral => {
@@ -2026,7 +2091,6 @@ impl<'arena> NodeFactory<'arena> {
         };
         let literal = self.create_node(source, data, TransformFlags::CONTAINS_ES_2015)?;
         let properties = self.arena.literal_properties_mut(literal)?;
-        properties.set_javascript_string_value(JavaScriptString::from_code_units(units.to_vec()));
         if let Some(raw) = raw {
             properties.set_raw_template_text(JavaScriptString::from_code_units(raw.to_vec()));
         }
@@ -2039,7 +2103,7 @@ impl<'arena> NodeFactory<'arena> {
     pub fn create_template_head(
         &mut self,
         source: TransformSourceId,
-        text: impl Into<String>,
+        text: impl Into<JsString>,
         raw_text: Option<String>,
     ) -> Result<TransformNode, TransformError> {
         self.create_node(
@@ -3728,7 +3792,7 @@ impl<'arena> NodeFactory<'arena> {
         )
     }
 
-    fn parenthesize_left_side_of_access(
+    pub(crate) fn parenthesize_left_side_of_access(
         &mut self,
         expression: TransformNode,
     ) -> Result<TransformNode, TransformError> {
@@ -5241,6 +5305,7 @@ impl<'arena> NodeFactory<'arena> {
                 .arena
                 .node_mut(id);
             copied.numeric_literal_flags = record.numeric_literal_flags;
+            copied.template_flags = record.template_flags;
             copied.multi_line = record.multi_line;
             copied.js_doc = record.js_doc;
             copied.parent = None;
@@ -6203,6 +6268,30 @@ impl<'arena> NodeFactory<'arena> {
                 .then_some(left_kind)
                 .flatten(),
         )
+    }
+
+    /// Explicit `setParent(node, original.parent)` used by upstream workers
+    /// after cloneNode. Ordinary cloning deliberately leaves parent unset.
+    pub(crate) fn set_parent_from(
+        &mut self,
+        node: TransformNode,
+        original: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        if node.source != original.source {
+            return Err(TransformError::CrossSourceNode {
+                expected: node.source,
+                actual: original.source,
+            });
+        }
+        let parent = self.arena.node(original)?.parent;
+        self.arena.node(node)?;
+        self.arena
+            .source_mut(node.source)?
+            .source
+            .arena
+            .node_mut(node.node)
+            .parent = parent;
+        Ok(node)
     }
 
     pub fn set_text_range(
@@ -7389,6 +7478,7 @@ impl<'a> CrossSourceReuseClone<'a> {
                 .arena
                 .node_mut(cloned);
             copied.numeric_literal_flags = record.numeric_literal_flags;
+            copied.template_flags = record.template_flags;
             copied.multi_line = record.multi_line;
             copied.js_doc = js_doc;
             copied.parent = None;

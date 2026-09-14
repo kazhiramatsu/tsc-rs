@@ -163,9 +163,13 @@ fn witness_plan(input: &Value, template: &CompilerExecutionPlan) -> CompilerExec
         let parsed = parse_config_root_plan(
             &CompilerConfigHost::new(&host),
             ConfigRootPlanRequest {
-                file_name: config["path"].as_str().unwrap().to_owned(),
+                file_name: config["path"].as_str().unwrap().to_owned().into(),
                 text: String::from_utf8(decode(config)).unwrap(),
-                base_path: input["current_directory"].as_str().unwrap().to_owned(),
+                base_path: input["current_directory"]
+                    .as_str()
+                    .unwrap()
+                    .to_owned()
+                    .into(),
             },
         )
         .unwrap();
@@ -197,7 +201,7 @@ fn message(chain: &MessageChain, indent: usize, text: &mut String) {
         text.push('\n');
         text.push_str(&"  ".repeat(indent));
     }
-    text.push_str(&chain.text);
+    text.push_str(chain.text.as_str().expect("scalar diagnostic observation"));
     for next in &chain.next {
         message(next, indent + 1, text);
     }
@@ -205,14 +209,14 @@ fn message(chain: &MessageChain, indent: usize, text: &mut String) {
 fn diagnostics(list: &[Diagnostic]) -> Value {
     json!(list.iter().map(|d| {
         let mut text = String::new(); message(&d.message, 0, &mut text);
-        json!({ "code": d.code(), "category": format!("{:?}", d.category()), "file": d.file_name,
+        json!({ "code": d.code(), "category": format!("{:?}", d.category()), "file": scalar_json(&d.file_name),
             "start": d.start, "length": d.length, "message": text })
     }).collect::<Vec<_>>())
 }
 fn observe(prepared: PreparedProgram) -> Value {
     let options = prepared.compiler_options();
     let effective = json!({ "sourceMap": options.source_map, "inlineSourceMap": options.inline_source_map,
-        "inlineSources": options.inline_sources, "sourceRoot": options.source_root, "mapRoot": options.map_root });
+        "inlineSources": options.inline_sources, "sourceRoot": scalar_json(&options.source_root), "mapRoot": scalar_json(&options.map_root) });
     let session = ProgramSession::new(prepared);
     let bundle = session.prepare_harness_lib_bundle().unwrap();
     let mut sink = MemoryOutputSink::new();
@@ -226,7 +230,7 @@ fn observe(prepared: PreparedProgram) -> Value {
             _ => panic!("unexpected build info"),
         };
         json!({ "index": index, "path": write.path().to_string_lossy(),
-            "kind": if write.path().extension().is_some_and(|ext| ext == "map") { "source-map" } else { "javascript" },
+            "kind": if write.path().scalar_test_path().extension().is_some_and(|ext| ext == "map") { "source-map" } else { "javascript" },
             "callback_utf8_base64": base64::engine::general_purpose::STANDARD.encode(write.callback_bytes()),
             "callback_utf8_sha256": sha256(write.callback_bytes()), "callback_utf8_bytes": write.callback_bytes().len(),
             "write_byte_order_mark": write.write_byte_order_mark(), "materialized_utf8_sha256": sha256(write.materialized_bytes()),
@@ -461,3 +465,11 @@ fn existing_witness_route_census() {
         }
     }
 }
+
+#[path = "../../program/tests/support/scalar_json.rs"]
+mod utf16_scalar_json;
+use utf16_scalar_json::observe as scalar_json;
+
+#[path = "../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

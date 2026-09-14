@@ -682,7 +682,11 @@ fn rust_file_dump(source: &SourceFile, binder: &tsc_binder::Binder<'_>) -> FileD
             let symbol = binder.node_symbol.get(&id).copied().map(|symbol| {
                 let symbol = binder.symbols.symbol(symbol);
                 SymbolRef {
-                    escaped_name: symbol.escaped_name.clone(),
+                    escaped_name: symbol
+                        .escaped_name
+                        .as_str()
+                        .expect("scalar recovery census name")
+                        .to_owned(),
                     declarations: symbol
                         .declarations
                         .iter()
@@ -703,7 +707,11 @@ fn rust_file_dump(source: &SourceFile, binder: &tsc_binder::Binder<'_>) -> FileD
         stack.extend(children.into_iter().rev().map(|child| (child, depth + 1)));
     }
     FileDump {
-        name: source.file_name.clone(),
+        name: source
+            .file_name
+            .as_str()
+            .expect("scalar recovery census filename")
+            .to_owned(),
         parse_diagnostics: source
             .parse_diagnostics
             .iter()
@@ -743,7 +751,14 @@ fn declaration_ref(
             pos: to_utf16(node.pos),
             end: to_utf16(node.end),
             missing: tsc_binder::node_util::node_is_missing(source, Some(name)),
-            text: tsc_binder::node_util::get_text_of_identifier_or_literal(source, name),
+            text: tsc_binder::node_util::get_text_of_identifier_or_literal(source, name).map(
+                |value| {
+                    value
+                        .as_str()
+                        .expect("scalar recovery census literal")
+                        .to_owned()
+                },
+            ),
         }
     });
     let body = tsc_binder::node_util::body_of(source, id).map(|body| {

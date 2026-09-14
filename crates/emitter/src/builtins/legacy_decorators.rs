@@ -240,7 +240,7 @@ impl DecoratorOwner {
 /// tsc-span: _tsc.js:16719-16760
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum AccessorPropertyNameIdentity {
-    Static(String),
+    Static(tsc_types::EscapedName),
     Dynamic,
 }
 
@@ -2064,23 +2064,23 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
     ) -> Result<Option<AccessorPropertyNameIdentity>, TransformError> {
         Ok(match &self.context.arena().node(name)?.data {
             NodeData::Identifier(data) => Some(AccessorPropertyNameIdentity::Static(
-                data.escaped_text.clone(),
+                tsc_types::EscapedName::from_identifier_escaped_text(&data.escaped_text),
             )),
             NodeData::PrivateIdentifier(data) => Some(AccessorPropertyNameIdentity::Static(
-                data.escaped_text.clone(),
+                tsc_types::EscapedName::from_identifier_escaped_text(&data.escaped_text),
             )),
             NodeData::StringLiteral(data) => Some(AccessorPropertyNameIdentity::Static(
-                tsc_syntax::escape_leading_underscores(&data.text),
+                tsc_types::EscapedName::escape((&data.text).into()),
             )),
             NodeData::NumericLiteral(data) => Some(AccessorPropertyNameIdentity::Static(
-                tsc_syntax::escape_leading_underscores(&data.text),
+                tsc_types::EscapedName::escape((&data.text).into()),
             )),
             NodeData::BigIntLiteral(data) => Some(AccessorPropertyNameIdentity::Static(
-                tsc_syntax::escape_leading_underscores(&data.text),
+                tsc_types::EscapedName::escape((&data.text).into()),
             )),
             NodeData::NoSubstitutionTemplateLiteral(data) => {
                 Some(AccessorPropertyNameIdentity::Static(
-                    tsc_syntax::escape_leading_underscores(&data.text),
+                    tsc_types::EscapedName::escape((&data.text).into()),
                 ))
             }
             NodeData::ComputedPropertyName(data) => {
@@ -2102,13 +2102,13 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
     ) -> Result<AccessorPropertyNameIdentity, TransformError> {
         Ok(match &self.context.arena().node(expression)?.data {
             NodeData::StringLiteral(data) => AccessorPropertyNameIdentity::Static(
-                tsc_syntax::escape_leading_underscores(&data.text),
+                tsc_types::EscapedName::escape((&data.text).into()),
             ),
             NodeData::NumericLiteral(data) => AccessorPropertyNameIdentity::Static(
-                tsc_syntax::escape_leading_underscores(&data.text),
+                tsc_types::EscapedName::escape((&data.text).into()),
             ),
             NodeData::NoSubstitutionTemplateLiteral(data) => AccessorPropertyNameIdentity::Static(
-                tsc_syntax::escape_leading_underscores(&data.text),
+                tsc_types::EscapedName::escape((&data.text).into()),
             ),
             NodeData::PrefixUnaryExpression(data)
                 if matches!(
@@ -2131,7 +2131,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 } else {
                     operand.text.clone()
                 };
-                AccessorPropertyNameIdentity::Static(tsc_syntax::escape_leading_underscores(&text))
+                AccessorPropertyNameIdentity::Static(tsc_types::EscapedName::escape((&text).into()))
             }
             _ => AccessorPropertyNameIdentity::Dynamic,
         })
@@ -3696,7 +3696,11 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         Ok(identifier)
     }
 
-    fn create_string_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
+    fn create_string_literal<'a>(
+        &mut self,
+        text: impl Into<tsc_diagnostics::JsStr<'a>>,
+    ) -> Result<TransformNode, TransformError> {
+        let text = text.into();
         self.context.factory()?.create_node(
             self.source,
             NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {

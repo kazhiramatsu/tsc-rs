@@ -38,7 +38,7 @@ fn diagnostic(code: u32) -> Diagnostic {
         MessageChain {
             code,
             category: DiagnosticCategory::Error,
-            text: format!("diagnostic {code}"),
+            text: format!("diagnostic {code}").into(),
             next_present: false,
             next: Vec::new(),
         },
@@ -53,7 +53,7 @@ fn located_diagnostic(code: u32, file_name: &str) -> Diagnostic {
         MessageChain {
             code,
             category: DiagnosticCategory::Error,
-            text: format!("diagnostic {code}"),
+            text: format!("diagnostic {code}").into(),
             next_present: false,
             next: Vec::new(),
         },
@@ -119,7 +119,10 @@ fn preserves_final_program_order_independently_from_root_order() {
             .with_type_roots(explicit_empty_type_roots)
             .with_config_file_path(path("/Work/tsconfig.json", "/work/tsconfig.json"))
             .with_root_dirs(vec![path("/Work/src", "/work/src")])
-            .with_paths(vec![PathMapping::new("@app/*", vec!["src/*".to_owned()])]),
+            .with_paths(vec![PathMapping::new(
+                "@app/*",
+                vec!["src/*".to_owned().into()],
+            )]),
     );
 
     let program = builder.build().unwrap();
@@ -127,7 +130,7 @@ fn preserves_final_program_order_independently_from_root_order() {
         program
             .source_files()
             .iter()
-            .map(|source| source.path().display())
+            .map(|source| source.path().display().scalar_test_path())
             .collect::<Vec<_>>(),
         [
             Path::new("/Work/lib.d.ts"),
@@ -145,7 +148,10 @@ fn preserves_final_program_order_independently_from_root_order() {
         [Some(root)]
     );
     assert!(!program.path_context().use_case_sensitive_file_names());
-    assert_eq!(program.current_directory().display(), Path::new("/Work"));
+    assert_eq!(
+        program.current_directory().display().scalar_test_path(),
+        Path::new("/Work")
+    );
     assert_eq!(
         program.source_file(dependency).unwrap().text(),
         "export const b = 1;"
@@ -156,7 +162,8 @@ fn preserves_final_program_order_independently_from_root_order() {
         program
             .program_options()
             .config_file_path()
-            .map(ProgramPath::display),
+            .map(ProgramPath::display)
+            .map(|path| path.scalar_test_path()),
         Some(Path::new("/Work/tsconfig.json"))
     );
     assert_eq!(
@@ -200,7 +207,7 @@ fn root_requests_preserve_order_multiplicity_and_missing_entries() {
         program
             .roots()
             .iter()
-            .map(|root| (root.path().display(), root.source()))
+            .map(|root| (root.path().display().scalar_test_path(), root.source()))
             .collect::<Vec<_>>(),
         [
             (Path::new("/Work/missing.ts"), None),
@@ -269,13 +276,17 @@ fn extensionless_root_requests_bind_only_to_the_first_supported_probe_group() {
         .add_root(PreparedRoot::loaded(path("/Work/root", "/work/root"), ts))
         .expect("an extensionless request may retain its selected .ts source");
     let program = typescript.build().unwrap();
-    assert_eq!(program.roots()[0].path().display(), Path::new("/Work/root"));
+    assert_eq!(
+        program.roots()[0].path().display().scalar_test_path(),
+        Path::new("/Work/root")
+    );
     assert_eq!(
         program
             .source_file(program.roots()[0].source().unwrap())
             .unwrap()
             .path()
-            .display(),
+            .display()
+            .scalar_test_path(),
         Path::new("/Work/root.ts")
     );
 
@@ -404,7 +415,10 @@ fn canonical_source_duplicates_collapse_only_when_facts_are_compatible() {
             .unwrap()
             .source_file(first)
             .unwrap()
-            .alternate_display_paths(),
+            .alternate_display_paths()
+            .iter()
+            .map(|path| path.as_js().scalar_test_path())
+            .collect::<Vec<_>>(),
         [PathBuf::from("/work/a.ts")]
     );
 
@@ -441,7 +455,8 @@ fn realpath_is_separate_and_part_of_source_compatibility() {
             .real_path()
             .unwrap()
             .canonical()
-            .as_path(),
+            .as_js()
+            .scalar_test_path(),
         Path::new("/work/actual/a.ts")
     );
     assert_eq!(
@@ -450,7 +465,8 @@ fn realpath_is_separate_and_part_of_source_compatibility() {
             .unwrap()
             .path()
             .canonical()
-            .as_path(),
+            .as_js()
+            .scalar_test_path(),
         Path::new("/work/link/a.ts")
     );
 
@@ -742,7 +758,12 @@ fn unloaded_targets_do_not_require_an_owned_source() {
         Some(UnloadedModuleReason::NodeModulesDepth)
     );
     assert_eq!(
-        resolved.original_path().unwrap().canonical().as_path(),
+        resolved
+            .original_path()
+            .unwrap()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/work/node_modules/pkg/link.js")
     );
 }
@@ -842,7 +863,7 @@ fn resolved_module_target_and_extension_metadata_are_validated_exactly() {
                     path("/Work/theme.d.css.ts", "/work/theme.d.css.ts"),
                     UnloadedModuleReason::ArbitraryExtensionWithoutOption,
                 ),
-                ModuleExtension::Arbitrary(".d.css.ts".to_owned()),
+                ModuleExtension::Arbitrary(".d.css.ts".to_owned().into()),
             ))),
         )
         .unwrap();
@@ -878,7 +899,7 @@ fn resolved_module_target_and_extension_metadata_are_validated_exactly() {
                     source: target,
                     resolved_file: path("/Work/dep.d.css.ts", "/work/dep.d.css.ts"),
                 },
-                ModuleExtension::Arbitrary(".d.css.ts".to_owned()),
+                ModuleExtension::Arbitrary(".d.css.ts".to_owned().into()),
             ))),
         )
         .unwrap();
@@ -891,7 +912,14 @@ fn resolved_module_target_and_extension_metadata_are_validated_exactly() {
     else {
         panic!("expected arbitrary-extension module");
     };
-    assert_eq!(module.extension().as_str(), ".d.css.ts");
+    assert_eq!(
+        module
+            .extension()
+            .as_js()
+            .as_str()
+            .expect("scalar extension observation"),
+        ".d.css.ts"
+    );
 
     let (mut case_preserved_arbitrary, target) =
         owned_target_builder(path("/Work/theme.d.CSS.ts", "/work/theme.d.css.ts"));
@@ -904,7 +932,7 @@ fn resolved_module_target_and_extension_metadata_are_validated_exactly() {
                     source: target,
                     resolved_file: path("/Work/theme.d.CSS.ts", "/work/theme.d.css.ts"),
                 },
-                ModuleExtension::Arbitrary(".d.CSS.ts".to_owned()),
+                ModuleExtension::Arbitrary(".d.CSS.ts".to_owned().into()),
             ))),
         )
         .unwrap();
@@ -917,7 +945,14 @@ fn resolved_module_target_and_extension_metadata_are_validated_exactly() {
     else {
         panic!("expected a case-preserved arbitrary extension");
     };
-    assert_eq!(module.extension().as_str(), ".d.CSS.ts");
+    assert_eq!(
+        module
+            .extension()
+            .as_js()
+            .as_str()
+            .expect("scalar extension observation"),
+        ".d.CSS.ts"
+    );
 
     let (mut path_bearing_arbitrary, target) =
         owned_target_builder(path("/Work/dir.d.ext/.ts", "/work/dir.d.ext/.ts"));
@@ -930,7 +965,7 @@ fn resolved_module_target_and_extension_metadata_are_validated_exactly() {
                     source: target,
                     resolved_file: path("/Work/dir.d.ext/.ts", "/work/dir.d.ext/.ts"),
                 },
-                ModuleExtension::Arbitrary(".d.ext/.ts".to_owned()),
+                ModuleExtension::Arbitrary(".d.ext/.ts".to_owned().into()),
             ))),
         )
         .unwrap();
@@ -943,7 +978,14 @@ fn resolved_module_target_and_extension_metadata_are_validated_exactly() {
     else {
         panic!("expected path-bearing arbitrary-extension module");
     };
-    assert_eq!(module.extension().as_str(), ".d.ext/.ts");
+    assert_eq!(
+        module
+            .extension()
+            .as_js()
+            .as_str()
+            .expect("scalar extension observation"),
+        ".d.ext/.ts"
+    );
 
     let (mut contradictory_arbitrary, target) =
         owned_target_builder(path("/Work/dep.d.css.ts", "/work/dep.d.css.ts"));
@@ -1827,7 +1869,10 @@ fn package_identity_includes_peer_dependencies() {
 
     assert_ne!(without_peers, react_18);
     assert_ne!(react_18, react_19);
-    assert_eq!(react_18.peer_dependencies(), Some("+react@18.3.1"));
+    assert_eq!(
+        react_18.peer_dependencies(),
+        (Some("+react@18.3.1")).map(Into::into)
+    );
 }
 
 #[test]
@@ -1844,8 +1889,8 @@ fn package_metadata_and_diagnostic_buckets_remain_owned_and_distinct() {
     let package = PackageMetadata::from_trusted_parsed(
         path("/Work/package.json", "/work/package.json"),
         r#"{"name":"pkg","version":"1.0.0","type":"module"}"#,
-        Some("pkg".to_owned()),
-        Some("1.0.0".to_owned()),
+        Some("pkg".to_owned().into()),
+        Some("1.0.0".to_owned().into()),
         PackageJsonType::Module,
     );
     builder.add_package_metadata(package.clone()).unwrap();
@@ -1853,8 +1898,8 @@ fn package_metadata_and_diagnostic_buckets_remain_owned_and_distinct() {
         .add_package_metadata(PackageMetadata::from_trusted_parsed(
             path("/work/PACKAGE.json", "/work/package.json"),
             r#"{"name":"pkg","version":"1.0.0","type":"module"}"#,
-            Some("pkg".to_owned()),
-            Some("1.0.0".to_owned()),
+            Some("pkg".to_owned().into()),
+            Some("1.0.0".to_owned().into()),
             PackageJsonType::Module,
         ))
         .unwrap();
@@ -1874,7 +1919,11 @@ fn package_metadata_and_diagnostic_buckets_remain_owned_and_distinct() {
     assert_eq!(prepared_package.version(), package.version());
     assert_eq!(prepared_package.module_type(), package.module_type());
     assert_eq!(
-        prepared_package.alternate_display_paths(),
+        prepared_package
+            .alternate_display_paths()
+            .iter()
+            .map(|path| path.as_js().scalar_test_path())
+            .collect::<Vec<_>>(),
         [PathBuf::from("/work/PACKAGE.json")]
     );
     assert_eq!(
@@ -1938,13 +1987,13 @@ fn every_located_preparation_diagnostic_keeps_owned_source_text() {
     let mut config = located_diagnostic(1001, "/Work/tsconfig.json");
     config.related_information_present = true;
     config.related.push(RelatedInfo {
-        file_name: Some("/work/PACKAGE.json".to_owned()),
+        file_name: Some("/work/PACKAGE.json".to_owned().into()),
         start: Some(0),
         length: Some(1),
         message: MessageChain {
             code: 1002,
             category: DiagnosticCategory::Message,
-            text: "package scope".to_owned(),
+            text: "package scope".to_owned().into(),
             next_present: false,
             next: Vec::new(),
         },
@@ -1994,13 +2043,13 @@ fn every_located_preparation_diagnostic_keeps_owned_source_text() {
         .unwrap();
     let mut diagnostic = located_diagnostic(3001, "/Work/tsconfig.json");
     diagnostic.related.push(RelatedInfo {
-        file_name: Some("/Work/missing-package.json".to_owned()),
+        file_name: Some("/Work/missing-package.json".to_owned().into()),
         start: Some(0),
         length: Some(1),
         message: MessageChain {
             code: 3002,
             category: DiagnosticCategory::Message,
-            text: "missing package".to_owned(),
+            text: "missing package".to_owned().into(),
             next_present: false,
             next: Vec::new(),
         },
@@ -2161,7 +2210,7 @@ fn config_diagnostic_alias_requires_the_owned_matching_snapshot() {
                 .unwrap();
         }
         let mut row = diagnostic(5024);
-        row.file_name = Some("tsconfig.json".to_owned());
+        row.file_name = Some("tsconfig.json".to_owned().into());
         row.start = Some(0);
         row.length = Some(1);
         builder.set_diagnostics(PreparationDiagnostics::new(
@@ -2184,3 +2233,7 @@ fn config_diagnostic_alias_requires_the_owned_matching_snapshot() {
         }
     }
 }
+
+#[path = "../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

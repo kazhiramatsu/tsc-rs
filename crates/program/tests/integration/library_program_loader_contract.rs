@@ -72,7 +72,7 @@ fn source_paths(program: &PreparedProgram) -> Vec<&Path> {
     program
         .source_files()
         .iter()
-        .map(|source| source.path().display())
+        .map(|source| source.path().display().scalar_test_path())
         .collect()
 }
 
@@ -86,6 +86,7 @@ fn library_paths(program: &PreparedProgram) -> Vec<&Path> {
                 .expect("library id belongs to the program")
                 .path()
                 .display()
+                .scalar_test_path()
         })
         .collect()
 }
@@ -566,7 +567,13 @@ fn lib_reference_misses_route_exact_diagnostics() {
     ];
     for (diagnostic, (code, value, message)) in diagnostics.iter().zip(expected) {
         assert_eq!(diagnostic.code(), code);
-        assert_eq!(diagnostic.file_name.as_deref(), Some("/work/root.ts"));
+        assert_eq!(
+            diagnostic
+                .file_name
+                .as_ref()
+                .map(|value| value.as_str().expect("scalar legacy option observation")),
+            Some("/work/root.ts")
+        );
         assert_eq!(
             diagnostic.start,
             Some(source.find(value).expect("fixture contains lib value") as u32)
@@ -597,7 +604,13 @@ fn mapped_missing_lib_reference_is_located_but_missing_selected_roots_are_filele
 
     let reference = &diagnostics[0];
     assert_eq!(reference.code(), 6053);
-    assert_eq!(reference.file_name.as_deref(), Some("/work/root.ts"));
+    assert_eq!(
+        reference
+            .file_name
+            .as_ref()
+            .map(|value| value.as_str().expect("scalar legacy option observation")),
+        Some("/work/root.ts")
+    );
     assert_eq!(reference.start, Some(source.find("es5").unwrap() as u32));
     assert_eq!(reference.length, Some(3));
     assert_eq!(
@@ -709,7 +722,10 @@ fn library_self_reference_produces_a_located_ts1006() {
     assert_eq!(diagnostics.len(), 1);
     assert_eq!(diagnostics[0].code(), 1006);
     assert_eq!(
-        diagnostics[0].file_name.as_deref(),
+        diagnostics[0]
+            .file_name
+            .as_ref()
+            .map(|value| value.as_str().expect("scalar legacy option observation")),
         Some("/typescript/lib/lib.es5.d.ts")
     );
     assert_eq!(
@@ -1142,3 +1158,7 @@ fn library_sources_and_references_count_toward_every_resource_limit() {
         lib_text.len(),
     );
 }
+
+#[path = "../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

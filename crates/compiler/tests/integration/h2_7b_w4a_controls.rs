@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use base64::Engine;
 use serde_json::{json, Value};
 use tsc_compiler::{MemoryOutputSink, ProgramSession};
-use tsc_diagnostics::MessageChain;
+use tsc_diagnostics::{JsStr, JsString, MessageChain};
 use tsc_emitter::{EmitArtifactKind, EmitWriteMetadata};
 use tsc_harness::upstream_suites::execution::{
     load_qualified_compiler_emit_with_option_floor, EmitOptionFloor,
@@ -171,7 +171,10 @@ fn actual_diagnostics(diagnostics: &[tsc_diagnostics::Diagnostic]) -> Vec<Diagno
             (
                 diagnostic.code(),
                 format!("{:?}", diagnostic.category()),
-                diagnostic.file_name.clone(),
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .map(|name| scalar_observation(name.as_js())),
                 diagnostic.start,
                 diagnostic.length,
                 message,
@@ -187,13 +190,14 @@ fn flatten_message_chain(chain: &MessageChain, indent: usize, output: &mut Strin
             output.push_str("  ");
         }
     }
-    output.push_str(&chain.text);
+    output.push_str(chain.text.as_str().expect("scalar frozen diagnostic text"));
     for child in &chain.next {
         flatten_message_chain(child, indent + 1, output);
     }
 }
 
-fn artifact_kind(kind: EmitArtifactKind, path: &Path) -> &'static str {
+fn artifact_kind(kind: EmitArtifactKind, path: JsStr<'_>) -> &'static str {
+    let path = Path::new(path.as_str().expect("scalar frozen artifact path"));
     match kind {
         EmitArtifactKind::JavaScript
             if path.extension().and_then(|value| value.to_str()) == Some("mjs") =>
@@ -218,12 +222,12 @@ fn artifact_kind(kind: EmitArtifactKind, path: &Path) -> &'static str {
     }
 }
 
-fn emitted_files_value(actual: Option<&[PathBuf]>) -> Value {
+fn emitted_files_value(actual: Option<&[JsString]>) -> Value {
     actual.map_or(Value::Null, |paths| {
         Value::Array(
             paths
                 .iter()
-                .map(|path| Value::String(path.to_string_lossy().into_owned()))
+                .map(|path| Value::String(scalar_observation(path.as_js())))
                 .collect(),
         )
     })
@@ -257,7 +261,7 @@ fn source_maps_value(actual: Option<&[tsc_compiler::SourceMapObservation]>) -> V
                 .map(|map| {
                     json!({
                         "input_source_file_names": map.input_source_files().iter()
-                            .map(|path| path.to_string_lossy().into_owned())
+                            .map(|path| scalar_observation(path.as_js()))
                             .collect::<Vec<_>>(),
                         "source_map_json": map.canonical_json(),
                     })
@@ -315,7 +319,14 @@ fn assert_observation_with_listing(
         (
             command.emit().clone(),
             command.diagnostics().to_vec(),
-            Some((command.status_writes().to_vec(), command.exit_code())),
+            Some((
+                command
+                    .status_writes()
+                    .iter()
+                    .map(|value| scalar_observation(value.as_js()))
+                    .collect(),
+                command.exit_code(),
+            )),
         )
     } else {
         let (outcome, reported) = ProgramSession::new(prepared)
@@ -423,8 +434,8 @@ pub(super) fn assert_completed_observation(
     for (write, expected) in writes.iter().zip(expected_writes) {
         // Callback filenames are observable text; Path equality folds dot components.
         assert_eq!(
-            write.path().as_os_str(),
-            std::ffi::OsStr::new(expected["path"].as_str().expect("frozen write path")),
+            write.path(),
+            expected["path"].as_str().expect("frozen write path"),
             "{case_id}: output path"
         );
         let expected_kind = expected["kind"].as_str().expect("frozen write kind");
@@ -436,7 +447,10 @@ pub(super) fn assert_completed_observation(
                 "source-map"
             } else if expected_kind == "javascript"
                 && write.kind() == EmitArtifactKind::JavaScript
-                && write.path().extension().and_then(|value| value.to_str()) == Some("jsx")
+                && Path::new(write.path().as_str().expect("scalar frozen artifact path"))
+                    .extension()
+                    .and_then(|value| value.to_str())
+                    == Some("jsx")
             {
                 "javascript"
             } else {
@@ -446,13 +460,13 @@ pub(super) fn assert_completed_observation(
             actual_kind,
             expected_kind,
             "{case_id}: write kind for {}",
-            write.path().display()
+            write.path().to_string_lossy()
         );
         assert_eq!(
             write.callback_bytes(),
             decode(&expected["callback_utf8_base64"]),
             "{case_id}: callback bytes for {}",
-            write.path().display()
+            write.path().to_string_lossy()
         );
         assert_eq!(
             write.callback_bytes().len() as u64,
@@ -460,7 +474,7 @@ pub(super) fn assert_completed_observation(
                 .as_u64()
                 .expect("callback byte count"),
             "{case_id}: callback byte count for {}",
-            write.path().display()
+            write.path().to_string_lossy()
         );
         assert_eq!(
             write.write_byte_order_mark(),
@@ -468,13 +482,13 @@ pub(super) fn assert_completed_observation(
                 .as_bool()
                 .expect("BOM flag"),
             "{case_id}: BOM flag for {}",
-            write.path().display()
+            write.path().to_string_lossy()
         );
         assert_eq!(
             write.materialized_bytes().as_ref(),
             decode(&expected["materialized_utf8_base64"]),
             "{case_id}: materialized bytes for {}",
-            write.path().display()
+            write.path().to_string_lossy()
         );
         assert_eq!(
             write.materialized_bytes().len() as u64,
@@ -482,12 +496,12 @@ pub(super) fn assert_completed_observation(
                 .as_u64()
                 .expect("materialized byte count"),
             "{case_id}: materialized byte count for {}",
-            write.path().display()
+            write.path().to_string_lossy()
         );
         let actual_sources = write.source_files().map(|sources| {
             sources
                 .iter()
-                .map(|source| source.to_string_lossy().into_owned())
+                .map(|source| scalar_observation(source.as_js()))
                 .collect::<Vec<_>>()
         });
         let expected_sources = expected["source_files"].as_array().map(|sources| {
@@ -550,7 +564,7 @@ fn assert_related_diagnostics(
                         json!({
                             "code": related.message.code,
                             "category": format!("{:?}", related.message.category),
-                            "file": related.file_name,
+                            "file": related.file_name.as_ref().map(|value| scalar_observation(value.as_js())),
                             "start": related.start,
                             "length": related.length,
                             "message": message,
@@ -633,4 +647,13 @@ fn commonjs_symbol_positions_use_the_assignment_left_hand_side() {
 #[test]
 fn overload_diagnostics_share_the_completed_cumulative_prefix() {
     assert_every_row(CUMULATIVE_OVERLOAD_CHAIN_CASES);
+}
+
+// Frozen serde observations have scalar JSON strings. This boundary is strict:
+// an unexpected lone unit is a mismatch, never a U+FFFD-normalized comparison.
+pub(super) fn scalar_observation(value: JsStr<'_>) -> String {
+    value
+        .as_str()
+        .expect("non-scalar JS value cannot match this scalar frozen observation")
+        .to_owned()
 }

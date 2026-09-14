@@ -257,7 +257,7 @@ fn a_mapped_emit_is_deterministic_across_two_runs() {
                 .iter()
                 .map(|artifact| {
                     (
-                        artifact.path().to_path_buf(),
+                        artifact.path().scalar_test_path().to_path_buf(),
                         artifact.callback_text().to_owned(),
                     )
                 })
@@ -301,8 +301,9 @@ impl tsc_emitter::OutputSink for FaultSink {
         &mut self,
         artifact: tsc_emitter::EmitArtifact,
     ) -> Result<tsc_emitter::EmitWriteDisposition, tsc_emitter::EmitIoError> {
-        self.attempts.push(artifact.path().to_path_buf());
-        if artifact.path() == self.fault_path {
+        self.attempts
+            .push(artifact.path().scalar_test_path().to_path_buf());
+        if artifact.path().scalar_test_path() == self.fault_path {
             return Err(tsc_emitter::EmitIoError::new(
                 tsc_emitter::EmitIoOperation::WriteFile,
                 artifact.path(),
@@ -430,7 +431,7 @@ fn an_inline_mapped_emit_is_deterministic_across_two_runs() {
                 .iter()
                 .map(|artifact| {
                     (
-                        artifact.path().to_path_buf(),
+                        artifact.path().scalar_test_path().to_path_buf(),
                         artifact.callback_text().to_owned(),
                     )
                 })
@@ -447,3 +448,7 @@ fn an_inline_mapped_emit_is_deterministic_across_two_runs() {
     };
     assert_eq!(run(), run(), "inline mapped emit is not deterministic");
 }
+
+#[path = "../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

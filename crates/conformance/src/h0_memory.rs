@@ -1,11 +1,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt;
-use std::path::{Path, PathBuf};
 
 use tsc_checker::InputFile;
 use tsc_compiler::ProgramSession;
-use tsc_diagnostics::{gen, Diagnostic, MessageChain};
+use tsc_diagnostics::{gen, Diagnostic, JsStr, JsString, MessageChain};
 use tsc_host::MemoryCompilerHost;
 use tsc_program::{
     plan_source_requests, HostModuleResolution, HostResolvedTypeReferenceDirective,
@@ -83,7 +82,10 @@ pub(crate) struct H0MemoryCase {
 
 #[derive(Debug)]
 enum H0MemoryError {
-    InvalidPath { path: String, detail: &'static str },
+    InvalidPath {
+        path: JsString,
+        detail: &'static str,
+    },
 }
 
 impl fmt::Display for H0MemoryError {
@@ -100,8 +102,8 @@ impl Error for H0MemoryError {}
 
 #[derive(Clone)]
 struct DecodedSource {
-    display: String,
-    canonical: PathBuf,
+    display: JsString,
+    canonical: JsString,
     snapshot: std::sync::Arc<tsc_diagnostics::TextSnapshot>,
 }
 
@@ -137,10 +139,10 @@ pub(crate) fn run(
         })
         .collect::<Result<Vec<_>, H0MemoryError>>()?;
 
-    let mut host_builder = MemoryCompilerHost::builder(&current_directory).case_sensitive(true);
+    let mut host_builder = MemoryCompilerHost::builder_js(&current_directory).case_sensitive(true);
     let mut trailing_directory_aliases = BTreeSet::new();
     for source in decoded_libs.iter().chain(&decoded_files) {
-        host_builder = host_builder.file(
+        host_builder = host_builder.file_js(
             &source.canonical,
             source.snapshot.text().as_bytes().to_vec(),
         );
@@ -150,21 +152,19 @@ pub(crate) fn run(
         // so publish both spellings while mounting the harness tree. This is
         // observable for `../` package-root back-references: tsc preserves
         // the trailing separator before asking `directoryExists`.
-        for directory in source.canonical.ancestors().skip(1) {
-            if directory == Path::new("/") {
-                continue;
+        let mut parent = source.canonical.as_js();
+        while let Some((directory, _)) = parent.rsplit_once("/") {
+            if directory.is_empty() {
+                break;
             }
-            let directory = directory
-                .to_str()
-                .ok_or_else(|| H0MemoryError::InvalidPath {
-                    path: source.display.clone(),
-                    detail: "normalized source parent is not Unicode",
-                })?;
-            trailing_directory_aliases.insert(PathBuf::from(format!("{directory}/")));
+            let mut alias = directory.to_owned();
+            alias.push_str("/");
+            trailing_directory_aliases.insert(alias);
+            parent = directory;
         }
     }
     for directory in trailing_directory_aliases {
-        host_builder = host_builder.directory(directory);
+        host_builder = host_builder.directory_js(directory);
     }
     let host = host_builder.build()?;
 
@@ -176,7 +176,7 @@ pub(crate) fn run(
         PreparedProgram::builder(resolver.path_context().clone(), options.clone());
     prepared_builder.set_program_options(program_options.clone());
 
-    let mut source_by_canonical = BTreeMap::<PathBuf, SourceFileId>::new();
+    let mut source_by_canonical = BTreeMap::<JsString, SourceFileId>::new();
     for source in &decoded_libs {
         let path = public_program_path(source)?;
         let source_id = prepared_builder.add_source_file(PreparedSourceFile::from_snapshot(
@@ -223,20 +223,14 @@ pub(crate) fn run(
         Vec<Diagnostic>,
     )>::new();
     for source in &owned_program_sources {
-        if source
-            .prepared
-            .path()
-            .display()
-            .to_str()
-            .is_some_and(is_json_file)
-        {
+        if is_json_file(source.prepared.path().display()) {
             continue;
         }
         let plan = plan_source_requests(&source.prepared, &options)?;
         for (key, loads_source) in plan.module_requests_with_loadability() {
             let specifier = key.specifier().to_owned();
             let host_outcome = resolver.resolve_with_facts(
-                source.prepared.path().canonical().as_path(),
+                source.prepared.path().canonical().as_js(),
                 &specifier,
                 key.mode(),
             )?;
@@ -249,7 +243,7 @@ pub(crate) fn run(
                     index
                 } else {
                     let host_outcome = resolver.resolve_type_reference(
-                        source.prepared.path().canonical().as_path(),
+                        source.prepared.path().canonical().as_js(),
                         key.specifier(),
                         key.mode(),
                         program_options.type_roots(),
@@ -318,7 +312,7 @@ pub(crate) fn run(
 }
 
 fn public_program_path(source: &DecodedSource) -> Result<ProgramPath, H0MemoryError> {
-    ProgramPath::from_trusted_parts(&source.display, &source.canonical).map_err(|_| {
+    ProgramPath::from_js_parts(source.display.as_js(), source.canonical.as_js()).map_err(|_| {
         H0MemoryError::InvalidPath {
             path: source.display.clone(),
             detail: "program path rejected the normalized public/canonical pair",
@@ -328,7 +322,7 @@ fn public_program_path(source: &DecodedSource) -> Result<ProgramPath, H0MemoryEr
 
 fn program_options_from_program(
     program: &tsc_harness::ProgramJson,
-    current_directory: &Path,
+    current_directory: &JsString,
 ) -> Result<ProgramOptions, H0MemoryError> {
     let mut options = ProgramOptions::default();
     if let Some(tsc_harness::OptionValue::Bool(no_lib)) = program_option(&program.options, "noLib")
@@ -343,7 +337,7 @@ fn program_options_from_program(
         options = options.with_type_roots(type_roots);
     }
     if let Some(types) = string_list_program_option(&program.options, "types") {
-        options = options.with_types(types.to_vec());
+        options = options.with_types(types.iter().cloned().map(Into::into).collect());
     }
     Ok(options)
 }
@@ -368,11 +362,14 @@ fn string_list_program_option<'a>(
     }
 }
 
-fn option_program_path(current_directory: &Path, path: &str) -> Result<ProgramPath, H0MemoryError> {
+fn option_program_path(
+    current_directory: &JsString,
+    path: &str,
+) -> Result<ProgramPath, H0MemoryError> {
     let canonical = normalize_source_path(current_directory, path)?;
-    ProgramPath::from_trusted_parts(canonical.clone(), canonical).map_err(|_| {
+    ProgramPath::from_js_parts(canonical.as_js(), canonical.as_js()).map_err(|_| {
         H0MemoryError::InvalidPath {
-            path: path.to_owned(),
+            path: path.into(),
             detail: "program option path rejected the normalized public/canonical pair",
         }
     })
@@ -380,9 +377,9 @@ fn option_program_path(current_directory: &Path, path: &str) -> Result<ProgramPa
 
 fn bind_host_outcome(
     outcome: HostModuleResolution,
-    source_by_canonical: &BTreeMap<PathBuf, SourceFileId>,
+    source_by_canonical: &BTreeMap<JsString, SourceFileId>,
     options: &tsc_program::CompilerOptions,
-    package_map: &BTreeMap<String, bool>,
+    package_map: &BTreeMap<JsString, bool>,
     loads_source: bool,
 ) -> Result<ModuleResolution, ResolutionError> {
     let alternate_result = outcome.alternate_result().cloned();
@@ -399,11 +396,14 @@ fn bind_host_outcome(
             .map_or((false, false), |package_id| {
                 (
                     package_map.contains_key(&types_package_name(package_id.name())),
-                    package_map.get(package_id.name()).copied().unwrap_or(false),
+                    package_map
+                        .get(package_id.name().as_bytes())
+                        .copied()
+                        .unwrap_or(false),
                 )
             });
-    let target_canonical = host_module.resolved_file().canonical().as_path();
-    let owned_source = source_by_canonical.get(target_canonical);
+    let target_canonical = host_module.resolved_file().canonical().as_js();
+    let owned_source = source_by_canonical.get(target_canonical.as_bytes());
     let target = if options.no_resolve == Some(true) && owned_source.is_none() {
         ResolvedModuleTarget::Unloaded {
             resolved_file: host_module.resolved_file().clone(),
@@ -418,17 +418,17 @@ fn bind_host_outcome(
             UnloadedModuleReason::ResolutionOnly
         } else if host_module.is_external_library_import()
             && (host_module.original_path().is_none()
-                || target_canonical.to_str().is_some_and(|path| {
-                    path.split('/').any(|component| component == "node_modules")
-                }))
+                || target_canonical
+                    .split_ascii(b'/')
+                    .any(|component| component == "node_modules"))
         {
             UnloadedModuleReason::NodeModulesDepth
         } else if !options.allow_js {
             UnloadedModuleReason::JavaScriptNotAdmitted
         } else {
             return Err(ResolutionError::invalid_data(format!(
-                "resolved JavaScript source {} is not owned by the prepared program",
-                host_module.resolved_file().display().display()
+                "resolved JavaScript source {:?} is not owned by the prepared program",
+                host_module.resolved_file().display()
             )));
         };
         ResolvedModuleTarget::Unloaded {
@@ -442,8 +442,8 @@ fn bind_host_outcome(
         }
     } else {
         return Err(ResolutionError::invalid_data(format!(
-            "resolved source {} is not owned by the prepared program",
-            host_module.resolved_file().display().display()
+            "resolved source {:?} is not owned by the prepared program",
+            host_module.resolved_file().display()
         )));
     };
     let resolved = host_module.into_resolved_module(target)?;
@@ -458,22 +458,22 @@ fn bind_host_outcome(
 
 fn bind_type_reference_host_outcome(
     outcome: ResolutionOutcome<HostResolvedTypeReferenceDirective>,
-    source_by_canonical: &BTreeMap<PathBuf, SourceFileId>,
+    source_by_canonical: &BTreeMap<JsString, SourceFileId>,
 ) -> Result<TypeReferenceResolution, ResolutionError> {
     let ResolutionOutcome::Resolved(host_directive) = outcome else {
         return Ok(TypeReferenceResolution::not_found());
     };
     if !is_loadable_type_reference_extension(host_directive.extension()) {
         return Err(ResolutionError::invalid_data(format!(
-            "type-reference target {} is not a TypeScript source file",
-            host_directive.resolved_file().display().display()
+            "type-reference target {:?} is not a TypeScript source file",
+            host_directive.resolved_file().display()
         )));
     }
-    let target_canonical = host_directive.resolved_file().canonical().as_path();
-    let Some(source) = source_by_canonical.get(target_canonical) else {
+    let target_canonical = host_directive.resolved_file().canonical().as_js();
+    let Some(source) = source_by_canonical.get(target_canonical.as_bytes()) else {
         return Err(ResolutionError::invalid_data(format!(
-            "resolved type-reference source {} is not owned by the prepared program",
-            host_directive.resolved_file().display().display()
+            "resolved type-reference source {:?} is not owned by the prepared program",
+            host_directive.resolved_file().display()
         )));
     };
     let mut directive =
@@ -510,15 +510,13 @@ fn unresolved_type_reference_diagnostic(
     source: &PreparedSourceFile,
     directive: &PlannedTypeReferenceDirective,
 ) -> Result<Diagnostic, ResolutionError> {
-    let file_name = source.path().display().to_str().ok_or_else(|| {
-        ResolutionError::invalid_data("type-reference diagnostic source is not valid Unicode")
-    })?;
+    let file_name = source.path().display();
     let args = [directive.key().specifier().to_owned()];
-    Ok(Diagnostic::new(
+    Ok(Diagnostic::new_js(
         Some(file_name.to_owned()),
         Some(directive.pos()),
         Some(directive.length()),
-        MessageChain::new(&gen::Cannot_find_type_definition_file_for_0, &args),
+        MessageChain::new_js(&gen::Cannot_find_type_definition_file_for_0, &args),
     ))
 }
 
@@ -527,7 +525,7 @@ fn unresolved_type_reference_diagnostic(
 /// tsc-span: _tsc.js:123041-123054
 fn package_map_from_facts<'a>(
     facts: impl IntoIterator<Item = (&'a PackageId, &'a ModuleExtension)>,
-) -> BTreeMap<String, bool> {
+) -> BTreeMap<JsString, bool> {
     let mut packages = BTreeMap::new();
     for (package_id, extension) in facts {
         let bundles_declaration = matches!(extension, ModuleExtension::Dts);
@@ -539,19 +537,27 @@ fn package_map_from_facts<'a>(
     packages
 }
 
-fn types_package_name(package_name: &str) -> String {
-    let mangled = match package_name.strip_prefix('@') {
-        Some(scoped) => scoped.replace('/', "__"),
-        None => package_name.to_owned(),
-    };
-    format!("@types/{mangled}")
+fn types_package_name(package_name: JsStr<'_>) -> JsString {
+    let mut result = JsString::from("@types/");
+    if let Some(scoped) = package_name.strip_prefix("@") {
+        for (index, part) in scoped.split_ascii(b'/').enumerate() {
+            if index != 0 {
+                result.push_str("__");
+            }
+            result.push_js(part);
+        }
+    } else {
+        result.push_js(package_name);
+    }
+    result
 }
 
-fn implied_node_format(
-    file_name: &str,
+fn implied_node_format<'n>(
+    file_name: impl Into<JsStr<'n>>,
     package_scope: Option<&PackageMetadata>,
     options: &tsc_program::CompilerOptions,
 ) -> Option<ResolutionMode> {
+    let file_name = file_name.into();
     if file_name.ends_with(".d.mts") || file_name.ends_with(".mts") || file_name.ends_with(".mjs") {
         return Some(ResolutionMode::EsNext);
     }
@@ -566,7 +572,7 @@ fn implied_node_format(
     {
         let package_lookup = matches!(options.emit_module_resolution_kind(), 3..=99)
             || file_name
-                .split('/')
+                .split_ascii(b'/')
                 .any(|segment| segment == "node_modules");
         if !package_lookup {
             return None;
@@ -582,11 +588,12 @@ fn implied_node_format(
     None
 }
 
-fn implied_node_format_for_emit(
-    file_name: &str,
+fn implied_node_format_for_emit<'n>(
+    file_name: impl Into<JsStr<'n>>,
     package_scope: Option<&PackageMetadata>,
     options: &tsc_program::CompilerOptions,
 ) -> Option<ResolutionMode> {
+    let file_name = file_name.into();
     let implied = implied_node_format(file_name, package_scope, options)?;
     if (100..=199).contains(&options.emit_module_kind())
         || [".mts", ".mjs", ".cts", ".cjs"]
@@ -601,11 +608,16 @@ fn implied_node_format_for_emit(
     }
 }
 
-fn is_json_file(file_name: &str) -> bool {
+fn is_json_file<'n>(file_name: impl Into<JsStr<'n>>) -> bool {
+    let file_name = file_name.into();
     file_name.ends_with(".json")
 }
 
-fn is_program_source(file_name: &str, options: &tsc_program::CompilerOptions) -> bool {
+fn is_program_source<'n>(
+    file_name: impl Into<JsStr<'n>>,
+    options: &tsc_program::CompilerOptions,
+) -> bool {
+    let file_name = file_name.into();
     if is_json_file(file_name) {
         return false;
     }
@@ -618,66 +630,73 @@ fn is_program_source(file_name: &str, options: &tsc_program::CompilerOptions) ->
     true
 }
 
-fn normalize_current_directory(cwd: &str) -> Result<PathBuf, H0MemoryError> {
+fn normalize_current_directory(cwd: &str) -> Result<JsString, H0MemoryError> {
     if !cwd.starts_with('/') {
         return Err(H0MemoryError::InvalidPath {
-            path: cwd.to_owned(),
+            path: cwd.into(),
             detail: "current directory must be absolute POSIX",
         });
     }
-    normalize_absolute_posix(cwd)
+    normalize_absolute_posix(cwd.into())
 }
 
-fn normalize_source_path(cwd: &Path, file_name: &str) -> Result<PathBuf, H0MemoryError> {
+fn normalize_source_path<'n>(
+    cwd: &JsString,
+    file_name: impl Into<JsStr<'n>>,
+) -> Result<JsString, H0MemoryError> {
+    let file_name = file_name.into();
     if file_name.is_empty() {
         return Err(H0MemoryError::InvalidPath {
             path: file_name.to_owned(),
             detail: "source file name is empty",
         });
     }
-    if file_name.starts_with('/') {
+    if file_name.starts_with("/") {
         return normalize_absolute_posix(file_name);
     }
-    let cwd = cwd.to_str().ok_or_else(|| H0MemoryError::InvalidPath {
-        path: cwd.display().to_string(),
-        detail: "normalized current directory is not Unicode",
-    })?;
-    normalize_absolute_posix(&format!("{cwd}/{file_name}"))
+    let mut joined = cwd.clone();
+    joined.push_str("/");
+    joined.push_js(file_name);
+    normalize_absolute_posix(joined.as_js())
 }
 
-fn normalize_absolute_posix(path: &str) -> Result<PathBuf, H0MemoryError> {
-    if path.contains('\\') || path.contains('\0') {
+fn normalize_absolute_posix(path: JsStr<'_>) -> Result<JsString, H0MemoryError> {
+    if path.contains("\\") || path.contains("\0") {
         return Err(H0MemoryError::InvalidPath {
             path: path.to_owned(),
             detail: "paths must be NUL-free POSIX spellings",
         });
     }
-    if !path.starts_with('/') {
+    if !path.starts_with("/") {
         return Err(H0MemoryError::InvalidPath {
             path: path.to_owned(),
             detail: "path must be absolute",
         });
     }
     let mut segments = Vec::new();
-    for segment in path.split('/') {
-        match segment {
-            "" | "." => {}
-            ".." => {
-                if segments.pop().is_none() {
-                    return Err(H0MemoryError::InvalidPath {
-                        path: path.to_owned(),
-                        detail: "path traverses above the POSIX root",
-                    });
-                }
+    for segment in path.split_ascii(b'/') {
+        if segment.is_empty() || segment == "." {
+            continue;
+        }
+        if segment == ".." {
+            if segments.pop().is_none() {
+                return Err(H0MemoryError::InvalidPath {
+                    path: path.to_owned(),
+                    detail: "path traverses above the POSIX root",
+                });
             }
-            segment => segments.push(segment),
+        } else {
+            segments.push(segment);
         }
     }
-    Ok(if segments.is_empty() {
-        PathBuf::from("/")
-    } else {
-        PathBuf::from(format!("/{}", segments.join("/")))
-    })
+    let mut result = JsString::from("/");
+    for (index, part) in segments.into_iter().enumerate() {
+        if index != 0 {
+            result.push_str("/");
+        }
+        result.push_js(part);
+    }
+    Ok(result)
 }
 
 #[cfg(test)]

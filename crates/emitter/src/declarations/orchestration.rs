@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use tsc_diagnostics::JsStr;
 
 use tsc_diagnostics::Diagnostic;
 use tsc_program::SourceFileId;
@@ -87,11 +87,7 @@ pub fn get_declaration_diagnostics(
     ))?;
     if !crate::get_source_files_to_emit(host, crate::EmitSelection::TargetSourceFile(source))?
         .contains(&source)
-        || emit_source
-            .path()
-            .to_string_lossy()
-            .to_ascii_lowercase()
-            .ends_with(".json")
+        || crate::builtins::is_json_file_name(emit_source.path())
     {
         return Ok(Vec::new());
     }
@@ -127,8 +123,8 @@ pub(crate) fn emit_declaration_unit(
     preflight: &EmitPreflight,
     paths: &dyn DeclarationPathResolver,
     planned_root: &crate::EmitRoot,
-    declaration_path: &Path,
-    declaration_map_path: Option<&Path>,
+    declaration_path: JsStr<'_>,
+    declaration_map_path: Option<JsStr<'_>>,
     activity: &mut H2ActivityCanary,
     force_dts_emit: bool,
     parsed_emit_metadata: Option<&crate::ParsedEmitMetadata>,
@@ -141,7 +137,7 @@ pub(crate) fn emit_declaration_unit(
         let syntax = file.syntax().ok_or(EmitFailure::Contract(
             EmitContractViolation::CheckedSyntaxUnavailable(source),
         ))?;
-        if force_dts_emit || !syntax.file_name.to_ascii_lowercase().ends_with(".json") {
+        if force_dts_emit || !crate::builtins::is_json_file_name(&syntax.file_name) {
             files_for_emit.push(source);
         }
     }
@@ -226,7 +222,7 @@ pub(crate) fn emit_declaration_unit(
     let transformed_root = result.roots()[0].clone();
     let source_files = crate::execute::transformed_source_paths(&result, &transformed_root, host)?;
     let source_path = match &transformed_root {
-        TransformRoot::SourceFile(_) => Some(source_files[0].as_path()),
+        TransformRoot::SourceFile(_) => Some(source_files[0].as_js()),
         TransformRoot::Bundle(_) => None,
     };
     let new_line = match options.new_line {
@@ -249,7 +245,7 @@ pub(crate) fn emit_declaration_unit(
     activity.construct_printer();
     let global_name_oracle = crate::execute::ResolverGlobalNameOracle(resolver);
     let recording_enabled = options.declaration_map == Some(true)
-        && !source_path.is_some_and(|path| path.to_string_lossy().ends_with(".json"));
+        && !source_path.is_some_and(|path| path.ends_with(".json"));
     let map_lane = recording_enabled.then(|| crate::execute::map_lane_inputs(host));
     let recording = map_lane.as_ref().map(|lane| match source_path {
         Some(source_path) => crate::declaration_map_recording_inputs_for(
@@ -313,7 +309,7 @@ pub(crate) fn emit_declaration_unit(
         (
             EmitArtifact::declaration(
                 declaration_path,
-                printed.text(),
+                crate::artifact::EmitCallbackText::from_generated(printed.generated_text().clone()),
                 options.emit_bom == Some(true),
                 Some(source_files),
                 EmitTextMetadata::new(diagnostics.clone(), None),
@@ -392,7 +388,7 @@ pub fn transform_declaration_unit_for_harness<'t>(
     ))?;
     let declaration_path = paths
         .declaration_file_path(source)
-        .unwrap_or_else(|| PathBuf::from(&syntax.file_name));
+        .unwrap_or_else(|| syntax.file_name.clone());
     let options = host.compiler_options();
 
     let mut arena = TransformArena::new();
@@ -420,7 +416,7 @@ pub fn transform_declaration_unit_for_harness<'t>(
     let diagnostics_blocked = diagnostics_len != 0;
     let is_emit_blocked_evaluated = !diagnostics_blocked;
     let is_emit_blocked = if is_emit_blocked_evaluated {
-        preflight.is_emit_blocked(host, &declaration_path)
+        preflight.is_emit_blocked(host, declaration_path.as_js())
     } else {
         false
     };
@@ -464,7 +460,7 @@ pub fn transform_declaration_unit_with_observer_for_harness<'t>(
     ))?;
     let declaration_path = paths
         .declaration_file_path(source)
-        .unwrap_or_else(|| PathBuf::from(&syntax.file_name));
+        .unwrap_or_else(|| syntax.file_name.clone());
     let options = host.compiler_options();
 
     let mut arena = TransformArena::new();
@@ -490,7 +486,7 @@ pub fn transform_declaration_unit_with_observer_for_harness<'t>(
     let diagnostics_blocked = diagnostics_len != 0;
     let is_emit_blocked_evaluated = !diagnostics_blocked;
     let is_emit_blocked = if is_emit_blocked_evaluated {
-        preflight.is_emit_blocked(host, &declaration_path)
+        preflight.is_emit_blocked(host, declaration_path.as_js())
     } else {
         false
     };

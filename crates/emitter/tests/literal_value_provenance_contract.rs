@@ -90,7 +90,7 @@ fn state(
         });
     let mut state = json!({"kind": record.kind as u16, "pos": -1, "end": -1, "flags": record.flags,
         "transform_flags": arena.transform_flags(node).bits(), "emit_flags": metadata.map_or(0, |value| value.flags().bits()),
-        "text_utf16": properties.javascript_string_value().unwrap().code_units(), "original": original});
+        "text_utf16": arena.literal_code_units(node).unwrap().unwrap(), "original": original});
     match kind {
         LiteralKind::String => {
             let text_source = properties.string_literal_text_source().map(|node| {

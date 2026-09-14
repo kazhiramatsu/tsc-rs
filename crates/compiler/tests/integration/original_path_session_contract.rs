@@ -34,7 +34,7 @@ fn package_resolution(program: &PreparedProgram) -> &tsc_program::ResolvedModule
     let root = program
         .source_files()
         .iter()
-        .find(|source| source.path().display() == Path::new("/work/root.ts"))
+        .find(|source| source.path().display().scalar_test_path() == Path::new("/work/root.ts"))
         .expect("root source is owned");
     let key = plan_source_requests(root, program.compiler_options())
         .expect("plan root requests")
@@ -100,13 +100,24 @@ fn memory_loader_and_session_accept_loaded_external_original_path() {
     else {
         panic!("external TypeScript target must be loaded");
     };
-    assert_eq!(resolved_file.display(), Path::new(physical));
     assert_eq!(
-        prepared.source_file(*source).unwrap().path().display(),
+        resolved_file.display().scalar_test_path(),
         Path::new(physical)
     );
     assert_eq!(
-        module.original_path().map(ProgramPath::display),
+        prepared
+            .source_file(*source)
+            .unwrap()
+            .path()
+            .display()
+            .scalar_test_path(),
+        Path::new(physical)
+    );
+    assert_eq!(
+        module
+            .original_path()
+            .map(ProgramPath::display)
+            .map(|path| path.scalar_test_path()),
         Some(Path::new(lexical))
     );
 
@@ -176,10 +187,16 @@ fn memory_loader_and_session_report_physical_unloaded_javascript_paths() {
         else {
             panic!("external JavaScript target must remain unloaded");
         };
-        assert_eq!(resolved_file.display(), Path::new(physical));
+        assert_eq!(
+            resolved_file.display().scalar_test_path(),
+            Path::new(physical)
+        );
         assert_eq!(*reason, expected_reason);
         assert_eq!(
-            module.original_path().map(ProgramPath::display),
+            module
+                .original_path()
+                .map(ProgramPath::display)
+                .map(|path| path.scalar_test_path()),
             Some(Path::new(lexical))
         );
 
@@ -197,3 +214,7 @@ fn memory_loader_and_session_report_physical_unloaded_javascript_paths() {
         assert!(diagnostics[0].message_text().contains(physical));
     }
 }
+
+#[path = "../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

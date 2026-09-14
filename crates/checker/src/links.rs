@@ -12,7 +12,7 @@ use std::collections::HashMap;
 
 use tsc_binder::SymbolId;
 use tsc_syntax::NodeId;
-use tsc_types::{ConditionalRootId, TypeId};
+use tsc_types::{ConditionalRootId, EscapedName, JsString, TypeId};
 
 use crate::instantiate::MapperId;
 use crate::state::SignatureId;
@@ -202,7 +202,7 @@ pub struct SymbolLinks {
     /// mode-aware cache key -> computed module specifier, populated by the
     /// dormant h2-7a-m-3 specifier synthesis and never read by the display
     /// path.
-    pub specifier_cache: Option<std::collections::BTreeMap<String, String>>,
+    pub specifier_cache: Option<std::collections::BTreeMap<JsString, JsString>>,
     /// tsc links.containingType for synthetic properties.
     pub containing_type: Option<TypeId>,
     /// tsc links.deferralParent / deferralConstituents /
@@ -323,11 +323,11 @@ pub struct SymbolLinks {
     pub type_only_declaration: Option<Option<NodeId>>,
     /// tsc links.typeOnlyExportStarName (49189): the export-star name
     /// when it differs from the source symbol's own name.
-    pub type_only_export_star_name: Option<String>,
+    pub type_only_export_star_name: Option<EscapedName>,
     /// tsc links.typeOnlyExportStarMap (getExportsOfModule 49841):
     /// written WITH the module-flavor resolved_exports; names whose
     /// only path in is a type-only `export type *` declaration.
-    pub type_only_export_star_map: Option<std::collections::HashMap<String, NodeId>>,
+    pub type_only_export_star_map: Option<std::collections::HashMap<EscapedName, NodeId>>,
     /// tsc links.exportsChecked (checkExternalModuleExports 86445) —
     /// the per-module once-guard.
     pub exports_checked: bool,
@@ -509,7 +509,7 @@ pub struct TypeLinks {
 /// The getKeyPropertyName cache payload.
 #[derive(Clone, Debug, Default)]
 pub struct UnionKeyProperty {
-    pub name: Option<String>,
+    pub name: Option<tsc_types::EscapedName>,
     pub constituent_map: Option<std::collections::HashMap<TypeId, TypeId>>,
 }
 
@@ -531,7 +531,7 @@ struct SpeculativeConditionalCacheSnapshot {
 }
 
 type SpeculativeSymbolVarianceWrite = (u32, SymbolId, LinkSlot<Box<[tsc_types::VarianceFlags]>>);
-type SpeculativeTypeOnlyAliasWrite = (u32, SymbolId, Option<Option<NodeId>>, Option<String>);
+type SpeculativeTypeOnlyAliasWrite = (u32, SymbolId, Option<Option<NodeId>>, Option<EscapedName>);
 
 /// Whether a speculative symbol-type write is merely a candidate-local
 /// cache publication or semantic state selected by overload resolution.
@@ -668,7 +668,8 @@ pub struct LinksTables {
     /// one-write slot; only successful synthesis is cached, like tsc.
     /// Private since m4-review B10: the write goes through
     /// set_union_property (speculation assert).
-    union_property_cache: HashMap<(TypeId, String, bool), SymbolId>,
+    // Tuple keys remain owned: byte borrowing cannot query a heterogeneous tuple.
+    union_property_cache: HashMap<(TypeId, EscapedName, bool), SymbolId>,
     /// tsc type-alias links.instantiations (getDeclaredTypeOfTypeAlias
     /// 57417 seed + getTypeAliasInstantiation 60271), keyed by
     /// getTypeListId + getAliasId — a monotone cache like tsc's map.
@@ -2628,7 +2629,7 @@ impl LinksTables {
 
     /// tsrs-native: getUnionOrIntersectionProperty's propertyCache
     /// read (59248).
-    pub fn union_property(&self, key: &(TypeId, String, bool)) -> Option<SymbolId> {
+    pub fn union_property(&self, key: &(TypeId, EscapedName, bool)) -> Option<SymbolId> {
         self.union_property_cache.get(key).copied()
     }
 
@@ -2638,7 +2639,7 @@ impl LinksTables {
     pub fn set_union_property(
         &mut self,
         speculation_depth: u32,
-        key: (TypeId, String, bool),
+        key: (TypeId, EscapedName, bool),
         value: SymbolId,
     ) {
         if speculation_depth != 0 {
@@ -2713,8 +2714,8 @@ impl LinksTables {
         &mut self,
         speculation_depth: u32,
         id: SymbolId,
-        cache_key: String,
-        specifier: String,
+        cache_key: JsString,
+        specifier: JsString,
     ) {
         debug_assert_eq!(
             speculation_depth, 0,
@@ -3869,7 +3870,7 @@ impl LinksTables {
         &mut self,
         speculation_depth: u32,
         id: SymbolId,
-        value: String,
+        value: EscapedName,
     ) {
         self.journal_type_only_alias(speculation_depth, id);
         self.symbol
@@ -3889,7 +3890,7 @@ impl LinksTables {
         speculation_depth: u32,
         id: SymbolId,
         exports: tsc_binder::SymbolTable,
-        type_only_export_star_map: Option<std::collections::HashMap<String, NodeId>>,
+        type_only_export_star_map: Option<std::collections::HashMap<EscapedName, NodeId>>,
     ) {
         // The worker owns its cycle guard and returns the completed
         // table directly. A candidate may consume that table without

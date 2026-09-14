@@ -15,8 +15,8 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use tsc_diagnostics::{
-    format_sorted_diagnostics_with_context, Diagnostic, DiagnosticCategory, FormatDiagnosticsHost,
-    MessageChain, RelatedInfo,
+    format_sorted_diagnostics_with_context as format_js_diagnostics_with_context, Diagnostic,
+    DiagnosticCategory, FormatDiagnosticsHost, MessageChain, RelatedInfo,
 };
 use tsc_oracle::OraclePool;
 
@@ -748,7 +748,7 @@ fn diagnostic_from_golden(
             message.code = related.code;
             message.category = category_from_name(&related.category)?;
             Ok(RelatedInfo {
-                file_name: related.file.clone(),
+                file_name: related.file.clone().map(Into::into),
                 start: related.start,
                 length: related.length,
                 message,
@@ -767,7 +767,7 @@ fn message_from_golden(chain: &GoldenMessageChain) -> ConformanceResult<MessageC
     Ok(MessageChain {
         code: chain.code,
         category: category_from_name(&chain.category)?,
-        text: chain.text.clone(),
+        text: chain.text.clone().into(),
         next_present: !chain.next.is_empty(),
         next: chain
             .next
@@ -838,3 +838,11 @@ fn first_rendered_difference(oracle: &str, tsrs: &str) -> RenderedDifference {
 #[cfg(test)]
 #[path = "../tests/unit/rendered/tests.rs"]
 mod tests;
+
+fn format_sorted_diagnostics_with_context(
+    diagnostics: &[Diagnostic],
+    host: &FormatDiagnosticsHost<'_>,
+) -> crate::ConformanceResult<String> {
+    let text = format_js_diagnostics_with_context(diagnostics, host)?;
+    crate::scalar_observation(text.as_js(), "rendered golden wire text").map(str::to_owned)
+}

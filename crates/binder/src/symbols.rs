@@ -4,7 +4,8 @@
 use indexmap::IndexMap;
 use tsc_syntax::NodeId;
 use tsc_types::{
-    IdentityError, IdentityLease, IdentityRange, IdentitySpace, SymbolFlags, TRANSIENT_SYMBOL_BIT,
+    EscapedName, IdentityError, IdentityLease, IdentityRange, IdentitySpace, JsStr, SymbolFlags,
+    TRANSIENT_SYMBOL_BIT,
 };
 
 pub use tsc_types::InternalSymbolName;
@@ -16,7 +17,8 @@ pub use tsc_types::SymbolId;
 /// tsc SymbolTable: ORDERED name → symbol map. Iteration order is
 /// observable (member synthesis and display order downstream), so this
 /// is an IndexMap, never a HashMap. Keys are stored PRE-escaped.
-pub type SymbolTable = IndexMap<String, SymbolId>;
+mod table;
+pub use table::{EscapedNameSet, SymbolTable};
 
 /// core-interfaces §2 (tsc Symbol, D6533). tsc creates `members`/
 /// `exports` lazily on first insertion; here an empty table means
@@ -29,7 +31,7 @@ pub struct Symbol {
     /// [`escape_leading_underscores`]; internal names (`__call`, …)
     /// are inserted verbatim, which is exactly why user `__call`
     /// escapes to `___call` and cannot collide.
-    pub escaped_name: String,
+    pub escaped_name: EscapedName,
     pub declarations: Vec<NodeId>,
     /// addDeclarationToSymbol: FIRST value declaration wins.
     pub value_declaration: Option<NodeId>,
@@ -49,7 +51,7 @@ pub struct Symbol {
 }
 
 impl Symbol {
-    pub fn new(flags: SymbolFlags, escaped_name: String) -> Self {
+    pub fn new(flags: SymbolFlags, escaped_name: EscapedName) -> Self {
         Self {
             flags,
             escaped_name,
@@ -175,7 +177,7 @@ impl SymbolArena {
         id.0 >= self.base && id.0 < self.next_id().0
     }
 
-    pub fn alloc(&mut self, flags: SymbolFlags, escaped_name: String) -> SymbolId {
+    pub fn alloc(&mut self, flags: SymbolFlags, escaped_name: EscapedName) -> SymbolId {
         self.try_alloc(flags, escaped_name)
             .expect("symbol identity space exhausted")
     }
@@ -183,7 +185,7 @@ impl SymbolArena {
     pub fn try_alloc(
         &mut self,
         flags: SymbolFlags,
-        escaped_name: String,
+        escaped_name: EscapedName,
     ) -> Result<SymbolId, SymbolArenaExhausted> {
         let transient = self.base >= TRANSIENT_SYMBOL_BIT;
         let limit = if transient {
@@ -327,7 +329,19 @@ pub(crate) fn relocate_symbol_table_values(
 
 // The escape lives in tsc-rs-syntax (the parser factory applies it to
 // every Identifier escapedText); re-exported here for binder callers.
-pub use tsc_syntax::{escape_leading_underscores, unescape_leading_underscores};
+pub fn escape_leading_underscores<'a>(raw: impl Into<JsStr<'a>>) -> EscapedName {
+    EscapedName::escape(raw.into())
+}
+
+pub fn unescape_leading_underscores<'a>(escaped: impl Into<JsStr<'a>>) -> JsStr<'a> {
+    let text = escaped.into();
+    if text.starts_with("___") {
+        text.strip_prefix("_")
+            .expect("three underscores start with one")
+    } else {
+        text
+    }
+}
 
 #[cfg(test)]
 #[path = "../tests/unit/symbols/tests.rs"]

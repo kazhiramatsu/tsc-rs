@@ -9,7 +9,7 @@ fn nodes_of_kind(source: &crate::SourceFile, kind: SyntaxKind) -> Vec<NodeId> {
 
 fn parse_with_target(text: &str, target: ScriptTarget) -> SourceFile {
     parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         text.to_owned(),
         ParseOptions {
             script_target: target,
@@ -21,18 +21,14 @@ fn parse_with_target(text: &str, target: ScriptTarget) -> SourceFile {
 
 #[test]
 fn source_file_stores_default_explicit_and_json_language_versions() {
-    let default_source = parse_source_file(
-        "a.ts".to_owned(),
-        String::new(),
-        ParseOptions::default(),
-        None,
-    );
+    let default_source =
+        parse_source_file("a.ts".into(), String::new(), ParseOptions::default(), None);
     assert_eq!(default_source.language_version, ScriptTarget::ES2025);
 
     let es5_source = parse_with_target("", ScriptTarget::ES5);
     assert_eq!(es5_source.language_version, ScriptTarget::ES5);
 
-    let json_source = parse_json_text("a.json".to_owned(), "{}".to_owned());
+    let json_source = parse_json_text("a.json".into(), "{}".to_owned());
     assert_eq!(json_source.language_version, ScriptTarget::ES2015);
 }
 
@@ -54,11 +50,11 @@ fn amd_pragmas_are_source_owned_and_duplicate_module_names_report_exactly() {
         source.amd_dependencies,
         [
             crate::AmdDependency {
-                path: "dep-a".to_owned(),
+                path: "dep-a".into(),
                 name: None,
             },
             crate::AmdDependency {
-                path: "dep-b".to_owned(),
+                path: "dep-b".into(),
                 name: Some("alias".to_owned()),
             },
         ]
@@ -260,7 +256,7 @@ fn regex_literal_stores_only_true_unterminated_state() {
 #[test]
 fn heritage_clause_stores_its_token() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "class A extends B implements I {}\n".to_owned(),
         ParseOptions::default(),
         None,
@@ -284,7 +280,7 @@ fn heritage_clause_stores_its_token() {
 #[test]
 fn import_clause_stores_phase_modifier_and_derives_is_type_only() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "import type { A } from \"m\";\n\
          import defer * as ns from \"n\";\n\
          import x from \"o\";\n"
@@ -315,12 +311,12 @@ fn import_clause_stores_phase_modifier_and_derives_is_type_only() {
 #[test]
 fn template_literals_store_raw_text() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "const a = `\\n`;\nconst b = `x\r\ny`;\nconst c = `h${1}m${2}t`;\n".to_owned(),
         ParseOptions::default(),
         None,
     );
-    let fragments = |kind: SyntaxKind| -> Vec<(String, Option<String>)> {
+    let fragments = |kind: SyntaxKind| -> Vec<(JsString, Option<String>)> {
         nodes_of_kind(&source, kind)
             .into_iter()
             .map(|id| match &source.arena.node(id).data {
@@ -337,21 +333,21 @@ fn template_literals_store_raw_text() {
     assert_eq!(
         fragments(SyntaxKind::NoSubstitutionTemplateLiteral),
         vec![
-            ("\n".to_owned(), Some("\\n".to_owned())),
-            ("x\ny".to_owned(), Some("x\r\ny".to_owned())),
+            ("\n".into(), Some("\\n".to_owned())),
+            ("x\ny".into(), Some("x\r\ny".to_owned())),
         ]
     );
     assert_eq!(
         fragments(SyntaxKind::TemplateHead),
-        vec![("h".to_owned(), Some("h".to_owned()))]
+        vec![("h".into(), Some("h".to_owned()))]
     );
     assert_eq!(
         fragments(SyntaxKind::TemplateMiddle),
-        vec![("m".to_owned(), Some("m".to_owned()))]
+        vec![("m".into(), Some("m".to_owned()))]
     );
     assert_eq!(
         fragments(SyntaxKind::TemplateTail),
-        vec![("t".to_owned(), Some("t".to_owned()))]
+        vec![("t".into(), Some("t".to_owned()))]
     );
 }
 
@@ -360,12 +356,12 @@ fn template_literals_store_raw_text() {
 #[test]
 fn unterminated_template_raw_text_keeps_tail() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "`ab".to_owned(),
         ParseOptions::default(),
         None,
     );
-    let raws: Vec<(String, Option<String>)> =
+    let raws: Vec<(JsString, Option<String>)> =
         nodes_of_kind(&source, SyntaxKind::NoSubstitutionTemplateLiteral)
             .into_iter()
             .map(|id| match &source.arena.node(id).data {
@@ -375,7 +371,7 @@ fn unterminated_template_raw_text_keeps_tail() {
                 _ => unreachable!(),
             })
             .collect();
-    assert_eq!(raws, vec![("ab".to_owned(), Some("ab".to_owned()))]);
+    assert_eq!(raws, vec![("ab".into(), Some("ab".to_owned()))]);
 }
 
 /// tsc createMetaProperty (23009): keywordToken disambiguates
@@ -383,7 +379,7 @@ fn unterminated_template_raw_text_keeps_tail() {
 #[test]
 fn meta_property_stores_its_keyword_token() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "const u = import.meta.url;\nfunction f() { return new.target; }\n".to_owned(),
         ParseOptions::default(),
         None,
@@ -406,7 +402,7 @@ fn meta_property_stores_its_keyword_token() {
 #[test]
 fn import_type_stores_is_type_of() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "type T = typeof import(\"m\");\ntype U = import(\"m\").X;\n".to_owned(),
         ParseOptions::default(),
         None,
@@ -427,7 +423,7 @@ fn import_type_stores_is_type_of() {
 #[test]
 fn jsx_text_stores_contains_only_trivia_white_spaces() {
     let source = parse_source_file(
-        "a.tsx".to_owned(),
+        "a.tsx".into(),
         "const x = <div>\n  <span> hi </span>\n</div>;\n".to_owned(),
         ParseOptions {
             language_variant: crate::LanguageVariant::Jsx,
@@ -458,13 +454,8 @@ fn jsx_text_stores_contains_only_trivia_white_spaces() {
 #[test]
 fn declaration_file_name_probe_uses_the_basename_on_both_separators() {
     let is_decl = |name: &str| {
-        parse_source_file(
-            name.to_owned(),
-            String::new(),
-            ParseOptions::default(),
-            None,
-        )
-        .is_declaration_file
+        parse_source_file(name.into(), String::new(), ParseOptions::default(), None)
+            .is_declaration_file
     };
     assert!(is_decl("a.d.ts"));
     assert!(is_decl("pkg/index.d.cts"));
@@ -480,14 +471,14 @@ fn declaration_file_name_probe_uses_the_basename_on_both_separators() {
 #[test]
 fn source_flags_stamp_the_source_file_root() {
     let dts = parse_source_file(
-        "a.d.ts".to_owned(),
+        "a.d.ts".into(),
         "declare const x: 0;\n".to_owned(),
         ParseOptions::default(),
         None,
     );
     assert!(NodeFlags::from_bits(dts.arena.node(dts.root).flags).intersects(NodeFlags::AMBIENT));
     let ts = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "const x = 1;\n".to_owned(),
         ParseOptions::default(),
         None,
@@ -495,7 +486,7 @@ fn source_flags_stamp_the_source_file_root() {
     assert_eq!(ts.arena.node(ts.root).flags, NodeFlags::NONE.bits());
 
     let js = parse_source_file(
-        "a.js".to_owned(),
+        "a.js".into(),
         "var x = 1;\n".to_owned(),
         ParseOptions {
             javascript_file: true,
@@ -517,7 +508,7 @@ fn source_flags_stamp_the_source_file_root() {
 #[test]
 fn forced_external_module_uses_the_root_indicator_and_reparses_await() {
     let source = parse_source_file(
-        "a.mts".to_owned(),
+        "a.mts".into(),
         "await work();\n".to_owned(),
         ParseOptions {
             force_external_module: true,
@@ -539,7 +530,7 @@ fn forced_external_module_uses_the_root_indicator_and_reparses_await() {
 #[test]
 fn automatic_jsx_module_detection_uses_the_jsx_tag() {
     let source = parse_source_file(
-        "a.tsx".to_owned(),
+        "a.tsx".into(),
         "const element = <div />;\n".to_owned(),
         ParseOptions {
             language_variant: LanguageVariant::Jsx,
@@ -565,7 +556,7 @@ fn automatic_jsx_module_detection_uses_the_jsx_tag() {
 fn dynamic_import_and_import_meta_reach_root_source_flags() {
     let root_flags = |text: &str| {
         let file = parse_source_file(
-            "a.ts".to_owned(),
+            "a.ts".into(),
             text.to_owned(),
             ParseOptions::default(),
             None,
@@ -608,7 +599,7 @@ fn speculation_rewind_keeps_accumulated_source_flags() {
     let text = "import(\"m\")";
 
     // lookAhead rewinds unconditionally.
-    let mut parser = Parser::new("a.ts".to_owned(), text, LanguageVariant::Standard, false);
+    let mut parser = Parser::new("a.ts".into(), text, LanguageVariant::Standard, false);
     parser.next_token();
     parser.look_ahead(|parser| parser.parse_import_type());
     assert_eq!(parser.token(), SyntaxKind::ImportKeyword);
@@ -619,7 +610,7 @@ fn speculation_rewind_keeps_accumulated_source_flags() {
     // tryParse rewinds on a falsy result (the
     // tryParseConstraintOfInferType shape: parse, then give the
     // parse up).
-    let mut parser = Parser::new("a.ts".to_owned(), text, LanguageVariant::Standard, false);
+    let mut parser = Parser::new("a.ts".into(), text, LanguageVariant::Standard, false);
     parser.next_token();
     let rewound = parser.try_parse(|parser| {
         parser.parse_import_type();
@@ -634,7 +625,7 @@ fn speculation_rewind_keeps_accumulated_source_flags() {
 
 fn parse_tsx(text: &str) -> SourceFile {
     parse_source_file(
-        "a.tsx".to_owned(),
+        "a.tsx".into(),
         text.to_owned(),
         ParseOptions {
             language_variant: LanguageVariant::Jsx,
@@ -904,7 +895,7 @@ fn for_of_expression_initializer_stays_an_expression() {
     // VariableDeclarationList (the using-declaration lookahead must not
     // fire on `x of`).
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "declare var x: string, a: string[]; for (x of a) { }".to_owned(),
         ParseOptions::default(),
         None,
@@ -943,7 +934,7 @@ fn using_with_bracket_is_an_expression_statement() {
     // tsc: `using [a] = null` is element-access assignment, not a using
     // declaration (the lookahead accepts identifiers and `{` only).
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "declare var using: any[], a: number; function f() { using [a] = null; }".to_owned(),
         ParseOptions::default(),
         None,
@@ -989,7 +980,7 @@ fn export_before_bare_identifier_reports_declaration_expected() {
     // ExportKeyword arm → isStartOfDeclaration false), so the list
     // machinery reports 1128 at `export`, not 1434.
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "declare module \"*.foo\" {\n  export i\n".to_owned(),
         ParseOptions::default(),
         None,
@@ -1007,7 +998,7 @@ fn binding_patterns_support_computed_names_and_nesting() {
     // tsc parses both clean: computed property names in object binding
     // elements, nested patterns in array binding elements.
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "declare var f: any; let [{ [f(1)]: x } = f(0)] = []; let [[a], { b: [c] }] = f;"
             .to_owned(),
         ParseOptions::default(),
@@ -1052,7 +1043,7 @@ fn parse_json_text_oracle_pins() {
         ),
     ];
     for (text, diagnostics, expression_kind) in cases {
-        let source = parse_json_text("a.json".to_owned(), (*text).to_owned());
+        let source = parse_json_text("a.json".into(), (*text).to_owned());
         // ts.parseJsonText stamps 134742016 on the root and every descendant,
         // including the EOF token. These flags select JS declaration serialization.
         let mut nodes = vec![source.root];
@@ -1110,7 +1101,7 @@ fn parse_json_text_oracle_pins() {
 #[test]
 fn parse_json_text_does_not_publish_source_file_pragmas() {
     let source = parse_json_text(
-        "a.json".to_owned(),
+        "a.json".into(),
         concat!(
             "/// <reference path=\"./dependency.ts\" />\n",
             "/// <reference types=\"pkg\" resolution-mode=\"invalid\" />\n",
@@ -1131,7 +1122,7 @@ fn parse_json_text_does_not_publish_source_file_pragmas() {
     assert!(source.comment_directives.is_empty());
 
     let unterminated = parse_json_text(
-        "unterminated.json".to_owned(),
+        "unterminated.json".into(),
         "/* @jsxRuntime automatic".to_owned(),
     );
     assert!(!unterminated.has_jsx_import_source_pragma);
@@ -1141,7 +1132,7 @@ fn parse_json_text_does_not_publish_source_file_pragmas() {
 #[test]
 fn type_assertion_still_parses_in_standard_variant() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "const e = <string>x;".to_owned(),
         ParseOptions::default(),
         None,
@@ -1156,7 +1147,7 @@ fn type_assertion_still_parses_in_standard_variant() {
 #[test]
 fn parse_source_file_drains_scanner_errors() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "\"unterminated".to_owned(),
         ParseOptions::default(),
         None,
@@ -1171,7 +1162,7 @@ fn parse_source_file_drains_scanner_errors() {
 #[test]
 fn parse_source_file_builds_statement_tree() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "let x = 1; const y = 2; if (x) { debugger; }".to_owned(),
         ParseOptions::default(),
         None,
@@ -1264,7 +1255,7 @@ fn parse_source_file_builds_statement_tree() {
 #[test]
 fn parse_import_and_ambient_function_declarations() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "import {foo, baz} from \"foobarbaz\";\nfoo(baz);\ndeclare function fn7(x, y?, ...z);\ndeclare function fn9(...q: {}[]);\n".to_owned(),
         ParseOptions::default(),
         None,
@@ -1309,7 +1300,7 @@ fn parse_import_and_ambient_function_declarations() {
 #[test]
 fn parse_primary_expression_shapes() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "const arr = [1,,...x]; const obj = {a: 1, b, ...c, [d.e]: 2}; new.target; /x/g; const t = `a${b}c`;".to_owned(),
         ParseOptions::default(),
         None,
@@ -1449,7 +1440,7 @@ fn parse_primary_expression_shapes() {
 #[test]
 fn parse_member_and_call_expression_shapes() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "foo.bar(1, ...xs); obj?.prop?.[key]?.(arg); tag<T>`x${y}z`; new Foo<T>(arg); x!.y;"
             .to_owned(),
         ParseOptions::default(),
@@ -1578,7 +1569,7 @@ fn parse_member_and_call_expression_shapes() {
 #[test]
 fn parse_unary_update_await_and_yield_shapes() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "++a; b--; delete obj.x; typeof y; void z; await q; const g = function*(){ yield; yield* q; }; const h = async function(){ await q; };".to_owned(),
         ParseOptions::default(),
         None,
@@ -1768,7 +1759,7 @@ fn binary_parts(source: &SourceFile, id: NodeId) -> (NodeId, SyntaxKind, NodeId)
 #[test]
 fn parse_binary_expression_precedence_shapes() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "1 + 2 * 3; 2 ** 3 ** 4; a >> b >>> c; x, y;".to_owned(),
         ParseOptions::default(),
         None,
@@ -1804,7 +1795,7 @@ fn parse_binary_expression_precedence_shapes() {
 #[test]
 fn parse_relational_chain_not_type_arguments() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "a < b > c;".to_owned(),
         ParseOptions::default(),
         None,
@@ -1821,7 +1812,7 @@ fn parse_relational_chain_not_type_arguments() {
 #[test]
 fn parse_as_satisfies_and_type_assertion() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "x as T; y satisfies U; <T>z;".to_owned(),
         ParseOptions::default(),
         None,
@@ -1846,7 +1837,7 @@ fn parse_as_satisfies_and_type_assertion() {
 #[test]
 fn as_on_new_line_breaks_binary_loop() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "x\nas;".to_owned(),
         ParseOptions::default(),
         None,
@@ -1868,7 +1859,7 @@ fn as_on_new_line_breaks_binary_loop() {
 #[test]
 fn unary_left_of_exponent_reports_17006_but_still_parses() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "-x ** 2;".to_owned(),
         ParseOptions::default(),
         None,
@@ -1892,7 +1883,7 @@ fn unary_left_of_exponent_reports_17006_but_still_parses() {
 #[test]
 fn parse_assignment_right_associative_and_rescanned_operator() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "a = b = c; x >>= y;".to_owned(),
         ParseOptions::default(),
         None,
@@ -1914,7 +1905,7 @@ fn parse_assignment_right_associative_and_rescanned_operator() {
 #[test]
 fn assignment_to_non_lhs_leaves_equals_for_outer_context() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "a + b = c;".to_owned(),
         ParseOptions::default(),
         None,
@@ -1945,7 +1936,7 @@ fn assignment_to_non_lhs_leaves_equals_for_outer_context() {
 #[test]
 fn parse_conditional_expression_shapes() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "a ? b : c ? d : e;".to_owned(),
         ParseOptions::default(),
         None,
@@ -1969,7 +1960,7 @@ fn parse_conditional_expression_shapes() {
 #[test]
 fn conditional_missing_colon_recovers_with_missing_when_false() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "a ? b;".to_owned(),
         ParseOptions::default(),
         None,
@@ -1994,7 +1985,7 @@ fn conditional_missing_colon_recovers_with_missing_when_false() {
 #[test]
 fn parse_arrow_function_shapes() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "x => x; (a, b) => a; () => 1; (...xs) => xs; (a) => { return a; };".to_owned(),
         ParseOptions::default(),
         None,
@@ -2070,7 +2061,7 @@ fn parse_arrow_function_shapes() {
 #[test]
 fn parse_async_arrow_and_line_break_asi() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "async x => x; async (a) => a; async\ny => y;".to_owned(),
         ParseOptions::default(),
         None,
@@ -2103,7 +2094,7 @@ fn parse_async_arrow_and_line_break_asi() {
 #[test]
 fn parenthesized_expression_not_mistaken_for_arrow() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "(a, b); (a);".to_owned(),
         ParseOptions::default(),
         None,
@@ -2122,7 +2113,7 @@ fn parenthesized_expression_not_mistaken_for_arrow() {
 #[test]
 fn conditional_when_true_rejects_arrow_return_type() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "a ? (b): c => d;".to_owned(),
         ParseOptions::default(),
         None,
@@ -2155,7 +2146,7 @@ fn conditional_when_true_rejects_arrow_return_type() {
 #[test]
 fn function_expression_parses_real_parameters() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "(function (this: T, a, b = 1) { return a; });".to_owned(),
         ParseOptions::default(),
         None,
@@ -2190,7 +2181,7 @@ fn function_expression_parses_real_parameters() {
 
 #[test]
 fn same_start_dedup_and_finish_node_error_transfer() {
-    let mut parser = Parser::new("a.ts".to_owned(), "", LanguageVariant::Standard, false);
+    let mut parser = Parser::new("a.ts".into(), "", LanguageVariant::Standard, false);
     parser.next_token();
 
     parser.parse_error_at_position(0, 0, &gen::Identifier_expected, &[]);
@@ -2207,7 +2198,7 @@ fn same_start_dedup_and_finish_node_error_transfer() {
 
 #[test]
 fn parse_token_node_consumes_current_token() {
-    let mut parser = Parser::new("a.ts".to_owned(), ";", LanguageVariant::Standard, false);
+    let mut parser = Parser::new("a.ts".into(), ";", LanguageVariant::Standard, false);
     parser.next_token();
 
     let token = parser.parse_token_node();
@@ -2218,7 +2209,7 @@ fn parse_token_node_consumes_current_token() {
 
 #[test]
 fn expected_optional_context_and_speculation_restore_parser_state() {
-    let mut parser = Parser::new("a.ts".to_owned(), ";x", LanguageVariant::Standard, false);
+    let mut parser = Parser::new("a.ts".into(), ";x", LanguageVariant::Standard, false);
     parser.next_token();
 
     assert!(parser.parse_optional(SyntaxKind::SemicolonToken));
@@ -2251,7 +2242,7 @@ fn expected_optional_context_and_speculation_restore_parser_state() {
 
 #[test]
 fn delimited_list_tracks_trailing_comma() {
-    let mut parser = Parser::new("a.ts".to_owned(), "a,)", LanguageVariant::Standard, false);
+    let mut parser = Parser::new("a.ts".into(), "a,)", LanguageVariant::Standard, false);
     parser.next_token();
 
     let list = parser.parse_delimited_list(
@@ -2268,7 +2259,7 @@ fn delimited_list_tracks_trailing_comma() {
 
 #[test]
 fn delimited_list_reports_missing_commas_and_keeps_progressing() {
-    let mut parser = Parser::new("a.ts".to_owned(), "a b)", LanguageVariant::Standard, false);
+    let mut parser = Parser::new("a.ts".into(), "a b)", LanguageVariant::Standard, false);
     parser.next_token();
 
     let list = parser.parse_delimited_list(
@@ -2288,7 +2279,7 @@ fn delimited_list_reports_missing_commas_and_keeps_progressing() {
 
 #[test]
 fn list_recovery_aborts_when_outer_context_can_consume_token() {
-    let mut parser = Parser::new("a.ts".to_owned(), "}", LanguageVariant::Standard, false);
+    let mut parser = Parser::new("a.ts".into(), "}", LanguageVariant::Standard, false);
     parser.next_token();
     parser.parsing_context |= ParsingContext::BlockStatements.bit();
 
@@ -2306,12 +2297,7 @@ fn list_recovery_aborts_when_outer_context_can_consume_token() {
 
 #[test]
 fn parse_list_skips_unrecoverable_tokens() {
-    let mut parser = Parser::new(
-        "a.ts".to_owned(),
-        "x case",
-        LanguageVariant::Standard,
-        false,
-    );
+    let mut parser = Parser::new("a.ts".into(), "x case", LanguageVariant::Standard, false);
     parser.next_token();
 
     let list = parser.parse_list(ParsingContext::SwitchClauses, |parser| {
@@ -2370,7 +2356,7 @@ fn variable_types(source: &SourceFile) -> Vec<NodeId> {
 #[test]
 fn parse_type_reference_and_postfix_shapes() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "let a: string; let b: Array<number>; let c: ns.Entity<string>[]; let d: A[\"k\"]; let e: string!; let f: ?string;".to_owned(),
         ParseOptions::default(),
         None,
@@ -2418,7 +2404,7 @@ fn parse_type_reference_and_postfix_shapes() {
 #[test]
 fn parse_union_intersection_and_type_operators() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "let a: A | B & C; let b: keyof A; let c: readonly string[]; let d: unique symbol;"
             .to_owned(),
         ParseOptions::default(),
@@ -2453,7 +2439,7 @@ fn parse_union_intersection_and_type_operators() {
 #[test]
 fn parse_object_type_member_shapes() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "let o: { a: string; readonly b?: number, m<T>(x: T): T; (x: number): void; new (): any; [k: string]: any; get p(): number; set p(v); };".to_owned(),
         ParseOptions::default(),
         None,
@@ -2494,7 +2480,7 @@ fn parse_object_type_member_shapes() {
 #[test]
 fn parse_tuple_function_and_constructor_types() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "let t: [string, number?, ...boolean[], name: string]; let f: (a: string) => void; let g: new () => any; let h: abstract new () => any;".to_owned(),
         ParseOptions::default(),
         None,
@@ -2534,7 +2520,7 @@ fn parse_tuple_function_and_constructor_types() {
 #[test]
 fn parse_conditional_infer_typeof_and_import_types() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "let a: T extends U ? V : W; let b: T extends infer U extends X ? U : never; let c: typeof ns.entity; let d: import(\"m\").T<U>; let e: typeof import(\"m\");".to_owned(),
         ParseOptions::default(),
         None,
@@ -2584,7 +2570,7 @@ fn parse_conditional_infer_typeof_and_import_types() {
 #[test]
 fn parse_mapped_and_template_literal_types() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "let m: { readonly [K in keyof T as `get${K}`]?: T[K]; }; let t: `a${T}b`;".to_owned(),
         ParseOptions::default(),
         None,
@@ -2619,7 +2605,7 @@ fn parse_mapped_and_template_literal_types() {
 #[test]
 fn parse_type_predicates_in_return_types() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "const f = function (x): x is string { return true; }; const g = function (x): asserts x is string {}; let h: { isC(): this is C; };".to_owned(),
         ParseOptions::default(),
         None,
@@ -2722,7 +2708,7 @@ fn parse_type_predicates_in_return_types() {
 #[test]
 fn parse_generic_arrow_type_assertion_and_object_accessors() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "const f = <T>(x: T): T => x; const v = <Foo<string>>bar; const o = { get x() { return 1; }, set x(v) {}, async m<T>(a: T) { return a; } };".to_owned(),
         ParseOptions::default(),
         None,
@@ -2814,7 +2800,7 @@ fn parse_generic_arrow_type_assertion_and_object_accessors() {
 #[test]
 fn union_function_type_error_and_type_expected_recovery() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "let x: A | () => void; let y: ;".to_owned(),
         ParseOptions::default(),
         None,
@@ -2877,7 +2863,7 @@ fn statement_nodes(source: &SourceFile) -> Vec<NodeId> {
 #[test]
 fn parse_class_declaration_shapes() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "@dec export abstract class C<T> extends B<T> implements I, J {\n  constructor(private readonly x: number) { super(); }\n  static { C.count = 0; }\n  #secret = 1;\n  declare readonly f: string;\n  get p(): number { return 1; }\n  set p(v) {}\n  static async *m<U>(u: U): Promise<U> { return u; }\n  [k: string]: any;\n  ;\n}".to_owned(),
         ParseOptions::default(),
         None,
@@ -2939,7 +2925,7 @@ fn parse_class_declaration_shapes() {
 #[test]
 fn parse_interface_type_alias_and_enum() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "interface I<T> extends A, B<T> { a: string; }\ntype Alias<T> = T | null;\ntype Str = intrinsic;\nconst enum E { A, B = 2, \"c\" = 3 }".to_owned(),
         ParseOptions::default(),
         None,
@@ -2988,7 +2974,7 @@ fn parse_interface_type_alias_and_enum() {
 #[test]
 fn parse_namespace_and_ambient_modules() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "namespace a.b { export const x = 1; }\ndeclare module \"m\" { let y: number; }\ndeclare global { interface Window {} }\nmodule Simple { }".to_owned(),
         ParseOptions::default(),
         None,
@@ -3029,7 +3015,7 @@ fn parse_namespace_and_ambient_modules() {
 #[test]
 fn parse_import_and_export_forms() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "import d, { e as f, type g } from \"m\";\nimport * as ns from \"m\";\nimport type { A } from \"m\";\nimport eq = require(\"m\");\nexport * as everything from \"m\";\nexport { a as b };\nexport default 42;\nexport = eq;\nexport as namespace NS;\nimport \"side-effect\";".to_owned(),
         ParseOptions::default(),
         None,
@@ -3101,7 +3087,7 @@ fn parse_import_and_export_forms() {
 #[test]
 fn exported_internal_import_equals_is_an_external_module_indicator() {
     let exported = parse_source_file(
-        "exported.ts".to_owned(),
+        "exported.ts".into(),
         "export import value = ns.value;".to_owned(),
         ParseOptions::default(),
         None,
@@ -3114,7 +3100,7 @@ fn exported_internal_import_equals_is_an_external_module_indicator() {
     );
 
     let internal = parse_source_file(
-        "internal.ts".to_owned(),
+        "internal.ts".into(),
         "import value = ns.value;".to_owned(),
         ParseOptions::default(),
         None,
@@ -3125,7 +3111,7 @@ fn exported_internal_import_equals_is_an_external_module_indicator() {
 #[test]
 fn legacy_module_call_import_equals_recovers_as_internal_reference() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "import rect = module(\"rect\"); var bar = new rect.Rect();".to_owned(),
         ParseOptions::default(),
         None,
@@ -3156,7 +3142,7 @@ fn legacy_module_call_import_equals_recovers_as_internal_reference() {
 #[test]
 fn triple_slash_resolution_mode_diagnostic_uses_the_types_span() {
     let source = parse_source_file(
-        "/index.ts".to_owned(),
+        "/index.ts".into(),
         "/// <reference types=\"pkg\" resolution-mode=\"esm\"/>\nexport {};".to_owned(),
         ParseOptions::default(),
         None,
@@ -3180,7 +3166,7 @@ fn triple_slash_resolution_mode_diagnostic_uses_the_types_span() {
 #[test]
 fn triple_slash_reference_spans_are_utf16_offsets() {
     let source = parse_source_file(
-        "/index.ts".to_owned(),
+        "/index.ts".into(),
         "/// <reference types=\"😀pkg\" resolution-mode=\"esm\"/>\nexport {};".to_owned(),
         ParseOptions::default(),
         None,
@@ -3198,7 +3184,7 @@ fn triple_slash_reference_spans_are_utf16_offsets() {
 #[test]
 fn triple_slash_type_references_retain_exact_spelling_span_mode_and_order() {
     let source = parse_source_file(
-        "/index.ts".to_owned(),
+        "/index.ts".into(),
         concat!(
             "/// <reference types=\"JqUeRy\" />\n",
             "/// <reference types='@scope/pkg' resolution-mode='import'/>\n",
@@ -3236,7 +3222,7 @@ fn triple_slash_path_type_and_lib_references_share_upstream_precedence() {
         "export {};",
     );
     let source = parse_source_file(
-        "/index.ts".to_owned(),
+        "/index.ts".into(),
         text.to_owned(),
         ParseOptions::default(),
         None,
@@ -3263,7 +3249,7 @@ fn triple_slash_path_type_and_lib_references_share_upstream_precedence() {
 fn malformed_triple_slash_reference_reports_the_complete_comment_span() {
     let comment = "/// <reference resolution-mode=\"import\" />";
     let source = parse_source_file(
-        "/index.ts".to_owned(),
+        "/index.ts".into(),
         format!("{comment}\nexport {{}};"),
         ParseOptions::default(),
         None,
@@ -3285,7 +3271,7 @@ fn malformed_triple_slash_reference_reports_the_complete_comment_span() {
 #[test]
 fn triple_slash_attributes_use_javascript_whitespace_boundaries() {
     let source = parse_source_file(
-        "/index.ts".to_owned(),
+        "/index.ts".into(),
         concat!(
             "/// <reference\u{FEFF}path\u{FEFF}=\u{FEFF}\"./dependency.ts\" />\n",
             "/// <reference\u{0085}path=\"ignored.ts\" />\n",
@@ -3304,7 +3290,7 @@ fn triple_slash_attributes_use_javascript_whitespace_boundaries() {
 #[test]
 fn malformed_pragma_attribute_does_not_hide_a_later_valid_duplicate() {
     let source = parse_source_file(
-        "/index.ts".to_owned(),
+        "/index.ts".into(),
         "/// <reference types=\"broken types='good' />\nexport {};".to_owned(),
         ParseOptions::default(),
         None,
@@ -3318,7 +3304,7 @@ fn malformed_pragma_attribute_does_not_hide_a_later_valid_duplicate() {
 #[test]
 fn jsx_runtime_pragmas_are_limited_to_recognized_leading_multiline_comments() {
     let source = parse_source_file(
-        "/index.tsx".to_owned(),
+        "/index.tsx".into(),
         concat!(
             "/** @jsxImportSource preact */\n",
             "/*\n * @jsxRuntime automatic\n */\n",
@@ -3334,7 +3320,7 @@ fn jsx_runtime_pragmas_are_limited_to_recognized_leading_multiline_comments() {
     assert_eq!(source.jsx_runtime_pragma.as_deref(), Some("automatic"));
 
     let final_pragma = parse_source_file(
-        "/final.tsx".to_owned(),
+        "/final.tsx".into(),
         concat!(
             "/** @jsxRuntime classic */\n",
             "/** @jsxImportSource @emotion/react */\n",
@@ -3361,7 +3347,7 @@ fn jsx_runtime_pragmas_are_limited_to_recognized_leading_multiline_comments() {
         "const text = '@jsxRuntime automatic';\n/** @jsxImportSource preact */",
     ] {
         let control = parse_source_file(
-            "/control.tsx".to_owned(),
+            "/control.tsx".into(),
             text.to_owned(),
             ParseOptions::default(),
             None,
@@ -3371,7 +3357,7 @@ fn jsx_runtime_pragmas_are_limited_to_recognized_leading_multiline_comments() {
     }
 
     let unknown_consumes_next_line = parse_source_file(
-        "/unknown.tsx".to_owned(),
+        "/unknown.tsx".into(),
         "/**\n * @unknown\n * @jsxRuntime automatic\n */".to_owned(),
         ParseOptions::default(),
         None,
@@ -3380,7 +3366,7 @@ fn jsx_runtime_pragmas_are_limited_to_recognized_leading_multiline_comments() {
     assert!(!unknown_consumes_next_line.has_jsx_runtime_pragma);
 
     let runtime_consumes_next_line = parse_source_file(
-        "/runtime.tsx".to_owned(),
+        "/runtime.tsx".into(),
         "/**\n * @jsxRuntime\n * @jsxImportSource preact\n */".to_owned(),
         ParseOptions::default(),
         None,
@@ -3389,7 +3375,7 @@ fn jsx_runtime_pragmas_are_limited_to_recognized_leading_multiline_comments() {
     assert!(!runtime_consumes_next_line.has_jsx_import_source_pragma);
 
     let trailing_whitespace = parse_source_file(
-        "/trailing.tsx".to_owned(),
+        "/trailing.tsx".into(),
         "/**\n * @jsxRuntime   \n */".to_owned(),
         ParseOptions::default(),
         None,
@@ -3397,7 +3383,7 @@ fn jsx_runtime_pragmas_are_limited_to_recognized_leading_multiline_comments() {
     assert!(trailing_whitespace.has_jsx_runtime_pragma);
 
     let unterminated = parse_source_file(
-        "/unterminated.tsx".to_owned(),
+        "/unterminated.tsx".into(),
         "/* @jsxRuntime automatic".to_owned(),
         ParseOptions::default(),
         None,
@@ -3421,7 +3407,7 @@ fn triple_slash_resolution_mode_honors_pragma_precedence_and_leading_scope() {
         "///\u{0085}<reference types=\"pkg\" resolution-mode=\"esm\"/>\nexport {};",
     ] {
         let source = parse_source_file(
-            "/index.ts".to_owned(),
+            "/index.ts".into(),
             text.to_owned(),
             ParseOptions::default(),
             None,
@@ -3434,7 +3420,7 @@ fn triple_slash_resolution_mode_honors_pragma_precedence_and_leading_scope() {
     }
 
     let source = parse_source_file(
-        "/index.ts".to_owned(),
+        "/index.ts".into(),
         "/* leading */\n/// <REFERENCE TYPES='pkg' RESOLUTION-MODE='esm'/>\nexport {};".to_owned(),
         ParseOptions::default(),
         None,
@@ -3447,7 +3433,7 @@ fn triple_slash_resolution_mode_honors_pragma_precedence_and_leading_scope() {
         "\u{200B}/// <reference types=\"pkg\" resolution-mode=\"esm\"/>\nexport {};",
     ] {
         let source = parse_source_file(
-            "/index.ts".to_owned(),
+            "/index.ts".into(),
             text.to_owned(),
             ParseOptions::default(),
             None,
@@ -3466,7 +3452,7 @@ fn triple_slash_resolution_mode_honors_pragma_precedence_and_leading_scope() {
 fn matched_bracket_error_points_back_to_the_open_token() {
     let text = "if (true { }";
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         text.to_owned(),
         ParseOptions::default(),
         None,
@@ -3497,7 +3483,7 @@ fn import_attribute_brace_errors_retain_their_exact_open_tokens() {
         "import value from \"x\" with { type: \"json\";",
     ] {
         let source = parse_source_file(
-            "a.ts".to_owned(),
+            "a.ts".into(),
             text.to_owned(),
             ParseOptions::default(),
             None,
@@ -3508,8 +3494,8 @@ fn import_attribute_brace_errors_retain_their_exact_open_tokens() {
             .find(|diagnostic| {
                 diagnostic.code() == 1005
                     && matches!(
-                        diagnostic.message_text(),
-                        "'}' expected." | "'with' expected."
+                        diagnostic.message_text().as_str(),
+                        Some("'}' expected." | "'with' expected.")
                     )
             })
             .expect("the malformed attribute object is reported");
@@ -3532,7 +3518,7 @@ fn import_attribute_brace_errors_retain_their_exact_open_tokens() {
 #[test]
 fn missing_semicolon_reports_spelling_suggestions() {
     let source = parse_source_file(
-        "a.ts".to_owned(),
+        "a.ts".into(),
         "interfaz Foo {}\nvar x = 1;\nnamespacefoo Bar {}".to_owned(),
         ParseOptions::default(),
         None,
@@ -3565,7 +3551,7 @@ fn jsdoc_typedef_properties_and_satisfies_are_arena_nodes() {
                 */\r\n\
                 const value = /** @satisfies {Required} */ ({});\r\n";
     let source = parse_source_file(
-        "a.js".to_owned(),
+        "a.js".into(),
         text.to_owned(),
         ParseOptions {
             javascript_file: true,
@@ -3674,7 +3660,7 @@ fn no_jsdoc_source_allocates_no_jsdoc_nodes_or_attachments() {
         writeln!(text, "const value_{index} = {index};").expect("write source");
     }
     let source = parse_source_file(
-        "large.js".to_owned(),
+        "large.js".into(),
         text,
         ParseOptions {
             javascript_file: true,
@@ -3697,9 +3683,9 @@ fn jsdoc_parsing_modes_match_tsc_script_kind_rules() {
     ) -> SourceFile {
         parse_source_file(
             if javascript_file {
-                "a.js".to_owned()
+                "a.js".into()
             } else {
-                "a.ts".to_owned()
+                "a.ts".into()
             },
             text.to_owned(),
             ParseOptions {

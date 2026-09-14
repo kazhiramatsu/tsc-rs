@@ -1,3 +1,8 @@
+include!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../host/tests/support/scalar_query_bridge.rs"
+));
+
 use std::cell::{Cell, RefCell};
 use std::path::{Path, PathBuf};
 
@@ -79,6 +84,7 @@ struct PostManifestPackageRootMissHost {
 }
 
 impl CompilerHost for PostManifestPackageRootMissHost {
+    scalar_host_query_bridge!();
     fn current_directory(&self) -> Result<PathBuf, HostError> {
         self.inner.current_directory()
     }
@@ -120,6 +126,7 @@ impl CompilerHost for PostManifestPackageRootMissHost {
 }
 
 impl CompilerHost for SequencedDirectoryExistsHost {
+    scalar_host_query_bridge!();
     fn current_directory(&self) -> Result<PathBuf, HostError> {
         self.inner.current_directory()
     }
@@ -160,6 +167,7 @@ impl CompilerHost for SequencedDirectoryExistsHost {
 }
 
 impl CompilerHost for RecordingFileExistsHost {
+    scalar_host_query_bridge!();
     fn current_directory(&self) -> Result<PathBuf, HostError> {
         self.inner.current_directory()
     }
@@ -191,6 +199,7 @@ impl CompilerHost for RecordingFileExistsHost {
 }
 
 impl CompilerHost for RecordingRealpathHost {
+    scalar_host_query_bridge!();
     fn current_directory(&self) -> Result<PathBuf, HostError> {
         self.inner.current_directory()
     }
@@ -222,6 +231,7 @@ impl CompilerHost for RecordingRealpathHost {
 }
 
 impl CompilerHost for RealpathAfterProbeHost {
+    scalar_host_query_bridge!();
     fn current_directory(&self) -> Result<PathBuf, HostError> {
         self.inner.current_directory()
     }
@@ -263,6 +273,7 @@ impl CompilerHost for RealpathAfterProbeHost {
 }
 
 impl CompilerHost for NthDirectoryExistsFailureHost {
+    scalar_host_query_bridge!();
     fn current_directory(&self) -> Result<PathBuf, HostError> {
         self.inner.current_directory()
     }
@@ -303,6 +314,7 @@ impl CompilerHost for NthDirectoryExistsFailureHost {
 }
 
 impl CompilerHost for NthFileExistsFailureHost {
+    scalar_host_query_bridge!();
     fn current_directory(&self) -> Result<PathBuf, HostError> {
         self.inner.current_directory()
     }
@@ -343,6 +355,7 @@ impl CompilerHost for NthFileExistsFailureHost {
 }
 
 impl CompilerHost for MissingManifestContentsHost {
+    scalar_host_query_bridge!();
     fn current_directory(&self) -> Result<PathBuf, HostError> {
         self.inner.current_directory()
     }
@@ -492,17 +505,14 @@ fn rooted_disk_resolution_matrix() -> Vec<(String, Option<String>, Vec<String>)>
     .map(|specifier| {
         host.calls.borrow_mut().clear();
         let outcome = resolver
-            .resolve(
-                Path::new("C:/work/main.ts"),
-                specifier,
-                ResolutionMode::Unspecified,
-            )
+            .resolve("C:/work/main.ts", specifier, ResolutionMode::Unspecified)
             .expect("rooted disk spellings are supported resolver inputs");
         let resolved = match outcome {
             ResolutionOutcome::Resolved(resolved) => Some(
                 resolved
                     .resolved_file()
                     .display()
+                    .scalar_test_path()
                     .to_str()
                     .expect("resolved path is Unicode")
                     .to_owned(),
@@ -525,6 +535,61 @@ fn rooted_disk_resolution_matrix() -> Vec<(String, Option<String>, Vec<String>)>
 }
 
 #[test]
+fn paths_captures_are_utf16_ranges_including_a_split_surrogate_pair() {
+    use tsc_diagnostics::JsString;
+
+    // TypeScript 6.0.3 resolveModuleName, observed twice in
+    // utf16-path-capture-observation-20260913-150529. All concrete host
+    // paths here are scalar; the third pattern is a JS value ending in a
+    // lead surrogate and the wildcard captures only the trailing unit.
+    let mut split_pattern = JsString::from("@");
+    split_pattern.push_code_unit(0xd83d);
+    split_pattern.push('*');
+    for (pattern, specifier, substitution, expected) in [
+        (
+            JsString::from("@😀/*"),
+            "@😀/leaf",
+            "mapped/*",
+            "/work/mapped/leaf.ts",
+        ),
+        (
+            JsString::from("@pair/*"),
+            "@pair/😀",
+            "mapped/*",
+            "/work/mapped/😀.ts",
+        ),
+        (split_pattern, "@😀", "mapped/leaf", "/work/mapped/leaf.ts"),
+    ] {
+        let host = MemoryCompilerHost::builder("/work")
+            .file(expected, b"export {};".to_vec())
+            .build()
+            .unwrap();
+        let options = CompilerOptions {
+            module_resolution: Some(100),
+            ..CompilerOptions::default()
+        };
+        let program_options = ProgramOptions::default()
+            .with_paths(vec![PathMapping::new(pattern, vec![substitution.into()])]);
+        let mut resolver =
+            ModuleResolver::new_with_program_options(&host, &options, &program_options).unwrap();
+        let module = resolved(
+            resolver
+                .resolve("/work/main.ts", specifier, ResolutionMode::CommonJs)
+                .unwrap(),
+        );
+        assert_eq!(
+            module.resolved_file().display().scalar_test_path(),
+            Path::new(expected),
+            "{specifier}"
+        );
+        assert_eq!(module.extension(), &ModuleExtension::Ts);
+        assert!(!module.is_external_library_import());
+        assert!(!module.resolved_using_ts_extension());
+        assert!(module.original_path().is_none());
+    }
+}
+
+#[test]
 fn paths_exact_longest_prefix_and_substitution_order_are_stable() {
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/main.ts", b"export {};".to_vec())
@@ -543,14 +608,17 @@ fn paths_exact_longest_prefix_and_substitution_order_are_stable() {
         ..CompilerOptions::default()
     };
     let program_options = ProgramOptions::default().with_paths(vec![
-        PathMapping::new("@pkg/*", vec!["general/*".to_owned()]),
-        PathMapping::new("@pkg/special/*", vec!["specific/*".to_owned()]),
-        PathMapping::new("@pkg/special/item", vec!["exact/item".to_owned()]),
-        PathMapping::new("@tie/*/tail", vec!["tie-first/*".to_owned()]),
-        PathMapping::new("@tie/*", vec!["tie-second/*".to_owned()]),
+        PathMapping::new("@pkg/*", vec!["general/*".to_owned().into()]),
+        PathMapping::new("@pkg/special/*", vec!["specific/*".to_owned().into()]),
+        PathMapping::new("@pkg/special/item", vec!["exact/item".to_owned().into()]),
+        PathMapping::new("@tie/*/tail", vec!["tie-first/*".to_owned().into()]),
+        PathMapping::new("@tie/*", vec!["tie-second/*".to_owned().into()]),
         PathMapping::new(
             "@ordered/*",
-            vec!["ordered/missing/*".to_owned(), "ordered/*".to_owned()],
+            vec![
+                "ordered/missing/*".to_owned().into(),
+                "ordered/*".to_owned().into(),
+            ],
         ),
     ]);
     let mut resolver = ModuleResolver::new_with_program_options(&host, &options, &program_options)
@@ -565,15 +633,15 @@ fn paths_exact_longest_prefix_and_substitution_order_are_stable() {
     ] {
         let module = resolved(
             resolver
-                .resolve(
-                    Path::new("/work/main.ts"),
-                    specifier,
-                    ResolutionMode::CommonJs,
-                )
+                .resolve("/work/main.ts", specifier, ResolutionMode::CommonJs)
                 .expect("resolve ordered paths candidate"),
         );
         assert_eq!(
-            module.resolved_file().canonical().as_path(),
+            module
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new(expected),
             "{specifier}"
         );
@@ -593,10 +661,13 @@ fn optional_settings_preserve_legacy_passes_and_modern_substitution_order() {
     let program_options = ProgramOptions::default().with_paths(vec![
         PathMapping::new(
             "priority",
-            vec!["first/priority".to_owned(), "second/priority".to_owned()],
+            vec![
+                "first/priority".to_owned().into(),
+                "second/priority".to_owned().into(),
+            ],
         ),
-        PathMapping::new("explicit", vec!["first/explicit.js".to_owned()]),
-        PathMapping::new("normalized", vec!["normalized.ts/.".to_owned()]),
+        PathMapping::new("explicit", vec!["first/explicit.js".to_owned().into()]),
+        PathMapping::new("normalized", vec!["normalized.ts/.".to_owned().into()]),
     ]);
 
     for (resolution_kind, expected_priority) in [
@@ -615,45 +686,45 @@ fn optional_settings_preserve_legacy_passes_and_modern_substitution_order() {
                 .expect("create resolver-kind paths resolver");
         let priority = resolved(
             resolver
-                .resolve(
-                    Path::new("/work/main.ts"),
-                    "priority",
-                    ResolutionMode::CommonJs,
-                )
+                .resolve("/work/main.ts", "priority", ResolutionMode::CommonJs)
                 .expect("resolve extension-pass candidate"),
         );
         assert_eq!(
-            priority.resolved_file().canonical().as_path(),
+            priority
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new(expected_priority),
             "moduleResolution={resolution_kind}"
         );
 
         let explicit = resolved(
             resolver
-                .resolve(
-                    Path::new("/work/main.ts"),
-                    "explicit",
-                    ResolutionMode::CommonJs,
-                )
+                .resolve("/work/main.ts", "explicit", ResolutionMode::CommonJs)
                 .expect("resolve raw explicit-extension substitution"),
         );
         assert_eq!(explicit.extension(), &ModuleExtension::Js);
         assert_eq!(
-            explicit.resolved_file().canonical().as_path(),
+            explicit
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new("/work/first/explicit.js")
         );
 
         let normalized = resolved(
             resolver
-                .resolve(
-                    Path::new("/work/main.ts"),
-                    "normalized",
-                    ResolutionMode::CommonJs,
-                )
+                .resolve("/work/main.ts", "normalized", ResolutionMode::CommonJs)
                 .expect("resolve a normalized written-extension substitution"),
         );
         assert_eq!(
-            normalized.resolved_file().canonical().as_path(),
+            normalized
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new("/work/normalized.ts")
         );
         assert!(
@@ -677,27 +748,23 @@ fn optional_node_candidates_preserve_trailing_directory_spelling() {
         .expect("build trailing optional-candidate host");
     let options = CompilerOptions {
         module_resolution: Some(2),
-        base_url: Some("/work".to_owned()),
+        base_url: Some("/work".to_owned().into()),
         ..CompilerOptions::default()
     };
 
     let program_options = ProgramOptions::default().with_paths(vec![PathMapping::new(
         "mapped",
-        vec!["directory/".to_owned()],
+        vec!["directory/".to_owned().into()],
     )]);
     let mut resolver = ModuleResolver::new_with_program_options(&host, &options, &program_options)
         .expect("create trailing paths resolver");
     let mapped = resolved(
         resolver
-            .resolve(
-                Path::new("/work/main.ts"),
-                "mapped",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/work/main.ts", "mapped", ResolutionMode::CommonJs)
             .expect("resolve a trailing paths substitution as a directory"),
     );
     assert_eq!(
-        mapped.resolved_file().display(),
+        mapped.resolved_file().display().scalar_test_path(),
         Path::new("/work/directory/index.ts")
     );
 
@@ -705,15 +772,11 @@ fn optional_node_candidates_preserve_trailing_directory_spelling() {
         ModuleResolver::new(&host, &options).expect("create trailing baseUrl resolver");
     let base_url = resolved(
         resolver
-            .resolve(
-                Path::new("/work/main.ts"),
-                "directory/",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/work/main.ts", "directory/", ResolutionMode::CommonJs)
             .expect("resolve a trailing baseUrl candidate as a directory"),
     );
     assert_eq!(
-        base_url.resolved_file().display(),
+        base_url.resolved_file().display().scalar_test_path(),
         Path::new("/work/directory/index.ts")
     );
 }
@@ -796,16 +859,12 @@ fn written_extension_replacement_groups_match_typescript_603_order() {
             .expect("create written-extension Bundler resolver");
         let module = resolved(
             resolver
-                .resolve(
-                    Path::new("/work/main.ts"),
-                    specifier,
-                    ResolutionMode::EsNext,
-                )
+                .resolve("/work/main.ts", specifier, ResolutionMode::EsNext)
                 .expect("resolve a written-extension replacement"),
         );
         assert_eq!(module.extension(), &expected_extension, "{specifier}");
         assert_eq!(
-            module.resolved_file().display(),
+            module.resolved_file().display().scalar_test_path(),
             Path::new(existing),
             "{specifier}"
         );
@@ -838,25 +897,17 @@ fn no_dts_resolution_uses_implementation_files_and_skips_declaration_fallbacks()
 
     let implementation = resolved(
         resolver
-            .resolve(
-                Path::new("/work/main.ts"),
-                "./value",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/work/main.ts", "./value", ResolutionMode::CommonJs)
             .expect("resolve implementation source"),
     );
     assert_eq!(
-        implementation.resolved_file().display(),
+        implementation.resolved_file().display().scalar_test_path(),
         Path::new("/work/value.ts")
     );
 
     assert!(matches!(
         resolver
-            .resolve(
-                Path::new("/work/main.ts"),
-                "./only",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/work/main.ts", "./only", ResolutionMode::CommonJs,)
             .expect("resolve declaration-only source"),
         ResolutionOutcome::NotFound
     ));
@@ -884,11 +935,11 @@ fn no_dts_resolution_removes_types_conditions_from_package_exports() {
         ModuleResolver::new(&host, &ordinary_options).expect("create ordinary package resolver");
     let ordinary = resolved(
         ordinary
-            .resolve(Path::new("/work/main.ts"), "pkg", ResolutionMode::EsNext)
+            .resolve("/work/main.ts", "pkg", ResolutionMode::EsNext)
             .expect("resolve package types condition"),
     );
     assert_eq!(
-        ordinary.resolved_file().display(),
+        ordinary.resolved_file().display().scalar_test_path(),
         Path::new("/work/node_modules/pkg/types.d.ts")
     );
 
@@ -902,11 +953,14 @@ fn no_dts_resolution_removes_types_conditions_from_package_exports() {
         .expect("create implementation-only package resolver");
     let implementation_only = resolved(
         implementation_only
-            .resolve(Path::new("/work/main.ts"), "pkg", ResolutionMode::EsNext)
+            .resolve("/work/main.ts", "pkg", ResolutionMode::EsNext)
             .expect("resolve package default condition"),
     );
     assert_eq!(
-        implementation_only.resolved_file().display(),
+        implementation_only
+            .resolved_file()
+            .display()
+            .scalar_test_path(),
         Path::new("/work/node_modules/pkg/impl.ts")
     );
 }
@@ -948,10 +1002,13 @@ fn commonjs_implicit_addition_follows_replacement_and_clears_ts_provenance() {
             ModuleResolver::new(&host, &options).expect("create implicit-addition resolver");
         let resolved = resolved(
             resolver
-                .resolve(Path::new("/work/main.ts"), "./value.js", mode)
+                .resolve("/work/main.ts", "./value.js", mode)
                 .expect("resolve implicit-addition precedence"),
         );
-        assert_eq!(resolved.resolved_file().display(), Path::new(expected_path));
+        assert_eq!(
+            resolved.resolved_file().display().scalar_test_path(),
+            Path::new(expected_path)
+        );
         assert!(!resolved.resolved_using_ts_extension());
         let expected = expected_probes
             .iter()
@@ -993,11 +1050,7 @@ fn implicit_addition_reobserves_its_parent_after_replacement_misses() {
         ModuleResolver::new(&host, &options).expect("create implicit-addition parent resolver");
     assert_eq!(
         resolver
-            .resolve(
-                Path::new("/work/main.ts"),
-                "./value.js",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/work/main.ts", "./value.js", ResolutionMode::CommonJs,)
             .expect_err("the second tryAddingExtensions preflight must fail"),
         ResolutionError::from(failure)
     );
@@ -1026,7 +1079,7 @@ fn node_esm_blocks_the_second_implicit_stage_but_node10_keeps_it() {
         let mut resolver =
             ModuleResolver::new(&host, &options).expect("create implicit-stage ESM resolver");
         let outcome = resolver
-            .resolve(Path::new("/work/main.ts"), "./value.d.ts", mode)
+            .resolve("/work/main.ts", "./value.d.ts", mode)
             .expect("resolve the implicit-stage ESM boundary");
         let probes = recorded_file_probes(&host, "/work/value");
         (outcome, probes)
@@ -1035,7 +1088,7 @@ fn node_esm_blocks_the_second_implicit_stage_but_node10_keeps_it() {
     let (node10, probes) = resolve(1, 2, ResolutionMode::CommonJs);
     let node10 = resolved(node10);
     assert_eq!(
-        node10.resolved_file().display(),
+        node10.resolved_file().display().scalar_test_path(),
         Path::new("/work/value.d.ts.ts")
     );
     assert_eq!(node10.extension(), &ModuleExtension::Ts);
@@ -1081,19 +1134,15 @@ fn json_declaration_twins_keep_their_arbitrary_extension_identity() {
         ModuleResolver::new(&host, &options).expect("create JSON declaration-twin resolver");
     let module = resolved(
         resolver
-            .resolve(
-                Path::new("/work/main.ts"),
-                "./data.json",
-                ResolutionMode::EsNext,
-            )
+            .resolve("/work/main.ts", "./data.json", ResolutionMode::EsNext)
             .expect("resolve a JSON declaration twin"),
     );
     assert_eq!(
         module.extension(),
-        &ModuleExtension::Arbitrary(".d.json.ts".to_owned())
+        &ModuleExtension::Arbitrary(".d.json.ts".to_owned().into())
     );
     assert_eq!(
-        module.resolved_file().display(),
+        module.resolved_file().display().scalar_test_path(),
         Path::new("/work/data.d.json.ts")
     );
     assert!(!module.resolved_using_ts_extension());
@@ -1134,32 +1183,27 @@ fn package_map_ts_targets_are_exact_but_js_targets_use_replacement_groups() {
 
     assert_eq!(
         resolver
-            .resolve(
-                Path::new("/work/main.ts"),
-                "pkg/exact-tsx",
-                ResolutionMode::EsNext,
-            )
+            .resolve("/work/main.ts", "pkg/exact-tsx", ResolutionMode::EsNext,)
             .expect("an exact TS package target remains an authoritative miss"),
         ResolutionOutcome::NotFound
     );
 
     let module = resolved(
         resolver
-            .resolve(
-                Path::new("/work/main.ts"),
-                "pkg/replace-jsx",
-                ResolutionMode::EsNext,
-            )
+            .resolve("/work/main.ts", "pkg/replace-jsx", ResolutionMode::EsNext)
             .expect("a JS package target uses its replacement family"),
     );
     assert_eq!(
-        module.resolved_file().display(),
+        module.resolved_file().display().scalar_test_path(),
         Path::new("/work/node_modules/pkg/replace.ts")
     );
     assert_eq!(module.extension(), &ModuleExtension::Ts);
     assert!(!module.resolved_using_ts_extension());
     assert!(module.is_external_library_import());
-    assert_eq!(module.package_id().map(PackageId::name), Some("pkg"));
+    assert_eq!(
+        module.package_id().map(PackageId::name),
+        (Some("pkg")).map(Into::into)
+    );
 }
 
 #[test]
@@ -1194,11 +1238,11 @@ fn package_map_exact_targets_skip_parent_preflight_but_directory_fields_require_
         ModuleResolver::new(&host, &options).expect("create exact package-map parent resolver");
     let module = resolved(
         resolver
-            .resolve(Path::new("/work/main.ts"), "pkg", ResolutionMode::EsNext)
+            .resolve("/work/main.ts", "pkg", ResolutionMode::EsNext)
             .expect("an exact package-map target skips its parent observation"),
     );
     assert_eq!(
-        module.resolved_file().display(),
+        module.resolved_file().display().scalar_test_path(),
         Path::new("/work/node_modules/pkg/nested/index.ts")
     );
 
@@ -1225,7 +1269,7 @@ fn package_map_exact_targets_skip_parent_preflight_but_directory_fields_require_
         ModuleResolver::new(&host, &options).expect("create exact package-field parent resolver");
     assert_eq!(
         resolver
-            .resolve(Path::new("/work/main.ts"), "pkg", ResolutionMode::EsNext)
+            .resolve("/work/main.ts", "pkg", ResolutionMode::EsNext)
             .expect_err("a package directory field observes its parent first"),
         ResolutionError::from(failure)
     );
@@ -1256,11 +1300,11 @@ fn package_fields_retain_the_exact_phase_before_the_ordinary_loader_phase() {
         ModuleResolver::new(&host, &options).expect("create package-field phase resolver");
     let module = resolved(
         resolver
-            .resolve(Path::new("/work/main.ts"), "pkg", ResolutionMode::EsNext)
+            .resolve("/work/main.ts", "pkg", ResolutionMode::EsNext)
             .expect("resolve through both package-field phases"),
     );
     assert_eq!(
-        module.resolved_file().display(),
+        module.resolved_file().display().scalar_test_path(),
         Path::new("/work/node_modules/pkg/index.d.ts")
     );
     assert!(!module.resolved_using_ts_extension());
@@ -1291,7 +1335,7 @@ fn package_fields_retain_the_exact_phase_before_the_ordinary_loader_phase() {
         ModuleResolver::new(&host, &options).expect("create failing package-field phase resolver");
     assert_eq!(
         resolver
-            .resolve(Path::new("/work/main.ts"), "pkg", ResolutionMode::EsNext)
+            .resolve("/work/main.ts", "pkg", ResolutionMode::EsNext)
             .expect_err("the second exact probe must fail before the declaration hit"),
         ResolutionError::from(failure)
     );
@@ -1328,7 +1372,7 @@ fn package_directory_failure_latches_suppress_root_types_versions_and_commonjs_i
         ModuleResolver::new(&host, &options).expect("create missing package-field parent resolver");
     assert_eq!(
         resolver
-            .resolve(Path::new("/work/main.ts"), "pkg", ResolutionMode::CommonJs,)
+            .resolve("/work/main.ts", "pkg", ResolutionMode::CommonJs,)
             .expect("a latched package-directory miss is an ordinary miss"),
         ResolutionOutcome::NotFound
     );
@@ -1362,7 +1406,7 @@ fn package_directory_failure_latches_suppress_root_types_versions_and_commonjs_i
         ModuleResolver::new(&host, &options).expect("create transient package-root resolver");
     assert_eq!(
         resolver
-            .resolve(Path::new("/work/main.ts"), "pkg", ResolutionMode::CommonJs,)
+            .resolve("/work/main.ts", "pkg", ResolutionMode::CommonJs,)
             .expect("a CommonJS index cannot revive after its directory latch"),
         ResolutionOutcome::NotFound
     );
@@ -1398,11 +1442,7 @@ fn package_directory_failure_latches_suppress_root_types_versions_and_commonjs_i
         ModuleResolver::new(&host, &options).expect("create missing subpath package-root resolver");
     assert_eq!(
         resolver
-            .resolve(
-                Path::new("/work/main.ts"),
-                "pkg/sub",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/work/main.ts", "pkg/sub", ResolutionMode::CommonJs,)
             .expect("a subpath typesVersions lookup reuses its package-root latch"),
         ResolutionOutcome::NotFound
     );
@@ -1460,11 +1500,11 @@ fn types_versions_distinguishes_raw_substitutions_and_root_package_field_provena
 
     let root = resolved(
         resolver
-            .resolve(Path::new("/work/main.ts"), "pkg", ResolutionMode::EsNext)
+            .resolve("/work/main.ts", "pkg", ResolutionMode::EsNext)
             .expect("resolve a root typesVersions package-field substitution"),
     );
     assert_eq!(
-        root.resolved_file().display(),
+        root.resolved_file().display().scalar_test_path(),
         Path::new("/work/node_modules/pkg/types/root.tsx")
     );
     assert!(!root.resolved_using_ts_extension());
@@ -1481,15 +1521,11 @@ fn types_versions_distinguishes_raw_substitutions_and_root_package_field_provena
     host.calls.borrow_mut().clear();
     let subpath = resolved(
         resolver
-            .resolve(
-                Path::new("/work/main.ts"),
-                "pkg/wild/value.ts",
-                ResolutionMode::EsNext,
-            )
+            .resolve("/work/main.ts", "pkg/wild/value.ts", ResolutionMode::EsNext)
             .expect("resolve a wildcard typesVersions ordinary substitution"),
     );
     assert_eq!(
-        subpath.resolved_file().display(),
+        subpath.resolved_file().display().scalar_test_path(),
         Path::new("/work/node_modules/pkg/types/value.tsx")
     );
     assert!(subpath.resolved_using_ts_extension());
@@ -1504,15 +1540,11 @@ fn types_versions_distinguishes_raw_substitutions_and_root_package_field_provena
     host.calls.borrow_mut().clear();
     let normalized = resolved(
         resolver
-            .resolve(
-                Path::new("/work/main.ts"),
-                "pkg/normalized",
-                ResolutionMode::EsNext,
-            )
+            .resolve("/work/main.ts", "pkg/normalized", ResolutionMode::EsNext)
             .expect("resolve a normalized typesVersions substitution"),
     );
     assert_eq!(
-        normalized.resolved_file().display(),
+        normalized.resolved_file().display().scalar_test_path(),
         Path::new("/work/node_modules/pkg/types/normalized.ts")
     );
     assert!(normalized.resolved_using_ts_extension());
@@ -1546,11 +1578,11 @@ fn node_esm_index_exception_runs_after_an_owned_types_versions_miss() {
         ModuleResolver::new(&host, &options).expect("create Node ESM index resolver");
     let module = resolved(
         resolver
-            .resolve(Path::new("/work/main.mts"), "pkg", ResolutionMode::EsNext)
+            .resolve("/work/main.mts", "pkg", ResolutionMode::EsNext)
             .expect("the outer Node ESM loader retries its exceptional index.js"),
     );
     assert_eq!(
-        module.resolved_file().display(),
+        module.resolved_file().display().scalar_test_path(),
         Path::new("/work/node_modules/pkg/index.d.ts")
     );
 
@@ -1559,7 +1591,7 @@ fn node_esm_index_exception_runs_after_an_owned_types_versions_miss() {
         ModuleResolver::new(&host, &options).expect("create CommonJS terminal-miss resolver");
     assert_eq!(
         resolver
-            .resolve(Path::new("/work/main.mts"), "pkg", ResolutionMode::CommonJs,)
+            .resolve("/work/main.mts", "pkg", ResolutionMode::CommonJs,)
             .expect("the matched mapping owns a CommonJS miss"),
         ResolutionOutcome::NotFound
     );
@@ -1619,29 +1651,21 @@ fn types_versions_use_normalized_root_names_and_replace_only_the_first_star() {
 
     let root = resolved(
         resolver
-            .resolve(
-                Path::new("/work/main.ts"),
-                "root-name",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/work/main.ts", "root-name", ResolutionMode::CommonJs)
             .expect("match the normalized package-field-relative name"),
     );
     assert_eq!(
-        root.resolved_file().display(),
+        root.resolved_file().display().scalar_test_path(),
         Path::new("/work/node_modules/root-name/types/good.d.ts")
     );
 
     let star = resolved(
         resolver
-            .resolve(
-                Path::new("/work/main.ts"),
-                "stars/foo/x",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/work/main.ts", "stars/foo/x", ResolutionMode::CommonJs)
             .expect("replace only the first substitution star"),
     );
     assert_eq!(
-        star.resolved_file().display(),
+        star.resolved_file().display().scalar_test_path(),
         Path::new("/work/node_modules/stars/types/x/copy-*.d.ts")
     );
 }
@@ -1695,29 +1719,21 @@ fn types_versions_keep_empty_stars_and_first_equal_prefix_patterns() {
 
     let empty = resolved(
         resolver
-            .resolve(
-                Path::new("/work/main.ts"),
-                "empty/foo",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/work/main.ts", "empty/foo", ResolutionMode::CommonJs)
             .expect("retain a literal substitution star for an empty capture"),
     );
     assert_eq!(
-        empty.resolved_file().display(),
+        empty.resolved_file().display().scalar_test_path(),
         Path::new("/work/node_modules/empty/types/*.d.ts")
     );
 
     let tie = resolved(
         resolver
-            .resolve(
-                Path::new("/work/main.ts"),
-                "tie/foo/x.ts",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/work/main.ts", "tie/foo/x.ts", ResolutionMode::CommonJs)
             .expect("retain insertion order for equal-prefix patterns"),
     );
     assert_eq!(
-        tie.resolved_file().display(),
+        tie.resolved_file().display().scalar_test_path(),
         Path::new("/work/node_modules/tie/general.d.ts")
     );
 }
@@ -1744,11 +1760,11 @@ fn package_root_logical_names_keep_root_component_boundaries() {
         ModuleResolver::new(&host, &options).expect("create filesystem-root package resolver");
     let module = resolved(
         resolver
-            .resolve(Path::new("/src/main.ts"), "../..", ResolutionMode::CommonJs)
+            .resolve("/src/main.ts", "../..", ResolutionMode::CommonJs)
             .expect("resolve a package rooted at the filesystem root"),
     );
     assert_eq!(
-        module.resolved_file().display(),
+        module.resolved_file().display().scalar_test_path(),
         Path::new("/versioned.d.ts")
     );
 }
@@ -1776,15 +1792,11 @@ fn drive_root_package_logical_names_ignore_drive_letter_case() {
         ModuleResolver::new(&host, &options).expect("create drive-root package resolver");
     let module = resolved(
         resolver
-            .resolve(
-                Path::new("C:/src/main.ts"),
-                "../..",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("C:/src/main.ts", "../..", ResolutionMode::CommonJs)
             .expect("resolve a package rooted at a case-varied drive root"),
     );
     assert_eq!(
-        module.resolved_file().display(),
+        module.resolved_file().display().scalar_test_path(),
         Path::new("C:/versioned.d.ts")
     );
 }
@@ -1836,48 +1848,36 @@ fn trailing_package_fields_skip_files_and_trim_types_versions_logical_names() {
 
     let direct = resolved(
         resolver
-            .resolve(
-                Path::new("/work/main.ts"),
-                "direct",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/work/main.ts", "direct", ResolutionMode::CommonJs)
             .expect("resolve a trailing package field as a directory"),
     );
     assert_eq!(
-        direct.resolved_file().display(),
+        direct.resolved_file().display().scalar_test_path(),
         Path::new("/work/node_modules/direct/dir/index.d.ts")
     );
 
     let versioned = resolved(
         resolver
-            .resolve(
-                Path::new("/work/main.ts"),
-                "versioned",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/work/main.ts", "versioned", ResolutionMode::CommonJs)
             .expect("match a trailing package field without a logical slash"),
     );
     assert_eq!(
-        versioned.resolved_file().display(),
+        versioned.resolved_file().display().scalar_test_path(),
         Path::new("/work/node_modules/versioned/versioned.d.ts")
     );
 
     let dotted = resolved(
         resolver
-            .resolve(
-                Path::new("/work/main.ts"),
-                "dotted",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/work/main.ts", "dotted", ResolutionMode::CommonJs)
             .expect("resolve the path-bearing arbitrary twin of a dotted directory"),
     );
     assert_eq!(
-        dotted.resolved_file().display(),
+        dotted.resolved_file().display().scalar_test_path(),
         Path::new("/work/node_modules/dotted/dir.d.ext/.ts")
     );
     assert_eq!(
         dotted.extension(),
-        &ModuleExtension::Arbitrary(".d.ext/.ts".to_owned())
+        &ModuleExtension::Arbitrary(".d.ext/.ts".to_owned().into())
     );
 }
 
@@ -1936,60 +1936,54 @@ fn legacy_package_fields_and_types_versions_may_escape_the_package_root() {
 
     let field = resolved(
         resolver
-            .resolve(Path::new("/work/main.ts"), "pkg", ResolutionMode::CommonJs)
+            .resolve("/work/main.ts", "pkg", ResolutionMode::CommonJs)
             .expect("resolve a package field outside its package root"),
     );
     assert_eq!(
-        field.resolved_file().display(),
+        field.resolved_file().display().scalar_test_path(),
         Path::new("/work/node_modules/shared.d.ts")
     );
-    assert_eq!(field.package_id().map(PackageId::name), Some("pkg"));
+    assert_eq!(
+        field.package_id().map(PackageId::name),
+        (Some("pkg")).map(Into::into)
+    );
     assert_eq!(
         field.package_id().map(PackageId::submodule_name),
-        Some("ed.d.ts")
+        (Some("ed.d.ts")).map(Into::into)
     );
 
     let exact = resolved(
         resolver
-            .resolve(
-                Path::new("/work/main.ts"),
-                "mapped/exact",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/work/main.ts", "mapped/exact", ResolutionMode::CommonJs)
             .expect("resolve an exact escaping typesVersions substitution"),
     );
     assert_eq!(
-        exact.resolved_file().display(),
+        exact.resolved_file().display().scalar_test_path(),
         Path::new("/work/node_modules/shared.d.ts")
     );
     assert_eq!(exact.package_id(), None);
 
     let generic = resolved(
         resolver
-            .resolve(
-                Path::new("/work/main.ts"),
-                "mapped/generic",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/work/main.ts", "mapped/generic", ResolutionMode::CommonJs)
             .expect("resolve a generic escaping typesVersions substitution"),
     );
     assert_eq!(
-        generic.resolved_file().display(),
+        generic.resolved_file().display().scalar_test_path(),
         Path::new("/work/node_modules/shared.d.ts")
     );
-    assert_eq!(generic.package_id().map(PackageId::name), Some("mapped"));
+    assert_eq!(
+        generic.package_id().map(PackageId::name),
+        (Some("mapped")).map(Into::into)
+    );
 
     let trailing = resolved(
         resolver
-            .resolve(
-                Path::new("/work/main.ts"),
-                "mapped/trailing",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/work/main.ts", "mapped/trailing", ResolutionMode::CommonJs)
             .expect("a trailing substitution skips the package-root file phase"),
     );
     assert_eq!(
-        trailing.resolved_file().display(),
+        trailing.resolved_file().display().scalar_test_path(),
         Path::new("/work/node_modules/mapped/index.d.ts")
     );
 }
@@ -2011,9 +2005,12 @@ fn root_dirs_preserve_legacy_passes_modern_candidate_order_and_relative_gate() {
         .with_paths(vec![
             PathMapping::new(
                 "/work/src/app/path-priority",
-                vec!["mapped/priority".to_owned()],
+                vec!["mapped/priority".to_owned().into()],
             ),
-            PathMapping::new("/work/src/app/path-miss", vec!["mapped/missing".to_owned()]),
+            PathMapping::new(
+                "/work/src/app/path-miss",
+                vec!["mapped/missing".to_owned().into()],
+            ),
         ]);
 
     for (resolution_kind, expected_value) in [
@@ -2033,15 +2030,11 @@ fn root_dirs_preserve_legacy_passes_modern_candidate_order_and_relative_gate() {
 
         let value = resolved(
             resolver
-                .resolve(
-                    Path::new("/work/src/app/main.ts"),
-                    "./value",
-                    ResolutionMode::CommonJs,
-                )
+                .resolve("/work/src/app/main.ts", "./value", ResolutionMode::CommonJs)
                 .expect("resolve extension-order rootDirs candidate"),
         );
         assert_eq!(
-            value.resolved_file().display(),
+            value.resolved_file().display().scalar_test_path(),
             Path::new(expected_value),
             "moduleResolution={resolution_kind}"
         );
@@ -2051,48 +2044,48 @@ fn root_dirs_preserve_legacy_passes_modern_candidate_order_and_relative_gate() {
         let root_only = resolved(
             resolver
                 .resolve(
-                    Path::new("/work/src/app/main.ts"),
+                    "/work/src/app/main.ts",
                     "./root-only",
                     ResolutionMode::CommonJs,
                 )
                 .expect("resolve alternate rootDirs candidate"),
         );
         assert_eq!(
-            root_only.resolved_file().display(),
+            root_only.resolved_file().display().scalar_test_path(),
             Path::new("/work/gen/app/root-only.ts")
         );
 
         let rooted = resolved(
             resolver
                 .resolve(
-                    Path::new("/work/src/app/main.ts"),
+                    "/work/src/app/main.ts",
                     "/work/src/app/root-only",
                     ResolutionMode::CommonJs,
                 )
                 .expect("rooted disk requests participate in rootDirs"),
         );
         assert_eq!(
-            rooted.resolved_file().display(),
+            rooted.resolved_file().display().scalar_test_path(),
             Path::new("/work/gen/app/root-only.ts")
         );
 
         let paths_first = resolved(
             resolver
                 .resolve(
-                    Path::new("/work/src/app/main.ts"),
+                    "/work/src/app/main.ts",
                     "/work/src/app/path-priority",
                     ResolutionMode::CommonJs,
                 )
                 .expect("rooted disk requests remain eligible for paths"),
         );
         assert_eq!(
-            paths_first.resolved_file().display(),
+            paths_first.resolved_file().display().scalar_test_path(),
             Path::new("/work/mapped/priority.ts")
         );
         assert_eq!(
             resolver
                 .resolve(
-                    Path::new("/work/src/app/main.ts"),
+                    "/work/src/app/main.ts",
                     "/work/src/app/path-miss",
                     ResolutionMode::CommonJs,
                 )
@@ -2102,7 +2095,7 @@ fn root_dirs_preserve_legacy_passes_modern_candidate_order_and_relative_gate() {
 
         let bare = resolver
             .resolve(
-                Path::new("/work/src/app/main.ts"),
+                "/work/src/app/main.ts",
                 "root-only",
                 ResolutionMode::CommonJs,
             )
@@ -2112,7 +2105,7 @@ fn root_dirs_preserve_legacy_passes_modern_candidate_order_and_relative_gate() {
         assert_eq!(
             resolver
                 .resolve(
-                    Path::new("/work/src/app/main.ts"),
+                    "/work/src/app/main.ts",
                     "//server/share/value",
                     ResolutionMode::CommonJs,
                 )
@@ -2132,7 +2125,7 @@ fn root_dirs_preserve_legacy_passes_modern_candidate_order_and_relative_gate() {
     assert_eq!(
         resolver
             .resolve(
-                Path::new("/work/src/app/main.ts"),
+                "/work/src/app/main.ts",
                 "//server/share/value",
                 ResolutionMode::CommonJs,
             )
@@ -2265,15 +2258,11 @@ fn root_dirs_use_the_longest_prefix_then_declared_alternate_order() {
                 .expect("create longest-prefix rootDirs resolver");
         let module = resolved(
             resolver
-                .resolve(
-                    Path::new("/work/src/app/main.ts"),
-                    "./item",
-                    ResolutionMode::CommonJs,
-                )
+                .resolve("/work/src/app/main.ts", "./item", ResolutionMode::CommonJs)
                 .expect("resolve longest-prefix rootDirs candidate"),
         );
         assert_eq!(
-            module.resolved_file().display(),
+            module.resolved_file().display().scalar_test_path(),
             Path::new("/mirror/first/app/item.ts"),
             "moduleResolution={resolution_kind}"
         );
@@ -2299,14 +2288,17 @@ fn rooted_final_dot_components_keep_node_directory_spelling() {
                 .expect("create rooted dot-component resolver");
         let outcome = resolver
             .resolve(
-                Path::new("/else/main.ts"),
+                "/else/main.ts",
                 "/work/src/app/dir/.",
                 ResolutionMode::CommonJs,
             )
             .expect("resolve rooted final dot component");
         if resolution_kind == 1 {
             assert_eq!(
-                resolved(outcome).resolved_file().display(),
+                resolved(outcome)
+                    .resolved_file()
+                    .display()
+                    .scalar_test_path(),
                 Path::new("/work/src/app/dir.ts")
             );
         } else {
@@ -2350,11 +2342,11 @@ fn root_dirs_reuse_each_resolvers_directory_rules() {
             ModuleResolver::new_with_program_options(&host, &options, &program_options)
                 .expect("create rootDirs directory resolver");
         let outcome = resolver
-            .resolve(Path::new("/work/src/app/main.ts"), "./folder/", mode)
+            .resolve("/work/src/app/main.ts", "./folder/", mode)
             .expect("probe rootDirs directory candidate");
         match outcome {
             ResolutionOutcome::Resolved(module) if should_resolve => assert_eq!(
-                module.resolved_file().display(),
+                module.resolved_file().display().scalar_test_path(),
                 Path::new("/work/gen/app/folder/index.ts")
             ),
             ResolutionOutcome::NotFound if !should_resolve => {}
@@ -2380,13 +2372,13 @@ fn matched_paths_miss_suppresses_base_url_but_keeps_ordinary_fallbacks() {
         .expect("build paths fallback host");
     let program_options = ProgramOptions::default().with_paths(vec![PathMapping::new(
         "pkg",
-        vec!["missing/pkg".to_owned()],
+        vec!["missing/pkg".to_owned().into()],
     )]);
 
     for resolution_kind in [1, 2, 3, 99, 100] {
         let options = CompilerOptions {
             module_resolution: Some(resolution_kind),
-            base_url: Some("./base".to_owned()),
+            base_url: Some("./base".to_owned().into()),
             ..CompilerOptions::default()
         };
         let mut resolver =
@@ -2394,7 +2386,7 @@ fn matched_paths_miss_suppresses_base_url_but_keeps_ordinary_fallbacks() {
                 .expect("create fallback resolver");
         let module = resolved(
             resolver
-                .resolve(Path::new("/work/main.ts"), "pkg", ResolutionMode::CommonJs)
+                .resolve("/work/main.ts", "pkg", ResolutionMode::CommonJs)
                 .expect("fall through from matched paths miss"),
         );
         let expected = if resolution_kind == 1 {
@@ -2403,22 +2395,26 @@ fn matched_paths_miss_suppresses_base_url_but_keeps_ordinary_fallbacks() {
             "/work/node_modules/pkg/index.d.ts"
         };
         assert_eq!(
-            module.resolved_file().canonical().as_path(),
+            module
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new(expected),
             "moduleResolution={resolution_kind}"
         );
 
         let base_url = resolved(
             resolver
-                .resolve(
-                    Path::new("/work/main.ts"),
-                    "unmapped",
-                    ResolutionMode::CommonJs,
-                )
+                .resolve("/work/main.ts", "unmapped", ResolutionMode::CommonJs)
                 .expect("a paths non-match continues to baseUrl"),
         );
         assert_eq!(
-            base_url.resolved_file().canonical().as_path(),
+            base_url
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new("/work/base/unmapped.ts")
         );
     }
@@ -2440,12 +2436,14 @@ fn optional_settings_preserve_each_observable_parent_directory_latch() {
         };
         let options = CompilerOptions {
             module_resolution: Some(100),
-            base_url: (!use_paths).then(|| "/base".to_owned()),
+            base_url: (!use_paths).then(|| "/base".into()),
             ..CompilerOptions::default()
         };
         let program_options = if use_paths {
-            ProgramOptions::default()
-                .with_paths(vec![PathMapping::new("pkg", vec!["base/pkg".to_owned()])])
+            ProgramOptions::default().with_paths(vec![PathMapping::new(
+                "pkg",
+                vec!["base/pkg".to_owned().into()],
+            )])
         } else {
             ProgramOptions::default()
         };
@@ -2454,7 +2452,7 @@ fn optional_settings_preserve_each_observable_parent_directory_latch() {
                 .expect("create sequenced Node optional-settings resolver");
         assert_eq!(
             resolver
-                .resolve(Path::new("/main.ts"), "pkg", ResolutionMode::EsNext)
+                .resolve("/main.ts", "pkg", ResolutionMode::EsNext)
                 .expect("observe every Node parent-directory latch"),
             ResolutionOutcome::NotFound,
             "use_paths={use_paths}"
@@ -2476,12 +2474,14 @@ fn optional_settings_preserve_each_observable_parent_directory_latch() {
         };
         let options = CompilerOptions {
             module_resolution: Some(1),
-            base_url: (!use_paths).then(|| "/base".to_owned()),
+            base_url: (!use_paths).then(|| "/base".into()),
             ..CompilerOptions::default()
         };
         let program_options = if use_paths {
-            ProgramOptions::default()
-                .with_paths(vec![PathMapping::new("pkg", vec!["base/pkg".to_owned()])])
+            ProgramOptions::default().with_paths(vec![PathMapping::new(
+                "pkg",
+                vec!["base/pkg".to_owned().into()],
+            )])
         } else {
             ProgramOptions::default()
         };
@@ -2490,7 +2490,7 @@ fn optional_settings_preserve_each_observable_parent_directory_latch() {
                 .expect("create sequenced Classic optional-settings resolver");
         assert_eq!(
             resolver
-                .resolve(Path::new("/main.ts"), "pkg", ResolutionMode::CommonJs)
+                .resolve("/main.ts", "pkg", ResolutionMode::CommonJs)
                 .expect("observe both Classic parent-directory latches"),
             ResolutionOutcome::NotFound,
             "use_paths={use_paths}"
@@ -2515,7 +2515,7 @@ fn optional_settings_preserve_each_observable_parent_directory_latch() {
     };
     let program_options = ProgramOptions::default().with_paths(vec![PathMapping::new(
         "pkg",
-        vec!["base/pkg.ts".to_owned()],
+        vec!["base/pkg.ts".to_owned().into()],
     )]);
     assert_eq!(
         validate_paths_option_diagnostics(&options, &program_options)
@@ -2530,11 +2530,12 @@ fn optional_settings_preserve_each_observable_parent_directory_latch() {
     assert_eq!(
         resolved(
             resolver
-                .resolve(Path::new("/main.ts"), "pkg", ResolutionMode::EsNext)
+                .resolve("/main.ts", "pkg", ResolutionMode::EsNext)
                 .expect("resolve the raw recognized-extension substitution")
         )
         .resolved_file()
-        .display(),
+        .display()
+        .scalar_test_path(),
         Path::new("/base/pkg.ts")
     );
     assert_eq!(
@@ -2564,10 +2565,10 @@ fn paths_without_base_url_use_cwd_and_path_matching_remains_case_sensitive() {
         ..CompilerOptions::default()
     };
     let program_options = ProgramOptions::default().with_paths(vec![
-        PathMapping::new("@Alias/*", vec!["./src/*".to_owned()]),
-        PathMapping::new("@parent", vec!["../shared/parent".to_owned()]),
-        PathMapping::new("@absolute", vec!["/shared/absolute".to_owned()]),
-        PathMapping::new("@cwd", vec![String::new()]),
+        PathMapping::new("@Alias/*", vec!["./src/*".to_owned().into()]),
+        PathMapping::new("@parent", vec!["../shared/parent".to_owned().into()]),
+        PathMapping::new("@absolute", vec!["/shared/absolute".to_owned().into()]),
+        PathMapping::new("@cwd", vec![String::new().into()]),
     ]);
     let mut resolver = ModuleResolver::new_with_program_options(&host, &options, &program_options)
         .expect("create cwd paths resolver");
@@ -2580,15 +2581,15 @@ fn paths_without_base_url_use_cwd_and_path_matching_remains_case_sensitive() {
     ] {
         let module = resolved(
             resolver
-                .resolve(
-                    Path::new("/Work/Project/main.ts"),
-                    specifier,
-                    ResolutionMode::CommonJs,
-                )
+                .resolve("/Work/Project/main.ts", specifier, ResolutionMode::CommonJs)
                 .expect("resolve cwd-relative paths mapping"),
         );
         assert_eq!(
-            module.resolved_file().canonical().as_path(),
+            module
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new(expected),
             "{specifier}"
         );
@@ -2596,7 +2597,7 @@ fn paths_without_base_url_use_cwd_and_path_matching_remains_case_sensitive() {
     assert_eq!(
         resolver
             .resolve(
-                Path::new("/Work/Project/main.ts"),
+                "/Work/Project/main.ts",
                 "@alias/Value",
                 ResolutionMode::CommonJs,
             )
@@ -2606,22 +2607,22 @@ fn paths_without_base_url_use_cwd_and_path_matching_remains_case_sensitive() {
 
     let base_options = CompilerOptions {
         module_resolution: Some(100),
-        base_url: Some("./base/../src".to_owned()),
+        base_url: Some("./base/../src".to_owned().into()),
         ..CompilerOptions::default()
     };
     let mut base_resolver =
         ModuleResolver::new(&host, &base_options).expect("normalize relative baseUrl from cwd");
     let module = resolved(
         base_resolver
-            .resolve(
-                Path::new("/Work/Project/main.ts"),
-                "Value",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/Work/Project/main.ts", "Value", ResolutionMode::CommonJs)
             .expect("resolve normalized baseUrl candidate"),
     );
     assert_eq!(
-        module.resolved_file().canonical().as_path(),
+        module
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/work/project/src/value.ts")
     );
 }
@@ -2638,10 +2639,16 @@ fn config_paths_use_their_declaring_base_while_base_url_fallback_stays_separate(
         .build()
         .expect("build config paths base host");
     let config_paths = ProgramOptions::default().with_config_paths(
-        vec![PathMapping::new("@config/*", vec!["./lib/*".to_owned()])],
+        vec![PathMapping::new(
+            "@config/*",
+            vec!["./lib/*".to_owned().into()],
+        )],
         "/declared",
     );
-    assert_eq!(config_paths.paths_base_path(), Some("/declared"));
+    assert_eq!(
+        config_paths.paths_base_path(),
+        (Some("/declared")).map(Into::into)
+    );
 
     let without_base_url = CompilerOptions {
         module_resolution: Some(100),
@@ -2653,30 +2660,26 @@ fn config_paths_use_their_declaring_base_while_base_url_fallback_stays_separate(
     let config = resolved(
         resolver
             .resolve(
-                Path::new("/project/main.ts"),
+                "/project/main.ts",
                 "@config/config",
                 ResolutionMode::CommonJs,
             )
             .expect("resolve relative to the paths-declaring config"),
     );
     assert_eq!(
-        config.resolved_file().display(),
+        config.resolved_file().display().scalar_test_path(),
         Path::new("/declared/lib/config.ts")
     );
     assert_eq!(
         resolver
-            .resolve(
-                Path::new("/project/main.ts"),
-                "unmatched",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/project/main.ts", "unmatched", ResolutionMode::CommonJs,)
             .expect("a paths base is not a baseUrl fallback"),
         ResolutionOutcome::NotFound
     );
 
     let with_base_url = CompilerOptions {
         module_resolution: Some(100),
-        base_url: Some("/base".to_owned()),
+        base_url: Some("/base".to_owned().into()),
         ..CompilerOptions::default()
     };
     let mut resolver =
@@ -2685,33 +2688,30 @@ fn config_paths_use_their_declaring_base_while_base_url_fallback_stays_separate(
     let overridden = resolved(
         resolver
             .resolve(
-                Path::new("/project/main.ts"),
+                "/project/main.ts",
                 "@config/override",
                 ResolutionMode::CommonJs,
             )
             .expect("baseUrl overrides pathsBasePath"),
     );
     assert_eq!(
-        overridden.resolved_file().display(),
+        overridden.resolved_file().display().scalar_test_path(),
         Path::new("/base/lib/override.ts")
     );
     let fallback = resolved(
         resolver
-            .resolve(
-                Path::new("/project/main.ts"),
-                "unmatched",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/project/main.ts", "unmatched", ResolutionMode::CommonJs)
             .expect("baseUrl remains the non-matching paths fallback"),
     );
     assert_eq!(
-        fallback.resolved_file().display(),
+        fallback.resolved_file().display().scalar_test_path(),
         Path::new("/base/unmatched.ts")
     );
 
-    let programmatic = config_paths
-        .clone()
-        .with_paths(vec![PathMapping::new("@cwd/*", vec!["./lib/*".to_owned()])]);
+    let programmatic = config_paths.clone().with_paths(vec![PathMapping::new(
+        "@cwd/*",
+        vec!["./lib/*".to_owned().into()],
+    )]);
     assert_eq!(
         programmatic.paths_base_path(),
         None,
@@ -2722,15 +2722,11 @@ fn config_paths_use_their_declaring_base_while_base_url_fallback_stays_separate(
             .expect("create cwd paths resolver after replacement");
     let cwd = resolved(
         resolver
-            .resolve(
-                Path::new("/project/main.ts"),
-                "@cwd/cwd",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/project/main.ts", "@cwd/cwd", ResolutionMode::CommonJs)
             .expect("programmatic paths retain cwd fallback"),
     );
     assert_eq!(
-        cwd.resolved_file().display(),
+        cwd.resolved_file().display().scalar_test_path(),
         Path::new("/project/lib/cwd.ts")
     );
 }
@@ -2756,17 +2752,16 @@ fn paths_host_failures_stop_before_later_substitutions() {
     };
     let program_options = ProgramOptions::default().with_paths(vec![PathMapping::new(
         "@value",
-        vec!["first/value".to_owned(), "second/value".to_owned()],
+        vec![
+            "first/value".to_owned().into(),
+            "second/value".to_owned().into(),
+        ],
     )]);
     let mut resolver = ModuleResolver::new_with_program_options(&host, &options, &program_options)
         .expect("create paths failure resolver");
 
     let error = resolver
-        .resolve(
-            Path::new("/work/main.ts"),
-            "@value",
-            ResolutionMode::CommonJs,
-        )
+        .resolve("/work/main.ts", "@value", ResolutionMode::CommonJs)
         .expect_err("first substitution host failure must not become a miss");
     assert_eq!(error, ResolutionError::Host(denied));
 }
@@ -2807,11 +2802,7 @@ fn root_dirs_reprobe_the_original_candidate_and_propagate_host_failures() {
             ModuleResolver::new_with_program_options(&host, &options, &program_options)
                 .expect("create rootDirs reprobe resolver");
         let error = resolver
-            .resolve(
-                Path::new("/work/src/app/main.ts"),
-                "./value",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/work/src/app/main.ts", "./value", ResolutionMode::CommonJs)
             .expect_err("the repeated original probe must expose its host failure");
         assert_eq!(error, ResolutionError::Host(failure));
 
@@ -2866,11 +2857,7 @@ fn root_dirs_reprobe_the_original_candidate_and_propagate_host_failures() {
             .expect("create duplicate alternate rootDirs resolver");
     assert_eq!(
         resolver
-            .resolve(
-                Path::new("/work/src/app/main.ts"),
-                "./value",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/work/src/app/main.ts", "./value", ResolutionMode::CommonJs,)
             .expect_err("equal non-matched roots retain duplicate observable probes"),
         ResolutionError::Host(failure)
     );
@@ -2904,7 +2891,7 @@ fn root_dirs_preflight_containing_directories_before_candidate_probes() {
         assert_eq!(
             resolver
                 .resolve(
-                    Path::new("/work/src/app/main.ts"),
+                    "/work/src/app/main.ts",
                     "./sub/value",
                     ResolutionMode::CommonJs,
                 )
@@ -2923,14 +2910,14 @@ fn root_dirs_preflight_containing_directories_before_candidate_probes() {
         let module = resolved(
             resolver
                 .resolve(
-                    Path::new("/else/main.ts"),
+                    "/else/main.ts",
                     "/work/src/app/value",
                     ResolutionMode::CommonJs,
                 )
                 .expect("skip an original candidate whose containing directory is absent"),
         );
         assert_eq!(
-            module.resolved_file().display(),
+            module.resolved_file().display().scalar_test_path(),
             Path::new("/work/gen/app/value.ts"),
             "moduleResolution={resolution_kind}"
         );
@@ -2952,7 +2939,7 @@ fn root_dirs_preflight_containing_directories_before_candidate_probes() {
         assert_eq!(
             resolver
                 .resolve(
-                    Path::new("/work/src/app/main.ts"),
+                    "/work/src/app/main.ts",
                     "./missing/value",
                     ResolutionMode::CommonJs,
                 )
@@ -2976,71 +2963,65 @@ fn diagnostic_class_paths_errors_remain_recoverable_during_resolution() {
         .expect("build recoverable paths validation host");
     let options = CompilerOptions {
         module_resolution: Some(100),
-        base_url: Some("/base".to_owned()),
+        base_url: Some("/base".to_owned().into()),
         ..CompilerOptions::default()
     };
     let empty_key_options = ProgramOptions::default().with_paths(vec![
-        PathMapping::new("", vec!["empty-key".to_owned()]),
-        PathMapping::new("*", vec!["wildcard".to_owned()]),
+        PathMapping::new("", vec!["empty-key".to_owned().into()]),
+        PathMapping::new("*", vec!["wildcard".to_owned().into()]),
     ]);
     let mut empty_key_resolver =
         ModuleResolver::new_with_program_options(&host, &options, &empty_key_options)
             .expect("create empty-key shadow resolver");
     let empty_key_falls_through = resolved(
         empty_key_resolver
-            .resolve(Path::new("/work/main.ts"), "", ResolutionMode::CommonJs)
+            .resolve("/work/main.ts", "", ResolutionMode::CommonJs)
             .expect("an empty exact key is falsey and shadows wildcard selection"),
     );
     assert_eq!(
-        empty_key_falls_through.resolved_file().display(),
+        empty_key_falls_through
+            .resolved_file()
+            .display()
+            .scalar_test_path(),
         Path::new("/base.ts"),
         "the wildcard candidate /base/wildcard.ts must not be selected"
     );
 
     let program_options = ProgramOptions::default().with_paths(vec![
-        PathMapping::new("", vec!["empty-key".to_owned()]),
-        PathMapping::new("two**", vec!["mapped".to_owned()]),
+        PathMapping::new("", vec!["empty-key".to_owned().into()]),
+        PathMapping::new("two**", vec!["mapped".to_owned().into()]),
         PathMapping::new("empty", Vec::new()),
-        PathMapping::new("multi", vec!["value**".to_owned()]),
+        PathMapping::new("multi", vec!["value**".to_owned().into()]),
     ]);
     let mut resolver = ModuleResolver::new_with_program_options(&host, &options, &program_options)
         .expect("option-diagnostic paths rows must not abort resolver construction");
 
     let skipped_pattern = resolved(
         resolver
-            .resolve(
-                Path::new("/work/main.ts"),
-                "two**",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/work/main.ts", "two**", ResolutionMode::CommonJs)
             .expect("a multi-star pattern is skipped before baseUrl fallback"),
     );
     assert_eq!(
-        skipped_pattern.resolved_file().display(),
+        skipped_pattern.resolved_file().display().scalar_test_path(),
         Path::new("/base/two**.ts")
     );
     assert_eq!(
         resolver
-            .resolve(
-                Path::new("/work/main.ts"),
-                "empty",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/work/main.ts", "empty", ResolutionMode::CommonJs,)
             .expect("an empty substitution list remains a supported miss"),
         ResolutionOutcome::NotFound,
         "a matched empty list owns the miss instead of falling back to baseUrl"
     );
     let multi_star_substitution = resolved(
         resolver
-            .resolve(
-                Path::new("/work/main.ts"),
-                "multi",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/work/main.ts", "multi", ResolutionMode::CommonJs)
             .expect("a diagnostic-class substitution remains resolver input"),
     );
     assert_eq!(
-        multi_star_substitution.resolved_file().display(),
+        multi_star_substitution
+            .resolved_file()
+            .display()
+            .scalar_test_path(),
         Path::new("/base/value**.ts")
     );
 }
@@ -3054,12 +3035,12 @@ fn structurally_malformed_paths_configuration_fails_before_resolution() {
     let options = CompilerOptions::default();
     let malformed = [
         ProgramOptions::default().with_paths(vec![
-            PathMapping::new("dup", vec!["first".to_owned()]),
-            PathMapping::new("dup", vec!["second".to_owned()]),
+            PathMapping::new("dup", vec!["first".to_owned().into()]),
+            PathMapping::new("dup", vec!["second".to_owned().into()]),
         ]),
         ProgramOptions::default().with_paths(vec![PathMapping::new(
             "nul",
-            vec!["value\0path".to_owned()],
+            vec!["value\0path".to_owned().into()],
         )]),
     ];
 
@@ -3078,11 +3059,11 @@ fn structurally_malformed_paths_configuration_fails_before_resolution() {
     for program_options in [
         ProgramOptions::default().with_paths(vec![PathMapping::new(
             "unc",
-            vec![r"\\server\share\*".to_owned()],
+            vec![r"\\server\share\*".to_owned().into()],
         )]),
         ProgramOptions::default().with_paths(vec![PathMapping::new(
             "drive",
-            vec!["C:relative/*".to_owned()],
+            vec!["C:relative/*".to_owned().into()],
         )]),
     ] {
         ModuleResolver::new_with_program_options(&host, &options, &program_options)
@@ -3092,7 +3073,7 @@ fn structurally_malformed_paths_configuration_fails_before_resolution() {
     {
         let base_url = "\0";
         let options = CompilerOptions {
-            base_url: Some(base_url.to_owned()),
+            base_url: Some(base_url.to_owned().into()),
             ..CompilerOptions::default()
         };
         let error = match ModuleResolver::new(&host, &options) {
@@ -3107,7 +3088,7 @@ fn structurally_malformed_paths_configuration_fails_before_resolution() {
 
     for base_url in [r"\\server\share", "C:relative"] {
         let options = CompilerOptions {
-            base_url: Some(base_url.to_owned()),
+            base_url: Some(base_url.to_owned().into()),
             ..CompilerOptions::default()
         };
         ModuleResolver::new(&host, &options)
@@ -3133,7 +3114,7 @@ fn root_dirs_require_normalized_paths_and_match_display_case() {
         Ok(_) => panic!("non-normalized rootDirs path must fail closed"),
         Err(error) => error,
     };
-    let ResolutionError::Canonicalization { path, detail } = error else {
+    let ResolutionError::Canonicalization { path, detail, .. } = error else {
         panic!("expected rootDirs canonicalization failure, got {error:?}");
     };
     assert_eq!(
@@ -3159,11 +3140,7 @@ fn root_dirs_require_normalized_paths_and_match_display_case() {
             .expect("accept normalized case-insensitive rootDirs identities");
     assert_eq!(
         resolver
-            .resolve(
-                Path::new("/work/src/app/main.ts"),
-                "./value",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/work/src/app/main.ts", "./value", ResolutionMode::CommonJs,)
             .expect("case-distinct display prefix is a supported miss"),
         ResolutionOutcome::NotFound
     );
@@ -3193,22 +3170,22 @@ fn optional_local_file_probe_does_not_read_an_ancestor_package() {
     };
     let program_options = ProgramOptions::default().with_paths(vec![PathMapping::new(
         "value",
-        vec!["src/value".to_owned()],
+        vec!["src/value".to_owned().into()],
     )]);
     let mut resolver = ModuleResolver::new_with_program_options(&host, &options, &program_options)
         .expect("create local optional resolver");
 
     let module = resolved(
         resolver
-            .resolve(
-                Path::new("/work/main.ts"),
-                "value",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/work/main.ts", "value", ResolutionMode::CommonJs)
             .expect("resolve before unrelated ancestor package metadata"),
     );
     assert_eq!(
-        module.resolved_file().canonical().as_path(),
+        module
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/work/src/value.ts")
     );
     assert_eq!(module.package_id(), None);
@@ -3241,23 +3218,29 @@ fn optional_external_files_use_the_package_root_and_follow_realpath() {
         ..CompilerOptions::default()
     };
     let program_options = ProgramOptions::default().with_paths(vec![
-        PathMapping::new("value", vec!["node_modules/pkg/sub/value".to_owned()]),
-        PathMapping::new("exact", vec!["node_modules/pkg/sub/value.ts".to_owned()]),
+        PathMapping::new(
+            "value",
+            vec!["node_modules/pkg/sub/value".to_owned().into()],
+        ),
+        PathMapping::new(
+            "exact",
+            vec!["node_modules/pkg/sub/value.ts".to_owned().into()],
+        ),
     ]);
     let mut resolver = ModuleResolver::new_with_program_options(&host, &options, &program_options)
         .expect("create external optional resolver");
 
     let module = resolved(
         resolver
-            .resolve(
-                Path::new("/work/main.ts"),
-                "value",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/work/main.ts", "value", ResolutionMode::CommonJs)
             .expect("resolve external optional file"),
     );
     assert_eq!(
-        module.resolved_file().canonical().as_path(),
+        module
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/store/pkg/sub/value.ts")
     );
     assert_eq!(
@@ -3265,7 +3248,8 @@ fn optional_external_files_use_the_package_root_and_follow_realpath() {
             .original_path()
             .expect("external lexical path is retained")
             .canonical()
-            .as_path(),
+            .as_js()
+            .scalar_test_path(),
         Path::new("/work/node_modules/pkg/sub/value.ts")
     );
     let package_id = module.package_id().expect("node package id is attached");
@@ -3275,20 +3259,16 @@ fn optional_external_files_use_the_package_root_and_follow_realpath() {
         module
             .package_metadata()
             .and_then(|metadata| metadata.name()),
-        Some("pkg")
+        (Some("pkg")).map(Into::into)
     );
 
     let exact = resolved(
         resolver
-            .resolve(
-                Path::new("/work/main.ts"),
-                "exact",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/work/main.ts", "exact", ResolutionMode::CommonJs)
             .expect("resolve exact-extension external optional file"),
     );
     assert_eq!(
-        exact.resolved_file().canonical().as_path(),
+        exact.resolved_file().canonical().as_js().scalar_test_path(),
         Path::new("/store/pkg/sub/value.ts")
     );
     assert!(exact.original_path().is_some());
@@ -3352,24 +3332,19 @@ fn preserve_symlinks_keeps_upstream_module_and_type_reference_results_lexical() 
             None => ModuleResolver::new(&host, &options).expect("create the default resolver"),
         };
         let ResolutionOutcome::Resolved(type_reference) = resolver
-            .resolve_type_reference(
-                Path::new("/app/app.ts"),
-                "linked",
-                ResolutionMode::Unspecified,
-                None,
-            )
+            .resolve_type_reference("/app/app.ts", "linked", ResolutionMode::Unspecified, None)
             .expect("resolve the upstream type reference")
         else {
             panic!("expected the upstream type reference to resolve");
         };
         let linked = resolved(
             resolver
-                .resolve(Path::new("/app/app.ts"), "linked", ResolutionMode::EsNext)
+                .resolve("/app/app.ts", "linked", ResolutionMode::EsNext)
                 .expect("resolve the first upstream import"),
         );
         let linked2 = resolved(
             resolver
-                .resolve(Path::new("/app/app.ts"), "linked2", ResolutionMode::EsNext)
+                .resolve("/app/app.ts", "linked2", ResolutionMode::EsNext)
                 .expect("resolve the second upstream import"),
         );
         (type_reference, linked, linked2)
@@ -3383,7 +3358,11 @@ fn preserve_symlinks_keeps_upstream_module_and_type_reference_results_lexical() 
     assert!(host.calls.borrow().is_empty());
     let (preserved_reference, preserved_linked, preserved_linked2) = &preserved;
     assert_eq!(
-        preserved_reference.resolved_file().canonical().as_path(),
+        preserved_reference
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/app/node_modules/linked/index.d.ts")
     );
     assert_eq!(preserved_reference.original_path(), None);
@@ -3400,7 +3379,14 @@ fn preserve_symlinks_keeps_upstream_module_and_type_reference_results_lexical() 
             Path::new("/app/node_modules/linked2/index.d.ts"),
         ),
     ] {
-        assert_eq!(module.resolved_file().canonical().as_path(), expected);
+        assert_eq!(
+            module
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
+            expected
+        );
         assert_eq!(module.original_path(), None);
         assert!(module.is_external_library_import());
         assert_eq!(module.extension(), &ModuleExtension::Dts);
@@ -3422,7 +3408,11 @@ fn preserve_symlinks_keeps_upstream_module_and_type_reference_results_lexical() 
 
     let (followed_reference, followed_linked, followed_linked2) = &omitted_results;
     assert_eq!(
-        followed_reference.resolved_file().canonical().as_path(),
+        followed_reference
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/linked/index.d.ts")
     );
     assert_eq!(
@@ -3430,7 +3420,8 @@ fn preserve_symlinks_keeps_upstream_module_and_type_reference_results_lexical() 
             .original_path()
             .expect("retain the type reference's lexical link")
             .canonical()
-            .as_path(),
+            .as_js()
+            .scalar_test_path(),
         Path::new("/app/node_modules/linked/index.d.ts")
     );
     for (module, expected_original) in [
@@ -3444,7 +3435,11 @@ fn preserve_symlinks_keeps_upstream_module_and_type_reference_results_lexical() 
         ),
     ] {
         assert_eq!(
-            module.resolved_file().canonical().as_path(),
+            module
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new("/linked/index.d.ts")
         );
         assert_eq!(
@@ -3452,7 +3447,8 @@ fn preserve_symlinks_keeps_upstream_module_and_type_reference_results_lexical() 
                 .original_path()
                 .expect("retain the module's lexical link")
                 .canonical()
-                .as_path(),
+                .as_js()
+                .scalar_test_path(),
             expected_original
         );
     }
@@ -3492,10 +3488,10 @@ fn optional_directory_targets_classify_the_final_path_before_realpath() {
         ..CompilerOptions::default()
     };
     let program_options = ProgramOptions::default().with_paths(vec![
-        PathMapping::new("into-node-modules", vec!["local".to_owned()]),
+        PathMapping::new("into-node-modules", vec!["local".to_owned().into()]),
         PathMapping::new(
             "out-of-node-modules",
-            vec!["node_modules/escape".to_owned()],
+            vec!["node_modules/escape".to_owned().into()],
         ),
     ]);
     let mut resolver = ModuleResolver::new_with_program_options(&host, &options, &program_options)
@@ -3504,18 +3500,21 @@ fn optional_directory_targets_classify_the_final_path_before_realpath() {
     let external = resolved(
         resolver
             .resolve(
-                Path::new("/work/main.ts"),
+                "/work/main.ts",
                 "into-node-modules",
                 ResolutionMode::CommonJs,
             )
             .expect("a local optional package target may become external"),
     );
     assert_eq!(
-        external.resolved_file().display(),
+        external.resolved_file().display().scalar_test_path(),
         Path::new("/store/pkg/value.js")
     );
     assert_eq!(
-        external.original_path().map(ProgramPath::display),
+        external
+            .original_path()
+            .map(ProgramPath::display)
+            .map(|path| path.scalar_test_path()),
         Some(Path::new("/work/node_modules/pkg/value.js"))
     );
     assert!(external.is_external_library_import());
@@ -3523,14 +3522,14 @@ fn optional_directory_targets_classify_the_final_path_before_realpath() {
     let local = resolved(
         resolver
             .resolve(
-                Path::new("/work/main.ts"),
+                "/work/main.ts",
                 "out-of-node-modules",
                 ResolutionMode::CommonJs,
             )
             .expect("an external optional package target may become local"),
     );
     assert_eq!(
-        local.resolved_file().display(),
+        local.resolved_file().display().scalar_test_path(),
         Path::new("/work/outside/value.js")
     );
     assert_eq!(local.original_path(), None);
@@ -3549,7 +3548,7 @@ fn arbitrary_extension_twins_resolve_in_legacy_and_node_esm_modes() {
         .expect("build arbitrary declaration-twin host");
     let program_options = ProgramOptions::default().with_paths(vec![PathMapping::new(
         "theme",
-        vec!["src/theme.css".to_owned()],
+        vec!["src/theme.css".to_owned().into()],
     )]);
 
     for resolution_kind in [1, 2, 3, 99, 100] {
@@ -3567,17 +3566,21 @@ fn arbitrary_extension_twins_resolve_in_legacy_and_node_esm_modes() {
         };
         let module = resolved(
             resolver
-                .resolve(Path::new("/work/main.ts"), "theme", mode)
+                .resolve("/work/main.ts", "theme", mode)
                 .expect("resolve arbitrary declaration twin"),
         );
         assert_eq!(
-            module.resolved_file().canonical().as_path(),
+            module
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new("/work/src/theme.d.css.ts"),
             "moduleResolution={resolution_kind}"
         );
         assert_eq!(
             module.extension(),
-            &ModuleExtension::Arbitrary(".d.css.ts".to_owned())
+            &ModuleExtension::Arbitrary(".d.css.ts".to_owned().into())
         );
     }
 }
@@ -3609,10 +3612,10 @@ fn empty_captures_keep_the_literal_star_and_paths_precede_modern_package_maps() 
         ..CompilerOptions::default()
     };
     let program_options = ProgramOptions::default().with_paths(vec![
-        PathMapping::new("foo*", vec!["literal/*.ts".to_owned()]),
-        PathMapping::new("#mapped", vec!["paths/imports.ts".to_owned()]),
-        PathMapping::new("#fallback", vec!["missing/imports".to_owned()]),
-        PathMapping::new("app/self", vec!["paths/self.ts".to_owned()]),
+        PathMapping::new("foo*", vec!["literal/*.ts".to_owned().into()]),
+        PathMapping::new("#mapped", vec!["paths/imports.ts".to_owned().into()]),
+        PathMapping::new("#fallback", vec!["missing/imports".to_owned().into()]),
+        PathMapping::new("app/self", vec!["paths/self.ts".to_owned().into()]),
     ]);
     let mut resolver = ModuleResolver::new_with_program_options(&host, &options, &program_options)
         .expect("create paths/package-map resolver");
@@ -3626,15 +3629,15 @@ fn empty_captures_keep_the_literal_star_and_paths_precede_modern_package_maps() 
     ] {
         let module = resolved(
             resolver
-                .resolve(
-                    Path::new("/work/main.ts"),
-                    specifier,
-                    ResolutionMode::EsNext,
-                )
+                .resolve("/work/main.ts", specifier, ResolutionMode::EsNext)
                 .expect("resolve paths/package-map precedence candidate"),
         );
         assert_eq!(
-            module.resolved_file().canonical().as_path(),
+            module
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new(expected),
             "{specifier}"
         );
@@ -3700,26 +3703,22 @@ fn classic_resolution_is_bounded_to_legacy_files_and_at_types() {
     ] {
         let module = resolved(
             resolver
-                .resolve(
-                    Path::new("/work/src/app.ts"),
-                    specifier,
-                    ResolutionMode::EsNext,
-                )
+                .resolve("/work/src/app.ts", specifier, ResolutionMode::EsNext)
                 .expect("resolve a Classic legacy target"),
         );
         assert_eq!(
-            module.resolved_file().canonical().as_path(),
+            module
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new(expected)
         );
     }
 
     assert_eq!(
         resolver
-            .resolve(
-                Path::new("/work/src/app.ts"),
-                "direct",
-                ResolutionMode::EsNext,
-            )
+            .resolve("/work/src/app.ts", "direct", ResolutionMode::EsNext,)
             .expect("ordinary node_modules packages are outside Classic"),
         ResolutionOutcome::NotFound
     );
@@ -3729,7 +3728,7 @@ fn classic_resolution_is_bounded_to_legacy_files_and_at_types() {
         ResolutionMode::CommonJs,
     ] {
         let facts = resolver
-            .resolve_with_facts(Path::new("/work/src/app.ts"), "foo", mode)
+            .resolve_with_facts("/work/src/app.ts", "foo", mode)
             .expect("Classic exports-only @types package is an authoritative miss");
         assert_eq!(facts.outcome(), &ResolutionOutcome::NotFound);
         assert_eq!(facts.alternate_result(), None);
@@ -3762,7 +3761,7 @@ fn node10_primary_miss_retains_the_bundler_declaration_alternate() {
     let mut resolver = ModuleResolver::new(&host, &options).expect("create Node10 resolver");
 
     let facts = resolver
-        .resolve_with_facts(Path::new("/index.ts"), "pkg", ResolutionMode::Unspecified)
+        .resolve_with_facts("/index.ts", "pkg", ResolutionMode::Unspecified)
         .expect("resolve Node10 primary and diagnostic alternate");
     assert_eq!(facts.outcome(), &ResolutionOutcome::NotFound);
     assert_eq!(
@@ -3770,13 +3769,14 @@ fn node10_primary_miss_retains_the_bundler_declaration_alternate() {
             .alternate_result()
             .expect("Bundler preferred retry finds the declaration twin")
             .canonical()
-            .as_path(),
+            .as_js()
+            .scalar_test_path(),
         Path::new("/node_modules/pkg/definitely-not-index.d.ts")
     );
 
     assert_eq!(
         resolver
-            .resolve(Path::new("/index.ts"), "pkg", ResolutionMode::Unspecified)
+            .resolve("/index.ts", "pkg", ResolutionMode::Unspecified)
             .expect("legacy wrapper keeps the primary outcome"),
         ResolutionOutcome::NotFound
     );
@@ -3884,23 +3884,23 @@ fn node10_legacy_primary_and_bundler_retry_keep_their_exact_boundaries() {
     let mut resolver = ModuleResolver::new(&host, &options).expect("create Node10 resolver");
 
     let typed = resolver
-        .resolve_with_facts(Path::new("/index.ts"), "typed", ResolutionMode::Unspecified)
+        .resolve_with_facts("/index.ts", "typed", ResolutionMode::Unspecified)
         .expect("Node10 legacy types field wins");
     let ResolutionOutcome::Resolved(typed_primary) = typed.outcome() else {
         panic!("expected typed legacy primary: {typed:#?}");
     };
     assert_eq!(
-        typed_primary.resolved_file().canonical().as_path(),
+        typed_primary
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/node_modules/typed/legacy.d.ts")
     );
     assert_eq!(typed.alternate_result(), None);
 
     let untyped = resolver
-        .resolve_with_facts(
-            Path::new("/index.ts"),
-            "untyped",
-            ResolutionMode::Unspecified,
-        )
+        .resolve_with_facts("/index.ts", "untyped", ResolutionMode::Unspecified)
         .expect("Node10 JavaScript primary retains a declaration alternate");
     let ResolutionOutcome::Resolved(untyped_primary) = untyped.outcome() else {
         panic!("expected untyped legacy primary: {untyped:#?}");
@@ -3911,26 +3911,19 @@ fn node10_legacy_primary_and_bundler_retry_keep_their_exact_boundaries() {
             .alternate_result()
             .expect("Bundler retry finds modern types")
             .canonical()
-            .as_path(),
+            .as_js()
+            .scalar_test_path(),
         Path::new("/node_modules/untyped/modern.d.ts")
     );
 
     let js_only = resolver
-        .resolve_with_facts(
-            Path::new("/index.ts"),
-            "js-only",
-            ResolutionMode::Unspecified,
-        )
+        .resolve_with_facts("/index.ts", "js-only", ResolutionMode::Unspecified)
         .expect("preferred-only retry does not accept JavaScript");
     assert_eq!(js_only.outcome(), &ResolutionOutcome::NotFound);
     assert_eq!(js_only.alternate_result(), None);
 
     let conditions = resolver
-        .resolve_with_facts(
-            Path::new("/index.ts"),
-            "conditions",
-            ResolutionMode::Unspecified,
-        )
+        .resolve_with_facts("/index.ts", "conditions", ResolutionMode::Unspecified)
         .expect("Bundler retry uses Bundler default conditions");
     assert_eq!(conditions.outcome(), &ResolutionOutcome::NotFound);
     assert_eq!(
@@ -3938,16 +3931,13 @@ fn node10_legacy_primary_and_bundler_retry_keep_their_exact_boundaries() {
             .alternate_result()
             .expect("Bundler defaults select import and exclude node")
             .canonical()
-            .as_path(),
+            .as_js()
+            .scalar_test_path(),
         Path::new("/node_modules/conditions/import.d.ts")
     );
 
     let manifestless = resolver
-        .resolve_with_facts(
-            Path::new("/index.ts"),
-            "manifestless",
-            ResolutionMode::Unspecified,
-        )
+        .resolve_with_facts("/index.ts", "manifestless", ResolutionMode::Unspecified)
         .expect("an observed @types package manifest enables Bundler retry");
     assert_eq!(manifestless.outcome(), &ResolutionOutcome::NotFound);
     assert_eq!(
@@ -3955,16 +3945,13 @@ fn node10_legacy_primary_and_bundler_retry_keep_their_exact_boundaries() {
             .alternate_result()
             .expect("Bundler retry honors the observed @types exports")
             .canonical()
-            .as_path(),
+            .as_js()
+            .scalar_test_path(),
         Path::new("/node_modules/@types/manifestless/modern.d.ts")
     );
 
     let no_manifests = resolver
-        .resolve_with_facts(
-            Path::new("/index.ts"),
-            "no-manifests",
-            ResolutionMode::Unspecified,
-        )
+        .resolve_with_facts("/index.ts", "no-manifests", ResolutionMode::Unspecified)
         .expect("manifestless package directories do not enable Bundler retry");
     assert_eq!(no_manifests.outcome(), &ResolutionOutcome::NotFound);
     assert_eq!(no_manifests.alternate_result(), None);
@@ -4035,11 +4022,11 @@ fn node10_explicit_modes_enable_all_features_and_select_conditions() {
     ] {
         let module = resolved(
             resolver
-                .resolve(Path::new("/work/main.ts"), "pkg", mode)
+                .resolve("/work/main.ts", "pkg", mode)
                 .expect("resolve a Node10 mode-aware package"),
         );
         assert_eq!(
-            module.resolved_file().display(),
+            module.resolved_file().display().scalar_test_path(),
             Path::new(expected),
             "{mode:?}"
         );
@@ -4053,21 +4040,20 @@ fn node10_explicit_modes_enable_all_features_and_select_conditions() {
     let mut resolver =
         ModuleResolver::new(&host, &exports_disabled).expect("create explicit Node10 resolver");
     let facts = resolver
-        .resolve_with_facts(
-            Path::new("/work/main.ts"),
-            "diagnostic",
-            ResolutionMode::CommonJs,
-        )
+        .resolve_with_facts("/work/main.ts", "diagnostic", ResolutionMode::CommonJs)
         .expect("explicit Node10 and its Bundler retry force package exports");
     let ResolutionOutcome::Resolved(primary) = facts.outcome() else {
         panic!("expected the CommonJS exports implementation: {facts:#?}");
     };
     assert_eq!(
-        primary.resolved_file().display(),
+        primary.resolved_file().display().scalar_test_path(),
         Path::new("/work/node_modules/diagnostic/require.js")
     );
     assert_eq!(
-        facts.alternate_result().map(ProgramPath::display),
+        facts
+            .alternate_result()
+            .map(ProgramPath::display)
+            .map(|path| path.scalar_test_path()),
         Some(Path::new("/work/node_modules/diagnostic/import.d.ts"))
     );
 }
@@ -4108,15 +4094,11 @@ fn node16_and_nodenext_keep_fixed_package_map_features_but_bundler_applies_overr
         let mut resolver = ModuleResolver::new(&host, &options).expect("create profile resolver");
         let module = resolved(
             resolver
-                .resolve(
-                    Path::new("/work/main.mts"),
-                    "profile",
-                    ResolutionMode::EsNext,
-                )
+                .resolve("/work/main.mts", "profile", ResolutionMode::EsNext)
                 .expect("resolve with the profile's package-map features"),
         );
         assert_eq!(
-            module.resolved_file().display(),
+            module.resolved_file().display().scalar_test_path(),
             Path::new(expected),
             "moduleResolution={module_resolution}"
         );
@@ -4179,7 +4161,7 @@ fn classic_and_node10_type_references_share_the_node_style_primary_secondary_spi
 
         let ResolutionOutcome::Resolved(direct) = resolver
             .resolve_type_reference(
-                Path::new("/work/project/src/main.ts"),
+                "/work/project/src/main.ts",
                 "direct",
                 ResolutionMode::Unspecified,
                 Some(std::slice::from_ref(&custom_root)),
@@ -4189,7 +4171,11 @@ fn classic_and_node10_type_references_share_the_node_style_primary_secondary_spi
             panic!("expected direct custom-root type reference");
         };
         assert_eq!(
-            direct.resolved_file().canonical().as_path(),
+            direct
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new("/work/custom/direct.d.ts")
         );
         assert!(direct.primary());
@@ -4197,7 +4183,7 @@ fn classic_and_node10_type_references_share_the_node_style_primary_secondary_spi
 
         let ResolutionOutcome::Resolved(package) = resolver
             .resolve_type_reference(
-                Path::new("/work/project/src/main.ts"),
+                "/work/project/src/main.ts",
                 "pkg",
                 ResolutionMode::Unspecified,
                 Some(std::slice::from_ref(&custom_root)),
@@ -4207,18 +4193,22 @@ fn classic_and_node10_type_references_share_the_node_style_primary_secondary_spi
             panic!("expected custom-root package type reference");
         };
         assert_eq!(
-            package.resolved_file().canonical().as_path(),
+            package
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new("/work/custom/pkg/legacy.d.ts")
         );
         assert_eq!(
             package.package_id().map(PackageId::name),
-            Some("custom-pkg")
+            (Some("custom-pkg")).map(Into::into)
         );
         assert!(package.primary());
 
         let ResolutionOutcome::Resolved(linked) = resolver
             .resolve_type_reference(
-                Path::new("/work/project/src/main.ts"),
+                "/work/project/src/main.ts",
                 "linked",
                 ResolutionMode::Unspecified,
                 Some(std::slice::from_ref(&custom_root)),
@@ -4228,7 +4218,11 @@ fn classic_and_node10_type_references_share_the_node_style_primary_secondary_spi
             panic!("expected linked custom-root type reference");
         };
         assert_eq!(
-            linked.resolved_file().canonical().as_path(),
+            linked
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new("/physical/linked.d.ts")
         );
         assert_eq!(
@@ -4236,14 +4230,15 @@ fn classic_and_node10_type_references_share_the_node_style_primary_secondary_spi
                 .original_path()
                 .expect("retain the lexical custom-root path")
                 .canonical()
-                .as_path(),
+                .as_js()
+                .scalar_test_path(),
             Path::new("/work/custom/linked.d.ts")
         );
         assert!(linked.primary());
 
         let ResolutionOutcome::Resolved(defaulted) = resolver
             .resolve_type_reference(
-                Path::new("/work/project/src/main.ts"),
+                "/work/project/src/main.ts",
                 "defaulted",
                 ResolutionMode::Unspecified,
                 None,
@@ -4253,19 +4248,23 @@ fn classic_and_node10_type_references_share_the_node_style_primary_secondary_spi
             panic!("expected default-root type reference");
         };
         assert_eq!(
-            defaulted.resolved_file().canonical().as_path(),
+            defaulted
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new("/work/project/node_modules/@types/defaulted/index.d.ts")
         );
         assert!(defaulted.primary());
         assert!(defaulted.is_external_library_import());
         assert_eq!(
             defaulted.package_id().map(PackageId::name),
-            Some("@types/defaulted")
+            (Some("@types/defaulted")).map(Into::into)
         );
 
         let ResolutionOutcome::Resolved(secondary) = resolver
             .resolve_type_reference(
-                Path::new("/work/project/src/main.ts"),
+                "/work/project/src/main.ts",
                 "secondary",
                 ResolutionMode::Unspecified,
                 Some(&no_primary_roots),
@@ -4275,7 +4274,11 @@ fn classic_and_node10_type_references_share_the_node_style_primary_secondary_spi
             panic!("expected secondary type reference");
         };
         assert_eq!(
-            secondary.resolved_file().canonical().as_path(),
+            secondary
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new("/work/project/src/node_modules/secondary/index.d.ts")
         );
         assert!(!secondary.primary());
@@ -4283,7 +4286,7 @@ fn classic_and_node10_type_references_share_the_node_style_primary_secondary_spi
 
         let ResolutionOutcome::Resolved(relative) = resolver
             .resolve_type_reference(
-                Path::new("/work/project/src/main.ts"),
+                "/work/project/src/main.ts",
                 "./relative",
                 ResolutionMode::Unspecified,
                 Some(&no_primary_roots),
@@ -4293,7 +4296,11 @@ fn classic_and_node10_type_references_share_the_node_style_primary_secondary_spi
             panic!("expected relative type reference");
         };
         assert_eq!(
-            relative.resolved_file().canonical().as_path(),
+            relative
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new("/work/project/src/relative.d.ts")
         );
         assert!(!relative.primary());
@@ -4378,7 +4385,7 @@ fn legacy_type_reference_modes_enable_exports_only_for_secondary_lookup() {
         ] {
             let ResolutionOutcome::Resolved(reference) = resolver
                 .resolve_type_reference(
-                    Path::new("/work/main.ts"),
+                    "/work/main.ts",
                     "conditional",
                     mode,
                     Some(std::slice::from_ref(&type_root)),
@@ -4388,13 +4395,17 @@ fn legacy_type_reference_modes_enable_exports_only_for_secondary_lookup() {
                 panic!("expected legacy conditional type reference");
             };
             assert_eq!(
-                reference.resolved_file().canonical().as_path(),
+                reference
+                    .resolved_file()
+                    .canonical()
+                    .as_js()
+                    .scalar_test_path(),
                 Path::new("/work/types/conditional/legacy.d.ts")
             );
             assert_eq!(reference.extension(), &ModuleExtension::Dts);
             assert_eq!(
                 reference.package_id().map(PackageId::name),
-                Some("conditional-types")
+                (Some("conditional-types")).map(Into::into)
             );
             assert!(reference.primary());
         }
@@ -4417,24 +4428,23 @@ fn legacy_type_reference_modes_enable_exports_only_for_secondary_lookup() {
             ),
         ] {
             let ResolutionOutcome::Resolved(reference) = resolver
-                .resolve_type_reference(
-                    Path::new("/work/main.ts"),
-                    "secondary-conditional",
-                    mode,
-                    Some(&[]),
-                )
+                .resolve_type_reference("/work/main.ts", "secondary-conditional", mode, Some(&[]))
                 .expect("resolve a secondary legacy conditional type reference")
             else {
                 panic!("expected secondary legacy conditional type reference");
             };
             assert_eq!(
-                reference.resolved_file().canonical().as_path(),
+                reference
+                    .resolved_file()
+                    .canonical()
+                    .as_js()
+                    .scalar_test_path(),
                 Path::new(expected)
             );
             assert_eq!(reference.extension(), &extension);
             assert_eq!(
                 reference.package_id().map(PackageId::name),
-                Some("secondary-conditional-types")
+                (Some("secondary-conditional-types")).map(Into::into)
             );
             assert!(!reference.primary());
         }
@@ -4493,14 +4503,14 @@ fn node10_unspecified_type_reference_exports_use_an_empty_condition_set() {
         let options = CompilerOptions {
             module_resolution: Some(module_resolution),
             resolve_package_json_exports: Some(true),
-            custom_conditions: Some(vec!["custom".to_owned()]),
+            custom_conditions: Some(vec!["custom".to_owned().into()]),
             ..CompilerOptions::default()
         };
         let mut resolver =
             ModuleResolver::new(&host, &options).expect("create legacy type resolver");
         let ResolutionOutcome::Resolved(reference) = resolver
             .resolve_type_reference(
-                Path::new("/work/main.ts"),
+                "/work/main.ts",
                 "conditions",
                 ResolutionMode::Unspecified,
                 Some(&no_primary_roots),
@@ -4510,7 +4520,11 @@ fn node10_unspecified_type_reference_exports_use_an_empty_condition_set() {
             panic!("expected legacy conditional type reference");
         };
         assert_eq!(
-            reference.resolved_file().canonical().as_path(),
+            reference
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new(expected)
         );
         assert!(!reference.primary());
@@ -4584,7 +4598,7 @@ fn type_reference_exports_pattern_trailers_follow_node_feature_profiles() {
         ] {
             let trailer = resolver
                 .resolve_type_reference(
-                    Path::new("/work/main.ts"),
+                    "/work/main.ts",
                     "trailer/entry.js",
                     mode,
                     Some(&no_primary_roots),
@@ -4599,7 +4613,11 @@ fn type_reference_exports_pattern_trailers_follow_node_feature_profiles() {
                     );
                 };
                 assert_eq!(
-                    reference.resolved_file().canonical().as_path(),
+                    reference
+                        .resolved_file()
+                        .canonical()
+                        .as_js()
+                        .scalar_test_path(),
                     Path::new("/work/node_modules/trailer/types/entry.d.ts"),
                     "moduleResolution={resolution_kind}, mode={mode:?}"
                 );
@@ -4613,7 +4631,7 @@ fn type_reference_exports_pattern_trailers_follow_node_feature_profiles() {
 
             let ResolutionOutcome::Resolved(terminal) = resolver
                 .resolve_type_reference(
-                    Path::new("/work/main.ts"),
+                    "/work/main.ts",
                     "terminal/entry",
                     mode,
                     Some(&no_primary_roots),
@@ -4625,14 +4643,18 @@ fn type_reference_exports_pattern_trailers_follow_node_feature_profiles() {
                 );
             };
             assert_eq!(
-                terminal.resolved_file().canonical().as_path(),
+                terminal
+                    .resolved_file()
+                    .canonical()
+                    .as_js()
+                    .scalar_test_path(),
                 Path::new("/work/node_modules/terminal/types/entry.d.ts"),
                 "moduleResolution={resolution_kind}, mode={mode:?}"
             );
 
             let ResolutionOutcome::Resolved(literal) = resolver
                 .resolve_type_reference(
-                    Path::new("/work/main.ts"),
+                    "/work/main.ts",
                     "literal/x*y/file.d.ts",
                     mode,
                     Some(&no_primary_roots),
@@ -4644,7 +4666,11 @@ fn type_reference_exports_pattern_trailers_follow_node_feature_profiles() {
                 );
             };
             assert_eq!(
-                literal.resolved_file().canonical().as_path(),
+                literal
+                    .resolved_file()
+                    .canonical()
+                    .as_js()
+                    .scalar_test_path(),
                 Path::new("/work/node_modules/literal/literal/file.d.ts"),
                 "moduleResolution={resolution_kind}, mode={mode:?}"
             );
@@ -4746,7 +4772,7 @@ fn legacy_secondary_subpaths_honor_nested_packages_for_ordinary_and_at_types_loo
         ] {
             let ResolutionOutcome::Resolved(reference) = resolver
                 .resolve_type_reference(
-                    Path::new("/work/main.ts"),
+                    "/work/main.ts",
                     specifier,
                     ResolutionMode::Unspecified,
                     Some(&no_primary_roots),
@@ -4756,17 +4782,24 @@ fn legacy_secondary_subpaths_honor_nested_packages_for_ordinary_and_at_types_loo
                 panic!("expected secondary subpath type reference for {specifier}");
             };
             assert_eq!(
-                reference.resolved_file().canonical().as_path(),
+                reference
+                    .resolved_file()
+                    .canonical()
+                    .as_js()
+                    .scalar_test_path(),
                 Path::new(expected)
             );
-            assert_eq!(reference.package_id().map(PackageId::name), package_name);
+            assert_eq!(
+                reference.package_id().map(PackageId::name),
+                (package_name).map(Into::into)
+            );
             assert!(!reference.primary());
             assert!(reference.is_external_library_import());
         }
 
         let ResolutionOutcome::Resolved(governed) = resolver
             .resolve_type_reference(
-                Path::new("/work/main.ts"),
+                "/work/main.ts",
                 "governed/sub",
                 ResolutionMode::CommonJs,
                 Some(&no_primary_roots),
@@ -4776,12 +4809,16 @@ fn legacy_secondary_subpaths_honor_nested_packages_for_ordinary_and_at_types_loo
             panic!("expected root-governed secondary subpath");
         };
         assert_eq!(
-            governed.resolved_file().canonical().as_path(),
+            governed
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new("/work/node_modules/governed/root-export.d.cts")
         );
         assert_eq!(
             governed.package_id().map(PackageId::name),
-            Some("governed-root")
+            (Some("governed-root")).map(Into::into)
         );
         assert!(!governed.primary());
     }
@@ -4851,12 +4888,7 @@ fn nested_type_module_extensionless_entries_are_blocked_only_in_node_esm_modes()
             ),
         ] {
             let outcome = resolver
-                .resolve_type_reference(
-                    Path::new("/work/main.ts"),
-                    specifier,
-                    mode,
-                    Some(&no_primary_roots),
-                )
+                .resolve_type_reference("/work/main.ts", specifier, mode, Some(&no_primary_roots))
                 .expect("resolve an extensionless nested package entry");
 
             if should_resolve {
@@ -4866,12 +4898,16 @@ fn nested_type_module_extensionless_entries_are_blocked_only_in_node_esm_modes()
                     );
                 };
                 assert_eq!(
-                    reference.resolved_file().canonical().as_path(),
+                    reference
+                        .resolved_file()
+                        .canonical()
+                        .as_js()
+                        .scalar_test_path(),
                     Path::new(expected)
                 );
                 assert_eq!(
                     reference.package_id().map(PackageId::name),
-                    Some(package_name)
+                    (Some(package_name)).map(Into::into)
                 );
                 assert!(!reference.primary());
             } else {
@@ -4921,7 +4957,7 @@ fn legacy_secondary_subpath_manifest_failures_precede_root_exports() {
     let no_primary_roots: Vec<ProgramPath> = Vec::new();
     let error = resolver
         .resolve_type_reference(
-            Path::new("/work/main.ts"),
+            "/work/main.ts",
             "governed/sub",
             ResolutionMode::CommonJs,
             Some(&no_primary_roots),
@@ -4963,7 +4999,7 @@ fn legacy_direct_type_reference_hits_do_not_read_unrelated_ancestor_manifests() 
             ModuleResolver::new(&host, &options).expect("create legacy type resolver");
         let ResolutionOutcome::Resolved(reference) = resolver
             .resolve_type_reference(
-                Path::new("/work/main.ts"),
+                "/work/main.ts",
                 "direct",
                 ResolutionMode::Unspecified,
                 Some(std::slice::from_ref(&type_root)),
@@ -4973,7 +5009,11 @@ fn legacy_direct_type_reference_hits_do_not_read_unrelated_ancestor_manifests() 
             panic!("expected direct custom-root type reference");
         };
         assert_eq!(
-            reference.resolved_file().canonical().as_path(),
+            reference
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new("/work/types/direct.d.ts")
         );
         assert_eq!(reference.package_id(), None);
@@ -4981,7 +5021,7 @@ fn legacy_direct_type_reference_hits_do_not_read_unrelated_ancestor_manifests() 
 
         let ResolutionOutcome::Resolved(relative) = resolver
             .resolve_type_reference(
-                Path::new("/work/main.ts"),
+                "/work/main.ts",
                 "./relative",
                 ResolutionMode::Unspecified,
                 Some(&[]),
@@ -4991,7 +5031,11 @@ fn legacy_direct_type_reference_hits_do_not_read_unrelated_ancestor_manifests() 
             panic!("expected relative type reference");
         };
         assert_eq!(
-            relative.resolved_file().canonical().as_path(),
+            relative
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new("/work/relative.d.ts")
         );
         assert_eq!(relative.package_id(), None);
@@ -5038,7 +5082,7 @@ fn legacy_external_custom_root_direct_hits_use_the_actual_package_root_before_re
             ModuleResolver::new(&host, &options).expect("create legacy type resolver");
         let ResolutionOutcome::Resolved(reference) = resolver
             .resolve_type_reference(
-                Path::new("/work/main.ts"),
+                "/work/main.ts",
                 "direct",
                 ResolutionMode::Unspecified,
                 Some(std::slice::from_ref(&type_root)),
@@ -5048,7 +5092,11 @@ fn legacy_external_custom_root_direct_hits_use_the_actual_package_root_before_re
             panic!("expected external direct type reference");
         };
         assert_eq!(
-            reference.resolved_file().canonical().as_path(),
+            reference
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new("/store/pkg/direct.d.ts")
         );
         assert_eq!(
@@ -5056,12 +5104,13 @@ fn legacy_external_custom_root_direct_hits_use_the_actual_package_root_before_re
                 .original_path()
                 .expect("retain the lexical node_modules path")
                 .canonical()
-                .as_path(),
+                .as_js()
+                .scalar_test_path(),
             Path::new("/work/node_modules/pkg/types/direct.d.ts")
         );
         assert_eq!(
             reference.package_id().map(PackageId::name),
-            Some("actual-package")
+            (Some("actual-package")).map(Into::into)
         );
         assert!(reference.primary());
         assert!(reference.is_external_library_import());
@@ -5081,7 +5130,7 @@ fn a_more_specific_null_pattern_is_a_terminal_not_found() {
     ] {
         assert_eq!(
             resolver
-                .resolve(Path::new("/index.ts"), specifier, mode)
+                .resolve("/index.ts", specifier, mode)
                 .expect("resolve selected null export"),
             ResolutionOutcome::NotFound,
             "specific null export must beat the earlier broad pattern for {specifier}",
@@ -5120,12 +5169,19 @@ fn declaration_twins_and_external_provenance_hold_for_all_node_module_kinds() {
         for (specifier, mode, expected_path, expected_extension) in &targets {
             let external = resolved(
                 resolver
-                    .resolve(Path::new("/index.ts"), specifier, *mode)
+                    .resolve("/index.ts", *specifier, *mode)
                     .expect("resolve through node_modules"),
             );
-            assert_eq!(external.resolved_file().display(), Path::new(expected_path));
             assert_eq!(
-                external.resolved_file().canonical().as_path(),
+                external.resolved_file().display().scalar_test_path(),
+                Path::new(expected_path)
+            );
+            assert_eq!(
+                external
+                    .resolved_file()
+                    .canonical()
+                    .as_js()
+                    .scalar_test_path(),
                 Path::new(expected_path)
             );
             assert_eq!(external.extension(), expected_extension);
@@ -5136,7 +5192,7 @@ fn declaration_twins_and_external_provenance_hold_for_all_node_module_kinds() {
             let package_metadata = external
                 .package_metadata()
                 .expect("manifest-backed export retains package metadata");
-            assert_eq!(package_metadata.name(), Some("inner"));
+            assert_eq!(package_metadata.name(), (Some("inner")).map(Into::into));
             assert_eq!(package_metadata.module_type(), PackageJsonType::Unspecified);
             let caller_spelling = ProgramPath::from_trusted_parts(
                 expected_path.trim_start_matches('/'),
@@ -5151,17 +5207,25 @@ fn declaration_twins_and_external_provenance_hold_for_all_node_module_kinds() {
                 })
                 .expect("canonical target identity binds across display spellings");
             assert_eq!(
-                rebound.target().resolved_file().display(),
+                rebound
+                    .target()
+                    .resolved_file()
+                    .display()
+                    .scalar_test_path(),
                 Path::new(expected_path.trim_start_matches('/'))
             );
 
             let self_reference = resolved(
                 resolver
-                    .resolve(Path::new("/node_modules/inner/test.d.ts"), specifier, *mode)
+                    .resolve("/node_modules/inner/test.d.ts", *specifier, *mode)
                     .expect("resolve package self-reference"),
             );
             assert_eq!(
-                self_reference.resolved_file().canonical().as_path(),
+                self_reference
+                    .resolved_file()
+                    .canonical()
+                    .as_js()
+                    .scalar_test_path(),
                 Path::new(expected_path)
             );
             assert_eq!(self_reference.extension(), expected_extension);
@@ -5172,16 +5236,20 @@ fn declaration_twins_and_external_provenance_hold_for_all_node_module_kinds() {
         }
 
         let inner_scope = resolver
-            .package_scope_for_file(Path::new("/node_modules/inner/test.d.ts"))
+            .package_scope_for_file("/node_modules/inner/test.d.ts")
             .expect("observe inner package scope")
             .expect("inner package scope exists");
         assert_eq!(inner_scope.module_type(), PackageJsonType::Unspecified);
         assert_eq!(
-            inner_scope.package_json().canonical().as_path(),
+            inner_scope
+                .package_json()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new("/node_modules/inner/package.json")
         );
         let root_scope = resolver
-            .package_scope_for_file(Path::new("/index.ts"))
+            .package_scope_for_file("/index.ts")
             .expect("observe root package scope")
             .expect("root package scope exists");
         assert_eq!(root_scope.module_type(), PackageJsonType::Module);
@@ -5198,17 +5266,21 @@ fn conditional_and_array_targets_resolve_while_host_failures_propagate() {
     for specifier in ["inner/conditional", "inner/array"] {
         let resolution = resolved(
             resolver
-                .resolve(Path::new("/index.ts"), specifier, ResolutionMode::EsNext)
+                .resolve("/index.ts", specifier, ResolutionMode::EsNext)
                 .expect("resolve selected package-map target"),
         );
         assert_eq!(
-            resolution.resolved_file().canonical().as_path(),
+            resolution
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new("/node_modules/inner/index.d.ts")
         );
     }
 
     let error = resolver
-        .resolve(Path::new("/index.ts"), "denied", ResolutionMode::EsNext)
+        .resolve("/index.ts", "denied", ResolutionMode::EsNext)
         .expect_err("host read failure must propagate");
     let ResolutionError::Host(actual) = error else {
         panic!("expected host resolution error, got {error:?}");
@@ -5300,15 +5372,15 @@ fn h02c_exports_targets_and_relative_requests_follow_the_authoritative_map() {
 
     let relative = resolved(
         resolver
-            .resolve(
-                Path::new("/src/index.ts"),
-                "./other.js",
-                ResolutionMode::EsNext,
-            )
+            .resolve("/src/index.ts", "./other.js", ResolutionMode::EsNext)
             .expect("resolve relative written-JS request"),
     );
     assert_eq!(
-        relative.resolved_file().canonical().as_path(),
+        relative
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/src/other.ts")
     );
     assert!(!relative.is_external_library_import());
@@ -5322,15 +5394,15 @@ fn h02c_exports_targets_and_relative_requests_follow_the_authoritative_map() {
     ] {
         let module = resolved(
             resolver
-                .resolve(
-                    Path::new("/src/index.ts"),
-                    specifier,
-                    ResolutionMode::EsNext,
-                )
+                .resolve("/src/index.ts", specifier, ResolutionMode::EsNext)
                 .expect("resolve H0.2c package request"),
         );
         assert_eq!(
-            module.resolved_file().canonical().as_path(),
+            module
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new(expected)
         );
         assert!(module.is_external_library_import());
@@ -5351,11 +5423,7 @@ fn h02c_exports_targets_and_relative_requests_follow_the_authoritative_map() {
     ] {
         assert_eq!(
             resolver
-                .resolve(
-                    Path::new("/src/index.ts"),
-                    specifier,
-                    ResolutionMode::EsNext
-                )
+                .resolve("/src/index.ts", specifier, ResolutionMode::EsNext)
                 .expect("unsupported package key is an authoritative miss"),
             ResolutionOutcome::NotFound
         );
@@ -5427,7 +5495,7 @@ fn package_imports_cover_relative_bare_conditional_array_null_and_cycles() {
         .expect("build package-imports host");
     let options = CompilerOptions {
         module: Some(199),
-        base_url: Some("/base.ts".to_owned()),
+        base_url: Some("/base.ts".to_owned().into()),
         ..CompilerOptions::default()
     };
     let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
@@ -5445,27 +5513,41 @@ fn package_imports_cover_relative_bare_conditional_array_null_and_cycles() {
     ] {
         let module = resolved(
             resolver
-                .resolve(Path::new("/index.ts"), specifier, mode)
+                .resolve("/index.ts", specifier, mode)
                 .expect("resolve package-imports target"),
         );
         assert_eq!(
-            module.resolved_file().canonical().as_path(),
+            module
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new(expected)
         );
         assert!(!module.is_external_library_import());
-        assert_eq!(module.package_id().map(PackageId::name), Some("root"));
+        assert_eq!(
+            module.package_id().map(PackageId::name),
+            (Some("root")).map(Into::into)
+        );
     }
 
     let external = resolved(
         resolver
-            .resolve(Path::new("/index.ts"), "#external", ResolutionMode::EsNext)
+            .resolve("/index.ts", "#external", ResolutionMode::EsNext)
             .expect("reinsert bare imports target into node_modules lookup"),
     );
     assert_eq!(
-        external.resolved_file().canonical().as_path(),
+        external
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/node_modules/dep/types.d.ts")
     );
-    assert_eq!(external.package_id().map(PackageId::name), Some("dep"));
+    assert_eq!(
+        external.package_id().map(PackageId::name),
+        (Some("dep")).map(Into::into)
+    );
     assert!(
         !external.is_external_library_import(),
         "the outer imports boundary owns an external bare target"
@@ -5473,15 +5555,18 @@ fn package_imports_cover_relative_bare_conditional_array_null_and_cycles() {
 
     let empty = resolved(
         resolver
-            .resolve(Path::new("/index.ts"), "#empty", ResolutionMode::EsNext)
+            .resolve("/index.ts", "#empty", ResolutionMode::EsNext)
             .expect("an empty imports target re-enters baseUrl resolution"),
     );
-    assert_eq!(empty.resolved_file().display(), Path::new("/base.ts"));
+    assert_eq!(
+        empty.resolved_file().display().scalar_test_path(),
+        Path::new("/base.ts")
+    );
 
     for specifier in ["#blocked", "#cycle-a", "#cycle-b", "#self"] {
         assert_eq!(
             resolver
-                .resolve(Path::new("/index.ts"), specifier, ResolutionMode::EsNext)
+                .resolve("/index.ts", specifier, ResolutionMode::EsNext)
                 .expect("terminal or bounded imports miss"),
             ResolutionOutcome::NotFound,
             "{specifier} must not escape the package-map boundary"
@@ -5490,14 +5575,14 @@ fn package_imports_cover_relative_bare_conditional_array_null_and_cycles() {
 
     let direct = resolved(
         resolver
-            .resolve(Path::new("/index.ts"), "#direct.ts", ResolutionMode::EsNext)
+            .resolve("/index.ts", "#direct.ts", ResolutionMode::EsNext)
             .expect("resolve explicit TypeScript imports target"),
     );
     assert!(!direct.resolved_using_ts_extension());
     let substituted = resolved(
         resolver
             .resolve(
-                Path::new("/index.ts"),
+                "/index.ts",
                 "#mapped/from-pattern.ts",
                 ResolutionMode::EsNext,
             )
@@ -5526,22 +5611,18 @@ fn empty_package_import_target_reaches_node_modules_after_base_url_misses() {
         .expect("build empty imports node_modules target host");
     let options = CompilerOptions {
         module: Some(199),
-        base_url: Some("/base".to_owned()),
+        base_url: Some("/base".to_owned().into()),
         ..CompilerOptions::default()
     };
     let mut resolver = ModuleResolver::new(&host, &options).expect("create NodeNext resolver");
 
     let module = resolved(
         resolver
-            .resolve(
-                Path::new("/work/src/main.ts"),
-                "#empty",
-                ResolutionMode::EsNext,
-            )
+            .resolve("/work/src/main.ts", "#empty", ResolutionMode::EsNext)
             .expect("continue an empty imports target through node_modules"),
     );
     assert_eq!(
-        module.resolved_file().display(),
+        module.resolved_file().display().scalar_test_path(),
         Path::new("/work/node_modules/entry.d.ts")
     );
 }
@@ -5577,14 +5658,21 @@ fn package_imports_deep_acyclic_bare_chain_has_no_artificial_depth_limit() {
 
     let module = resolved(
         resolver
-            .resolve(Path::new("/work/index.ts"), "#0", ResolutionMode::EsNext)
+            .resolve("/work/index.ts", "#0", ResolutionMode::EsNext)
             .expect("resolve every distinct imports rewrite"),
     );
     assert_eq!(
-        module.resolved_file().canonical().as_path(),
+        module
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/work/target.d.ts")
     );
-    assert_eq!(module.package_id().map(PackageId::name), Some("root"));
+    assert_eq!(
+        module.package_id().map(PackageId::name),
+        (Some("root")).map(Into::into)
+    );
     assert!(!module.is_external_library_import());
 }
 
@@ -5607,7 +5695,7 @@ fn package_imports_growing_wildcard_chain_fails_with_a_typed_resource_limit() {
     let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
 
     let error = resolver
-        .resolve(Path::new("/work/index.ts"), "#a", ResolutionMode::EsNext)
+        .resolve("/work/index.ts", "#a", ResolutionMode::EsNext)
         .expect_err("an unbounded imports rewrite must fail before exhausting the Rust stack");
     assert!(
         matches!(error, ResolutionError::ResourceLimit(_)),
@@ -5654,16 +5742,20 @@ fn deep_conditional_import_rewrites_probe_base_url_before_every_map_step() {
         .build()
         .expect("build conditional imports and baseUrl host");
     let mut options = options_for_module(199);
-    options.base_url = Some("/base".to_owned());
+    options.base_url = Some("/base".to_owned().into());
     let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
 
     let module = resolved(
         resolver
-            .resolve(Path::new("/work/index.ts"), "#0", ResolutionMode::CommonJs)
+            .resolve("/work/index.ts", "#0", ResolutionMode::CommonJs)
             .expect("resolve a deep conditional chain through baseUrl"),
     );
     assert_eq!(
-        module.resolved_file().canonical().as_path(),
+        module
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/base/#300.d.ts")
     );
     assert_eq!(module.package_id(), None);
@@ -5713,15 +5805,15 @@ fn invalid_import_roots_continue_to_the_ordinary_node_modules_lookup() {
     ] {
         let module = resolved(
             resolver
-                .resolve(
-                    Path::new("/work/index.ts"),
-                    specifier,
-                    ResolutionMode::CommonJs,
-                )
+                .resolve("/work/index.ts", specifier, ResolutionMode::CommonJs)
                 .expect("invalid imports roots are ordinary lookup misses"),
         );
         assert_eq!(
-            module.resolved_file().canonical().as_path(),
+            module
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new(expected)
         );
         assert_eq!(module.is_external_library_import(), !rewritten);
@@ -5756,14 +5848,18 @@ fn relative_bare_import_targets_use_the_nested_node_relative_loader() {
     ] {
         let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
         let outcome = resolver
-            .resolve(Path::new("/work/source.ts"), "#dot", mode)
+            .resolve("/work/source.ts", "#dot", mode)
             .expect("a relative imports target is a typed lookup outcome");
         if expected {
             let ResolutionOutcome::Resolved(module) = outcome else {
                 panic!("expected a relative imports hit for mode {mode:?}");
             };
             assert_eq!(
-                module.resolved_file().canonical().as_path(),
+                module
+                    .resolved_file()
+                    .canonical()
+                    .as_js()
+                    .scalar_test_path(),
                 Path::new("/work/index.d.ts")
             );
         } else {
@@ -5790,29 +5886,33 @@ fn backslash_relative_and_drive_rooted_requests_use_node_path_normalization() {
 
     let directory = resolved(
         resolver
-            .resolve(
-                Path::new("/work/src/main.ts"),
-                ".\\",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/work/src/main.ts", ".\\", ResolutionMode::CommonJs)
             .expect("a trailing backslash denotes a directory"),
     );
     assert_eq!(
-        directory.resolved_file().canonical().as_path(),
+        directory
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/work/src/index.ts")
     );
 
     let rooted = resolved(
         resolver
             .resolve(
-                Path::new("/work/src/main.ts"),
+                "/work/src/main.ts",
                 "C:\\pkg\\index.js",
                 ResolutionMode::EsNext,
             )
             .expect("a drive-backslash request is a rooted disk path"),
     );
     assert_eq!(
-        rooted.resolved_file().canonical().as_path(),
+        rooted
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("C:/pkg/index.ts")
     );
     assert!(!rooted.is_external_library_import());
@@ -5858,35 +5958,35 @@ fn imports_pattern_selection_preserves_literal_prefix_overlap_and_directory_gate
 
     assert_eq!(
         resolver
-            .resolve(
-                Path::new("/work/index.ts"),
-                "#foo/x",
-                ResolutionMode::EsNext,
-            )
+            .resolve("/work/index.ts", "#foo/x", ResolutionMode::EsNext,)
             .expect("an invalid directory target is an ordinary miss"),
         ResolutionOutcome::NotFound
     );
     let overlap = resolved(
         resolver
-            .resolve(Path::new("/work/index.ts"), "#abc", ResolutionMode::EsNext)
+            .resolve("/work/index.ts", "#abc", ResolutionMode::EsNext)
             .expect("overlapping pattern bounds follow JavaScript substring"),
     );
     assert_eq!(
-        overlap.resolved_file().canonical().as_path(),
+        overlap
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/work/overlap/b.d.ts")
     );
 
     let literal = resolved(
         resolver
-            .resolve(
-                Path::new("/work/index.ts"),
-                "#x*y/file.d.ts",
-                ResolutionMode::EsNext,
-            )
+            .resolve("/work/index.ts", "#x*y/file.d.ts", ResolutionMode::EsNext)
             .expect("a nonmatching star key remains a literal directory prefix"),
     );
     assert_eq!(
-        literal.resolved_file().canonical().as_path(),
+        literal
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/work/literal/file.d.ts")
     );
 }
@@ -5945,15 +6045,15 @@ fn exports_preserve_literal_stars_prefix_fallbacks_and_backslash_separators() {
     ] {
         let module = resolved(
             resolver
-                .resolve(
-                    Path::new("/work/index.mts"),
-                    specifier,
-                    ResolutionMode::EsNext,
-                )
+                .resolve("/work/index.mts", specifier, ResolutionMode::EsNext)
                 .expect("resolve a literal package-map target"),
         );
         assert_eq!(
-            module.resolved_file().canonical().as_path(),
+            module
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new(expected)
         );
     }
@@ -5982,58 +6082,50 @@ fn imports_backslash_targets_keep_raw_paths_matching_before_normalized_fallbacks
         .expect("build backslash imports-target host");
 
     let mut optional = options_for_module(199);
-    optional.base_url = Some("/base".to_owned());
+    optional.base_url = Some("/base".to_owned().into());
     let paths = ProgramOptions::default().with_paths(vec![
-        PathMapping::new("dep\\sub", vec!["/mapped/raw.ts".to_owned()]),
-        PathMapping::new("dep/sub", vec!["/mapped/slash.ts".to_owned()]),
+        PathMapping::new("dep\\sub", vec!["/mapped/raw.ts".to_owned().into()]),
+        PathMapping::new("dep/sub", vec!["/mapped/slash.ts".to_owned().into()]),
     ]);
     let mut resolver = ModuleResolver::new_with_program_options(&host, &optional, &paths)
         .expect("create paths resolver");
     let raw_outcome = resolver
-        .resolve(
-            Path::new("/work/index.ts"),
-            "#back",
-            ResolutionMode::CommonJs,
-        )
+        .resolve("/work/index.ts", "#back", ResolutionMode::CommonJs)
         .expect("raw backslash paths key has a typed outcome");
     let ResolutionOutcome::Resolved(raw) = raw_outcome else {
         panic!("raw backslash paths key must win");
     };
     assert_eq!(
-        raw.resolved_file().canonical().as_path(),
+        raw.resolved_file().canonical().as_js().scalar_test_path(),
         Path::new("/mapped/raw.ts")
     );
 
     let mut resolver = ModuleResolver::new(&host, &optional).expect("create baseUrl resolver");
     let base_outcome = resolver
-        .resolve(
-            Path::new("/work/index.ts"),
-            "#back",
-            ResolutionMode::CommonJs,
-        )
+        .resolve("/work/index.ts", "#back", ResolutionMode::CommonJs)
         .expect("baseUrl backslash target has a typed outcome");
     let ResolutionOutcome::Resolved(base) = base_outcome else {
         panic!("baseUrl must normalize a backslash target after paths");
     };
     assert_eq!(
-        base.resolved_file().canonical().as_path(),
+        base.resolved_file().canonical().as_js().scalar_test_path(),
         Path::new("/base/dep/sub.ts")
     );
 
     let options = options_for_module(199);
     let mut resolver = ModuleResolver::new(&host, &options).expect("create package resolver");
     let package_outcome = resolver
-        .resolve(
-            Path::new("/work/index.ts"),
-            "#back",
-            ResolutionMode::CommonJs,
-        )
+        .resolve("/work/index.ts", "#back", ResolutionMode::CommonJs)
         .expect("node_modules backslash target has a typed outcome");
     let ResolutionOutcome::Resolved(package) = package_outcome else {
         panic!("node_modules must preserve the raw package name");
     };
     assert_eq!(
-        package.resolved_file().canonical().as_path(),
+        package
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/work/node_modules/dep/sub/index.d.ts")
     );
     let package_id = package.package_id().expect("backslash package id");
@@ -6065,15 +6157,15 @@ fn long_import_pattern_captures_are_input_not_rewrite_work() {
 
     let module = resolved(
         resolver
-            .resolve(
-                Path::new("/work/index.ts"),
-                &specifier,
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/work/index.ts", &specifier, ResolutionMode::CommonJs)
             .expect("a long finite capture is not a rewrite resource failure"),
     );
     assert_eq!(
-        module.resolved_file().canonical().as_path(),
+        module
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new(&target)
     );
 }
@@ -6144,30 +6236,26 @@ fn package_imports_preserve_non_root_self_and_option_boundaries() {
     let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
     let self_target = resolved(
         resolver
-            .resolve(
-                Path::new("/workspace/main.ts"),
-                "#self",
-                ResolutionMode::EsNext,
-            )
+            .resolve("/workspace/main.ts", "#self", ResolutionMode::EsNext)
             .expect("resolve non-root imports-to-self target"),
     );
     assert_eq!(
-        self_target.resolved_file().canonical().as_path(),
+        self_target
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/workspace/index.ts")
     );
 
     for specifier in ["#x:y", "#x\\y", "#x\0y", "#x/../y"] {
         let exact = resolved(
             resolver
-                .resolve(
-                    Path::new("/workspace/main.ts"),
-                    specifier,
-                    ResolutionMode::EsNext,
-                )
+                .resolve("/workspace/main.ts", specifier, ResolutionMode::EsNext)
                 .expect("exact imports keys are looked up before target validation"),
         );
         assert_eq!(
-            exact.resolved_file().canonical().as_path(),
+            exact.resolved_file().canonical().as_js().scalar_test_path(),
             Path::new("/workspace/src/exact.ts"),
             "{specifier:?}"
         );
@@ -6175,38 +6263,34 @@ fn package_imports_preserve_non_root_self_and_option_boundaries() {
 
     let dot_package = resolved(
         resolver
-            .resolve(
-                Path::new("/workspace/main.ts"),
-                "#dot",
-                ResolutionMode::EsNext,
-            )
+            .resolve("/workspace/main.ts", "#dot", ResolutionMode::EsNext)
             .expect("bare imports target beginning with a dot is not a relative target"),
     );
     assert_eq!(
-        dot_package.resolved_file().canonical().as_path(),
+        dot_package
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/workspace/node_modules/.dependency/index.ts")
     );
 
     let missing_import = resolved(
         resolver
-            .resolve(
-                Path::new("/workspace/main.ts"),
-                "#missing",
-                ResolutionMode::EsNext,
-            )
+            .resolve("/workspace/main.ts", "#missing", ResolutionMode::EsNext)
             .expect("a missing imports entry continues through node_modules"),
     );
     assert_eq!(
-        missing_import.resolved_file().canonical().as_path(),
+        missing_import
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/workspace/node_modules/#missing/index.ts")
     );
     assert_eq!(
         resolver
-            .resolve(
-                Path::new("/workspace/main.ts"),
-                "#blocked",
-                ResolutionMode::EsNext,
-            )
+            .resolve("/workspace/main.ts", "#blocked", ResolutionMode::EsNext,)
             .expect("an explicit null imports target remains terminal"),
         ResolutionOutcome::NotFound
     );
@@ -6220,29 +6304,22 @@ fn package_imports_preserve_non_root_self_and_option_boundaries() {
         ModuleResolver::new(&host, &exports_disabled).expect("create imports-only resolver");
     let exact = resolved(
         resolver
-            .resolve(
-                Path::new("/workspace/main.ts"),
-                "#exact",
-                ResolutionMode::EsNext,
-            )
+            .resolve("/workspace/main.ts", "#exact", ResolutionMode::EsNext)
             .expect("imports remain enabled independently from exports"),
     );
     assert_eq!(
-        exact.resolved_file().canonical().as_path(),
+        exact.resolved_file().canonical().as_js().scalar_test_path(),
         Path::new("/workspace/src/exact.ts")
     );
     assert_eq!(
         resolved(
             resolver
-                .resolve(
-                    Path::new("/workspace/main.ts"),
-                    "workspace",
-                    ResolutionMode::EsNext,
-                )
+                .resolve("/workspace/main.ts", "workspace", ResolutionMode::EsNext,)
                 .expect("SelfName remains enabled independently from Exports"),
         )
         .resolved_file()
-        .display(),
+        .display()
+        .scalar_test_path(),
         Path::new("/workspace/index.ts"),
     );
 
@@ -6255,15 +6332,15 @@ fn package_imports_preserve_non_root_self_and_option_boundaries() {
         ModuleResolver::new(&host, &imports_disabled).expect("create NodeNext resolver");
     let hardcoded = resolved(
         resolver
-            .resolve(
-                Path::new("/workspace/main.ts"),
-                "#exact",
-                ResolutionMode::EsNext,
-            )
+            .resolve("/workspace/main.ts", "#exact", ResolutionMode::EsNext)
             .expect("NodeNext's fixed feature mask keeps imports enabled"),
     );
     assert_eq!(
-        hardcoded.resolved_file().canonical().as_path(),
+        hardcoded
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/workspace/src/exact.ts")
     );
 
@@ -6276,15 +6353,15 @@ fn package_imports_preserve_non_root_self_and_option_boundaries() {
         .expect("create Bundler resolver with imports disabled");
     let fallback = resolved(
         resolver
-            .resolve(
-                Path::new("/workspace/main.ts"),
-                "#exact",
-                ResolutionMode::EsNext,
-            )
+            .resolve("/workspace/main.ts", "#exact", ResolutionMode::EsNext)
             .expect("Bundler applies the imports feature override"),
     );
     assert_eq!(
-        fallback.resolved_file().canonical().as_path(),
+        fallback
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/workspace/node_modules/#exact/index.ts")
     );
 }
@@ -6314,40 +6391,32 @@ fn package_imports_reject_rooted_disk_targets_before_paths_lookup() {
         .expect("build rooted imports-target host");
     let options = CompilerOptions {
         module: Some(199),
-        base_url: Some("/work".to_owned()),
+        base_url: Some("/work".to_owned().into()),
         ..CompilerOptions::default()
     };
     let paths = ProgramOptions::default().with_paths(vec![
         // C:/alias would resolve here if the imports-target gate ran after
         // optional paths lookup.
-        PathMapping::new("C*", vec!["wrong.ts".to_owned()]),
-        PathMapping::new("node:alias", vec!["colon.ts".to_owned()]),
+        PathMapping::new("C*", vec!["wrong.ts".to_owned().into()]),
+        PathMapping::new("node:alias", vec!["colon.ts".to_owned().into()]),
     ]);
     let mut resolver = ModuleResolver::new_with_program_options(&host, &options, &paths)
         .expect("create rooted imports-target resolver");
 
     let direct_paths = resolved(
         resolver
-            .resolve(
-                Path::new("/work/main.ts"),
-                "C:/alias",
-                ResolutionMode::EsNext,
-            )
+            .resolve("/work/main.ts", "C:/alias", ResolutionMode::EsNext)
             .expect("prove the rooted spelling is otherwise eligible for paths"),
     );
     assert_eq!(
-        direct_paths.resolved_file().display(),
+        direct_paths.resolved_file().display().scalar_test_path(),
         Path::new("/work/wrong.ts")
     );
 
     for specifier in ["#drive", "#volume", "#posix", "#unc", "#backslash"] {
         assert_eq!(
             resolver
-                .resolve(
-                    Path::new("/work/main.ts"),
-                    specifier,
-                    ResolutionMode::EsNext,
-                )
+                .resolve("/work/main.ts", specifier, ResolutionMode::EsNext,)
                 .expect("an invalid rooted target is a supported miss"),
             ResolutionOutcome::NotFound,
             "{specifier} must be rejected as a rooted disk target"
@@ -6356,11 +6425,11 @@ fn package_imports_reject_rooted_disk_targets_before_paths_lookup() {
 
     let colon_target = resolved(
         resolver
-            .resolve(Path::new("/work/main.ts"), "#colon", ResolutionMode::EsNext)
+            .resolve("/work/main.ts", "#colon", ResolutionMode::EsNext)
             .expect("a colon-containing bare target remains non-rooted"),
     );
     assert_eq!(
-        colon_target.resolved_file().display(),
+        colon_target.resolved_file().display().scalar_test_path(),
         Path::new("/work/colon.ts")
     );
     assert!(!colon_target.is_external_library_import());
@@ -6380,26 +6449,25 @@ fn uri_like_names_run_optional_imports_and_self_name_before_the_node_uri_gate() 
         .expect("build URI ordering host");
     let options = CompilerOptions {
         module: Some(199),
-        base_url: Some("/work".to_owned()),
+        base_url: Some("/work".to_owned().into()),
         ..CompilerOptions::default()
     };
     let paths = ProgramOptions::default().with_paths(vec![PathMapping::new(
         "node:fs",
-        vec!["shim.ts".to_owned()],
+        vec!["shim.ts".to_owned().into()],
     )]);
     let mut resolver = ModuleResolver::new_with_program_options(&host, &options, &paths)
         .expect("create URI paths resolver");
     for specifier in ["node:fs", "#x"] {
         let module = resolved(
             resolver
-                .resolve(
-                    Path::new("/work/main.mts"),
-                    specifier,
-                    ResolutionMode::EsNext,
-                )
+                .resolve("/work/main.mts", specifier, ResolutionMode::EsNext)
                 .expect("resolve a URI-looking name through paths before the URI gate"),
         );
-        assert_eq!(module.resolved_file().display(), Path::new("/work/shim.ts"));
+        assert_eq!(
+            module.resolved_file().display().scalar_test_path(),
+            Path::new("/work/shim.ts")
+        );
         assert!(!module.is_external_library_import(), "{specifier}");
     }
 
@@ -6409,27 +6477,22 @@ fn uri_like_names_run_optional_imports_and_self_name_before_the_node_uri_gate() 
     for specifier in ["node:fs", "#x"] {
         let module = resolved(
             resolver
-                .resolve(
-                    Path::new("/work/main.mts"),
-                    specifier,
-                    ResolutionMode::EsNext,
-                )
+                .resolve("/work/main.mts", specifier, ResolutionMode::EsNext)
                 .expect("resolve a URI-looking SelfName before the URI gate"),
         );
         assert_eq!(
-            module.resolved_file().display(),
+            module.resolved_file().display().scalar_test_path(),
             Path::new("/work/self.d.ts")
         );
         assert!(!module.is_external_library_import(), "{specifier}");
-        assert_eq!(module.package_id().map(PackageId::name), Some("node:fs"));
+        assert_eq!(
+            module.package_id().map(PackageId::name),
+            (Some("node:fs")).map(Into::into)
+        );
     }
     assert_eq!(
         resolver
-            .resolve(
-                Path::new("/work/main.mts"),
-                "node:missing",
-                ResolutionMode::EsNext,
-            )
+            .resolve("/work/main.mts", "node:missing", ResolutionMode::EsNext,)
             .expect("a URI-looking optional/imports/SelfName miss is supported"),
         ResolutionOutcome::NotFound
     );
@@ -6448,15 +6511,12 @@ fn uri_like_names_run_optional_imports_and_self_name_before_the_node_uri_gate() 
     assert_eq!(
         resolved(
             resolver
-                .resolve(
-                    Path::new("/work/main.ts"),
-                    "node:fs",
-                    ResolutionMode::CommonJs,
-                )
+                .resolve("/work/main.ts", "node:fs", ResolutionMode::CommonJs,)
                 .expect("Classic keeps URI-looking names in ancestor file search"),
         )
         .resolved_file()
-        .display(),
+        .display()
+        .scalar_test_path(),
         Path::new("/work/node:fs.ts")
     );
 }
@@ -6485,18 +6545,17 @@ fn package_name_slicing_keeps_a_scope_without_a_package_component() {
     for specifier in ["@scope", "#x"] {
         let module = resolved(
             resolver
-                .resolve(
-                    Path::new("/work/main.mts"),
-                    specifier,
-                    ResolutionMode::EsNext,
-                )
+                .resolve("/work/main.mts", specifier, ResolutionMode::EsNext)
                 .expect("resolve an upstream-compatible unsplit scope name"),
         );
         assert_eq!(
-            module.resolved_file().display(),
+            module.resolved_file().display().scalar_test_path(),
             Path::new("/work/node_modules/@scope/index.d.ts")
         );
-        assert_eq!(module.package_id().map(PackageId::name), Some("@scope"));
+        assert_eq!(
+            module.package_id().map(PackageId::name),
+            (Some("@scope")).map(Into::into)
+        );
         assert_eq!(module.is_external_library_import(), specifier == "@scope");
     }
 
@@ -6521,15 +6580,11 @@ fn package_name_slicing_keeps_a_scope_without_a_package_component() {
     for specifier in ["@scope", "#x"] {
         let module = resolved(
             resolver
-                .resolve(
-                    Path::new("/work/main.mts"),
-                    specifier,
-                    ResolutionMode::EsNext,
-                )
+                .resolve("/work/main.mts", specifier, ResolutionMode::EsNext)
                 .expect("keep @scope unmangled when it has no package separator"),
         );
         assert_eq!(
-            module.resolved_file().display(),
+            module.resolved_file().display().scalar_test_path(),
             Path::new("/work/node_modules/@types/@scope/index.d.ts")
         );
         assert_eq!(module.is_external_library_import(), specifier == "@scope");
@@ -6560,18 +6615,17 @@ fn package_name_slicing_normalizes_unvalidated_rest_segments_like_typescript() {
     for specifier in ["pkg//sub", "pkg/./sub", "#x"] {
         let module = resolved(
             resolver
-                .resolve(
-                    Path::new("/work/main.mts"),
-                    specifier,
-                    ResolutionMode::EsNext,
-                )
+                .resolve("/work/main.mts", specifier, ResolutionMode::EsNext)
                 .expect("normalize raw rest segments after upstream package-name slicing"),
         );
         assert_eq!(
-            module.resolved_file().display(),
+            module.resolved_file().display().scalar_test_path(),
             Path::new("/work/node_modules/pkg/sub/index.d.ts")
         );
-        assert_eq!(module.package_id().map(PackageId::name), Some("nested"));
+        assert_eq!(
+            module.package_id().map(PackageId::name),
+            (Some("nested")).map(Into::into)
+        );
         assert_eq!(module.is_external_library_import(), specifier != "#x");
     }
 }
@@ -6610,11 +6664,11 @@ fn bare_import_targets_preserve_the_current_extension_mask_and_features() {
 
     let module = resolved(
         resolver
-            .resolve(Path::new("/work/main.ts"), "#x", ResolutionMode::EsNext)
+            .resolve("/work/main.ts", "#x", ResolutionMode::EsNext)
             .expect("a preferred imports rewrite must not consume JavaScript"),
     );
     assert_eq!(
-        module.resolved_file().display(),
+        module.resolved_file().display().scalar_test_path(),
         Path::new("/work/node_modules/#x/index.d.ts")
     );
     assert!(module.is_external_library_import());
@@ -6651,14 +6705,17 @@ fn bare_import_targets_search_preferred_extensions_across_all_ancestors_first() 
 
     let module = resolved(
         resolver
-            .resolve(Path::new("/work/main.mts"), "#x", ResolutionMode::EsNext)
+            .resolve("/work/main.mts", "#x", ResolutionMode::EsNext)
             .expect("search preferred extensions through every ancestor before fallback"),
     );
     assert_eq!(
-        module.resolved_file().display(),
+        module.resolved_file().display().scalar_test_path(),
         Path::new("/node_modules/dep/types.d.ts")
     );
-    assert_eq!(module.package_id().map(PackageId::version), Some("2.0.0"));
+    assert_eq!(
+        module.package_id().map(PackageId::version),
+        (Some("2.0.0")).map(Into::into)
+    );
     assert!(!module.is_external_library_import());
 }
 
@@ -6693,18 +6750,18 @@ fn nested_node10_fallback_runs_the_zero_extension_bundler_retry() {
     let options = CompilerOptions {
         module: Some(1),
         module_resolution: Some(2),
-        base_url: Some("/work".to_owned()),
+        base_url: Some("/work".to_owned().into()),
         ..CompilerOptions::default()
     };
     let program_options = ProgramOptions::default().with_paths(vec![PathMapping::new(
         "dep",
-        vec!["mapped/missing".to_owned()],
+        vec!["mapped/missing".to_owned().into()],
     )]);
     let mut resolver = ModuleResolver::new_with_program_options(&host, &options, &program_options)
         .expect("create nested Node10 resolver");
 
     let error = resolver
-        .resolve(Path::new("/work/main.cts"), "#x", ResolutionMode::CommonJs)
+        .resolve("/work/main.cts", "#x", ResolutionMode::CommonJs)
         .expect_err("the zero-extension Bundler retry must observe the fourth host failure");
     assert_eq!(error, ResolutionError::Host(failure));
     assert_eq!(
@@ -6780,15 +6837,11 @@ fn nested_exports_disabled_retry_retains_the_bundler_condition_profile() {
 
     let module = resolved(
         resolver
-            .resolve(
-                Path::new("/work/main.cts"),
-                "#outer",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/work/main.cts", "#outer", ResolutionMode::CommonJs)
             .expect("keep Bundler conditions through the nested diagnostic retry"),
     );
     assert_eq!(
-        module.resolved_file().display(),
+        module.resolved_file().display().scalar_test_path(),
         Path::new("/work/node_modules/#outer/runtime.js")
     );
     assert!(module.is_external_library_import());
@@ -6849,11 +6902,11 @@ fn modern_diagnostic_imports_retain_exports_disabled_in_bare_targets() {
 
     let module = resolved(
         resolver
-            .resolve(Path::new("/work/main.mts"), "#x", ResolutionMode::EsNext)
+            .resolve("/work/main.mts", "#x", ResolutionMode::EsNext)
             .expect("diagnostic imports rewrite owns its local alternate"),
     );
     assert_eq!(
-        module.resolved_file().display(),
+        module.resolved_file().display().scalar_test_path(),
         Path::new("/work/node_modules/#x/runtime.js")
     );
     assert_eq!(module.alternate_result(), None);
@@ -6901,15 +6954,18 @@ fn nested_bare_import_diagnostics_run_before_primary_realpath() {
 
     let module = resolved(
         resolver
-            .resolve(Path::new("/work/main.mts"), "#x", ResolutionMode::EsNext)
+            .resolve("/work/main.mts", "#x", ResolutionMode::EsNext)
             .expect("run the nested diagnostic retry before realpath"),
     );
     assert_eq!(
-        module.resolved_file().display(),
+        module.resolved_file().display().scalar_test_path(),
         Path::new("/physical/dep/index.js")
     );
     assert_eq!(
-        module.original_path().map(ProgramPath::display),
+        module
+            .original_path()
+            .map(ProgramPath::display)
+            .map(|path| path.scalar_test_path()),
         Some(Path::new("/work/node_modules/dep/index.js"))
     );
     assert!(!module.is_external_library_import());
@@ -6933,7 +6989,7 @@ fn root_imports_patterns_are_gated_for_node16_but_enabled_elsewhere() {
     let mut node16 = ModuleResolver::new(&host, &node16_options).expect("create Node16 resolver");
     assert_eq!(
         node16
-            .resolve(Path::new("/index.ts"), "#/foo.ts", ResolutionMode::EsNext,)
+            .resolve("/index.ts", "#/foo.ts", ResolutionMode::EsNext,)
             .expect("Node16 rejects root imports patterns as an authoritative miss"),
         ResolutionOutcome::NotFound
     );
@@ -6944,12 +7000,13 @@ fn root_imports_patterns_are_gated_for_node16_but_enabled_elsewhere() {
     assert_eq!(
         resolved(
             node_next
-                .resolve(Path::new("/index.ts"), "#/foo.ts", ResolutionMode::EsNext,)
+                .resolve("/index.ts", "#/foo.ts", ResolutionMode::EsNext,)
                 .expect("NodeNext enables root imports patterns"),
         )
         .resolved_file()
         .canonical()
-        .as_path(),
+        .as_js()
+        .scalar_test_path(),
         Path::new("/src/foo.ts")
     );
 
@@ -6962,12 +7019,13 @@ fn root_imports_patterns_are_gated_for_node16_but_enabled_elsewhere() {
     assert_eq!(
         resolved(
             bundler
-                .resolve(Path::new("/index.ts"), "#/foo.ts", ResolutionMode::EsNext,)
+                .resolve("/index.ts", "#/foo.ts", ResolutionMode::EsNext,)
                 .expect("Bundler enables root imports patterns"),
         )
         .resolved_file()
         .canonical()
-        .as_path(),
+        .as_js()
+        .scalar_test_path(),
         Path::new("/src/foo.ts")
     );
 }
@@ -7000,14 +7058,18 @@ fn relative_node_modules_targets_are_external_without_realpath_rewriting() {
     let module = resolved(
         resolver
             .resolve(
-                Path::new("/node_modules/pkg/index.ts"),
+                "/node_modules/pkg/index.ts",
                 "./other.js",
                 ResolutionMode::EsNext,
             )
             .expect("relative package source resolves without realpath"),
     );
     assert_eq!(
-        module.resolved_file().canonical().as_path(),
+        module
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/node_modules/pkg/other.ts")
     );
     assert!(module.is_external_library_import());
@@ -7016,14 +7078,14 @@ fn relative_node_modules_targets_are_external_without_realpath_rewriting() {
     let raw_external = resolved(
         resolver
             .resolve(
-                Path::new("/work/main.ts"),
+                "/work/main.ts",
                 "./node_modules/../foo.js",
                 ResolutionMode::CommonJs,
             )
             .expect("classify the unnormalized relative path components"),
     );
     assert_eq!(
-        raw_external.resolved_file().display(),
+        raw_external.resolved_file().display().scalar_test_path(),
         Path::new("/work/foo.js")
     );
     assert!(raw_external.is_external_library_import());
@@ -7073,7 +7135,7 @@ fn untyped_exports_retain_the_esm_legacy_alternate_and_package_facts() {
 
     let esm = resolved(
         resolver
-            .resolve(Path::new("/main.mts"), "pkg/foo", ResolutionMode::EsNext)
+            .resolve("/main.mts", "pkg/foo", ResolutionMode::EsNext)
             .expect("resolve ESM implementation"),
     );
     assert_eq!(esm.extension(), &ModuleExtension::Js);
@@ -7081,14 +7143,18 @@ fn untyped_exports_retain_the_esm_legacy_alternate_and_package_facts() {
         esm.alternate_result()
             .expect("ESM implementation has a legacy alternate")
             .canonical()
-            .as_path(),
+            .as_js()
+            .scalar_test_path(),
         Path::new("/node_modules/pkg/types/foo.d.ts")
     );
-    assert_eq!(esm.package_id().map(PackageId::name), Some("pkg"));
+    assert_eq!(
+        esm.package_id().map(PackageId::name),
+        (Some("pkg")).map(Into::into)
+    );
 
     let commonjs = resolved(
         resolver
-            .resolve(Path::new("/main.cts"), "pkg/foo", ResolutionMode::CommonJs)
+            .resolve("/main.cts", "pkg/foo", ResolutionMode::CommonJs)
             .expect("resolve CommonJS implementation"),
     );
     assert_eq!(commonjs.extension(), &ModuleExtension::Js);
@@ -7096,11 +7162,7 @@ fn untyped_exports_retain_the_esm_legacy_alternate_and_package_facts() {
 
     let no_alternate = resolved(
         resolver
-            .resolve(
-                Path::new("/main.mts"),
-                "no-alternate",
-                ResolutionMode::EsNext,
-            )
+            .resolve("/main.mts", "no-alternate", ResolutionMode::EsNext)
             .expect("resolve an exports implementation without a legacy type target"),
     );
     assert_eq!(no_alternate.extension(), &ModuleExtension::Js);
@@ -7156,23 +7218,25 @@ fn modern_alternate_restarts_all_ancestors_before_primary_realpath() {
 
     let module = resolved(
         resolver
-            .resolve(
-                Path::new("/work/src/main.mts"),
-                "pkg",
-                ResolutionMode::EsNext,
-            )
+            .resolve("/work/src/main.mts", "pkg", ResolutionMode::EsNext)
             .expect("resolve primary and full-scope legacy alternate"),
     );
     assert_eq!(
-        module.resolved_file().display(),
+        module.resolved_file().display().scalar_test_path(),
         Path::new("/physical/near/index.js")
     );
     assert_eq!(
-        module.original_path().map(ProgramPath::display),
+        module
+            .original_path()
+            .map(ProgramPath::display)
+            .map(|path| path.scalar_test_path()),
         Some(Path::new("/work/src/node_modules/pkg/index.js"))
     );
     assert_eq!(
-        module.alternate_result().map(ProgramPath::display),
+        module
+            .alternate_result()
+            .map(ProgramPath::display)
+            .map(|path| path.scalar_test_path()),
         Some(Path::new("/work/node_modules/pkg/legacy.d.ts"))
     );
     assert!(host.required_probe_seen.get());
@@ -7197,15 +7261,11 @@ fn falsy_exports_use_legacy_fields_and_overlapping_patterns_follow_js_substring(
         let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
         let module = resolved(
             resolver
-                .resolve(
-                    Path::new("/work/index.mts"),
-                    package,
-                    ResolutionMode::EsNext,
-                )
+                .resolve("/work/index.mts", package, ResolutionMode::EsNext)
                 .expect("falsy exports uses the legacy package fields"),
         );
         assert_eq!(
-            module.resolved_file().display(),
+            module.resolved_file().display().scalar_test_path(),
             PathBuf::from(format!("/work/node_modules/{package}/index.d.ts"))
         );
     }
@@ -7224,11 +7284,7 @@ fn falsy_exports_use_legacy_fields_and_overlapping_patterns_follow_js_substring(
         let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
         assert_eq!(
             resolver
-                .resolve(
-                    Path::new("/work/index.mts"),
-                    package,
-                    ResolutionMode::EsNext,
-                )
+                .resolve("/work/index.mts", package, ResolutionMode::EsNext,)
                 .expect("truthy primitive exports blocks legacy resolution without throwing"),
             ResolutionOutcome::NotFound
         );
@@ -7250,15 +7306,15 @@ fn falsy_exports_use_legacy_fields_and_overlapping_patterns_follow_js_substring(
     let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
     let nullish = resolved(
         resolver
-            .resolve(
-                Path::new("/work/index.mts"),
-                "nullish",
-                ResolutionMode::EsNext,
-            )
+            .resolve("/work/index.mts", "nullish", ResolutionMode::EsNext)
             .expect("null exports permits the Node ESM package-root index exception"),
     );
     assert_eq!(
-        nullish.resolved_file().canonical().as_path(),
+        nullish
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/work/node_modules/nullish/index.d.ts")
     );
 
@@ -7278,15 +7334,15 @@ fn falsy_exports_use_legacy_fields_and_overlapping_patterns_follow_js_substring(
     let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
     let overlap = resolved(
         resolver
-            .resolve(
-                Path::new("/work/index.mts"),
-                "overlap/aba",
-                ResolutionMode::EsNext,
-            )
+            .resolve("/work/index.mts", "overlap/aba", ResolutionMode::EsNext)
             .expect("overlapping bounds use JavaScript substring swapping"),
     );
     assert_eq!(
-        overlap.resolved_file().canonical().as_path(),
+        overlap
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/work/node_modules/overlap/types/aba.d.ts")
     );
 }
@@ -7334,7 +7390,7 @@ fn external_walk_prefers_types_across_ancestors_and_continues_after_null() {
         let resolution = resolved(
             resolver
                 .resolve(
-                    Path::new("/work/project/src/index.mts"),
+                    "/work/project/src/index.mts",
                     specifier,
                     ResolutionMode::EsNext,
                 )
@@ -7342,7 +7398,11 @@ fn external_walk_prefers_types_across_ancestors_and_continues_after_null() {
         );
         assert_eq!(resolution.extension(), &ModuleExtension::Dts);
         assert_eq!(
-            resolution.resolved_file().canonical().as_path(),
+            resolution
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new("/work/project/node_modules/inner/outer.d.ts")
         );
     }
@@ -7372,14 +7432,18 @@ fn a_manifestless_near_package_miss_continues_to_an_outer_node_modules() {
     let module = resolved(
         resolver
             .resolve(
-                Path::new("/work/project/src/index.mts"),
+                "/work/project/src/index.mts",
                 "inner/x",
                 ResolutionMode::EsNext,
             )
             .expect("a manifestless miss continues the ancestor walk"),
     );
     assert_eq!(
-        module.resolved_file().canonical().as_path(),
+        module
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/work/project/node_modules/inner/x.d.ts")
     );
 }
@@ -7437,36 +7501,40 @@ fn at_types_fallback_preserves_declaration_only_conditions_and_scoped_names() {
     ] {
         let module = resolved(
             resolver
-                .resolve(Path::new("/work/index.mts"), "inner", mode)
+                .resolve("/work/index.mts", "inner", mode)
                 .expect("resolve conditional @types fallback"),
         );
         assert_eq!(
-            module.resolved_file().canonical().as_path(),
+            module
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new(expected)
         );
         assert_eq!(module.extension(), &extension);
         assert_eq!(
             module.package_id().map(PackageId::name),
-            Some("@types/inner")
+            (Some("@types/inner")).map(Into::into)
         );
     }
 
     let scoped = resolved(
         resolver
-            .resolve(
-                Path::new("/work/index.mts"),
-                "@scope/pkg",
-                ResolutionMode::EsNext,
-            )
+            .resolve("/work/index.mts", "@scope/pkg", ResolutionMode::EsNext)
             .expect("resolve a mangled scoped @types fallback"),
     );
     assert_eq!(
-        scoped.resolved_file().canonical().as_path(),
+        scoped
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/work/node_modules/@types/scope__pkg/index.d.ts")
     );
     assert_eq!(
         scoped.package_id().map(PackageId::name),
-        Some("@types/scope__pkg")
+        (Some("@types/scope__pkg")).map(Into::into)
     );
     assert!(scoped.is_external_library_import());
 }
@@ -7489,11 +7557,15 @@ fn at_types_fallback_is_declaration_only_for_manifestless_packages() {
     let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
     let module = resolved(
         resolver
-            .resolve(Path::new("/work/main.ts"), "pkg", ResolutionMode::CommonJs)
+            .resolve("/work/main.ts", "pkg", ResolutionMode::CommonJs)
             .expect("resolve declaration-only @types fallback"),
     );
     assert_eq!(
-        module.resolved_file().canonical().as_path(),
+        module
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/work/node_modules/@types/pkg/index.d.ts")
     );
     assert_eq!(module.extension(), &ModuleExtension::Dts);
@@ -7563,7 +7635,7 @@ fn type_reference_primary_custom_roots_use_direct_then_directory_precedence() {
 
     let ResolutionOutcome::Resolved(direct) = resolver
         .resolve_type_reference(
-            Path::new("/work/main.ts"),
+            "/work/main.ts",
             "direct",
             ResolutionMode::CommonJs,
             Some(std::slice::from_ref(&type_root)),
@@ -7573,7 +7645,11 @@ fn type_reference_primary_custom_roots_use_direct_then_directory_precedence() {
         panic!("expected direct custom-root type reference");
     };
     assert_eq!(
-        direct.resolved_file().canonical().as_path(),
+        direct
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/work/types/direct.d.ts")
     );
     assert!(direct.primary());
@@ -7581,7 +7657,7 @@ fn type_reference_primary_custom_roots_use_direct_then_directory_precedence() {
 
     let ResolutionOutcome::Resolved(versioned) = resolver
         .resolve_type_reference(
-            Path::new("/work/main.ts"),
+            "/work/main.ts",
             "versioned",
             ResolutionMode::CommonJs,
             Some(std::slice::from_ref(&type_root)),
@@ -7591,13 +7667,17 @@ fn type_reference_primary_custom_roots_use_direct_then_directory_precedence() {
         panic!("expected versioned custom-root type reference");
     };
     assert_eq!(
-        versioned.resolved_file().canonical().as_path(),
+        versioned
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/work/types/versioned/v6/index.d.ts")
     );
     assert!(versioned.primary());
     assert_eq!(
         versioned.package_id().map(PackageId::name),
-        Some("versioned-types")
+        (Some("versioned-types")).map(Into::into)
     );
     let bound_versioned = versioned
         .clone()
@@ -7610,12 +7690,12 @@ fn type_reference_primary_custom_roots_use_direct_then_directory_precedence() {
     assert_eq!(bound_versioned.source(), SourceFileId::from_raw(7));
     assert_eq!(
         bound_versioned.package_id().map(PackageId::name),
-        Some("versioned-types")
+        (Some("versioned-types")).map(Into::into)
     );
 
     let ResolutionOutcome::Resolved(twinned) = resolver
         .resolve_type_reference(
-            Path::new("/work/main.ts"),
+            "/work/main.ts",
             "twinned",
             ResolutionMode::CommonJs,
             Some(std::slice::from_ref(&type_root)),
@@ -7625,7 +7705,11 @@ fn type_reference_primary_custom_roots_use_direct_then_directory_precedence() {
         panic!("expected twinned custom-root type reference");
     };
     assert_eq!(
-        twinned.resolved_file().canonical().as_path(),
+        twinned
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/work/types/twinned/index.d.ts")
     );
 
@@ -7636,7 +7720,7 @@ fn type_reference_primary_custom_roots_use_direct_then_directory_precedence() {
         assert_eq!(
             esm_resolver
                 .resolve_type_reference(
-                    Path::new("/work/main.mts"),
+                    "/work/main.mts",
                     specifier,
                     ResolutionMode::EsNext,
                     Some(std::slice::from_ref(&type_root)),
@@ -7664,7 +7748,7 @@ fn non_external_custom_type_roots_retain_realpath_transitions() {
 
     let ResolutionOutcome::Resolved(reference) = resolver
         .resolve_type_reference(
-            Path::new("/work/main.ts"),
+            "/work/main.ts",
             "linked",
             ResolutionMode::CommonJs,
             Some(std::slice::from_ref(&type_root)),
@@ -7674,7 +7758,11 @@ fn non_external_custom_type_roots_retain_realpath_transitions() {
         panic!("expected custom-root symlink type reference");
     };
     assert_eq!(
-        reference.resolved_file().canonical().as_path(),
+        reference
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/actual/linked.d.ts")
     );
     assert_eq!(
@@ -7682,28 +7770,37 @@ fn non_external_custom_type_roots_retain_realpath_transitions() {
             .original_path()
             .expect("lexical path")
             .canonical()
-            .as_path(),
+            .as_js()
+            .scalar_test_path(),
         Path::new("/work/types/linked.d.ts")
     );
     assert!(reference.primary());
     assert!(!reference.is_external_library_import());
     let caller_spelling = ProgramPath::from_trusted_parts(
         "actual/linked.d.ts",
-        reference.resolved_file().canonical().as_path(),
+        reference
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
     )
     .expect("create caller-owned target spelling");
     let bound = reference
         .clone()
         .into_resolved_type_reference_directive(caller_spelling, SourceFileId::from_raw(11))
         .expect("bind canonical target identity across display spellings");
-    assert_eq!(bound.target().display(), Path::new("actual/linked.d.ts"));
+    assert_eq!(
+        bound.target().display().scalar_test_path(),
+        Path::new("actual/linked.d.ts")
+    );
     assert_eq!(bound.source(), SourceFileId::from_raw(11));
     assert_eq!(
         bound
             .original_path()
             .expect("bound directive retains lexical path")
             .canonical()
-            .as_path(),
+            .as_js()
+            .scalar_test_path(),
         Path::new("/work/types/linked.d.ts")
     );
     assert!(bound.primary());
@@ -7745,7 +7842,7 @@ fn type_reference_default_roots_and_secondary_lookup_preserve_spelling_and_origi
 
     let ResolutionOutcome::Resolved(defaulted) = resolver
         .resolve_type_reference(
-            Path::new("/work/project/src/main.ts"),
+            "/work/project/src/main.ts",
             "defaulted",
             ResolutionMode::CommonJs,
             None,
@@ -7757,7 +7854,11 @@ fn type_reference_default_roots_and_secondary_lookup_preserve_spelling_and_origi
     assert!(defaulted.primary());
     assert!(defaulted.is_external_library_import());
     assert_eq!(
-        defaulted.resolved_file().canonical().as_path(),
+        defaulted
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/work/project/node_modules/@types/defaulted/index.d.ts")
     );
     let bound_defaulted = defaulted
@@ -7773,7 +7874,7 @@ fn type_reference_default_roots_and_secondary_lookup_preserve_spelling_and_origi
     let no_primary_roots: Vec<ProgramPath> = Vec::new();
     let ResolutionOutcome::Resolved(secondary) = resolver
         .resolve_type_reference(
-            Path::new("/work/project/src/main.ts"),
+            "/work/project/src/main.ts",
             "secondary",
             ResolutionMode::CommonJs,
             Some(&no_primary_roots),
@@ -7784,14 +7885,18 @@ fn type_reference_default_roots_and_secondary_lookup_preserve_spelling_and_origi
     };
     assert!(!secondary.primary());
     assert_eq!(
-        secondary.resolved_file().canonical().as_path(),
+        secondary
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/work/project/src/node_modules/secondary/index.d.ts")
     );
 
     assert_eq!(
         resolver
             .resolve_type_reference(
-                Path::new("/work/project/src/main.ts"),
+                "/work/project/src/main.ts",
                 "DEFAULTED",
                 ResolutionMode::CommonJs,
                 None,
@@ -7803,7 +7908,7 @@ fn type_reference_default_roots_and_secondary_lookup_preserve_spelling_and_origi
     assert_eq!(
         resolver
             .resolve_type_reference(
-                Path::new("/work/project/__inferred type names__.ts"),
+                "/work/project/__inferred type names__.ts",
                 "defaulted",
                 ResolutionMode::Unspecified,
                 Some(&no_primary_roots),
@@ -7858,25 +7963,24 @@ fn type_reference_secondary_at_types_exports_preserve_import_and_require_modes()
         ),
     ] {
         let ResolutionOutcome::Resolved(reference) = resolver
-            .resolve_type_reference(
-                Path::new("/work/main.ts"),
-                "mode",
-                mode,
-                Some(&no_primary_roots),
-            )
+            .resolve_type_reference("/work/main.ts", "mode", mode, Some(&no_primary_roots))
             .expect("resolve conditional secondary type reference")
         else {
             panic!("expected conditional secondary type reference");
         };
         assert_eq!(
-            reference.resolved_file().canonical().as_path(),
+            reference
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new(expected)
         );
         assert_eq!(reference.extension(), &extension);
         assert!(!reference.primary());
         assert_eq!(
             reference.package_id().map(PackageId::name),
-            Some("@types/mode")
+            (Some("@types/mode")).map(Into::into)
         );
     }
 }
@@ -7906,11 +8010,7 @@ fn manifest_and_target_directory_host_failures_propagate() {
     let mut resolver =
         ModuleResolver::new(&manifest_host, &options).expect("create manifest resolver");
     let error = resolver
-        .resolve(
-            Path::new("/work/index.mts"),
-            "manifest",
-            ResolutionMode::EsNext,
-        )
+        .resolve("/work/index.mts", "manifest", ResolutionMode::EsNext)
         .expect_err("manifest fileExists failure must propagate");
     let ResolutionError::Host(actual) = error else {
         panic!("expected manifest host error, got {error:?}");
@@ -7938,11 +8038,7 @@ fn manifest_and_target_directory_host_failures_propagate() {
         .expect("build target-directory-failure host");
     let mut resolver = ModuleResolver::new(&target_host, &options).expect("create target resolver");
     let error = resolver
-        .resolve(
-            Path::new("/work/index.mts"),
-            "target",
-            ResolutionMode::EsNext,
-        )
+        .resolve("/work/index.mts", "target", ResolutionMode::EsNext)
         .expect_err("target directory failure must propagate");
     let ResolutionError::Host(actual) = error else {
         panic!("expected target directory host error, got {error:?}");
@@ -7974,15 +8070,11 @@ fn self_name_all_extensions_preserve_priority_before_fallback_and_allow_js_excep
     for specifier in ["workspace", "#x"] {
         let module = resolved(
             resolver
-                .resolve(
-                    Path::new("/work/main.mts"),
-                    specifier,
-                    ResolutionMode::EsNext,
-                )
+                .resolve("/work/main.mts", specifier, ResolutionMode::EsNext)
                 .expect("finish every preferred SelfName target before JavaScript fallback"),
         );
         assert_eq!(
-            module.resolved_file().display(),
+            module.resolved_file().display().scalar_test_path(),
             Path::new("/work/typed.d.ts")
         );
         assert!(!module.is_external_library_import(), "{specifier}");
@@ -7998,15 +8090,11 @@ fn self_name_all_extensions_preserve_priority_before_fallback_and_allow_js_excep
     for specifier in ["workspace", "#x"] {
         let module = resolved(
             resolver
-                .resolve(
-                    Path::new("/work/main.mts"),
-                    specifier,
-                    ResolutionMode::EsNext,
-                )
+                .resolve("/work/main.mts", specifier, ResolutionMode::EsNext)
                 .expect("allowJs keeps a local SelfName search in one combined pass"),
         );
         assert_eq!(
-            module.resolved_file().display(),
+            module.resolved_file().display().scalar_test_path(),
             Path::new("/work/runtime.js")
         );
         assert!(!module.is_external_library_import(), "{specifier}");
@@ -8014,14 +8102,17 @@ fn self_name_all_extensions_preserve_priority_before_fallback_and_allow_js_excep
     let terminal_node_modules_directory = resolved(
         resolver
             .resolve(
-                Path::new("/work/node_modules/main.mts"),
+                "/work/node_modules/main.mts",
                 "workspace",
                 ResolutionMode::EsNext,
             )
             .expect("a terminal node_modules directory keeps the literal allowJs fast path"),
     );
     assert_eq!(
-        terminal_node_modules_directory.resolved_file().display(),
+        terminal_node_modules_directory
+            .resolved_file()
+            .display()
+            .scalar_test_path(),
         Path::new("/work/runtime.js")
     );
 }
@@ -8055,11 +8146,7 @@ fn self_name_observes_the_empty_secondary_extension_mask() {
     };
     let mut resolver = ModuleResolver::new(&host, &options).expect("create Node10 resolver");
     let error = resolver
-        .resolve(
-            Path::new("/work/main.cts"),
-            "workspace",
-            ResolutionMode::CommonJs,
-        )
+        .resolve("/work/main.cts", "workspace", ResolutionMode::CommonJs)
         .expect_err("the empty SelfName secondary mask must propagate its host failure");
     assert_eq!(error, ResolutionError::Host(failure));
     assert_eq!(
@@ -8098,7 +8185,7 @@ fn self_references_skip_external_realpath_and_case_only_realpaths_stay_lexical()
     let self_reference = resolved(
         resolver
             .resolve(
-                Path::new("/node_modules/inner/test.d.ts"),
+                "/node_modules/inner/test.d.ts",
                 "inner/x",
                 ResolutionMode::CommonJs,
             )
@@ -8121,12 +8208,12 @@ fn self_references_skip_external_realpath_and_case_only_realpaths_stay_lexical()
     let mut resolver = ModuleResolver::new(&insensitive, &options).expect("create resolver");
     let external = resolved(
         resolver
-            .resolve(Path::new("/index.mts"), "inner/x", ResolutionMode::EsNext)
+            .resolve("/index.mts", "inner/x", ResolutionMode::EsNext)
             .expect("resolve case-insensitive external package"),
     );
     assert_eq!(external.original_path(), None);
     assert_eq!(
-        external.resolved_file().display(),
+        external.resolved_file().display().scalar_test_path(),
         Path::new("/node_modules/inner/index.d.ts")
     );
 }
@@ -8171,7 +8258,7 @@ fn self_reference_misses_continue_to_node_modules_but_null_stays_terminal() {
         let module = resolved(
             resolver
                 .resolve(
-                    Path::new("/work/package/src/index.mts"),
+                    "/work/package/src/index.mts",
                     specifier,
                     ResolutionMode::EsNext,
                 )
@@ -8179,7 +8266,11 @@ fn self_reference_misses_continue_to_node_modules_but_null_stays_terminal() {
         );
         assert!(module.is_external_library_import());
         assert_eq!(
-            module.resolved_file().canonical().as_path(),
+            module
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new("/work/package/node_modules/same-name/index.d.ts")
         );
     }
@@ -8187,7 +8278,7 @@ fn self_reference_misses_continue_to_node_modules_but_null_stays_terminal() {
     assert_eq!(
         resolver
             .resolve(
-                Path::new("/work/package/src/index.mts"),
+                "/work/package/src/index.mts",
                 "same-name/blocked",
                 ResolutionMode::EsNext,
             )
@@ -8214,7 +8305,7 @@ fn directory_export_targets_require_a_trailing_slash_before_appending_subpaths()
 
     assert_eq!(
         resolver
-            .resolve(Path::new("/index.mts"), "pkg/foo/x", ResolutionMode::EsNext,)
+            .resolve("/index.mts", "pkg/foo/x", ResolutionMode::EsNext,)
             .expect("invalid directory target is an ordinary miss"),
         ResolutionOutcome::NotFound
     );
@@ -8245,11 +8336,15 @@ fn empty_export_array_continues_to_later_matching_conditions() {
 
     let module = resolved(
         resolver
-            .resolve(Path::new("/index.mts"), "pkg", ResolutionMode::EsNext)
+            .resolve("/index.mts", "pkg", ResolutionMode::EsNext)
             .expect("empty active-condition array continues"),
     );
     assert_eq!(
-        module.resolved_file().canonical().as_path(),
+        module
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/node_modules/pkg/index.d.ts")
     );
 }
@@ -8298,16 +8393,16 @@ fn types_versions_explicit_extensions_probe_exactly_before_loader_substitution()
 
     let exact_js = resolved(
         resolver
-            .resolve(
-                Path::new("/index.mts"),
-                "pkg/prefer-exact",
-                ResolutionMode::EsNext,
-            )
+            .resolve("/index.mts", "pkg/prefer-exact", ResolutionMode::EsNext)
             .expect("resolve exact JavaScript substitution first"),
     );
     assert_eq!(exact_js.extension(), &ModuleExtension::Js);
     assert_eq!(
-        exact_js.resolved_file().canonical().as_path(),
+        exact_js
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/node_modules/pkg/types/prefer.js")
     );
     assert_eq!(exact_js.package_id(), None);
@@ -8315,7 +8410,7 @@ fn types_versions_explicit_extensions_probe_exactly_before_loader_substitution()
     let exact_declaration = resolved(
         resolver
             .resolve(
-                Path::new("/index.mts"),
+                "/index.mts",
                 "pkg/exact-declaration",
                 ResolutionMode::EsNext,
             )
@@ -8327,22 +8422,21 @@ fn types_versions_explicit_extensions_probe_exactly_before_loader_substitution()
     let fallback = resolved(
         resolver
             .resolve(
-                Path::new("/index.mts"),
+                "/index.mts",
                 "pkg/fallback-after-miss",
                 ResolutionMode::EsNext,
             )
             .expect("fall through after an exact substitution miss"),
     );
     assert_eq!(fallback.extension(), &ModuleExtension::Dts);
-    assert_eq!(fallback.package_id().map(PackageId::name), Some("pkg"));
+    assert_eq!(
+        fallback.package_id().map(PackageId::name),
+        (Some("pkg")).map(Into::into)
+    );
 
     assert_eq!(
         resolver
-            .resolve(
-                Path::new("/index.mts"),
-                "pkg/missing",
-                ResolutionMode::EsNext,
-            )
+            .resolve("/index.mts", "pkg/missing", ResolutionMode::EsNext,)
             .expect("missing exact and loader candidates are authoritative miss"),
         ResolutionOutcome::NotFound
     );
@@ -8372,14 +8466,18 @@ fn manifestless_node_modules_probe_direct_files_and_commonjs_indexes_without_fak
     let direct = resolved(
         resolver
             .resolve(
-                Path::new("/work/index.cts"),
+                "/work/index.cts",
                 "plain/direct.ts",
                 ResolutionMode::CommonJs,
             )
             .expect("resolve an explicit manifestless TypeScript subpath"),
     );
     assert_eq!(
-        direct.resolved_file().canonical().as_path(),
+        direct
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/work/node_modules/plain/direct.ts")
     );
     assert!(direct.resolved_using_ts_extension());
@@ -8393,15 +8491,15 @@ fn manifestless_node_modules_probe_direct_files_and_commonjs_indexes_without_fak
     ] {
         let module = resolved(
             resolver
-                .resolve(
-                    Path::new("/work/index.cts"),
-                    specifier,
-                    ResolutionMode::CommonJs,
-                )
+                .resolve("/work/index.cts", specifier, ResolutionMode::CommonJs)
                 .expect("resolve a CommonJS manifestless index"),
         );
         assert_eq!(
-            module.resolved_file().canonical().as_path(),
+            module
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new(expected)
         );
         assert_eq!(module.package_id(), None);
@@ -8410,11 +8508,7 @@ fn manifestless_node_modules_probe_direct_files_and_commonjs_indexes_without_fak
 
     assert_eq!(
         resolver
-            .resolve(
-                Path::new("/work/index.cts"),
-                "plain/folder",
-                ResolutionMode::EsNext,
-            )
+            .resolve("/work/index.cts", "plain/folder", ResolutionMode::EsNext,)
             .expect("Node ESM does not perform a manifestless directory lookup"),
         ResolutionOutcome::NotFound
     );
@@ -8519,38 +8613,45 @@ fn legacy_package_fields_preserve_priority_nonrecursive_main_and_node_esm_direct
         ModuleResolver::new(&host, &bundler_options).expect("create Bundler resolver");
     let priority = resolved(
         bundler
-            .resolve(Path::new("/index.mts"), "priority", ResolutionMode::EsNext)
+            .resolve("/index.mts", "priority", ResolutionMode::EsNext)
             .expect("typings wins over types and main"),
     );
     assert_eq!(
-        priority.resolved_file().canonical().as_path(),
+        priority
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/node_modules/priority/typings.d.ts")
     );
-    assert_eq!(priority.package_id().map(PackageId::name), Some("priority"));
+    assert_eq!(
+        priority.package_id().map(PackageId::name),
+        (Some("priority")).map(Into::into)
+    );
     let first_field_miss = resolved(
         bundler
-            .resolve(
-                Path::new("/index.mts"),
-                "first-field-miss",
-                ResolutionMode::EsNext,
-            )
+            .resolve("/index.mts", "first-field-miss", ResolutionMode::EsNext)
             .expect("a selected typings miss falls through to index, not types or main"),
     );
     assert_eq!(
-        first_field_miss.resolved_file().canonical().as_path(),
+        first_field_miss
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/node_modules/first-field-miss/index.d.ts")
     );
     let direct_root = resolved(
         bundler
-            .resolve(
-                Path::new("/index.mts"),
-                "direct-root",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/index.mts", "direct-root", ResolutionMode::CommonJs)
             .expect("CommonJS probes the direct package-root file before package fields"),
     );
     assert_eq!(
-        direct_root.resolved_file().canonical().as_path(),
+        direct_root
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/node_modules/direct-root.ts")
     );
     let direct_root_id = direct_root
@@ -8560,11 +8661,7 @@ fn legacy_package_fields_preserve_priority_nonrecursive_main_and_node_esm_direct
     assert_eq!(direct_root_id.submodule_name(), "ts");
     assert_eq!(
         bundler
-            .resolve(
-                Path::new("/index.mts"),
-                "nonrecursive",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/index.mts", "nonrecursive", ResolutionMode::CommonJs,)
             .expect("a main target does not recursively consume nested package.json"),
         ResolutionOutcome::NotFound
     );
@@ -8572,32 +8669,28 @@ fn legacy_package_fields_preserve_priority_nonrecursive_main_and_node_esm_direct
     let node_options = options_for_module(100);
     let mut node = ModuleResolver::new(&host, &node_options).expect("create Node16 resolver");
     let root = resolved(
-        node.resolve(Path::new("/index.mts"), "mode", ResolutionMode::EsNext)
+        node.resolve("/index.mts", "mode", ResolutionMode::EsNext)
             .expect("an explicit main target resolves in Node ESM mode"),
     );
     assert_eq!(
-        root.resolved_file().canonical().as_path(),
+        root.resolved_file().canonical().as_js().scalar_test_path(),
         Path::new("/node_modules/mode/dist/index.d.ts")
     );
     assert_eq!(
-        node.resolve(
-            Path::new("/index.mts"),
-            "mode/dist/dir",
-            ResolutionMode::EsNext,
-        )
-        .expect("Node ESM forbids package-subpath directory lookup"),
+        node.resolve("/index.mts", "mode/dist/dir", ResolutionMode::EsNext,)
+            .expect("Node ESM forbids package-subpath directory lookup"),
         ResolutionOutcome::NotFound
     );
     let commonjs_directory = resolved(
-        node.resolve(
-            Path::new("/index.mts"),
-            "mode/dist/dir",
-            ResolutionMode::CommonJs,
-        )
-        .expect("Node CommonJS permits package-subpath directory lookup"),
+        node.resolve("/index.mts", "mode/dist/dir", ResolutionMode::CommonJs)
+            .expect("Node CommonJS permits package-subpath directory lookup"),
     );
     assert_eq!(
-        commonjs_directory.resolved_file().canonical().as_path(),
+        commonjs_directory
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/node_modules/mode/dist/dir/index.d.ts")
     );
 }
@@ -8701,56 +8794,71 @@ fn types_versions_root_back_references_unmapped_fallback_and_mapped_misses_are_d
     ] {
         let module = resolved(
             resolver
-                .resolve(Path::new("/main.ts"), specifier, ResolutionMode::CommonJs)
+                .resolve("/main.ts", specifier, ResolutionMode::CommonJs)
                 .expect("resolve versioned or legacy package target"),
         );
         assert_eq!(
-            module.resolved_file().canonical().as_path(),
+            module
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new(expected)
         );
         let expected_package = specifier.split('/').next().expect("package name");
         assert_eq!(
             module.package_id().map(PackageId::name),
-            Some(expected_package)
+            (Some(expected_package)).map(Into::into)
         );
     }
 
     let self_back_reference = resolved(
         resolver
             .resolve(
-                Path::new("/node_modules/ext/ts3.1/index.d.ts"),
+                "/node_modules/ext/ts3.1/index.d.ts",
                 "../",
                 ResolutionMode::CommonJs,
             )
             .expect("a package-root back-reference re-enters typesVersions"),
     );
     assert_eq!(
-        self_back_reference.resolved_file().canonical().as_path(),
+        self_back_reference
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/node_modules/ext/ts3.1/index.d.ts")
     );
     assert_eq!(
         self_back_reference.package_id().map(PackageId::name),
-        Some("ext")
+        (Some("ext")).map(Into::into)
     );
     let root_other = resolved(
         resolver
             .resolve(
-                Path::new("/node_modules/ext/ts3.1/other.d.ts"),
+                "/node_modules/ext/ts3.1/other.d.ts",
                 "../other",
                 ResolutionMode::CommonJs,
             )
             .expect("an extensionless relative file resolves before directory metadata"),
     );
     assert_eq!(
-        root_other.resolved_file().canonical().as_path(),
+        root_other
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/node_modules/ext/other.d.ts")
     );
-    assert_eq!(root_other.package_id().map(PackageId::name), Some("ext"));
+    assert_eq!(
+        root_other.package_id().map(PackageId::name),
+        (Some("ext")).map(Into::into)
+    );
 
     for specifier in ["mapped-miss", "mapped-miss/foo"] {
         assert_eq!(
             resolver
-                .resolve(Path::new("/main.ts"), specifier, ResolutionMode::CommonJs)
+                .resolve("/main.ts", specifier, ResolutionMode::CommonJs)
                 .expect("a selected mapping owns an all-target miss"),
             ResolutionOutcome::NotFound,
             "{specifier} must not fall through to its legacy file"
@@ -8789,17 +8897,13 @@ fn relative_directory_spellings_reenter_the_root_package_entry_field() {
 
     for specifier in ["..", "../"] {
         let outcome = resolver
-            .resolve(
-                Path::new("/pkg/src/main.ts"),
-                specifier,
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/pkg/src/main.ts", specifier, ResolutionMode::CommonJs)
             .expect("resolve a directory spelling of the package root");
         let ResolutionOutcome::Resolved(module) = outcome else {
             panic!("{specifier} returned {outcome:?}");
         };
         assert_eq!(
-            module.resolved_file().display(),
+            module.resolved_file().display().scalar_test_path(),
             Path::new("/pkg/good/index.d.ts"),
             "{specifier} must use the package entry as its typesVersions logical name"
         );
@@ -8846,11 +8950,7 @@ fn relative_package_ids_follow_file_and_directory_manifest_boundaries() {
     let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
     let module = resolved(
         resolver
-            .resolve(
-                Path::new("/work/index.ts"),
-                "./other",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/work/index.ts", "./other", ResolutionMode::CommonJs)
             .expect("resolve an ordinary relative source"),
     );
     assert_eq!(module.package_id(), None);
@@ -8858,23 +8958,19 @@ fn relative_package_ids_follow_file_and_directory_manifest_boundaries() {
 
     let directory_package = resolved(
         resolver
-            .resolve(
-                Path::new("/work/index.ts"),
-                "./directory/",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/work/index.ts", "./directory/", ResolutionMode::CommonJs)
             .expect("resolve a relative directory with its own package manifest"),
     );
     assert_eq!(
         directory_package.package_id().map(PackageId::name),
-        Some("directory")
+        (Some("directory")).map(Into::into)
     );
     assert!(!directory_package.is_external_library_import());
 
     let manifestless_directory = resolved(
         resolver
             .resolve(
-                Path::new("/work/node_modules/outer/index.d.ts"),
+                "/work/node_modules/outer/index.d.ts",
                 "./nested/",
                 ResolutionMode::CommonJs,
             )
@@ -8910,22 +9006,18 @@ fn relative_directory_spellings_skip_direct_files_for_modules_and_type_reference
 
     let module = resolved(
         resolver
-            .resolve(
-                Path::new("/work/main.ts"),
-                "./dir/",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/work/main.ts", "./dir/", ResolutionMode::CommonJs)
             .expect("resolve an explicitly trailing module directory"),
     );
     assert_eq!(
-        module.resolved_file().display(),
+        module.resolved_file().display().scalar_test_path(),
         Path::new("/work/dir/index.ts")
     );
 
     let empty_type_roots = Vec::<ProgramPath>::new();
     let ResolutionOutcome::Resolved(reference) = resolver
         .resolve_type_reference(
-            Path::new("/work/main.ts"),
+            "/work/main.ts",
             "./dir/",
             ResolutionMode::CommonJs,
             Some(&empty_type_roots),
@@ -8935,7 +9027,7 @@ fn relative_directory_spellings_skip_direct_files_for_modules_and_type_reference
         panic!("expected a relative directory type reference");
     };
     assert_eq!(
-        reference.resolved_file().display(),
+        reference.resolved_file().display().scalar_test_path(),
         Path::new("/work/dir/index.d.ts")
     );
     assert!(!reference.primary());
@@ -8959,11 +9051,11 @@ fn current_directory_specifier_resolves_its_manifestless_index() {
         for mode in [ResolutionMode::Unspecified, ResolutionMode::CommonJs] {
             let module = resolved(
                 resolver
-                    .resolve(Path::new("/.src/data1.ts"), "./", mode)
+                    .resolve("/.src/data1.ts", "./", mode)
                     .expect("resolve the containing directory index"),
             );
             assert_eq!(
-                module.resolved_file().display(),
+                module.resolved_file().display().scalar_test_path(),
                 Path::new("/.src/index.ts"),
                 "moduleResolution={resolution_kind}, mode={mode:?}"
             );
@@ -8986,7 +9078,7 @@ fn custom_type_roots_preserve_combine_paths_spelling_and_rooted_children() {
 
     let ResolutionOutcome::Resolved(dot) = resolver
         .resolve_type_reference(
-            Path::new("/work/main.ts"),
+            "/work/main.ts",
             ".",
             ResolutionMode::CommonJs,
             Some(std::slice::from_ref(&type_root)),
@@ -8995,12 +9087,15 @@ fn custom_type_roots_preserve_combine_paths_spelling_and_rooted_children() {
     else {
         panic!("expected the raw final-dot declaration twin");
     };
-    assert_eq!(dot.resolved_file().display(), Path::new("/types/.d..ts"));
+    assert_eq!(
+        dot.resolved_file().display().scalar_test_path(),
+        Path::new("/types/.d..ts")
+    );
     assert!(dot.primary());
 
     let ResolutionOutcome::Resolved(absolute) = resolver
         .resolve_type_reference(
-            Path::new("/work/main.ts"),
+            "/work/main.ts",
             "/absolute",
             ResolutionMode::CommonJs,
             Some(std::slice::from_ref(&type_root)),
@@ -9010,7 +9105,7 @@ fn custom_type_roots_preserve_combine_paths_spelling_and_rooted_children() {
         panic!("expected the rooted custom-type-root candidate");
     };
     assert_eq!(
-        absolute.resolved_file().display(),
+        absolute.resolved_file().display().scalar_test_path(),
         Path::new("/absolute.d.ts")
     );
     assert!(absolute.primary());
@@ -9069,38 +9164,36 @@ fn non_relative_modules_use_explicit_type_roots_for_primary_and_alternate_result
 
     let primary = resolved(
         resolver
-            .resolve(
-                Path::new("/work/main.mts"),
-                "primary",
-                ResolutionMode::EsNext,
-            )
+            .resolve("/work/main.mts", "primary", ResolutionMode::EsNext)
             .expect("resolve a module from explicit typeRoots"),
     );
     assert_eq!(
-        primary.resolved_file().display(),
+        primary.resolved_file().display().scalar_test_path(),
         Path::new("/physical/primary/entry.d.ts")
     );
     assert_eq!(
-        primary.original_path().map(ProgramPath::display),
+        primary
+            .original_path()
+            .map(ProgramPath::display)
+            .map(|path| path.scalar_test_path()),
         Some(Path::new("/custom/primary/entry.d.ts"))
     );
     assert!(primary.is_external_library_import());
 
     let alternate = resolved(
         resolver
-            .resolve(
-                Path::new("/work/main.mts"),
-                "alternate",
-                ResolutionMode::EsNext,
-            )
+            .resolve("/work/main.mts", "alternate", ResolutionMode::EsNext)
             .expect("resolve an exports implementation with a typeRoots alternate"),
     );
     assert_eq!(
-        alternate.resolved_file().display(),
+        alternate.resolved_file().display().scalar_test_path(),
         Path::new("/physical/alternate/index.js")
     );
     assert_eq!(
-        alternate.alternate_result().map(ProgramPath::display),
+        alternate
+            .alternate_result()
+            .map(ProgramPath::display)
+            .map(|path| path.scalar_test_path()),
         Some(Path::new("/custom/alternate/legacy.d.ts"))
     );
 }
@@ -9135,15 +9228,11 @@ fn types_versions_ranges_follow_javascript_own_property_order() {
     let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
     let module = resolved(
         resolver
-            .resolve(
-                Path::new("/main.ts"),
-                "range-order/x",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/main.ts", "range-order/x", ResolutionMode::CommonJs)
             .expect("select the numeric range before later string keys"),
     );
     assert_eq!(
-        module.resolved_file().display(),
+        module.resolved_file().display().scalar_test_path(),
         Path::new("/node_modules/range-order/six.d.ts")
     );
 }
@@ -9572,14 +9661,14 @@ fn types_versions_targets_follow_javascript_array_like_iteration() {
         let module = resolved(
             resolver
                 .resolve(
-                    Path::new("/work/main.ts"),
+                    "/work/main.ts",
                     &format!("{package}/x"),
                     ResolutionMode::CommonJs,
                 )
                 .expect("resolve an array-like typesVersions substitution"),
         );
         assert_eq!(
-            module.resolved_file().display(),
+            module.resolved_file().display().scalar_test_path(),
             PathBuf::from(format!("/work/node_modules/{package}/m.ts"))
         );
     }
@@ -9587,28 +9676,31 @@ fn types_versions_targets_follow_javascript_array_like_iteration() {
     let inherited_array_to_string = resolved(
         resolver
             .resolve(
-                Path::new("/work/main.ts"),
+                "/work/main.ts",
                 "jsonc-array-string/xa",
                 ResolutionMode::CommonJs,
             )
             .expect("coerce an object through inherited generic Array#join"),
     );
     assert_eq!(
-        inherited_array_to_string.resolved_file().display(),
+        inherited_array_to_string
+            .resolved_file()
+            .display()
+            .scalar_test_path(),
         Path::new("/work/node_modules/jsonc-array-string/m.ts")
     );
 
     let shadowed_join = resolved(
         resolver
             .resolve(
-                Path::new("/work/main.ts"),
+                "/work/main.ts",
                 "jsonc-array-string/joinx",
                 ResolutionMode::CommonJs,
             )
             .expect("fall back to Object#toString when generic Array#join is shadowed"),
     );
     assert_eq!(
-        shadowed_join.resolved_file().display(),
+        shadowed_join.resolved_file().display().scalar_test_path(),
         Path::new("/work/node_modules/jsonc-array-string/[object Object].ts")
     );
 
@@ -9616,14 +9708,14 @@ fn types_versions_targets_follow_javascript_array_like_iteration() {
         let module = resolved(
             resolver
                 .resolve(
-                    Path::new("/work/main.ts"),
+                    "/work/main.ts",
                     &format!("jsonc-array-string/{request}"),
                     ResolutionMode::CommonJs,
                 )
                 .expect("stringify an effective sparse generic Array#join projection"),
         );
         assert_eq!(
-            module.resolved_file().display(),
+            module.resolved_file().display().scalar_test_path(),
             PathBuf::from(format!("/work/node_modules/jsonc-array-string/{expected}"))
         );
     }
@@ -9632,14 +9724,14 @@ fn types_versions_targets_follow_javascript_array_like_iteration() {
         let module = resolved(
             resolver
                 .resolve(
-                    Path::new("/work/main.ts"),
+                    "/work/main.ts",
                     &format!("jsonc-raw-array-methods/{request}"),
                     ResolutionMode::CommonJs,
                 )
                 .expect("apply inherited generic Array#indexOf to a raw substitution"),
         );
         assert_eq!(
-            module.resolved_file().display(),
+            module.resolved_file().display().scalar_test_path(),
             PathBuf::from(format!(
                 "/work/node_modules/jsonc-raw-array-methods/{expected}"
             ))
@@ -9647,7 +9739,7 @@ fn types_versions_targets_follow_javascript_array_like_iteration() {
     }
     assert!(matches!(
         resolver.resolve(
-            Path::new("/work/main.ts"),
+            "/work/main.ts",
             "jsonc-raw-array-methods/shadowx",
             ResolutionMode::CommonJs,
         ),
@@ -9658,14 +9750,14 @@ fn types_versions_targets_follow_javascript_array_like_iteration() {
         let module = resolved(
             resolver
                 .resolve(
-                    Path::new("/work/main.ts"),
+                    "/work/main.ts",
                     &format!("{package}/x"),
                     ResolutionMode::CommonJs,
                 )
                 .expect("resolve a falsy exact substitution through the package root"),
         );
         assert_eq!(
-            module.resolved_file().display(),
+            module.resolved_file().display().scalar_test_path(),
             PathBuf::from(format!("/work/node_modules/{package}/root.d.ts"))
         );
     }
@@ -9681,14 +9773,14 @@ fn types_versions_targets_follow_javascript_array_like_iteration() {
         let module = resolved(
             resolver
                 .resolve(
-                    Path::new("/work/main.ts"),
+                    "/work/main.ts",
                     &format!("wildcard-coercion/{request}"),
                     ResolutionMode::CommonJs,
                 )
                 .expect("resolve a JavaScript-coerced wildcard substitution"),
         );
         assert_eq!(
-            module.resolved_file().display(),
+            module.resolved_file().display().scalar_test_path(),
             PathBuf::from(format!("/work/node_modules/wildcard-coercion/{expected}"))
         );
     }
@@ -9701,14 +9793,14 @@ fn types_versions_targets_follow_javascript_array_like_iteration() {
         let module = resolved(
             resolver
                 .resolve(
-                    Path::new("/work/main.ts"),
+                    "/work/main.ts",
                     &format!("replacement-tokens/{request}"),
                     ResolutionMode::CommonJs,
                 )
                 .expect("resolve a JavaScript replacement-string token"),
         );
         assert_eq!(
-            module.resolved_file().display(),
+            module.resolved_file().display().scalar_test_path(),
             PathBuf::from(format!("/work/node_modules/replacement-tokens/{expected}"))
         );
     }
@@ -9716,14 +9808,17 @@ fn types_versions_targets_follow_javascript_array_like_iteration() {
     let extension_only_ts = resolved(
         resolver
             .resolve(
-                Path::new("/work/main.ts"),
+                "/work/main.ts",
                 "extension-only/x",
                 ResolutionMode::CommonJs,
             )
             .expect("resolve an extension-only substitution through the ordinary loader"),
     );
     assert_eq!(
-        extension_only_ts.resolved_file().display(),
+        extension_only_ts
+            .resolved_file()
+            .display()
+            .scalar_test_path(),
         Path::new("/work/node_modules/extension-only/.ts")
     );
     assert_eq!(extension_only_ts.extension(), &ModuleExtension::Ts);
@@ -9733,14 +9828,17 @@ fn types_versions_targets_follow_javascript_array_like_iteration() {
     let extension_only_dts = resolved(
         resolver
             .resolve(
-                Path::new("/work/main.ts"),
+                "/work/main.ts",
                 "extension-only/y",
                 ResolutionMode::CommonJs,
             )
             .expect("resolve a declaration-looking extension through the ordinary loader"),
     );
     assert_eq!(
-        extension_only_dts.resolved_file().display(),
+        extension_only_dts
+            .resolved_file()
+            .display()
+            .scalar_test_path(),
         Path::new("/work/node_modules/extension-only/.d.ts")
     );
     assert_eq!(extension_only_dts.extension(), &ModuleExtension::Ts);
@@ -9751,14 +9849,14 @@ fn types_versions_targets_follow_javascript_array_like_iteration() {
         let module = resolved(
             resolver
                 .resolve(
-                    Path::new("/work/main.ts"),
+                    "/work/main.ts",
                     &format!("infinite-substitution/{request}"),
                     ResolutionMode::CommonJs,
                 )
                 .expect("coerce an overflowing JSON number like JavaScript"),
         );
         assert_eq!(
-            module.resolved_file().display(),
+            module.resolved_file().display().scalar_test_path(),
             PathBuf::from(format!(
                 "/work/node_modules/infinite-substitution/{expected}"
             ))
@@ -9777,7 +9875,7 @@ fn types_versions_targets_follow_javascript_array_like_iteration() {
         assert_eq!(
             resolver
                 .resolve(
-                    Path::new("/work/main.ts"),
+                    "/work/main.ts",
                     &format!("{package}/x"),
                     ResolutionMode::CommonJs,
                 )
@@ -9794,7 +9892,7 @@ fn types_versions_targets_follow_javascript_array_like_iteration() {
     ] {
         assert!(matches!(
             resolver.resolve(
-                Path::new("/work/main.ts"),
+                "/work/main.ts",
                 &format!("{package}/x"),
                 ResolutionMode::CommonJs,
             ),
@@ -9803,7 +9901,7 @@ fn types_versions_targets_follow_javascript_array_like_iteration() {
     }
     assert!(matches!(
         resolver.resolve(
-            Path::new("/work/main.ts"),
+            "/work/main.ts",
             "wildcard-coercion/badObjectx",
             ResolutionMode::CommonJs,
         ),
@@ -9855,13 +9953,16 @@ fn package_maps_apply_javascript_replacement_tokens_after_absolute_join() {
         let module = resolved(
             resolver
                 .resolve(
-                    Path::new("/work/main.mts"),
+                    "/work/main.mts",
                     &format!("export-tokens/{request}"),
                     ResolutionMode::EsNext,
                 )
                 .expect("resolve an exports replacement-string token"),
         );
-        assert_eq!(module.resolved_file().display(), Path::new(expected));
+        assert_eq!(
+            module.resolved_file().display().scalar_test_path(),
+            Path::new(expected)
+        );
     }
 }
 
@@ -9891,7 +9992,7 @@ fn javascript_replacement_expansion_fails_before_quadratic_allocation() {
 
     assert!(matches!(
         resolver.resolve(
-            Path::new("/work/main.ts"),
+            "/work/main.ts",
             &format!("replacement-limit/{capture}"),
             ResolutionMode::CommonJs,
         ),
@@ -9970,14 +10071,13 @@ fn malformed_types_versions_objects_fall_back_to_legacy_package_fields() {
     ] {
         let module = resolved(
             resolver
-                .resolve(
-                    Path::new("/work/main.ts"),
-                    specifier,
-                    ResolutionMode::CommonJs,
-                )
+                .resolve("/work/main.ts", specifier, ResolutionMode::CommonJs)
                 .expect("malformed typesVersions must not abort legacy resolution"),
         );
-        assert_eq!(module.resolved_file().display(), Path::new(expected));
+        assert_eq!(
+            module.resolved_file().display().scalar_test_path(),
+            Path::new(expected)
+        );
     }
 }
 
@@ -10041,14 +10141,17 @@ fn legacy_subpaths_honor_nested_packages_and_nested_types_versions_workers() {
         let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
         let nested = resolved(
             resolver
-                .resolve(Path::new("/main.ts"), "nested/sub", mode)
+                .resolve("/main.ts", "nested/sub", mode)
                 .expect("resolve a nested package boundary"),
         );
         assert_eq!(
-            nested.resolved_file().display(),
+            nested.resolved_file().display().scalar_test_path(),
             Path::new("/node_modules/nested/sub/entry.d.ts")
         );
-        assert_eq!(nested.package_id().map(PackageId::name), Some("nested"));
+        assert_eq!(
+            nested.package_id().map(PackageId::name),
+            (Some("nested")).map(Into::into)
+        );
     }
 
     let options = options_for_module(1);
@@ -10062,18 +10165,17 @@ fn legacy_subpaths_honor_nested_packages_and_nested_types_versions_workers() {
     ] {
         let module = resolved(
             resolver
-                .resolve(Path::new("/main.ts"), specifier, ResolutionMode::CommonJs)
+                .resolve("/main.ts", specifier, ResolutionMode::CommonJs)
                 .expect("resolve through the subpath directory worker"),
         );
-        assert_eq!(module.resolved_file().display(), Path::new(expected));
+        assert_eq!(
+            module.resolved_file().display().scalar_test_path(),
+            Path::new(expected)
+        );
     }
     assert_eq!(
         resolver
-            .resolve(
-                Path::new("/main.ts"),
-                "owned-miss/sub",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/main.ts", "owned-miss/sub", ResolutionMode::CommonJs,)
             .expect("an inner mapping owns its miss"),
         ResolutionOutcome::NotFound
     );
@@ -10131,11 +10233,7 @@ fn direct_legacy_files_use_actual_node_package_roots_without_local_scope_reads()
 
     let local = resolved(
         resolver
-            .resolve(
-                Path::new("/work/main.ts"),
-                "./local",
-                ResolutionMode::CommonJs,
-            )
+            .resolve("/work/main.ts", "./local", ResolutionMode::CommonJs)
             .expect("resolve a local direct file without reading package.json"),
     );
     assert_eq!(local.package_id(), None);
@@ -10143,32 +10241,34 @@ fn direct_legacy_files_use_actual_node_package_roots_without_local_scope_reads()
     let nested = resolved(
         resolver
             .resolve(
-                Path::new("/work/node_modules/outer/index.ts"),
+                "/work/node_modules/outer/index.ts",
                 "./nested/value",
                 ResolutionMode::CommonJs,
             )
             .expect("attach the actual node_modules package root after a direct hit"),
     );
-    assert_eq!(nested.package_id().map(PackageId::name), Some("outer"));
+    assert_eq!(
+        nested.package_id().map(PackageId::name),
+        (Some("outer")).map(Into::into)
+    );
     assert_eq!(
         nested.package_id().map(PackageId::submodule_name),
-        Some("nested/value.ts")
+        (Some("nested/value.ts")).map(Into::into)
     );
 
     let sibling = resolved(
         resolver
-            .resolve(
-                Path::new("/work/main.ts"),
-                "direct",
-                ResolutionMode::Unspecified,
-            )
+            .resolve("/work/main.ts", "direct", ResolutionMode::Unspecified)
             .expect("root direct file precedes the package directory worker"),
     );
     assert_eq!(
-        sibling.resolved_file().display(),
+        sibling.resolved_file().display().scalar_test_path(),
         Path::new("/work/node_modules/direct.ts")
     );
-    assert_eq!(sibling.package_id().map(PackageId::name), Some("direct"));
+    assert_eq!(
+        sibling.package_id().map(PackageId::name),
+        (Some("direct")).map(Into::into)
+    );
 }
 
 #[test]
@@ -10202,12 +10302,12 @@ fn optional_direct_files_preserve_parse_node_module_package_slices() {
         ..CompilerOptions::default()
     };
     let program_options = ProgramOptions::default().with_paths(vec![
-        PathMapping::new("foo-file", vec!["node_modules/foo".to_owned()]),
+        PathMapping::new("foo-file", vec!["node_modules/foo".to_owned().into()]),
         PathMapping::new(
             "scoped-package-file",
-            vec!["node_modules/@scope/pkg".to_owned()],
+            vec!["node_modules/@scope/pkg".to_owned().into()],
         ),
-        PathMapping::new("scope-file", vec!["node_modules/@scope".to_owned()]),
+        PathMapping::new("scope-file", vec!["node_modules/@scope".to_owned().into()]),
     ]);
     let mut resolver = ModuleResolver::new_with_program_options(&host, &options, &program_options)
         .expect("create direct-file package-slice resolver");
@@ -10234,14 +10334,13 @@ fn optional_direct_files_preserve_parse_node_module_package_slices() {
     ] {
         let module = resolved(
             resolver
-                .resolve(
-                    Path::new("/work/main.ts"),
-                    specifier,
-                    ResolutionMode::Unspecified,
-                )
+                .resolve("/work/main.ts", specifier, ResolutionMode::Unspecified)
                 .expect("resolve an optional direct node_modules file"),
         );
-        assert_eq!(module.resolved_file().display(), Path::new(expected_path));
+        assert_eq!(
+            module.resolved_file().display().scalar_test_path(),
+            Path::new(expected_path)
+        );
         let package_id = module.package_id().expect("attach the parsed package id");
         assert_eq!(package_id.name(), package_name);
         assert_eq!(package_id.submodule_name(), submodule);
@@ -10272,15 +10371,11 @@ fn bare_package_trailing_separators_retain_candidate_and_package_id_spelling() {
         let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
         let module = resolved(
             resolver
-                .resolve(
-                    Path::new("/work/main.ts"),
-                    "pkg/",
-                    ResolutionMode::Unspecified,
-                )
+                .resolve("/work/main.ts", "pkg/", ResolutionMode::Unspecified)
                 .expect("resolve a bare package with a trailing separator"),
         );
         assert_eq!(
-            module.resolved_file().display(),
+            module.resolved_file().display().scalar_test_path(),
             Path::new("/work/node_modules/pkg/index.d.ts")
         );
         let package_id = module.package_id().expect("attach package id");
@@ -10315,15 +10410,11 @@ fn external_relative_root_dirs_keep_lexical_paths_in_node_and_classic_modes() {
                 .expect("create rootDirs resolver");
         let module = resolved(
             resolver
-                .resolve(
-                    Path::new("/work/src/main.ts"),
-                    "./value",
-                    ResolutionMode::CommonJs,
-                )
+                .resolve("/work/src/main.ts", "./value", ResolutionMode::CommonJs)
                 .expect("resolve an external-relative rootDirs candidate"),
         );
         assert_eq!(
-            module.resolved_file().display(),
+            module.resolved_file().display().scalar_test_path(),
             Path::new("/work/node_modules/pkg/value.ts"),
             "moduleResolution={resolution_kind}"
         );
@@ -10414,22 +10505,22 @@ fn package_manifest_read_json_accepts_jsonc_fields_and_retains_exact_text() {
     ] {
         let module = resolved(
             resolver
-                .resolve(
-                    Path::new("/work/main.mts"),
-                    specifier,
-                    ResolutionMode::EsNext,
-                )
+                .resolve("/work/main.mts", specifier, ResolutionMode::EsNext)
                 .expect("resolve JSONC package"),
         );
         assert_eq!(
-            module.resolved_file().canonical().as_path(),
+            module
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             Path::new(expected)
         );
         let metadata = module
             .package_metadata()
             .expect("JSONC package retains its manifest observation");
         assert_eq!(metadata.text(), manifest);
-        assert_eq!(metadata.name(), Some(name));
+        assert_eq!(metadata.name(), (Some(name)).map(Into::into));
         assert_eq!(metadata.module_type(), module_type);
     }
 }
@@ -10511,23 +10602,18 @@ fn exports_shape_uses_own_keys_without_rejecting_mixed_objects() {
     ] {
         let module = resolved(
             resolver
-                .resolve(
-                    Path::new("/work/main.mts"),
-                    specifier,
-                    ResolutionMode::EsNext,
-                )
+                .resolve("/work/main.mts", specifier, ResolutionMode::EsNext)
                 .expect("resolve an exports own-key shape"),
         );
-        assert_eq!(module.resolved_file().display(), Path::new(expected));
+        assert_eq!(
+            module.resolved_file().display().scalar_test_path(),
+            Path::new(expected)
+        );
     }
 
     assert_eq!(
         resolver
-            .resolve(
-                Path::new("/work/main.mts"),
-                "mixed-subpath/x",
-                ResolutionMode::EsNext,
-            )
+            .resolve("/work/main.mts", "mixed-subpath/x", ResolutionMode::EsNext,)
             .expect("a mixed subpath map is a regular miss, not invalid data"),
         ResolutionOutcome::NotFound
     );
@@ -10567,15 +10653,15 @@ fn invalid_and_non_object_manifests_are_found_empty_package_scopes() {
     for (package, manifest) in manifests {
         let module = resolved(
             resolver
-                .resolve(
-                    Path::new("/work/main.ts"),
-                    package,
-                    ResolutionMode::CommonJs,
-                )
+                .resolve("/work/main.ts", package, ResolutionMode::CommonJs)
                 .expect("an unreadable semantic object falls through to legacy index"),
         );
         assert_eq!(
-            module.resolved_file().canonical().as_path(),
+            module
+                .resolved_file()
+                .canonical()
+                .as_js()
+                .scalar_test_path(),
             PathBuf::from(format!("/work/node_modules/{package}/index.d.ts"))
         );
         let metadata = module
@@ -10612,11 +10698,7 @@ fn invalid_manifest_text_does_not_hide_a_later_target_host_failure() {
     let options = options_for_module(1);
     let mut resolver = ModuleResolver::new(&host, &options).expect("create legacy resolver");
     let error = resolver
-        .resolve(
-            Path::new("/work/main.ts"),
-            "broken",
-            ResolutionMode::CommonJs,
-        )
+        .resolve("/work/main.ts", "broken", ResolutionMode::CommonJs)
         .expect_err("the later legacy-index host failure must win");
     let ResolutionError::Host(actual) = error else {
         panic!("expected target host error, got {error:?}");
@@ -10644,11 +10726,15 @@ fn a_manifest_that_disappears_after_file_exists_is_a_found_empty_scope() {
     let mut resolver = ModuleResolver::new(&host, &options).expect("create legacy resolver");
     let module = resolved(
         resolver
-            .resolve(Path::new("/work/main.ts"), "racy", ResolutionMode::CommonJs)
+            .resolve("/work/main.ts", "racy", ResolutionMode::CommonJs)
             .expect("missing contents expose empty manifest fields"),
     );
     assert_eq!(
-        module.resolved_file().canonical().as_path(),
+        module
+            .resolved_file()
+            .canonical()
+            .as_js()
+            .scalar_test_path(),
         Path::new("/work/node_modules/racy/index.d.ts")
     );
     let metadata = module
@@ -10674,16 +10760,12 @@ fn relative_json_requires_an_explicit_suffix_and_effective_json_resolution() {
 
     let module = resolved(
         resolver
-            .resolve(
-                Path::new("/work/root.ts"),
-                "./data.json",
-                ResolutionMode::EsNext,
-            )
+            .resolve("/work/root.ts", "./data.json", ResolutionMode::EsNext)
             .expect("resolve an explicitly named JSON module"),
     );
     assert_eq!(module.extension(), &ModuleExtension::Json);
     assert_eq!(
-        module.resolved_file().display(),
+        module.resolved_file().display().scalar_test_path(),
         Path::new("/work/data.json")
     );
     assert!(!module.is_external_library_import());
@@ -10691,7 +10773,7 @@ fn relative_json_requires_an_explicit_suffix_and_effective_json_resolution() {
     assert_eq!(module.original_path(), None);
     assert_eq!(
         resolver
-            .resolve(Path::new("/work/root.ts"), "./data", ResolutionMode::EsNext,)
+            .resolve("/work/root.ts", "./data", ResolutionMode::EsNext,)
             .expect("extensionless relative requests exclude JSON"),
         ResolutionOutcome::NotFound
     );
@@ -10703,11 +10785,7 @@ fn relative_json_requires_an_explicit_suffix_and_effective_json_resolution() {
     let mut resolver = ModuleResolver::new(&host, &disabled).expect("create disabled resolver");
     assert_eq!(
         resolver
-            .resolve(
-                Path::new("/work/root.ts"),
-                "./data.json",
-                ResolutionMode::EsNext,
-            )
+            .resolve("/work/root.ts", "./data.json", ResolutionMode::EsNext,)
             .expect("disabled JSON resolution is an authoritative miss"),
         ResolutionOutcome::NotFound
     );
@@ -10737,21 +10815,29 @@ fn package_input_request_diagnostics_restore_after_host_error_and_nested_rewrite
         };
         let options = CompilerOptions {
             module: Some(199),
-            declaration_dir: Some("/project/types".to_owned()),
+            declaration_dir: Some("/project/types".to_owned().into()),
             ..CompilerOptions::default()
         };
         let mut resolver = ModuleResolver::new(&host, &options).unwrap();
         let origin = Path::new("/project/test/main.ts");
         assert_eq!(
             resolver
-                .resolve_with_facts(origin, initial, ResolutionMode::EsNext)
+                .resolve_with_facts(
+                    origin.to_str().expect("scalar source fixture"),
+                    initial,
+                    ResolutionMode::EsNext
+                )
                 .unwrap_err(),
             ResolutionError::Host(failure)
         );
         // A successful caller after the failed nested or ordinary request
         // receives exactly its own diagnostic, with no stranded child state.
         let first = resolver
-            .resolve_with_facts(origin, "local", ResolutionMode::EsNext)
+            .resolve_with_facts(
+                origin.to_str().expect("scalar source fixture"),
+                "local",
+                ResolutionMode::EsNext,
+            )
             .unwrap();
         assert_eq!(
             first
@@ -10762,22 +10848,36 @@ fn package_input_request_diagnostics_restore_after_host_error_and_nested_rewrite
             [2209]
         );
         assert_eq!(
-            resolved(first.outcome().clone()).resolved_file().display(),
+            resolved(first.outcome().clone())
+                .resolved_file()
+                .display()
+                .scalar_test_path(),
             watched
         );
         let alias = resolver
-            .resolve_with_facts(origin, "#alias", ResolutionMode::EsNext)
+            .resolve_with_facts(
+                origin.to_str().expect("scalar source fixture"),
+                "#alias",
+                ResolutionMode::EsNext,
+            )
             .unwrap();
         assert!(
             alias.diagnostics().is_empty(),
             "bare-import child diagnostics are dropped"
         );
         assert_eq!(
-            resolved(alias.into_outcome()).resolved_file().display(),
+            resolved(alias.into_outcome())
+                .resolved_file()
+                .display()
+                .scalar_test_path(),
             watched
         );
         let second = resolver
-            .resolve_with_facts(origin, "local", ResolutionMode::EsNext)
+            .resolve_with_facts(
+                origin.to_str().expect("scalar source fixture"),
+                "local",
+                ResolutionMode::EsNext,
+            )
             .unwrap();
         assert_eq!(
             second, first,
@@ -10785,3 +10885,7 @@ fn package_input_request_diagnostics_restore_after_host_error_and_nested_rewrite
         );
     }
 }
+
+#[path = "../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

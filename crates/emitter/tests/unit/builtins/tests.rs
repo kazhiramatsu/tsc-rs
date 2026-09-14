@@ -1,5 +1,259 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+#[test]
+fn jsx_transforms_preserve_js_option_and_literal_values() {
+    let fixture: serde_json::Value =
+        serde_json::from_str(include_str!("../../fixtures/utf16-jsx-name-values.json")).unwrap();
+    let js = |value: &serde_json::Value| {
+        tsc_diagnostics::JsString::from_code_units(
+            &value
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|unit| u16::try_from(unit.as_u64().unwrap()).unwrap())
+                .collect::<Vec<_>>(),
+        )
+    };
+    for case in fixture["cases"].as_array().unwrap() {
+        let parsed = parse_source_file(
+            js(&case["file_name"]),
+            case["source"].as_str().unwrap(),
+            ParseOptions {
+                language_variant: LanguageVariant::Jsx,
+                ..Default::default()
+            },
+            None,
+        );
+        assert!(parsed.parse_diagnostics.is_empty(), "{}", case["case_id"]);
+        let settings = &case["settings"];
+        let option = |name: &str| settings.get(name).map(js);
+        let options = CompilerOptions {
+            target: Some(ScriptTarget::ES2015.bits()),
+            module: Some(ModuleKind::ES_NEXT.bits()),
+            jsx: Some(settings["jsx"].as_i64().unwrap() as i32),
+            react_namespace: option("reactNamespace"),
+            jsx_factory: option("jsxFactory"),
+            jsx_fragment_factory: option("jsxFragmentFactory"),
+            jsx_import_source: option("jsxImportSource"),
+            always_strict: Some(false),
+            ..Default::default()
+        };
+        let resolver = LegacyScriptJsxResolver;
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+        let mut result = transform_nodes(
+            arena,
+            vec![TransformRoot::SourceFile(source)],
+            vec![
+                transform_type_script(&options, &resolver),
+                transform_jsx(&options, &resolver),
+            ],
+            false,
+        )
+        .unwrap_or_else(|error| panic!("{}: {error:?}", case["case_id"]));
+        let printed = create_printer(
+            PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
+        .unwrap();
+        assert_eq!(
+            &*printed.text_utf16(),
+            js(&case["output"]["text"]).to_utf16(),
+            "{}",
+            case["case_id"]
+        );
+    }
+}
+
+#[test]
+fn standard_decorator_runtime_names_and_helper_stems_match_typescript() {
+    let fixture: serde_json::Value = serde_json::from_str(include_str!(
+        "../../fixtures/utf16-decorator-name-values.json"
+    ))
+    .unwrap();
+    for case in fixture["cases"].as_array().unwrap() {
+        let target = ScriptTarget::from_bits(case["target"].as_i64().unwrap() as i32);
+        let parsed = parse_source_file(
+            "/project/input.ts",
+            case["source"].as_str().unwrap(),
+            ParseOptions {
+                script_target: target,
+                ..Default::default()
+            },
+            None,
+        );
+        assert!(parsed.parse_diagnostics.is_empty(), "{}", case["case_id"]);
+        let resolver = EnumBindingResolver::new(&parsed);
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+        let options = CompilerOptions {
+            target: Some(target.bits()),
+            use_define_for_class_fields: Some(true),
+            always_strict: Some(false),
+            ..Default::default()
+        };
+        let mut result = transform_nodes(
+            arena,
+            vec![TransformRoot::SourceFile(source)],
+            vec![
+                transform_type_script(&options, &resolver),
+                transform_standard_decorators(&options),
+                transform_class_fields(&options, &resolver),
+            ],
+            false,
+        )
+        .unwrap_or_else(|error| panic!("{}: {error:?}", case["case_id"]));
+        let printed =
+            create_printer(PrinterOptions::new(NewLineKind::LineFeed).with_target(target))
+                .print(&mut result, PrintRequest::SourceFile(source), None)
+                .unwrap();
+        assert_eq!(
+            printed.text(),
+            case["expected"].as_str().unwrap(),
+            "{}",
+            case["case_id"]
+        );
+    }
+}
+
+#[test]
+fn module_transforms_preserve_js_name_values() {
+    let fixture: serde_json::Value =
+        serde_json::from_str(include_str!("../../fixtures/utf16-module-name-values.json")).unwrap();
+    for case in fixture["cases"].as_array().unwrap() {
+        let parsed = parse_source_file(
+            "/project/input.ts",
+            case["source"].as_str().unwrap(),
+            Default::default(),
+            None,
+        );
+        assert!(parsed.parse_diagnostics.is_empty(), "{}", case["case_id"]);
+        let resolver = EnumBindingResolver::new(&parsed);
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+        let module = i32::try_from(case["module"].as_i64().unwrap()).unwrap();
+        let options = CompilerOptions {
+            target: Some(ScriptTarget::ES2015.bits()),
+            module: Some(module),
+            rewrite_relative_import_extensions: Some(true),
+            always_strict: Some(false),
+            ..CompilerOptions::default()
+        };
+        let module_transform = if module == ModuleKind::SYSTEM.bits() {
+            transform_system_module(&options, &resolver, None)
+        } else {
+            transform_module(&options, &resolver)
+        };
+        let mut result = transform_nodes(
+            arena,
+            vec![TransformRoot::SourceFile(source)],
+            vec![transform_type_script(&options, &resolver), module_transform],
+            false,
+        )
+        .unwrap_or_else(|error| panic!("{}: {error:?}", case["case_id"]));
+        let printed = create_printer(
+            PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
+        .unwrap();
+        assert_eq!(
+            printed.text(),
+            case["expected"].as_str().unwrap(),
+            "{}",
+            case["case_id"]
+        );
+    }
+}
+
+#[test]
+fn preflight_admits_only_parser_owned_literal_recovery() {
+    let fixture: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../syntax/tests/fixtures/utf16-recovery-boundary.json"
+    ))
+    .unwrap();
+    for case in fixture["cases"].as_array().unwrap() {
+        let file_name = case["file_name"].as_str().unwrap();
+        let parsed = parse_source_file(
+            file_name,
+            case["source"].as_str().unwrap(),
+            ParseOptions {
+                javascript_file: file_name.ends_with(".js"),
+                language_variant: if file_name.ends_with(".tsx") {
+                    LanguageVariant::Jsx
+                } else {
+                    LanguageVariant::Standard
+                },
+                ..ParseOptions::default()
+            },
+            None,
+        );
+        let diagnostics = parsed.parse_diagnostics.clone();
+        let recovery = parsed.parse_recovery().clone();
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&parsed, None);
+        let result = super::preflight_source(&arena, source, true, true, true);
+        if case["literal_only_contract"].as_bool().unwrap() {
+            assert!(result.is_ok(), "{}: {result:?}", case["case_id"]);
+        } else {
+            assert!(
+                matches!(
+                    result,
+                    Err(crate::TransformError::ParseDiagnosticsDeferred { .. })
+                ),
+                "{}: {result:?}",
+                case["case_id"]
+            );
+        }
+        assert_eq!(
+            arena.source(source).unwrap().syntax().parse_diagnostics,
+            diagnostics
+        );
+        assert_eq!(
+            arena.source(source).unwrap().syntax().parse_recovery(),
+            &recovery
+        );
+    }
+}
+
+#[test]
+fn clearing_retained_messages_does_not_erase_structural_recovery() {
+    let mut parsed = parse_source_file("main.ts", "const = 1;", Default::default(), None);
+    assert!(!parsed.parse_diagnostics.is_empty());
+    parsed.parse_diagnostics.clear();
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, None);
+    assert!(matches!(
+        super::preflight_source(&arena, source, true, true, true),
+        Err(crate::TransformError::ParseDiagnosticsDeferred {
+            count: 0,
+            recovery_events,
+            ..
+        }) if recovery_events > 0
+    ));
+}
+
+#[test]
+fn module_identifier_bases_match_typescript_utf16_replacement() {
+    let fixture: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../program/tests/fixtures/utf16-generated-module-names.json"
+    ))
+    .unwrap();
+    for case in fixture["cases"].as_array().unwrap() {
+        let value: tsc_types::JsString = case["value_utf16"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|unit| u16::try_from(unit.as_u64().unwrap()).unwrap())
+            .collect();
+        assert_eq!(
+            super::generated_module_name(&value),
+            case["expected"]["generated_name"].as_str().unwrap(),
+            "{}",
+            case["case_id"]
+        );
+    }
+}
+
 use tsc_program::SourceFileId;
 use tsc_syntax::{
     for_each_child, parse_source_file, LanguageVariant, NodeData, NodeId, ParseOptions,
@@ -3149,7 +3403,10 @@ fn common_js_file_level_generated_export_map_rejects_ordinary_generated_ids() {
     assert_eq!(
         exports
             .get_for_identifier(arena, file_level_identifier)
-            .map(|names| names.iter().map(AsRef::as_ref).collect::<Vec<_>>()),
+            .map(|names| names
+                .iter()
+                .map(|name| name.text.as_str().expect("scalar fixture export name"))
+                .collect::<Vec<_>>()),
         Some(vec!["default"]),
     );
 }
@@ -6003,13 +6260,13 @@ impl crate::EmitHost for ModuleFactoryHost {
     fn compiler_options(&self) -> &CompilerOptions {
         &self.options
     }
-    fn current_directory(&self) -> &std::path::Path {
-        std::path::Path::new("/project")
+    fn current_directory(&self) -> tsc_diagnostics::JsStr<'_> {
+        tsc_diagnostics::JsStr::from("/project")
     }
-    fn common_source_directory(&self) -> &std::path::Path {
+    fn common_source_directory(&self) -> tsc_diagnostics::JsStr<'_> {
         self.current_directory()
     }
-    fn config_file_path(&self) -> Option<&std::path::Path> {
+    fn config_file_path(&self) -> Option<tsc_diagnostics::JsStr<'_>> {
         None
     }
     fn use_case_sensitive_file_names(&self) -> bool {

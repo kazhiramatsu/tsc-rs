@@ -44,6 +44,23 @@ fn fixture_options(
     }
 }
 
+#[test]
+fn accessor_pairs_keep_escaped_name_identity_for_js_literal_values() {
+    let fixture: serde_json::Value = serde_json::from_str(include_str!(
+        "../../fixtures/utf16-accessor-pair-names.json"
+    ))
+    .unwrap();
+    for case in fixture["cases"].as_array().unwrap() {
+        let actual = project_with(case["source"].as_str().unwrap(), false, false);
+        assert_eq!(
+            actual,
+            case["expected"].as_str().unwrap(),
+            "{}",
+            case["case_id"]
+        );
+    }
+}
+
 // H2.5h CA-2a G: the captured-this + super fold must survive a source
 // parameter named `_super` (the class binding renames to `_super_1`
 // eagerly; the fold predicates match the binding's preferred base, not

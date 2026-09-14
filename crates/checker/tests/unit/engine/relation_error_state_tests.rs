@@ -7,12 +7,28 @@ fn chain(depth: usize, label: &str) -> MessageChain {
     MessageChain {
         code: depth as u32,
         category: DiagnosticCategory::Error,
-        text: format!("{label}-{depth}"),
+        text: format!("{label}-{depth}").into(),
         next_present: depth > 1,
         next: (depth > 1)
             .then(|| chain(depth - 1, label))
             .into_iter()
             .collect(),
+    }
+}
+
+#[test]
+fn enum_value_diagnostic_text_keeps_lone_units_after_escape_string() {
+    use crate::evaluate::EvalValue;
+    use tsc_types::JsString;
+
+    // _tsc.js:64709–64722 applies escapeString, whose regexp does not
+    // match surrogate units; rendering that value to UTF-8 is a later step.
+    for unit in [0xd800, 0xd801, 0xdc00, 0xfffd] {
+        let value = EvalValue::Str(JsString::from_code_units(&[unit, 0x22, 0x0a]));
+        assert_eq!(
+            super::enum_relation_value_text(&value).to_utf16(),
+            [0x22, unit, 0x5c, 0x22, 0x5c, 0x6e, 0x22]
+        );
     }
 }
 

@@ -100,7 +100,12 @@ fn accessor_implicit_any_is_an_error_or_suggestion_with_the_same_identity() {
                 diagnostic.category(),
                 diagnostic.start,
                 diagnostic.length,
-                diagnostic.message.text.clone(),
+                diagnostic
+                    .message
+                    .text
+                    .as_str()
+                    .expect("scalar diagnostic observation")
+                    .to_owned(),
                 diagnostic.related.len(),
             )
         })

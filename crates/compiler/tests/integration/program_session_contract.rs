@@ -43,7 +43,7 @@ fn diagnostic(code: u32, text: &str) -> Diagnostic {
         MessageChain {
             code,
             category: DiagnosticCategory::Error,
-            text: text.to_owned(),
+            text: text.to_owned().into(),
             next_present: false,
             next: Vec::new(),
         },
@@ -58,7 +58,7 @@ fn located_diagnostic(code: u32, file_name: &str, text: &str) -> Diagnostic {
         MessageChain {
             code,
             category: DiagnosticCategory::Error,
-            text: text.to_owned(),
+            text: text.to_owned().into(),
             next_present: false,
             next: Vec::new(),
         },
@@ -238,7 +238,12 @@ fn l0_work_counters_and_sorted_batch_syntax_diagnostics() {
     let file_names = outcome
         .syntactic_diagnostics()
         .iter()
-        .filter_map(|diagnostic| diagnostic.file_name.as_deref())
+        .filter_map(|diagnostic| {
+            diagnostic
+                .file_name
+                .as_ref()
+                .map(|value| value.as_str().expect("scalar legacy option observation"))
+        })
         .collect::<Vec<_>>();
     assert_eq!(file_names, ["first.ts", "second.ts"]);
     assert!(file_names.iter().all(|name| *name != "lib.d.ts"));
@@ -274,7 +279,17 @@ fn no_emit_reports_both_owners_of_a_default_library_global_conflict() {
         .semantic_diagnostics()
         .iter()
         .filter(|diagnostic| diagnostic.code() == 2300)
-        .map(|diagnostic| diagnostic.file_name.clone().unwrap_or_default())
+        .map(|diagnostic| {
+            diagnostic
+                .file_name
+                .as_ref()
+                .map(|name| {
+                    name.as_str()
+                        .expect("scalar diagnostic filename")
+                        .to_owned()
+                })
+                .unwrap_or_default()
+        })
         .collect::<Vec<_>>();
     duplicate_owners.sort();
     assert_eq!(duplicate_owners, ["lib.d.ts", "main.ts"]);
@@ -285,7 +300,17 @@ fn no_emit_reports_both_owners_of_a_default_library_global_conflict() {
         .semantic_diagnostics()
         .iter()
         .filter(|diagnostic| diagnostic.code() == 2300)
-        .map(|diagnostic| diagnostic.file_name.clone().unwrap_or_default())
+        .map(|diagnostic| {
+            diagnostic
+                .file_name
+                .as_ref()
+                .map(|name| {
+                    name.as_str()
+                        .expect("scalar diagnostic filename")
+                        .to_owned()
+                })
+                .unwrap_or_default()
+        })
         .collect::<Vec<_>>();
     skipped_duplicate_owners.sort();
     assert_eq!(skipped_duplicate_owners, ["main.ts"]);
@@ -296,7 +321,7 @@ fn programmatic_base_url_deprecation_is_fileless_and_suppressible() {
     let deprecated = consume(ProgramSession::new(with_minimal_lib(
         &[("main.ts", "export {};\n")],
         PreparationDiagnostics::default(),
-        |options| options.base_url = Some("/Display/Project".to_owned()),
+        |options| options.base_url = Some("/Display/Project".to_owned().into()),
     )));
     let [diagnostic] = deprecated.options_diagnostics() else {
         panic!("expected one baseUrl option diagnostic");
@@ -314,8 +339,8 @@ fn programmatic_base_url_deprecation_is_fileless_and_suppressible() {
         &[("main.ts", "export {};\n")],
         PreparationDiagnostics::default(),
         |options| {
-            options.base_url = Some("/Display/Project".to_owned());
-            options.ignore_deprecations = Some("6.0".to_owned());
+            options.base_url = Some("/Display/Project".to_owned().into());
+            options.ignore_deprecations = Some("6.0".to_owned().into());
         },
     )));
     assert!(silenced.options_diagnostics().is_empty());
@@ -352,7 +377,10 @@ fn programmatic_lib_and_no_lib_conflict_is_fileless() {
     assert_eq!(diagnostic.start, None);
     assert_eq!(diagnostic.length, None);
     assert_eq!(
-        diagnostic.message_text(),
+        diagnostic
+            .message_text()
+            .as_str()
+            .expect("scalar diagnostic observation"),
         "Option 'lib' cannot be specified with option 'noLib'."
     );
 }
@@ -373,7 +401,7 @@ fn programmatic_amd_and_umd_deprecations_are_fileless_and_suppressible() {
         assert_eq!(diagnostic.start, None);
         assert_eq!(diagnostic.length, None);
         assert_eq!(
-            diagnostic.message_text(),
+            diagnostic.message_text().as_str().expect("scalar diagnostic observation"),
             format!(
                 "Option 'module={name}' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
             )
@@ -384,7 +412,7 @@ fn programmatic_amd_and_umd_deprecations_are_fileless_and_suppressible() {
             PreparationDiagnostics::default(),
             |options| {
                 options.module = Some(module);
-                options.ignore_deprecations = Some("6.0".to_owned());
+                options.ignore_deprecations = Some("6.0".to_owned().into());
             },
         )));
         assert!(silenced.options_diagnostics().is_empty());
@@ -455,9 +483,9 @@ fn program_owned_config_option_diagnostics_use_effective_values_and_syntax_locat
             suppress_excess_property_errors: Some(true),
             suppress_implicit_any_index_errors: Some(true),
             no_strict_generic_checks: Some(true),
-            charset: Some("utf8".to_owned()),
-            out: Some("dist.js".to_owned()),
-            ignore_deprecations: Some("5.0".to_owned()),
+            charset: Some("utf8".to_owned().into()),
+            out: Some("dist.js".to_owned().into()),
+            ignore_deprecations: Some("5.0".to_owned().into()),
             ..CompilerOptions::default()
         },
     );
@@ -485,7 +513,10 @@ fn program_owned_config_option_diagnostics_use_effective_values_and_syntax_locat
             .map(|diagnostic| {
                 (
                     diagnostic.code(),
-                    diagnostic.file_name.as_deref(),
+                    diagnostic
+                        .file_name
+                        .as_ref()
+                        .map(|value| value.as_str().expect("scalar legacy option observation")),
                     diagnostic.start,
                     diagnostic.length,
                 )
@@ -518,7 +549,7 @@ fn programmatic_node_module_resolution_relationships_keep_exact_module_names() {
             |options| {
                 options.module = Some(module);
                 options.module_resolution = Some(1);
-                options.ignore_deprecations = Some("6.0".to_owned());
+                options.ignore_deprecations = Some("6.0".to_owned().into());
             },
         )));
         let [diagnostic] = outcome.options_diagnostics() else {
@@ -526,7 +557,7 @@ fn programmatic_node_module_resolution_relationships_keep_exact_module_names() {
         };
         assert_eq!(diagnostic.code(), 5109);
         assert_eq!(
-            diagnostic.message_text(),
+            diagnostic.message_text().as_str().expect("scalar diagnostic observation"),
             format!(
                 "Option 'moduleResolution' must be set to '{resolution}' (or left unspecified) when option 'module' is set to '{expected}'."
             )
@@ -669,8 +700,8 @@ fn program_options_preserve_absent_and_explicit_types() {
     let options = ProgramOptions::default().with_types(Vec::new());
     assert_eq!(options.types(), Some([].as_slice()));
 
-    let options = ProgramOptions::default().with_types(vec!["jquery".to_owned()]);
-    assert_eq!(options.types(), Some(["jquery".to_owned()].as_slice()));
+    let options = ProgramOptions::default().with_types(vec!["jquery".to_owned().into()]);
+    assert_eq!(options.types(), Some(["jquery".into()].as_slice()));
 }
 
 #[test]
@@ -830,8 +861,14 @@ fn checker_receives_the_current_directory_display_spelling() {
         .expect("missing path reference diagnostic");
     assert!(missing
         .message_text()
+        .as_str()
+        .expect("scalar diagnostic observation")
         .contains("/Display/Project/src/missing.ts"));
-    assert!(!missing.message_text().contains("/canonical/project"));
+    assert!(!missing
+        .message_text()
+        .as_str()
+        .expect("scalar diagnostic observation")
+        .contains("/canonical/project"));
 }
 
 #[test]
@@ -868,7 +905,7 @@ fn conformance_harness_lib_cache_preserves_authoritative_diagnostics() {
             CompilerOptions {
                 module: Some(1),
                 module_resolution: Some(2),
-                ignore_deprecations: Some("6.0".to_owned()),
+                ignore_deprecations: Some("6.0".to_owned().into()),
                 ..CompilerOptions::default()
             },
             |builder, ids| {
@@ -994,7 +1031,7 @@ fn authoritative_not_found_does_not_fall_through_to_a_relative_probe_hit() {
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
-            ignore_deprecations: Some("6.0".to_owned()),
+            ignore_deprecations: Some("6.0".to_owned().into()),
             ..CompilerOptions::default()
         },
         |builder, _| {
@@ -1037,7 +1074,7 @@ fn authoritative_resolution_selects_the_recorded_source_not_the_probe_candidate(
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
-            ignore_deprecations: Some("6.0".to_owned()),
+            ignore_deprecations: Some("6.0".to_owned().into()),
             ..CompilerOptions::default()
         },
         |builder, ids| {
@@ -1208,7 +1245,7 @@ fn authoritative_ts_extension_fact_controls_non_relative_rewrite_diagnostic() {
             CompilerOptions {
                 module: Some(1),
                 module_resolution: Some(2),
-                ignore_deprecations: Some("6.0".to_owned()),
+                ignore_deprecations: Some("6.0".to_owned().into()),
                 rewrite_relative_import_extensions: Some(true),
                 ..CompilerOptions::default()
             },
@@ -1255,7 +1292,7 @@ fn authoritative_ts_extension_fact_controls_non_relative_rewrite_diagnostic() {
         );
         if case.expect_2877 {
             assert_eq!(
-                diagnostics[0].message_text(),
+                diagnostics[0].message_text().as_str().expect("scalar diagnostic observation"),
                 "This import uses a '.ts' extension to resolve to an input TypeScript file, but will not be rewritten during emit because it is not a relative path."
             );
         }
@@ -1401,7 +1438,7 @@ fn synthetic_tslib_uses_the_same_fail_closed_authoritative_table() {
             CompilerOptions {
                 module: Some(1),
                 module_resolution: Some(2),
-                ignore_deprecations: Some("6.0".to_owned()),
+                ignore_deprecations: Some("6.0".to_owned().into()),
                 import_helpers: Some(true),
                 ..CompilerOptions::default()
             },
@@ -1485,10 +1522,16 @@ fn private_emit_helpers_consume_the_authoritative_tslib_declaration_target() {
         .filter(|diagnostic| diagnostic.code() == 2807)
         .map(|diagnostic| {
             (
-                diagnostic.file_name.as_deref(),
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .map(|value| value.as_str().expect("scalar legacy option observation")),
                 diagnostic.start,
                 diagnostic.length,
-                diagnostic.message_text(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation"),
             )
         })
         .collect::<Vec<_>>();
@@ -1572,10 +1615,16 @@ fn private_emit_helpers_use_the_source_files_static_resolution_mode() {
         .filter(|diagnostic| diagnostic.code() == 2807)
         .map(|diagnostic| {
             (
-                diagnostic.file_name.as_deref(),
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .map(|value| value.as_str().expect("scalar legacy option observation")),
                 diagnostic.start,
                 diagnostic.length,
-                diagnostic.message_text(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation"),
             )
         })
         .collect::<Vec<_>>();
@@ -1995,7 +2044,7 @@ fn authoritative_not_found_preserves_node10_alternate_result_chain() {
         &[0],
         CompilerOptions {
             module_resolution: Some(2),
-            ignore_deprecations: Some("6.0".to_owned()),
+            ignore_deprecations: Some("6.0".to_owned().into()),
             ..CompilerOptions::default()
         },
         |builder, _| {
@@ -2014,10 +2063,16 @@ fn authoritative_not_found_preserves_node10_alternate_result_chain() {
     let diagnostic = &diagnostics[0];
     assert_eq!(
         (
-            diagnostic.file_name.as_deref(),
+            diagnostic
+                .file_name
+                .as_ref()
+                .map(|value| value.as_str().expect("scalar legacy option observation")),
             diagnostic.start,
             diagnostic.length,
-            diagnostic.message_text(),
+            diagnostic
+                .message_text()
+                .as_str()
+                .expect("scalar diagnostic observation"),
         ),
         (
             Some("/index.ts"),
@@ -2031,7 +2086,7 @@ fn authoritative_not_found_preserves_node10_alternate_result_chain() {
         (
             diagnostic.message.next[0].code,
             diagnostic.message.next[0].category,
-            diagnostic.message.next[0].text.as_str(),
+            diagnostic.message.next[0].text.as_str().expect("scalar diagnostic detail"),
         ),
         (
             6280,
@@ -2229,7 +2284,7 @@ fn authoritative_untyped_module_augmentation_reports_2665() {
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
-            ignore_deprecations: Some("6.0".to_owned()),
+            ignore_deprecations: Some("6.0".to_owned().into()),
             allow_js: true,
             ..CompilerOptions::default()
         },
@@ -2256,6 +2311,8 @@ fn authoritative_untyped_module_augmentation_reports_2665() {
     assert_eq!(codes(outcome.semantic_diagnostics()), [2665]);
     assert!(outcome.semantic_diagnostics()[0]
         .message_text()
+        .as_str()
+        .expect("scalar diagnostic observation")
         .contains("/node_modules/pkg/index.js"));
 }
 
@@ -2267,7 +2324,7 @@ fn authoritative_relative_untyped_module_ignores_inapplicable_package_details() 
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
-            ignore_deprecations: Some("6.0".to_owned()),
+            ignore_deprecations: Some("6.0".to_owned().into()),
             no_implicit_any: Some(true),
             ..CompilerOptions::default()
         },
@@ -2311,7 +2368,7 @@ fn unloaded_jsx_with_an_active_jsx_mode_reports_7016() {
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
-            ignore_deprecations: Some("6.0".to_owned()),
+            ignore_deprecations: Some("6.0".to_owned().into()),
             allow_js: true,
             no_implicit_any: Some(true),
             jsx: Some(1),
@@ -2347,7 +2404,7 @@ fn allow_js_unloaded_javascript_after_default_node_modules_depth_is_authoritativ
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
-            ignore_deprecations: Some("6.0".to_owned()),
+            ignore_deprecations: Some("6.0".to_owned().into()),
             allow_js: true,
             no_implicit_any: Some(true),
             ..CompilerOptions::default()
@@ -2375,6 +2432,8 @@ fn allow_js_unloaded_javascript_after_default_node_modules_depth_is_authoritativ
     assert_eq!(codes(outcome.semantic_diagnostics()), [7016]);
     assert!(outcome.semantic_diagnostics()[0]
         .message_text()
+        .as_str()
+        .expect("scalar diagnostic observation")
         .contains("/node_modules/pkg/index.js"));
 }
 
@@ -2386,7 +2445,7 @@ fn unloaded_jsx_without_mode_reports_6142() {
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
-            ignore_deprecations: Some("6.0".to_owned()),
+            ignore_deprecations: Some("6.0".to_owned().into()),
             allow_js: true,
             ..CompilerOptions::default()
         },
@@ -2412,6 +2471,8 @@ fn unloaded_jsx_without_mode_reports_6142() {
     assert_eq!(codes(outcome.semantic_diagnostics()), [6142]);
     assert!(outcome.semantic_diagnostics()[0]
         .message_text()
+        .as_str()
+        .expect("scalar diagnostic observation")
         .contains("/node_modules/pkg/index.jsx"));
 }
 
@@ -2423,7 +2484,7 @@ fn unloaded_arbitrary_declaration_reports_6263() {
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
-            ignore_deprecations: Some("6.0".to_owned()),
+            ignore_deprecations: Some("6.0".to_owned().into()),
             ..CompilerOptions::default()
         },
         |builder, _| {
@@ -2432,7 +2493,7 @@ fn unloaded_arbitrary_declaration_reports_6263() {
                     path("/data.d.json.ts"),
                     UnloadedModuleReason::ArbitraryExtensionWithoutOption,
                 ),
-                ModuleExtension::Arbitrary(".d.json.ts".to_owned()),
+                ModuleExtension::Arbitrary(".d.json.ts".to_owned().into()),
             );
             builder
                 .add_module_resolution(
@@ -2447,6 +2508,8 @@ fn unloaded_arbitrary_declaration_reports_6263() {
     assert_eq!(codes(outcome.semantic_diagnostics()), [6263]);
     assert!(outcome.semantic_diagnostics()[0]
         .message_text()
+        .as_str()
+        .expect("scalar diagnostic observation")
         .contains("/data.d.json.ts"));
 }
 
@@ -2461,7 +2524,7 @@ fn augmentation_only_arbitrary_declaration_still_reports_6263_first() {
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
-            ignore_deprecations: Some("6.0".to_owned()),
+            ignore_deprecations: Some("6.0".to_owned().into()),
             ..CompilerOptions::default()
         },
         |builder, _| {
@@ -2470,7 +2533,7 @@ fn augmentation_only_arbitrary_declaration_still_reports_6263_first() {
                     path("/data.d.json.ts"),
                     UnloadedModuleReason::ResolutionOnly,
                 ),
-                ModuleExtension::Arbitrary(".d.json.ts".to_owned()),
+                ModuleExtension::Arbitrary(".d.json.ts".to_owned().into()),
             );
             builder
                 .add_module_resolution(
@@ -2504,7 +2567,7 @@ fn declaration_augmentation_may_introduce_a_resolution_only_arbitrary_target() {
                     path("/data.d.json.ts"),
                     UnloadedModuleReason::ResolutionOnly,
                 ),
-                ModuleExtension::Arbitrary(".d.json.ts".to_owned()),
+                ModuleExtension::Arbitrary(".d.json.ts".to_owned().into()),
             );
             builder
                 .add_module_resolution(
@@ -2530,7 +2593,7 @@ fn enabled_arbitrary_augmentation_uses_the_ordinary_missing_module_diagnostic() 
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
-            ignore_deprecations: Some("6.0".to_owned()),
+            ignore_deprecations: Some("6.0".to_owned().into()),
             allow_arbitrary_extensions: Some(true),
             ..CompilerOptions::default()
         },
@@ -2540,7 +2603,7 @@ fn enabled_arbitrary_augmentation_uses_the_ordinary_missing_module_diagnostic() 
                     path("/data.d.css.ts"),
                     UnloadedModuleReason::ResolutionOnly,
                 ),
-                ModuleExtension::Arbitrary(".d.css.ts".to_owned()),
+                ModuleExtension::Arbitrary(".d.css.ts".to_owned().into()),
             );
             builder
                 .add_module_resolution(
@@ -2569,7 +2632,7 @@ fn owned_jsx_without_mode_reports_6142_and_keeps_the_resolved_symbol() {
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
-            ignore_deprecations: Some("6.0".to_owned()),
+            ignore_deprecations: Some("6.0".to_owned().into()),
             allow_js: true,
             ..CompilerOptions::default()
         },
@@ -2594,6 +2657,8 @@ fn owned_jsx_without_mode_reports_6142_and_keeps_the_resolved_symbol() {
     assert_eq!(codes(outcome.semantic_diagnostics()), [6142, 2322]);
     assert!(outcome.semantic_diagnostics()[0]
         .message_text()
+        .as_str()
+        .expect("scalar diagnostic observation")
         .contains("/dependency.jsx"));
 }
 
@@ -2812,11 +2877,17 @@ fn ambient_const_enum_aliases_consume_authoritative_bare_module_bindings() {
         .iter()
         .map(|diagnostic| {
             (
-                diagnostic.file_name.as_deref(),
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .map(|value| value.as_str().expect("scalar legacy option observation")),
                 diagnostic.code(),
                 diagnostic.start,
                 diagnostic.length,
-                diagnostic.message_text(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation"),
             )
         })
         .collect::<Vec<_>>();
@@ -2952,11 +3023,7 @@ fn memory_host_exports_resolution_feeds_the_authoritative_session_table() {
     builder.add_root_file(main).expect("add root file");
 
     let allowed = resolver
-        .resolve(
-            std::path::Path::new("/index.mts"),
-            "inner/mjs/index",
-            ResolutionMode::EsNext,
-        )
+        .resolve("/index.mts", "inner/mjs/index", ResolutionMode::EsNext)
         .expect("resolve allowed export");
     let ResolutionOutcome::Resolved(allowed) = allowed else {
         panic!("allowed export must resolve");
@@ -2976,7 +3043,7 @@ fn memory_host_exports_resolution_feeds_the_authoritative_session_table() {
 
     let blocked = resolver
         .resolve(
-            std::path::Path::new("/index.mts"),
+            "/index.mts",
             "inner/mjs/exclude/index",
             ResolutionMode::EsNext,
         )
@@ -3083,14 +3150,22 @@ fn conformance_harness_session_elides_only_the_library_prefix_completion() {
             .semantic_diagnostics()
             .iter()
             .any(|diagnostic| diagnostic.code() == 2304
-                && diagnostic.file_name.as_deref() == Some("/lib.d.ts")),
+                && diagnostic
+                    .file_name
+                    .as_ref()
+                    .map(|value| value.as_str().expect("scalar legacy option observation"))
+                    == Some("/lib.d.ts")),
         "the complete pass checks the library prefix and publishes its 2304"
     );
     assert!(
         fixture_observed
             .semantic_diagnostics()
             .iter()
-            .all(|diagnostic| diagnostic.file_name.as_deref() != Some("/lib.d.ts")),
+            .all(|diagnostic| diagnostic
+                .file_name
+                .as_ref()
+                .map(|value| value.as_str().expect("scalar legacy option observation"))
+                != Some("/lib.d.ts")),
         "the fixture-observed view carries no library-check-only rows"
     );
     assert_eq!(

@@ -125,7 +125,12 @@ fn assert_exact_writes(
         let expected_path = Path::new(string(expected, "path")?);
         let expected_bytes = base64::engine::general_purpose::STANDARD
             .decode(string(expected, "callback_utf8_base64")?)?;
-        if actual.path() != expected_path
+        if std::path::Path::new(
+            actual
+                .path()
+                .as_str()
+                .expect("scalar acceptance output path"),
+        ) != expected_path
             || actual.callback_text().as_bytes() != expected_bytes
             || actual.callback_text().len() as u64
                 != expected["callback_utf8_bytes"].as_u64().unwrap_or(u64::MAX)
@@ -142,7 +147,7 @@ fn assert_exact_writes(
             return Err(failure(format!(
                 "{case_id}: write {index} path or exact bytes differ: expected_path={} actual_path={} expected_callback_sha256={} actual_callback_sha256={} expected_materialized_sha256={} actual_materialized_sha256={} expected_bom={} actual_bom={} expected_text={:?} actual_text={:?}",
                 expected_path.display(),
-                actual.path().display(),
+                std::path::Path::new(actual.path().as_str().expect("scalar acceptance output path")).display(),
                 string(expected, "callback_utf8_sha256")?,
                 sha256(actual.callback_text().as_bytes()),
                 string(expected, "materialized_utf8_sha256")?,
@@ -161,7 +166,9 @@ fn assert_exact_writes(
             .source_files()
             .unwrap_or_default()
             .iter()
-            .map(|source| source.to_string_lossy())
+            .map(|source| {
+                std::borrow::Cow::Borrowed(source.as_str().expect("scalar acceptance source path"))
+            })
             .collect::<Vec<_>>();
         if actual_sources
             .iter()
@@ -184,7 +191,7 @@ fn flatten_message_chain(chain: &MessageChain, indent: usize, output: &mut Strin
             output.push_str("  ");
         }
     }
-    output.push_str(&chain.text);
+    output.push_str(chain.text.as_str().expect("scalar acceptance diagnostic"));
     for child in &chain.next {
         flatten_message_chain(child, indent + 1, output);
     }
@@ -205,7 +212,7 @@ fn normalize_diagnostic(diagnostic: &Diagnostic) -> Value {
     json!({
         "code": diagnostic.code(),
         "category": diagnostic_category(diagnostic.category()),
-        "file": diagnostic.file_name,
+        "file": diagnostic.file_name.as_ref().map(|value| value.as_str().expect("scalar acceptance filename")),
         "start": diagnostic.start,
         "length": diagnostic.length,
         "message": message,

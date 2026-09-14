@@ -165,7 +165,7 @@ fn assert_frozen_declaration_writes(case_id: &str) {
     );
     for (write, expected) in sink.writes().iter().zip(expected_writes) {
         assert_eq!(
-            write.path(),
+            write.path().scalar_test_path(),
             Path::new(expected["path"].as_str().expect("frozen write path")),
             "{case_id}: exact output path"
         );
@@ -175,7 +175,7 @@ fn assert_frozen_declaration_writes(case_id: &str) {
             write.callback_text(),
             expected_text,
             "{case_id}: exact frozen bytes for {}",
-            write.path().display()
+            write.path().scalar_test_path().display()
         );
     }
 }
@@ -299,3 +299,7 @@ fn foreign_computed_property_name_reuse_defers_the_tracker_reports_like_upstream
         "typescript-6.0.3/compiler/declarationEmitComputedPropertyNameSymbol2.ts#default",
     );
 }
+
+#[path = "../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

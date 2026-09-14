@@ -628,11 +628,11 @@ fn checked_js_import_meta_commonjs_row_is_published() {
             .iter()
             .filter(|diagnostic| diagnostic.code() == 1470)
             .map(|diagnostic| (
-                diagnostic.file_name.as_deref(),
+                diagnostic.file_name.as_ref().map(|value| value.as_js().as_str().expect("scalar name observation")),
                 diagnostic.code(),
                 diagnostic.start,
                 diagnostic.length,
-                diagnostic.message_text(),
+                diagnostic.message_text().as_str().expect("scalar diagnostic observation"),
             ))
             .collect::<Vec<_>>(),
         [(

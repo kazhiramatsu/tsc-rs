@@ -36,7 +36,8 @@ use tsc_binder::{node_util, SymbolId};
 use tsc_diagnostics::gen as diagnostics;
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{
-    CheckMode, FlowFlags, NodeCheckFlags, NodeFlags, SymbolFlags, TypeData, TypeFlags, TypeId,
+    CheckMode, EscapedName, FlowFlags, JsString, NodeCheckFlags, NodeFlags, SymbolFlags, TypeData,
+    TypeFlags, TypeId,
 };
 
 use crate::state::{CheckResult, CheckerState};
@@ -90,7 +91,7 @@ pub(crate) struct FlowQuery {
     /// tsc `key`/`isKeySet` (70395-70396): the lazily computed flow
     /// cache key — outer None = not computed yet (isKeySet false),
     /// Some(None) = computed, reference has no key.
-    pub(crate) key: Option<Option<String>>,
+    pub(crate) key: Option<Option<JsString>>,
     /// tsc getSyntheticElementAccess (55897): a destructuring query's
     /// reference is the parse-node-factory access chain
     /// `base["p0"]["p1"]…` with the base access's flowNode. The arena
@@ -100,7 +101,7 @@ pub(crate) struct FlowQuery {
     /// escaped). Every reference-shaped probe of the walk consults it
     /// (matching, cache keys, the Start resume rule, the postlude
     /// probes); None = a plain node reference.
-    pub(crate) synthetic_props: Option<Vec<String>>,
+    pub(crate) synthetic_props: Option<Vec<EscapedName>>,
     /// tsc getFlowTypeInConstructor/InStaticBlocks (56195/56212): the
     /// factory reference is `this.<accessName>` — a chain whose ROOT
     /// is the factory `this`, not a real node. When set,
@@ -120,7 +121,7 @@ pub(crate) struct FlowQuery {
 pub(crate) struct FlowLoopEntry {
     pub(crate) file: usize,
     pub(crate) flow: FlowId,
-    pub(crate) key: String,
+    pub(crate) key: JsString,
     pub(crate) types: Vec<TypeId>,
 }
 
@@ -328,7 +329,7 @@ impl<'a> CheckerState<'a> {
     fn get_flow_type_of_reference_full(
         &mut self,
         reference: NodeId,
-        synthetic_props: Option<Vec<String>>,
+        synthetic_props: Option<Vec<EscapedName>>,
         synthetic_this_root: bool,
         declared_type: TypeId,
         initial_type: TypeId,
@@ -464,7 +465,7 @@ impl<'a> CheckerState<'a> {
         };
         let start_utf16 = to_utf16(start);
         let length_utf16 = to_utf16(end).saturating_sub(start_utf16);
-        let diagnostic = tsc_diagnostics::Diagnostic::new(
+        let diagnostic = tsc_diagnostics::Diagnostic::new_js(
             Some(source.file_name.clone()),
             Some(start_utf16),
             Some(length_utf16),
@@ -1209,7 +1210,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getOrSetCacheKey @6.0.3
     /// tsc-hash: e224dd54f074c1f3304e88be454bdbbd8ae9105ce337bfb6b83b6d39ce4beef7
     /// tsc-span: _tsc.js:70413-70419
-    fn get_or_set_cache_key(&mut self, query: &mut FlowQuery) -> CheckResult<Option<String>> {
+    fn get_or_set_cache_key(&mut self, query: &mut FlowQuery) -> CheckResult<Option<JsString>> {
         if let Some(key) = &query.key {
             return Ok(key.clone());
         }
@@ -1222,10 +1223,10 @@ impl<'a> CheckerState<'a> {
             let container_id = query
                 .flow_container
                 .map_or_else(|| "-1".to_owned(), |container| container.0.to_string());
-            Some(format!(
+            Some(JsString::from(format!(
                 "0|{container_id}|{}|{}",
                 query.declared_type.0, query.initial_type.0
-            ))
+            )))
         } else {
             self.get_flow_cache_key(
                 query.reference,
@@ -1235,7 +1236,16 @@ impl<'a> CheckerState<'a> {
             )?
         };
         let key = match (&query.synthetic_props, base_key) {
-            (Some(props), Some(base_key)) => Some(format!("{base_key}.{}", props.join("."))),
+            (Some(props), Some(mut base_key)) => {
+                base_key.push('.');
+                for (index, property) in props.iter().enumerate() {
+                    if index != 0 {
+                        base_key.push('.');
+                    }
+                    base_key.push_js(property.as_js());
+                }
+                Some(base_key)
+            }
             (Some(_), None) => None,
             (None, base_key) => base_key,
         };
@@ -1256,23 +1266,23 @@ impl<'a> CheckerState<'a> {
         declared_type: TypeId,
         initial_type: TypeId,
         flow_container: Option<NodeId>,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<JsString>> {
         let container_id = flow_container.map_or_else(|| "-1".to_owned(), |c| c.0.to_string());
         match self.kind_of(node) {
             SyntaxKind::Identifier if !self.is_this_in_type_query(node) => {
                 Ok(self.get_resolved_symbol(node)?.map(|symbol| {
-                    format!(
+                    JsString::from(format!(
                         "{container_id}|{}|{}|{}",
                         declared_type.0, initial_type.0, symbol.0
-                    )
+                    ))
                 }))
             }
             // The this-in-type-query Identifier falls through to the
             // ThisKeyword arm, exactly as tsc's switch does.
-            SyntaxKind::Identifier | SyntaxKind::ThisKeyword => Ok(Some(format!(
+            SyntaxKind::Identifier | SyntaxKind::ThisKeyword => Ok(Some(JsString::from(format!(
                 "0|{container_id}|{}|{}",
                 declared_type.0, initial_type.0
-            ))),
+            )))),
             SyntaxKind::NonNullExpression => {
                 let NodeData::NonNullExpression(data) = self.data_of(node) else {
                     return Ok(None);
@@ -1316,7 +1326,10 @@ impl<'a> CheckerState<'a> {
                 let Some(right_text) = self.escaped_text_of(Some(right)) else {
                     return Ok(None);
                 };
-                Ok(Some(format!("{left_key}.{right_text}")))
+                let mut key = left_key;
+                key.push('.');
+                key.push_str(right_text);
+                Ok(Some(key))
             }
             SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
                 let expression = match self.data_of(node) {
@@ -1337,7 +1350,10 @@ impl<'a> CheckerState<'a> {
                     else {
                         return Ok(None);
                     };
-                    return Ok(Some(format!("{key}.{prop_name}")));
+                    let mut key = key;
+                    key.push('.');
+                    key.push_js(prop_name.as_js());
+                    return Ok(Some(key));
                 }
                 if self.kind_of(node) == SyntaxKind::ElementAccessExpression {
                     let argument = match self.data_of(node) {
@@ -1360,7 +1376,10 @@ impl<'a> CheckerState<'a> {
                                     else {
                                         return Ok(None);
                                     };
-                                    return Ok(Some(format!("{key}.@{}", symbol.0)));
+                                    let mut key = key;
+                                    key.push_str(".@");
+                                    key.push_str(&symbol.0.to_string());
+                                    return Ok(Some(key));
                                 }
                             }
                         }
@@ -1373,7 +1392,10 @@ impl<'a> CheckerState<'a> {
             | SyntaxKind::FunctionDeclaration
             | SyntaxKind::FunctionExpression
             | SyntaxKind::ArrowFunction
-            | SyntaxKind::MethodDeclaration => Ok(Some(format!("{}#{}", node.0, declared_type.0))),
+            | SyntaxKind::MethodDeclaration => Ok(Some(JsString::from(format!(
+                "{}#{}",
+                node.0, declared_type.0
+            )))),
             _ => Ok(None),
         }
     }
@@ -2783,12 +2805,12 @@ impl<'a> CheckerState<'a> {
     /// string-literal name keeps its quotes), never the internal
     /// `__#<id>@` mangling. Nameless declarations fall back to the
     /// unescaped symbol name.
-    fn member_implicit_any_display_name(&mut self, symbol: SymbolId) -> CheckResult<String> {
+    fn member_implicit_any_display_name(&mut self, symbol: SymbolId) -> CheckResult<JsString> {
         if let Some(declaration) = self.binder.symbol(symbol).value_declaration {
             let source = self.binder.source_of_node(declaration);
             if let Some(name) = tsc_binder::node_util::get_name_of_declaration(source, declaration)
             {
-                return self.text_of_node(name);
+                return self.text_of_node(name).map(JsString::from);
             }
         }
         Ok(self.symbol_display_name(symbol))
@@ -2817,10 +2839,10 @@ impl<'a> CheckerState<'a> {
             let display = self.member_implicit_any_display_name(symbol)?;
             let type_display = self.type_to_string_slice(flow_type)?;
             let error_node = self.binder.symbol(symbol).value_declaration;
-            self.error_at(
+            self.error_at_js(
                 error_node,
                 &diagnostics::Member_0_implicitly_has_an_1_type,
-                &[&display, &type_display],
+                &[display.as_js(), (&type_display).into()],
             );
         }
         if self.every_type_is_nullable(flow_type)? {
@@ -2851,10 +2873,10 @@ impl<'a> CheckerState<'a> {
                 let display = self.member_implicit_any_display_name(symbol)?;
                 let type_display = self.type_to_string_slice(flow_type)?;
                 let error_node = self.binder.symbol(symbol).value_declaration;
-                self.error_at(
+                self.error_at_js(
                     error_node,
                     &diagnostics::Member_0_implicitly_has_an_1_type,
-                    &[&display, &type_display],
+                    &[display.as_js(), (&type_display).into()],
                 );
             }
             if self.every_type_is_nullable(flow_type)? {
@@ -2900,13 +2922,12 @@ impl<'a> CheckerState<'a> {
         container: NodeId,
     ) -> CheckResult<TypeId> {
         let escaped_name = self.binder.symbol(symbol).escaped_name.clone();
-        let access_name = match escaped_name.strip_prefix("__#") {
-            Some(rest) => match rest.split_once('@') {
-                Some((_, description)) => description.to_owned(),
-                None => escaped_name.clone(),
-            },
-            None => escaped_name,
-        };
+        let description = escaped_name
+            .as_js()
+            .strip_prefix("__#")
+            .and_then(|rest| rest.split_once("@"))
+            .map(|(_, description)| description.to_owned());
+        let access_name = description.map_or(escaped_name, EscapedName::from_escaped_value);
         let initial_type = self.flow_property_initial_type(Some(symbol))?;
         let auto = self.tables.intrinsics.auto;
         let file = self.binder.file_index_of_node(container);
@@ -2992,13 +3013,12 @@ impl<'a> CheckerState<'a> {
         container: NodeId,
     ) -> CheckResult<TypeId> {
         let escaped_name = self.binder.symbol(symbol).escaped_name.clone();
-        let access_name = match escaped_name.strip_prefix("__#") {
-            Some(rest) => match rest.split_once('@') {
-                Some((_, description)) => description.to_owned(),
-                None => escaped_name.clone(),
-            },
-            None => escaped_name,
-        };
+        let description = escaped_name
+            .as_js()
+            .strip_prefix("__#")
+            .and_then(|rest| rest.split_once("@"))
+            .map(|(_, description)| description.to_owned());
+        let access_name = description.map_or(escaped_name, EscapedName::from_escaped_value);
         let initial_type = self.get_optional_type(prop_type, false)?;
         let file = self.binder.file_index_of_node(container);
         let flow_node = self
@@ -3033,7 +3053,7 @@ impl<'a> CheckerState<'a> {
     fn synthetic_element_access_chain(
         &mut self,
         node: NodeId,
-    ) -> CheckResult<Option<(NodeId, Vec<String>)>> {
+    ) -> CheckResult<Option<(NodeId, Vec<EscapedName>)>> {
         let Some((base, mut props)) = self.parent_element_access_chain(node)? else {
             return Ok(None);
         };
@@ -3048,7 +3068,7 @@ impl<'a> CheckerState<'a> {
         if prop_name.is_empty() {
             return Ok(None);
         }
-        props.push(tsc_syntax::escape_leading_underscores(&prop_name));
+        props.push(EscapedName::escape(prop_name.as_js()));
         Ok(Some((base, props)))
     }
 
@@ -3064,7 +3084,7 @@ impl<'a> CheckerState<'a> {
     fn parent_element_access_chain(
         &mut self,
         node: NodeId,
-    ) -> CheckResult<Option<(NodeId, Vec<String>)>> {
+    ) -> CheckResult<Option<(NodeId, Vec<EscapedName>)>> {
         let Some(parent) = self.parent_of(node) else {
             return Ok(None);
         };
@@ -3127,7 +3147,7 @@ impl<'a> CheckerState<'a> {
     fn is_matching_synthetic_chain(
         &mut self,
         base: NodeId,
-        props: &[String],
+        props: &[EscapedName],
         this_root: bool,
         target: NodeId,
     ) -> CheckResult<bool> {
@@ -3294,7 +3314,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn query_reference_accessed_property_name(
         &mut self,
         query: &FlowQuery,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<EscapedName>> {
         match &query.synthetic_props {
             Some(props) => Ok(props.last().cloned()),
             None => self.get_accessed_property_name(query.reference),
@@ -3397,7 +3417,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         source: NodeId,
         base: NodeId,
-        props: &[String],
+        props: &[EscapedName],
         this_root: bool,
     ) -> CheckResult<bool> {
         let Some((outer, receiver_props)) = props.split_last() else {
@@ -3644,7 +3664,9 @@ impl<'a> CheckerState<'a> {
                 let (Some(left), Some(right)) = (left, right) else {
                     return Ok(false);
                 };
-                let right_text = self.escaped_text_of(Some(right)).map(str::to_owned);
+                let right_text = self
+                    .escaped_text_of(Some(right))
+                    .map(tsc_types::EscapedName::from_identifier_escaped_text);
                 let accessed = self.get_accessed_property_name(target)?;
                 if right_text.is_none() || right_text != accessed {
                     return Ok(false);
@@ -3717,20 +3739,22 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_accessed_property_name(
         &mut self,
         access: NodeId,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<EscapedName>> {
         match self.kind_of(access) {
             SyntaxKind::PropertyAccessExpression => {
                 let NodeData::PropertyAccessExpression(data) = self.data_of(access) else {
                     return Ok(None);
                 };
-                Ok(self.escaped_text_of(data.name).map(str::to_owned))
+                Ok(self
+                    .escaped_text_of(data.name)
+                    .map(EscapedName::from_identifier_escaped_text))
             }
             SyntaxKind::ElementAccessExpression => {
                 self.try_get_element_access_expression_name(access)
             }
             SyntaxKind::BindingElement => {
                 let name = self.get_destructuring_property_name(access)?;
-                Ok(name.map(|name| tsc_syntax::escape_leading_underscores(&name)))
+                Ok(name.map(|name| EscapedName::escape(name.as_js())))
             }
             SyntaxKind::Parameter => {
                 let Some(parent) = self.parent_of(access) else {
@@ -3755,7 +3779,7 @@ impl<'a> CheckerState<'a> {
                     .nodes
                     .iter()
                     .position(|&parameter| parameter == access);
-                Ok(index.map(|index| index.to_string()))
+                Ok(index.map(|index| EscapedName::from_escaped_value(index.to_string().into())))
             }
             _ => Ok(None),
         }
@@ -3764,7 +3788,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: tryGetNameFromType @6.0.3
     /// tsc-hash: 7a5ee7d20b95577c6e5e15f5c17f14c80d0ed861a6e6f060938a60e33cd9f671
     /// tsc-span: _tsc.js:69509-69511
-    pub(crate) fn try_get_name_from_type(&self, ty: TypeId) -> Option<String> {
+    pub(crate) fn try_get_name_from_type(&self, ty: TypeId) -> Option<EscapedName> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL) {
             if let TypeData::UniqueESSymbol { escaped_name } = &self.tables.type_of(ty).data {
@@ -3776,13 +3800,13 @@ impl<'a> CheckerState<'a> {
             // tsc: escapeLeadingUnderscores("" + type.value).
             if let TypeData::Literal { value } = &self.tables.type_of(ty).data {
                 let text = match value {
-                    tsc_types::LiteralValue::String(text) => text.to_utf8()?,
+                    tsc_types::LiteralValue::String(text) => text.to_js_string(),
                     tsc_types::LiteralValue::Number(number) => {
-                        tsc_types::tables::js_number_to_string(*number)
+                        JsString::from(tsc_types::tables::js_number_to_string(*number))
                     }
                     tsc_types::LiteralValue::BigInt(_) => return None,
                 };
-                return Some(tsc_syntax::escape_leading_underscores(&text));
+                return Some(EscapedName::escape(text.as_js()));
             }
             return None;
         }
@@ -3795,7 +3819,7 @@ impl<'a> CheckerState<'a> {
     fn try_get_element_access_expression_name(
         &mut self,
         node: NodeId,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<EscapedName>> {
         let Some(argument) = self.element_access_argument_of(node) else {
             return Ok(None);
         };
@@ -3803,11 +3827,11 @@ impl<'a> CheckerState<'a> {
         if node_util::is_string_or_numeric_literal_like(source, argument) {
             let text = match self.data_of(argument) {
                 NodeData::StringLiteral(data) => data.text.clone(),
-                NodeData::NumericLiteral(data) => data.text.clone(),
+                NodeData::NumericLiteral(data) => data.text.clone().into(),
                 NodeData::NoSubstitutionTemplateLiteral(data) => data.text.clone(),
                 _ => return Ok(None),
             };
-            return Ok(Some(tsc_syntax::escape_leading_underscores(&text)));
+            return Ok(Some(EscapedName::escape(text.as_js())));
         }
         if node_util::is_entity_name_expression(source, argument) {
             return self.try_get_name_from_entity_name_expression(argument);
@@ -3821,7 +3845,7 @@ impl<'a> CheckerState<'a> {
     fn try_get_name_from_entity_name_expression(
         &mut self,
         node: NodeId,
-    ) -> CheckResult<Option<String>> {
+    ) -> CheckResult<Option<EscapedName>> {
         let Some(symbol) =
             self.resolve_entity_name(node, SymbolFlags::VALUE, /*ignore_errors*/ true, None)?
         else {
@@ -3927,7 +3951,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getDestructuringPropertyName @6.0.3
     /// tsc-hash: 1dbd2a17e292c118cde00841a6132ad158c447ad16ad6dc5e1a71ca8ec6ea2a0
     /// tsc-span: _tsc.js:55928-55937
-    fn get_destructuring_property_name(&mut self, node: NodeId) -> CheckResult<Option<String>> {
+    fn get_destructuring_property_name(&mut self, node: NodeId) -> CheckResult<Option<JsString>> {
         let Some(parent) = self.parent_of(node) else {
             return Ok(None);
         };
@@ -3976,13 +4000,13 @@ impl<'a> CheckerState<'a> {
             .nodes
             .iter()
             .position(|&element| element == node);
-        Ok(index.map(|index| index.to_string()))
+        Ok(index.map(|index| JsString::from(index.to_string())))
     }
 
     /// tsc-port: getLiteralPropertyNameText @6.0.3
     /// tsc-hash: ab1c220ebc53b052cfc7338dc7285089cb02d0be1612cc32eccff29941db8669
     /// tsc-span: _tsc.js:55938-55941
-    fn get_literal_property_name_text(&mut self, name: NodeId) -> CheckResult<Option<String>> {
+    fn get_literal_property_name_text(&mut self, name: NodeId) -> CheckResult<Option<JsString>> {
         let ty = self.get_literal_type_from_property_name(name)?;
         if !self
             .tables
@@ -3993,9 +4017,9 @@ impl<'a> CheckerState<'a> {
         }
         if let TypeData::Literal { value } = &self.tables.type_of(ty).data {
             return Ok(match value {
-                tsc_types::LiteralValue::String(text) => text.to_utf8(),
+                tsc_types::LiteralValue::String(text) => Some(text.to_js_string()),
                 tsc_types::LiteralValue::Number(number) => {
-                    Some(tsc_types::tables::js_number_to_string(*number))
+                    Some(tsc_types::tables::js_number_to_string(*number).into())
                 }
                 tsc_types::LiteralValue::BigInt(_) => None,
             });

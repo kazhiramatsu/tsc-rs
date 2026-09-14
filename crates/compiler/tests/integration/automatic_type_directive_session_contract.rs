@@ -107,14 +107,14 @@ fn compiler_options() -> CompilerOptions {
 fn automatic_options() -> ProgramOptions {
     ProgramOptions::default()
         .with_no_lib(true)
-        .with_types(vec!["*".to_owned()])
+        .with_types(vec!["*".to_owned().into()])
 }
 
 fn source_paths(program: &PreparedProgram) -> Vec<&Path> {
     program
         .source_files()
         .iter()
-        .map(|source| source.path().display())
+        .map(|source| source.path().display().scalar_test_path())
         .collect()
 }
 
@@ -188,7 +188,10 @@ fn missing_automatic_types_flow_to_deduplicated_options_diagnostics() {
         compiler_options(),
         ProgramOptions::default()
             .with_no_lib(true)
-            .with_types(vec!["missing".to_owned(), "missing".to_owned()])
+            .with_types(vec![
+                "missing".to_owned().into(),
+                "missing".to_owned().into(),
+            ])
             .with_type_roots(Vec::new()),
         limits(),
     )
@@ -215,3 +218,7 @@ fn missing_automatic_types_flow_to_deduplicated_options_diagnostics() {
         "Cannot find type definition file for 'missing'."
     );
 }
+
+#[path = "../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

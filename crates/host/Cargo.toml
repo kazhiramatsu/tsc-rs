@@ -11,6 +11,9 @@ role = "host"
 name = "tsc_host"
 path = "src/lib.rs"
 
+[dependencies]
+tsc-diagnostics.workspace = true
+
 [target.'cfg(windows)'.dependencies]
 dunce = "1.0.5"
 

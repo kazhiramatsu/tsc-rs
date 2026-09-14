@@ -182,7 +182,11 @@ fn actual_diagnostics(diagnostics: &[tsc_diagnostics::Diagnostic]) -> Vec<Diagno
             (
                 diagnostic.code(),
                 format!("{:?}", diagnostic.category()),
-                diagnostic.file_name.clone(),
+                diagnostic.file_name.as_ref().map(|name| {
+                    name.as_str()
+                        .expect("scalar diagnostic filename")
+                        .to_owned()
+                }),
                 diagnostic.start,
                 diagnostic.length,
                 message,
@@ -198,7 +202,7 @@ fn flatten_message_chain(chain: &MessageChain, indent: usize, output: &mut Strin
             output.push_str("  ");
         }
     }
-    output.push_str(&chain.text);
+    output.push_str(chain.text.as_str().expect("scalar diagnostic observation"));
     for child in &chain.next {
         flatten_message_chain(child, indent + 1, output);
     }
@@ -266,21 +270,21 @@ fn assert_frozen_observation(case_id: &str) {
     );
     for (write, expected) in sink.writes().iter().zip(expected_writes) {
         assert_eq!(
-            write.path(),
+            write.path().scalar_test_path(),
             Path::new(expected["path"].as_str().expect("frozen write path")),
             "{case_id}: output path"
         );
         assert_eq!(
-            artifact_kind(write.kind(), write.path()),
+            artifact_kind(write.kind(), write.path().scalar_test_path()),
             expected["kind"].as_str().expect("frozen write kind"),
             "{case_id}: write kind for {}",
-            write.path().display()
+            write.path().scalar_test_path().display()
         );
         assert_eq!(
             write.callback_bytes(),
             decode(&expected["callback_utf8_base64"]),
             "{case_id}: callback bytes for {}",
-            write.path().display()
+            write.path().scalar_test_path().display()
         );
         assert_eq!(
             write.callback_bytes().len() as u64,
@@ -288,7 +292,7 @@ fn assert_frozen_observation(case_id: &str) {
                 .as_u64()
                 .expect("frozen callback byte count"),
             "{case_id}: callback byte count for {}",
-            write.path().display()
+            write.path().scalar_test_path().display()
         );
         assert_eq!(
             write.write_byte_order_mark(),
@@ -296,13 +300,13 @@ fn assert_frozen_observation(case_id: &str) {
                 .as_bool()
                 .expect("frozen BOM flag"),
             "{case_id}: BOM flag for {}",
-            write.path().display()
+            write.path().scalar_test_path().display()
         );
         assert_eq!(
             write.materialized_bytes().as_ref(),
             decode(&expected["materialized_utf8_base64"]),
             "{case_id}: materialized bytes for {}",
-            write.path().display()
+            write.path().scalar_test_path().display()
         );
         assert_eq!(
             write.materialized_bytes().len() as u64,
@@ -310,7 +314,7 @@ fn assert_frozen_observation(case_id: &str) {
                 .as_u64()
                 .expect("frozen materialized byte count"),
             "{case_id}: materialized byte count for {}",
-            write.path().display()
+            write.path().scalar_test_path().display()
         );
         let actual_sources = write.source_files().map(|sources| {
             sources
@@ -428,3 +432,7 @@ fn w4_a0_expando_scope_does_not_escape_to_synthetic_signature_scopes() {
         assert_frozen_observation(case_id);
     }
 }
+
+#[path = "../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

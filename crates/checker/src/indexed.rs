@@ -8,8 +8,8 @@
 use tsc_binder::SymbolId;
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{
-    AccessFlags, IndexFlags, IntersectionFlags, ObjectFlags, SymbolFlags, TypeData, TypeFlags,
-    TypeId, UnionReduction,
+    AccessFlags, EscapedName, IndexFlags, IntersectionFlags, JsString, ObjectFlags, SymbolFlags,
+    TypeData, TypeFlags, TypeId, UnionReduction,
 };
 
 use crate::links::LinkSlot;
@@ -403,7 +403,7 @@ impl<'a> CheckerState<'a> {
             NodeData::Identifier(data) => {
                 Ok(self
                     .tables
-                    .get_string_literal_type(tsc_binder::unescape_leading_underscores(
+                    .get_string_literal_type(tsc_syntax::unescape_leading_underscores(
                         &data.escaped_text,
                     )))
             }
@@ -906,7 +906,7 @@ impl<'a> CheckerState<'a> {
             {
                 if let Some(name) = state.property_name_from_type(t) {
                     if is_numeric_literal_name(&name) {
-                        let index: f64 = name.parse().unwrap_or(-1.0);
+                        let index = crate::evaluate::js_string_to_number(name.as_js());
                         return index >= 0.0 && (index as usize) < limit;
                     }
                 }
@@ -1202,10 +1202,10 @@ impl<'a> CheckerState<'a> {
                             _ => None,
                         };
                         let display = self.symbol_display_name(property);
-                        self.error_at(
+                        self.error_at_js(
                             argument.or(Some(access_expression)),
                             &diagnostics::Cannot_assign_to_0_because_it_is_a_read_only_property,
-                            &[&display],
+                            &[(&display).into()],
                         );
                         return Ok(None);
                     }
@@ -1257,7 +1257,7 @@ impl<'a> CheckerState<'a> {
             if self.every_type(object_type, |state, t| state.tables.is_tuple_type(t))
                 && is_numeric_literal_name(property_name)
             {
-                let index: f64 = property_name.parse().unwrap_or(-1.0);
+                let index = crate::evaluate::js_string_to_number(property_name.as_js());
                 let all_fixed = self.every_type(object_type, |state, t| {
                     let target = state.tables.reference_target(t);
                     match &state.tables.type_of(target).data {
@@ -1289,17 +1289,21 @@ impl<'a> CheckerState<'a> {
                                 TypeData::TupleTarget(data) => data.element_flags.len(),
                                 _ => 0,
                             };
-                            self.error_at(
+                            self.error_at_js(
                                 Some(index_node),
                                 &diagnostics::Tuple_type_0_of_length_1_has_no_element_at_index_2,
-                                &[&tuple_display, &arity.to_string(), property_name],
+                                &[
+                                    (&tuple_display).into(),
+                                    (&arity.to_string()).into(),
+                                    property_name.as_js(),
+                                ],
                             );
                         } else {
                             let object_display = self.type_to_string_slice(object_type)?;
-                            self.error_at(
+                            self.error_at_js(
                                 Some(index_node),
                                 &diagnostics::Property_0_does_not_exist_on_type_1,
-                                &[property_name, &object_display],
+                                &[(property_name).into(), (&object_display).into()],
                             );
                         }
                     }
@@ -1364,18 +1368,18 @@ impl<'a> CheckerState<'a> {
                     if let Some(access_expression) = access_expression {
                         if access_flags.intersects(AccessFlags::WRITING) {
                             let display = self.type_to_string_slice(original_object_type)?;
-                            self.error_at(
+                            self.error_at_js(
                                 Some(access_expression),
                                 &diagnostics::Type_0_is_generic_and_can_only_be_indexed_for_reading,
-                                &[&display],
+                                &[(&display).into()],
                             );
                         } else {
                             let index_display = self.type_to_string_slice(index_type)?;
                             let object_display = self.type_to_string_slice(original_object_type)?;
-                            self.error_at(
+                            self.error_at_js(
                                 Some(access_expression),
                                 &diagnostics::Type_0_cannot_be_used_to_index_type_1,
-                                &[&index_display, &object_display],
+                                &[(&index_display).into(), (&object_display).into()],
                             );
                         }
                     }
@@ -1397,10 +1401,10 @@ impl<'a> CheckerState<'a> {
                             self.get_index_node_for_access_expression(node)
                         };
                         let index_display = self.type_to_string_slice(index_type)?;
-                        self.error_at(
+                        self.error_at_js(
                             Some(index_node),
                             &diagnostics::Type_0_cannot_be_used_as_an_index_type,
-                            &[&index_display],
+                            &[(&index_display).into()],
                         );
                         return Ok(Some(
                             if access_flags.intersects(AccessFlags::INCLUDE_UNDEFINED) {
@@ -1471,7 +1475,7 @@ impl<'a> CheckerState<'a> {
                         full_index_type,
                         access_expression,
                         access_flags,
-                        property_name.as_deref(),
+                        property_name.as_ref().map(tsc_types::EscapedName::as_js),
                     );
                 }
             }
@@ -1501,29 +1505,29 @@ impl<'a> CheckerState<'a> {
                     .index_literal_value_display(index_type)
                     .unwrap_or_default();
                 let object_display = self.type_to_string_slice(object_type)?;
-                self.error_at(
+                self.error_at_js(
                     Some(index_node),
                     &diagnostics::Property_0_does_not_exist_on_type_1,
-                    &[&value, &object_display],
+                    &[(&value).into(), (&object_display).into()],
                 );
             } else if index_flags.intersects(TypeFlags::STRING | TypeFlags::NUMBER) {
                 let object_display = self.type_to_string_slice(object_type)?;
                 let index_display = self.type_to_string_slice(index_type)?;
-                self.error_at(
+                self.error_at_js(
                     Some(index_node),
                     &diagnostics::Type_0_has_no_matching_index_signature_for_type_1,
-                    &[&object_display, &index_display],
+                    &[(&object_display).into(), (&index_display).into()],
                 );
             } else {
                 let type_string = if self.kind_of(index_node) == SyntaxKind::BigIntLiteral {
-                    "bigint".to_owned()
+                    tsc_types::JsString::from("bigint")
                 } else {
                     self.type_to_string_slice(index_type)?
                 };
-                self.error_at(
+                self.error_at_js(
                     Some(index_node),
                     &diagnostics::Type_0_cannot_be_used_as_an_index_type,
-                    &[&type_string],
+                    &[(&type_string).into()],
                 );
             }
         }
@@ -1545,7 +1549,7 @@ impl<'a> CheckerState<'a> {
         full_index_type: TypeId,
         access_expression: NodeId,
         access_flags: AccessFlags,
-        property_name: Option<&str>,
+        property_name: Option<tsc_types::JsStr<'_>>,
     ) -> CheckResult<Option<TypeId>> {
         let no_implicit_any = self
             .options
@@ -1564,10 +1568,10 @@ impl<'a> CheckerState<'a> {
                     .index_literal_value_display(index_type)
                     .unwrap_or_default();
                 let object_display = self.type_to_string_slice(object_type)?;
-                self.error_at(
+                self.error_at_js(
                     Some(access_expression),
                     &diagnostics::Property_0_does_not_exist_on_type_1,
-                    &[&value, &object_display],
+                    &[(&value).into(), (&object_display).into()],
                 );
                 return Ok(Some(self.tables.intrinsics.undefined));
             }
@@ -1603,10 +1607,10 @@ impl<'a> CheckerState<'a> {
             let display =
                 tsc_binder::unescape_leading_underscores(property_name.expect("checked above"));
             let object_display = self.type_to_string_slice(object_type)?;
-            self.error_at(
+            self.error_at_js(
                 Some(access_expression),
                 &diagnostics::Property_0_does_not_exist_on_type_1,
-                &[display, &object_display],
+                &[(display).into(), (&object_display).into()],
             );
         } else if no_implicit_any
             && !access_flags.intersects(AccessFlags::SUPPRESS_NO_IMPLICIT_ANY_ERROR)
@@ -1631,11 +1635,11 @@ impl<'a> CheckerState<'a> {
                     }
                     None => String::new(),
                 };
-                let suggestion = format!("{type_name}[{argument_text}]");
-                self.error_at(
+                let suggestion = crate::concat_js(&[&type_name, &"[", &argument_text, &"]"]);
+                self.error_at_js(
                     Some(access_expression),
                     &diagnostics::Property_0_does_not_exist_on_type_1_Did_you_mean_to_access_the_static_member_2_instead,
-                    &[name, &type_name, &suggestion],
+                    &[name, (&type_name).into(), (&suggestion).into()],
                 );
             } else {
                 let number = self.tables.intrinsics.number;
@@ -1667,10 +1671,14 @@ impl<'a> CheckerState<'a> {
                         // (oracle-pinned asymmetry).
                         let name = property_name.expect("suggestion implies name");
                         let object_display = self.type_to_string_slice(object_type)?;
-                        self.error_at(
+                        self.error_at_js(
                             argument.or(Some(access_expression)),
                             &diagnostics::Property_0_does_not_exist_on_type_1_Did_you_mean_2,
-                            &[name, &object_display, &suggestion],
+                            &[
+                                (name).into(),
+                                (&object_display).into(),
+                                (&suggestion).into(),
+                            ],
                         );
                     } else {
                         let index_suggestion = self
@@ -1681,19 +1689,22 @@ impl<'a> CheckerState<'a> {
                             )?;
                         if let Some(index_suggestion) = index_suggestion {
                             let object_display = self.type_to_string_slice(object_type)?;
-                            self.error_at(
+                            self.error_at_js(
                                 Some(access_expression),
                                 &diagnostics::Element_implicitly_has_an_any_type_because_type_0_has_no_index_signature_Did_you_mean_to_call_1,
-                                &[&object_display, &index_suggestion],
+                                &[(&object_display).into(), (&index_suggestion).into()],
                             );
                         } else {
                             let mut tail: Vec<tsc_diagnostics::MessageChain> = Vec::new();
                             if index_flags.intersects(TypeFlags::ENUM_LITERAL) {
                                 let index_display = self.type_to_string_slice(index_type)?;
                                 let object_display = self.type_to_string_slice(object_type)?;
-                                tail.push(tsc_diagnostics::MessageChain::new(
+                                tail.push(tsc_diagnostics::MessageChain::new_js(
                                     &diagnostics::Property_0_does_not_exist_on_type_1,
-                                    &[format!("[{index_display}]"), object_display],
+                                    &[
+                                        (crate::concat_js(&[&"[", &index_display, &"]"])).into(),
+                                        (object_display).into(),
+                                    ],
                                 ));
                             } else if index_flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL) {
                                 // 62319-62321: `[<fully-qualified>]`
@@ -1708,9 +1719,12 @@ impl<'a> CheckerState<'a> {
                                     .expect("unique symbol types carry their symbol");
                                 let symbol_name = self.get_fully_qualified_name(symbol);
                                 let object_display = self.type_to_string_slice(object_type)?;
-                                tail.push(tsc_diagnostics::MessageChain::new(
+                                tail.push(tsc_diagnostics::MessageChain::new_js(
                                     &diagnostics::Property_0_does_not_exist_on_type_1,
-                                    &[format!("[{symbol_name}]"), object_display],
+                                    &[
+                                        (crate::concat_js(&[&"[", &symbol_name, &"]"])).into(),
+                                        (object_display).into(),
+                                    ],
                                 ));
                             } else if index_flags
                                 .intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL)
@@ -1719,24 +1733,24 @@ impl<'a> CheckerState<'a> {
                                     .index_literal_value_display(index_type)
                                     .unwrap_or_default();
                                 let object_display = self.type_to_string_slice(object_type)?;
-                                tail.push(tsc_diagnostics::MessageChain::new(
+                                tail.push(tsc_diagnostics::MessageChain::new_js(
                                     &diagnostics::Property_0_does_not_exist_on_type_1,
-                                    &[value, object_display],
+                                    &[value, object_display.into()],
                                 ));
                             } else if index_flags.intersects(TypeFlags::NUMBER | TypeFlags::STRING)
                             {
                                 let index_display = self.type_to_string_slice(index_type)?;
                                 let object_display = self.type_to_string_slice(object_type)?;
-                                tail.push(tsc_diagnostics::MessageChain::new(
+                                tail.push(tsc_diagnostics::MessageChain::new_js(
                                     &diagnostics::No_index_signature_with_a_parameter_of_type_0_was_found_on_type_1,
-                                    &[index_display, object_display],
+                                    &[(index_display).into(), (object_display).into()],
                                 ));
                             }
                             let full_display = self.type_to_string_slice(full_index_type)?;
                             let object_display = self.type_to_string_slice(object_type)?;
-                            let head = tsc_diagnostics::MessageChain::new(
+                            let head = tsc_diagnostics::MessageChain::new_js(
                                 &diagnostics::Element_implicitly_has_an_any_type_because_expression_of_type_0_can_t_be_used_to_index_type_1,
-                                &[full_display, object_display],
+                                &[(full_display).into(), (object_display).into()],
                             );
                             let mut diagnostic = self.diagnostic_for_node(
                                 access_expression,
@@ -1788,10 +1802,10 @@ impl<'a> CheckerState<'a> {
             || self.is_delete_target(access_expression)
         {
             let object_display = self.type_to_string_slice(object_type)?;
-            self.error_at(
+            self.error_at_js(
                 Some(access_expression),
                 &diagnostics::Index_signature_in_type_0_only_permits_reading,
-                &[&object_display],
+                &[(&object_display).into()],
             );
         }
         Ok(())
@@ -1893,7 +1907,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getPropertyNameFromType @6.0.3
     /// tsc-hash: 77afdbfa0f64ff43af68d4fb691447893910b423b291dc2860af42b2402768c8
     /// tsc-span: _tsc.js:19354-19362
-    pub(crate) fn property_name_from_type_usable(&self, ty: TypeId) -> Option<String> {
+    pub(crate) fn property_name_from_type_usable(&self, ty: TypeId) -> Option<EscapedName> {
         if !self
             .tables
             .flags_of(ty)
@@ -1904,7 +1918,7 @@ impl<'a> CheckerState<'a> {
         self.property_name_from_type(ty)
     }
 
-    fn property_name_from_type(&self, ty: TypeId) -> Option<String> {
+    fn property_name_from_type(&self, ty: TypeId) -> Option<EscapedName> {
         match &self.tables.type_of(ty).data {
             // escapeLeadingUnderscores("" + type.value): the member
             // tables are escaped-keyed, so the propName leaves this
@@ -1913,12 +1927,14 @@ impl<'a> CheckerState<'a> {
             // index_literal_value_display instead.
             TypeData::Literal {
                 value: tsc_types::LiteralValue::String(value),
-            } => value
-                .to_utf8()
-                .map(|value| tsc_syntax::escape_leading_underscores(&value)),
+            } => Some(EscapedName::escape(value.to_js_string().as_js())),
             TypeData::Literal {
                 value: tsc_types::LiteralValue::Number(value),
-            } => Some(tsc_types::tables::js_number_to_string(*value)),
+            } => Some(EscapedName::escape(
+                tsc_types::tables::js_number_to_string(*value)
+                    .as_str()
+                    .into(),
+            )),
             // getPropertyNameFromType's UniqueESSymbol arm: the
             // late-bound `__@<name>@<id>` member name.
             TypeData::UniqueESSymbol { escaped_name } => Some(escaped_name.clone()),
@@ -1931,22 +1947,16 @@ impl<'a> CheckerState<'a> {
     /// raw JavaScript string value, NOT the escaped propName and NOT a
     /// quoted-literal printer face.
     ///
-    /// Rust strings cannot carry an unpaired UTF-16 surrogate. Only
-    /// that non-UTF-8 boundary falls back to the lossless `\uXXXX`
-    /// spelling; every representable JavaScript string passes through
-    /// verbatim, including quotes and backslashes.
-    fn index_literal_value_display(&self, ty: TypeId) -> Option<String> {
+    /// Diagnostic values remain JavaScript strings, including unpaired
+    /// surrogates; source escaping belongs to literal-node printing.
+    fn index_literal_value_display(&self, ty: TypeId) -> Option<JsString> {
         match &self.tables.type_of(ty).data {
             TypeData::Literal {
                 value: tsc_types::LiteralValue::String(value),
-            } => Some(
-                value
-                    .to_utf8()
-                    .unwrap_or_else(|| crate::check::string_literal_type_display_text(value)),
-            ),
+            } => Some(value.to_js_string()),
             TypeData::Literal {
                 value: tsc_types::LiteralValue::Number(value),
-            } => Some(tsc_types::tables::js_number_to_string(*value)),
+            } => Some(tsc_types::tables::js_number_to_string(*value).into()),
             _ => None,
         }
     }
@@ -2093,7 +2103,12 @@ impl<'a> CheckerState<'a> {
 /// tsc-port: isNumericLiteralName @6.0.3
 /// tsc-hash: 792c3a97db611b31a75c5d2ee921c6788c6a6ccbfbd6a3240b943e3f98205802
 /// tsc-span: _tsc.js:19205-19207
-pub(crate) fn is_numeric_literal_name(name: &str) -> bool {
+pub(crate) fn is_numeric_literal_name<'n>(name: impl Into<tsc_types::JsStr<'n>>) -> bool {
+    // NumberToString produces only scalar text. A non-scalar JS value cannot
+    // equal that canonical numeric spelling and remains a string-name key.
+    let Some(name) = name.into().as_str() else {
+        return false;
+    };
     match name.parse::<f64>() {
         Ok(value) => tsc_types::tables::js_number_to_string(value) == name,
         Err(_) => false,

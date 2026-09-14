@@ -31,13 +31,13 @@ fn write_json(write: &EmitArtifact, index: usize) -> Value {
         _ => panic!("forced declaration requires text metadata"),
     };
     assert_eq!(write.kind(), EmitArtifactKind::Declaration);
-    json!({"index":index,"path":write.path(),"kind":"declaration",
+    json!({"index":index,"path":write.path().as_str().expect("scalar corpus output path"),"kind":"declaration",
         "callback_utf8_base64":base64::engine::general_purpose::STANDARD.encode(write.callback_bytes()),
         "callback_utf8_bytes":write.callback_bytes().len(),
         "write_byte_order_mark":write.write_byte_order_mark(),
         "materialized_utf8_base64":base64::engine::general_purpose::STANDARD.encode(write.materialized_bytes()),
         "materialized_utf8_bytes":write.materialized_bytes().len(),
-        "on_error_callback_present":true,"source_files":write.source_files(),
+        "on_error_callback_present":true,"source_files":write.source_files().map(|values| values.iter().map(|value| value.as_str().expect("scalar corpus source path")).collect::<Vec<_>>()),
         "data_present":write.metadata().is_some(),"data_source_map_url_pos":source_map_url_pos,
         "data_diagnostics":diagnostics})
 }
@@ -173,7 +173,7 @@ fn forced_preserved_reference_paths_match_typescript_without_map_api_dependencie
                         let result = session.emit_forced_declarations(selection, &mut sink)?;
                         assert!(result.source_maps().is_none());
                         emit = json!({"emit_skipped":result.emit_skipped(),"diagnostics":result.diagnostics().iter().map(diagnostic_json).collect::<Vec<_>>(),
-                            "emitted_files":result.emitted_files(),"source_maps":null});
+                            "emitted_files":result.emitted_files().map(|files| files.iter().map(|name| name.as_str().expect("scalar complete-command emitted filename")).collect::<Vec<_>>()),"source_maps":null});
                         for (index, write) in sink.writes().iter().enumerate() {
                             let mut record = write_json(write, index);
                             let record_object = record.as_object_mut().unwrap();
@@ -294,7 +294,7 @@ pub(super) fn assert_cases(source_family: SourceFamily) {
                     "newLine" => options.new_line = Some(value.as_i64().unwrap() as i32),
                     "esModuleInterop" => options.es_module_interop = value.as_bool(),
                     "declaration" => options.declaration = value.as_bool(),
-                    "declarationDir" => options.declaration_dir = value.as_str().map(str::to_owned),
+                    "declarationDir" => options.declaration_dir = value.as_str().map(Into::into),
                     "listEmittedFiles" => options.list_emitted_files = value.as_bool(),
                     "noEmitForJsFiles" => options.no_emit_for_js_files = value.as_bool(),
                     "isolatedDeclarations" => options.isolated_declarations = value.as_bool(),
@@ -424,7 +424,7 @@ pub(super) fn assert_cases(source_family: SourceFamily) {
                         });
                         calls.push(json!({"writes":sink.writes().iter().enumerate().map(|(i,w)|write_json(w,i)).collect::<Vec<_>>(),
                             "emit_result":{"emit_skipped":outcome.emit_skipped(),"diagnostics":outcome.diagnostics().iter().map(diagnostic_json).collect::<Vec<_>>(),
-                            "emitted_files":outcome.emitted_files(),"source_maps":maps}}));
+                            "emitted_files":outcome.emitted_files().map(|values| values.iter().map(|value| value.as_str().expect("scalar corpus output path")).collect::<Vec<_>>()),"source_maps":maps}}));
                     }
                     Ok(json!({"before_diagnostics":before,"calls":calls}))
                 };

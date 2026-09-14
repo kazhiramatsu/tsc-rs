@@ -295,7 +295,7 @@ impl<'a> CheckerState<'a> {
                 .type_of(tp)
                 .symbol
                 .map(|symbol| self.binder.symbol(symbol).escaped_name.clone())
-                .unwrap_or_default();
+                .unwrap_or_else(|| tsc_types::EscapedName::from_identifier_escaped_text(""));
             if self.has_type_parameter_by_name(&inferred_type_parameters, &name)
                 || self.has_type_parameter_by_name(&result, &name)
             {
@@ -339,12 +339,16 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: hasTypeParameterByName @6.0.3
     /// tsc-hash: 3f96646170d07720fc6bd7e82550afd20e96e2ae8160e0705729c9bba6782a8d
     /// tsc-span: _tsc.js:80869-80871
-    fn has_type_parameter_by_name(&self, type_parameters: &[TypeId], name: &str) -> bool {
+    fn has_type_parameter_by_name(
+        &self,
+        type_parameters: &[TypeId],
+        name: &tsc_types::EscapedName,
+    ) -> bool {
         type_parameters.iter().any(|&tp| {
             self.tables
                 .type_of(tp)
                 .symbol
-                .is_some_and(|symbol| self.binder.symbol(symbol).escaped_name == name)
+                .is_some_and(|symbol| self.binder.symbol(symbol).escaped_name == *name)
         })
     }
 
@@ -354,8 +358,12 @@ impl<'a> CheckerState<'a> {
     fn get_unique_type_parameter_name(
         &self,
         type_parameters: &[TypeId],
-        base_name: &str,
-    ) -> String {
+        base_name: &tsc_types::EscapedName,
+    ) -> tsc_types::EscapedName {
+        // Type-parameter declarations and synthetic rename bases are identifiers.
+        let base_name = base_name
+            .as_str()
+            .expect("type parameter names are scalar identifiers");
         let mut len = base_name.len();
         while len > 1
             && base_name
@@ -368,7 +376,8 @@ impl<'a> CheckerState<'a> {
         let stem = &base_name[..len];
         let mut index: u64 = 1;
         loop {
-            let augmented = format!("{stem}{index}");
+            let augmented =
+                tsc_types::EscapedName::from_identifier_escaped_text(&format!("{stem}{index}"));
             if !self.has_type_parameter_by_name(type_parameters, &augmented) {
                 return augmented;
             }
@@ -836,7 +845,7 @@ impl<'a> CheckerState<'a> {
                     message: MessageChain::new(regex_diagnostic.message, &regex_diagnostic.args),
                 });
             } else if last_primary.is_none_or(|(last_start, _, _)| last_start != start) {
-                let diagnostic = Diagnostic::new(
+                let diagnostic = Diagnostic::new_js(
                     Some(file_name.clone()),
                     Some(start),
                     Some(length),
@@ -860,10 +869,23 @@ impl<'a> CheckerState<'a> {
         message: &'static DiagnosticMessage,
         args: &[&str],
     ) -> bool {
+        self.grammar_error_on_node_js(
+            node,
+            message,
+            &args.iter().map(|&arg| arg.into()).collect::<Vec<_>>(),
+        )
+    }
+
+    pub(crate) fn grammar_error_on_node_js(
+        &mut self,
+        node: NodeId,
+        message: &'static DiagnosticMessage,
+        args: &[tsc_types::JsStr<'_>],
+    ) -> bool {
         if self.has_parse_diagnostics(node) {
             return false;
         }
-        self.error_at(Some(node), message, args);
+        self.error_at_js(Some(node), message, args);
         true
     }
 
@@ -895,7 +917,7 @@ impl<'a> CheckerState<'a> {
         let start_utf16 = to_utf16(start);
         let end_utf16 = to_utf16(end);
         let args: Vec<String> = args.iter().map(|arg| (*arg).to_owned()).collect();
-        let diagnostic = tsc_diagnostics::Diagnostic::new(
+        let diagnostic = tsc_diagnostics::Diagnostic::new_js(
             Some(source.file_name.clone()),
             Some(start_utf16),
             Some(end_utf16.saturating_sub(start_utf16)),
@@ -1023,22 +1045,22 @@ impl<'a> CheckerState<'a> {
                     &diagnostics::Cannot_assign_to_0_because_it_is_not_a_variable
                 };
                 let display = self.symbol_display_name(symbol);
-                self.error_at(Some(node), message, &[&display]);
+                self.error_at_js(Some(node), message, &[(&display).into()]);
                 return Ok(self.tables.intrinsics.error);
             }
             if self.is_readonly_symbol(local_or_export_symbol)? {
                 let display = self.symbol_display_name(symbol);
                 if local_flags.intersects(SymbolFlags::VARIABLE) {
-                    self.error_at(
+                    self.error_at_js(
                         Some(node),
                         &diagnostics::Cannot_assign_to_0_because_it_is_a_constant,
-                        &[&display],
+                        &[(&display).into()],
                     );
                 } else {
-                    self.error_at(
+                    self.error_at_js(
                         Some(node),
                         &diagnostics::Cannot_assign_to_0_because_it_is_a_read_only_property,
-                        &[&display],
+                        &[(&display).into()],
                     );
                 }
                 return Ok(self.tables.intrinsics.error);
@@ -1200,15 +1222,15 @@ impl<'a> CheckerState<'a> {
                     let source = self.binder.source_of_node(declaration);
                     let name = node_util::get_name_of_declaration(source, declaration)
                         .unwrap_or(declaration);
-                    self.error_at(
+                    self.error_at_js(
                         Some(name),
                         &diagnostics::Variable_0_implicitly_has_type_1_in_some_locations_where_its_type_cannot_be_determined,
-                        &[&display, &type_display],
+                        &[(&display).into(), (&type_display).into()],
                     );
-                    self.error_at(
+                    self.error_at_js(
                         Some(node),
                         &diagnostics::Variable_0_implicitly_has_an_1_type,
-                        &[&display, &type_display],
+                        &[(&display).into(), (&type_display).into()],
                     );
                 }
                 return self.convert_auto_to_any(flow_type);
@@ -1218,10 +1240,10 @@ impl<'a> CheckerState<'a> {
             && self.contains_undefined_type(flow_type)
         {
             let display = self.symbol_name_as_written_slice(symbol);
-            self.error_at(
+            self.error_at_js(
                 Some(node),
                 &diagnostics::Variable_0_is_used_before_being_assigned,
-                &[&display],
+                &[(&display).into()],
             );
             return Ok(ty);
         }
@@ -3628,7 +3650,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getPropertyNameFromBindingElement @6.0.3
     /// tsc-hash: 0384b54e818653d7ffc1e37a749d326641ed2996e361ac13190e37260ff67a66
     /// tsc-span: _tsc.js:80661-80664
-    fn property_name_from_binding_element(&mut self, e: NodeId) -> CheckResult<Option<String>> {
+    fn property_name_from_binding_element(
+        &mut self,
+        e: NodeId,
+    ) -> CheckResult<Option<tsc_types::EscapedName>> {
         let NodeData::BindingElement(data) = self.data_of(e) else {
             return Ok(None);
         };

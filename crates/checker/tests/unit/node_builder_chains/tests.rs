@@ -11,6 +11,91 @@ use crate::state::test_support::with_program_state;
 use super::super::type_nodes::create_token;
 use super::*;
 
+#[test]
+fn written_symbol_quote_removal_uses_javascript_code_units_and_dot_rules() {
+    use tsc_types::JsString;
+    // stripQuotes + /\\./g at _tsc.js:16340 and :53369.
+    for (input, expected) in [
+        (vec![0x22, 0x5c, 0xd800, 0x22], vec![0xd800]),
+        (vec![0x22, 0x5c, 0xd83d, 0xde00, 0x22], vec![0xd83d, 0xde00]),
+        (vec![0x27, 0xd800, 0x22], vec![0x27, 0xd800, 0x22]),
+        (vec![0x60, 0xd800, 0x60], vec![0xd800]),
+        (vec![0x22, 0x61, 0x5c, 0x22], vec![0x61, 0x5c]),
+        (
+            vec![
+                0x22, 0x5c, 0x0a, 0x5c, 0x0d, 0x5c, 0x2028, 0x5c, 0x2029, 0x22,
+            ],
+            vec![0x5c, 0x0a, 0x5c, 0x0d, 0x5c, 0x2028, 0x5c, 0x2029],
+        ),
+    ] {
+        let value = JsString::from_code_units(&input);
+        assert_eq!(
+            strip_symbol_name_quotes(value.as_js()).to_utf16(),
+            expected,
+            "{input:?}"
+        );
+    }
+}
+
+#[test]
+fn property_name_nodes_retain_raw_symbol_and_name_type_values() {
+    use tsc_types::{EscapedName, JsString};
+
+    with_builder_files(
+        &[("/project/main.ts", "export {};")],
+        0,
+        EmitNodeBuilderFlags::NONE,
+        EmitInternalNodeBuilderFlags::NONE,
+        |checker, arena, target, context| {
+            for units in [&[0xd800][..], &[0xdc00], &[0xfffd], &[0xd83d, 0xde00]] {
+                let value = JsString::from_code_units(units);
+                for use_name_type in [false, true] {
+                    let symbol = checker
+                        .binder
+                        .create_symbol(SymbolFlags::PROPERTY, EscapedName::escape(value.as_js()));
+                    if use_name_type {
+                        let name_type = checker.tables.get_string_literal_type(value.as_js());
+                        checker
+                            .links
+                            .set_symbol_name_type(0, symbol, Some(name_type));
+                    }
+                    let written = checker.entity_symbol_name_as_written_slice(
+                        symbol,
+                        true,
+                        true,
+                        context.enclosing_declaration,
+                    );
+                    let expected_written = if use_name_type {
+                        std::iter::once(0x22)
+                            .chain(units.iter().copied())
+                            .chain(std::iter::once(0x22))
+                            .collect::<Vec<_>>()
+                    } else {
+                        units.to_vec()
+                    };
+                    assert_eq!(written.to_utf16(), expected_written);
+                    let name = chains_get_property_name_node_for_symbol(
+                        checker, arena, target, context, symbol,
+                    )?;
+                    let NodeData::StringLiteral(data) =
+                        &arena.node(name).map_err(factory_error)?.data
+                    else {
+                        panic!(
+                            "non-identifier/non-numeric property values require a string literal"
+                        );
+                    };
+                    assert_eq!(data.text.to_utf16(), units, "nameType={use_name_type}");
+                    assert_eq!(
+                        arena.literal_value(name).map_err(factory_error)?,
+                        Some(value.as_js())
+                    );
+                }
+            }
+            Ok(())
+        },
+    );
+}
+
 fn with_builder_files(
     files: &[(&str, &str)],
     target_index: usize,
@@ -80,7 +165,12 @@ fn declaration_symbol(
 fn declaration_name_text(checker: &CheckerState<'_>, name: NodeId) -> Option<String> {
     match checker.data_of(name) {
         NodeData::Identifier(data) => Some(data.text.clone()),
-        NodeData::StringLiteral(data) => Some(data.text.clone()),
+        NodeData::StringLiteral(data) => Some(
+            (data.text.clone())
+                .as_str()
+                .expect("scalar value observation")
+                .to_owned(),
+        ),
         NodeData::NumericLiteral(data) => Some(data.text.clone()),
         _ => None,
     }
@@ -321,9 +411,10 @@ fn computed_entity_chain_and_write_computed_props_keep_computed_shapes() {
                 .tables
                 .flags_of(key_type)
                 .intersects(TypeFlags::UNIQUE_ES_SYMBOL));
-            let computed_symbol = checker
-                .binder
-                .create_symbol(SymbolFlags::PROPERTY, "__computed".to_owned());
+            let computed_symbol = checker.binder.create_symbol(
+                SymbolFlags::PROPERTY,
+                tsc_types::EscapedName::from_escaped_value(("__computed".to_owned()).into()),
+            );
             checker
                 .links
                 .set_symbol_name_type(0, computed_symbol, Some(key_type));

@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "slice": "H2.5h ca-2a-r2 UTF-16 literal value fidelity: known-divergence manifest promotion",
+  "head_before_commit": "2818bdca058a5b77a64f45ef46c42979da23a341",
+  "evidence_runs": [
+    {
+      "run_dir": "target/utf16-literals-runs/fix-r2",
+      "receipt": "run exit: 0\nfinished 2026-09-12T12:38:40Z\nrows exact_x2 4 diverging 0\n"
+    }
+  ],
+  "promoted_rows": [
+    "typescript-6.0.3/conformance/es6/unicodeExtendedEscapes/unicodeExtendedEscapesInStrings10.ts#target%3Des5",
+    "typescript-6.0.3/conformance/es6/unicodeExtendedEscapes/unicodeExtendedEscapesInStrings11.ts#target%3Des5",
+    "typescript-6.0.3/conformance/es6/unicodeExtendedEscapes/unicodeExtendedEscapesInTemplates10.ts#target%3Des5",
+    "typescript-6.0.3/conformance/es6/unicodeExtendedEscapes/unicodeExtendedEscapesInTemplates11.ts#target%3Des5"
+  ],
+  "rows_before": 21,
+  "rows_after": 17,
+  "owners_after": [
+    "h2-5h-ca-2a-r4"
+  ],
+  "manifest_sha256": {
+    "before": "c7d5e5b7edd06e1cce6a24ca4754116c2bfd15a666ff70dab252174d1a195f82",
+    "after": "644c7adc8e173f73cb3e10fb26a838fb236c614bab146422856e3500622b1bf9"
+  },
+  "finished_at": "2026-09-12T12:43:27.168407+00:00"
+}

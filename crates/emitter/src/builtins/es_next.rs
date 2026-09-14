@@ -1795,7 +1795,7 @@ impl<'context> EsNextVisitor<'context> {
         self.context.factory()?.create_node(
             self.source,
             NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
-                text: text.to_owned(),
+                text: text.into(),
                 has_extended_unicode_escape: None,
             }),
             TransformFlags::NONE,

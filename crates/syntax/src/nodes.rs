@@ -47,6 +47,8 @@ pub struct Node {
     pub flags: i32,
     /// tsc NumericLiteral.numericLiteralFlags; zero on every other node kind.
     pub numeric_literal_flags: i32,
+    /// Parser-owned TemplateLiteralLikeNode.templateFlags; zero on other node kinds.
+    pub template_flags: i32,
     /// tsc's internal Array/Object/Block.multiLine parser bit.
     pub multi_line: Option<bool>,
     pub pos: u32,
@@ -951,7 +953,7 @@ pub struct NewExpressionData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct NoSubstitutionTemplateLiteralData {
-    pub text: String,
+    pub text: tsc_types::JsString,
     pub raw_text: Option<String>,
 }
 
@@ -1130,7 +1132,7 @@ pub struct SpreadElementData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct StringLiteralData {
-    pub text: String,
+    pub text: tsc_types::JsString,
     pub has_extended_unicode_escape: Option<bool>,
 }
 
@@ -1159,7 +1161,7 @@ pub struct TemplateExpressionData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TemplateHeadData {
-    pub text: String,
+    pub text: tsc_types::JsString,
     pub raw_text: Option<String>,
 }
 
@@ -1177,7 +1179,7 @@ pub struct TemplateLiteralTypeSpanData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TemplateMiddleData {
-    pub text: String,
+    pub text: tsc_types::JsString,
     pub raw_text: Option<String>,
 }
 
@@ -1189,7 +1191,7 @@ pub struct TemplateSpanData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TemplateTailData {
-    pub text: String,
+    pub text: tsc_types::JsString,
     pub raw_text: Option<String>,
 }
 
@@ -2347,7 +2349,7 @@ impl NodeData {
             }),
             SyntaxKind::NoSubstitutionTemplateLiteral => {
                 Self::NoSubstitutionTemplateLiteral(NoSubstitutionTemplateLiteralData {
-                    text: String::new(),
+                    text: tsc_types::JsString::new(),
                     raw_text: None,
                 })
             }
@@ -2479,7 +2481,7 @@ impl NodeData {
                 Self::SpreadElement(SpreadElementData { expression: None })
             }
             SyntaxKind::StringLiteral => Self::StringLiteral(StringLiteralData {
-                text: String::new(),
+                text: tsc_types::JsString::new(),
                 has_extended_unicode_escape: None,
             }),
             SyntaxKind::SwitchStatement => Self::SwitchStatement(SwitchStatementData {
@@ -2500,7 +2502,7 @@ impl NodeData {
                 template_spans: None,
             }),
             SyntaxKind::TemplateHead => Self::TemplateHead(TemplateHeadData {
-                text: String::new(),
+                text: tsc_types::JsString::new(),
                 raw_text: None,
             }),
             SyntaxKind::TemplateLiteralType => Self::TemplateLiteralType(TemplateLiteralTypeData {
@@ -2514,7 +2516,7 @@ impl NodeData {
                 })
             }
             SyntaxKind::TemplateMiddle => Self::TemplateMiddle(TemplateMiddleData {
-                text: String::new(),
+                text: tsc_types::JsString::new(),
                 raw_text: None,
             }),
             SyntaxKind::TemplateSpan => Self::TemplateSpan(TemplateSpanData {
@@ -2522,7 +2524,7 @@ impl NodeData {
                 literal: None,
             }),
             SyntaxKind::TemplateTail => Self::TemplateTail(TemplateTailData {
-                text: String::new(),
+                text: tsc_types::JsString::new(),
                 raw_text: None,
             }),
             SyntaxKind::ThrowStatement => {

@@ -34,7 +34,7 @@ impl AuthoritativeModuleProvider for Provider {
         Ok(AuthoritativeModuleResolution::Resolved(
             AuthoritativeResolvedModule {
                 target_token: AuthoritativeSourceToken(1),
-                resolved_file_name: "/node_modules/pkg/index.js".to_owned(),
+                resolved_file_name: "/node_modules/pkg/index.js".to_owned().into(),
                 resolved_using_ts_extension: false,
                 is_tsx: false,
                 is_arbitrary_extension: false,
@@ -56,7 +56,7 @@ fn metadata(
 ) -> AuthoritativeSourceMetadata {
     AuthoritativeSourceMetadata {
         token: AuthoritativeSourceToken(token),
-        file_name: file_name.to_owned(),
+        file_name: file_name.to_owned().into(),
         may_be_emitted,
         implied_node_format,
         implied_node_format_for_emit: implied_node_format,

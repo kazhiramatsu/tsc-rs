@@ -63,17 +63,19 @@ fn common_js_flow_recovery_values_leave_the_ordinary_flow_query_live() {
     let binder = bind_source_file(&source, &options);
     let mut state = CheckerState::new(&source, &binder, &options);
 
-    let declarationless = state
-        .binder
-        .create_symbol(SymbolFlags::PROPERTY, "none".to_owned());
+    let declarationless = state.binder.create_symbol(
+        SymbolFlags::PROPERTY,
+        tsc_types::EscapedName::from_escaped_value(("none".to_owned()).into()),
+    );
     let missing_source = state
         .get_flow_type_from_common_js_export(declarationless)
         .expect("declarationless export recovers");
     assert!(state.tables.is_error_type(missing_source));
 
-    let non_exports = state
-        .binder
-        .create_symbol(SymbolFlags::PROPERTY, "x".to_owned());
+    let non_exports = state.binder.create_symbol(
+        SymbolFlags::PROPERTY,
+        tsc_types::EscapedName::from_escaped_value(("x".to_owned()).into()),
+    );
     state.binder.symbol_mut(non_exports).declarations = vec![obj_access];
     assert_eq!(
         state
@@ -82,9 +84,10 @@ fn common_js_flow_recovery_values_leave_the_ordinary_flow_query_live() {
         state.tables.intrinsics.undefined
     );
 
-    let ordinary = state
-        .binder
-        .create_symbol(SymbolFlags::PROPERTY, "x".to_owned());
+    let ordinary = state.binder.create_symbol(
+        SymbolFlags::PROPERTY,
+        tsc_types::EscapedName::from_escaped_value(("x".to_owned()).into()),
+    );
     state.binder.symbol_mut(ordinary).declarations = exports_accesses;
     let invocations = state.flow_invocation_count;
     let result = state
@@ -112,9 +115,10 @@ fn missing_common_js_end_flow_returns_auto_without_starting_a_flow_walk() {
         "valid sibling normally has a source-file end flow"
     );
     let mut state = CheckerState::new(&source, &binder, &options);
-    let symbol = state
-        .binder
-        .create_symbol(SymbolFlags::PROPERTY, "x".to_owned());
+    let symbol = state.binder.create_symbol(
+        SymbolFlags::PROPERTY,
+        tsc_types::EscapedName::from_escaped_value(("x".to_owned()).into()),
+    );
     state.binder.symbol_mut(symbol).declarations = vec![access];
     let invocations = state.flow_invocation_count;
     assert_eq!(
@@ -162,15 +166,17 @@ fn malformed_alias_declarations_have_no_target_and_keep_resolved_value_fallback(
             );
 
             let number = state.tables.intrinsics.number;
-            let target = state
-                .binder
-                .create_symbol(SymbolFlags::PROPERTY, "target".to_owned());
+            let target = state.binder.create_symbol(
+                SymbolFlags::PROPERTY,
+                tsc_types::EscapedName::from_escaped_value(("target".to_owned()).into()),
+            );
             state
                 .links
                 .set_fresh_symbol_type(target, LinkSlot::Resolved(number));
-            let recovered = state
-                .binder
-                .create_symbol(SymbolFlags::ALIAS, "Recovered".to_owned());
+            let recovered = state.binder.create_symbol(
+                SymbolFlags::ALIAS,
+                tsc_types::EscapedName::from_escaped_value(("Recovered".to_owned()).into()),
+            );
             state.binder.symbol_mut(recovered).declarations = vec![root];
             state
                 .links
@@ -191,9 +197,10 @@ fn declarationless_recovery_alias_uses_stable_miss_sentinels() {
     let options = CompilerOptions::default();
     let binder = bind_source_file(&source, &options);
     let mut state = CheckerState::new(&source, &binder, &options);
-    let recovered = state
-        .binder
-        .create_symbol(SymbolFlags::ALIAS, "Recovered".to_owned());
+    let recovered = state.binder.create_symbol(
+        SymbolFlags::ALIAS,
+        tsc_types::EscapedName::from_escaped_value(("Recovered".to_owned()).into()),
+    );
 
     assert_eq!(
         state

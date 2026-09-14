@@ -108,7 +108,7 @@ fn with_focused_emit_resolver(
         .enumerate()
         .map(|(index, (name, _))| AuthoritativeSourceMetadata {
             token: AuthoritativeSourceToken(index as u32),
-            file_name: (*name).to_owned(),
+            file_name: (*name).to_owned().into(),
             may_be_emitted: true,
             implied_node_format: None,
             implied_node_format_for_emit: None,
@@ -1030,7 +1030,11 @@ fn declaration_units(preflight: &EmitPreflight) -> Vec<(SourceFileId, PathBuf)> 
         .units()
         .iter()
         .filter_map(|unit| {
-            let path = unit.paths().declaration_path()?.to_path_buf();
+            let path = unit
+                .paths()
+                .declaration_path()?
+                .scalar_test_path()
+                .to_path_buf();
             let tsc_emitter::EmitRoot::SourceFile(source) = unit.root() else {
                 panic!("eligible declaration plan contains a bundle")
             };
@@ -1064,14 +1068,20 @@ fn run_production_path(
     // its EmitHost, so mirror that normalization for this direct production
     // entry replay.
     let mut production_options = host.options.clone();
-    if let Some(out_dir) = production_options.out_dir.as_deref() {
+    if let Some(out_dir) = production_options
+        .out_dir
+        .as_ref()
+        .map(|value| value.as_str().expect("scalar legacy option observation"))
+    {
         let out_dir = Path::new(out_dir);
         if !out_dir.is_absolute() {
             production_options.out_dir = Some(
                 host.current_directory()
+                    .scalar_test_path()
                     .join(out_dir)
                     .to_string_lossy()
-                    .into_owned(),
+                    .into_owned()
+                    .into(),
             );
         }
     }
@@ -1206,7 +1216,7 @@ fn run_production_path(
         let Some(source_files) = artifact.source_files() else {
             report.mismatches.push(format!(
                 "{case_id}: production declaration {} omitted sourceFiles",
-                artifact.path().display()
+                artifact.path().scalar_test_path().display()
             ));
             continue;
         };
@@ -1451,8 +1461,16 @@ fn normalize_diagnostic(diagnostic: &Diagnostic) -> WitnessDiagnostic {
             DiagnosticCategory::Message => "Message",
         }
         .to_owned(),
-        message: diagnostic.message_text().to_owned(),
-        file: diagnostic.file_name.as_deref().map(normalize_path),
+        message: diagnostic
+            .message_text()
+            .as_str()
+            .expect("scalar diagnostic observation")
+            .to_owned(),
+        file: diagnostic
+            .file_name
+            .as_ref()
+            .map(|value| value.as_str().expect("scalar legacy option observation"))
+            .map(normalize_path),
         start: diagnostic.start,
         length: diagnostic.length,
     }
@@ -2493,7 +2511,7 @@ impl<'prepared, 'snapshot, 'options> HarnessEmitHost<'prepared, 'snapshot, 'opti
                     .ok_or_else(|| {
                         format!(
                             "prepared source {} lacks stable identity",
-                            source.path().display().display()
+                            source.path().display().scalar_test_path().display()
                         )
                     })
             })
@@ -2515,15 +2533,25 @@ impl EmitHost for HarnessEmitHost<'_, '_, '_> {
         self.options
     }
 
-    fn current_directory(&self) -> &Path {
-        self.prepared.current_directory().display()
+    fn current_directory(&self) -> tsc_diagnostics::JsStr<'_> {
+        (self
+            .prepared
+            .current_directory()
+            .display()
+            .scalar_test_path())
+        .to_str()
+        .expect("scalar mock host directory")
+        .into()
     }
 
-    fn common_source_directory(&self) -> &Path {
-        &self.common_source_directory
+    fn common_source_directory(&self) -> tsc_diagnostics::JsStr<'_> {
+        (&self.common_source_directory)
+            .to_str()
+            .expect("scalar mock host directory")
+            .into()
     }
 
-    fn config_file_path(&self) -> Option<&Path> {
+    fn config_file_path(&self) -> Option<tsc_diagnostics::JsStr<'_>> {
         self.prepared
             .program_options()
             .config_file_path()
@@ -2540,23 +2568,22 @@ impl EmitHost for HarnessEmitHost<'_, '_, '_> {
 
     fn source_file(&self, id: SourceFileId) -> Option<tsc_emitter::EmitSource<'_>> {
         let source = self.prepared.source_file(id)?;
-        let expected_name = source.path().display().to_string_lossy();
-        let syntax = self
-            .snapshot
-            .documents()
-            .get(id.index())
-            .filter(|document| document.source().file_name == expected_name)
-            .or_else(|| {
-                self.snapshot
-                    .documents()
-                    .iter()
-                    .find(|document| document.source().file_name == expected_name)
-            })
-            .map(|document| document.source());
+        let expected_name = source.path().display().scalar_test_path().to_string_lossy();
+        let syntax =
+            self.snapshot
+                .documents()
+                .get(id.index())
+                .filter(|document| document.source().file_name.as_js() == expected_name.as_ref())
+                .or_else(|| {
+                    self.snapshot.documents().iter().find(|document| {
+                        document.source().file_name.as_js() == expected_name.as_ref()
+                    })
+                })
+                .map(|document| document.source());
         Some(tsc_emitter::EmitSource::new(
             id,
             source.path().display(),
-            source.path().canonical().as_path(),
+            source.path().canonical().as_js(),
             source.may_be_emitted(),
             source.implied_node_format_for_emit(),
             syntax,
@@ -2569,28 +2596,52 @@ fn common_emit_source_directory(
     options: &tsc_checker::CompilerOptions,
     source_files: &[SourceFileId],
 ) -> PathBuf {
-    if let Some(root_dir) = options.root_dir.as_deref() {
+    if let Some(root_dir) = options
+        .root_dir
+        .as_ref()
+        .map(|value| value.as_str().expect("scalar legacy option observation"))
+    {
         let root = Path::new(root_dir);
         return if root.is_absolute() {
             root.to_path_buf()
         } else {
-            prepared.current_directory().display().join(root)
+            prepared
+                .current_directory()
+                .display()
+                .scalar_test_path()
+                .join(root)
         };
     }
     let mut directories = source_files.iter().filter_map(|id| {
         let source = prepared.source_file(*id)?;
-        (source.may_be_emitted() && !is_declaration_file_name(source.path().display()))
-            .then(|| source.path().display().parent().map(Path::to_path_buf))
-            .flatten()
+        (source.may_be_emitted()
+            && !is_declaration_file_name(source.path().display().scalar_test_path()))
+        .then(|| {
+            source
+                .path()
+                .display()
+                .scalar_test_path()
+                .parent()
+                .map(Path::to_path_buf)
+        })
+        .flatten()
     });
     let Some(mut common) = directories.next() else {
-        return prepared.current_directory().display().to_path_buf();
+        return prepared
+            .current_directory()
+            .display()
+            .scalar_test_path()
+            .to_path_buf();
     };
     let case_sensitive = prepared.path_context().use_case_sensitive_file_names();
     for directory in directories {
         while !path_starts_with(&directory, &common, case_sensitive) {
             if !common.pop() {
-                return prepared.current_directory().display().to_path_buf();
+                return prepared
+                    .current_directory()
+                    .display()
+                    .scalar_test_path()
+                    .to_path_buf();
             }
         }
     }
@@ -2637,7 +2688,9 @@ fn source_file_tags(
         let matching = prepared
             .source_files()
             .iter()
-            .filter(|source| source.path().display().to_string_lossy() == path.as_str())
+            .filter(|source| {
+                source.path().display().scalar_test_path().to_string_lossy() == path.as_str()
+            })
             .collect::<Vec<_>>();
         assert_eq!(
             matching.len(),
@@ -2693,7 +2746,13 @@ fn project_source_metadata(
         .expect("prepared source exists");
     AuthoritativeSourceMetadata {
         token: AuthoritativeSourceToken(source_file.raw()),
-        file_name: source.path().display().to_string_lossy().into_owned(),
+        file_name: source
+            .path()
+            .display()
+            .scalar_test_path()
+            .to_string_lossy()
+            .into_owned()
+            .into(),
         may_be_emitted: source.may_be_emitted(),
         implied_node_format: source.implied_node_format().map(checker_resolution_mode),
         implied_node_format_for_emit: source
@@ -2805,15 +2864,18 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
             let alternate_result = resolution
                 .alternate_result()
                 .map(|path| {
-                    path.display().to_str().map(str::to_owned).ok_or(
-                        AuthoritativeModuleLookupFailure::Unsupported(
+                    path.display()
+                        .as_str()
+                        .map(tsc_diagnostics::JsString::from)
+                        .ok_or(AuthoritativeModuleLookupFailure::Unsupported(
                             UnsupportedAuthoritativeResolution::ResolvedFileIdentity,
-                        ),
-                    )
+                        ))
                 })
                 .transpose()?;
             return Ok(AuthoritativeModuleResolution::NotFound(
-                AuthoritativeNotFoundModule { alternate_result },
+                AuthoritativeNotFoundModule {
+                    alternate_result: alternate_result.map(Into::into),
+                },
             ));
         };
         if let ResolvedModuleTarget::Unloaded {
@@ -2851,26 +2913,31 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
             if arbitrary_declaration
                 && matches!(reason, UnloadedModuleReason::ResolutionOnly)
                 && !loads_source
-                && (is_declaration_file_name(source.path().display())
+                && (is_declaration_file_name(source.path().display().scalar_test_path())
                     || self.options.allow_arbitrary_extensions == Some(true))
             {
                 let alternate_result = resolution
                     .alternate_result()
                     .map(|path| {
-                        path.display().to_str().map(str::to_owned).ok_or(
-                            AuthoritativeModuleLookupFailure::Unsupported(
+                        path.display()
+                            .as_str()
+                            .map(tsc_diagnostics::JsString::from)
+                            .ok_or(AuthoritativeModuleLookupFailure::Unsupported(
                                 UnsupportedAuthoritativeResolution::ResolvedFileIdentity,
-                            ),
-                        )
+                            ))
                     })
                     .transpose()?;
                 return Ok(AuthoritativeModuleResolution::NotFound(
-                    AuthoritativeNotFoundModule { alternate_result },
+                    AuthoritativeNotFoundModule {
+                        alternate_result: alternate_result.map(Into::into),
+                    },
                 ));
             }
             let node_modules_depth_applies = module.is_external_library_import()
                 && (module.original_path().is_none()
-                    || path_contains_node_modules(resolved_file.canonical().as_path()));
+                    || path_contains_node_modules(
+                        resolved_file.canonical().as_js().scalar_test_path(),
+                    ));
             let first_node_modules_javascript_layer_is_admitted =
                 !self.options.node_modules_depth_exceeds_limit(1);
             let resolution_diagnostic = match reason {
@@ -2884,13 +2951,15 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                     if arbitrary_declaration
                         && loads_source
                         && self.options.allow_arbitrary_extensions != Some(true)
-                        && !is_declaration_file_name(source.path().display()) =>
+                        && !is_declaration_file_name(
+                            source.path().display().scalar_test_path(),
+                        ) =>
                 {
                     Some(AuthoritativeModuleResolutionDiagnostic::ArbitraryExtensionWithoutOption)
                 }
                 UnloadedModuleReason::ResolutionOnly if !loads_source => (arbitrary_declaration
                     && self.options.allow_arbitrary_extensions != Some(true)
-                    && !is_declaration_file_name(source.path().display()))
+                    && !is_declaration_file_name(source.path().display().scalar_test_path()))
                 .then_some(
                     AuthoritativeModuleResolutionDiagnostic::ArbitraryExtensionWithoutOption,
                 ),
@@ -2918,7 +2987,7 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
             };
             let resolved_file_name = resolved_file
                 .display()
-                .to_str()
+                .as_str()
                 .ok_or(AuthoritativeModuleLookupFailure::Unsupported(
                     UnsupportedAuthoritativeResolution::ResolvedFileIdentity,
                 ))?
@@ -2926,28 +2995,29 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
             let alternate_result = resolution
                 .alternate_result()
                 .map(|path| {
-                    path.display().to_str().map(str::to_owned).ok_or(
-                        AuthoritativeModuleLookupFailure::Unsupported(
+                    path.display()
+                        .as_str()
+                        .map(tsc_diagnostics::JsString::from)
+                        .ok_or(AuthoritativeModuleLookupFailure::Unsupported(
                             UnsupportedAuthoritativeResolution::ResolvedFileIdentity,
-                        ),
-                    )
+                        ))
                 })
                 .transpose()?;
             if let Some(diagnostic) = resolution_diagnostic {
                 return Ok(AuthoritativeModuleResolution::ResolutionDiagnostic(
                     AuthoritativeResolutionDiagnosticModule {
-                        resolved_file_name,
+                        resolved_file_name: resolved_file_name.into(),
                         diagnostic,
                     },
                 ));
             }
             return Ok(AuthoritativeModuleResolution::Untyped(
                 AuthoritativeUntypedModule {
-                    resolved_file_name,
+                    resolved_file_name: resolved_file_name.into(),
                     package_name: module
                         .package_id()
                         .map(|package_id| package_id.name().to_owned()),
-                    alternate_result,
+                    alternate_result: alternate_result.map(Into::into),
                     types_package_exists: resolution.types_package_exists(),
                     package_bundles_types: resolution.package_bundles_types(),
                 },
@@ -2968,11 +3038,12 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                 target_token: AuthoritativeSourceToken(source.raw()),
                 resolved_file_name: resolved_file
                     .display()
-                    .to_str()
+                    .as_str()
                     .ok_or(AuthoritativeModuleLookupFailure::Unsupported(
                         UnsupportedAuthoritativeResolution::ResolvedFileIdentity,
                     ))?
-                    .to_owned(),
+                    .to_owned()
+                    .into(),
                 resolved_using_ts_extension: module.resolved_using_ts_extension(),
                 is_tsx: matches!(
                     module.extension(),
@@ -2986,16 +3057,19 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                         name: package_id.name().to_owned(),
                         submodule_name: package_id.submodule_name().to_owned(),
                         version: package_id.version().to_owned(),
-                        peer_dependencies: package_id.peer_dependencies().map(str::to_owned),
+                        peer_dependencies: package_id
+                            .peer_dependencies()
+                            .map(|name| name.to_owned()),
                     }),
                 alternate_result: resolution
                     .alternate_result()
                     .map(|path| {
-                        path.display().to_str().map(str::to_owned).ok_or(
-                            AuthoritativeModuleLookupFailure::Unsupported(
+                        path.display()
+                            .as_str()
+                            .map(tsc_diagnostics::JsString::from)
+                            .ok_or(AuthoritativeModuleLookupFailure::Unsupported(
                                 UnsupportedAuthoritativeResolution::ResolvedFileIdentity,
-                            ),
-                        )
+                            ))
                     })
                     .transpose()?,
                 types_package_exists: resolution.types_package_exists(),
@@ -3030,3 +3104,7 @@ const fn program_resolution_mode(mode: AuthoritativeResolutionMode) -> Resolutio
         AuthoritativeResolutionMode::Unspecified => ResolutionMode::Unspecified,
     }
 }
+
+#[path = "../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

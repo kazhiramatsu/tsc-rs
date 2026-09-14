@@ -72,23 +72,33 @@ static CURRENT_EXACT_DIAGNOSTIC_PROMOTIONS: &[CurrentExactDiagnosticPromotion] =
 
 // H2.8a source repairs measured against the unchanged historical input and
 // both complete TypeScript observations. Keep the old qualification immutable.
-static CURRENT_EXACT_SOURCE_PROMOTIONS: &[(&str, &str)] = &[(
-    "typescript-6.0.3/compiler/commentsAfterSpread.ts#default",
-    "3f5e9e8bd16bab126774402dea7896f6391aaa67bb4f1952b48811ac3ca1f879",
-)];
+static CURRENT_EXACT_SOURCE_PROMOTIONS: &[(&str, &str, &str)] = &[
+    (
+        "typescript-6.0.3/compiler/commentsAfterSpread.ts#default",
+        "3f5e9e8bd16bab126774402dea7896f6391aaa67bb4f1952b48811ac3ca1f879",
+        "H2.8a",
+    ),
+    // Literal-only recovery now emits this historical H2.9 refusal. Compare
+    // its original output and all three TS1125 diagnostics twice.
+    (
+        "typescript-6.0.3/conformance/es2018/invalidTaggedTemplateEscapeSequences.ts#target%3Desnext",
+        "fb4e084b24b8ab291c29e50a94b555fe1db39d802b301ee58c80a6d740794eb0",
+        "H2.9",
+    ),
+];
 
 fn current_exact_source_promotion(case: &Value) -> Result<bool, Box<dyn Error>> {
     let case_id = string(case, "case_id")?;
-    let Some((_, fingerprint)) = CURRENT_EXACT_SOURCE_PROMOTIONS
+    let Some((_, fingerprint, required_slice)) = CURRENT_EXACT_SOURCE_PROMOTIONS
         .iter()
-        .find(|(id, _)| *id == case_id)
+        .find(|(id, _, _)| *id == case_id)
     else {
         return Ok(false);
     };
     let observations = array(case, "typescript_runs")?;
     if case["case_fingerprint_sha256"] != *fingerprint
         || case["disposition"] != "deferred-to-slices"
-        || case["required_slices"] != json!(["H2.8a"])
+        || case["required_slices"] != json!([required_slice])
         || case["diagnostic_disposition"]["state"] != "not-observed-source-deferred"
         || case["rust_expectation"] != "typed-failure-before-first-sink-write"
         || observations.len() != 2
@@ -192,7 +202,12 @@ fn assert_exact_writes(
         let expected_path = Path::new(string(expected, "path")?);
         let expected_bytes = base64::engine::general_purpose::STANDARD
             .decode(string(expected, "callback_utf8_base64")?)?;
-        if actual.path() != expected_path
+        if std::path::Path::new(
+            actual
+                .path()
+                .as_str()
+                .expect("scalar acceptance output path"),
+        ) != expected_path
             || actual.callback_text().as_bytes() != expected_bytes
             || actual.callback_text().len() as u64
                 != expected["callback_utf8_bytes"].as_u64().unwrap_or(u64::MAX)
@@ -209,7 +224,7 @@ fn assert_exact_writes(
             return Err(failure(format!(
                 "{case_id}: write {index} path or exact bytes differ: expected_path={} actual_path={} expected_callback_sha256={} actual_callback_sha256={} expected_materialized_sha256={} actual_materialized_sha256={} expected_bom={} actual_bom={} expected_text={:?} actual_text={:?}",
                 expected_path.display(),
-                actual.path().display(),
+                std::path::Path::new(actual.path().as_str().expect("scalar acceptance output path")).display(),
                 string(expected, "callback_utf8_sha256")?,
                 sha256(actual.callback_text().as_bytes()),
                 string(expected, "materialized_utf8_sha256")?,
@@ -228,7 +243,9 @@ fn assert_exact_writes(
             .source_files()
             .unwrap_or_default()
             .iter()
-            .map(|source| source.to_string_lossy())
+            .map(|source| {
+                std::borrow::Cow::Borrowed(source.as_str().expect("scalar acceptance source path"))
+            })
             .collect::<Vec<_>>();
         if actual_sources
             .iter()
@@ -251,7 +268,7 @@ fn flatten_message_chain(chain: &MessageChain, indent: usize, output: &mut Strin
             output.push_str("  ");
         }
     }
-    output.push_str(&chain.text);
+    output.push_str(chain.text.as_str().expect("scalar acceptance diagnostic"));
     for child in &chain.next {
         flatten_message_chain(child, indent + 1, output);
     }
@@ -272,7 +289,7 @@ fn normalize_diagnostic(diagnostic: &Diagnostic) -> Value {
     json!({
         "code": diagnostic.code(),
         "category": diagnostic_category(diagnostic.category()),
-        "file": diagnostic.file_name,
+        "file": diagnostic.file_name.as_ref().map(|value| value.as_str().expect("scalar acceptance filename")),
         "start": diagnostic.start,
         "length": diagnostic.length,
         "message": message,

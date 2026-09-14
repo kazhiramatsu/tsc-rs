@@ -1083,7 +1083,9 @@ impl CheckerState<'_> {
 
 fn project_constant_value(value: EvalValue) -> EmitConstantValue {
     match value {
-        EvalValue::Str(value) => EmitConstantValue::String(JavaScriptString::from_rust_str(&value)),
+        EvalValue::Str(value) => {
+            EmitConstantValue::String(JavaScriptString::from_code_units(value.to_utf16()))
+        }
         EvalValue::Num(value) => EmitConstantValue::Number(JavaScriptNumber::from_f64(value)),
     }
 }

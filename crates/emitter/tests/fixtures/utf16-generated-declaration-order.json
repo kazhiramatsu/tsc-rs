@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "scope": "Synthetic generated identifier printer API only; not command qualification",
+  "typescript": "6.0.3",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "0862e82ca3c39fe3d2ec4c17be2135aaaf431caae9e11662872509ab41d4405a",
+  "repetitions": 2,
+  "printer_executions": 6,
+  "cases": [
+    {
+      "id": "source-file",
+      "source": "secondBinding(); firstBinding(); var firstBinding, secondBinding;",
+      "expected": "templateObject_2();\ntemplateObject_1();\nvar templateObject_1, templateObject_2;\n"
+    },
+    {
+      "id": "module-block",
+      "source": "namespace N { secondBinding(); firstBinding(); var firstBinding, secondBinding; }",
+      "expected": "namespace N {\n    templateObject_2();\n    templateObject_1();\n    var templateObject_1, templateObject_2;\n}\n"
+    },
+    {
+      "id": "function-body",
+      "source": "function f() { secondBinding(); firstBinding(); var firstBinding, secondBinding; }",
+      "expected": "function f() { templateObject_2(); templateObject_1(); var templateObject_1, templateObject_2; }\n"
+    }
+  ]
+}

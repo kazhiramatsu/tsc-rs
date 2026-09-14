@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use tsc_diagnostics::{JsStr, JsString};
 
 use serde_json::Value;
 use tsc_program::SourceFileId;
@@ -11,7 +11,7 @@ struct Host {
     options: CompilerOptions,
     files: Vec<SourceFile>,
     ids: Vec<SourceFileId>,
-    common: PathBuf,
+    common: JsString,
     collision_queries: Vec<Value>,
     referenced_collision_queries: Vec<Value>,
 }
@@ -23,7 +23,7 @@ impl Host {
             match key.as_str() {
                 "target" => options.target = Some(value.as_i64().unwrap() as i32),
                 "module" => options.module = Some(value.as_i64().unwrap() as i32),
-                "outFile" => options.out_file = value.as_str().map(str::to_owned),
+                "outFile" => options.out_file = value.as_str().map(tsc_diagnostics::JsString::from),
                 "strict" => options.strict = value.as_bool(),
                 "alwaysStrict" => options.always_strict = value.as_bool(),
                 "newLine" => options.new_line = Some(value.as_i64().unwrap() as i32),
@@ -67,7 +67,7 @@ impl Host {
             options,
             files,
             ids,
-            common: PathBuf::from(
+            common: JsString::from(
                 case["typescript_observation"]["common_source_directory"]
                     .as_str()
                     .unwrap(),
@@ -89,13 +89,13 @@ impl crate::EmitHost for Host {
     fn compiler_options(&self) -> &CompilerOptions {
         &self.options
     }
-    fn current_directory(&self) -> &Path {
-        Path::new("/project")
+    fn current_directory(&self) -> JsStr<'_> {
+        JsStr::from("/project")
     }
-    fn common_source_directory(&self) -> &Path {
-        &self.common
+    fn common_source_directory(&self) -> JsStr<'_> {
+        self.common.as_js()
     }
-    fn config_file_path(&self) -> Option<&Path> {
+    fn config_file_path(&self) -> Option<JsStr<'_>> {
         None
     }
     fn use_case_sensitive_file_names(&self) -> bool {
@@ -106,7 +106,7 @@ impl crate::EmitHost for Host {
     }
     fn source_file(&self, id: SourceFileId) -> Option<crate::EmitSource<'_>> {
         let syntax = self.files.get(id.index())?;
-        let path = Path::new(&syntax.file_name);
+        let path = JsStr::from(&syntax.file_name);
         Some(crate::EmitSource::new(
             id,
             path,
@@ -129,7 +129,7 @@ impl crate::EmitResolver for Host {
             .referenced_collision_queries
             .iter()
             .find(|query| {
-                query["path"] == syntax.file_name
+                syntax.file_name.as_js() == query["path"].as_str().unwrap()
                     && query["kind"] == format!("{:?}", record.kind)
                     && query["pos"] == record.pos
                     && query["end"] == record.end
@@ -152,7 +152,7 @@ impl crate::EmitResolver for Host {
             .collision_queries
             .iter()
             .find(|query| {
-                query["path"] == syntax.file_name
+                syntax.file_name.as_js() == query["path"].as_str().unwrap()
                     && query["kind"] == format!("{:?}", record.kind)
                     && query["pos"] == record.pos
                     && query["end"] == record.end

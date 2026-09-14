@@ -91,15 +91,21 @@ impl EmitHost for WitnessHost<'_> {
         self.options
     }
 
-    fn current_directory(&self) -> &Path {
-        Path::new("/")
+    fn current_directory(&self) -> tsc_diagnostics::JsStr<'_> {
+        (Path::new("/"))
+            .to_str()
+            .expect("scalar mock host directory")
+            .into()
     }
 
-    fn common_source_directory(&self) -> &Path {
-        Path::new("/")
+    fn common_source_directory(&self) -> tsc_diagnostics::JsStr<'_> {
+        (Path::new("/"))
+            .to_str()
+            .expect("scalar mock host directory")
+            .into()
     }
 
-    fn config_file_path(&self) -> Option<&Path> {
+    fn config_file_path(&self) -> Option<tsc_diagnostics::JsStr<'_>> {
         None
     }
 
@@ -113,7 +119,7 @@ impl EmitHost for WitnessHost<'_> {
 
     fn source_file(&self, id: SourceFileId) -> Option<EmitSource<'_>> {
         (id == self.source_ids[0]).then(|| {
-            let path = Path::new(&self.syntax.file_name);
+            let path = self.syntax.file_name.as_js();
             EmitSource::new(id, path, path, true, None, Some(self.syntax))
         })
     }

@@ -58,7 +58,7 @@ fn utf16_literal_escaping_matches_typescript() {
                 let metadata = arena.metadata(node).unwrap();
                 assert_eq!((record.pos, record.end), (u32::MAX, u32::MAX));
                 let tree_state = json!({"kind":record.kind as u16,"pos":-1,"end":-1,"flags":record.flags,
-                    "emit_flags":metadata.flags().bits(),"value_utf16":arena.literal_properties(node).unwrap().javascript_string_value().unwrap().code_units()});
+                    "emit_flags":metadata.flags().bits(),"value_utf16":arena.literal_code_units(node).unwrap().unwrap()});
                 let mut transformation = transform_nodes(
                     arena,
                     vec![TransformRoot::SourceFile(source)],
@@ -96,4 +96,80 @@ fn utf16_literal_escaping_matches_typescript() {
         failures.is_empty(),
         "utf16 literal escaping failures: {failures:?}"
     );
+}
+
+#[test]
+fn declaration_literal_type_no_ascii_flag_preserves_callback_units_until_utf8_output() {
+    let fixture: Value = serde_json::from_str(include_str!(
+        "fixtures/utf16-declaration-literal-printer.json"
+    ))
+    .unwrap();
+    assert_eq!(fixture["cases"].as_array().unwrap().len(), 8);
+    for case in fixture["cases"].as_array().unwrap() {
+        for _ in 0..2 {
+            let parsed = parse_source_file("main.d.ts", "", Default::default(), None);
+            let mut arena = TransformArena::new();
+            let source = arena.add_source(&parsed, None);
+            let units = case["value"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|unit| u16::try_from(unit.as_u64().unwrap()).unwrap())
+                .collect::<Vec<_>>();
+            let literal = arena
+                .factory()
+                .create_string_literal_from_code_units(source, &units, false)
+                .unwrap();
+            arena.metadata_mut(literal).set_flags(EmitFlags::from_bits(
+                u32::try_from(case["emit_flags"].as_u64().unwrap()).unwrap(),
+            ));
+            let literal_type = arena
+                .factory()
+                .create_literal_type_node(source, literal)
+                .unwrap();
+            let name = arena.factory().create_identifier(source, "T").unwrap();
+            let alias = arena
+                .factory()
+                .create_type_alias_declaration(source, None, name, None, literal_type)
+                .unwrap();
+            let mut transformed = transform_nodes(
+                arena,
+                vec![TransformRoot::SourceFile(source)],
+                Vec::new(),
+                false,
+            )
+            .unwrap();
+            let printed = create_printer(
+                PrinterOptions::new(NewLineKind::CarriageReturnLineFeed)
+                    .with_declaration_syntax(true),
+            )
+            .print(
+                &mut transformed,
+                PrintRequest::StandaloneNode {
+                    node: alias,
+                    writer: StandaloneWriter::MultiLine,
+                },
+                None,
+            )
+            .unwrap();
+            assert_eq!(
+                json!(printed.text_utf16().as_ref()),
+                case["text_utf16"],
+                "{}: UTF-16 value",
+                case["id"]
+            );
+            assert_eq!(
+                base64_encode(printed.text().as_bytes()),
+                case["utf8_base64"],
+                "{}: encoded bytes",
+                case["id"]
+            );
+            assert_eq!(
+                printed.text().len() as u64,
+                case["utf8_bytes"],
+                "{}: byte count",
+                case["id"]
+            );
+        }
+    }
 }

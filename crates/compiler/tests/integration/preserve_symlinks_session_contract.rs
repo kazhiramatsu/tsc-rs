@@ -165,7 +165,7 @@ fn source_paths(program: &PreparedProgram) -> Vec<PathBuf> {
     program
         .source_files()
         .iter()
-        .map(|source| source.path().display().to_path_buf())
+        .map(|source| source.path().display().scalar_test_path().to_path_buf())
         .collect()
 }
 
@@ -186,7 +186,7 @@ fn assert_module_resolution(
     let source = program
         .source_files()
         .iter()
-        .find(|source| source.path().display() == containing_file)
+        .find(|source| source.path().display().scalar_test_path() == containing_file)
         .expect("containing source is owned");
     let key = plan_source_requests(source, program.compiler_options())
         .expect("plan source requests")
@@ -210,13 +210,21 @@ fn assert_module_resolution(
     else {
         panic!("module target must join source membership: {specifier}");
     };
-    assert_eq!(resolved_file.display(), expected_target);
+    assert_eq!(resolved_file.display().scalar_test_path(), expected_target);
     assert_eq!(
-        program.source_file(*source).unwrap().path().display(),
+        program
+            .source_file(*source)
+            .unwrap()
+            .path()
+            .display()
+            .scalar_test_path(),
         expected_target
     );
     assert_eq!(
-        module.original_path().map(ProgramPath::display),
+        module
+            .original_path()
+            .map(ProgramPath::display)
+            .map(|path| path.scalar_test_path()),
         expected_original_path
     );
     *source
@@ -232,7 +240,7 @@ fn assert_type_reference_resolution(
     let source = program
         .source_files()
         .iter()
-        .find(|source| source.path().display() == containing_file)
+        .find(|source| source.path().display().scalar_test_path() == containing_file)
         .expect("containing source is owned");
     let plan =
         plan_source_requests(source, program.compiler_options()).expect("plan source requests");
@@ -249,17 +257,24 @@ fn assert_type_reference_resolution(
     let ResolutionOutcome::Resolved(directive) = resolution.outcome() else {
         panic!("type-reference request must resolve: {specifier}");
     };
-    assert_eq!(directive.target().display(), expected_target);
+    assert_eq!(
+        directive.target().display().scalar_test_path(),
+        expected_target
+    );
     assert_eq!(
         program
             .source_file(directive.source())
             .unwrap()
             .path()
-            .display(),
+            .display()
+            .scalar_test_path(),
         expected_target
     );
     assert_eq!(
-        directive.original_path().map(ProgramPath::display),
+        directive
+            .original_path()
+            .map(ProgramPath::display)
+            .map(|path| path.scalar_test_path()),
         expected_original_path
     );
     directive.source()
@@ -435,7 +450,13 @@ fn preserve_symlinks_matches_the_upstream_session_contract_for_memory_and_filesy
         [6133, 2322]
     );
     let incompatibility = &preserved_memory_outcome.semantic_diagnostics()[0];
-    assert_eq!(incompatibility.file_name.as_deref(), app_source.to_str());
+    assert_eq!(
+        incompatibility
+            .file_name
+            .as_ref()
+            .map(|value| value.as_str().expect("scalar legacy option observation")),
+        app_source.to_str()
+    );
     assert_eq!(
         (incompatibility.start, incompatibility.length),
         (
@@ -444,7 +465,10 @@ fn preserve_symlinks_matches_the_upstream_session_contract_for_memory_and_filesy
         )
     );
     assert_eq!(
-        incompatibility.message_text(),
+        incompatibility
+            .message_text()
+            .as_str()
+            .expect("scalar diagnostic observation"),
         format!(
             "Type 'import(\"{}\").C' is not assignable to type 'import(\"{}\").C'.",
             declaration_module_name(&lexical_linked2),
@@ -534,10 +558,16 @@ fn preserve_symlinks_matches_the_upstream_session_contract_for_memory_and_filesy
     let missing_real = &followed_memory_outcome.semantic_diagnostics()[0];
     assert_eq!(
         (
-            missing_real.file_name.as_deref(),
+            missing_real
+                .file_name
+                .as_ref()
+                .map(|value| value.as_str().expect("scalar legacy option observation")),
             missing_real.start,
             missing_real.length,
-            missing_real.message_text(),
+            missing_real
+                .message_text()
+                .as_str()
+                .expect("scalar diagnostic observation"),
         ),
         (
             physical_linked.to_str(),
@@ -559,3 +589,7 @@ fn preserve_symlinks_matches_the_upstream_session_contract_for_memory_and_filesy
         [6133, 2307]
     );
 }
+
+#[path = "../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

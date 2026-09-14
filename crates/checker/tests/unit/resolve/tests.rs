@@ -6,6 +6,41 @@ use crate::state::test_support::with_program_state;
 use crate::state::CheckerState;
 use crate::{check_program, check_program_with_libs, InputFile};
 
+#[test]
+fn canonical_name_resolution_keeps_lone_surrogates_distinct() {
+    use tsc_types::{EscapedName, JsString};
+
+    with_program_state(
+        &[("a.ts", "export {};")],
+        &CompilerOptions::default(),
+        |state| {
+            let names = [[0xd800], [0xd801], [0xdc00], [0xfffd]]
+                .map(|units| JsString::from_code_units(&units));
+            let symbols = names
+                .iter()
+                .map(|name| {
+                    let escaped = EscapedName::escape(name.as_js());
+                    let symbol = state
+                        .binder
+                        .create_symbol(SymbolFlags::TYPE_ALIAS, escaped.clone());
+                    state.globals.insert(escaped, symbol);
+                    symbol
+                })
+                .collect::<Vec<_>>();
+            for (name, symbol) in names.iter().zip(symbols) {
+                assert_eq!(
+                    state.resolve_name(None, name.as_js(), SymbolFlags::TYPE, None, false, false),
+                    Ok(Some(symbol))
+                );
+                assert_eq!(
+                    state.resolve_name(None, name.as_js(), SymbolFlags::TYPE, None, false, true),
+                    Ok(None)
+                );
+            }
+        },
+    );
+}
+
 /// First Identifier node whose text is `text`, in allocation order.
 fn identifier_named(state: &CheckerState, text: &str) -> NodeId {
     let source = state.binder.source(0);
@@ -497,11 +532,22 @@ fn type_only_alias_value_uses_report_origin_and_preserve_type_sites() {
         .collect::<Vec<_>>();
     assert_eq!(diagnostics.len(), 2);
     assert!(diagnostics.iter().all(|diagnostic| {
-        diagnostic.file_name.as_deref() == Some("/b.ts")
-            && diagnostic.message_text()
+        diagnostic
+            .file_name
+            .as_ref()
+            .map(|value| value.as_js().as_str().expect("scalar name observation"))
+            == Some("/b.ts")
+            && diagnostic
+                .message_text()
+                .as_str()
+                .expect("scalar diagnostic observation")
                 == "'A' cannot be used as a value because it was imported using 'import type'."
             && diagnostic.related.len() == 1
-            && diagnostic.related[0].file_name.as_deref() == Some("/b.ts")
+            && diagnostic.related[0]
+                .file_name
+                .as_ref()
+                .map(|value| value.as_js().as_str().expect("scalar name observation"))
+                == Some("/b.ts")
             && diagnostic.related[0].message.code == 1376
     }));
 }
@@ -532,10 +578,19 @@ fn checked_js_type_only_export_value_use_is_explicitly_published() {
         .expect("checked-JS TS1362");
     assert_eq!(
         (
-            diagnostic.file_name.as_deref(),
-            diagnostic.message_text(),
+            diagnostic
+                .file_name
+                .as_ref()
+                .map(|value| value.as_js().as_str().expect("scalar name observation")),
+            diagnostic
+                .message_text()
+                .as_str()
+                .expect("scalar diagnostic observation"),
             diagnostic.related.len(),
-            diagnostic.related[0].file_name.as_deref(),
+            diagnostic.related[0]
+                .file_name
+                .as_ref()
+                .map(|value| value.as_js().as_str().expect("scalar name observation")),
             diagnostic.related[0].message.code,
         ),
         (
@@ -587,7 +642,11 @@ fn qualified_enum_value_property_reports_2749_via_its_value_type() {
             (
                 diagnostic.start.unwrap_or(u32::MAX),
                 diagnostic.length.unwrap_or(u32::MAX),
-                diagnostic.message_text().to_owned(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation")
+                    .to_owned(),
             )
         })
         .collect::<Vec<_>>();
@@ -621,7 +680,11 @@ fn mixed_checked_js_keeps_value_misses_but_shields_jsdoc_type_misses() {
             .diagnostics
             .iter()
             .map(|diagnostic| (
-                diagnostic.file_name.as_deref().unwrap_or_default(),
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .map(|value| value.as_js().as_str().expect("scalar name observation"))
+                    .unwrap_or_default(),
                 diagnostic.code(),
                 diagnostic.start.unwrap_or(u32::MAX),
             ))
@@ -647,7 +710,13 @@ fn diagnostics_preserve_escaped_identifier_spelling() {
             .diagnostics
             .iter()
             .filter(|diagnostic| matches!(diagnostic.code(), 2304 | 2454))
-            .map(|diagnostic| (diagnostic.code(), diagnostic.message_text()))
+            .map(|diagnostic| (
+                diagnostic.code(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation")
+            ))
             .collect::<Vec<_>>(),
         [
             (2454, "Variable '\\u0078x' is used before being assigned."),

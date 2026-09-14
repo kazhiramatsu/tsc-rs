@@ -1,0 +1,1960 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "repetitions": 2,
+  "cases": [
+    {
+      "case_id": "declaration-comment-range/module-exports",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "/** @typedef {number} Input */\n/** export owner\n * @param {Input} value\n */\nmodule.exports = function api(value) { return value; };\n"
+        }
+      ],
+      "options": {
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "module": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLDhCQUE4QjtBQUM5Qjs7R0FFRztBQUNILE1BQU0sQ0FBQyxPQUFPLEdBQUcsU0FBUyxHQUFHLENBQUMsS0FBSyxJQUFJLE9BQU8sS0FBSyxDQUFDLENBQUMsQ0FBQyxDQUFDIn0=",
+            "callback_utf8_bytes": 200,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLDhCQUE4QjtBQUM5Qjs7R0FFRztBQUNILE1BQU0sQ0FBQyxPQUFPLEdBQUcsU0FBUyxHQUFHLENBQUMsS0FBSyxJQUFJLE9BQU8sS0FBSyxDQUFDLENBQUMsQ0FBQyxDQUFDIn0=",
+            "materialized_utf8_bytes": 200,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLyoqIEB0eXBlZGVmIHtudW1iZXJ9IElucHV0ICovDQovKiogZXhwb3J0IG93bmVyDQogKiBAcGFyYW0ge0lucHV0fSB2YWx1ZQ0KICovDQptb2R1bGUuZXhwb3J0cyA9IGZ1bmN0aW9uIGFwaSh2YWx1ZSkgeyByZXR1cm4gdmFsdWU7IH07DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 184,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KLyoqIEB0eXBlZGVmIHtudW1iZXJ9IElucHV0ICovDQovKiogZXhwb3J0IG93bmVyDQogKiBAcGFyYW0ge0lucHV0fSB2YWx1ZQ0KICovDQptb2R1bGUuZXhwb3J0cyA9IGZ1bmN0aW9uIGFwaSh2YWx1ZSkgeyByZXR1cm4gdmFsdWU7IH07DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 184,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 152,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiOzs7QUFJaUIsaUNBRk4sS0FBSyxVQUVzQzs7YUFKeEMsTUFBTSJ9",
+            "callback_utf8_bytes": 135,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiOzs7QUFJaUIsaUNBRk4sS0FBSyxVQUVzQzs7YUFKeEMsTUFBTSJ9",
+            "materialized_utf8_bytes": 135,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBuYW1lc3BhY2UgX2V4cG9ydHMgew0KICAgIGV4cG9ydCB7IElucHV0IH07DQp9DQpkZWNsYXJlIGZ1bmN0aW9uIF9leHBvcnRzKHZhbHVlOiBJbnB1dCk6IG51bWJlcjsNCmV4cG9ydCA9IF9leHBvcnRzOw0KdHlwZSBJbnB1dCA9IG51bWJlcjsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "callback_utf8_bytes": 182,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBuYW1lc3BhY2UgX2V4cG9ydHMgew0KICAgIGV4cG9ydCB7IElucHV0IH07DQp9DQpkZWNsYXJlIGZ1bmN0aW9uIF9leHBvcnRzKHZhbHVlOiBJbnB1dCk6IG51bWJlcjsNCmV4cG9ydCA9IF9leHBvcnRzOw0KdHlwZSBJbnB1dCA9IG51bWJlcjsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "materialized_utf8_bytes": 182,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 148,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,8BAA8B;AAC9B;;GAEG;AACH,MAAM,CAAC,OAAO,GAAG,SAAS,GAAG,CAAC,KAAK,IAAI,OAAO,KAAK,CAAC,CAAC,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";;;AAIiB,iCAFN,KAAK,UAEsC;;aAJxC,MAAM\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "declaration-comment-range/exports-property",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "/** assignment owner\n * @param {number} value\n */\nexports.api = function api(value) { return value; };\n"
+        }
+      ],
+      "options": {
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "module": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBOztHQUVHO0FBQ0gsT0FBTyxDQUFDLEdBQUcsR0FBRyxTQUFTLEdBQUcsQ0FBQyxLQUFLLElBQUksT0FBTyxLQUFLLENBQUMsQ0FBQyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 187,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBOztHQUVHO0FBQ0gsT0FBTyxDQUFDLEdBQUcsR0FBRyxTQUFTLEdBQUcsQ0FBQyxLQUFLLElBQUksT0FBTyxLQUFLLENBQUMsQ0FBQyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 187,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLyoqIGFzc2lnbm1lbnQgb3duZXINCiAqIEBwYXJhbSB7bnVtYmVyfSB2YWx1ZQ0KICovDQpleHBvcnRzLmFwaSA9IGZ1bmN0aW9uIGFwaSh2YWx1ZSkgeyByZXR1cm4gdmFsdWU7IH07DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 154,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KLyoqIGFzc2lnbm1lbnQgb3duZXINCiAqIEBwYXJhbSB7bnVtYmVyfSB2YWx1ZQ0KICovDQpleHBvcnRzLmFwaSA9IGZ1bmN0aW9uIGFwaSh2YWx1ZSkgeyByZXR1cm4gdmFsdWU7IH07DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 154,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 122,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFHYywyQkFGSCxNQUFNLFVBRWtDIn0=",
+            "callback_utf8_bytes": 119,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFHYywyQkFGSCxNQUFNLFVBRWtDIn0=",
+            "materialized_utf8_bytes": 119,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGZ1bmN0aW9uIGFwaSh2YWx1ZTogbnVtYmVyKTogbnVtYmVyOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 79,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGZ1bmN0aW9uIGFwaSh2YWx1ZTogbnVtYmVyKTogbnVtYmVyOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 79,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 45,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA;;GAEG;AACH,OAAO,CAAC,GAAG,GAAG,SAAS,GAAG,CAAC,KAAK,IAAI,OAAO,KAAK,CAAC,CAAC,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAGc,2BAFH,MAAM,UAEkC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "declaration-comment-range/module-exports-property",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "/** assignment owner\n * @param {number} value\n */\nmodule.exports.api = function api(value) { return value; };\nmodule.exports.api.version = 1;\n"
+        }
+      ],
+      "options": {
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "module": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBOztHQUVHO0FBQ0gsTUFBTSxDQUFDLE9BQU8sQ0FBQyxHQUFHLEdBQUcsU0FBUyxHQUFHLENBQUMsS0FBSyxJQUFJLE9BQU8sS0FBSyxDQUFDLENBQUMsQ0FBQyxDQUFDO0FBQzNELE1BQU0sQ0FBQyxPQUFPLENBQUMsR0FBRyxDQUFDLE9BQU8sR0FBRyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 253,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBOztHQUVHO0FBQ0gsTUFBTSxDQUFDLE9BQU8sQ0FBQyxHQUFHLEdBQUcsU0FBUyxHQUFHLENBQUMsS0FBSyxJQUFJLE9BQU8sS0FBSyxDQUFDLENBQUMsQ0FBQyxDQUFDO0FBQzNELE1BQU0sQ0FBQyxPQUFPLENBQUMsR0FBRyxDQUFDLE9BQU8sR0FBRyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 253,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLyoqIGFzc2lnbm1lbnQgb3duZXINCiAqIEBwYXJhbSB7bnVtYmVyfSB2YWx1ZQ0KICovDQptb2R1bGUuZXhwb3J0cy5hcGkgPSBmdW5jdGlvbiBhcGkodmFsdWUpIHsgcmV0dXJuIHZhbHVlOyB9Ow0KbW9kdWxlLmV4cG9ydHMuYXBpLnZlcnNpb24gPSAxOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 194,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KLyoqIGFzc2lnbm1lbnQgb3duZXINCiAqIEBwYXJhbSB7bnVtYmVyfSB2YWx1ZQ0KICovDQptb2R1bGUuZXhwb3J0cy5hcGkgPSBmdW5jdGlvbiBhcGkodmFsdWUpIHsgcmV0dXJuIHZhbHVlOyB9Ow0KbW9kdWxlLmV4cG9ydHMuYXBpLnZlcnNpb24gPSAxOw0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 194,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 162,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFHcUIsMkJBRlYsTUFBTSxVQUV5QyJ9",
+            "callback_utf8_bytes": 120,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFHcUIsMkJBRlYsTUFBTSxVQUV5QyJ9",
+            "materialized_utf8_bytes": 120,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGZ1bmN0aW9uIGFwaSh2YWx1ZTogbnVtYmVyKTogbnVtYmVyOw0KZXhwb3J0IG5hbWVzcGFjZSBhcGkgew0KICAgIGxldCB2ZXJzaW9uOiBudW1iZXI7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "callback_utf8_bytes": 132,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGZ1bmN0aW9uIGFwaSh2YWx1ZTogbnVtYmVyKTogbnVtYmVyOw0KZXhwb3J0IG5hbWVzcGFjZSBhcGkgew0KICAgIGxldCB2ZXJzaW9uOiBudW1iZXI7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "materialized_utf8_bytes": 132,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 98,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA;;GAEG;AACH,MAAM,CAAC,OAAO,CAAC,GAAG,GAAG,SAAS,GAAG,CAAC,KAAK,IAAI,OAAO,KAAK,CAAC,CAAC,CAAC,CAAC;AAC3D,MAAM,CAAC,OAAO,CAAC,GAAG,CAAC,OAAO,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\"AAGqB,2BAFV,MAAM,UAEyC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "declaration-comment-range/ordinary-property",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "function host() {}\n/** property owner\n * @param {number} value\n */\nhost.api = function api(value) { return value; };\nmodule.exports = host;\n"
+        }
+      ],
+      "options": {
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "module": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLFNBQVMsSUFBSSxLQUFJLENBQUM7QUFDbEI7O0dBRUc7QUFDSCxJQUFJLENBQUMsR0FBRyxHQUFHLFNBQVMsR0FBRyxDQUFDLEtBQUssSUFBSSxPQUFPLEtBQUssQ0FBQyxDQUFDLENBQUMsQ0FBQztBQUNqRCxNQUFNLENBQUMsT0FBTyxHQUFHLElBQUksQ0FBQyJ9",
+            "callback_utf8_bytes": 249,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLFNBQVMsSUFBSSxLQUFJLENBQUM7QUFDbEI7O0dBRUc7QUFDSCxJQUFJLENBQUMsR0FBRyxHQUFHLFNBQVMsR0FBRyxDQUFDLEtBQUssSUFBSSxPQUFPLEtBQUssQ0FBQyxDQUFDLENBQUMsQ0FBQztBQUNqRCxNQUFNLENBQUMsT0FBTyxHQUFHLElBQUksQ0FBQyJ9",
+            "materialized_utf8_bytes": 249,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gaG9zdCgpIHsgfQ0KLyoqIHByb3BlcnR5IG93bmVyDQogKiBAcGFyYW0ge251bWJlcn0gdmFsdWUNCiAqLw0KaG9zdC5hcGkgPSBmdW5jdGlvbiBhcGkodmFsdWUpIHsgcmV0dXJuIHZhbHVlOyB9Ow0KbW9kdWxlLmV4cG9ydHMgPSBob3N0Ow0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "callback_utf8_bytes": 194,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gaG9zdCgpIHsgfQ0KLyoqIHByb3BlcnR5IG93bmVyDQogKiBAcGFyYW0ge251bWJlcn0gdmFsdWUNCiAqLw0KaG9zdC5hcGkgPSBmdW5jdGlvbiBhcGkodmFsdWUpIHsgcmV0dXJuIHZhbHVlOyB9Ow0KbW9kdWxlLmV4cG9ydHMgPSBob3N0Ow0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5qcy5tYXA=",
+            "materialized_utf8_bytes": 194,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 162,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsOEJBQWtCOztJQUNsQjs7T0FFRztJQUNILG9CQUZXLE1BQU0sVUFFK0IifQ==",
+            "callback_utf8_bytes": 145,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsOEJBQWtCOztJQUNsQjs7T0FFRztJQUNILG9CQUZXLE1BQU0sVUFFK0IifQ==",
+            "materialized_utf8_bytes": 145,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0ID0gaG9zdDsNCmRlY2xhcmUgZnVuY3Rpb24gaG9zdCgpOiB2b2lkOw0KZGVjbGFyZSBuYW1lc3BhY2UgaG9zdCB7DQogICAgLyoqIHByb3BlcnR5IG93bmVyDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHZhbHVlDQogICAgICovDQogICAgZnVuY3Rpb24gYXBpKHZhbHVlOiBudW1iZXIpOiBudW1iZXI7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "callback_utf8_bytes": 216,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0ID0gaG9zdDsNCmRlY2xhcmUgZnVuY3Rpb24gaG9zdCgpOiB2b2lkOw0KZGVjbGFyZSBuYW1lc3BhY2UgaG9zdCB7DQogICAgLyoqIHByb3BlcnR5IG93bmVyDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHZhbHVlDQogICAgICovDQogICAgZnVuY3Rpb24gYXBpKHZhbHVlOiBudW1iZXIpOiBudW1iZXI7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "materialized_utf8_bytes": 216,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 182,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,SAAS,IAAI,KAAI,CAAC;AAClB;;GAEG;AACH,IAAI,CAAC,GAAG,GAAG,SAAS,GAAG,CAAC,KAAK,IAAI,OAAO,KAAK,CAAC,CAAC,CAAC,CAAC;AACjD,MAAM,CAAC,OAAO,GAAG,IAAI,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,8BAAkB;;IAClB;;OAEG;IACH,oBAFW,MAAM,UAE+B\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "declaration-comment-range/variable",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "/** variable owner\n * @param {number} value\n */\nvar api = function(value) { return value; };\napi.version = 1;\nmodule.exports = api;\n"
+        }
+      ],
+      "options": {
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "module": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBOztHQUVHO0FBQ0gsSUFBSSxHQUFHLEdBQUcsVUFBUyxLQUFLLElBQUksT0FBTyxLQUFLLENBQUMsQ0FBQyxDQUFDLENBQUM7QUFDNUMsR0FBRyxDQUFDLE9BQU8sR0FBRyxDQUFDLENBQUM7QUFDaEIsTUFBTSxDQUFDLE9BQU8sR0FBRyxHQUFHLENBQUMifQ==",
+            "callback_utf8_bytes": 244,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBOztHQUVHO0FBQ0gsSUFBSSxHQUFHLEdBQUcsVUFBUyxLQUFLLElBQUksT0FBTyxLQUFLLENBQUMsQ0FBQyxDQUFDLENBQUM7QUFDNUMsR0FBRyxDQUFDLE9BQU8sR0FBRyxDQUFDLENBQUM7QUFDaEIsTUFBTSxDQUFDLE9BQU8sR0FBRyxHQUFHLENBQUMifQ==",
+            "materialized_utf8_bytes": 244,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLyoqIHZhcmlhYmxlIG93bmVyDQogKiBAcGFyYW0ge251bWJlcn0gdmFsdWUNCiAqLw0KdmFyIGFwaSA9IGZ1bmN0aW9uICh2YWx1ZSkgeyByZXR1cm4gdmFsdWU7IH07DQphcGkudmVyc2lvbiA9IDE7DQptb2R1bGUuZXhwb3J0cyA9IGFwaTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "callback_utf8_bytes": 186,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KLyoqIHZhcmlhYmxlIG93bmVyDQogKiBAcGFyYW0ge251bWJlcn0gdmFsdWUNCiAqLw0KdmFyIGFwaSA9IGZ1bmN0aW9uICh2YWx1ZSkgeyByZXR1cm4gdmFsdWU7IH07DQphcGkudmVyc2lvbiA9IDE7DQptb2R1bGUuZXhwb3J0cyA9IGFwaTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "materialized_utf8_bytes": 186,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 154,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUE7O0dBRUc7QUFDSCw0QkFGVyxNQUFNLFVBRTBCIn0=",
+            "callback_utf8_bytes": 131,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUE7O0dBRUc7QUFDSCw0QkFGVyxNQUFNLFVBRTBCIn0=",
+            "materialized_utf8_bytes": 131,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0ID0gYXBpOw0KLyoqIHZhcmlhYmxlIG93bmVyDQogKiBAcGFyYW0ge251bWJlcn0gdmFsdWUNCiAqLw0KZGVjbGFyZSBmdW5jdGlvbiBhcGkodmFsdWU6IG51bWJlcik6IG51bWJlcjsNCmRlY2xhcmUgbmFtZXNwYWNlIGFwaSB7DQogICAgbGV0IHZlcnNpb246IG51bWJlcjsNCn0NCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "callback_utf8_bytes": 200,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0ID0gYXBpOw0KLyoqIHZhcmlhYmxlIG93bmVyDQogKiBAcGFyYW0ge251bWJlcn0gdmFsdWUNCiAqLw0KZGVjbGFyZSBmdW5jdGlvbiBhcGkodmFsdWU6IG51bWJlcik6IG51bWJlcjsNCmRlY2xhcmUgbmFtZXNwYWNlIGFwaSB7DQogICAgbGV0IHZlcnNpb246IG51bWJlcjsNCn0NCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "materialized_utf8_bytes": 200,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 166,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA;;GAEG;AACH,IAAI,GAAG,GAAG,UAAS,KAAK,IAAI,OAAO,KAAK,CAAC,CAAC,CAAC,CAAC;AAC5C,GAAG,CAAC,OAAO,GAAG,CAAC,CAAC;AAChB,MAAM,CAAC,OAAO,GAAG,GAAG,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA;;GAEG;AACH,4BAFW,MAAM,UAE0B\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "declaration-comment-range/function-declaration",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "/** declaration owner\n * @param {number} value\n */\nfunction api(value) { return value; }\napi.version = 1;\nmodule.exports = api;\n"
+        }
+      ],
+      "options": {
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "module": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBOztHQUVHO0FBQ0gsU0FBUyxHQUFHLENBQUMsS0FBSyxJQUFJLE9BQU8sS0FBSyxDQUFDLENBQUMsQ0FBQztBQUNyQyxHQUFHLENBQUMsT0FBTyxHQUFHLENBQUMsQ0FBQztBQUNoQixNQUFNLENBQUMsT0FBTyxHQUFHLEdBQUcsQ0FBQyJ9",
+            "callback_utf8_bytes": 234,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBOztHQUVHO0FBQ0gsU0FBUyxHQUFHLENBQUMsS0FBSyxJQUFJLE9BQU8sS0FBSyxDQUFDLENBQUMsQ0FBQztBQUNyQyxHQUFHLENBQUMsT0FBTyxHQUFHLENBQUMsQ0FBQztBQUNoQixNQUFNLENBQUMsT0FBTyxHQUFHLEdBQUcsQ0FBQyJ9",
+            "materialized_utf8_bytes": 234,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLyoqIGRlY2xhcmF0aW9uIG93bmVyDQogKiBAcGFyYW0ge251bWJlcn0gdmFsdWUNCiAqLw0KZnVuY3Rpb24gYXBpKHZhbHVlKSB7IHJldHVybiB2YWx1ZTsgfQ0KYXBpLnZlcnNpb24gPSAxOw0KbW9kdWxlLmV4cG9ydHMgPSBhcGk7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 181,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KLyoqIGRlY2xhcmF0aW9uIG93bmVyDQogKiBAcGFyYW0ge251bWJlcn0gdmFsdWUNCiAqLw0KZnVuY3Rpb24gYXBpKHZhbHVlKSB7IHJldHVybiB2YWx1ZTsgfQ0KYXBpLnZlcnNpb24gPSAxOw0KbW9kdWxlLmV4cG9ydHMgPSBhcGk7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 181,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 149,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUE7O0dBRUc7QUFDSCw0QkFGVyxNQUFNLFVBRW9CIn0=",
+            "callback_utf8_bytes": 131,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUE7O0dBRUc7QUFDSCw0QkFGVyxNQUFNLFVBRW9CIn0=",
+            "materialized_utf8_bytes": 131,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0ID0gYXBpOw0KLyoqIGRlY2xhcmF0aW9uIG93bmVyDQogKiBAcGFyYW0ge251bWJlcn0gdmFsdWUNCiAqLw0KZGVjbGFyZSBmdW5jdGlvbiBhcGkodmFsdWU6IG51bWJlcik6IG51bWJlcjsNCmRlY2xhcmUgbmFtZXNwYWNlIGFwaSB7DQogICAgbGV0IHZlcnNpb246IG51bWJlcjsNCn0NCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "callback_utf8_bytes": 203,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0ID0gYXBpOw0KLyoqIGRlY2xhcmF0aW9uIG93bmVyDQogKiBAcGFyYW0ge251bWJlcn0gdmFsdWUNCiAqLw0KZGVjbGFyZSBmdW5jdGlvbiBhcGkodmFsdWU6IG51bWJlcik6IG51bWJlcjsNCmRlY2xhcmUgbmFtZXNwYWNlIGFwaSB7DQogICAgbGV0IHZlcnNpb246IG51bWJlcjsNCn0NCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "materialized_utf8_bytes": 203,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 169,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA;;GAEG;AACH,SAAS,GAAG,CAAC,KAAK,IAAI,OAAO,KAAK,CAAC,CAAC,CAAC;AACrC,GAAG,CAAC,OAAO,GAAG,CAAC,CAAC;AAChB,MAAM,CAAC,OAAO,GAAG,GAAG,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA;;GAEG;AACH,4BAFW,MAAM,UAEoB\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "declaration-comment-range/prototype-dot",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "function C() {}\n/** method owner\n * @param {number} value\n */\nC.prototype.method = function(value) { return value; };\nmodule.exports = C;\n"
+        }
+      ],
+      "options": {
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "module": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLFNBQVMsQ0FBQyxLQUFJLENBQUM7QUFDZjs7R0FFRztBQUNILENBQUMsQ0FBQyxTQUFTLENBQUMsTUFBTSxHQUFHLFVBQVMsS0FBSyxJQUFJLE9BQU8sS0FBSyxDQUFDLENBQUMsQ0FBQyxDQUFDO0FBQ3ZELE1BQU0sQ0FBQyxPQUFPLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "callback_utf8_bytes": 248,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLFNBQVMsQ0FBQyxLQUFJLENBQUM7QUFDZjs7R0FFRztBQUNILENBQUMsQ0FBQyxTQUFTLENBQUMsTUFBTSxHQUFHLFVBQVMsS0FBSyxJQUFJLE9BQU8sS0FBSyxDQUFDLENBQUMsQ0FBQyxDQUFDO0FBQ3ZELE1BQU0sQ0FBQyxPQUFPLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "materialized_utf8_bytes": 248,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gQygpIHsgfQ0KLyoqIG1ldGhvZCBvd25lcg0KICogQHBhcmFtIHtudW1iZXJ9IHZhbHVlDQogKi8NCkMucHJvdG90eXBlLm1ldGhvZCA9IGZ1bmN0aW9uICh2YWx1ZSkgeyByZXR1cm4gdmFsdWU7IH07DQptb2R1bGUuZXhwb3J0cyA9IEM7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 193,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gQygpIHsgfQ0KLyoqIG1ldGhvZCBvd25lcg0KICogQHBhcmFtIHtudW1iZXJ9IHZhbHVlDQogKi8NCkMucHJvdG90eXBlLm1ldGhvZCA9IGZ1bmN0aW9uICh2YWx1ZSkgeyByZXR1cm4gdmFsdWU7IH07DQptb2R1bGUuZXhwb3J0cyA9IEM7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 193,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 161,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsMkJBQWU7O0lBQ2Y7O09BRUc7SUFDSCxjQUZXLE1BQU0sVUFFcUMifQ==",
+            "callback_utf8_bytes": 142,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsMkJBQWU7O0lBQ2Y7O09BRUc7SUFDSCxjQUZXLE1BQU0sVUFFcUMifQ==",
+            "materialized_utf8_bytes": 142,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0ID0gQzsNCmRlY2xhcmUgZnVuY3Rpb24gQygpOiB2b2lkOw0KZGVjbGFyZSBjbGFzcyBDIHsNCiAgICAvKiogbWV0aG9kIG93bmVyDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHZhbHVlDQogICAgICovDQogICAgbWV0aG9kKHZhbHVlOiBudW1iZXIpOiBudW1iZXI7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "callback_utf8_bytes": 195,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0ID0gQzsNCmRlY2xhcmUgZnVuY3Rpb24gQygpOiB2b2lkOw0KZGVjbGFyZSBjbGFzcyBDIHsNCiAgICAvKiogbWV0aG9kIG93bmVyDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHZhbHVlDQogICAgICovDQogICAgbWV0aG9kKHZhbHVlOiBudW1iZXIpOiBudW1iZXI7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "materialized_utf8_bytes": 195,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 161,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,SAAS,CAAC,KAAI,CAAC;AACf;;GAEG;AACH,CAAC,CAAC,SAAS,CAAC,MAAM,GAAG,UAAS,KAAK,IAAI,OAAO,KAAK,CAAC,CAAC,CAAC,CAAC;AACvD,MAAM,CAAC,OAAO,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,2BAAe;;IACf;;OAEG;IACH,cAFW,MAAM,UAEqC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "declaration-comment-range/prototype-element",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "function C() {}\n/** method owner\n * @param {number} value\n */\nC[\"prototype\"][\"method\"] = function(value) { return value; };\nmodule.exports = C;\n"
+        }
+      ],
+      "options": {
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "module": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLFNBQVMsQ0FBQyxLQUFJLENBQUM7QUFDZjs7R0FFRztBQUNILENBQUMsQ0FBQyxXQUFXLENBQUMsQ0FBQyxRQUFRLENBQUMsR0FBRyxVQUFTLEtBQUssSUFBSSxPQUFPLEtBQUssQ0FBQyxDQUFDLENBQUMsQ0FBQztBQUM3RCxNQUFNLENBQUMsT0FBTyxHQUFHLENBQUMsQ0FBQyJ9",
+            "callback_utf8_bytes": 258,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLFNBQVMsQ0FBQyxLQUFJLENBQUM7QUFDZjs7R0FFRztBQUNILENBQUMsQ0FBQyxXQUFXLENBQUMsQ0FBQyxRQUFRLENBQUMsR0FBRyxVQUFTLEtBQUssSUFBSSxPQUFPLEtBQUssQ0FBQyxDQUFDLENBQUMsQ0FBQztBQUM3RCxNQUFNLENBQUMsT0FBTyxHQUFHLENBQUMsQ0FBQyJ9",
+            "materialized_utf8_bytes": 258,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gQygpIHsgfQ0KLyoqIG1ldGhvZCBvd25lcg0KICogQHBhcmFtIHtudW1iZXJ9IHZhbHVlDQogKi8NCkNbInByb3RvdHlwZSJdWyJtZXRob2QiXSA9IGZ1bmN0aW9uICh2YWx1ZSkgeyByZXR1cm4gdmFsdWU7IH07DQptb2R1bGUuZXhwb3J0cyA9IEM7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 199,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gQygpIHsgfQ0KLyoqIG1ldGhvZCBvd25lcg0KICogQHBhcmFtIHtudW1iZXJ9IHZhbHVlDQogKi8NCkNbInByb3RvdHlwZSJdWyJtZXRob2QiXSA9IGZ1bmN0aW9uICh2YWx1ZSkgeyByZXR1cm4gdmFsdWU7IH07DQptb2R1bGUuZXhwb3J0cyA9IEM7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 199,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 167,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsMkJBQWU7O0lBQ2Y7O09BRUc7SUFDSCxjQUZXLE1BQU0sVUFFMkMifQ==",
+            "callback_utf8_bytes": 142,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsMkJBQWU7O0lBQ2Y7O09BRUc7SUFDSCxjQUZXLE1BQU0sVUFFMkMifQ==",
+            "materialized_utf8_bytes": 142,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0ID0gQzsNCmRlY2xhcmUgZnVuY3Rpb24gQygpOiB2b2lkOw0KZGVjbGFyZSBjbGFzcyBDIHsNCiAgICAvKiogbWV0aG9kIG93bmVyDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHZhbHVlDQogICAgICovDQogICAgbWV0aG9kKHZhbHVlOiBudW1iZXIpOiBudW1iZXI7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "callback_utf8_bytes": 195,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0ID0gQzsNCmRlY2xhcmUgZnVuY3Rpb24gQygpOiB2b2lkOw0KZGVjbGFyZSBjbGFzcyBDIHsNCiAgICAvKiogbWV0aG9kIG93bmVyDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHZhbHVlDQogICAgICovDQogICAgbWV0aG9kKHZhbHVlOiBudW1iZXIpOiBudW1iZXI7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "materialized_utf8_bytes": 195,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 161,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,SAAS,CAAC,KAAI,CAAC;AACf;;GAEG;AACH,CAAC,CAAC,WAAW,CAAC,CAAC,QAAQ,CAAC,GAAG,UAAS,KAAK,IAAI,OAAO,KAAK,CAAC,CAAC,CAAC,CAAC;AAC7D,MAAM,CAAC,OAAO,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,2BAAe;;IACf;;OAEG;IACH,cAFW,MAAM,UAE2C\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "declaration-comment-range/static-method",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "function C() {}\n/** static owner\n * @param {number} value\n */\nC.method = function(value) { return value; };\nmodule.exports = C;\n"
+        }
+      ],
+      "options": {
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "module": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLFNBQVMsQ0FBQyxLQUFJLENBQUM7QUFDZjs7R0FFRztBQUNILENBQUMsQ0FBQyxNQUFNLEdBQUcsVUFBUyxLQUFLLElBQUksT0FBTyxLQUFLLENBQUMsQ0FBQyxDQUFDLENBQUM7QUFDN0MsTUFBTSxDQUFDLE9BQU8sR0FBRyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 238,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLFNBQVMsQ0FBQyxLQUFJLENBQUM7QUFDZjs7R0FFRztBQUNILENBQUMsQ0FBQyxNQUFNLEdBQUcsVUFBUyxLQUFLLElBQUksT0FBTyxLQUFLLENBQUMsQ0FBQyxDQUFDLENBQUM7QUFDN0MsTUFBTSxDQUFDLE9BQU8sR0FBRyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 238,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gQygpIHsgfQ0KLyoqIHN0YXRpYyBvd25lcg0KICogQHBhcmFtIHtudW1iZXJ9IHZhbHVlDQogKi8NCkMubWV0aG9kID0gZnVuY3Rpb24gKHZhbHVlKSB7IHJldHVybiB2YWx1ZTsgfTsNCm1vZHVsZS5leHBvcnRzID0gQzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "callback_utf8_bytes": 183,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gQygpIHsgfQ0KLyoqIHN0YXRpYyBvd25lcg0KICogQHBhcmFtIHtudW1iZXJ9IHZhbHVlDQogKi8NCkMubWV0aG9kID0gZnVuY3Rpb24gKHZhbHVlKSB7IHJldHVybiB2YWx1ZTsgfTsNCm1vZHVsZS5leHBvcnRzID0gQzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "materialized_utf8_bytes": 183,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 151,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsMkJBQWU7O0lBQ2Y7O09BRUc7SUFDSCx1QkFGVyxNQUFNLFVBRTJCIn0=",
+            "callback_utf8_bytes": 143,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsMkJBQWU7O0lBQ2Y7O09BRUc7SUFDSCx1QkFGVyxNQUFNLFVBRTJCIn0=",
+            "materialized_utf8_bytes": 143,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0ID0gQzsNCmRlY2xhcmUgZnVuY3Rpb24gQygpOiB2b2lkOw0KZGVjbGFyZSBuYW1lc3BhY2UgQyB7DQogICAgLyoqIHN0YXRpYyBvd25lcg0KICAgICAqIEBwYXJhbSB7bnVtYmVyfSB2YWx1ZQ0KICAgICAqLw0KICAgIGZ1bmN0aW9uIG1ldGhvZCh2YWx1ZTogbnVtYmVyKTogbnVtYmVyOw0KfQ0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 208,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0ID0gQzsNCmRlY2xhcmUgZnVuY3Rpb24gQygpOiB2b2lkOw0KZGVjbGFyZSBuYW1lc3BhY2UgQyB7DQogICAgLyoqIHN0YXRpYyBvd25lcg0KICAgICAqIEBwYXJhbSB7bnVtYmVyfSB2YWx1ZQ0KICAgICAqLw0KICAgIGZ1bmN0aW9uIG1ldGhvZCh2YWx1ZTogbnVtYmVyKTogbnVtYmVyOw0KfQ0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 208,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 174,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,SAAS,CAAC,KAAI,CAAC;AACf;;GAEG;AACH,CAAC,CAAC,MAAM,GAAG,UAAS,KAAK,IAAI,OAAO,KAAK,CAAC,CAAC,CAAC,CAAC;AAC7C,MAAM,CAAC,OAAO,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,2BAAe;;IACf;;OAEG;IACH,uBAFW,MAAM,UAE2B\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "declaration-comment-range/this-property",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "function C() {\n/** instance owner\n * @param {number} value\n */\nthis.method = function(value) { return value; };\n}\nmodule.exports = C;\n"
+        }
+      ],
+      "options": {
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "module": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLFNBQVMsQ0FBQztJQUNWOztPQUVHO0lBQ0gsSUFBSSxDQUFDLE1BQU0sR0FBRyxVQUFTLEtBQUssSUFBSSxPQUFPLEtBQUssQ0FBQyxDQUFDLENBQUMsQ0FBQztBQUNoRCxDQUFDO0FBQ0QsTUFBTSxDQUFDLE9BQU8sR0FBRyxDQUFDLENBQUMifQ==",
+            "callback_utf8_bytes": 238,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLFNBQVMsQ0FBQztJQUNWOztPQUVHO0lBQ0gsSUFBSSxDQUFDLE1BQU0sR0FBRyxVQUFTLEtBQUssSUFBSSxPQUFPLEtBQUssQ0FBQyxDQUFDLENBQUMsQ0FBQztBQUNoRCxDQUFDO0FBQ0QsTUFBTSxDQUFDLE9BQU8sR0FBRyxDQUFDLENBQUMifQ==",
+            "materialized_utf8_bytes": 238,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gQygpIHsNCiAgICAvKiogaW5zdGFuY2Ugb3duZXINCiAgICAgKiBAcGFyYW0ge251bWJlcn0gdmFsdWUNCiAgICAgKi8NCiAgICB0aGlzLm1ldGhvZCA9IGZ1bmN0aW9uICh2YWx1ZSkgeyByZXR1cm4gdmFsdWU7IH07DQp9DQptb2R1bGUuZXhwb3J0cyA9IEM7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 205,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gQygpIHsNCiAgICAvKiogaW5zdGFuY2Ugb3duZXINCiAgICAgKiBAcGFyYW0ge251bWJlcn0gdmFsdWUNCiAgICAgKi8NCiAgICB0aGlzLm1ldGhvZCA9IGZ1bmN0aW9uICh2YWx1ZSkgeyByZXR1cm4gdmFsdWU7IH07DQp9DQptb2R1bGUuZXhwb3J0cyA9IEM7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 205,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 173,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsMkJBS0M7O0lBSkQ7O09BRUc7SUFDSCxnQkFGVyxNQUFNLFlBRThCIn0=",
+            "callback_utf8_bytes": 143,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsMkJBS0M7O0lBSkQ7O09BRUc7SUFDSCxnQkFGVyxNQUFNLFlBRThCIn0=",
+            "materialized_utf8_bytes": 143,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0ID0gQzsNCmRlY2xhcmUgZnVuY3Rpb24gQygpOiB2b2lkOw0KZGVjbGFyZSBjbGFzcyBDIHsNCiAgICAvKiogaW5zdGFuY2Ugb3duZXINCiAgICAgKiBAcGFyYW0ge251bWJlcn0gdmFsdWUNCiAgICAgKi8NCiAgICBtZXRob2Q6ICh2YWx1ZTogbnVtYmVyKSA9PiBudW1iZXI7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "callback_utf8_bytes": 201,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0ID0gQzsNCmRlY2xhcmUgZnVuY3Rpb24gQygpOiB2b2lkOw0KZGVjbGFyZSBjbGFzcyBDIHsNCiAgICAvKiogaW5zdGFuY2Ugb3duZXINCiAgICAgKiBAcGFyYW0ge251bWJlcn0gdmFsdWUNCiAgICAgKi8NCiAgICBtZXRob2Q6ICh2YWx1ZTogbnVtYmVyKSA9PiBudW1iZXI7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "materialized_utf8_bytes": 201,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 167,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,SAAS,CAAC;IACV;;OAEG;IACH,IAAI,CAAC,MAAM,GAAG,UAAS,KAAK,IAAI,OAAO,KAAK,CAAC,CAAC,CAAC,CAAC;AAChD,CAAC;AACD,MAAM,CAAC,OAAO,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,2BAKC;;IAJD;;OAEG;IACH,gBAFW,MAAM,YAE8B\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "declaration-comment-range/ordinary-method",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "class C {\n/** method owner\n * @param {number} value\n */\nmethod(value) { return value; }\n}\nmodule.exports = C;\n"
+        }
+      ],
+      "options": {
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "module": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sQ0FBQztJQUNQOztPQUVHO0lBQ0gsTUFBTSxDQUFDLEtBQUssSUFBSSxPQUFPLEtBQUssQ0FBQyxDQUFDLENBQUM7Q0FDOUI7QUFDRCxNQUFNLENBQUMsT0FBTyxHQUFHLENBQUMsQ0FBQyJ9",
+            "callback_utf8_bytes": 213,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sQ0FBQztJQUNQOztPQUVHO0lBQ0gsTUFBTSxDQUFDLEtBQUssSUFBSSxPQUFPLEtBQUssQ0FBQyxDQUFDLENBQUM7Q0FDOUI7QUFDRCxNQUFNLENBQUMsT0FBTyxHQUFHLENBQUMsQ0FBQyJ9",
+            "materialized_utf8_bytes": 213,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgQyB7DQogICAgLyoqIG1ldGhvZCBvd25lcg0KICAgICAqIEBwYXJhbSB7bnVtYmVyfSB2YWx1ZQ0KICAgICAqLw0KICAgIG1ldGhvZCh2YWx1ZSkgeyByZXR1cm4gdmFsdWU7IH0NCn0NCm1vZHVsZS5leHBvcnRzID0gQzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "callback_utf8_bytes": 180,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgQyB7DQogICAgLyoqIG1ldGhvZCBvd25lcg0KICAgICAqIEBwYXJhbSB7bnVtYmVyfSB2YWx1ZQ0KICAgICAqLw0KICAgIG1ldGhvZCh2YWx1ZSkgeyByZXR1cm4gdmFsdWU7IH0NCn0NCm1vZHVsZS5leHBvcnRzID0gQzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "materialized_utf8_bytes": 180,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 148,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUE7SUFDQTs7T0FFRztJQUNILGNBRlcsTUFBTSxVQUVjO0NBQzlCIn0=",
+            "callback_utf8_bytes": 140,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUE7SUFDQTs7T0FFRztJQUNILGNBRlcsTUFBTSxVQUVjO0NBQzlCIn0=",
+            "materialized_utf8_bytes": 140,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0ID0gQzsNCmRlY2xhcmUgY2xhc3MgQyB7DQogICAgLyoqIG1ldGhvZCBvd25lcg0KICAgICAqIEBwYXJhbSB7bnVtYmVyfSB2YWx1ZQ0KICAgICAqLw0KICAgIG1ldGhvZCh2YWx1ZTogbnVtYmVyKTogbnVtYmVyOw0KfQ0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 166,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0ID0gQzsNCmRlY2xhcmUgY2xhc3MgQyB7DQogICAgLyoqIG1ldGhvZCBvd25lcg0KICAgICAqIEBwYXJhbSB7bnVtYmVyfSB2YWx1ZQ0KICAgICAqLw0KICAgIG1ldGhvZCh2YWx1ZTogbnVtYmVyKTogbnVtYmVyOw0KfQ0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 166,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 132,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,MAAM,CAAC;IACP;;OAEG;IACH,MAAM,CAAC,KAAK,IAAI,OAAO,KAAK,CAAC,CAAC,CAAC;CAC9B;AACD,MAAM,CAAC,OAAO,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA;IACA;;OAEG;IACH,cAFW,MAAM,UAEc;CAC9B\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "declaration-comment-range/prototype-parenthesized",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "function C() {}\n/** outer owner */\nC.prototype.method = (/** inner owner\n * @param {number} value\n */ function(value) { return value; });\nmodule.exports = C;\n"
+        }
+      ],
+      "options": {
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "module": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLFNBQVMsQ0FBQyxLQUFJLENBQUM7QUFDZixrQkFBa0I7QUFDbEIsQ0FBQyxDQUFDLFNBQVMsQ0FBQyxNQUFNLEdBQUcsRUFBQzs7R0FFbEIsVUFBUyxLQUFLLElBQUksT0FBTyxLQUFLLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQztBQUN2QyxNQUFNLENBQUMsT0FBTyxHQUFHLENBQUMsQ0FBQyJ9",
+            "callback_utf8_bytes": 267,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLFNBQVMsQ0FBQyxLQUFJLENBQUM7QUFDZixrQkFBa0I7QUFDbEIsQ0FBQyxDQUFDLFNBQVMsQ0FBQyxNQUFNLEdBQUcsRUFBQzs7R0FFbEIsVUFBUyxLQUFLLElBQUksT0FBTyxLQUFLLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQztBQUN2QyxNQUFNLENBQUMsT0FBTyxHQUFHLENBQUMsQ0FBQyJ9",
+            "materialized_utf8_bytes": 267,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gQygpIHsgfQ0KLyoqIG91dGVyIG93bmVyICovDQpDLnByb3RvdHlwZS5tZXRob2QgPSAoIC8qKiBpbm5lciBvd25lcg0KICogQHBhcmFtIHtudW1iZXJ9IHZhbHVlDQogKi9mdW5jdGlvbiAodmFsdWUpIHsgcmV0dXJuIHZhbHVlOyB9KTsNCm1vZHVsZS5leHBvcnRzID0gQzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "callback_utf8_bytes": 213,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gQygpIHsgfQ0KLyoqIG91dGVyIG93bmVyICovDQpDLnByb3RvdHlwZS5tZXRob2QgPSAoIC8qKiBpbm5lciBvd25lcg0KICogQHBhcmFtIHtudW1iZXJ9IHZhbHVlDQogKi9mdW5jdGlvbiAodmFsdWUpIHsgcmV0dXJuIHZhbHVlOyB9KTsNCm1vZHVsZS5leHBvcnRzID0gQzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "materialized_utf8_bytes": 213,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 181,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsMkJBQWU7O0lBQ2Ysa0JBQWtCO0lBQ2xCLGdCQUNXLE1BQU0sWUFEQyJ9",
+            "callback_utf8_bytes": 144,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsMkJBQWU7O0lBQ2Ysa0JBQWtCO0lBQ2xCLGdCQUNXLE1BQU0sWUFEQyJ9",
+            "materialized_utf8_bytes": 144,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0ID0gQzsNCmRlY2xhcmUgZnVuY3Rpb24gQygpOiB2b2lkOw0KZGVjbGFyZSBjbGFzcyBDIHsNCiAgICAvKiogb3V0ZXIgb3duZXIgKi8NCiAgICBtZXRob2Q6ICh2YWx1ZTogbnVtYmVyKSA9PiBudW1iZXI7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "callback_utf8_bytes": 162,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0ID0gQzsNCmRlY2xhcmUgZnVuY3Rpb24gQygpOiB2b2lkOw0KZGVjbGFyZSBjbGFzcyBDIHsNCiAgICAvKiogb3V0ZXIgb3duZXIgKi8NCiAgICBtZXRob2Q6ICh2YWx1ZTogbnVtYmVyKSA9PiBudW1iZXI7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "materialized_utf8_bytes": 162,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 128,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,SAAS,CAAC,KAAI,CAAC;AACf,kBAAkB;AAClB,CAAC,CAAC,SAAS,CAAC,MAAM,GAAG,EAAC;;GAElB,UAAS,KAAK,IAAI,OAAO,KAAK,CAAC,CAAC,CAAC,CAAC,CAAC;AACvC,MAAM,CAAC,OAAO,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,2BAAe;;IACf,kBAAkB;IAClB,gBACW,MAAM,YADC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "declaration-comment-range/remove-comments",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "function C() {}\n/** method owner\n * @param {number} value\n */\nC.prototype.method = function(value) { return value; };\nmodule.exports = C;\n"
+        }
+      ],
+      "options": {
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "module": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "removeComments": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLFNBQVMsQ0FBQyxLQUFJLENBQUM7QUFJZixDQUFDLENBQUMsU0FBUyxDQUFDLE1BQU0sR0FBRyxVQUFTLEtBQUssSUFBSSxPQUFPLEtBQUssQ0FBQyxDQUFDLENBQUMsQ0FBQztBQUN2RCxNQUFNLENBQUMsT0FBTyxHQUFHLENBQUMsQ0FBQyJ9",
+            "callback_utf8_bytes": 237,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLFNBQVMsQ0FBQyxLQUFJLENBQUM7QUFJZixDQUFDLENBQUMsU0FBUyxDQUFDLE1BQU0sR0FBRyxVQUFTLEtBQUssSUFBSSxPQUFPLEtBQUssQ0FBQyxDQUFDLENBQUMsQ0FBQztBQUN2RCxNQUFNLENBQUMsT0FBTyxHQUFHLENBQUMsQ0FBQyJ9",
+            "materialized_utf8_bytes": 237,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gQygpIHsgfQ0KQy5wcm90b3R5cGUubWV0aG9kID0gZnVuY3Rpb24gKHZhbHVlKSB7IHJldHVybiB2YWx1ZTsgfTsNCm1vZHVsZS5leHBvcnRzID0gQzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "callback_utf8_bytes": 144,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gQygpIHsgfQ0KQy5wcm90b3R5cGUubWV0aG9kID0gZnVuY3Rpb24gKHZhbHVlKSB7IHJldHVybiB2YWx1ZTsgfTsNCm1vZHVsZS5leHBvcnRzID0gQzsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "materialized_utf8_bytes": 144,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 112,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsMkJBQWU7O0lBSWYsY0FGVyxNQUFNLFVBRXFDIn0=",
+            "callback_utf8_bytes": 131,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsMkJBQWU7O0lBSWYsY0FGVyxNQUFNLFVBRXFDIn0=",
+            "materialized_utf8_bytes": 131,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0ID0gQzsNCmRlY2xhcmUgZnVuY3Rpb24gQygpOiB2b2lkOw0KZGVjbGFyZSBjbGFzcyBDIHsNCiAgICBtZXRob2QodmFsdWU6IG51bWJlcik6IG51bWJlcjsNCn0NCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "callback_utf8_bytes": 134,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0ID0gQzsNCmRlY2xhcmUgZnVuY3Rpb24gQygpOiB2b2lkOw0KZGVjbGFyZSBjbGFzcyBDIHsNCiAgICBtZXRob2QodmFsdWU6IG51bWJlcik6IG51bWJlcjsNCn0NCi8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uZC50cy5tYXA=",
+            "materialized_utf8_bytes": 134,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 100,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,SAAS,CAAC,KAAI,CAAC;AAIf,CAAC,CAAC,SAAS,CAAC,MAAM,GAAG,UAAS,KAAK,IAAI,OAAO,KAAK,CAAC,CAAC,CAAC,CAAC;AACvD,MAAM,CAAC,OAAO,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,2BAAe;;IAIf,cAFW,MAAM,UAEqC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "declaration-comment-range/declaration-only",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "function C() {}\n/** method owner\n * @param {number} value\n */\nC.prototype.method = function(value) { return value; };\nmodule.exports = C;\n"
+        }
+      ],
+      "options": {
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "module": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "emitDeclarationOnly": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsMkJBQWU7O0lBQ2Y7O09BRUc7SUFDSCxjQUZXLE1BQU0sVUFFcUMifQ==",
+            "callback_utf8_bytes": 142,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsMkJBQWU7O0lBQ2Y7O09BRUc7SUFDSCxjQUZXLE1BQU0sVUFFcUMifQ==",
+            "materialized_utf8_bytes": 142,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0ID0gQzsNCmRlY2xhcmUgZnVuY3Rpb24gQygpOiB2b2lkOw0KZGVjbGFyZSBjbGFzcyBDIHsNCiAgICAvKiogbWV0aG9kIG93bmVyDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHZhbHVlDQogICAgICovDQogICAgbWV0aG9kKHZhbHVlOiBudW1iZXIpOiBudW1iZXI7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "callback_utf8_bytes": 195,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0ID0gQzsNCmRlY2xhcmUgZnVuY3Rpb24gQygpOiB2b2lkOw0KZGVjbGFyZSBjbGFzcyBDIHsNCiAgICAvKiogbWV0aG9kIG93bmVyDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHZhbHVlDQogICAgICovDQogICAgbWV0aG9kKHZhbHVlOiBudW1iZXIpOiBudW1iZXI7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "materialized_utf8_bytes": 195,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 161,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,2BAAe;;IACf;;OAEG;IACH,cAFW,MAAM,UAEqC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "declaration-comment-range/lf-bom-listings",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "function C() {}\n/** method owner\n * @param {number} value\n */\nC.prototype.method = function(value) { return value; };\nmodule.exports = C;\n"
+        }
+      ],
+      "options": {
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "module": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 1,
+        "outDir": "/project/out",
+        "emitBOM": true,
+        "listEmittedFiles": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLFNBQVMsQ0FBQyxLQUFJLENBQUM7QUFDZjs7R0FFRztBQUNILENBQUMsQ0FBQyxTQUFTLENBQUMsTUFBTSxHQUFHLFVBQVMsS0FBSyxJQUFJLE9BQU8sS0FBSyxDQUFDLENBQUMsQ0FBQyxDQUFDO0FBQ3ZELE1BQU0sQ0FBQyxPQUFPLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "callback_utf8_bytes": 248,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLFNBQVMsQ0FBQyxLQUFJLENBQUM7QUFDZjs7R0FFRztBQUNILENBQUMsQ0FBQyxTQUFTLENBQUMsTUFBTSxHQUFHLFVBQVMsS0FBSyxJQUFJLE9BQU8sS0FBSyxDQUFDLENBQUMsQ0FBQyxDQUFDO0FBQ3ZELE1BQU0sQ0FBQyxPQUFPLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "materialized_utf8_bytes": 248,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpmdW5jdGlvbiBDKCkgeyB9Ci8qKiBtZXRob2Qgb3duZXIKICogQHBhcmFtIHtudW1iZXJ9IHZhbHVlCiAqLwpDLnByb3RvdHlwZS5tZXRob2QgPSBmdW5jdGlvbiAodmFsdWUpIHsgcmV0dXJuIHZhbHVlOyB9Owptb2R1bGUuZXhwb3J0cyA9IEM7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "callback_utf8_bytes": 186,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOwpmdW5jdGlvbiBDKCkgeyB9Ci8qKiBtZXRob2Qgb3duZXIKICogQHBhcmFtIHtudW1iZXJ9IHZhbHVlCiAqLwpDLnByb3RvdHlwZS5tZXRob2QgPSBmdW5jdGlvbiAodmFsdWUpIHsgcmV0dXJuIHZhbHVlOyB9Owptb2R1bGUuZXhwb3J0cyA9IEM7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPW1haW4uanMubWFw",
+            "materialized_utf8_bytes": 189,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 154,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsMkJBQWU7O0lBQ2Y7O09BRUc7SUFDSCxjQUZXLE1BQU0sVUFFcUMifQ==",
+            "callback_utf8_bytes": 142,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsMkJBQWU7O0lBQ2Y7O09BRUc7SUFDSCxjQUZXLE1BQU0sVUFFcUMifQ==",
+            "materialized_utf8_bytes": 142,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0ID0gQzsKZGVjbGFyZSBmdW5jdGlvbiBDKCk6IHZvaWQ7CmRlY2xhcmUgY2xhc3MgQyB7CiAgICAvKiogbWV0aG9kIG93bmVyCiAgICAgKiBAcGFyYW0ge251bWJlcn0gdmFsdWUKICAgICAqLwogICAgbWV0aG9kKHZhbHVlOiBudW1iZXIpOiBudW1iZXI7Cn0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 187,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/ZXhwb3J0ID0gQzsKZGVjbGFyZSBmdW5jdGlvbiBDKCk6IHZvaWQ7CmRlY2xhcmUgY2xhc3MgQyB7CiAgICAvKiogbWV0aG9kIG93bmVyCiAgICAgKiBAcGFyYW0ge251bWJlcn0gdmFsdWUKICAgICAqLwogICAgbWV0aG9kKHZhbHVlOiBudW1iZXIpOiBudW1iZXI7Cn0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9bWFpbi5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 190,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 153,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/out/main.js",
+            "/project/out/main.js.map",
+            "/project/out/main.d.ts",
+            "/project/out/main.d.ts.map"
+          ],
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,SAAS,CAAC,KAAI,CAAC;AACf;;GAEG;AACH,CAAC,CAAC,SAAS,CAAC,MAAM,GAAG,UAAS,KAAK,IAAI,OAAO,KAAK,CAAC,CAAC,CAAC,CAAC;AACvD,MAAM,CAAC,OAAO,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,2BAAe;;IACf;;OAEG;IACH,cAFW,MAAM,UAEqC\"}"
+            }
+          ]
+        },
+        "status_writes": [
+          "TSFILE: /project/out/main.js",
+          "TSFILE: /project/out/main.js.map",
+          "TSFILE: /project/out/main.d.ts",
+          "TSFILE: /project/out/main.d.ts.map"
+        ],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "declaration-comment-range/esnext",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "function C() {}\n/** method owner\n * @param {number} value\n */\nC.prototype.method = function(value) { return value; };\nmodule.exports = C;\n"
+        }
+      ],
+      "options": {
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 99,
+        "module": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/main.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLFNBQVMsQ0FBQyxLQUFJLENBQUM7QUFDZjs7R0FFRztBQUNILENBQUMsQ0FBQyxTQUFTLENBQUMsTUFBTSxHQUFHLFVBQVMsS0FBSyxJQUFJLE9BQU8sS0FBSyxDQUFDLENBQUMsQ0FBQyxDQUFDO0FBQ3ZELE1BQU0sQ0FBQyxPQUFPLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "callback_utf8_bytes": 248,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uL21haW4uanMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLFNBQVMsQ0FBQyxLQUFJLENBQUM7QUFDZjs7R0FFRztBQUNILENBQUMsQ0FBQyxTQUFTLENBQUMsTUFBTSxHQUFHLFVBQVMsS0FBSyxJQUFJLE9BQU8sS0FBSyxDQUFDLENBQUMsQ0FBQyxDQUFDO0FBQ3ZELE1BQU0sQ0FBQyxPQUFPLEdBQUcsQ0FBQyxDQUFDIn0=",
+            "materialized_utf8_bytes": 248,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/main.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gQygpIHsgfQ0KLyoqIG1ldGhvZCBvd25lcg0KICogQHBhcmFtIHtudW1iZXJ9IHZhbHVlDQogKi8NCkMucHJvdG90eXBlLm1ldGhvZCA9IGZ1bmN0aW9uICh2YWx1ZSkgeyByZXR1cm4gdmFsdWU7IH07DQptb2R1bGUuZXhwb3J0cyA9IEM7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "callback_utf8_bytes": 193,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gQygpIHsgfQ0KLyoqIG1ldGhvZCBvd25lcg0KICogQHBhcmFtIHtudW1iZXJ9IHZhbHVlDQogKi8NCkMucHJvdG90eXBlLm1ldGhvZCA9IGZ1bmN0aW9uICh2YWx1ZSkgeyByZXR1cm4gdmFsdWU7IH07DQptb2R1bGUuZXhwb3J0cyA9IEM7DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmpzLm1hcA==",
+            "materialized_utf8_bytes": 193,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 161,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/out/main.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsMkJBQWU7O0lBQ2Y7O09BRUc7SUFDSCxjQUZXLE1BQU0sVUFFcUMifQ==",
+            "callback_utf8_bytes": 142,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWFpbi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vbWFpbi5qcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQUEsMkJBQWU7O0lBQ2Y7O09BRUc7SUFDSCxjQUZXLE1BQU0sVUFFcUMifQ==",
+            "materialized_utf8_bytes": 142,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/out/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0ID0gQzsNCmRlY2xhcmUgZnVuY3Rpb24gQygpOiB2b2lkOw0KZGVjbGFyZSBjbGFzcyBDIHsNCiAgICAvKiogbWV0aG9kIG93bmVyDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHZhbHVlDQogICAgICovDQogICAgbWV0aG9kKHZhbHVlOiBudW1iZXIpOiBudW1iZXI7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "callback_utf8_bytes": 195,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0ID0gQzsNCmRlY2xhcmUgZnVuY3Rpb24gQygpOiB2b2lkOw0KZGVjbGFyZSBjbGFzcyBDIHsNCiAgICAvKiogbWV0aG9kIG93bmVyDQogICAgICogQHBhcmFtIHtudW1iZXJ9IHZhbHVlDQogICAgICovDQogICAgbWV0aG9kKHZhbHVlOiBudW1iZXIpOiBudW1iZXI7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1tYWluLmQudHMubWFw",
+            "materialized_utf8_bytes": 195,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/main.js"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 161,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.js\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,SAAS,CAAC,KAAI,CAAC;AACf;;GAEG;AACH,CAAC,CAAC,SAAS,CAAC,MAAM,GAAG,UAAS,KAAK,IAAI,OAAO,KAAK,CAAC,CAAC,CAAC,CAAC;AACvD,MAAM,CAAC,OAAO,GAAG,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/project/main.js"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"main.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../main.js\"],\"names\":[],\"mappings\":\";AAAA,2BAAe;;IACf;;OAEG;IACH,cAFW,MAAM,UAEqC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "declaration-comment-range/blocked-semantic",
+      "roots": [
+        "/project/main.js"
+      ],
+      "files": [
+        {
+          "path": "/project/main.js",
+          "text": "function C() {}\n/** method owner\n * @param {number} value\n */\nC.prototype.method = function(value) { return value; };\nmodule.exports = C;\n/** @type {number} */\nconst invalid = \"text\";\n"
+        }
+      ],
+      "options": {
+        "allowJs": true,
+        "checkJs": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "target": 2,
+        "module": 1,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 0,
+        "outDir": "/project/out",
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 2322,
+            "category": "Error",
+            "file": "/project/main.js",
+            "start": 166,
+            "length": 7,
+            "message": "Type 'string' is not assignable to type 'number'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 2322,
+              "category": "Error",
+              "file": "/project/main.js",
+              "start": 166,
+              "length": 7,
+              "message": "Type 'string' is not assignable to type 'number'.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    }
+  ]
+}

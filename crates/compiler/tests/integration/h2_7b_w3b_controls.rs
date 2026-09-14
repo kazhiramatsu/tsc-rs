@@ -115,7 +115,7 @@ fn flatten_message_chain(chain: &MessageChain, indent: usize, output: &mut Strin
             output.push_str("  ");
         }
     }
-    output.push_str(&chain.text);
+    output.push_str(chain.text.as_str().expect("scalar diagnostic observation"));
     for child in &chain.next {
         flatten_message_chain(child, indent + 1, output);
     }
@@ -130,7 +130,11 @@ fn actual_diagnostics(diagnostics: &[Diagnostic]) -> Vec<DiagnosticTuple> {
             (
                 diagnostic.code(),
                 format!("{:?}", diagnostic.category()),
-                diagnostic.file_name.clone(),
+                diagnostic.file_name.as_ref().map(|name| {
+                    name.as_str()
+                        .expect("scalar diagnostic filename")
+                        .to_owned()
+                }),
                 diagnostic.start,
                 diagnostic.length,
                 message,
@@ -233,7 +237,7 @@ fn assert_frozen_observation(case_id: &str) {
     );
     for (actual, expected) in sink.writes().iter().zip(expected_writes) {
         assert_eq!(
-            actual.path(),
+            actual.path().scalar_test_path(),
             Path::new(expected["path"].as_str().expect("frozen write path")),
             "{case_id}: exact output path"
         );
@@ -241,14 +245,14 @@ fn assert_frozen_observation(case_id: &str) {
             artifact_kind(actual.kind()),
             expected["kind"].as_str().expect("frozen write kind"),
             "{case_id}: exact write kind for {}",
-            actual.path().display()
+            actual.path().scalar_test_path().display()
         );
         let expected_callback = decode(&expected["callback_utf8_base64"]);
         assert_eq!(
             actual.callback_bytes(),
             expected_callback,
             "{case_id}: exact callback bytes for {}",
-            actual.path().display()
+            actual.path().scalar_test_path().display()
         );
         assert_eq!(
             actual.callback_bytes().len() as u64,
@@ -256,7 +260,7 @@ fn assert_frozen_observation(case_id: &str) {
                 .as_u64()
                 .expect("frozen callback length"),
             "{case_id}: callback length for {}",
-            actual.path().display()
+            actual.path().scalar_test_path().display()
         );
         assert_eq!(
             actual.write_byte_order_mark(),
@@ -264,14 +268,14 @@ fn assert_frozen_observation(case_id: &str) {
                 .as_bool()
                 .expect("frozen BOM flag"),
             "{case_id}: BOM flag for {}",
-            actual.path().display()
+            actual.path().scalar_test_path().display()
         );
         let expected_materialized = decode(&expected["materialized_utf8_base64"]);
         assert_eq!(
             actual.materialized_bytes().as_ref(),
             expected_materialized,
             "{case_id}: exact materialized bytes for {}",
-            actual.path().display()
+            actual.path().scalar_test_path().display()
         );
         assert_eq!(
             actual.materialized_bytes().len() as u64,
@@ -279,7 +283,7 @@ fn assert_frozen_observation(case_id: &str) {
                 .as_u64()
                 .expect("frozen materialized length"),
             "{case_id}: materialized length for {}",
-            actual.path().display()
+            actual.path().scalar_test_path().display()
         );
         let actual_sources = actual.source_files().map(|sources| {
             sources
@@ -297,7 +301,7 @@ fn assert_frozen_observation(case_id: &str) {
             actual_sources,
             expected_sources,
             "{case_id}: exact sourceFiles for {}",
-            actual.path().display()
+            actual.path().scalar_test_path().display()
         );
         let metadata = text_metadata(
             actual
@@ -308,7 +312,7 @@ fn assert_frozen_observation(case_id: &str) {
             actual_diagnostics(metadata.diagnostics()),
             expected_diagnostics(&expected["data_diagnostics"]),
             "{case_id}: exact write diagnostics for {}",
-            actual.path().display()
+            actual.path().scalar_test_path().display()
         );
         assert_eq!(
             metadata
@@ -316,7 +320,7 @@ fn assert_frozen_observation(case_id: &str) {
                 .map(|position| u64::from(position.value())),
             expected["data_source_map_url_pos"].as_u64(),
             "{case_id}: exact sourceMapUrlPos for {}",
-            actual.path().display()
+            actual.path().scalar_test_path().display()
         );
     }
 }
@@ -521,3 +525,7 @@ mod h2_7b_w2b_controls {
         "compiler/declarationEmitRetainsJsdocyComments.ts#default"
     );
 }
+
+#[path = "../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

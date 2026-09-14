@@ -75,7 +75,12 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         if self.parser.scanner.token_value().is_empty() {
             self.token_text()
         } else {
-            self.parser.scanner.token_value().to_owned()
+            self.parser
+                .scanner
+                .token_value()
+                .as_str()
+                .expect("JSDoc names are identifiers and comment text is a raw UTF-8 slice")
+                .to_owned()
         }
     }
 
@@ -648,11 +653,13 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
     fn try_parse_jsdoc_link(&mut self, start: usize) -> Option<NodeId> {
         let scanner_state = self.parser.scanner.save();
         let diagnostics_len = self.parser.parse_diagnostics.len();
+        let recovery_checkpoint = self.parser.parse_recovery.checkpoint();
         let parse_error = self.parser.parse_error_before_next_finished_node;
         let result = self.parse_jsdoc_link(start);
         if result.is_none() {
             self.parser.scanner.restore(scanner_state);
             self.parser.parse_diagnostics.truncate(diagnostics_len);
+            self.parser.parse_recovery.restore(recovery_checkpoint);
             self.parser.parse_error_before_next_finished_node = parse_error;
         }
         result
@@ -967,10 +974,12 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
     fn look_ahead_jsdoc_link_prefix(&mut self) -> bool {
         let state = self.parser.scanner.save();
         let diagnostics = self.parser.parse_diagnostics.len();
+        let recovery_checkpoint = self.parser.parse_recovery.checkpoint();
         let parse_error = self.parser.parse_error_before_next_finished_node;
         let result = self.parse_jsdoc_link_prefix().is_some();
         self.parser.scanner.restore(state);
         self.parser.parse_diagnostics.truncate(diagnostics);
+        self.parser.parse_recovery.restore(recovery_checkpoint);
         self.parser.parse_error_before_next_finished_node = parse_error;
         result
     }
@@ -1133,6 +1142,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
     ) -> Option<NodeId> {
         let scanner_state = self.parser.scanner.save();
         let diagnostics_len = self.parser.parse_diagnostics.len();
+        let recovery_checkpoint = self.parser.parse_recovery.checkpoint();
         let parse_error = self.parser.parse_error_before_next_finished_node;
         let mut can_parse_tag = true;
         let mut seen_asterisk = false;
@@ -1192,6 +1202,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         let Some(child) = child else {
             self.parser.scanner.restore(scanner_state);
             self.parser.parse_diagnostics.truncate(diagnostics_len);
+            self.parser.parse_recovery.restore(recovery_checkpoint);
             self.parser.parse_error_before_next_finished_node = parse_error;
             return None;
         };
@@ -1215,6 +1226,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                     if !valid_nested_name {
                         self.parser.scanner.restore(scanner_state);
                         self.parser.parse_diagnostics.truncate(diagnostics_len);
+                        self.parser.parse_recovery.restore(recovery_checkpoint);
                         self.parser.parse_error_before_next_finished_node = parse_error;
                         return None;
                     }
@@ -1727,6 +1739,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         let parameters = self.alloc_array(parameters, parameters_pos, self.node_pos());
         let state = self.parser.scanner.save();
         let diagnostics = self.parser.parse_diagnostics.len();
+        let recovery_checkpoint = self.parser.parse_recovery.checkpoint();
         let parse_error = self.parser.parse_error_before_next_finished_node;
         if self.token() == SyntaxKind::Unknown {
             self.next_token_jsdoc();
@@ -1740,6 +1753,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         if return_tag.is_none() {
             self.parser.scanner.restore(state);
             self.parser.parse_diagnostics.truncate(diagnostics);
+            self.parser.parse_recovery.restore(recovery_checkpoint);
             self.parser.parse_error_before_next_finished_node = parse_error;
         }
         self.finish_current(
@@ -1938,6 +1952,7 @@ pub(super) fn parse_jsdoc_comment(
 ) -> ParsedJSDoc {
     let scanner_state = parser.scanner.save();
     let diagnostics_start = parser.parse_diagnostics.len();
+    let recovery_checkpoint = parser.parse_recovery.checkpoint();
     let saved_parse_error = parser.parse_error_before_next_finished_node;
     let saved_context = parser.context_flags;
     let saved_parsing_context = parser.parsing_context;
@@ -1960,6 +1975,7 @@ pub(super) fn parse_jsdoc_comment(
         );
     }
     parser.parse_diagnostics.truncate(diagnostics_start);
+    parser.parse_recovery.restore(recovery_checkpoint);
     parser.parse_error_before_next_finished_node = saved_parse_error;
     parser.context_flags = saved_context;
     parser.parsing_context = saved_parsing_context;

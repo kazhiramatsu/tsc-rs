@@ -143,7 +143,12 @@ fn assert_exact_writes(
         let expected_path = Path::new(string(expected, "path")?);
         let expected_bytes = base64::engine::general_purpose::STANDARD
             .decode(string(expected, "callback_utf8_base64")?)?;
-        if actual.path() != expected_path
+        if std::path::Path::new(
+            actual
+                .path()
+                .as_str()
+                .expect("scalar acceptance output path"),
+        ) != expected_path
             || actual.callback_text().as_bytes() != expected_bytes
             || actual.callback_text().len() as u64
                 != expected["callback_utf8_bytes"].as_u64().unwrap_or(u64::MAX)
@@ -160,7 +165,7 @@ fn assert_exact_writes(
             return Err(failure(format!(
                 "{id}: write {index} differs: expected_path={} actual_path={} expected_sha256={} actual_sha256={} expected_text={:?} actual_text={:?}",
                 expected_path.display(),
-                actual.path().display(),
+                std::path::Path::new(actual.path().as_str().expect("scalar acceptance output path")).display(),
                 string(expected, "callback_utf8_sha256")?,
                 sha256(actual.callback_text().as_bytes()),
                 String::from_utf8_lossy(&expected_bytes),
@@ -175,7 +180,9 @@ fn assert_exact_writes(
             .source_files()
             .unwrap_or_default()
             .iter()
-            .map(|source| source.to_string_lossy())
+            .map(|source| {
+                std::borrow::Cow::Borrowed(source.as_str().expect("scalar acceptance source path"))
+            })
             .collect::<Vec<_>>();
         if actual_sources
             .iter()
@@ -198,7 +205,7 @@ fn flatten_message_chain(chain: &MessageChain, indent: usize, output: &mut Strin
             output.push_str("  ");
         }
     }
-    output.push_str(&chain.text);
+    output.push_str(chain.text.as_str().expect("scalar acceptance diagnostic"));
     for child in &chain.next {
         flatten_message_chain(child, indent + 1, output);
     }
@@ -219,7 +226,7 @@ fn normalize_diagnostic(diagnostic: &Diagnostic) -> Value {
     json!({
         "code": diagnostic.code(),
         "category": diagnostic_category(diagnostic.category()),
-        "file": diagnostic.file_name,
+        "file": diagnostic.file_name.as_ref().map(|value| value.as_str().expect("scalar acceptance filename")),
         "start": diagnostic.start,
         "length": diagnostic.length,
         "message": message,
@@ -389,14 +396,14 @@ fn owner_options(value: &Value) -> Result<CompilerOptions, Box<dyn Error>> {
         allow_js: optional_bool("allowJs").unwrap_or(false),
         always_strict: optional_bool("alwaysStrict"),
         check_js: optional_bool("checkJs"),
-        ignore_deprecations: optional_string("ignoreDeprecations"),
+        ignore_deprecations: optional_string("ignoreDeprecations").map(Into::into),
         jsx: optional_i32("jsx")?,
-        jsx_factory: optional_string("jsxFactory"),
-        jsx_fragment_factory: optional_string("jsxFragmentFactory"),
+        jsx_factory: optional_string("jsxFactory").map(Into::into),
+        jsx_fragment_factory: optional_string("jsxFragmentFactory").map(Into::into),
         module: optional_i32("module")?,
         new_line: optional_i32("newLine")?,
-        out_dir: optional_string("outDir"),
-        react_namespace: optional_string("reactNamespace"),
+        out_dir: optional_string("outDir").map(Into::into),
+        react_namespace: optional_string("reactNamespace").map(Into::into),
         strict: optional_bool("strict"),
         target: optional_i32("target")?,
         no_emit: Some(false),

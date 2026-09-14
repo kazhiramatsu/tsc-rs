@@ -8,6 +8,7 @@
 //! seed; M4 5.0 extends it program-wide.
 
 use tsc_binder::{Binder, InternalSymbolName, SymbolId, SymbolTable};
+use tsc_diagnostics::JsStr;
 use tsc_diagnostics::{Diagnostic, DiagnosticList, DiagnosticMessage, MessageChain};
 use tsc_syntax::{NodeId, SourceFile};
 use tsc_types::{
@@ -83,11 +84,11 @@ pub type CheckResult<T> = Result<T, CheckAbort>;
 /// authoritative description of what the missing merge could add.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct UnresolvedModuleAugmentation {
-    pub module_reference: String,
-    pub augmentation_file: String,
+    pub module_reference: tsc_types::JsString,
+    pub augmentation_file: tsc_types::JsString,
     /// Export/member path below the augmented external module. The
     /// module object itself is the empty path; `N.X` is `["N", "X"]`.
-    pub container_path: Vec<String>,
+    pub container_path: Vec<tsc_types::EscapedName>,
     pub container_symbol: SymbolId,
 }
 
@@ -215,7 +216,7 @@ pub struct IndexInfo {
 #[derive(Clone, Debug)]
 pub struct WideningContext {
     pub parent: Option<WideningContextId>,
-    pub property_name: Option<String>,
+    pub property_name: Option<tsc_types::EscapedName>,
     pub siblings: Option<Vec<TypeId>>,
     pub resolved_properties: Option<Vec<SymbolId>>,
 }
@@ -513,7 +514,7 @@ pub struct CheckerState<'a> {
     /// across queries (never trimmed), like tsc's.
     pub(crate) flow_loop_caches: std::collections::HashMap<
         (usize, tsc_binder::flow::FlowId),
-        std::collections::HashMap<String, TypeId>,
+        std::collections::HashMap<tsc_types::JsString, TypeId>,
     >,
     /// tsc lastFlowNode/lastFlowNodeReachable (47401-47402): the
     /// single-entry reachability memo — the immediately previous
@@ -624,7 +625,7 @@ pub struct CheckerState<'a> {
     pub(crate) widening_contexts: Vec<WideningContext>,
     /// tsc undefinedProperties (47426): the per-checker
     /// getUndefinedProperty cache keyed by escaped name.
-    pub(crate) undefined_properties: std::collections::HashMap<String, SymbolId>,
+    pub(crate) undefined_properties: std::collections::HashMap<tsc_types::EscapedName, SymbolId>,
 
     // ---- M4 5.5: expression-checking state ----
     /// tsc typeofType (47100): union of the typeofNEFacts key literals
@@ -814,26 +815,31 @@ pub struct CheckerState<'a> {
     /// Any-like semantically while typeToString prints the alias face.
     pub(crate) error_types: std::collections::HashMap<String, TypeId>,
     /// tsc patternAmbientModules (initializeTypeChecker 88754-88756).
-    pub pattern_ambient_modules: Vec<(String, String, SymbolId)>,
+    pub pattern_ambient_modules: Vec<(tsc_types::JsString, tsc_types::JsString, SymbolId)>,
     /// tsc patternAmbientModuleAugmentations (mergeModuleAugmentation
     /// 47865): augmentation name → the unidirectionally-merged symbol.
-    pub pattern_ambient_module_augmentations: std::collections::HashMap<String, SymbolId>,
+    pub pattern_ambient_module_augmentations:
+        std::collections::HashMap<tsc_types::JsString, SymbolId>,
     /// Module augmentations whose targets sat in the resolver's
     /// Suppressed band (node_modules/baseUrl machinery). Receiver
     /// provenance plus the augmentation container's own resolved
     /// members/index infos scope downstream property-miss containment.
     pub unresolved_module_augmentations:
-        std::collections::HashMap<Vec<String>, Vec<UnresolvedModuleAugmentation>>,
+        std::collections::HashMap<Vec<tsc_types::EscapedName>, Vec<UnresolvedModuleAugmentation>>,
     /// Nearest visible node_modules package root for one augmentation
     /// source and package name. Package discovery is host-wide, so cache
     /// it outside the property-miss hot path after the first lookup.
-    pub(crate) unresolved_package_root_cache:
-        std::cell::RefCell<std::collections::HashMap<(String, String), Option<String>>>,
+    pub(crate) unresolved_package_root_cache: std::cell::RefCell<
+        std::collections::HashMap<
+            (tsc_types::JsString, tsc_types::JsString),
+            Option<tsc_types::JsString>,
+        >,
+    >,
     /// tsrs-native (M4 5.8d): normalized file path → program file
     /// index — the host.getResolvedModule seam's lookup table
     /// (program-and-modules.md §2; later files shadow earlier
     /// same-name entries like the program layer's last-index-by-name).
-    pub program_path_index: std::collections::HashMap<String, usize>,
+    pub program_path_index: std::collections::HashMap<tsc_types::JsString, usize>,
     /// H0 production-only exact module provider. Its source identities are
     /// caller tokens rather than binder indexes; the two explicit maps below
     /// make filtering and shadowing observable instead of assuming ordinal
@@ -854,7 +860,13 @@ pub struct CheckerState<'a> {
     /// including files the program layer drops (.json bodies, .js
     /// without allowJs) — the resolver's suppression probes read this
     /// set to decide whether a miss is tsc-undecidable (FP=0 rule).
-    pub host_file_paths: std::collections::HashSet<String>,
+    pub host_file_paths: std::collections::HashSet<tsc_types::JsString>,
+    /// Exact input text for host reads, including host-only package manifests.
+    /// Do not reconstruct a readFile result from parsed JSON or source membership.
+    pub(crate) host_input_snapshots: std::collections::HashMap<
+        tsc_types::JsString,
+        std::sync::Arc<tsc_diagnostics::TextSnapshot>,
+    >,
     /// tsrs-native: the harness ProgramJson `cwd` (tsc
     /// host.getCurrentDirectory). The oracle host absolutizes every
     /// program fileName against it (program-host.mjs
@@ -864,7 +876,7 @@ pub struct CheckerState<'a> {
     /// relative file names here, not at `/`. Resolution-side
     /// normalization stays "/"-rooted: all internal paths share that
     /// base, and the two worlds never compare paths with each other.
-    pub host_current_directory: String,
+    pub host_current_directory: tsc_types::JsString,
     /// Normalized package.json path → its four-way `"type"` evidence.
     /// Explicit `module`, `commonjs`, another string, and a missing
     /// value remain distinct: implied-format consumers collapse only
@@ -872,16 +884,18 @@ pub struct CheckerState<'a> {
     /// createModeMismatchDetails distinguishes a missing value from
     /// any explicit value.
     pub(crate) host_package_json_module_types:
-        std::collections::HashMap<String, PackageJsonModuleType>,
+        std::collections::HashMap<tsc_types::JsString, PackageJsonModuleType>,
     /// Normalized package.json path → parsed host JSON. The
     /// resolver seam reads `exports`/`imports` targets and must retain
     /// object insertion order because Node condition objects are
     /// first-match, not unordered maps.
-    pub(crate) host_package_json_values: std::collections::HashMap<String, serde_json::Value>,
+    pub(crate) host_package_json_values:
+        std::collections::HashMap<tsc_types::JsString, tsc_program::JsonValue>,
     /// Normalized package.json path → its non-empty `"name"` field.
     /// Bare self-name imports are undecidable only inside a matching
     /// package scope; an unrelated package.json must not hide 2307.
-    pub host_package_json_names: std::collections::HashMap<String, String>,
+    pub host_package_json_names:
+        std::collections::HashMap<tsc_types::JsString, tsc_types::JsString>,
     /// checkExternalEmitHelpers' per-source resolveHelpersModule memo.
     /// `None` is a cached missing or provenance-suppressed `tslib`;
     /// the first definite miss has already emitted 2354.
@@ -943,8 +957,12 @@ pub struct CheckerState<'a> {
     /// undefined — None here — so later cross-file conflicts report
     /// immediately; m4-review A8). Keyed by the ordered file-name
     /// pair.
-    pub(crate) amalgamated_duplicates:
-        Option<indexmap::IndexMap<(String, String), crate::merge::FilesDuplicates>>,
+    pub(crate) amalgamated_duplicates: Option<
+        indexmap::IndexMap<
+            (tsc_types::JsString, tsc_types::JsString),
+            crate::merge::FilesDuplicates,
+        >,
+    >,
 }
 
 impl<'a> CheckerState<'a> {
@@ -1105,11 +1123,26 @@ impl<'a> CheckerState<'a> {
 
         // The checker init block's symbols (46488-46496, 47006), in
         // tsc allocation order.
-        let undefined_symbol = binder.create_symbol(SymbolFlags::PROPERTY, "undefined".to_owned());
-        let global_this_symbol = binder.create_symbol(SymbolFlags::MODULE, "globalThis".to_owned());
-        let arguments_symbol = binder.create_symbol(SymbolFlags::PROPERTY, "arguments".to_owned());
-        let require_symbol = binder.create_symbol(SymbolFlags::PROPERTY, "require".to_owned());
-        let unknown_symbol = binder.create_symbol(SymbolFlags::PROPERTY, "unknown".to_owned());
+        let undefined_symbol = binder.create_symbol(
+            SymbolFlags::PROPERTY,
+            tsc_types::EscapedName::from_identifier_escaped_text("undefined"),
+        );
+        let global_this_symbol = binder.create_symbol(
+            SymbolFlags::MODULE,
+            tsc_types::EscapedName::from_identifier_escaped_text("globalThis"),
+        );
+        let arguments_symbol = binder.create_symbol(
+            SymbolFlags::PROPERTY,
+            tsc_types::EscapedName::from_identifier_escaped_text("arguments"),
+        );
+        let require_symbol = binder.create_symbol(
+            SymbolFlags::PROPERTY,
+            tsc_types::EscapedName::from_identifier_escaped_text("require"),
+        );
+        let unknown_symbol = binder.create_symbol(
+            SymbolFlags::PROPERTY,
+            tsc_types::EscapedName::from_identifier_escaped_text("unknown"),
+        );
 
         let mut state = Self {
             binder,
@@ -1273,7 +1306,8 @@ impl<'a> CheckerState<'a> {
             authoritative_implied_node_formats_for_emit: Vec::new(),
             authoritative_module_failure: std::cell::OnceCell::new(),
             host_file_paths: std::collections::HashSet::new(),
-            host_current_directory: "/".to_owned(),
+            host_input_snapshots: std::collections::HashMap::new(),
+            host_current_directory: "/".into(),
             host_package_json_module_types: std::collections::HashMap::new(),
             host_package_json_values: std::collections::HashMap::new(),
             host_package_json_names: std::collections::HashMap::new(),
@@ -1305,12 +1339,13 @@ impl<'a> CheckerState<'a> {
         // shadow earlier same-name entries (lib.rs last_index_by_name).
         for index in 0..state.binder.file_count() {
             let normalized =
-                Self::normalize_program_path(&state.binder.source(index).file_name, "");
+                Self::normalize_js_program_path(&state.binder.source(index).file_name, "");
             state.program_path_index.insert(normalized, index);
         }
-        state
-            .globals
-            .insert("globalThis".to_owned(), global_this_symbol);
+        state.globals.insert(
+            tsc_types::EscapedName::from_identifier_escaped_text("globalThis"),
+            global_this_symbol,
+        );
 
         // tsc restrictiveMapper/permissiveMapper (47103-47104): the two
         // function-mapper singletons.
@@ -1363,7 +1398,7 @@ impl<'a> CheckerState<'a> {
             .object_flags = fresh_jsx_flags;
         let empty_type_literal_symbol = state.binder.create_symbol(
             SymbolFlags::TYPE_LITERAL,
-            InternalSymbolName::TYPE.to_owned(),
+            tsc_types::EscapedName::internal(InternalSymbolName::TYPE),
         );
         state.empty_type_literal_type =
             state.create_resolved_empty_anonymous_type(Some(empty_type_literal_symbol));
@@ -1445,7 +1480,7 @@ impl<'a> CheckerState<'a> {
                 "function",
             ]
             .iter()
-            .map(|name| state.tables.get_string_literal_type(name))
+            .map(|name| state.tables.get_string_literal_type(*name))
             .collect();
             state
                 .get_union_type_ex(&members, tsc_types::UnionReduction::Literal)
@@ -1856,9 +1891,20 @@ impl<'a> CheckerState<'a> {
         message: &'static DiagnosticMessage,
         args: &[&str],
     ) -> Diagnostic {
+        let args = args.iter().map(|arg| JsStr::from(*arg)).collect::<Vec<_>>();
+        self.diagnostic_for_node_js(node, message, &args)
+    }
+
+    /// The node span is shared with the scalar entry; name-bearing arguments
+    /// remain canonical until the diagnostic output boundary.
+    pub fn diagnostic_for_node_js(
+        &self,
+        node: NodeId,
+        message: &'static DiagnosticMessage,
+        args: &[JsStr<'_>],
+    ) -> Diagnostic {
         let source = self.binder.source_of_node(node);
         let (start, end) = tsc_binder::node_util::get_error_span_for_node(source, node);
-        let args: Vec<String> = args.iter().map(|arg| (*arg).to_owned()).collect();
         let to_utf16 = |byte: usize| -> u32 {
             source
                 .positions()
@@ -1867,11 +1913,11 @@ impl<'a> CheckerState<'a> {
         };
         let start_utf16 = to_utf16(start);
         let end_utf16 = to_utf16(end);
-        Diagnostic::new(
+        Diagnostic::new_js(
             Some(source.file_name.clone()),
             Some(start_utf16),
             Some(end_utf16.saturating_sub(start_utf16)),
-            MessageChain::new(message, &args),
+            MessageChain::new_js_parts(message, args),
         )
     }
 
@@ -1988,12 +2034,19 @@ impl<'a> CheckerState<'a> {
         message: &'static DiagnosticMessage,
         args: &[&str],
     ) -> Diagnostic {
+        let args = args.iter().map(|arg| JsStr::from(*arg)).collect::<Vec<_>>();
+        self.create_error_js(location, message, &args)
+    }
+
+    pub fn create_error_js(
+        &self,
+        location: Option<NodeId>,
+        message: &'static DiagnosticMessage,
+        args: &[JsStr<'_>],
+    ) -> Diagnostic {
         match location {
-            Some(node) => self.diagnostic_for_node(node, message, args),
-            None => {
-                let args: Vec<String> = args.iter().map(|arg| (*arg).to_owned()).collect();
-                Diagnostic::new(None, None, None, MessageChain::new(message, &args))
-            }
+            Some(node) => self.diagnostic_for_node_js(node, message, args),
+            None => Diagnostic::new(None, None, None, MessageChain::new_js_parts(message, args)),
         }
     }
 
@@ -2013,15 +2066,17 @@ impl<'a> CheckerState<'a> {
         args: &[&str],
     ) -> usize {
         let diagnostic = self.create_error(location, message, args);
-        if let Some(existing) = self
-            .diagnostics
-            .iter()
-            .position(|existing| *existing == diagnostic)
-        {
-            return existing;
-        }
-        self.diagnostics.push(diagnostic);
-        self.diagnostics.len() - 1
+        self.push_error_diagnostic(diagnostic)
+    }
+
+    pub fn error_at_js(
+        &mut self,
+        location: Option<NodeId>,
+        message: &'static DiagnosticMessage,
+        args: &[JsStr<'_>],
+    ) -> usize {
+        let diagnostic = self.create_error_js(location, message, args);
+        self.push_error_diagnostic(diagnostic)
     }
 
     /// tsc createFileDiagnostic + diagnostics.add over an explicit
@@ -2062,7 +2117,7 @@ impl<'a> CheckerState<'a> {
             .iter()
             .map(|argument| (*argument).to_owned())
             .collect::<Vec<_>>();
-        let diagnostic = Diagnostic::new(
+        let diagnostic = Diagnostic::new_js(
             Some(source.file_name.clone()),
             Some(start_utf16),
             Some(end_utf16.saturating_sub(start_utf16)),
@@ -2132,6 +2187,18 @@ impl<'a> CheckerState<'a> {
         self.diagnostics.len() - 1
     }
 
+    pub fn error_at_with_related_js(
+        &mut self,
+        location: Option<NodeId>,
+        message: &'static DiagnosticMessage,
+        args: &[JsStr<'_>],
+        related: Vec<tsc_diagnostics::RelatedInfo>,
+    ) -> usize {
+        let mut diagnostic = self.create_error_js(location, message, args);
+        diagnostic.related = related;
+        self.push_error_diagnostic(diagnostic)
+    }
+
     /// tsc-port: lookupOrIssueError @6.0.3
     /// tsc-hash: 9571aad04fba17397e7740b9b0f7b02e8646fb85b89ae01858ad7879ead111d6
     /// tsc-span: _tsc.js:47565-47574
@@ -2144,7 +2211,17 @@ impl<'a> CheckerState<'a> {
         message: &'static DiagnosticMessage,
         args: &[&str],
     ) -> usize {
-        let diagnostic = self.create_error(location, message, args);
+        let args = args.iter().map(|arg| JsStr::from(*arg)).collect::<Vec<_>>();
+        self.lookup_or_issue_error_js(location, message, &args)
+    }
+
+    pub fn lookup_or_issue_error_js(
+        &mut self,
+        location: Option<NodeId>,
+        message: &'static DiagnosticMessage,
+        args: &[JsStr<'_>],
+    ) -> usize {
+        let diagnostic = self.create_error_js(location, message, args);
         let found = self.diagnostics.iter().position(|existing| {
             existing.file_name == diagnostic.file_name
                 && existing.start == diagnostic.start

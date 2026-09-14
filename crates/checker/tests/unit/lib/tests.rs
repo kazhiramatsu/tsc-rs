@@ -61,7 +61,18 @@ fn diagnostic_owners(result: &CheckResult, code: u32) -> Vec<String> {
         .diagnostics
         .iter()
         .filter(|diagnostic| diagnostic.code() == code)
-        .map(|diagnostic| diagnostic.file_name.clone().unwrap_or_default())
+        .map(|diagnostic| {
+            diagnostic
+                .file_name
+                .as_ref()
+                .map(|value| {
+                    value
+                        .as_str()
+                        .expect("scalar filename observation")
+                        .to_owned()
+                })
+                .unwrap_or_default()
+        })
         .collect()
 }
 
@@ -153,7 +164,18 @@ fn whole_program_semantic_getter_reassembles_cross_file_diagnostic_owners() {
         .expect("authoritative sessions publish the whole-Program getter")
         .iter()
         .filter(|diagnostic| diagnostic.code() == 2300)
-        .map(|diagnostic| diagnostic.file_name.clone().unwrap_or_default())
+        .map(|diagnostic| {
+            diagnostic
+                .file_name
+                .as_ref()
+                .map(|value| {
+                    value
+                        .as_str()
+                        .expect("scalar filename observation")
+                        .to_owned()
+                })
+                .unwrap_or_default()
+        })
         .collect::<Vec<_>>();
     duplicate_owners.sort();
     assert_eq!(duplicate_owners, ["/lib.d.ts", "/main.ts"]);
@@ -163,7 +185,18 @@ fn whole_program_semantic_getter_reassembles_cross_file_diagnostic_owners() {
         .expect("authoritative sessions publish the whole-Program getter")
         .iter()
         .filter(|diagnostic| diagnostic.code() == 2374)
-        .map(|diagnostic| diagnostic.file_name.clone().unwrap_or_default())
+        .map(|diagnostic| {
+            diagnostic
+                .file_name
+                .as_ref()
+                .map(|value| {
+                    value
+                        .as_str()
+                        .expect("scalar filename observation")
+                        .to_owned()
+                })
+                .unwrap_or_default()
+        })
         .collect::<Vec<_>>();
     index_duplicate_owners.sort();
     assert_eq!(
@@ -178,7 +211,18 @@ fn whole_program_semantic_getter_reassembles_cross_file_diagnostic_owners() {
         .expect("authoritative sessions publish the whole-Program getter")
         .iter()
         .filter(|diagnostic| diagnostic.code() == 2300)
-        .map(|diagnostic| diagnostic.file_name.clone().unwrap_or_default())
+        .map(|diagnostic| {
+            diagnostic
+                .file_name
+                .as_ref()
+                .map(|value| {
+                    value
+                        .as_str()
+                        .expect("scalar filename observation")
+                        .to_owned()
+                })
+                .unwrap_or_default()
+        })
         .collect::<Vec<_>>();
     skipped_duplicate_owners.sort();
     assert_eq!(skipped_duplicate_owners, ["/main.ts"]);
@@ -479,8 +523,16 @@ fn owned_no_emit_entry_materializes_globals_without_a_source_binder() {
     );
     assert_eq!(relaxed.global_diagnostics.len(), 8);
     assert!(relaxed.global_diagnostics.iter().all(|diagnostic| {
-        !diagnostic.message_text().contains("CallableFunction")
-            && !diagnostic.message_text().contains("NewableFunction")
+        !diagnostic
+            .message_text()
+            .as_str()
+            .expect("scalar diagnostic observation")
+            .contains("CallableFunction")
+            && !diagnostic
+                .message_text()
+                .as_str()
+                .expect("scalar diagnostic observation")
+                .contains("NewableFunction")
     }));
 }
 
@@ -542,7 +594,10 @@ fn public_getter_passes_keep_fixture_ordinal_before_global_sort() {
         result
             .file_diagnostics
             .iter()
-            .map(|file| file.file_name.as_str())
+            .map(|file| file
+                .file_name
+                .as_str()
+                .expect("scalar filename observation"))
             .collect::<Vec<_>>(),
         ["z.ts", "a.ts"]
     );
@@ -554,7 +609,13 @@ fn public_getter_passes_keep_fixture_ordinal_before_global_sort() {
         result
             .semantic_diagnostics
             .iter()
-            .map(|diagnostic| (diagnostic.file_name.as_deref(), diagnostic.code(),))
+            .map(|diagnostic| (
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .map(|value| value.as_js().as_str().expect("scalar name observation")),
+                diagnostic.code(),
+            ))
             .collect::<Vec<_>>(),
         [(Some("z.ts"), 6053), (Some("a.ts"), 6053)]
     );
@@ -587,12 +648,18 @@ fn missing_leading_path_reference_reports_exact_6053() {
     let diagnostic = &result.diagnostics[0];
     assert_eq!(
         (
-            diagnostic.file_name.as_deref(),
+            diagnostic
+                .file_name
+                .as_ref()
+                .map(|value| value.as_js().as_str().expect("scalar name observation")),
             diagnostic.code(),
             diagnostic.category(),
             diagnostic.start,
             diagnostic.length,
-            diagnostic.message_text(),
+            diagnostic
+                .message_text()
+                .as_str()
+                .expect("scalar diagnostic observation"),
         ),
         (
             Some("a.ts"),
@@ -622,7 +689,10 @@ fn relative_single_quoted_path_reference_resolves_against_the_source() {
             diagnostic.code(),
             diagnostic.start,
             diagnostic.length,
-            diagnostic.message_text(),
+            diagnostic
+                .message_text()
+                .as_str()
+                .expect("scalar diagnostic observation"),
         ),
         (6053, Some(20), Some(16), "File '/typescript.ts' not found.",)
     );
@@ -760,11 +830,22 @@ fn cwd_probe_diagnostic_rows(current_directory: &str) -> Vec<(String, u32, u32, 
         .iter()
         .map(|diag| {
             (
-                diag.file_name.clone().unwrap_or_default(),
+                diag.file_name
+                    .as_ref()
+                    .map(|value| {
+                        value
+                            .as_str()
+                            .expect("scalar filename observation")
+                            .to_owned()
+                    })
+                    .unwrap_or_default(),
                 diag.code(),
                 diag.start.unwrap_or(u32::MAX),
                 diag.length.unwrap_or(u32::MAX),
-                diag.message_text().to_owned(),
+                diag.message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation")
+                    .to_owned(),
             )
         })
         .collect()
@@ -824,6 +905,7 @@ fn mixed_separator_cwd_resolves_dot_segments_before_backslash_flip() {
     // ".." remove the final segment of posixCwd.
     let process_cwd = posix_process_cwd();
     let module_path = state::CheckerState::normalize_program_path("b", &process_cwd);
+    let module_path = module_path.as_str().expect("scalar filename observation");
     assert_eq!(
         cwd_probe_diagnostic_rows("\\/.."),
         [(
@@ -999,7 +1081,16 @@ fn stale_prepared_harness_bundle_falls_back_to_ordinary_exact_bundle() {
         result
             .diagnostics
             .iter()
-            .map(|diagnostic| (diagnostic.code(), diagnostic.message_text().to_owned()))
+            .map(|diagnostic| {
+                (
+                    diagnostic.code(),
+                    diagnostic
+                        .message_text()
+                        .as_str()
+                        .expect("scalar diagnostic observation")
+                        .to_owned(),
+                )
+            })
             .collect()
     }
 
@@ -1242,7 +1333,7 @@ fn authoritative_not_found_facts_reach_the_node10_diagnostic_chain() {
             Ok(AuthoritativeModuleResolution::NotFound(
                 AuthoritativeNotFoundModule {
                     alternate_result: Some(
-                        "/node_modules/pkg/definitely-not-index.d.ts".to_owned(),
+                        ("/node_modules/pkg/definitely-not-index.d.ts".to_owned()).into(),
                     ),
                 },
             ))
@@ -1285,10 +1376,16 @@ fn authoritative_not_found_facts_reach_the_node10_diagnostic_chain() {
         .expect("module-not-found diagnostic");
     assert_eq!(
         (
-            diagnostic.file_name.as_deref(),
+            diagnostic
+                .file_name
+                .as_ref()
+                .map(|value| value.as_js().as_str().expect("scalar name observation")),
             diagnostic.start,
             diagnostic.length,
-            diagnostic.message_text(),
+            diagnostic
+                .message_text()
+                .as_str()
+                .expect("scalar diagnostic observation"),
         ),
         (
             Some("/index.ts"),
@@ -1302,7 +1399,7 @@ fn authoritative_not_found_facts_reach_the_node10_diagnostic_chain() {
             (
                 diagnostic.message.next[0].code,
                 diagnostic.message.next[0].category,
-                diagnostic.message.next[0].text.as_str(),
+                diagnostic.message.next[0].text.as_str().expect("scalar diagnostic observation"),
             ),
             (
                 6280,
@@ -1423,8 +1520,14 @@ fn bom_before_arrow_at_line_end_does_not_create_a_line_terminator_error() {
 #[test]
 fn host_package_json_accepts_one_leading_bom() {
     assert_eq!(
-        parse_host_package_json("\u{feff}{\"type\":\"module\"}"),
-        parse_host_package_json("{\"type\":\"module\"}")
+        parse_host_package_json(&InputFile::new(
+            "/package.json".to_owned(),
+            "\u{feff}{\"type\":\"module\"}".to_owned()
+        )),
+        parse_host_package_json(&InputFile::new(
+            "/package.json".to_owned(),
+            "{\"type\":\"module\"}".to_owned()
+        ))
     );
 }
 
@@ -1476,6 +1579,8 @@ fn implicit_external_modules_exclude_umd_global_aliases() {
                 .find(|diagnostic| diagnostic.code() == 2741)
                 .expect("the computed-property assignment should report 2741")
                 .message_text()
+                .as_str()
+                .expect("scalar diagnostic observation")
                 .to_owned()
         };
     let assignment = "declare let a: {};\nlet b: {\n  // @ts-ignore\n  [U.s]: number\n} = a;\n";
@@ -1568,7 +1673,10 @@ fn import_type_missing_member_uses_absolute_module_name() {
         .find(|diagnostic| diagnostic.code() == 2694)
         .expect("missing import-type member should report 2694");
     assert_eq!(
-        diagnostic.message_text(),
+        diagnostic
+            .message_text()
+            .as_str()
+            .expect("scalar diagnostic observation"),
         "Namespace '\"/m\"' has no exported member 'Missing'."
     );
 }
@@ -1736,7 +1844,7 @@ fn base_url_miss_without_a_paths_match_reports_2307() {
             "import { value } from \"definitely-missing\";\nvalue;\n".to_owned(),
         )],
         &CompilerOptions {
-            base_url: Some("src".to_owned()),
+            base_url: Some(("src".to_owned()).into()),
             ..CompilerOptions::default()
         },
     );
@@ -1828,7 +1936,10 @@ fn checked_js_publishes_namespace_export_declaration_bind_diagnostic() {
         .filter(|diagnostic| diagnostic.code() == 1315)
         .map(|diagnostic| {
             (
-                diagnostic.file_name.as_deref(),
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .map(|value| value.as_js().as_str().expect("scalar name observation")),
                 diagnostic.start,
                 diagnostic.length,
             )
@@ -1917,7 +2028,11 @@ fn external_emit_helpers_validate_an_in_program_tslib() {
         .iter()
         .find(|diagnostic| diagnostic.code() == 2343)
         .expect("missing __importStar should report");
-    assert!(helper.message_text().contains("__importStar"));
+    assert!(helper
+        .message_text()
+        .as_str()
+        .expect("scalar diagnostic observation")
+        .contains("__importStar"));
 }
 
 #[test]
@@ -1978,7 +2093,11 @@ fn external_emit_helpers_check_spread_array_arity() {
         .iter()
         .find(|diagnostic| diagnostic.code() == 2807)
         .expect("two-parameter __spreadArray should report");
-    assert!(helper.message_text().contains("3 parameters"));
+    assert!(helper
+        .message_text()
+        .as_str()
+        .expect("scalar diagnostic observation")
+        .contains("3 parameters"));
 }
 
 #[test]
@@ -2043,7 +2162,10 @@ fn external_emit_helpers_check_private_get_and_set_arity() {
                 (
                     diagnostic.start.unwrap_or_default(),
                     diagnostic.length.unwrap_or_default(),
-                    diagnostic.message_text(),
+                    diagnostic
+                        .message_text()
+                        .as_str()
+                        .expect("scalar diagnostic observation"),
                 )
             })
             .collect::<Vec<_>>();
@@ -2102,7 +2224,12 @@ fn external_emit_helpers_cover_decorator_named_evaluation_helpers() {
         .diagnostics
         .iter()
         .filter(|diagnostic| diagnostic.code() == 2343)
-        .map(|diagnostic| diagnostic.message_text())
+        .map(|diagnostic| {
+            diagnostic
+                .message_text()
+                .as_str()
+                .expect("scalar diagnostic observation")
+        })
         .collect();
     for helper in [
         "__esDecorate",
@@ -2313,7 +2440,8 @@ fn node16_mode_mismatch_details_preserve_package_type_evidence() {
                 (
                     diagnostic
                         .file_name
-                        .as_deref()
+                        .as_ref()
+                        .map(|value| value.as_js().as_str().expect("scalar name observation"))
                         .expect("mode mismatch is located")
                         .to_owned(),
                     diagnostic.message.next.first().map(|detail| detail.code),
@@ -2437,7 +2565,16 @@ fn bundler_does_not_infer_plain_target_format_from_package_scope() {
         .filter(|diagnostic| diagnostic.code() == 1192)
         .map(|diagnostic| {
             (
-                diagnostic.file_name.clone().expect("located diagnostic"),
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .map(|value| {
+                        value
+                            .as_str()
+                            .expect("scalar filename observation")
+                            .to_owned()
+                    })
+                    .expect("located diagnostic"),
                 diagnostic.code(),
                 diagnostic.start.expect("located diagnostic"),
                 diagnostic.length.expect("located diagnostic"),
@@ -2482,7 +2619,16 @@ fn emit_format_distinguishes_explicit_commonjs_from_missing_package_type() {
         .filter(|diagnostic| diagnostic.code() == 1287)
         .map(|diagnostic| {
             (
-                diagnostic.file_name.clone().expect("located diagnostic"),
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .map(|value| {
+                        value
+                            .as_str()
+                            .expect("scalar filename observation")
+                            .to_owned()
+                    })
+                    .expect("located diagnostic"),
                 diagnostic.code(),
                 diagnostic.start.expect("located diagnostic"),
                 diagnostic.length.expect("located diagnostic"),
@@ -2744,7 +2890,10 @@ fn node20_module_exports_precedes_syntactic_default() {
         .collect();
     assert_eq!(errors.len(), 1, "{:#?}", result.diagnostics);
     assert_eq!(
-        errors[0].message_text(),
+        errors[0]
+            .message_text()
+            .as_str()
+            .expect("scalar diagnostic observation"),
         "Argument of type 'string' is not assignable to parameter of type 'number'."
     );
 }
@@ -2788,7 +2937,10 @@ fn checked_cjs_require_of_node20_esm_namespace_is_not_constructable() {
             result.partial_checks
         );
         assert_eq!(
-            errors[0].message_text(),
+            errors[0]
+                .message_text()
+                .as_str()
+                .expect("scalar diagnostic observation"),
             "This expression is not constructable."
         );
     }
@@ -2823,7 +2975,10 @@ fn node20_namespace_import_uses_distinct_module_exports_export() {
         .collect();
     assert_eq!(errors.len(), 1, "{:#?}", result.diagnostics);
     assert_eq!(
-        errors[0].message_text(),
+        errors[0]
+            .message_text()
+            .as_str()
+            .expect("scalar diagnostic observation"),
         "Argument of type 'string' is not assignable to parameter of type 'number'."
     );
 }
@@ -2867,7 +3022,14 @@ fn js_pair_diagnostics(js: &str, ts: &str) -> Vec<(u32, Option<String>)> {
     )
     .diagnostics
     .into_iter()
-    .map(|diagnostic| (diagnostic.code(), diagnostic.file_name))
+    .map(|diagnostic| {
+        (
+            diagnostic.code(),
+            diagnostic
+                .file_name
+                .map(|value| value.as_str().expect("scalar value observation").to_owned()),
+        )
+    })
     .collect()
 }
 
@@ -2960,8 +3122,26 @@ fn in_operator_missing_key_join_keeps_later_const_key_narrowing() {
     let rows: Vec<(String, u32)> = result
         .diagnostics
         .iter()
-        .filter(|d| d.file_name.as_deref() == Some("a.ts"))
-        .map(|d| (d.file_name.clone().unwrap_or_default(), d.code()))
+        .filter(|d| {
+            d.file_name
+                .as_ref()
+                .map(|value| value.as_js().as_str().expect("scalar name observation"))
+                == Some("a.ts")
+        })
+        .map(|d| {
+            (
+                d.file_name
+                    .as_ref()
+                    .map(|value| {
+                        value
+                            .as_str()
+                            .expect("scalar filename observation")
+                            .to_owned()
+                    })
+                    .unwrap_or_default(),
+                d.code(),
+            )
+        })
         .collect();
     assert_eq!(rows, Vec::<(String, u32)>::new());
 }
@@ -3026,7 +3206,12 @@ fn overload_failure_promise_intersection_awaits_to_never() {
     let rows: Vec<(u32, u32)> = result
         .diagnostics
         .iter()
-        .filter(|d| d.file_name.as_deref() == Some("a.ts"))
+        .filter(|d| {
+            d.file_name
+                .as_ref()
+                .map(|value| value.as_js().as_str().expect("scalar name observation"))
+                == Some("a.ts")
+        })
         .map(|d| (d.code(), d.start.unwrap_or(0)))
         .collect();
     assert_eq!(rows, [(2769, 242)]);
@@ -3070,7 +3255,12 @@ fn async_iteration_fixture_reports_no_spurious_2322() {
     let rows: Vec<u32> = result
         .diagnostics
         .iter()
-        .filter(|d| d.file_name.as_deref() == Some("a.ts"))
+        .filter(|d| {
+            d.file_name
+                .as_ref()
+                .map(|value| value.as_js().as_str().expect("scalar name observation"))
+                == Some("a.ts")
+        })
         .map(|d| d.code())
         .collect();
     assert_eq!(
@@ -4368,7 +4558,14 @@ fn dependent_parameter_narrowing_stops_after_parameter_assignment() {
     let diagnostic = diagnostics[0];
     assert_eq!((diagnostic.start, diagnostic.length), (Some(150), Some(5)));
     assert_eq!(
-        (diagnostic.message.code, diagnostic.message.text.as_str()),
+        (
+            diagnostic.message.code,
+            diagnostic
+                .message
+                .text
+                .as_str()
+                .expect("scalar diagnostic observation")
+        ),
         (
             2339,
             "Property 'aOnly' does not exist on type '{ aOnly: 1; } | { bOnly: 1; }'.",
@@ -4377,7 +4574,10 @@ fn dependent_parameter_narrowing_stops_after_parameter_assignment() {
     assert_eq!(diagnostic.message.next.len(), 1);
     let child = &diagnostic.message.next[0];
     assert_eq!(
-        (child.code, child.text.as_str()),
+        (
+            child.code,
+            child.text.as_str().expect("scalar diagnostic observation")
+        ),
         (
             2339,
             "Property 'aOnly' does not exist on type '{ bOnly: 1; }'.",
@@ -4650,7 +4850,10 @@ fn checked_js_publishes_property_misses_on_non_js_declared_types() {
             .diagnostics
             .iter()
             .map(|diagnostic| (
-                diagnostic.file_name.as_deref(),
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .map(|value| value.as_js().as_str().expect("scalar name observation")),
                 diagnostic.code(),
                 diagnostic.start.unwrap_or(u32::MAX),
                 diagnostic.length.unwrap_or(u32::MAX),
@@ -4839,7 +5042,10 @@ fn checked_js_publishes_imported_class_alias_expando_misses() {
             .diagnostics
             .iter()
             .map(|diagnostic| (
-                diagnostic.file_name.as_deref(),
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .map(|value| value.as_js().as_str().expect("scalar name observation")),
                 diagnostic.code(),
                 diagnostic.start.unwrap_or(u32::MAX),
                 diagnostic.length.unwrap_or(u32::MAX),
@@ -4977,7 +5183,10 @@ fn checked_js_publishes_chained_identifier_empty_assignment_misses() {
                 diagnostic.code(),
                 diagnostic.start.unwrap_or(u32::MAX),
                 diagnostic.length.unwrap_or(u32::MAX),
-                diagnostic.message_text(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation"),
             ))
             .collect::<Vec<_>>(),
         [
@@ -5043,7 +5252,10 @@ fn checked_js_publishes_prototype_object_property_assignment_misses() {
                 diagnostic.code(),
                 diagnostic.start.unwrap_or(u32::MAX),
                 diagnostic.length.unwrap_or(u32::MAX),
-                diagnostic.message_text(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation"),
             ))
             .collect::<Vec<_>>(),
         [
@@ -5141,7 +5353,10 @@ fn checked_js_publishes_jsdoc_satisfies_object_literal_property_reads() {
                 diagnostic.code(),
                 diagnostic.start.unwrap_or(u32::MAX),
                 diagnostic.length.unwrap_or(u32::MAX),
-                diagnostic.message_text(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation"),
             ))
             .collect::<Vec<_>>(),
         [
@@ -5195,7 +5410,10 @@ fn checked_js_valid_template_nested_prototype_read_is_parse_all_crash_guard() {
                 diagnostic.code(),
                 diagnostic.start.unwrap_or(u32::MAX),
                 diagnostic.length.unwrap_or(u32::MAX),
-                diagnostic.message_text(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation"),
             ))
             .collect::<Vec<_>>(),
         [(
@@ -5324,7 +5542,10 @@ fn checked_js_publishes_this_prototype_class_property_reads() {
                 diagnostic.code(),
                 diagnostic.start.unwrap_or(u32::MAX),
                 diagnostic.length.unwrap_or(u32::MAX),
-                diagnostic.message_text(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation"),
             ))
             .collect::<Vec<_>>(),
         [(
@@ -5363,7 +5584,10 @@ fn checked_js_publishes_jsdoc_chained_static_assignment_this_reads() {
                 diagnostic.code(),
                 diagnostic.start.unwrap_or(u32::MAX),
                 diagnostic.length.unwrap_or(u32::MAX),
-                diagnostic.message_text(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation"),
             ))
             .collect::<Vec<_>>(),
         [(
@@ -5404,7 +5628,10 @@ fn checked_js_publishes_class_this_miss_from_jsdoc_this_annotated_arrow() {
                 diagnostic.code(),
                 diagnostic.start.unwrap_or(u32::MAX),
                 diagnostic.length.unwrap_or(u32::MAX),
-                diagnostic.message_text(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation"),
             ))
             .collect::<Vec<_>>(),
         [
@@ -5450,7 +5677,10 @@ fn checked_js_publishes_primitive_module_exports_assignment_misses() {
             .diagnostics
             .iter()
             .map(|diagnostic| (
-                diagnostic.file_name.as_deref(),
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .map(|value| value.as_js().as_str().expect("scalar name observation")),
                 diagnostic.code(),
                 diagnostic.start.unwrap_or(u32::MAX),
                 diagnostic.length.unwrap_or(u32::MAX),
@@ -5506,16 +5736,23 @@ fn checked_js_common_js_object_replacement_unions_direct_export_members() {
             .diagnostics
             .iter()
             .map(|diagnostic| (
-                diagnostic.file_name.clone(),
+                diagnostic.file_name.as_ref().map(|value| value
+                    .as_str()
+                    .expect("scalar filename observation")
+                    .to_owned()),
                 diagnostic.code(),
                 diagnostic.start.unwrap_or(u32::MAX),
                 diagnostic.length.unwrap_or(u32::MAX),
-                diagnostic.message_text().to_owned(),
                 diagnostic
-                    .message
-                    .next
-                    .first()
-                    .map(|message| message.text.clone()),
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation")
+                    .to_owned(),
+                diagnostic.message.next.first().map(|message| message
+                    .text
+                    .as_str()
+                    .expect("scalar value observation")
+                    .to_owned()),
             ))
             .collect::<Vec<_>>(),
         [
@@ -5576,9 +5813,13 @@ fn checked_js_exposes_typed_declaration_arity_diagnostics() {
         .filter(|diagnostic| diagnostic.code() == 2554)
         .collect::<Vec<_>>();
     assert_eq!(arity_rows.len(), 6, "{:#?}", result.diagnostics);
-    assert!(arity_rows
-        .iter()
-        .all(|diagnostic| { diagnostic.file_name.as_deref() == Some("a.js") }));
+    assert!(arity_rows.iter().all(|diagnostic| {
+        diagnostic
+            .file_name
+            .as_ref()
+            .map(|value| value.as_js().as_str().expect("scalar name observation"))
+            == Some("a.js")
+    }));
 }
 
 #[test]
@@ -5604,11 +5845,17 @@ fn checked_js_publishes_non_jsdoc_readonly_enum_expandos() {
             .diagnostics
             .iter()
             .map(|diagnostic| (
-                diagnostic.file_name.as_deref(),
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .map(|value| value.as_js().as_str().expect("scalar name observation")),
                 diagnostic.code(),
                 diagnostic.start.unwrap_or(u32::MAX),
                 diagnostic.length.unwrap_or(u32::MAX),
-                diagnostic.message_text(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation"),
             ))
             .collect::<Vec<_>>(),
         [
@@ -5735,11 +5982,17 @@ fn checked_js_jsdoc_augments_reports_only_effective_hosts() {
         .filter(|diagnostic| matches!(diagnostic.code(), 8022 | 8023))
         .map(|diagnostic| {
             (
-                diagnostic.file_name.as_deref(),
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .map(|value| value.as_js().as_str().expect("scalar name observation")),
                 diagnostic.start,
                 diagnostic.length,
                 diagnostic.code(),
-                diagnostic.message_text(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation"),
             )
         })
         .collect::<Vec<_>>();
@@ -5816,10 +6069,16 @@ fn checked_js_detached_augments_document_keeps_fileless_8022() {
         .filter(|diagnostic| diagnostic.code() == 8022)
         .map(|diagnostic| {
             (
-                diagnostic.file_name.as_deref(),
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .map(|value| value.as_js().as_str().expect("scalar name observation")),
                 diagnostic.start,
                 diagnostic.length,
-                diagnostic.message_text(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation"),
             )
         })
         .collect::<Vec<_>>();
@@ -5859,10 +6118,16 @@ fn checked_js_detached_implements_document_keeps_fileless_8022() {
         .filter(|diagnostic| diagnostic.code() == 8022)
         .map(|diagnostic| {
             (
-                diagnostic.file_name.as_deref(),
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .map(|value| value.as_js().as_str().expect("scalar name observation")),
                 diagnostic.start,
                 diagnostic.length,
-                diagnostic.message_text(),
+                diagnostic
+                    .message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation"),
             )
         })
         .collect::<Vec<_>>();
@@ -6330,7 +6595,16 @@ fn skip_lib_check_preserves_syntax_errors_and_skips_semantic_errors() {
         .iter()
         .map(|diagnostic| {
             (
-                diagnostic.file_name.clone().unwrap_or_default(),
+                diagnostic
+                    .file_name
+                    .as_ref()
+                    .map(|value| {
+                        value
+                            .as_str()
+                            .expect("scalar filename observation")
+                            .to_owned()
+                    })
+                    .unwrap_or_default(),
                 diagnostic.code(),
                 diagnostic.start.unwrap_or(u32::MAX),
             )
@@ -6366,7 +6640,10 @@ fn lib_backed_diags(text: &str) -> Vec<(u32, u32, u32, String)> {
                 d.code(),
                 d.start.unwrap_or(u32::MAX),
                 d.length.unwrap_or(u32::MAX),
-                d.message_text().to_owned(),
+                d.message_text()
+                    .as_str()
+                    .expect("scalar diagnostic observation")
+                    .to_owned(),
             )
         })
         .collect()

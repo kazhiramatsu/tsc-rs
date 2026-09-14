@@ -12,7 +12,7 @@ use tsc_binder::node_util::{
     is_function_like_declaration_kind, is_function_like_kind, is_part_of_parameter_declaration,
 };
 use tsc_binder::{SymbolId, SymbolTable};
-use tsc_diagnostics::{gen as diagnostics, DiagnosticCategory, DiagnosticMessage};
+use tsc_diagnostics::{gen as diagnostics, DiagnosticCategory, DiagnosticMessage, JsStr, JsString};
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{ModifierFlags, NodeFlags, ScriptTarget, SymbolFlags, TypeFlags};
 
@@ -40,10 +40,10 @@ impl<'a> CheckerState<'a> {
     /// The Alias arm chases the alias TARGET's flags (getSymbolFlags,
     /// M4 5.8d): an alias whose own flags miss `meaning` matches when
     /// its resolved chain carries it.
-    pub fn get_symbol_in_table(
+    pub fn get_symbol_in_table<'n>(
         &mut self,
         table: &SymbolTable,
-        name: &str,
+        name: impl Into<tsc_types::JsStr<'n>>,
         meaning: SymbolFlags,
     ) -> CheckResult<Option<SymbolId>> {
         if meaning.is_empty() {
@@ -93,7 +93,7 @@ impl<'a> CheckerState<'a> {
     fn lookup_probe(
         &mut self,
         table: &SymbolTable,
-        name: &str,
+        name: JsStr<'_>,
         meaning: SymbolFlags,
         suggestion: bool,
         is_globals: bool,
@@ -130,7 +130,7 @@ impl<'a> CheckerState<'a> {
     fn finish_lookup(
         &mut self,
         probe: LookupProbe,
-        name: &str,
+        name: JsStr<'_>,
         meaning: SymbolFlags,
     ) -> Option<SymbolId> {
         match probe {
@@ -143,10 +143,10 @@ impl<'a> CheckerState<'a> {
                 let mut candidates =
                     Vec::with_capacity(values.len() + capitalized_primitives.len());
                 for primitive in capitalized_primitives {
-                    candidates.push(
-                        self.binder
-                            .create_symbol(SymbolFlags::TYPE_ALIAS, primitive.to_owned()),
-                    );
+                    candidates.push(self.binder.create_symbol(
+                        SymbolFlags::TYPE_ALIAS,
+                        tsc_types::EscapedName::from_identifier_escaped_text(primitive),
+                    ));
                 }
                 candidates.extend(values);
                 self.get_spelling_suggestion_for_name(
@@ -166,10 +166,10 @@ impl<'a> CheckerState<'a> {
     /// - the JS `require` fallback (requireSymbol — M2 3.4c residual).
     /// - the EnumDeclaration isolatedModules qualification error
     ///   (isolatedModules option unmodeled).
-    pub fn resolve_name(
+    pub fn resolve_name<'n>(
         &mut self,
         location: Option<NodeId>,
-        name: &str,
+        name: impl Into<JsStr<'n>>,
         meaning: SymbolFlags,
         name_not_found_message: Option<&'static DiagnosticMessage>,
         is_use: bool,
@@ -177,7 +177,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Option<SymbolId>> {
         self.resolve_name_full(
             location,
-            name,
+            name.into(),
             meaning,
             name_not_found_message,
             is_use,
@@ -194,15 +194,20 @@ impl<'a> CheckerState<'a> {
     /// (75522-75535): the SAME scope walk, each table answering
     /// exact-match-else-spelling — an inner near-miss legitimately
     /// shadows an outer exact match, like tsc.
-    pub(crate) fn resolve_name_for_symbol_suggestion(
+    pub(crate) fn resolve_name_for_symbol_suggestion<'n>(
         &mut self,
         location: Option<NodeId>,
-        name: &str,
+        name: impl Into<JsStr<'n>>,
         meaning: SymbolFlags,
     ) -> CheckResult<Option<SymbolId>> {
         self.resolve_name_full(
-            location, name, meaning, /*name_not_found_message*/ None, /*is_use*/ false,
-            /*exclude_globals*/ false, /*suggestion*/ true,
+            location,
+            name.into(),
+            meaning,
+            /*name_not_found_message*/ None,
+            /*is_use*/ false,
+            /*exclude_globals*/ false,
+            /*suggestion*/ true,
         )
     }
 
@@ -210,7 +215,7 @@ impl<'a> CheckerState<'a> {
     fn resolve_name_full(
         &mut self,
         location: Option<NodeId>,
-        name: &str,
+        name: JsStr<'_>,
         meaning: SymbolFlags,
         name_not_found_message: Option<&'static DiagnosticMessage>,
         is_use: bool,
@@ -353,7 +358,7 @@ impl<'a> CheckerState<'a> {
                                 let local = self.local_symbol_for_export_default(default_export);
                                 if let Some(local) = local {
                                     if self.binder.symbol(default_export).flags.intersects(meaning)
-                                        && self.binder.symbol(local).escaped_name == name
+                                        && self.binder.symbol(local).escaped_name.as_js() == name
                                     {
                                         result = Some(default_export);
                                         break 'walk;
@@ -496,7 +501,7 @@ impl<'a> CheckerState<'a> {
                             unreachable!("ClassExpression kind implies payload");
                         };
                         if let Some(class_name) = data.name {
-                            if self.identifier_text_of(class_name) == Some(name) {
+                            if self.identifier_text_of(class_name).map(JsStr::from) == Some(name) {
                                 result = self.binder.node_symbol(loc);
                                 if result.is_some() {
                                     break 'walk;
@@ -603,7 +608,8 @@ impl<'a> CheckerState<'a> {
                             unreachable!("kind implies payload");
                         };
                         if let Some(function_name) = data.name {
-                            if self.identifier_text_of(function_name) == Some(name) {
+                            if self.identifier_text_of(function_name).map(JsStr::from) == Some(name)
+                            {
                                 result = self.binder.node_symbol(loc);
                                 if result.is_some() {
                                     break 'walk;
@@ -692,7 +698,7 @@ impl<'a> CheckerState<'a> {
                                 unreachable!("TypeParameter kind implies payload");
                             };
                             if let Some(tp_name) = tp.name {
-                                if self.identifier_text_of(tp_name) == Some(name) {
+                                if self.identifier_text_of(tp_name).map(JsStr::from) == Some(name) {
                                     result = self.binder.node_symbol(type_parameter);
                                     if result.is_some() {
                                         break 'walk;
@@ -1036,7 +1042,7 @@ impl<'a> CheckerState<'a> {
     fn check_and_report_error_for_invalid_initializer(
         &mut self,
         error_location: Option<NodeId>,
-        name: &str,
+        name: JsStr<'_>,
         property: NodeId,
         result: Option<SymbolId>,
     ) -> bool {
@@ -1081,11 +1087,11 @@ impl<'a> CheckerState<'a> {
                 node_util::declaration_name_to_string(self.binder.source_of_node(property), Some(n))
             })
             .unwrap_or_default();
-        self.error_at(
+        self.error_at_js(
             error_location,
             message,
             &[
-                &property_name,
+                (&property_name).into(),
                 tsc_binder::unescape_leading_underscores(name),
             ],
         );
@@ -1195,7 +1201,7 @@ impl<'a> CheckerState<'a> {
     fn on_failed_to_resolve_symbol(
         &mut self,
         error_location: Option<NodeId>,
-        name: &str,
+        name: JsStr<'_>,
         meaning: SymbolFlags,
         message: &'static DiagnosticMessage,
     ) {
@@ -1299,21 +1305,22 @@ impl<'a> CheckerState<'a> {
         // the noLib bootstrap burns all 10 (run_init_global_type_probes)
         // — oracle-pinned via strictBindCallApply:false. Every failure
         // reaching this tail consumes one slot, suggestion or not.
-        let display = error_location
+        let display: JsString = error_location
             .filter(|&location| {
                 self.kind_of(location) == SyntaxKind::Identifier
-                    && self.identifier_text_of(location) == Some(name)
+                    && self.identifier_text_of(location).map(JsStr::from) == Some(name)
             })
             .map(|location| {
                 node_util::declaration_name_to_string(
                     self.binder.source_of_node(location),
                     Some(location),
                 )
+                .into()
             })
             .unwrap_or_else(|| tsc_binder::unescape_leading_underscores(name).to_owned());
         let suggested_lib = get_suggested_lib_for_non_existent_name(name);
         if let Some(lib) = suggested_lib {
-            self.error_at(error_location, message, &[display.as_str(), lib]);
+            self.error_at_js(error_location, message, &[display.as_js(), lib.into()]);
         } else {
             let mut suggestion: Option<SymbolId> = None;
             if self.suggestion_count < MAXIMUM_SUGGESTION_COUNT {
@@ -1359,13 +1366,13 @@ impl<'a> CheckerState<'a> {
                     let mut diagnostic = self.diagnostic_for_node_or_compiler(
                         error_location,
                         did_you_mean,
-                        &[display.as_str(), &suggestion_name],
+                        &[display.as_js(), suggestion_name.as_js()],
                     );
                     // getCanonicalDiagnostic(nameNotFoundMessage, name):
                     // sort/dedupe compare through the PLAIN form.
                     diagnostic.canonical_head = Some(tsc_diagnostics::CanonicalHead {
                         code: message.code,
-                        text: tsc_diagnostics::MessageChain::new(
+                        text: tsc_diagnostics::MessageChain::new_js(
                             message,
                             std::slice::from_ref(&display),
                         )
@@ -1383,10 +1390,10 @@ impl<'a> CheckerState<'a> {
                         if let Some(value_declaration) =
                             self.binder.symbol(suggested).value_declaration
                         {
-                            diagnostic.related.push(self.related_info_for_node(
+                            diagnostic.related.push(self.related_info_for_node_js(
                                 value_declaration,
                                 &diagnostics::_0_is_declared_here,
-                                &[&suggestion_name],
+                                &[suggestion_name.as_js()],
                             ));
                         }
                     }
@@ -1394,7 +1401,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
             if suggestion.is_none() {
-                self.error_at(error_location, message, &[display.as_str()]);
+                self.error_at_js(error_location, message, &[display.as_js()]);
             }
         }
         self.suggestion_count += 1;
@@ -1406,7 +1413,7 @@ impl<'a> CheckerState<'a> {
     fn check_and_report_error_for_using_type_as_namespace(
         &mut self,
         error_location: NodeId,
-        name: &str,
+        name: JsStr<'_>,
         meaning: SymbolFlags,
     ) -> CheckResult<bool> {
         let namespace_meaning = if self.is_in_js_file(error_location) {
@@ -1439,10 +1446,10 @@ impl<'a> CheckerState<'a> {
                                 .get_property_of_type_full(declared, &property_name)?
                                 .is_some()
                             {
-                                self.error_at(
+                                self.error_at_js(
                                     Some(parent),
                                     &diagnostics::Cannot_access_0_1_because_0_is_a_type_but_not_a_namespace_Did_you_mean_to_retrieve_the_type_of_the_property_1_in_0_with_0_1,
-                                    &[display, &property_name],
+                                    &[display, (&property_name).into()],
                                 );
                                 reported = true;
                             }
@@ -1452,7 +1459,7 @@ impl<'a> CheckerState<'a> {
             }
         }
         if !reported {
-            self.error_at(
+            self.error_at_js(
                 Some(error_location),
                 &diagnostics::_0_only_refers_to_a_type_but_is_being_used_as_a_namespace_here,
                 &[display],
@@ -1467,7 +1474,7 @@ impl<'a> CheckerState<'a> {
     fn check_and_report_error_for_using_namespace_as_type_or_value(
         &mut self,
         error_location: NodeId,
-        name: &str,
+        name: JsStr<'_>,
         meaning: SymbolFlags,
     ) -> CheckResult<bool> {
         let value_only =
@@ -1502,7 +1509,7 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         let display = tsc_binder::unescape_leading_underscores(name);
-        self.error_at(Some(error_location), message, &[display]);
+        self.error_at_js(Some(error_location), message, &[display]);
         Ok(true)
     }
 
@@ -1536,7 +1543,7 @@ impl<'a> CheckerState<'a> {
     fn check_and_report_error_for_using_type_as_value(
         &mut self,
         error_location: NodeId,
-        name: &str,
+        name: JsStr<'_>,
         meaning: SymbolFlags,
     ) -> CheckResult<bool> {
         if !meaning.intersects(SymbolFlags::VALUE) {
@@ -1558,20 +1565,20 @@ impl<'a> CheckerState<'a> {
         }
         let display = tsc_binder::unescape_leading_underscores(name);
         if is_es2015_or_later_constructor_name(name) {
-            self.error_at(
+            self.error_at_js(
                 Some(error_location),
                 &diagnostics::_0_only_refers_to_a_type_but_is_being_used_as_a_value_here_Do_you_need_to_change_your_target_library_Try_changing_the_lib_compiler_option_to_es2015_or_later,
                 &[display],
             );
         } else if self.maybe_mapped_type_for_value_error(error_location, symbol)? {
             let replacement = if display == "K" { "P" } else { "K" };
-            self.error_at(
+            self.error_at_js(
                 Some(error_location),
                 &diagnostics::_0_only_refers_to_a_type_but_is_being_used_as_a_value_here_Did_you_mean_to_use_1_in_0,
-                &[display, replacement],
+                &[display, replacement.into()],
             );
         } else {
-            self.error_at(
+            self.error_at_js(
                 Some(error_location),
                 &diagnostics::_0_only_refers_to_a_type_but_is_being_used_as_a_value_here,
                 &[display],
@@ -1637,7 +1644,7 @@ impl<'a> CheckerState<'a> {
     fn check_and_report_error_for_using_value_as_type(
         &mut self,
         error_location: NodeId,
-        name: &str,
+        name: JsStr<'_>,
         meaning: SymbolFlags,
     ) -> CheckResult<bool> {
         let non_namespace_type =
@@ -1662,7 +1669,7 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         let display = tsc_binder::unescape_leading_underscores(name);
-        self.error_at(
+        self.error_at_js(
             Some(error_location),
             &diagnostics::_0_refers_to_a_value_but_is_being_used_as_a_type_here_Did_you_mean_typeof_0,
             &[display],
@@ -1702,19 +1709,16 @@ impl<'a> CheckerState<'a> {
         &self,
         location: Option<NodeId>,
         message: &'static DiagnosticMessage,
-        args: &[&str],
+        args: &[JsStr<'_>],
     ) -> tsc_diagnostics::Diagnostic {
         match location {
-            Some(node) => self.diagnostic_for_node(node, message, args),
-            None => {
-                let args: Vec<String> = args.iter().map(|a| (*a).to_owned()).collect();
-                tsc_diagnostics::Diagnostic::new(
-                    None,
-                    None,
-                    None,
-                    tsc_diagnostics::MessageChain::new(message, &args),
-                )
-            }
+            Some(node) => self.diagnostic_for_node_js(node, message, args),
+            None => tsc_diagnostics::Diagnostic::new(
+                None,
+                None,
+                None,
+                tsc_diagnostics::MessageChain::new_js_parts(message, args),
+            ),
         }
     }
 
@@ -1728,13 +1732,13 @@ impl<'a> CheckerState<'a> {
     fn check_and_report_error_for_missing_prefix(
         &mut self,
         error_location: Option<NodeId>,
-        name: &str,
+        name: JsStr<'_>,
     ) -> crate::state::CheckResult<bool> {
         let Some(error_location) = error_location else {
             return Ok(false);
         };
         if self.kind_of(error_location) != SyntaxKind::Identifier
-            || self.identifier_text_of(error_location) != Some(name)
+            || self.identifier_text_of(error_location).map(JsStr::from) != Some(name)
             || self.is_type_reference_identifier(error_location)
             || self.is_in_type_query(error_location)
         {
@@ -1766,10 +1770,13 @@ impl<'a> CheckerState<'a> {
                         .is_some()
                     {
                         let class_name = self.symbol_display_name(class_symbol);
-                        self.error_at(
+                        self.error_at_js(
                             Some(error_location),
                             &diagnostics::Cannot_find_name_0_Did_you_mean_the_static_member_1_0,
-                            &[tsc_binder::unescape_leading_underscores(name), &class_name],
+                            &[
+                                tsc_binder::unescape_leading_underscores(name),
+                                class_name.as_js(),
+                            ],
                         );
                         return Ok(true);
                     }
@@ -1782,7 +1789,7 @@ impl<'a> CheckerState<'a> {
                         };
                         if let Some(this_type) = this_type {
                             if self.get_property_of_type_full(this_type, name)?.is_some() {
-                                self.error_at(
+                                self.error_at_js(
                                     Some(error_location),
                                     &diagnostics::Cannot_find_name_0_Did_you_mean_the_instance_member_this_0,
                                     &[tsc_binder::unescape_leading_underscores(name)],
@@ -1814,10 +1821,14 @@ impl<'a> CheckerState<'a> {
     /// The primitive-name arm of checkAndReportErrorForUsingTypeAsValue
     /// (48344-48362) plus checkAndReportErrorForExportingPrimitiveType
     /// (48337-48343), which precedes it in the chain.
-    fn report_primitive_type_name_used_as_value(&mut self, error_location: NodeId, name: &str) {
+    fn report_primitive_type_name_used_as_value(
+        &mut self,
+        error_location: NodeId,
+        name: JsStr<'_>,
+    ) {
         let parent = self.parent_of(error_location);
         if parent.is_some_and(|parent| self.kind_of(parent) == SyntaxKind::ExportSpecifier) {
-            self.error_at(
+            self.error_at_js(
                 Some(error_location),
                 &diagnostics::Cannot_export_0_Only_local_declarations_can_be_exported_from_a_module,
                 &[name],
@@ -1831,7 +1842,7 @@ impl<'a> CheckerState<'a> {
                 let container = self.parent_of(grandparent);
                 let container_kind = container.map(|container| self.kind_of(container));
                 if container_kind == Some(SyntaxKind::InterfaceDeclaration) && heritage_is_extends {
-                    self.error_at(
+                    self.error_at_js(
                         Some(error_location),
                         &diagnostics::An_interface_cannot_extend_a_primitive_type_like_0_It_can_only_extend_other_named_object_types,
                         &[tsc_binder::unescape_leading_underscores(name)],
@@ -1843,7 +1854,7 @@ impl<'a> CheckerState<'a> {
                     Some(SyntaxKind::ClassDeclaration) | Some(SyntaxKind::ClassExpression)
                 );
                 if container_is_class_like && heritage_is_extends {
-                    self.error_at(
+                    self.error_at_js(
                         Some(error_location),
                         &diagnostics::A_class_cannot_extend_a_primitive_type_like_0_Classes_can_only_extend_constructable_values,
                         &[tsc_binder::unescape_leading_underscores(name)],
@@ -1853,7 +1864,7 @@ impl<'a> CheckerState<'a> {
                 if container_is_class_like && !heritage_is_extends {
                     // ImplementsKeyword is the only other heritage
                     // token.
-                    self.error_at(
+                    self.error_at_js(
                         Some(error_location),
                         &diagnostics::A_class_cannot_implement_a_primitive_type_like_0_It_can_only_implement_other_named_object_types,
                         &[tsc_binder::unescape_leading_underscores(name)],
@@ -1862,7 +1873,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        self.error_at(
+        self.error_at_js(
             Some(error_location),
             &diagnostics::_0_only_refers_to_a_type_but_is_being_used_as_a_value_here,
             &[tsc_binder::unescape_leading_underscores(name)],
@@ -2012,7 +2023,7 @@ impl<'a> CheckerState<'a> {
                 });
             if is_umd_global {
                 let display = tsc_binder::unescape_leading_underscores(&name);
-                let mut diagnostic = self.diagnostic_for_node(
+                let mut diagnostic = self.diagnostic_for_node_js(
                     error_location,
                     &diagnostics::_0_refers_to_a_UMD_global_but_the_current_file_is_a_module_Consider_adding_an_import_instead,
                     &[display],
@@ -2106,9 +2117,12 @@ impl<'a> CheckerState<'a> {
                 };
                 let name = self.binder.symbol(result).escaped_name.clone();
                 let display = tsc_binder::unescape_leading_underscores(&name);
-                let related =
-                    self.related_info_for_node(type_only_declaration, related_message, &[display]);
-                self.error_at_with_related(
+                let related = self.related_info_for_node_js(
+                    type_only_declaration,
+                    related_message,
+                    &[display],
+                );
+                self.error_at_with_related_js(
                     Some(error_location),
                     message,
                     &[display],
@@ -2335,10 +2349,14 @@ impl<'a> CheckerState<'a> {
                             self.get_suggested_symbol_for_nonexistent_module(right, namespace)?;
                         if let Some(suggestion) = suggestion {
                             let suggestion_name = self.symbol_display_name(suggestion);
-                            self.error_at(
+                            self.error_at_js(
                                 Some(right),
                                 &diagnostics::_0_has_no_exported_member_named_1_Did_you_mean_2,
-                                &[&namespace_name, &declaration_name, &suggestion_name],
+                                &[
+                                    (&namespace_name).into(),
+                                    (&declaration_name).into(),
+                                    suggestion_name.as_js(),
+                                ],
                             );
                             return Ok(None);
                         }
@@ -2412,10 +2430,10 @@ impl<'a> CheckerState<'a> {
                                                     self.binder.source_of_node(property),
                                                     Some(property),
                                                 );
-                                            self.error_at(
+                                            self.error_at_js(
                                                 Some(property),
                                                 &diagnostics::Cannot_access_0_1_because_0_is_a_type_but_not_a_namespace_Did_you_mean_to_retrieve_the_type_of_the_property_1_in_0_with_0_1,
-                                                &[&symbol_name, &property_name],
+                                                &[symbol_name.as_js(), (&property_name).into()],
                                             );
                                             return Ok(None);
                                         }
@@ -2423,10 +2441,10 @@ impl<'a> CheckerState<'a> {
                                 }
                             }
                         }
-                        self.error_at(
+                        self.error_at_js(
                             Some(right),
                             &diagnostics::Namespace_0_has_no_exported_member_1,
-                            &[&namespace_name, &declaration_name],
+                            &[(&namespace_name).into(), (&declaration_name).into()],
                         );
                     }
                     return Ok(None);
@@ -3048,30 +3066,33 @@ static SCRIPT_TARGET_FEATURE_FIRST_LIB: &[(&str, &str)] = &[
 /// tsc-port: getSuggestedLibForNonExistentName @6.0.3
 /// tsc-hash: b60265e4566246083d64e6d4fc258cac9ecc7c3e156ac3218c439b565375f46b
 /// tsc-span: _tsc.js:75476-75481
-pub(crate) fn get_suggested_lib_for_non_existent_name(name: &str) -> Option<&'static str> {
+pub(crate) fn get_suggested_lib_for_non_existent_name<'n>(
+    name: impl Into<JsStr<'n>>,
+) -> Option<&'static str> {
+    let name = name.into();
     SCRIPT_TARGET_FEATURE_FIRST_LIB
         .iter()
-        .find(|(type_name, _)| *type_name == name)
+        .find(|(type_name, _)| name == *type_name)
         .map(|(_, lib)| *lib)
 }
 
 /// tsc-port: isPrimitiveTypeName @6.0.3
 /// tsc-hash: bca4359c333883add2e1cf67e043cd84811da2258483f0e2ab470b6b7f9d6bda
 /// tsc-span: _tsc.js:48334-48336
-fn is_primitive_type_name(name: &str) -> bool {
+fn is_primitive_type_name(name: JsStr<'_>) -> bool {
     matches!(
-        name,
-        "any" | "string" | "number" | "boolean" | "never" | "unknown"
+        name.as_str(),
+        Some("any" | "string" | "number" | "boolean" | "never" | "unknown")
     )
 }
 
 /// tsc-port: isES2015OrLaterConstructorName @6.0.3
 /// tsc-hash: a4d548ad3ba4c80e8c8d1b5e08e91b627c64f32f7fb4aa2ae8ea38f05c466ac5
 /// tsc-span: _tsc.js:48400-48411
-fn is_es2015_or_later_constructor_name(name: &str) -> bool {
+fn is_es2015_or_later_constructor_name(name: JsStr<'_>) -> bool {
     matches!(
-        name,
-        "Promise" | "Symbol" | "Map" | "WeakMap" | "Set" | "WeakSet"
+        name.as_str(),
+        Some("Promise" | "Symbol" | "Map" | "WeakMap" | "Set" | "WeakSet")
     )
 }
 

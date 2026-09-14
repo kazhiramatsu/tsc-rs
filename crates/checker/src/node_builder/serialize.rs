@@ -227,27 +227,30 @@ fn node_is_synthesized(checker: &CheckerState<'_>, node: NodeId) -> bool {
         .intersects(tsc_types::NodeFlags::SYNTHESIZED)
 }
 
-fn node_modules_resolution_candidates(importer: &str, specifier: &str) -> Vec<String> {
-    let importer = importer.replace('\\', "/");
+fn node_modules_resolution_candidates(
+    importer: &tsc_types::JsString,
+    specifier: &tsc_types::JsString,
+) -> Vec<tsc_types::JsString> {
+    let importer = super::specifier::normalized_slashes(importer);
     let mut directory =
-        importer.rsplit_once('/').map_or(
-            ".",
-            |(directory, _)| {
+        importer
+            .as_js()
+            .rsplit_once("/")
+            .map_or(tsc_types::JsStr::from("."), |(directory, _)| {
                 if directory.is_empty() {
-                    "/"
+                    tsc_types::JsStr::from("/")
                 } else {
                     directory
                 }
-            },
-        );
+            });
     let mut candidates = Vec::new();
     loop {
         let base = if directory == "/" {
-            format!("/node_modules/{specifier}")
+            crate::concat_js(&[&"/node_modules/", &specifier])
         } else if directory == "." {
-            format!("node_modules/{specifier}")
+            crate::concat_js(&[&"node_modules/", &specifier])
         } else {
-            format!("{directory}/node_modules/{specifier}")
+            crate::concat_js(&[&directory, &"/node_modules/", &specifier])
         };
         for suffix in [
             ".ts",
@@ -261,22 +264,21 @@ fn node_modules_resolution_candidates(importer: &str, specifier: &str) -> Vec<St
             "/index.js",
             "/index.jsx",
         ] {
-            candidates.push(format!("{base}{suffix}"));
+            candidates.push(crate::concat_js(&[&base, &suffix]));
         }
-        if matches!(directory, "/" | ".") {
+        if matches!(directory.as_str(), Some("/" | ".")) {
             break;
         }
         directory =
-            directory.rsplit_once('/').map_or(
-                ".",
-                |(parent, _)| {
+            directory
+                .rsplit_once("/")
+                .map_or(tsc_types::JsStr::from("."), |(parent, _)| {
                     if parent.is_empty() {
-                        "/"
+                        tsc_types::JsStr::from("/")
                     } else {
                         parent
                     }
-                },
-            );
+                });
     }
     candidates
 }
@@ -315,7 +317,7 @@ fn recover_suppressed_import_target(
         NodeData::StringLiteral(data) => data.text.clone(),
         _ => return None,
     };
-    if module_name.starts_with('.') || module_name.starts_with('/') {
+    if module_name.starts_with(".") || module_name.starts_with("/") {
         return None;
     }
 
@@ -470,12 +472,26 @@ fn serialize_parameter_name_from_parse(
         _ => None,
     };
     let Some(name) = name else {
-        return create_identifier(arena, target, &checker.symbol_display_name(symbol));
+        return create_identifier(
+            arena,
+            target,
+            checker
+                .symbol_display_name(symbol)
+                .as_str()
+                .expect("parameter names have scalar identifier grammar"),
+        );
     };
     match checker.kind_of(name) {
         SyntaxKind::Identifier => {
             let name = clone_parameter_name_to_source(checker, arena, target, name)?.unwrap_or(
-                create_identifier(arena, target, &checker.symbol_display_name(symbol))?,
+                create_identifier(
+                    arena,
+                    target,
+                    checker
+                        .symbol_display_name(symbol)
+                        .as_str()
+                        .expect("parameter names have scalar identifier grammar"),
+                )?,
             );
             Ok(set_no_ascii_escaping(arena, name))
         }
@@ -491,14 +507,24 @@ fn serialize_parameter_name_from_parse(
                 .unwrap_or(create_identifier(
                     arena,
                     target,
-                    &checker.symbol_display_name(symbol),
+                    checker
+                        .symbol_display_name(symbol)
+                        .as_str()
+                        .expect("parameter names have scalar identifier grammar"),
                 )?);
             Ok(set_no_ascii_escaping(arena, name))
         }
         SyntaxKind::ArrayBindingPattern | SyntaxKind::ObjectBindingPattern => {
             elide_initializer_and_set_emit_flags(checker, arena, target, name, context)
         }
-        _ => create_identifier(arena, target, &checker.symbol_display_name(symbol)),
+        _ => create_identifier(
+            arena,
+            target,
+            checker
+                .symbol_display_name(symbol)
+                .as_str()
+                .expect("parameter names have scalar identifier grammar"),
+        ),
     }
 }
 
@@ -1325,11 +1351,11 @@ impl<'state, 'program> ProductionSyntacticBuilderResolver<'state, 'program> {
     fn accessibility_error_module_symbol(
         &mut self,
         symbol: SymbolId,
-        error_module_name: &str,
+        error_module_name: tsc_types::JsStr<'_>,
     ) -> BuildResult<Option<SymbolId>> {
         let mut parent = self.checker.binder.symbol(symbol).parent;
         while let Some(candidate) = parent {
-            if self.checker.symbol_display_name(candidate) == error_module_name {
+            if self.checker.symbol_display_name(candidate).as_js() == error_module_name {
                 return Ok(Some(candidate));
             }
             parent = self.checker.binder.symbol(candidate).parent;
@@ -1342,7 +1368,7 @@ impl<'state, 'program> ProductionSyntacticBuilderResolver<'state, 'program> {
                     callback_abort_error(self.checker, self.method, Some(declaration), abort)
                 })?
             {
-                if self.checker.symbol_display_name(candidate) == error_module_name {
+                if self.checker.symbol_display_name(candidate).as_js() == error_module_name {
                     return Ok(Some(candidate));
                 }
             }
@@ -1404,7 +1430,11 @@ impl<'state, 'program> ProductionSyntacticBuilderResolver<'state, 'program> {
                 meaning,
             )?;
         }
-        if let Some(error_module_name) = result.error_module_name.as_deref() {
+        if let Some(error_module_name) = result
+            .error_module_name
+            .as_ref()
+            .map(tsc_types::JsString::as_js)
+        {
             if let Some(module_symbol) =
                 self.accessibility_error_module_symbol(symbol, error_module_name)?
             {
@@ -1558,7 +1588,7 @@ impl EmitTrackerAccess for ProductionSyntacticBuilderResolver<'_, '_> {
         };
         let data = self.checker.binder.symbol(symbol);
         EmitTrackerSymbolDescription {
-            escaped_name: data.escaped_name.clone(),
+            escaped_name: data.escaped_name.as_js().to_owned(),
             declaration_count: u32::try_from(data.declarations.len()).unwrap_or(u32::MAX),
             declarations: data
                 .declarations
@@ -1810,7 +1840,7 @@ impl ProductionSyntacticBuilderResolver<'_, '_> {
                     NodeData::Identifier(data) => context
                         .synthetic_scope_locals
                         .as_ref()
-                        .and_then(|locals| locals.get(&data.escaped_text).copied()),
+                        .and_then(|locals| locals.get(data.escaped_text.as_bytes()).copied()),
                     _ => None,
                 })
                 .flatten();
@@ -2837,12 +2867,17 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
                         let old_symbol = context
                             .synthetic_scope_locals
                             .as_ref()
-                            .and_then(|locals| locals.get(&data.escaped_text).copied());
+                            .and_then(|locals| locals.get(data.escaped_text.as_bytes()).copied());
                         cleanup.record_type_parameter_local(&data.escaped_text, old_symbol);
                         context
                             .synthetic_scope_locals
                             .get_or_insert_with(std::collections::HashMap::new)
-                            .insert(data.escaped_text.clone(), symbol);
+                            .insert(
+                                tsc_types::EscapedName::from_identifier_escaped_text(
+                                    &data.escaped_text,
+                                ),
+                                symbol,
+                            );
                     }
                 }
                 if context.enclosing_declaration.is_some()
@@ -2889,12 +2924,17 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
                         let old_symbol = context
                             .synthetic_scope_locals
                             .as_ref()
-                            .and_then(|locals| locals.get(&data.escaped_text).copied());
+                            .and_then(|locals| locals.get(data.escaped_text.as_bytes()).copied());
                         cleanup.record_type_parameter_local(&data.escaped_text, old_symbol);
                         context
                             .synthetic_scope_locals
                             .get_or_insert_with(std::collections::HashMap::new)
-                            .insert(data.escaped_text.clone(), symbol);
+                            .insert(
+                                tsc_types::EscapedName::from_identifier_escaped_text(
+                                    &data.escaped_text,
+                                ),
+                                symbol,
+                            );
                     }
                 }
                 if context.enclosing_declaration.is_some() && !type_parameters.is_empty() {
@@ -2959,7 +2999,7 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
         context: &mut NodeBuilderContext<'_>,
         parent: TransformNode,
         literal: TransformNode,
-    ) -> Result<Option<String>, EmitResolverError> {
+    ) -> Result<Option<tsc_types::JsString>, EmitResolverError> {
         get_module_specifier_override(self.checker, arena, context, parent, literal)
     }
 

@@ -1,9 +1,9 @@
-//! Dormant NodeBuilder module-specifier synthesis.
+//! NodeBuilder module-specifier synthesis.
 //!
-//! This module is deliberately independent of the future
-//! `NodeBuilderContext`: all checker, host, and enclosing-node facts enter
-//! through explicit parameters. It has no production caller before the
-//! declaration-serialization adapter lands.
+//! This module is deliberately independent of
+//! `NodeBuilderContext`: checker, host, and enclosing-node facts enter through
+//! explicit parameters. Authoritative Programs supply the effective path
+//! options owned separately from the checker's `CompilerOptions` bag.
 
 #![allow(dead_code)]
 
@@ -11,12 +11,13 @@ use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
 use indexmap::IndexMap;
-use serde_json::Value;
 use tsc_binder::{node_util, SymbolId};
 use tsc_emitter::{EmitModuleSpecifierHost, EmitResolutionMode, EmitResolverNode};
 use tsc_program::SourceFileId;
+use tsc_program::{package_json_own_entries, package_json_property, JsonValue as Value};
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget, SymbolFlags};
+use tsc_types::{JsStr, JsString};
 
 use crate::state::{CheckResult, CheckerState};
 
@@ -59,17 +60,17 @@ pub(crate) struct ModuleSpecifierUserPreferences {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ModulePathMapping {
-    pub(crate) key: String,
-    pub(crate) patterns: Vec<String>,
+    pub(crate) key: JsString,
+    pub(crate) patterns: Vec<JsString>,
 }
 
 #[derive(Clone, Debug)]
 pub(crate) struct SpecifierCompilerOptions {
     pub(crate) compiler_options: CompilerOptions,
     pub(crate) paths: Vec<ModulePathMapping>,
-    pub(crate) paths_base_path: Option<String>,
-    pub(crate) root_dirs: Vec<String>,
-    pub(crate) config_file_path: Option<String>,
+    pub(crate) paths_base_path: Option<JsString>,
+    pub(crate) root_dirs: Vec<JsString>,
+    pub(crate) config_file_path: Option<JsString>,
 }
 
 impl SpecifierCompilerOptions {
@@ -82,6 +83,32 @@ impl SpecifierCompilerOptions {
             root_dirs: Vec::new(),
             config_file_path: None,
         }
+    }
+
+    /// tsrs-native: reassemble the Program-owned part of the upstream
+    /// compilerOptions bag for getSpecifierForModuleSymbol. Preserve raw path
+    /// substitutions and their order; the existing specifier workers own
+    /// normalization, inverse matching, and project-relative selection.
+    fn with_program_options(mut self, program_options: &tsc_program::ProgramOptions) -> Self {
+        self.paths = program_options
+            .paths()
+            .unwrap_or_default()
+            .iter()
+            .map(|mapping| ModulePathMapping {
+                key: mapping.pattern().to_owned(),
+                patterns: mapping.substitutions().to_vec(),
+            })
+            .collect();
+        self.paths_base_path = program_options.paths_base_path().map(JsStr::to_owned);
+        let display_path = |path: &tsc_program::ProgramPath| path.display().to_owned();
+        self.root_dirs = program_options
+            .root_dirs()
+            .unwrap_or_default()
+            .iter()
+            .map(display_path)
+            .collect();
+        self.config_file_path = program_options.config_file_path().map(display_path);
+        self
     }
 }
 
@@ -103,7 +130,7 @@ pub(crate) struct ModuleSpecifierPreferences {
     pub(crate) relative_preference: RelativePreference,
     pub(crate) file_preferred_ending: ModuleSpecifierEnding,
     importing_file: NodeId,
-    old_import_specifier: Option<String>,
+    old_import_specifier: Option<JsString>,
     import_module_specifier_ending: Option<ImportModuleSpecifierEnding>,
 }
 
@@ -119,27 +146,27 @@ pub(crate) enum ModuleSpecifierKind {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ModuleSpecifiersWithCacheInfo {
     pub(crate) kind: Option<ModuleSpecifierKind>,
-    pub(crate) module_specifiers: Vec<String>,
+    pub(crate) module_specifiers: Vec<JsString>,
     pub(crate) computed_without_cache: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ModulePath {
-    pub(crate) path: String,
+    pub(crate) path: JsString,
     pub(crate) is_redirect: bool,
     pub(crate) is_in_node_modules: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ModuleSpecifierInfo {
-    pub(crate) importing_source_file_name: String,
-    pub(crate) source_directory: String,
-    pub(crate) canonical_source_directory: String,
+    pub(crate) importing_source_file_name: JsString,
+    pub(crate) source_directory: JsString,
+    pub(crate) canonical_source_directory: JsString,
     pub(crate) case_sensitive: bool,
 }
 
 impl ModuleSpecifierInfo {
-    fn canonical(&self, path: &str) -> String {
+    fn canonical<'p>(&self, path: impl Into<JsStr<'p>>) -> JsString {
         canonical_file_name(path, self.case_sensitive)
     }
 }
@@ -147,7 +174,7 @@ impl ModuleSpecifierInfo {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub(crate) struct ModuleSpecifierCacheProbe {
     pub(crate) kind: Option<ModuleSpecifierKind>,
-    pub(crate) specifiers: Option<Vec<String>>,
+    pub(crate) specifiers: Option<Vec<JsString>>,
     pub(crate) module_source_file: Option<usize>,
     pub(crate) module_paths: Option<Vec<ModulePath>>,
 }
@@ -161,8 +188,8 @@ pub(crate) enum ExportsKeyMode {
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub(crate) struct ExportsOrImportsResult {
-    pub(crate) module_file_to_try: String,
-    pub(crate) package_root_path: Option<String>,
+    pub(crate) module_file_to_try: JsString,
+    pub(crate) package_root_path: Option<JsString>,
     pub(crate) blocked_by_exports: bool,
     pub(crate) verbatim_from_exports: bool,
 }
@@ -186,7 +213,7 @@ pub(crate) fn get_specifier_for_module_symbol(
     enclosing_declaration: Option<NodeId>,
     bundled: bool,
     override_import_mode: Option<EmitResolutionMode>,
-) -> CheckResult<String> {
+) -> CheckResult<JsString> {
     let override_import_mode =
         override_import_mode.filter(|mode| *mode != EmitResolutionMode::None);
     let mut source_file_declaration =
@@ -214,7 +241,7 @@ pub(crate) fn get_specifier_for_module_symbol(
     if let Some(module_name) = source_file_declaration
         .and_then(|file| state.binder.source_of_node(file).module_name.as_ref())
     {
-        return Ok(module_name.clone());
+        return Ok(module_name.clone().into());
     }
 
     if source_file_declaration.is_none() && ambient_symbol_name(state, module_symbol).is_some() {
@@ -259,6 +286,12 @@ pub(crate) fn get_specifier_for_module_symbol(
     }
 
     let mut specifier_options = SpecifierCompilerOptions::new(state.options);
+    if let Some(program_options) = state
+        .authoritative_module_provider
+        .and_then(|provider| provider.program_options_for_module_specifiers())
+    {
+        specifier_options = specifier_options.with_program_options(program_options);
+    }
     if bundled {
         specifier_options.compiler_options.base_url = Some(host.get_common_source_directory());
     }
@@ -357,7 +390,7 @@ fn get_file_symbol_if_file_symbol_export_equals_container(
 fn no_host_specifier_for_module_symbol(
     state: &CheckerState<'_>,
     module_symbol: SymbolId,
-) -> CheckResult<String> {
+) -> CheckResult<JsString> {
     let symbol = state.binder.symbol(module_symbol);
     if let Some(name) = unquote_ambient_symbol_name(&symbol.escaped_name) {
         let source_file_module = symbol
@@ -381,13 +414,16 @@ fn no_host_specifier_for_module_symbol(
     ))
 }
 
-fn ambient_symbol_name<'a>(state: &'a CheckerState<'_>, symbol: SymbolId) -> Option<&'a str> {
+fn ambient_symbol_name<'a>(state: &'a CheckerState<'_>, symbol: SymbolId) -> Option<JsStr<'a>> {
     unquote_ambient_symbol_name(&state.binder.symbol(symbol).escaped_name)
 }
 
-fn unquote_ambient_symbol_name(name: &str) -> Option<&str> {
-    (name.len() >= 3 && name.starts_with('"') && name.ends_with('"'))
-        .then(|| &name[1..name.len() - 1])
+fn unquote_ambient_symbol_name<'p>(name: impl Into<JsStr<'p>>) -> Option<JsStr<'p>> {
+    let name = name.into();
+    (name.len_units() >= 3)
+        .then_some(name)?
+        .strip_prefix("\"")?
+        .strip_suffix("\"")
 }
 
 fn non_augmentation_declaration(state: &CheckerState<'_>, symbol: SymbolId) -> Option<NodeId> {
@@ -512,11 +548,15 @@ fn string_literal_like(state: &CheckerState<'_>, node: Option<NodeId>) -> Option
 /// tsc-port: createModeAwareCacheKey @6.0.3
 /// tsc-hash: ceb0fb588e02049b70512628a76eb9fe9271da5fe9dbf67b8d97b0b28080c305
 /// tsc-span: _tsc.js:40469-40471
-pub(crate) fn create_mode_aware_cache_key(specifier: &str, mode: EmitResolutionMode) -> String {
+pub(crate) fn create_mode_aware_cache_key<'path>(
+    specifier: impl Into<JsStr<'path>>,
+    mode: EmitResolutionMode,
+) -> JsString {
+    let specifier = specifier.into();
     match mode {
         EmitResolutionMode::None => specifier.to_owned(),
-        EmitResolutionMode::CommonJs => format!("1|{specifier}"),
-        EmitResolutionMode::EsNext => format!("99|{specifier}"),
+        EmitResolutionMode::CommonJs => crate::concat_js(&[&"1|", &(specifier)]),
+        EmitResolutionMode::EsNext => crate::concat_js(&[&"99|", &(specifier)]),
     }
 }
 
@@ -529,7 +569,7 @@ pub(crate) fn get_module_specifier_preferences(
     host: &dyn EmitModuleSpecifierHost,
     options: &SpecifierCompilerOptions,
     importing_file: NodeId,
-    old_import_specifier: Option<&str>,
+    old_import_specifier: Option<JsStr<'_>>,
 ) -> ModuleSpecifierPreferences {
     let importing_index = state.binder.file_index_of_node(importing_file);
     let importing_node = emit_resolver_node_for_file(state, importing_index, importing_file);
@@ -566,7 +606,7 @@ pub(crate) fn get_module_specifier_preferences(
         relative_preference,
         file_preferred_ending,
         importing_file,
-        old_import_specifier: old_import_specifier.map(str::to_owned),
+        old_import_specifier: old_import_specifier.map(JsStr::to_owned),
         import_module_specifier_ending: user_preferences.import_module_specifier_ending,
     }
 }
@@ -580,7 +620,7 @@ pub(crate) fn get_preferred_ending(
     host: &dyn EmitModuleSpecifierHost,
     options: &SpecifierCompilerOptions,
     importing_file: NodeId,
-    old_import_specifier: Option<&str>,
+    old_import_specifier: Option<JsStr<'_>>,
     resolution_mode: EmitResolutionMode,
 ) -> ModuleSpecifierEnding {
     if let Some(old) = old_import_specifier {
@@ -630,7 +670,7 @@ impl ModuleSpecifierPreferences {
                 host,
                 options,
                 self.importing_file,
-                self.old_import_specifier.as_deref(),
+                self.old_import_specifier.as_ref().map(JsString::as_js),
                 syntax_implied_node_format,
             )
         } else {
@@ -848,7 +888,7 @@ pub(crate) fn get_module_specifiers(
     host: &dyn EmitModuleSpecifierHost,
     user_preferences: &ModuleSpecifierUserPreferences,
     options: &ModuleSpecifierOptions,
-) -> CheckResult<Vec<String>> {
+) -> CheckResult<Vec<JsString>> {
     Ok(get_module_specifiers_with_cache_info(
         state,
         module_symbol,
@@ -974,7 +1014,7 @@ pub(crate) fn compute_module_specifiers(
 
     for module_path in module_paths {
         let imported_path = canonical_host_path(&module_path.path, host);
-        for reason in host.import_include_reasons(&imported_path) {
+        for reason in host.import_include_reasons((&imported_path).into()) {
             if reason.importing_file != importing_node.source() {
                 continue;
             }
@@ -1034,8 +1074,8 @@ pub(crate) fn compute_module_specifiers(
                 };
                 match provider.resolve_module(crate::AuthoritativeModuleRequest {
                     source_token: crate::AuthoritativeSourceToken(importing_node.source().raw()),
-                    containing_file: &state.binder.source(importing_index).file_name,
-                    specifier,
+                    containing_file: (&state.binder.source(importing_index).file_name).into(),
+                    specifier: specifier.into(),
                     mode,
                 }) {
                     Ok(crate::AuthoritativeModuleResolution::Resolved(resolved)) => state
@@ -1126,7 +1166,8 @@ pub(crate) fn compute_module_specifiers(
         };
         if let Some(specifier) = specifier.as_ref().filter(|specifier| {
             !(specifier.is_empty()
-                || for_auto_import && is_excluded_by_regex(specifier, &preferences.exclude_regexes))
+                || for_auto_import
+                    && is_excluded_by_regex(*specifier, &preferences.exclude_regexes))
         }) {
             node_modules_specifiers.push(specifier.clone());
             if module_path.is_redirect {
@@ -1192,10 +1233,10 @@ fn literal_text_in_source<'a>(
     state: &'a CheckerState<'_>,
     file_index: usize,
     literal: NodeId,
-) -> Option<&'a str> {
+) -> Option<JsStr<'a>> {
     match &state.binder.source(file_index).arena.node(literal).data {
-        NodeData::StringLiteral(data) => Some(&data.text),
-        NodeData::NoSubstitutionTemplateLiteral(data) => Some(&data.text),
+        NodeData::StringLiteral(data) => Some(data.text.as_js()),
+        NodeData::NoSubstitutionTemplateLiteral(data) => Some(data.text.as_js()),
         _ => None,
     }
 }
@@ -1227,10 +1268,11 @@ fn module_literal_resolution_mode(
 /// tsc-port: getInfo @6.0.3
 /// tsc-hash: e5480f7a1312e0a56c08d8179e53dab7b8f8c6e4c7b0c0339728b06348c24732
 /// tsc-span: _tsc.js:45568-45578
-pub(crate) fn get_info(
-    importing_source_file_name: &str,
+pub(crate) fn get_info<'path>(
+    importing_source_file_name: impl Into<JsStr<'path>>,
     host: &dyn EmitModuleSpecifierHost,
 ) -> ModuleSpecifierInfo {
+    let importing_source_file_name = importing_source_file_name.into();
     let importing_source_file_name =
         normalized_absolute_path(importing_source_file_name, &host.get_current_directory());
     let source_directory = directory_path(&importing_source_file_name);
@@ -1248,16 +1290,17 @@ pub(crate) fn get_info(
 /// tsc-hash: e0c4acfe0d045ce6dd2b39f1c843069c3be2b76c871ee1ab36caeb22bc9aaa02
 /// tsc-span: _tsc.js:45579-45639
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn get_local_module_specifier(
+pub(crate) fn get_local_module_specifier<'path>(
     state: &CheckerState<'_>,
-    module_file_name: &str,
+    module_file_name: impl Into<JsStr<'path>>,
     info: &ModuleSpecifierInfo,
     options: &SpecifierCompilerOptions,
     host: &dyn EmitModuleSpecifierHost,
     import_mode: EmitResolutionMode,
     preferences: &ModuleSpecifierPreferences,
     paths_only: bool,
-) -> Option<String> {
+) -> Option<JsString> {
+    let module_file_name = module_file_name.into();
     if paths_only && options.paths.is_empty() {
         return None;
     }
@@ -1286,7 +1329,11 @@ pub(crate) fn get_local_module_specifier(
         )?
     };
 
-    let base_url = options.compiler_options.base_url.as_deref();
+    let base_url = options
+        .compiler_options
+        .base_url
+        .as_ref()
+        .map(JsString::as_js);
     let resolve_package_json_imports = get_resolve_package_json_imports(&options.compiler_options);
     if (base_url.is_none() && options.paths.is_empty() && !resolve_package_json_imports)
         || preferences.relative_preference == RelativePreference::Relative
@@ -1298,9 +1345,11 @@ pub(crate) fn get_local_module_specifier(
     let paths_base_path = if options.paths.is_empty() {
         None
     } else {
-        options.paths_base_path.as_deref()
+        options.paths_base_path.as_ref().map(JsString::as_js)
     };
-    let base_directory_source = base_url.or(paths_base_path).unwrap_or(&current_directory);
+    let base_directory_source = base_url
+        .or(paths_base_path)
+        .unwrap_or(current_directory.as_js());
     let base_directory = normalized_absolute_path(base_directory_source, &current_directory);
     let relative_to_base_url =
         get_relative_path_if_in_same_volume(module_file_name, &base_directory, info.case_sensitive);
@@ -1368,7 +1417,8 @@ pub(crate) fn get_local_module_specifier(
     {
         let project_directory = options
             .config_file_path
-            .as_deref()
+            .as_ref()
+            .map(JsString::as_js)
             .map(directory_path)
             .map(|path| normalized_absolute_path(&path, &host.get_current_directory()))
             .unwrap_or_else(|| {
@@ -1384,8 +1434,11 @@ pub(crate) fn get_local_module_specifier(
         ));
         let source_is_internal = info
             .canonical_source_directory
-            .starts_with(&canonical_project_directory);
-        let target_is_internal = module_path.starts_with(&canonical_project_directory);
+            .as_js()
+            .starts_with_js(canonical_project_directory.as_js());
+        let target_is_internal = module_path
+            .as_js()
+            .starts_with_js(canonical_project_directory.as_js());
         if source_is_internal != target_is_internal {
             return Some(maybe_non_relative);
         }
@@ -1394,8 +1447,8 @@ pub(crate) fn get_local_module_specifier(
         let nearest_source_package_json =
             get_nearest_ancestor_directory_with_package_json(host, &info.source_directory);
         if !package_json_paths_are_equal(
-            nearest_target_package_json.as_deref(),
-            nearest_source_package_json.as_deref(),
+            nearest_target_package_json.as_ref().map(JsString::as_js),
+            nearest_source_package_json.as_ref().map(JsString::as_js),
             !host.use_case_sensitive_file_names(),
         ) {
             return Some(maybe_non_relative);
@@ -1415,8 +1468,8 @@ pub(crate) fn get_local_module_specifier(
 /// tsc-hash: e0bcfb4183d5867103bc9539bdf95052c6680b5a393b612e7dcbbfee4ee2d6fb
 /// tsc-span: _tsc.js:45640-45644
 pub(crate) fn package_json_paths_are_equal(
-    a: Option<&str>,
-    b: Option<&str>,
+    a: Option<JsStr<'_>>,
+    b: Option<JsStr<'_>>,
     ignore_case: bool,
 ) -> bool {
     match (a, b) {
@@ -1433,7 +1486,8 @@ pub(crate) fn package_json_paths_are_equal(
 /// tsc-port: countPathComponents @6.0.3
 /// tsc-hash: b4ea80436ccf1d215c2561c8842f6cce0e1986a6fcb8afa561a314649a061026
 /// tsc-span: _tsc.js:45645-45651
-pub(crate) fn count_path_components(path: &str) -> usize {
+pub(crate) fn count_path_components<'path>(path: impl Into<JsStr<'path>>) -> usize {
+    let path = path.into();
     path.as_bytes()
         .iter()
         .skip(if path.starts_with("./") { 2 } else { 0 })
@@ -1456,19 +1510,21 @@ pub(crate) fn compare_paths_by_redirect_and_number_of_directory_separators(
 /// tsc-port: getNearestAncestorDirectoryWithPackageJson @6.0.3
 /// tsc-hash: 62c270fac72dd01d0e0d116219e773d8b7e4e85830f229bc80ed7c28931c18e5
 /// tsc-span: _tsc.js:45655-45664
-pub(crate) fn get_nearest_ancestor_directory_with_package_json(
+pub(crate) fn get_nearest_ancestor_directory_with_package_json<'path>(
     host: &dyn EmitModuleSpecifierHost,
-    file_name: &str,
-) -> Option<String> {
-    if let Some(directory) = host.get_nearest_ancestor_directory_with_package_json(file_name) {
+    file_name: impl Into<JsStr<'path>>,
+) -> Option<JsString> {
+    let file_name = file_name.into();
+    if let Some(directory) = host.get_nearest_ancestor_directory_with_package_json(file_name.into())
+    {
         return Some(directory);
     }
     let global_cache = host.get_global_typings_cache_location();
     for directory in ancestor_directories(file_name) {
-        if host.file_exists(&combine_paths(&directory, "package.json")) {
+        if host.file_exists((&combine_paths(&directory, "package.json")).into()) {
             return Some(directory);
         }
-        if global_cache.as_deref() == Some(directory.as_str()) {
+        if global_cache.as_ref().map(JsString::as_js) == Some(directory.as_js()) {
             break;
         }
     }
@@ -1478,27 +1534,29 @@ pub(crate) fn get_nearest_ancestor_directory_with_package_json(
 /// tsc-port: forEachFileNameOfModule @6.0.3
 /// tsc-hash: 78f43caaf0e47b60e268854811e359132a263fcd8ef34a48190cbf1e76a6afb9
 /// tsc-span: _tsc.js:45665-45705
-pub(crate) fn for_each_file_name_of_module<T>(
-    importing_file_name: &str,
-    imported_file_name: &str,
+pub(crate) fn for_each_file_name_of_module<'path, T>(
+    importing_file_name: impl Into<JsStr<'path>>,
+    imported_file_name: impl Into<JsStr<'path>>,
     host: &dyn EmitModuleSpecifierHost,
     prefer_symlinks: bool,
-    mut callback: impl FnMut(&str, bool) -> Option<T>,
+    mut callback: impl FnMut(JsStr<'_>, bool) -> Option<T>,
 ) -> Option<T> {
+    let importing_file_name = importing_file_name.into();
+    let imported_file_name = imported_file_name.into();
     let cwd = host.get_current_directory();
     let case_sensitive = host.use_case_sensitive_file_names();
     let reference_redirect = host
-        .is_source_of_project_reference_redirect(imported_file_name)
-        .then(|| host.get_redirect_from_source_file(imported_file_name))
+        .is_source_of_project_reference_redirect(imported_file_name.into())
+        .then(|| host.get_redirect_from_source_file(imported_file_name.into()))
         .flatten();
     let imported_path = canonical_host_path(imported_file_name, host);
     let mut imported_file_names = Vec::new();
     if let Some(reference_redirect) = &reference_redirect {
         imported_file_names.push(reference_redirect.clone());
     }
-    imported_file_names.push(imported_file_name.to_owned());
-    imported_file_names.extend(host.redirect_targets(&imported_path));
-    let targets: Vec<String> = imported_file_names
+    imported_file_names.push(imported_file_name.to_owned().into());
+    imported_file_names.extend(host.redirect_targets((&imported_path).into()));
+    let targets: Vec<JsString> = imported_file_names
         .iter()
         .map(|file| normalized_absolute_path(file, &cwd))
         .collect();
@@ -1514,7 +1572,7 @@ pub(crate) fn for_each_file_name_of_module<T>(
                         !case_sensitive,
                     )
                 });
-                if let Some(result) = callback(target, is_redirect) {
+                if let Some(result) = callback(target.as_js(), is_redirect) {
                     return Some(result);
                 }
             }
@@ -1567,13 +1625,15 @@ pub(crate) fn for_each_file_name_of_module<T>(
                 ));
             }
         }
-        if global_typings_cache_location.as_deref() == Some(real_directory.as_str()) {
+        if global_typings_cache_location.as_ref().map(JsString::as_js)
+            == Some(real_directory.as_js())
+        {
             break;
         }
     }
     for (candidate, is_redirect) in symlink_candidates {
         should_filter_ignored_paths = true;
-        if let Some(result) = callback(&candidate, is_redirect) {
+        if let Some(result) = callback(candidate.as_js(), is_redirect) {
             return Some(result);
         }
     }
@@ -1590,7 +1650,7 @@ pub(crate) fn for_each_file_name_of_module<T>(
                     !case_sensitive,
                 )
             });
-            if let Some(result) = callback(target, is_redirect) {
+            if let Some(result) = callback(target.as_js(), is_redirect) {
                 return Some(result);
             }
         }
@@ -1601,11 +1661,16 @@ pub(crate) fn for_each_file_name_of_module<T>(
 /// tsc-port: getAllRuntimeDependencies @6.0.3
 /// tsc-hash: 62d9e01fb8c9f3f49fcd53deafb8cb72ff3d1b91d8b9f86ad573d1f29900a484
 /// tsc-span: _tsc.js:45707-45716
-pub(crate) fn get_all_runtime_dependencies(package_json: &Value) -> Vec<String> {
+pub(crate) fn get_all_runtime_dependencies(package_json: &Value) -> Vec<JsString> {
     let mut result = Vec::new();
     for field in ["dependencies", "peerDependencies", "optionalDependencies"] {
-        if let Some(object) = package_json.get(field).and_then(Value::as_object) {
-            result.extend(object.keys().cloned());
+        if let Some(object) = package_json_property(package_json, field).and_then(Value::as_object)
+        {
+            result.extend(
+                package_json_own_entries(object)
+                    .into_iter()
+                    .map(|(key, _)| key.to_owned()),
+            );
         }
     }
     result
@@ -1614,13 +1679,14 @@ pub(crate) fn get_all_runtime_dependencies(package_json: &Value) -> Vec<String> 
 /// tsc-port: getAllModulePathsWorker @6.0.3
 /// tsc-hash: 9ba4e434497c9b1d29f5e0d15f59c6680591c4743b44f506cc97e6fbce3fc437
 /// tsc-span: _tsc.js:45717-45785
-pub(crate) fn get_all_module_paths_worker(
+pub(crate) fn get_all_module_paths_worker<'path>(
     info: &ModuleSpecifierInfo,
-    imported_file_name: &str,
+    imported_file_name: impl Into<JsStr<'path>>,
     host: &dyn EmitModuleSpecifierHost,
     _compiler_options: &SpecifierCompilerOptions,
     _options: &ModuleSpecifierOptions,
 ) -> Vec<ModulePath> {
+    let imported_file_name = imported_file_name.into();
     if host.module_resolution_cache_available()
         && !path_contains_node_modules(&info.importing_source_file_name)
     {
@@ -1630,7 +1696,7 @@ pub(crate) fn get_all_module_paths_worker(
         // authoritative symlink facts still flow through the ordinary walk.
     }
 
-    let mut all_file_names = IndexMap::<String, ModulePath>::new();
+    let mut all_file_names = IndexMap::<JsString, ModulePath>::new();
     let mut imported_file_from_node_modules = false;
     let _: Option<()> = for_each_file_name_of_module(
         &info.importing_source_file_name,
@@ -1657,9 +1723,9 @@ pub(crate) fn get_all_module_paths_worker(
     let mut directory = info.canonical_source_directory.clone();
     while !all_file_names.is_empty() {
         let directory_start = ensure_trailing_directory_separator(&directory);
-        let keys: Vec<String> = all_file_names
+        let keys: Vec<JsString> = all_file_names
             .iter()
-            .filter(|(_, value)| value.path.starts_with(&directory_start))
+            .filter(|(_, value)| value.path.as_js().starts_with_js(directory_start.as_js()))
             .map(|(file_name, _)| file_name.clone())
             .collect();
         if !keys.is_empty() {
@@ -1707,7 +1773,7 @@ pub(crate) fn get_all_module_paths_worker(
 pub(crate) fn try_get_module_name_from_ambient_module(
     state: &mut CheckerState<'_>,
     module_symbol: SymbolId,
-) -> CheckResult<Option<String>> {
+) -> CheckResult<Option<JsString>> {
     let declarations = state.binder.symbol(module_symbol).declarations.clone();
     for declaration in &declarations {
         let source = state.binder.source_of_node(*declaration);
@@ -1809,15 +1875,17 @@ pub(crate) fn get_top_namespace(state: &CheckerState<'_>, mut declaration: NodeI
 /// tsc-hash: 4ec24fe788e16d7a27d09495ad090e154d73f0a1ff126e65bbc0b9d8fb58e417
 /// tsc-span: _tsc.js:45817-45849
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn try_get_module_name_from_paths(
-    relative_to_base_url: &str,
+pub(crate) fn try_get_module_name_from_paths<'path>(
+    relative_to_base_url: impl Into<JsStr<'path>>,
     paths: &[ModulePathMapping],
     allowed_endings: &[ModuleSpecifierEnding],
-    base_directory: &str,
+    base_directory: impl Into<JsStr<'path>>,
     case_sensitive: bool,
     host: &dyn EmitModuleSpecifierHost,
     compiler_options: &SpecifierCompilerOptions,
-) -> Option<String> {
+) -> Option<JsString> {
+    let relative_to_base_url = relative_to_base_url.into();
+    let base_directory = base_directory.into();
     for mapping in paths {
         for pattern_text in &mapping.patterns {
             let normalized = normalize_path_text(pattern_text);
@@ -1827,7 +1895,7 @@ pub(crate) fn try_get_module_name_from_paths(
             } else {
                 normalized
             };
-            let mut candidates: Vec<(Option<ModuleSpecifierEnding>, String)> = allowed_endings
+            let mut candidates: Vec<(Option<ModuleSpecifierEnding>, JsString)> = allowed_endings
                 .iter()
                 .filter_map(|&ending| {
                     process_ending(relative_to_base_url, &[ending], compiler_options, None)
@@ -1837,13 +1905,11 @@ pub(crate) fn try_get_module_name_from_paths(
             if extension_from_path(&pattern).is_some() {
                 candidates.push((None, relative_to_base_url.to_owned()));
             }
-            if let Some(star) = pattern.find('*') {
-                let prefix = &pattern[..star];
-                let suffix = &pattern[star + 1..];
+            if let Some((prefix, suffix)) = pattern.as_js().split_once("*") {
                 for &(ending, ref value) in &candidates {
-                    if value.len() >= prefix.len() + suffix.len()
-                        && value.starts_with(prefix)
-                        && value.ends_with(suffix)
+                    if value.len_units() >= prefix.len_units() + suffix.len_units()
+                        && value.as_js().starts_with_js(prefix)
+                        && value.as_js().ends_with_js(suffix)
                         && validate_ending(
                             relative_to_base_url,
                             ending,
@@ -1852,9 +1918,14 @@ pub(crate) fn try_get_module_name_from_paths(
                             host,
                         )
                     {
-                        let matched_star = &value[prefix.len()..value.len() - suffix.len()];
-                        if !path_is_relative(matched_star) {
-                            return Some(mapping.key.replacen('*', matched_star, 1));
+                        let matched_star = value
+                            .as_js()
+                            .substring(prefix.len_units(), value.len_units() - suffix.len_units());
+                        if !path_is_relative(&matched_star) {
+                            return Some(replace_first_star(
+                                mapping.key.as_js(),
+                                matched_star.as_js(),
+                            ));
                         }
                     }
                 }
@@ -1875,13 +1946,15 @@ pub(crate) fn try_get_module_name_from_paths(
 /// tsc-port: validateEnding @6.0.3 (nested in tryGetModuleNameFromPaths)
 /// tsc-hash: 65f452bfe82f22cab223b2d242cf22c1120604dec911b98c4e35c352305b19a1
 /// tsc-span: _tsc.js:45846-45848
-pub(crate) fn validate_ending(
-    relative_to_base_url: &str,
+pub(crate) fn validate_ending<'path>(
+    relative_to_base_url: impl Into<JsStr<'path>>,
     ending: Option<ModuleSpecifierEnding>,
-    value: &str,
+    value: impl Into<JsStr<'path>>,
     compiler_options: &SpecifierCompilerOptions,
     host: &dyn EmitModuleSpecifierHost,
 ) -> bool {
+    let relative_to_base_url = relative_to_base_url.into();
+    let value = value.into();
     ending != Some(ModuleSpecifierEnding::Minimal)
         || process_ending(
             relative_to_base_url,
@@ -1889,7 +1962,8 @@ pub(crate) fn validate_ending(
             compiler_options,
             Some(host),
         )
-        .as_deref()
+        .as_ref()
+        .map(JsString::as_js)
             == Some(value)
 }
 
@@ -1897,19 +1971,22 @@ pub(crate) fn validate_ending(
 /// tsc-hash: e72371a7e2feae069b2dc51b43d8d3540490274f2bd4f3d67df58698e77cb0e8
 /// tsc-span: _tsc.js:45850-45970
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn try_get_module_name_from_exports_or_imports(
+pub(crate) fn try_get_module_name_from_exports_or_imports<'path>(
     options: &SpecifierCompilerOptions,
     host: &dyn EmitModuleSpecifierHost,
-    target_file_path: &str,
-    package_directory: &str,
-    package_name: &str,
+    target_file_path: impl Into<JsStr<'path>>,
+    package_directory: impl Into<JsStr<'path>>,
+    package_name: impl Into<JsStr<'path>>,
     exports: &Value,
-    conditions: &[String],
+    conditions: &[JsString],
     mode: ExportsKeyMode,
     is_imports: bool,
     prefer_ts_extension: bool,
 ) -> Option<ExportsOrImportsResult> {
-    if let Some(target) = exports.as_str() {
+    let target_file_path = target_file_path.into();
+    let package_directory = package_directory.into();
+    let package_name = package_name.into();
+    if let Some(target) = exports.as_js() {
         let ignore_case = !host.use_case_sensitive_file_names();
         let output_file = is_imports
             .then(|| output_js_file_name(target_file_path, options, host))
@@ -1924,7 +2001,7 @@ pub(crate) fn try_get_module_name_from_exports_or_imports(
         let extension_swapped_target = has_ts_file_extension(target_file_path)
             .then(|| {
                 try_get_js_extension_for_file(target_file_path, options).map(|extension| {
-                    format!("{}{}", remove_file_extension(target_file_path), extension)
+                    crate::concat_js(&[&(remove_file_extension(target_file_path)), &(extension)])
                 })
             })
             .flatten();
@@ -1933,14 +2010,17 @@ pub(crate) fn try_get_module_name_from_exports_or_imports(
         match mode {
             ExportsKeyMode::Exact => {
                 let matches = extension_swapped_target
-                    .as_deref()
+                    .as_ref()
+                    .map(JsString::as_js)
                     .is_some_and(|path| paths_equal(path, &path_or_pattern, ignore_case))
                     || paths_equal(target_file_path, &path_or_pattern, ignore_case)
                     || output_file
-                        .as_deref()
+                        .as_ref()
+                        .map(JsString::as_js)
                         .is_some_and(|path| paths_equal(path, &path_or_pattern, ignore_case))
                     || declaration_file
-                        .as_deref()
+                        .as_ref()
+                        .map(JsString::as_js)
                         .is_some_and(|path| paths_equal(path, &path_or_pattern, ignore_case));
                 if matches {
                     return Some(exports_result(package_name));
@@ -2017,25 +2097,24 @@ pub(crate) fn try_get_module_name_from_exports_or_imports(
                 }
             }
             ExportsKeyMode::Pattern => {
-                let (leading, trailing) = if let Some(star) = path_or_pattern.find('*') {
-                    (&path_or_pattern[..star], &path_or_pattern[star + 1..])
-                } else {
-                    // Preserve JS `slice(0, -1)` / `slice(0)` behavior for a
-                    // wildcard package key whose target contains no `*`.
-                    let last = path_or_pattern
-                        .char_indices()
-                        .next_back()
-                        .map_or(0, |(index, _)| index);
-                    (&path_or_pattern[..last], path_or_pattern.as_str())
-                };
+                let missing_star_leading;
+                let (leading, trailing) =
+                    if let Some(parts) = path_or_pattern.as_js().split_once("*") {
+                        parts
+                    } else {
+                        // JS slice(0, -1) removes one UTF-16 unit, even within a pair.
+                        missing_star_leading = path_or_pattern
+                            .as_js()
+                            .substring(0, path_or_pattern.len_units().saturating_sub(1));
+                        (missing_star_leading.as_js(), path_or_pattern.as_js())
+                    };
                 if can_try_ts_extension {
                     if let Some(star_replacement) =
                         match_path_pattern(target_file_path, leading, trailing, ignore_case)
                     {
-                        return Some(exports_result(&package_name.replacen(
-                            '*',
-                            star_replacement,
-                            1,
+                        return Some(exports_result(&replace_first_star(
+                            package_name,
+                            star_replacement.as_js(),
                         )));
                     }
                 }
@@ -2043,10 +2122,9 @@ pub(crate) fn try_get_module_name_from_exports_or_imports(
                     if let Some(star_replacement) =
                         match_path_pattern(extension_swapped_target, leading, trailing, ignore_case)
                     {
-                        return Some(exports_result(&package_name.replacen(
-                            '*',
-                            star_replacement,
-                            1,
+                        return Some(exports_result(&replace_first_star(
+                            package_name,
+                            star_replacement.as_js(),
                         )));
                     }
                 }
@@ -2054,10 +2132,9 @@ pub(crate) fn try_get_module_name_from_exports_or_imports(
                     if let Some(star_replacement) =
                         match_path_pattern(target_file_path, leading, trailing, ignore_case)
                     {
-                        return Some(exports_result(&package_name.replacen(
-                            '*',
-                            star_replacement,
-                            1,
+                        return Some(exports_result(&replace_first_star(
+                            package_name,
+                            star_replacement.as_js(),
                         )));
                     }
                 }
@@ -2065,10 +2142,9 @@ pub(crate) fn try_get_module_name_from_exports_or_imports(
                     if let Some(star_replacement) =
                         match_path_pattern(output_file, leading, trailing, ignore_case)
                     {
-                        return Some(exports_result(&package_name.replacen(
-                            '*',
-                            star_replacement,
-                            1,
+                        return Some(exports_result(&replace_first_star(
+                            package_name,
+                            star_replacement.as_js(),
                         )));
                     }
                 }
@@ -2076,7 +2152,8 @@ pub(crate) fn try_get_module_name_from_exports_or_imports(
                     if let Some(star_replacement) =
                         match_path_pattern(declaration_file, leading, trailing, ignore_case)
                     {
-                        let substituted = package_name.replacen('*', star_replacement, 1);
+                        let substituted =
+                            replace_first_star(package_name, star_replacement.as_js());
                         return try_get_js_extension_for_file(declaration_file, options).map(
                             |extension| {
                                 exports_result(&change_full_extension(&substituted, extension))
@@ -2104,9 +2181,9 @@ pub(crate) fn try_get_module_name_from_exports_or_imports(
             }
         }
     } else if let Some(object) = exports.as_object() {
-        for (key, sub_target) in object {
+        for (key, sub_target) in package_json_own_entries(object) {
             if key == "default"
-                || conditions.iter().any(|condition| condition == key)
+                || conditions.iter().any(|condition| condition.as_js() == key)
                 || is_applicable_versioned_types_key(conditions, key)
             {
                 if let Some(result) = try_get_module_name_from_exports_or_imports(
@@ -2129,7 +2206,8 @@ pub(crate) fn try_get_module_name_from_exports_or_imports(
     None
 }
 
-fn exports_result(module_file_to_try: &str) -> ExportsOrImportsResult {
+fn exports_result<'path>(module_file_to_try: impl Into<JsStr<'path>>) -> ExportsOrImportsResult {
+    let module_file_to_try = module_file_to_try.into();
     ExportsOrImportsResult {
         module_file_to_try: module_file_to_try.to_owned(),
         ..ExportsOrImportsResult::default()
@@ -2140,24 +2218,29 @@ fn exports_result(module_file_to_try: &str) -> ExportsOrImportsResult {
 /// tsc-hash: 3252395c4d8796e30f35179766c05dbac63a21fdb614737bceeb95a253e1681f
 /// tsc-span: _tsc.js:45971-46010
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn try_get_module_name_from_exports(
+pub(crate) fn try_get_module_name_from_exports<'path>(
     options: &SpecifierCompilerOptions,
     host: &dyn EmitModuleSpecifierHost,
-    target_file_path: &str,
-    package_directory: &str,
-    package_name: &str,
+    target_file_path: impl Into<JsStr<'path>>,
+    package_directory: impl Into<JsStr<'path>>,
+    package_name: impl Into<JsStr<'path>>,
     exports: &Value,
-    conditions: &[String],
+    conditions: &[JsString],
 ) -> Option<ExportsOrImportsResult> {
-    if let Some(object) = exports
-        .as_object()
-        .filter(|object| !object.is_empty() && object.keys().all(|key| key.starts_with('.')))
-    {
-        for (key, target) in object {
+    let target_file_path = target_file_path.into();
+    let package_directory = package_directory.into();
+    let package_name = package_name.into();
+    if let Some(object) = exports.as_object().filter(|object| {
+        !object.is_empty()
+            && package_json_own_entries(object)
+                .iter()
+                .all(|(key, _)| key.starts_with("."))
+    }) {
+        for (key, target) in package_json_own_entries(object) {
             let sub_package_name = normalize_path_text(&combine_paths(package_name, key));
-            let mode = if key.ends_with('/') {
+            let mode = if key.ends_with("/") {
                 ExportsKeyMode::Directory
-            } else if key.contains('*') {
+            } else if key.contains("*") {
                 ExportsKeyMode::Pattern
             } else {
                 ExportsKeyMode::Exact
@@ -2196,34 +2279,36 @@ pub(crate) fn try_get_module_name_from_exports(
 /// tsc-port: tryGetModuleNameFromPackageJsonImports @6.0.3
 /// tsc-hash: 1091088171043c527e0ce5ee5aa678b10d0209f896215f0700ec1186751614cd
 /// tsc-span: _tsc.js:46011-46048
-pub(crate) fn try_get_module_name_from_package_json_imports(
-    module_file_name: &str,
-    source_directory: &str,
+pub(crate) fn try_get_module_name_from_package_json_imports<'path>(
+    module_file_name: impl Into<JsStr<'path>>,
+    source_directory: impl Into<JsStr<'path>>,
     options: &SpecifierCompilerOptions,
     host: &dyn EmitModuleSpecifierHost,
     import_mode: EmitResolutionMode,
     prefer_ts_extension: bool,
-) -> Option<String> {
+) -> Option<JsString> {
+    let module_file_name = module_file_name.into();
+    let source_directory = source_directory.into();
     if !get_resolve_package_json_imports(&options.compiler_options) {
         return None;
     }
     let ancestor = get_nearest_ancestor_directory_with_package_json(host, source_directory)?;
     let package_json_path = combine_paths(&ancestor, "package.json");
-    if !host.file_exists(&package_json_path) {
+    if !host.file_exists((&package_json_path).into()) {
         return None;
     }
     // The optional package-json info cache is absent; upstream immediately
     // falls back to readFile in this arm, so no behavior is guessed here.
-    let package_json: Value = serde_json::from_str(&host.read_file(&package_json_path)?).ok()?;
-    let imports = package_json.get("imports")?.as_object()?;
+    let package_json = read_package_json(host, package_json_path.as_js())?;
+    let imports = package_json_property(&package_json, "imports")?.as_object()?;
     let conditions = get_conditions(&options.compiler_options, import_mode);
-    for (key, target) in imports {
-        if !key.starts_with('#') || key == "#" || key.starts_with("#/") {
+    for (key, target) in package_json_own_entries(imports) {
+        if !key.starts_with("#") || key == "#" || key.starts_with("#/") {
             continue;
         }
-        let mode = if key.ends_with('/') {
+        let mode = if key.ends_with("/") {
             ExportsKeyMode::Directory
-        } else if key.contains('*') {
+        } else if key.contains("*") {
             ExportsKeyMode::Pattern
         } else {
             ExportsKeyMode::Exact
@@ -2249,14 +2334,16 @@ pub(crate) fn try_get_module_name_from_package_json_imports(
 /// tsc-port: tryGetModuleNameFromRootDirs @6.0.3
 /// tsc-hash: 53d7945047cecac6bc1e65d999f856fec0383c6b829493bd307736d02897a89a
 /// tsc-span: _tsc.js:46049-46063
-pub(crate) fn try_get_module_name_from_root_dirs(
-    root_dirs: &[String],
-    module_file_name: &str,
-    source_directory: &str,
+pub(crate) fn try_get_module_name_from_root_dirs<'path>(
+    root_dirs: &[JsString],
+    module_file_name: impl Into<JsStr<'path>>,
+    source_directory: impl Into<JsStr<'path>>,
     case_sensitive: bool,
     allowed_endings: &[ModuleSpecifierEnding],
     compiler_options: &SpecifierCompilerOptions,
-) -> Option<String> {
+) -> Option<JsString> {
+    let module_file_name = module_file_name.into();
+    let source_directory = source_directory.into();
     if root_dirs.is_empty() {
         return None;
     }
@@ -2302,7 +2389,7 @@ pub(crate) fn try_get_module_name_as_node_module(
     user_preferences: &ModuleSpecifierUserPreferences,
     package_name_only: bool,
     override_mode: Option<EmitResolutionMode>,
-) -> Option<String> {
+) -> Option<JsString> {
     let parts = get_node_module_path_parts(&module_path.path)?;
     let preferences = get_module_specifier_preferences(
         state,
@@ -2356,13 +2443,14 @@ pub(crate) fn try_get_module_name_as_node_module(
             // when the start index is at or beyond the end of the string — a
             // file directly under node_modules (`/node_modules/umd.d.ts`) ends
             // at its package-root index (h2-7b-m-2 fence amendment #4b).
-            let Some(next_slash) = module_path
-                .path
-                .get(package_root_index + 1..)
-                .and_then(|rest| rest.find('/'))
+            let Some(next_slash) = byte_path_slice(&module_path.path, package_root_index + 1..)
+                .and_then(|rest| ascii_index(rest, "/"))
             else {
                 module_specifier = process_ending(
-                    module_file_name.as_deref().unwrap_or(&module_path.path),
+                    module_file_name
+                        .as_ref()
+                        .map(JsString::as_js)
+                        .unwrap_or(module_path.path.as_js()),
                     &allowed_endings,
                     options,
                     Some(host),
@@ -2380,28 +2468,30 @@ pub(crate) fn try_get_module_name_as_node_module(
     // h2-7a-m-3 §3a residue: a missing global typings location is the
     // typed absence of the second containment root, never a fabricated root.
     let path_to_top_level_node_modules = info.canonical(
-        module_specifier
-            .get(..parts.top_level_node_modules_index)
+        byte_path_slice(&module_specifier, ..parts.top_level_node_modules_index)
             .unwrap_or_default(),
     );
     let source_contains = info
         .canonical_source_directory
-        .starts_with(&path_to_top_level_node_modules);
+        .as_js()
+        .starts_with_js(path_to_top_level_node_modules.as_js());
     let global_contains = global_typings_cache_location
-        .as_deref()
+        .as_ref()
+        .map(JsString::as_js)
         .is_some_and(|location| {
             info.canonical(location)
-                .starts_with(&path_to_top_level_node_modules)
+                .as_js()
+                .starts_with_js(path_to_top_level_node_modules.as_js())
         });
     if !source_contains && !global_contains {
         return None;
     }
 
     let node_modules_directory_name =
-        module_specifier.get(parts.top_level_package_name_index + 1..)?;
+        byte_path_slice(&module_specifier, parts.top_level_package_name_index + 1..)?;
     let package_name = get_package_name_from_types_package_name(node_modules_directory_name);
     if options.compiler_options.emit_module_resolution_kind() == 1
-        && package_name == node_modules_directory_name
+        && package_name.as_js() == node_modules_directory_name
     {
         None
     } else {
@@ -2413,8 +2503,8 @@ pub(crate) fn try_get_module_name_as_node_module(
 /// tsc-hash: c8d4efd504f506135eb3cb422366a3441f4ed875c3e863de0821bf4902d0d22c
 /// tsc-span: _tsc.js:46113-46178
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn try_directory_with_package_json(
-    path: &str,
+pub(crate) fn try_directory_with_package_json<'path>(
+    path: impl Into<JsStr<'path>>,
     parts: NodeModulePathParts,
     package_root_index: usize,
     importing_file: EmitResolverNode,
@@ -2423,27 +2513,29 @@ pub(crate) fn try_directory_with_package_json(
     allowed_endings: &[ModuleSpecifierEnding],
     override_mode: Option<EmitResolutionMode>,
 ) -> ExportsOrImportsResult {
-    let package_root_path = &path[..package_root_index];
+    let path = path.into();
+    let package_root_path =
+        byte_path_slice(path, ..package_root_index).expect("package root ASCII boundary");
     let package_json_path = combine_paths(package_root_path, "package.json");
     let mut module_file_to_try = path.to_owned();
     let mut maybe_blocked_by_types_versions = false;
-    let package_json_exists = host.file_exists(&package_json_path);
+    let package_json_exists = host.file_exists((&package_json_path).into());
     let package_json_content = package_json_exists
-        .then(|| host.read_file(&package_json_path))
-        .flatten()
-        .and_then(|text| serde_json::from_str::<Value>(&text).ok());
+        .then(|| read_package_json(host, package_json_path.as_js()))
+        .flatten();
     if package_json_exists {
         let import_mode = override_mode
             .unwrap_or_else(|| host.get_default_resolution_mode_for_file(importing_file));
         if get_resolve_package_json_exports(&options.compiler_options) {
             let node_modules_directory_name =
-                &package_root_path[parts.top_level_package_name_index + 1..];
+                byte_path_slice(package_root_path, parts.top_level_package_name_index + 1..)
+                    .expect("package name ASCII boundary");
             let package_name =
                 get_package_name_from_types_package_name(node_modules_directory_name);
             let conditions = get_conditions(&options.compiler_options, import_mode);
             if let Some(exports) = package_json_content
                 .as_ref()
-                .and_then(|content| content.get("exports"))
+                .and_then(|content| package_json_property(content, "exports"))
                 .filter(|exports| json_value_is_truthy(exports))
             {
                 if let Some(mut from_exports) = try_get_module_name_from_exports(
@@ -2470,7 +2562,8 @@ pub(crate) fn try_directory_with_package_json(
             .as_ref()
             .and_then(selected_types_versions_paths)
         {
-            let submodule_name = path.get(package_root_path.len() + 1..).unwrap_or_default();
+            let submodule_name =
+                byte_path_slice(path, package_root_path.as_bytes().len() + 1..).unwrap_or_default();
             if let Some(from_paths) = try_get_module_name_from_paths(
                 submodule_name,
                 &version_paths,
@@ -2491,12 +2584,12 @@ pub(crate) fn try_directory_with_package_json(
             .find_map(|key| {
                 package_json_content
                     .as_ref()
-                    .and_then(|content| content.get(key))
+                    .and_then(|content| package_json_property(content, *key))
                     .filter(|value| json_value_is_truthy(value))
             })
             .cloned()
-            .unwrap_or_else(|| Value::String("index.js".to_owned()));
-        let main_file_relative = main_file_value.as_str();
+            .unwrap_or_else(|| Value::String("index.js".into()));
+        let main_file_relative = main_file_value.as_js();
         let main_is_blocked_by_types_versions = main_file_relative.is_some_and(|main_file| {
             maybe_blocked_by_types_versions
                 && package_json_content
@@ -2528,16 +2621,18 @@ pub(crate) fn try_directory_with_package_json(
             }
             let package_is_module = package_json_content
                 .as_ref()
-                .and_then(|content| content.get("type"))
-                .and_then(Value::as_str)
-                == Some("module");
+                .and_then(|content| package_json_property(content, "type"))
+                .and_then(Value::as_js)
+                == Some(JsStr::from("module"));
             if !package_is_module
                 && !extension_does_not_support_extensionless_resolution(
                     &canonical_module_file_to_try,
                 )
-                && canonical_module_file_to_try.starts_with(&main_export_file)
-                && directory_path(&canonical_module_file_to_try)
-                    == main_export_file.trim_end_matches('/')
+                && canonical_module_file_to_try
+                    .as_js()
+                    .starts_with_js(main_export_file.as_js())
+                && directory_path(&canonical_module_file_to_try).as_js()
+                    == trim_path_separators(&main_export_file, false)
                 && remove_file_extension(base_file_name(&canonical_module_file_to_try)) == "index"
             {
                 return ExportsOrImportsResult {
@@ -2549,12 +2644,12 @@ pub(crate) fn try_directory_with_package_json(
         }
     } else {
         let file_name = canonical_file_name(
-            path.get(parts.package_root_index + 1..).unwrap_or_default(),
+            byte_path_slice(path, parts.package_root_index + 1..).unwrap_or_default(),
             host.use_case_sensitive_file_names(),
         );
         if matches!(
             file_name.as_str(),
-            "index.d.ts" | "index.js" | "index.ts" | "index.tsx"
+            Some("index.d.ts" | "index.js" | "index.ts" | "index.tsx")
         ) {
             return ExportsOrImportsResult {
                 package_root_path: Some(package_root_path.to_owned()),
@@ -2572,16 +2667,17 @@ pub(crate) fn try_directory_with_package_json(
 /// tsc-port: tryGetAnyFileFromPath @6.0.3
 /// tsc-hash: e93b7fcddf01449570a10abb891b3c0d45d970608688491f1108fc9346549a71
 /// tsc-span: _tsc.js:46180-46189
-pub(crate) fn try_get_any_file_from_path(
+pub(crate) fn try_get_any_file_from_path<'path>(
     host: &dyn EmitModuleSpecifierHost,
-    path: &str,
-) -> Option<String> {
+    path: impl Into<JsStr<'path>>,
+) -> Option<JsString> {
+    let path = path.into();
     for extension in [
         ".ts", ".tsx", ".d.ts", ".js", ".jsx", ".cts", ".d.cts", ".cjs", ".mts", ".d.mts", ".mjs",
         ".node", ".json",
     ] {
-        let full_path = format!("{path}{extension}");
-        if host.file_exists(&full_path) {
+        let full_path = crate::concat_js(&[&(path), &(extension)]);
+        if host.file_exists((&full_path).into()) {
             return Some(full_path);
         }
     }
@@ -2591,11 +2687,12 @@ pub(crate) fn try_get_any_file_from_path(
 /// tsc-port: getPathsRelativeToRootDirs @6.0.3
 /// tsc-hash: 0999acb417e2c9858cff3cc8bb693d31cd968e39a364d4db952c7e140d423636
 /// tsc-span: _tsc.js:46190-46195
-pub(crate) fn get_paths_relative_to_root_dirs(
-    path: &str,
-    root_dirs: &[String],
+pub(crate) fn get_paths_relative_to_root_dirs<'path>(
+    path: impl Into<JsStr<'path>>,
+    root_dirs: &[JsString],
     case_sensitive: bool,
-) -> Vec<String> {
+) -> Vec<JsString> {
+    let path = path.into();
     root_dirs
         .iter()
         .filter_map(|root_dir| {
@@ -2608,17 +2705,18 @@ pub(crate) fn get_paths_relative_to_root_dirs(
 /// tsc-port: processEnding @6.0.3
 /// tsc-hash: 64c345fbec1324434ec6982b33c84acd20e6fb25de15ae741eb0ebffe77e8f4b
 /// tsc-span: _tsc.js:46196-46233
-pub(crate) fn process_ending(
-    file_name: &str,
+pub(crate) fn process_ending<'path>(
+    file_name: impl Into<JsStr<'path>>,
     allowed_endings: &[ModuleSpecifierEnding],
     options: &SpecifierCompilerOptions,
     host: Option<&dyn EmitModuleSpecifierHost>,
-) -> Option<String> {
+) -> Option<JsString> {
+    let file_name = file_name.into();
     if file_extension_is_one_of(file_name, &[".json", ".mjs", ".cjs"]) {
         return Some(file_name.to_owned());
     }
     let no_extension = remove_file_extension(file_name);
-    if file_name == no_extension {
+    if file_name == no_extension.as_js() {
         return Some(file_name.to_owned());
     }
     let js_priority = allowed_endings
@@ -2635,11 +2733,10 @@ pub(crate) fn process_ending(
         return Some(file_name.to_owned());
     }
     if file_extension_is_one_of(file_name, &[".d.mts", ".mts", ".d.cts", ".cts"]) {
-        return Some(format!(
-            "{}{}",
-            no_extension,
-            get_js_extension_for_file(file_name, options)
-        ));
+        return Some(crate::concat_js(&[
+            &(no_extension),
+            &(get_js_extension_for_file(file_name, options)),
+        ]));
     }
     if !file_extension_is_one_of(file_name, &[".d.ts"])
         && file_extension_is_one_of(file_name, &[".ts"])
@@ -2649,9 +2746,12 @@ pub(crate) fn process_ending(
     }
     Some(match allowed_endings.first().copied()? {
         ModuleSpecifierEnding::Minimal => {
-            let without_index = no_extension.strip_suffix("/index").unwrap_or(&no_extension);
+            let without_index = no_extension
+                .as_js()
+                .strip_suffix("/index")
+                .unwrap_or(no_extension.as_js());
             if host.is_some_and(|host| {
-                without_index != no_extension
+                without_index != no_extension.as_js()
                     && try_get_any_file_from_path(host, without_index).is_some()
             }) {
                 no_extension
@@ -2660,11 +2760,10 @@ pub(crate) fn process_ending(
             }
         }
         ModuleSpecifierEnding::Index => no_extension,
-        ModuleSpecifierEnding::JsExtension => format!(
-            "{}{}",
-            no_extension,
-            get_js_extension_for_file(file_name, options)
-        ),
+        ModuleSpecifierEnding::JsExtension => crate::concat_js(&[
+            &(no_extension),
+            &(get_js_extension_for_file(file_name, options)),
+        ]),
         ModuleSpecifierEnding::TsExtension => {
             if is_declaration_file_name(file_name) {
                 let extensionless_priority = allowed_endings.iter().position(|ending| {
@@ -2678,11 +2777,10 @@ pub(crate) fn process_ending(
                 }) {
                     no_extension
                 } else {
-                    format!(
-                        "{}{}",
-                        no_extension,
-                        get_js_extension_for_file(file_name, options)
-                    )
+                    crate::concat_js(&[
+                        &(no_extension),
+                        &(get_js_extension_for_file(file_name, options)),
+                    ])
                 }
             } else {
                 file_name.to_owned()
@@ -2694,41 +2792,44 @@ pub(crate) fn process_ending(
 /// tsc-port: tryGetRealFileNameForNonJsDeclarationFileName @6.0.3
 /// tsc-hash: 708ef279f3a044763a0274c327f23e6adc91e8541dcbd2612fa796d67527db7a
 /// tsc-span: _tsc.js:46234-46240
-pub(crate) fn try_get_real_file_name_for_non_js_declaration_file_name(
-    file_name: &str,
-) -> Option<String> {
+pub(crate) fn try_get_real_file_name_for_non_js_declaration_file_name<'path>(
+    file_name: impl Into<JsStr<'path>>,
+) -> Option<JsString> {
+    let file_name = file_name.into();
     let base_name = base_file_name(file_name);
     if !file_name.ends_with(".ts") || !base_name.contains(".d.") || base_name.ends_with(".d.ts") {
         return None;
     }
     let no_extension = file_name.strip_suffix(".ts")?;
-    let extension = &no_extension[no_extension.rfind('.')?..];
-    let declaration_marker = file_name.find(".d.")?;
-    Some(format!(
-        "{}{}",
-        &no_extension[..declaration_marker],
-        extension
-    ))
+    let (base, _) = no_extension.rsplit_once(".")?;
+    let extension = byte_path_slice(no_extension, base.as_bytes().len()..)?;
+    let declaration_marker = ascii_index(file_name, ".d.")?;
+    Some(crate::concat_js(&[
+        &byte_path_slice(no_extension, ..declaration_marker)?,
+        &extension,
+    ]))
 }
 
 /// tsc-port: getJSExtensionForFile @6.0.3
 /// tsc-hash: 0cab3d0888593f4265b5f7582423e5f52c3fafed97c2843f73f4d5c63e099763
 /// tsc-span: _tsc.js:46241-46243
-pub(crate) fn get_js_extension_for_file(
-    file_name: &str,
+pub(crate) fn get_js_extension_for_file<'path>(
+    file_name: impl Into<JsStr<'path>>,
     options: &SpecifierCompilerOptions,
 ) -> &'static str {
+    let file_name = file_name.into();
     try_get_js_extension_for_file(file_name, options)
-        .unwrap_or_else(|| panic!("unsupported module-specifier extension: {file_name}"))
+        .unwrap_or_else(|| panic!("unsupported module-specifier extension: {file_name:?}"))
 }
 
 /// tsc-port: tryGetJSExtensionForFile @6.0.3
 /// tsc-hash: 48e572843ba74a29b29855c877760bc71dbea427eeb4f6576e66b1e212d31a1f
 /// tsc-span: _tsc.js:46244-46267
-pub(crate) fn try_get_js_extension_for_file(
-    file_name: &str,
+pub(crate) fn try_get_js_extension_for_file<'path>(
+    file_name: impl Into<JsStr<'path>>,
     options: &SpecifierCompilerOptions,
 ) -> Option<&'static str> {
+    let file_name = file_name.into();
     match extension_from_path(file_name)? {
         ".ts" | ".d.ts" => Some(".js"),
         ".tsx" => Some(if options.compiler_options.jsx == Some(1) {
@@ -2748,11 +2849,13 @@ pub(crate) fn try_get_js_extension_for_file(
 /// tsc-port: getRelativePathIfInSameVolume @6.0.3
 /// tsc-hash: 92f50dd116901f21d73e66701319358380809eacabd880157e0451c823dd52f4
 /// tsc-span: _tsc.js:46268-46278
-pub(crate) fn get_relative_path_if_in_same_volume(
-    path: &str,
-    directory_path: &str,
+pub(crate) fn get_relative_path_if_in_same_volume<'path>(
+    path: impl Into<JsStr<'path>>,
+    directory_path: impl Into<JsStr<'path>>,
     case_sensitive: bool,
-) -> Option<String> {
+) -> Option<JsString> {
+    let path = path.into();
+    let directory_path = directory_path.into();
     let path = if path_is_absolute(path) {
         normalize_path_text(path)
     } else {
@@ -2763,7 +2866,7 @@ pub(crate) fn get_relative_path_if_in_same_volume(
     } else {
         normalized_absolute_path(directory_path, "/")
     };
-    if !roots_equal(&path, &directory_path) {
+    if !roots_equal(path.as_js(), directory_path.as_js()) {
         return None;
     }
     let relative = get_relative_path_from_directory(&directory_path, &path, case_sensitive);
@@ -2773,7 +2876,8 @@ pub(crate) fn get_relative_path_if_in_same_volume(
 /// tsc-port: isPathRelativeToParent @6.0.3
 /// tsc-hash: efe08b88ffa50eb44d7a8de90ce3506f9d7f50a1d1400bb55a716b3f5b297ff0
 /// tsc-span: _tsc.js:46279-46281
-pub(crate) fn is_path_relative_to_parent(path: &str) -> bool {
+pub(crate) fn is_path_relative_to_parent<'path>(path: impl Into<JsStr<'path>>) -> bool {
+    let path = path.into();
     path.starts_with("..")
 }
 
@@ -2805,7 +2909,11 @@ pub(crate) fn prefers_ts_extension(allowed_endings: &[ModuleSpecifierEnding]) ->
 /// tsc-port: isExcludedByRegex @6.0.3
 /// tsc-hash: c6787571d1157d0ee4c7e797349b370267dc000c04df5567d3075b501ed4eb69
 /// tsc-span: _tsc.js:45562-45567
-pub(crate) fn is_excluded_by_regex(module_specifier: &str, exclude_regexes: &[String]) -> bool {
+pub(crate) fn is_excluded_by_regex<'p>(
+    module_specifier: impl Into<JsStr<'p>>,
+    exclude_regexes: &[String],
+) -> bool {
+    let module_specifier = module_specifier.into();
     exclude_regexes.iter().any(|pattern| {
         match string_to_regex(pattern) {
             Some(CompiledExcludeRegex::Supported(regex)) => regex.is_match(module_specifier),
@@ -2829,6 +2937,7 @@ struct SimpleRegex {
     anchored_start: bool,
     anchored_end: bool,
     ignore_case: bool,
+    unicode: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -2839,14 +2948,14 @@ struct RegexPiece {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum RegexAtom {
-    Literal(char),
+    Literal(u32),
     Any,
     Digit,
     Word,
     Whitespace,
     Class {
         negated: bool,
-        ranges: Vec<(char, char)>,
+        ranges: Vec<(u32, u32)>,
     },
 }
 
@@ -2872,7 +2981,7 @@ fn string_to_regex(pattern: &str) -> Option<CompiledExcludeRegex> {
     if flags.matches('i').count() > 1 || flags.matches('u').count() > 1 {
         return None;
     }
-    match SimpleRegex::parse(body, flags.contains('i')) {
+    match SimpleRegex::parse(body, flags.contains('i'), flags.contains('u')) {
         Ok(regex) => Some(CompiledExcludeRegex::Supported(regex)),
         Err(RegexParseError::Unsupported) if regex_syntax_is_valid(body, &flags) => {
             Some(CompiledExcludeRegex::FailClosed)
@@ -2932,7 +3041,7 @@ fn split_regex_pattern(pattern: &str) -> (&str, &str) {
 }
 
 impl SimpleRegex {
-    fn parse(pattern: &str, ignore_case: bool) -> Result<Self, RegexParseError> {
+    fn parse(pattern: &str, ignore_case: bool, unicode: bool) -> Result<Self, RegexParseError> {
         let mut anchored_start = false;
         let mut anchored_end = false;
         let mut body = pattern;
@@ -2949,18 +3058,28 @@ impl SimpleRegex {
         }
         let mut alternatives = Vec::new();
         for alternative in split_unescaped(body, '|') {
-            alternatives.push(parse_regex_pieces(alternative)?);
+            alternatives.push(parse_regex_pieces(alternative, unicode)?);
         }
         Ok(Self {
             alternatives,
             anchored_start,
             anchored_end,
             ignore_case,
+            unicode,
         })
     }
 
-    fn is_match(&self, text: &str) -> bool {
-        let text: Vec<char> = text.chars().collect();
+    fn is_match(&self, text: JsStr<'_>) -> bool {
+        let text: Vec<u32> = if self.unicode {
+            char::decode_utf16(text.code_units())
+                .map(|point| match point {
+                    Ok(ch) => ch as u32,
+                    Err(unit) => unit.unpaired_surrogate() as u32,
+                })
+                .collect()
+        } else {
+            text.code_units().map(u32::from).collect()
+        };
         let starts: Box<dyn Iterator<Item = usize>> = if self.anchored_start {
             Box::new(std::iter::once(0))
         } else {
@@ -3004,39 +3123,43 @@ fn split_unescaped(text: &str, separator: char) -> Vec<&str> {
     parts
 }
 
-fn parse_regex_pieces(text: &str) -> Result<Vec<RegexPiece>, RegexParseError> {
-    let chars: Vec<char> = text.chars().collect();
+fn parse_regex_pieces(text: &str, unicode: bool) -> Result<Vec<RegexPiece>, RegexParseError> {
+    let chars: Vec<u32> = if unicode {
+        text.chars().map(u32::from).collect()
+    } else {
+        text.encode_utf16().map(u32::from).collect()
+    };
     let mut pieces: Vec<RegexPiece> = Vec::new();
     let mut index = 0;
     while index < chars.len() {
         let atom = match chars[index] {
-            '\\' => {
+            92 => {
                 index += 1;
                 let Some(&escaped) = chars.get(index) else {
                     return Err(RegexParseError::Invalid);
                 };
                 match escaped {
-                    'd' => RegexAtom::Digit,
-                    'w' => RegexAtom::Word,
-                    's' => RegexAtom::Whitespace,
-                    'D' | 'W' | 'S' | 'b' | 'B' => return Err(RegexParseError::Unsupported),
+                    100 => RegexAtom::Digit,
+                    119 => RegexAtom::Word,
+                    115 => RegexAtom::Whitespace,
+                    68 | 87 | 83 | 98 | 66 => return Err(RegexParseError::Unsupported),
                     other => RegexAtom::Literal(other),
                 }
             }
-            '.' => RegexAtom::Any,
-            '[' => {
+            46 => RegexAtom::Any,
+            91 => {
                 let (atom, end) = parse_regex_class(&chars, index)?;
                 index = end;
                 atom
             }
-            '*' | '+' | '?' => return Err(RegexParseError::Invalid),
+            42 | 43 | 63 => return Err(RegexParseError::Invalid),
             other => RegexAtom::Literal(other),
         };
         index += 1;
         let repetition = match chars.get(index) {
-            Some('*') => RegexRepetition::ZeroOrMore,
-            Some('+') => RegexRepetition::OneOrMore,
-            Some('?') => RegexRepetition::ZeroOrOne,
+            Some(42) => RegexRepetition::ZeroOrMore,
+            Some(43) => RegexRepetition::OneOrMore,
+            Some(63) => RegexRepetition::ZeroOrOne,
             _ => RegexRepetition::One,
         };
         if repetition != RegexRepetition::One {
@@ -3047,25 +3170,25 @@ fn parse_regex_pieces(text: &str) -> Result<Vec<RegexPiece>, RegexParseError> {
     Ok(pieces)
 }
 
-fn parse_regex_class(chars: &[char], start: usize) -> Result<(RegexAtom, usize), RegexParseError> {
+fn parse_regex_class(chars: &[u32], start: usize) -> Result<(RegexAtom, usize), RegexParseError> {
     let mut index = start + 1;
-    let negated = chars.get(index) == Some(&'^');
+    let negated = chars.get(index) == Some(&94);
     index += usize::from(negated);
     let mut ranges = Vec::new();
     while let Some(&ch) = chars.get(index) {
-        if ch == ']' {
+        if ch == 93 {
             if ranges.is_empty() {
                 return Err(RegexParseError::Invalid);
             }
             return Ok((RegexAtom::Class { negated, ranges }, index));
         }
-        let first = if ch == '\\' {
+        let first = if ch == 92 {
             index += 1;
             *chars.get(index).ok_or(RegexParseError::Invalid)?
         } else {
             ch
         };
-        if chars.get(index + 1) == Some(&'-') && chars.get(index + 2) != Some(&']') {
+        if chars.get(index + 1) == Some(&45) && chars.get(index + 2) != Some(&93) {
             let last = *chars.get(index + 2).ok_or(RegexParseError::Invalid)?;
             ranges.push((first, last));
             index += 3;
@@ -3080,7 +3203,7 @@ fn parse_regex_class(chars: &[char], start: usize) -> Result<(RegexAtom, usize),
 #[allow(clippy::too_many_arguments)]
 fn regex_match_pieces(
     pieces: &[RegexPiece],
-    text: &[char],
+    text: &[u32],
     piece_index: usize,
     text_index: usize,
     ignore_case: bool,
@@ -3155,20 +3278,27 @@ fn regex_match_pieces(
     result
 }
 
-fn regex_atom_matches(atom: &RegexAtom, ch: char, ignore_case: bool) -> bool {
-    let normalize = |value: char| {
-        if ignore_case {
-            value.to_ascii_lowercase()
+fn regex_atom_matches(atom: &RegexAtom, ch: u32, ignore_case: bool) -> bool {
+    let normalize = |value: u32| {
+        if ignore_case && (65..=90).contains(&value) {
+            value + 32
         } else {
             value
         }
     };
     match atom {
         RegexAtom::Literal(expected) => normalize(*expected) == normalize(ch),
-        RegexAtom::Any => ch != '\n' && ch != '\r',
-        RegexAtom::Digit => ch.is_ascii_digit(),
-        RegexAtom::Word => ch.is_ascii_alphanumeric() || ch == '_',
-        RegexAtom::Whitespace => ch.is_whitespace(),
+        RegexAtom::Any => !matches!(ch, 10 | 13 | 0x2028 | 0x2029),
+        RegexAtom::Digit => (48..=57).contains(&ch),
+        RegexAtom::Word => {
+            (48..=57).contains(&ch)
+                || (65..=90).contains(&ch)
+                || (97..=122).contains(&ch)
+                || ch == 95
+        }
+        RegexAtom::Whitespace => {
+            matches!(ch, 9..=13 | 32 | 160 | 0x1680 | 0x2000..=0x200a | 0x2028 | 0x2029 | 0x202f | 0x205f | 0x3000 | 0xfeff)
+        }
         RegexAtom::Class { negated, ranges } => {
             let ch = normalize(ch);
             let contains = ranges
@@ -3184,39 +3314,101 @@ const EXTENSIONS_TO_REMOVE: [&str; 12] = [
     ".json",
 ];
 
-fn extension_from_path(path: &str) -> Option<&'static str> {
+// Byte offsets in this compartment come exclusively from ASCII delimiters.
+// Arbitrary JS prefixes and wildcard captures use UTF-16 units below.
+fn ascii_index(path: JsStr<'_>, needle: &str) -> Option<usize> {
+    debug_assert!(needle.is_ascii() && !needle.is_empty());
+    path.as_bytes()
+        .windows(needle.len())
+        .position(|part| part == needle.as_bytes())
+}
+
+fn byte_path_slice<'p>(
+    path: impl Into<JsStr<'p>>,
+    range: impl std::ops::RangeBounds<usize>,
+) -> Option<JsStr<'p>> {
+    use std::ops::Bound;
+    let path = path.into();
+    let start = match range.start_bound() {
+        Bound::Included(&n) => n,
+        Bound::Excluded(&n) => n.checked_add(1)?,
+        Bound::Unbounded => 0,
+    };
+    let end = match range.end_bound() {
+        Bound::Included(&n) => n.checked_add(1)?,
+        Bound::Excluded(&n) => n,
+        Bound::Unbounded => path.as_bytes().len(),
+    };
+    let (_, tail) = path.split_at_byte(start)?;
+    tail.split_at_byte(end.checked_sub(start)?)
+        .map(|(head, _)| head)
+}
+
+pub(crate) fn normalized_slashes<'p>(path: impl Into<JsStr<'p>>) -> JsString {
+    let path = path.into();
+    let mut result = JsString::with_capacity(path.as_bytes().len());
+    for unit in path.code_units() {
+        result.push_code_unit(if unit == b'\\' as u16 {
+            b'/' as u16
+        } else {
+            unit
+        });
+    }
+    result
+}
+
+fn trim_path_separators<'p>(path: impl Into<JsStr<'p>>, leading: bool) -> JsStr<'p> {
+    let mut path = path.into();
+    loop {
+        let next = if leading {
+            path.strip_prefix("/").or_else(|| path.strip_prefix("\\"))
+        } else {
+            path.strip_suffix("/").or_else(|| path.strip_suffix("\\"))
+        };
+        match next {
+            Some(next) => path = next,
+            None => return path,
+        }
+    }
+}
+
+fn extension_from_path<'p>(path: impl Into<JsStr<'p>>) -> Option<&'static str> {
+    let path = path.into();
     EXTENSIONS_TO_REMOVE
         .iter()
         .copied()
         .find(|extension| file_extension_is(path, extension))
 }
 
-fn remove_file_extension(path: &str) -> String {
+fn remove_file_extension<'p>(path: impl Into<JsStr<'p>>) -> JsString {
+    let path = path.into();
     extension_from_path(path)
         .and_then(|extension| path.strip_suffix(extension))
         .unwrap_or(path)
         .to_owned()
 }
 
-fn change_full_extension(path: &str, extension: &str) -> String {
-    format!("{}{}", remove_file_extension(path), extension)
+fn change_full_extension<'p>(path: impl Into<JsStr<'p>>, extension: &str) -> JsString {
+    crate::concat_js(&[&remove_file_extension(path), &extension])
 }
 
-fn file_extension_is(path: &str, extension: &str) -> bool {
-    path.len() > extension.len() && path.ends_with(extension)
+fn file_extension_is<'p>(path: impl Into<JsStr<'p>>, extension: &str) -> bool {
+    let path = path.into();
+    path.len_units() > extension.encode_utf16().count() && path.ends_with(extension)
 }
 
-fn file_extension_is_one_of(path: &str, extensions: &[&str]) -> bool {
+fn file_extension_is_one_of<'p>(path: impl Into<JsStr<'p>>, extensions: &[&str]) -> bool {
+    let path = path.into();
     extensions
         .iter()
         .any(|extension| file_extension_is(path, extension))
 }
 
-fn has_js_file_extension(path: &str) -> bool {
+fn has_js_file_extension<'p>(path: impl Into<JsStr<'p>>) -> bool {
     file_extension_is_one_of(path, &[".js", ".jsx", ".mjs", ".cjs"])
 }
 
-fn has_ts_file_extension(path: &str) -> bool {
+fn has_ts_file_extension<'p>(path: impl Into<JsStr<'p>>) -> bool {
     extension_from_path(path).is_some_and(|extension| {
         matches!(
             extension,
@@ -3225,284 +3417,308 @@ fn has_ts_file_extension(path: &str) -> bool {
     })
 }
 
-fn has_implementation_ts_file_extension(path: &str) -> bool {
+fn has_implementation_ts_file_extension<'p>(path: impl Into<JsStr<'p>>) -> bool {
+    let path = path.into();
     has_ts_file_extension(path) && !is_declaration_file_name(path)
 }
 
-fn is_declaration_file_name(path: &str) -> bool {
-    path.ends_with(".d.ts")
-        || path.ends_with(".d.mts")
-        || path.ends_with(".d.cts")
-        || path
-            .rsplit(['/', '\\'])
-            .next()
-            .is_some_and(|base| base.ends_with(".ts") && base.contains(".d."))
+fn is_declaration_file_name<'p>(path: impl Into<JsStr<'p>>) -> bool {
+    let path = path.into();
+    path.ends_with(".d.ts") || path.ends_with(".d.mts") || path.ends_with(".d.cts") || {
+        let base = base_file_name(path);
+        base.ends_with(".ts") && base.contains(".d.")
+    }
 }
 
-fn extension_does_not_support_extensionless_resolution(path: &str) -> bool {
+fn extension_does_not_support_extensionless_resolution<'p>(path: impl Into<JsStr<'p>>) -> bool {
     file_extension_is_one_of(path, &[".mts", ".d.mts", ".mjs", ".cts", ".d.cts", ".cjs"])
 }
 
-fn normalized_absolute_path(path: &str, current_directory: &str) -> String {
+fn normalized_absolute_path<'p>(
+    path: impl Into<JsStr<'p>>,
+    current_directory: impl Into<JsStr<'p>>,
+) -> JsString {
     CheckerState::normalize_program_path(path, current_directory)
 }
 
-fn canonical_host_path(path: &str, host: &dyn EmitModuleSpecifierHost) -> String {
+fn canonical_host_path<'p>(
+    path: impl Into<JsStr<'p>>,
+    host: &dyn EmitModuleSpecifierHost,
+) -> JsString {
     canonical_file_name(
-        &normalized_absolute_path(path, &host.get_current_directory()),
+        &normalized_absolute_path(path.into(), &host.get_current_directory()),
         host.use_case_sensitive_file_names(),
     )
 }
 
-fn canonical_file_name(path: &str, case_sensitive: bool) -> String {
+fn canonical_file_name<'p>(path: impl Into<JsStr<'p>>, case_sensitive: bool) -> JsString {
+    let path = path.into();
     if case_sensitive {
         path.to_owned()
     } else {
-        // Exact `tsc_host::to_file_name_lower_case` posture. The checker
-        // crate intentionally has no direct host-crate dependency, so keep
-        // this tiny canonicalization projection local while all lexical path
-        // normalization continues through the program utility above.
-        let mut folded = String::with_capacity(path.len());
-        let mut run = String::new();
-        for character in path.chars() {
-            let protected = character.is_ascii_lowercase()
-                || character.is_ascii_digit()
-                || matches!(
-                    character,
-                    '\u{0130}' | '\u{0131}' | '\u{00df}' | '/' | '\\' | ':' | '-' | '_' | '.' | ' '
-                );
-            if protected {
-                if !run.is_empty() {
-                    folded.push_str(&run.to_lowercase());
-                    run.clear();
-                }
-                folded.push(character);
-            } else {
-                run.push(character);
-            }
-        }
-        if !run.is_empty() {
-            folded.push_str(&run.to_lowercase());
-        }
-        folded
+        tsc_program::to_file_name_lower_case_js(path)
     }
 }
 
-fn normalize_path_text(path: &str) -> String {
-    let path = path.replace('\\', "/");
-    let (root, remainder) = split_path_root(&path);
-    let mut components: Vec<&str> = Vec::new();
-    for component in remainder.split('/') {
-        match component {
-            "" | "." => {}
-            ".." if components.last().is_some_and(|last| *last != "..") => {
+fn normalize_path_text<'p>(path: impl Into<JsStr<'p>>) -> JsString {
+    let path = normalized_slashes(path);
+    let (root, remainder) = split_path_root(path.as_js());
+    let mut components: Vec<JsStr<'_>> = Vec::new();
+    for component in remainder.split_ascii(b'/') {
+        match component.as_str() {
+            Some("" | ".") => {}
+            Some("..") if components.last().is_some_and(|last| *last != "..") => {
                 components.pop();
             }
-            ".." if root.is_empty() => components.push(component),
-            ".." => {}
+            Some("..") if root.is_empty() => components.push(component),
+            Some("..") => {}
             _ => components.push(component),
         }
     }
-    let joined = components.join("/");
+    let joined = crate::join_js_texts(&components, "/");
     if root.is_empty() {
         joined
     } else if joined.is_empty() {
         root.to_owned()
-    } else if root.ends_with('/') {
-        format!("{root}{joined}")
+    } else if root.ends_with("/") {
+        crate::concat_js(&[&root, &joined])
     } else {
-        format!("{root}/{joined}")
+        crate::concat_js(&[&root, &"/", &joined])
     }
 }
 
-fn split_path_root(path: &str) -> (&str, &str) {
-    if let Some(scheme) = path.find("://") {
+fn split_path_root(path: JsStr<'_>) -> (JsStr<'_>, JsStr<'_>) {
+    let bytes = path.as_bytes();
+    let end = if let Some(scheme) = ascii_index(path, "://") {
         let after_scheme = scheme + 3;
-        let host_end = path[after_scheme..]
-            .find('/')
-            .map(|index| after_scheme + index + 1)
-            .unwrap_or(path.len());
-        return (&path[..host_end], &path[host_end..]);
-    }
-    if path.starts_with("//") {
-        let mut separators = path.match_indices('/');
-        let _ = separators.next();
-        let _ = separators.next();
-        if let Some((server_end, _)) = separators.next() {
-            if let Some((share_end, _)) = path[server_end + 1..].match_indices('/').next() {
-                let end = server_end + 1 + share_end + 1;
-                return (&path[..end], &path[end..]);
-            }
+        bytes[after_scheme..]
+            .iter()
+            .position(|&b| b == b'/')
+            .map(|n| after_scheme + n + 1)
+            .unwrap_or(bytes.len())
+    } else if path.starts_with("//") {
+        let mut separators = bytes.iter().enumerate().filter(|(_, b)| **b == b'/');
+        separators.next();
+        separators.next();
+        separators
+            .next()
+            .and_then(|_| separators.next())
+            .map(|(n, _)| n + 1)
+            .unwrap_or(bytes.len())
+    } else if path.starts_with("/") {
+        1
+    } else if bytes.get(1) == Some(&b':') {
+        if bytes.get(2) == Some(&b'/') {
+            3
+        } else {
+            2
         }
-        return (path, "");
-    }
-    if let Some(remainder) = path.strip_prefix('/') {
-        return ("/", remainder);
-    }
-    if path.as_bytes().get(1) == Some(&b':') {
-        if path.as_bytes().get(2) == Some(&b'/') {
-            return (&path[..3], &path[3..]);
-        }
-        return (&path[..2], &path[2..]);
-    }
-    ("", path)
+    } else {
+        0
+    };
+    path.split_at_byte(end)
+        .expect("ASCII root boundary is canonical")
 }
 
-fn path_is_absolute(path: &str) -> bool {
-    !split_path_root(&path.replace('\\', "/")).0.is_empty()
+fn path_is_absolute<'p>(path: impl Into<JsStr<'p>>) -> bool {
+    !split_path_root(normalized_slashes(path).as_js())
+        .0
+        .is_empty()
 }
 
-fn path_is_relative(path: &str) -> bool {
-    matches!(path, "." | "..")
-        || path.starts_with("./")
-        || path.starts_with("../")
-        || path.starts_with(".\\")
-        || path.starts_with("..\\")
+fn path_is_relative<'p>(path: impl Into<JsStr<'p>>) -> bool {
+    let path = path.into();
+    matches!(path.as_str(), Some("." | ".."))
+        || ["./", "../", ".\\", "..\\"]
+            .iter()
+            .any(|prefix| path.starts_with(prefix))
 }
 
-fn is_external_module_name_relative(path: &str) -> bool {
+fn is_external_module_name_relative<'p>(path: impl Into<JsStr<'p>>) -> bool {
+    let path = path.into();
     path_is_relative(path) || path_is_absolute(path)
 }
 
-fn path_is_bare_specifier(path: &str) -> bool {
+fn path_is_bare_specifier<'p>(path: impl Into<JsStr<'p>>) -> bool {
+    let path = path.into();
     !path_is_absolute(path) && !path_is_relative(path)
 }
 
-fn path_contains_node_modules(path: &str) -> bool {
-    path.replace('\\', "/").contains("/node_modules/")
+fn path_contains_node_modules<'p>(path: impl Into<JsStr<'p>>) -> bool {
+    normalized_slashes(path).contains("/node_modules/")
 }
 
-fn combine_paths(parent: &str, child: &str) -> String {
+fn combine_paths<'p>(parent: impl Into<JsStr<'p>>, child: impl Into<JsStr<'p>>) -> JsString {
+    let parent = parent.into();
+    let child = child.into();
     if child.is_empty() {
         return normalize_path_text(parent);
     }
-    if path_is_absolute(child) {
+    if path_is_absolute(child) || parent.is_empty() {
         return normalize_path_text(child);
     }
-    if parent.is_empty() {
-        return normalize_path_text(child);
-    }
-    normalize_path_text(&format!(
-        "{}/{}",
-        parent.trim_end_matches(['/', '\\']),
-        child.trim_start_matches(['/', '\\'])
-    ))
+    normalize_path_text(&crate::concat_js(&[
+        &trim_path_separators(parent, false),
+        &"/",
+        &trim_path_separators(child, true),
+    ]))
 }
 
-fn directory_path(path: &str) -> String {
-    let normalized = path.replace('\\', "/");
+fn directory_path<'p>(path: impl Into<JsStr<'p>>) -> JsString {
+    let normalized = normalized_slashes(path);
     let trimmed = if normalized == "/" {
-        normalized.as_str()
+        normalized.as_js()
     } else {
-        normalized.trim_end_matches('/')
+        trim_path_separators(&normalized, false)
     };
-    let Some(index) = trimmed.rfind('/') else {
-        return String::new();
+    let Some((parent, _)) = trimmed.rsplit_once("/") else {
+        return JsString::new();
     };
-    if index == 0 {
-        "/".to_owned()
-    } else if index == 2 && trimmed.as_bytes().get(1) == Some(&b':') {
-        trimmed[..=index].to_owned()
+    if parent.is_empty() {
+        "/".into()
+    } else if parent.as_bytes().len() == 2 && parent.as_bytes().get(1) == Some(&b':') {
+        crate::concat_js(&[&parent, &"/"])
     } else {
-        trimmed[..index].to_owned()
+        parent.to_owned()
     }
 }
 
-fn base_file_name(path: &str) -> &str {
-    path.rsplit(['/', '\\']).next().unwrap_or(path)
+fn base_file_name<'p>(path: impl Into<JsStr<'p>>) -> JsStr<'p> {
+    let path = path.into();
+    let path = path.rsplit_once("/").map_or(path, |(_, tail)| tail);
+    path.rsplit_once("\\").map_or(path, |(_, tail)| tail)
 }
 
-fn ensure_trailing_directory_separator(path: &str) -> String {
-    if path.ends_with('/') {
+fn ensure_trailing_directory_separator<'p>(path: impl Into<JsStr<'p>>) -> JsString {
+    let path = path.into();
+    if path.ends_with("/") {
         path.to_owned()
     } else {
-        format!("{path}/")
+        crate::concat_js(&[&path, &"/"])
     }
 }
 
-fn ensure_path_is_non_module_name(path: &str) -> String {
+fn ensure_path_is_non_module_name<'p>(path: impl Into<JsStr<'p>>) -> JsString {
+    let path = path.into();
     if path_is_relative(path) || path_is_absolute(path) {
         path.to_owned()
     } else {
-        format!("./{path}")
+        crate::concat_js(&[&"./", &path])
     }
 }
 
-fn roots_equal(left: &str, right: &str) -> bool {
-    let left_root = split_path_root(left).0;
-    let right_root = split_path_root(right).0;
-    left_root.eq_ignore_ascii_case(right_root)
+fn roots_equal(left: JsStr<'_>, right: JsStr<'_>) -> bool {
+    paths_equal(split_path_root(left).0, split_path_root(right).0, true)
 }
 
-fn get_relative_path_from_directory(directory: &str, target: &str, case_sensitive: bool) -> String {
+fn get_relative_path_from_directory<'p>(
+    directory: impl Into<JsStr<'p>>,
+    target: impl Into<JsStr<'p>>,
+    case_sensitive: bool,
+) -> JsString {
     let directory = normalize_path_text(directory);
     let target = normalize_path_text(target);
-    if !roots_equal(&directory, &target) {
+    if !roots_equal(directory.as_js(), target.as_js()) {
         return target;
     }
-    let (_, directory_remainder) = split_path_root(&directory);
-    let (_, target_remainder) = split_path_root(&target);
-    let from: Vec<&str> = directory_remainder
-        .split('/')
+    let from: Vec<_> = split_path_root(directory.as_js())
+        .1
+        .split_ascii(b'/')
         .filter(|part| !part.is_empty())
         .collect();
-    let to: Vec<&str> = target_remainder
-        .split('/')
+    let to: Vec<_> = split_path_root(target.as_js())
+        .1
+        .split_ascii(b'/')
         .filter(|part| !part.is_empty())
         .collect();
     let shared = from
         .iter()
         .zip(&to)
-        .take_while(|(left, right)| {
-            if case_sensitive {
-                left == right
-            } else {
-                left.eq_ignore_ascii_case(right)
-            }
-        })
+        .take_while(|(left, right)| paths_equal(**left, **right, !case_sensitive))
         .count();
-    let mut parts = vec![".."; from.len().saturating_sub(shared)];
+    let mut parts = vec![JsStr::from(".."); from.len().saturating_sub(shared)];
     parts.extend(to[shared..].iter().copied());
-    parts.join("/")
+    crate::join_js_texts(&parts, "/")
 }
 
-fn path_starts_with_directory(path: &str, directory: &str, case_sensitive: bool) -> bool {
-    if paths_equal(path, directory, !case_sensitive) {
-        return true;
+fn path_starts_with_directory<'p>(
+    path: impl Into<JsStr<'p>>,
+    directory: impl Into<JsStr<'p>>,
+    case_sensitive: bool,
+) -> bool {
+    let path = path.into();
+    let directory = directory.into();
+    paths_equal(path, directory, !case_sensitive)
+        || starts_with(
+            path,
+            &ensure_trailing_directory_separator(directory),
+            !case_sensitive,
+        )
+}
+
+fn fold_ascii_unit(unit: u16) -> u16 {
+    if (b'A' as u16..=b'Z' as u16).contains(&unit) {
+        unit + 32
+    } else {
+        unit
     }
-    let prefix = ensure_trailing_directory_separator(directory);
-    starts_with(path, &prefix, !case_sensitive)
 }
 
-fn paths_equal(left: &str, right: &str, ignore_case: bool) -> bool {
+fn paths_equal<'p>(
+    left: impl Into<JsStr<'p>>,
+    right: impl Into<JsStr<'p>>,
+    ignore_case: bool,
+) -> bool {
+    let left = left.into();
+    let right = right.into();
     if ignore_case {
-        left.eq_ignore_ascii_case(right)
+        left.code_units()
+            .map(fold_ascii_unit)
+            .eq(right.code_units().map(fold_ascii_unit))
     } else {
         left == right
     }
 }
 
-fn starts_with(value: &str, prefix: &str, ignore_case: bool) -> bool {
+fn starts_with<'p>(
+    value: impl Into<JsStr<'p>>,
+    prefix: impl Into<JsStr<'p>>,
+    ignore_case: bool,
+) -> bool {
+    let value = value.into();
+    let prefix = prefix.into();
     if ignore_case {
-        value
-            .get(..prefix.len())
-            .is_some_and(|head| head.eq_ignore_ascii_case(prefix))
+        let mut units = value.code_units().map(fold_ascii_unit);
+        prefix
+            .code_units()
+            .all(|unit| units.next() == Some(fold_ascii_unit(unit)))
     } else {
-        value.starts_with(prefix)
+        value.starts_with_js(prefix)
     }
 }
 
-fn ends_with(value: &str, suffix: &str, ignore_case: bool) -> bool {
+fn ends_with<'p>(
+    value: impl Into<JsStr<'p>>,
+    suffix: impl Into<JsStr<'p>>,
+    ignore_case: bool,
+) -> bool {
+    let value = value.into();
+    let suffix = suffix.into();
     if ignore_case {
+        let Some(start) = value.len_units().checked_sub(suffix.len_units()) else {
+            return false;
+        };
         value
-            .get(value.len().saturating_sub(suffix.len())..)
-            .is_some_and(|tail| tail.eq_ignore_ascii_case(suffix))
+            .code_units()
+            .skip(start)
+            .map(fold_ascii_unit)
+            .eq(suffix.code_units().map(fold_ascii_unit))
     } else {
-        value.ends_with(suffix)
+        value.ends_with_js(suffix)
     }
 }
 
-fn ancestor_directories(path: &str) -> Vec<String> {
+fn ancestor_directories<'p>(path: impl Into<JsStr<'p>>) -> Vec<JsString> {
     let mut result = Vec::new();
     let mut current = normalize_path_text(path);
     loop {
@@ -3519,32 +3735,39 @@ fn ancestor_directories(path: &str) -> Vec<String> {
     result
 }
 
-fn count_directory_separators(path: &str) -> usize {
-    path.as_bytes()
+fn count_directory_separators<'p>(path: impl Into<JsStr<'p>>) -> usize {
+    path.into()
+        .as_bytes()
         .iter()
         .filter(|&&byte| matches!(byte, b'/' | b'\\'))
         .count()
 }
 
-fn contains_ignored_path(path: &str) -> bool {
+fn contains_ignored_path<'p>(path: impl Into<JsStr<'p>>) -> bool {
+    let path = path.into();
     ["/node_modules/.", "/.git", "/.#"]
         .iter()
         .any(|ignored| path.contains(ignored))
 }
 
-fn get_node_module_path_parts(path: &str) -> Option<NodeModulePathParts> {
-    let normalized = path.replace('\\', "/");
+fn get_node_module_path_parts<'p>(path: impl Into<JsStr<'p>>) -> Option<NodeModulePathParts> {
+    let normalized = normalized_slashes(path);
+    let path = normalized.as_js();
     let marker = "/node_modules/";
-    let top_level_node_modules_index = normalized.find(marker)?;
+    let top_level_node_modules_index = ascii_index(path, marker)?;
     let top_level_package_name_index = top_level_node_modules_index + marker.len() - 1;
-    let mut package_root_index = package_root_end(&normalized, top_level_package_name_index + 1)?;
+    let mut package_root_index = package_root_end(path, top_level_package_name_index + 1)?;
     let mut search = package_root_index;
-    while let Some(relative) = normalized.get(search..)?.find(marker) {
+    while let Some(relative) = ascii_index(byte_path_slice(path, search..)?, marker) {
         let marker_index = search + relative;
-        package_root_index = package_root_end(&normalized, marker_index + marker.len())?;
+        package_root_index = package_root_end(path, marker_index + marker.len())?;
         search = package_root_index;
     }
-    let file_name_index = normalized.rfind('/').unwrap_or(0);
+    let file_name_index = path
+        .as_bytes()
+        .iter()
+        .rposition(|&byte| byte == b'/')
+        .unwrap_or(0);
     Some(NodeModulePathParts {
         top_level_node_modules_index,
         top_level_package_name_index,
@@ -3553,29 +3776,26 @@ fn get_node_module_path_parts(path: &str) -> Option<NodeModulePathParts> {
     })
 }
 
-fn package_root_end(path: &str, package_start: usize) -> Option<usize> {
+fn package_root_end<'p>(path: impl Into<JsStr<'p>>, package_start: usize) -> Option<usize> {
+    let path = path.into();
     let mut end = package_start;
-    if path.get(package_start..)?.starts_with('@') {
-        end += path.get(end..)?.find('/')? + 1;
+    if byte_path_slice(path, package_start..)?.starts_with("@") {
+        end += ascii_index(byte_path_slice(path, end..)?, "/")? + 1;
     }
     Some(
-        path.get(end..)?
-            .find('/')
+        ascii_index(byte_path_slice(path, end..)?, "/")
             .map(|relative| end + relative)
-            .unwrap_or(path.len()),
+            .unwrap_or(path.as_bytes().len()),
     )
 }
 
-fn get_package_name_from_types_package_name(name: &str) -> String {
+fn get_package_name_from_types_package_name<'p>(name: impl Into<JsStr<'p>>) -> JsString {
+    let name = name.into();
     let Some(without_prefix) = name.strip_prefix("@types/") else {
         return name.to_owned();
     };
-    if let Some(separator) = without_prefix.find("__") {
-        format!(
-            "@{}/{}",
-            &without_prefix[..separator],
-            &without_prefix[separator + 2..]
-        )
+    if let Some((prefix, suffix)) = without_prefix.split_once("__") {
+        crate::concat_js(&[&"@", &prefix, &"/", &suffix])
     } else {
         without_prefix.to_owned()
     }
@@ -3593,7 +3813,7 @@ fn get_resolve_package_json_imports(options: &CompilerOptions) -> bool {
         .unwrap_or_else(|| matches!(options.emit_module_resolution_kind(), 3 | 99 | 100))
 }
 
-fn get_conditions(options: &CompilerOptions, resolution_mode: EmitResolutionMode) -> Vec<String> {
+fn get_conditions(options: &CompilerOptions, resolution_mode: EmitResolutionMode) -> Vec<JsString> {
     let module_resolution = options.emit_module_resolution_kind();
     if resolution_mode == EmitResolutionMode::None && module_resolution == 2 {
         return Vec::new();
@@ -3605,45 +3825,50 @@ fn get_conditions(options: &CompilerOptions, resolution_mode: EmitResolutionMode
         resolution_mode
     };
     let mut conditions = vec![if resolution_mode == EmitResolutionMode::EsNext {
-        "import".to_owned()
+        JsString::from("import")
     } else {
-        "require".to_owned()
+        JsString::from("require")
     }];
     if options.no_dts_resolution != Some(true) {
-        conditions.push("types".to_owned());
+        conditions.push("types".into());
     }
     if module_resolution != 100 {
-        conditions.push("node".to_owned());
+        conditions.push("node".into());
     }
     conditions.extend(options.custom_conditions.iter().flatten().cloned());
     conditions
 }
 
-fn is_applicable_versioned_types_key(conditions: &[String], key: &str) -> bool {
+fn is_applicable_versioned_types_key<'path>(
+    conditions: &[JsString],
+    key: impl Into<JsStr<'path>>,
+) -> bool {
+    let key = key.into();
     conditions.iter().any(|condition| condition == "types")
         && key
             .strip_prefix("types@")
+            .and_then(JsStr::as_str)
             .is_some_and(version_range_matches_current)
 }
 
 fn selected_types_versions_paths(package_json: &Value) -> Option<Vec<ModulePathMapping>> {
-    let versions = package_json.get("typesVersions")?.as_object()?;
-    for (range, entry) in versions {
-        if !version_range_matches_current(range) {
+    let versions = package_json_property(package_json, "typesVersions")?.as_object()?;
+    for (range, entry) in package_json_own_entries(versions) {
+        if !range.as_str().is_some_and(version_range_matches_current) {
             continue;
         }
         let paths = entry.as_object()?;
-        let mappings = paths
-            .iter()
+        let mappings = package_json_own_entries(paths)
+            .into_iter()
             .filter_map(|(key, value)| {
                 let patterns = value
                     .as_array()?
                     .iter()
-                    .filter_map(Value::as_str)
-                    .map(str::to_owned)
+                    .filter_map(Value::as_js)
+                    .map(JsStr::to_owned)
                     .collect();
                 Some(ModulePathMapping {
-                    key: key.clone(),
+                    key: key.to_owned(),
                     patterns,
                 })
             })
@@ -3653,18 +3878,19 @@ fn selected_types_versions_paths(package_json: &Value) -> Option<Vec<ModulePathM
     None
 }
 
-fn path_mapping_key_matches(key: &str, candidate: &str) -> bool {
-    let Some(star) = key.find('*') else {
+fn path_mapping_key_matches<'p>(
+    key: impl Into<JsStr<'p>>,
+    candidate: impl Into<JsStr<'p>>,
+) -> bool {
+    let key = key.into();
+    let candidate = candidate.into();
+    let Some((prefix, suffix)) = key.split_once("*") else {
         return key == candidate;
     };
-    if key[star + 1..].contains('*') {
-        return false;
-    }
-    let prefix = &key[..star];
-    let suffix = &key[star + 1..];
-    candidate.len() >= prefix.len() + suffix.len()
-        && candidate.starts_with(prefix)
-        && candidate.ends_with(suffix)
+    !suffix.contains("*")
+        && candidate.len_units() >= prefix.len_units() + suffix.len_units()
+        && candidate.starts_with_js(prefix)
+        && candidate.ends_with_js(suffix)
 }
 
 fn json_value_is_truthy(value: &Value) -> bool {
@@ -3740,26 +3966,36 @@ fn parse_version(version: &str) -> Option<(u32, u32, u32)> {
     Some((major, minor, patch))
 }
 
-fn output_js_file_name(
-    target_file_path: &str,
+fn output_js_file_name<'path>(
+    target_file_path: impl Into<JsStr<'path>>,
     options: &SpecifierCompilerOptions,
     host: &dyn EmitModuleSpecifierHost,
-) -> Option<String> {
+) -> Option<JsString> {
+    let target_file_path = target_file_path.into();
     let extension = try_get_js_extension_for_file(target_file_path, options)?;
     Some(output_path_with_extension(
         target_file_path,
         extension,
-        options.compiler_options.out_dir.as_deref(),
-        options.compiler_options.root_dir.as_deref(),
+        options
+            .compiler_options
+            .out_dir
+            .as_ref()
+            .map(JsString::as_js),
+        options
+            .compiler_options
+            .root_dir
+            .as_ref()
+            .map(JsString::as_js),
         host,
     ))
 }
 
-fn output_declaration_file_name(
-    target_file_path: &str,
+fn output_declaration_file_name<'path>(
+    target_file_path: impl Into<JsStr<'path>>,
     options: &SpecifierCompilerOptions,
     host: &dyn EmitModuleSpecifierHost,
-) -> Option<String> {
+) -> Option<JsString> {
+    let target_file_path = target_file_path.into();
     let extension = match extension_from_path(target_file_path)? {
         ".mts" | ".mjs" => ".d.mts",
         ".cts" | ".cjs" => ".d.cts",
@@ -3772,20 +4008,30 @@ fn output_declaration_file_name(
         options
             .compiler_options
             .declaration_dir
-            .as_deref()
-            .or(options.compiler_options.out_dir.as_deref()),
-        options.compiler_options.root_dir.as_deref(),
+            .as_ref()
+            .map(JsString::as_js)
+            .or(options
+                .compiler_options
+                .out_dir
+                .as_ref()
+                .map(JsString::as_js)),
+        options
+            .compiler_options
+            .root_dir
+            .as_ref()
+            .map(JsString::as_js),
         host,
     ))
 }
 
-fn output_path_with_extension(
-    target_file_path: &str,
+fn output_path_with_extension<'path>(
+    target_file_path: impl Into<JsStr<'path>>,
     extension: &str,
-    output_directory: Option<&str>,
-    root_directory: Option<&str>,
+    output_directory: Option<JsStr<'_>>,
+    root_directory: Option<JsStr<'_>>,
     host: &dyn EmitModuleSpecifierHost,
-) -> String {
+) -> JsString {
+    let target_file_path = target_file_path.into();
     let target = normalized_absolute_path(target_file_path, &host.get_current_directory());
     let path = if let Some(output_directory) = output_directory {
         let root = root_directory
@@ -4007,48 +4253,63 @@ pub(crate) fn get_module_name_string_literal_at(
     state: &CheckerState<'_>,
     file_index: usize,
     index: u32,
-) -> Option<String> {
+) -> Option<JsString> {
     let (imports, augmentations) = module_name_literals(state, file_index);
     let literal = imports
         .into_iter()
         .chain(augmentations)
         .nth(index as usize)?;
-    literal_text(state, literal).map(str::to_owned)
+    literal_text(state, literal).map(JsStr::to_owned)
 }
 
-fn literal_text<'a>(state: &'a CheckerState<'_>, node: NodeId) -> Option<&'a str> {
+fn literal_text<'a>(state: &'a CheckerState<'_>, node: NodeId) -> Option<JsStr<'a>> {
     match state.data_of(node) {
-        NodeData::StringLiteral(data) => Some(&data.text),
-        NodeData::NoSubstitutionTemplateLiteral(data) => Some(&data.text),
+        NodeData::StringLiteral(data) => Some(data.text.as_js()),
+        NodeData::NoSubstitutionTemplateLiteral(data) => Some(data.text.as_js()),
         _ => None,
     }
 }
 
-fn match_path_pattern<'a>(
-    candidate: &'a str,
-    leading: &str,
-    trailing: &str,
+fn match_path_pattern<'p>(
+    candidate: impl Into<JsStr<'p>>,
+    leading: JsStr<'_>,
+    trailing: JsStr<'_>,
     ignore_case: bool,
-) -> Option<&'a str> {
+) -> Option<JsString> {
+    let candidate = candidate.into();
     if starts_with(candidate, leading, ignore_case) && ends_with(candidate, trailing, ignore_case) {
-        let end = candidate.len().saturating_sub(trailing.len());
-        if leading.len() <= end {
-            Some(&candidate[leading.len()..end])
+        let end = candidate.len_units().saturating_sub(trailing.len_units());
+        Some(if leading.len_units() <= end {
+            candidate.substring(leading.len_units(), end)
         } else {
-            Some("")
-        }
+            JsString::new()
+        })
     } else {
         None
     }
 }
 
-fn module_declaration_name_text(state: &CheckerState<'_>, declaration: NodeId) -> Option<String> {
+fn replace_first_star(value: JsStr<'_>, replacement: JsStr<'_>) -> JsString {
+    tsc_program::replace_first_star_value(value, replacement)
+}
+
+fn read_package_json(host: &dyn EmitModuleSpecifierHost, path: JsStr<'_>) -> Option<Value> {
+    let snapshot = tsc_diagnostics::TextSnapshot::new(
+        host.read_file(path)?,
+        tsc_diagnostics::DocumentVersion::default(),
+    );
+    Some(Value::Object(
+        tsc_program::read_package_json_object_from_snapshot(path, &snapshot),
+    ))
+}
+
+fn module_declaration_name_text(state: &CheckerState<'_>, declaration: NodeId) -> Option<JsString> {
     let NodeData::ModuleDeclaration(data) = state.data_of(declaration) else {
         return None;
     };
     data.name
         .and_then(|name| literal_text(state, name))
-        .map(str::to_owned)
+        .map(JsStr::to_owned)
 }
 
 #[cfg(test)]

@@ -1,7 +1,7 @@
 //! Pinned chainBundle phase ordering and per-source built-in helper ownership.
 use std::cell::RefCell;
-use std::path::Path;
 use std::rc::Rc;
+use tsc_diagnostics::JsStr;
 
 use serde_json::{json, Value};
 use tsc_program::SourceFileId;
@@ -41,7 +41,14 @@ impl Transformer for TraceTransformer {
         let TransformRoot::SourceFile(source) = root else {
             unreachable!()
         };
-        let path = cx.arena().source(source)?.syntax().file_name.clone();
+        let path = cx
+            .arena()
+            .source(source)?
+            .syntax()
+            .file_name
+            .as_str()
+            .expect("scalar fixture filename")
+            .to_owned();
         let names = cx
             .requested_emit_helpers()
             .iter()
@@ -94,7 +101,7 @@ fn helper_names<'a>(
 
 fn source_projection(result: &TransformationResult<'_>, source: TransformSourceId) -> Value {
     let syntax = result.arena().source(source).unwrap().syntax();
-    json!({"path": syntax.file_name, "helpers": helper_names(result, source), "is_declaration_file": syntax.is_declaration_file})
+    json!({"path": syntax.file_name.as_str().expect("scalar fixture filename"), "helpers": helper_names(result, source), "is_declaration_file": syntax.is_declaration_file})
 }
 
 struct BuiltinHost {
@@ -108,13 +115,13 @@ impl crate::EmitHost for BuiltinHost {
     fn compiler_options(&self) -> &CompilerOptions {
         &self.options
     }
-    fn current_directory(&self) -> &Path {
-        Path::new("/")
+    fn current_directory(&self) -> JsStr<'_> {
+        JsStr::from("/")
     }
-    fn common_source_directory(&self) -> &Path {
-        Path::new("/")
+    fn common_source_directory(&self) -> JsStr<'_> {
+        JsStr::from("/")
     }
-    fn config_file_path(&self) -> Option<&Path> {
+    fn config_file_path(&self) -> Option<JsStr<'_>> {
         None
     }
     fn use_case_sensitive_file_names(&self) -> bool {
@@ -125,7 +132,7 @@ impl crate::EmitHost for BuiltinHost {
     }
     fn source_file(&self, id: SourceFileId) -> Option<crate::EmitSource<'_>> {
         let syntax = self.files.get(id.index())?;
-        let path = Path::new(&syntax.file_name);
+        let path = JsStr::from(&syntax.file_name);
         Some(crate::EmitSource::new(
             id,
             path,
@@ -151,7 +158,7 @@ impl crate::EmitResolver for BuiltinHost {
             .collision_queries
             .iter()
             .find(|query| {
-                query["path"] == syntax.file_name
+                syntax.file_name.as_js() == query["path"].as_str().unwrap()
                     && query["kind"] == format!("{:?}", record.kind)
                     && query["pos"] == record.pos
                     && query["end"] == record.end
@@ -246,7 +253,9 @@ fn builtin_bundle_helpers_belong_to_the_requesting_source() {
             let options = CompilerOptions {
                 target: Some(case["options"]["target"].as_i64().unwrap() as i32),
                 module: Some(case["options"]["module"].as_i64().unwrap() as i32),
-                out_file: case["options"]["outFile"].as_str().map(str::to_owned),
+                out_file: case["options"]["outFile"]
+                    .as_str()
+                    .map(tsc_diagnostics::JsString::from),
                 always_strict: Some(false),
                 strict: Some(false),
                 ..Default::default()
@@ -283,7 +292,7 @@ fn builtin_bundle_helpers_belong_to_the_requesting_source() {
             let TransformRoot::Bundle(bundle) = &result.roots()[0] else {
                 panic!("bundle root retained")
             };
-            let actual = bundle.sources().iter().map(|source| json!({"path": result.arena().source(*source).unwrap().syntax().file_name, "helpers": helper_names(&result, *source)})).collect::<Vec<_>>();
+            let actual = bundle.sources().iter().map(|source| json!({"path": result.arena().source(*source).unwrap().syntax().file_name.as_str().expect("scalar fixture filename"), "helpers": helper_names(&result, *source)})).collect::<Vec<_>>();
             assert_eq!(
                 json!(actual),
                 case["observation"]["roots"],

@@ -89,7 +89,12 @@ mod config_host;
 mod config_matcher;
 mod config_options;
 mod error;
+mod js_path;
+pub use js_path::base_file_name;
+pub use tsc_host::to_file_name_lower_case_js;
+mod js_string_ops;
 mod json;
+mod json_value;
 mod library;
 mod loader;
 mod module_requests;
@@ -99,6 +104,7 @@ mod output_directories;
 mod path;
 mod prepared;
 mod resolution;
+mod resolution_error;
 mod symlinks;
 mod text;
 
@@ -126,20 +132,26 @@ pub use config_options::{
     CompilerOptionValueKind, JsConfigDefaultValue, COMPILER_OPTION_DECLARATIONS, JSCONFIG_DEFAULTS,
 };
 pub use error::{PreparationError, PreparationErrorKind, PreparationOperation};
+pub use js_string_ops::{replace_all_stars_value, replace_first_star_value};
+pub use json::json_object_own_get as package_json_own_property;
+pub use json::{package_json_property, read_package_json_object_from_snapshot};
+pub use json_value::{append_json_quoted, JsonObject, JsonValue};
 pub use library::LibraryCatalog;
 pub use loader::{
-    load_emitting_program, load_no_lib_program, load_program, ProgramLoadError,
-    ProgramLoadErrorKind, ProgramLoadLimit, ProgramLoadLimitExceeded, ProgramLoadLimits,
-    ProgramLoadOperation,
+    load_emitting_program, load_emitting_program_js, load_no_lib_program, load_program,
+    load_program_js, ProgramLoadError, ProgramLoadErrorKind, ProgramLoadLimit,
+    ProgramLoadLimitExceeded, ProgramLoadLimits, ProgramLoadOperation,
 };
 pub use module_requests::{
     plan_module_requests, plan_source_requests, plan_static_module_requests,
     PlannedLibReferenceDirective, PlannedPathReference, PlannedTypeReferenceDirective,
     SourceRequestPlan,
 };
+pub use module_resolution::js_own_property_entries as package_json_own_entries;
+pub use module_resolution::mangle_scoped_package_name;
 pub use module_resolution::{
-    normalize_absolute_path_lexical, HostModuleResolution, HostResolvedModule,
-    HostResolvedTypeReferenceDirective, ModuleResolver,
+    normalize_absolute_js_path_lexical, normalize_absolute_path_lexical, HostModuleResolution,
+    HostResolvedModule, HostResolvedTypeReferenceDirective, ModuleResolver,
 };
 pub use option_validation::{
     validate_compiler_options, validate_paths_option_diagnostics, CompilerOptionValidationLocation,

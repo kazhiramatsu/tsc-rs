@@ -56,8 +56,8 @@ impl ImportCallRewrites {
                 continue;
             }
             let literal = match &arena.node(*first)?.data {
-                NodeData::StringLiteral(data) => Some(data.text.as_str()),
-                NodeData::NoSubstitutionTemplateLiteral(data) => Some(data.text.as_str()),
+                NodeData::StringLiteral(data) => Some(data.text.as_js()),
+                NodeData::NoSubstitutionTemplateLiteral(data) => Some(data.text.as_js()),
                 _ => None,
             };
             if literal.is_none_or(|text| rewrite_relative_module_specifier(text).is_some()) {

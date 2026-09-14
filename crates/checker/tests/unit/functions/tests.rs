@@ -836,7 +836,12 @@ declare const u: unknown;
                     diagnostic.category(),
                     diagnostic.start,
                     diagnostic.length,
-                    diagnostic.message.text.clone(),
+                    diagnostic
+                        .message
+                        .text
+                        .as_str()
+                        .expect("scalar diagnostic observation")
+                        .to_owned(),
                     diagnostic.related.len(),
                 )
             })
@@ -871,7 +876,12 @@ declare const u: unknown;
             diagnostic.category(),
             diagnostic.start,
             diagnostic.length,
-            diagnostic.message.text.clone(),
+            diagnostic
+                .message
+                .text
+                .as_str()
+                .expect("scalar diagnostic observation")
+                .to_owned(),
         )
     })
     .collect::<Vec<_>>();

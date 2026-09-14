@@ -59,14 +59,14 @@ fn recursive_loader_accepts_suffixes_inside_nominal_arbitrary_extensions() {
             program
                 .source_files()
                 .iter()
-                .map(|source| source.path().display().to_path_buf())
+                .map(|source| source.path().display().scalar_test_path().to_path_buf())
                 .collect::<Vec<_>>(),
             [PathBuf::from(physical_path), PathBuf::from("/index.ts")]
         );
         let root = program
             .source_files()
             .iter()
-            .find(|source| source.path().display() == Path::new("/index.ts"))
+            .find(|source| source.path().display().scalar_test_path() == Path::new("/index.ts"))
             .expect("root source is loaded");
         let key = plan_source_requests(root, program.compiler_options())
             .expect("re-plan root module requests")
@@ -82,7 +82,7 @@ fn recursive_loader_accepts_suffixes_inside_nominal_arbitrary_extensions() {
         };
         assert_eq!(
             module.extension(),
-            &ModuleExtension::Arbitrary(".d.css.ts".to_owned())
+            &ModuleExtension::Arbitrary(".d.css.ts".to_owned().into())
         );
     }
 }
@@ -135,7 +135,7 @@ fn prepared_validation_folds_inserted_suffixes_only_for_case_insensitive_hosts()
                     source: target,
                     resolved_file: target_path,
                 },
-                ModuleExtension::Arbitrary(".d.CSS.ts".to_owned()),
+                ModuleExtension::Arbitrary(".d.CSS.ts".to_owned().into()),
             ))),
         )
     };
@@ -181,3 +181,7 @@ fn prepared_validation_accepts_a_suffix_that_forms_a_declaration_ending() {
         )
         .expect("the physical .d.ts ending came from suffix insertion before logical .ts");
 }
+
+#[path = "../../../host/tests/support/scalar_path.rs"]
+mod utf16_scalar_path;
+use utf16_scalar_path::ScalarTestPath as _;

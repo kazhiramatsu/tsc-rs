@@ -15,7 +15,7 @@ mod statements;
 mod subtree;
 mod tracker;
 
-use std::path::PathBuf;
+use tsc_diagnostics::JsString;
 
 use tsc_program::SourceFileId;
 use tsc_syntax::SyntaxKind;
@@ -44,16 +44,16 @@ use self::tracker::DeclarationSymbolTracker;
 pub trait DeclarationPathResolver {
     /// Forced declaration path for the whole output bundle. Source-file
     /// diagnostic getters retain their separate per-source paths.
-    fn bundle_declaration_file_path(&self) -> Option<PathBuf> {
+    fn bundle_declaration_file_path(&self) -> Option<JsString> {
         None
     }
 
     /// tsrs-native: dormant declaration-output path injection (h2-7a-m-4 §5.8).
-    fn declaration_file_path(&self, source: SourceFileId) -> Option<PathBuf>;
+    fn declaration_file_path(&self, source: SourceFileId) -> Option<JsString>;
 
     /// tsrs-native: effective declaration/JavaScript/source reference target
     /// injection (h2-7a-m-4 §5.8).
-    fn reference_target_path(&self, source: SourceFileId) -> Option<PathBuf>;
+    fn reference_target_path(&self, source: SourceFileId) -> Option<JsString>;
 }
 
 /// Typed API1 control for the custom `afterDeclarations` chain.

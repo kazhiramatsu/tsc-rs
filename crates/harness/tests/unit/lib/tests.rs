@@ -35,7 +35,7 @@ fn compiler_option_projection_keeps_aliases_lists_and_null() {
         ),
         (
             "customConditions".to_owned(),
-            OptionValue::StringList(vec!["browser".to_owned(), "development".to_owned()]),
+            OptionValue::StringList(vec!["browser".into(), "development".into()]),
         ),
         (
             "moduleSuffixes".to_owned(),
@@ -70,7 +70,7 @@ fn compiler_option_projection_keeps_aliases_lists_and_null() {
     );
     assert_eq!(
         closed.custom_conditions,
-        Some(vec!["browser".to_owned(), "development".to_owned()])
+        Some(vec!["browser".into(), "development".into()])
     );
     assert_eq!(closed.lib, Some(vec!["es5".to_owned(), "dom".to_owned()]));
     assert_eq!(closed.lib_replacement, Some(true));

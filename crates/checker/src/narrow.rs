@@ -471,11 +471,12 @@ impl<'a> CheckerState<'a> {
     /// The FULL union/intersection-capable form (getPropertyOfType +
     /// getTypeOfSymbol) — engine.rs's same-named accessor is the M3
     /// object-member slice and stays for its M3-era callers.
-    pub(crate) fn get_type_of_property_of_type_full(
+    pub(crate) fn get_type_of_property_of_type_full<'n>(
         &mut self,
         ty: TypeId,
-        name: &str,
+        name: impl Into<tsc_types::JsStr<'n>>,
     ) -> CheckResult<Option<TypeId>> {
+        let name = name.into();
         match self.get_property_of_type_full(ty, name)? {
             Some(prop) => Ok(Some(self.get_type_of_symbol(prop)?)),
             None => Ok(None),
@@ -798,12 +799,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: narrowTypeByLiteralExpression @6.0.3
     /// tsc-hash: 21e339349711249f6b2d83a76c2cc2e8af3d4c9f4fabfe6bcea2ecf782856925
     /// tsc-span: _tsc.js:71098-71100
-    fn narrow_type_by_literal_expression(
+    fn narrow_type_by_literal_expression<'n>(
         &mut self,
         ty: TypeId,
-        literal_text: &str,
+        literal_text: impl Into<tsc_types::JsStr<'n>>,
         assume_true: bool,
     ) -> CheckResult<TypeId> {
+        let literal_text = literal_text.into();
         if assume_true {
             self.narrow_type_by_type_name(ty, literal_text)
         } else {
@@ -815,15 +817,20 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: narrowTypeByTypeName @6.0.3
     /// tsc-hash: 29c46fe87223a05c3cfdc6b4df1ff9e99d1a501589ebe39e9f2c362e6b1aa17a
     /// tsc-span: _tsc.js:71139-71159
-    fn narrow_type_by_type_name(&mut self, ty: TypeId, type_name: &str) -> CheckResult<TypeId> {
+    fn narrow_type_by_type_name<'n>(
+        &mut self,
+        ty: TypeId,
+        type_name: impl Into<tsc_types::JsStr<'n>>,
+    ) -> CheckResult<TypeId> {
+        let type_name = type_name.into();
         let intrinsics = &self.tables.intrinsics;
-        let (implied, facts) = match type_name {
-            "string" => (intrinsics.string, TypeFacts::TYPEOF_EQ_STRING),
-            "number" => (intrinsics.number, TypeFacts::TYPEOF_EQ_NUMBER),
-            "bigint" => (intrinsics.bigint, TypeFacts::TYPEOF_EQ_BIG_INT),
-            "boolean" => (intrinsics.boolean, TypeFacts::TYPEOF_EQ_BOOLEAN),
-            "symbol" => (intrinsics.es_symbol, TypeFacts::TYPEOF_EQ_SYMBOL),
-            "object" => {
+        let (implied, facts) = match type_name.as_str() {
+            Some("string") => (intrinsics.string, TypeFacts::TYPEOF_EQ_STRING),
+            Some("number") => (intrinsics.number, TypeFacts::TYPEOF_EQ_NUMBER),
+            Some("bigint") => (intrinsics.bigint, TypeFacts::TYPEOF_EQ_BIG_INT),
+            Some("boolean") => (intrinsics.boolean, TypeFacts::TYPEOF_EQ_BOOLEAN),
+            Some("symbol") => (intrinsics.es_symbol, TypeFacts::TYPEOF_EQ_SYMBOL),
+            Some("object") => {
                 if self.tables.flags_of(ty).intersects(TypeFlags::ANY) {
                     return Ok(ty);
                 }
@@ -837,7 +844,7 @@ impl<'a> CheckerState<'a> {
                     tsc_types::UnionReduction::Literal,
                 );
             }
-            "function" => {
+            Some("function") => {
                 if self.tables.flags_of(ty).intersects(TypeFlags::ANY) {
                     return Ok(ty);
                 }
@@ -848,7 +855,7 @@ impl<'a> CheckerState<'a> {
                     TypeFacts::TYPEOF_EQ_FUNCTION,
                 );
             }
-            "undefined" => (intrinsics.undefined, TypeFacts::EQ_UNDEFINED),
+            Some("undefined") => (intrinsics.undefined, TypeFacts::EQ_UNDEFINED),
             _ => {
                 let non_primitive = self.tables.intrinsics.non_primitive;
                 return self.narrow_type_by_type_facts(
@@ -1092,12 +1099,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isTypePresencePossible @6.0.3
     /// tsc-hash: 9b3a45915ce986a841949427850985e8e6974bf65c9f0a8250f37e83fd29aead
     /// tsc-span: _tsc.js:70868-70871
-    fn is_type_presence_possible(
+    fn is_type_presence_possible<'n>(
         &mut self,
         ty: TypeId,
-        prop_name: &str,
+        prop_name: impl Into<tsc_types::JsStr<'n>>,
         assume_true: bool,
     ) -> CheckResult<bool> {
+        let prop_name = prop_name.into();
         if let Some(prop) = self.get_property_of_type_full(ty, prop_name)? {
             let optional = self
                 .binder
@@ -1240,7 +1248,10 @@ impl<'a> CheckerState<'a> {
                 let argument = data.argument_expression;
                 argument.is_some_and(|argument| {
                     self.is_string_literal_like(argument)
-                        && self.string_literal_text(argument).as_deref() == Some("constructor")
+                        && self
+                            .string_literal_text(argument)
+                            .as_ref()
+                            .is_some_and(|text| text == "constructor")
                 })
             }
             _ => false,
@@ -1926,7 +1937,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_switch_clause_type_of_witnesses(
         &mut self,
         switch_statement: NodeId,
-    ) -> Option<Vec<Option<String>>> {
+    ) -> Option<Vec<Option<tsc_types::JsString>>> {
         let clauses = self.switch_clauses(switch_statement);
         for &clause in &clauses {
             if self.kind_of(clause) == SyntaxKind::CaseClause {
@@ -1940,7 +1951,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        let mut witnesses: Vec<Option<String>> = Vec::with_capacity(clauses.len());
+        let mut witnesses: Vec<Option<tsc_types::JsString>> = Vec::with_capacity(clauses.len());
         for clause in clauses {
             let text = if self.kind_of(clause) == SyntaxKind::CaseClause {
                 let expression = match self.data_of(clause) {
@@ -2180,12 +2191,12 @@ impl<'a> CheckerState<'a> {
         &self,
         start: usize,
         end: usize,
-        witnesses: &[Option<String>],
+        witnesses: &[Option<tsc_types::JsString>],
     ) -> TypeFacts {
         let mut facts = TypeFacts::NONE;
         for (index, witness) in witnesses.iter().enumerate() {
             let witness = if index < start || index >= end {
-                witness.as_deref()
+                witness.as_ref().map(tsc_types::JsString::as_js)
             } else {
                 None
             };
@@ -2431,13 +2442,13 @@ impl<'a> CheckerState<'a> {
     /// tsc getPropertyNameFromType over the usable-as-property-name
     /// gate (the callers check first, so the miss arm is dead).
     /// tsrs-native: delegate to the ported tryGetNameFromType.
-    pub(crate) fn get_property_name_from_type(&self, ty: TypeId) -> Option<String> {
+    pub(crate) fn get_property_name_from_type(&self, ty: TypeId) -> Option<tsc_types::EscapedName> {
         self.try_get_name_from_type(ty)
     }
 
     /// The literal text of a string-literal-like node.
     /// tsrs-native: NodeData accessor.
-    fn string_literal_text(&self, node: NodeId) -> Option<String> {
+    fn string_literal_text(&self, node: NodeId) -> Option<tsc_types::JsString> {
         match self.data_of(node) {
             NodeData::StringLiteral(data) => Some(data.text.clone()),
             NodeData::NoSubstitutionTemplateLiteral(data) => Some(data.text.clone()),
@@ -2517,7 +2528,7 @@ impl<'a> CheckerState<'a> {
                             if reference_name.is_some()
                                 && reference_name
                                     == argument_text
-                                        .map(|text| tsc_syntax::escape_leading_underscores(&text))
+                                        .map(|text| tsc_types::EscapedName::escape(text.as_js()))
                             {
                                 return self.get_type_with_facts(
                                     ty,
@@ -2917,14 +2928,14 @@ impl<'a> CheckerState<'a> {
                     let lookup = self
                         .get_members_of_symbol(type_symbol)?
                         .keys()
-                        .find(|name| name.starts_with("__#") && name.ends_with(&suffix))
+                        .find(|name| name.starts_with("__#") && name.as_js().ends_with(&suffix))
                         .cloned();
                     let lookup = match lookup {
                         Some(lookup) => Some(lookup),
                         None => self
                             .get_exports_of_symbol(type_symbol)?
                             .keys()
-                            .find(|name| name.starts_with("__#") && name.ends_with(&suffix))
+                            .find(|name| name.starts_with("__#") && name.as_js().ends_with(&suffix))
                             .cloned(),
                     };
                     match lookup {
@@ -3065,10 +3076,10 @@ impl<'a> CheckerState<'a> {
             }
             if let Some(diagnostic) = diagnostic {
                 let display = self.symbol_display_name(symbol);
-                diagnostic.related.push(self.related_info_for_node(
+                diagnostic.related.push(self.related_info_for_node_js(
                     declaration,
                     &tsc_diagnostics::gen::_0_needs_an_explicit_type_annotation,
-                    &[&display],
+                    &[(&display).into()],
                 ));
             }
         }
@@ -3339,7 +3350,7 @@ impl<'a> CheckerState<'a> {
                     .identifier_text(identifier_name)
                     .unwrap_or_default()
                     .to_owned();
-                let text = tsc_binder::unescape_leading_underscores(&text).to_owned();
+                let text = tsc_syntax::unescape_leading_underscores(&text).to_owned();
                 return Ok(Some(TypePredicate {
                     kind: TypePredicateKind::Identifier,
                     parameter_name: Some(text),
@@ -3452,7 +3463,9 @@ impl<'a> CheckerState<'a> {
                 let parameters = self.signature_of(signature).parameters.clone();
                 parameters
                     .iter()
-                    .position(|&parameter| self.binder.symbol(parameter).escaped_name == *name)
+                    .position(|&parameter| {
+                        self.binder.symbol(parameter).escaped_name == name.as_str()
+                    })
                     .map_or(-1, |index| index as i64)
             }
             None => -1,
@@ -3581,8 +3594,8 @@ pub(crate) struct TypePredicate {
 /// tsc-port: typeofNEFacts @6.0.3
 /// tsc-hash: c3cfcd34c8c39a75c323f299600e780301d6788e11dd017922291e223b4b5c4d
 /// tsc-span: _tsc.js:46376-46385
-fn typeof_ne_facts(text: &str) -> Option<TypeFacts> {
-    Some(match text {
+fn typeof_ne_facts<'n>(text: impl Into<tsc_types::JsStr<'n>>) -> Option<TypeFacts> {
+    Some(match text.into().as_str()? {
         "string" => TypeFacts::TYPEOF_NE_STRING,
         "number" => TypeFacts::TYPEOF_NE_NUMBER,
         "bigint" => TypeFacts::TYPEOF_NE_BIG_INT,

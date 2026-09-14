@@ -1,4 +1,5 @@
-use std::path::{Path, PathBuf};
+use crate::source_map::paths;
+use tsc_diagnostics::{JsStr, JsString};
 
 use tsc_program::{ResolutionMode, SourceFileId};
 use tsc_syntax::{FileReference, SourceFile};
@@ -13,8 +14,8 @@ use tsc_types::CompilerOptions;
 #[derive(Clone, Copy, Debug)]
 pub struct EmitSource<'host> {
     id: SourceFileId,
-    path: &'host Path,
-    canonical_path: &'host Path,
+    path: JsStr<'host>,
+    canonical_path: JsStr<'host>,
     may_be_emitted: bool,
     may_emit_forced_declaration: bool,
     implied_node_format_for_emit: Option<ResolutionMode>,
@@ -25,8 +26,8 @@ pub struct EmitSource<'host> {
 impl<'host> EmitSource<'host> {
     pub const fn new(
         id: SourceFileId,
-        path: &'host Path,
-        canonical_path: &'host Path,
+        path: JsStr<'host>,
+        canonical_path: JsStr<'host>,
         may_be_emitted: bool,
         implied_node_format_for_emit: Option<ResolutionMode>,
         syntax: Option<&'host SourceFile>,
@@ -50,11 +51,11 @@ impl<'host> EmitSource<'host> {
         self.id
     }
 
-    pub const fn path(self) -> &'host Path {
+    pub const fn path(self) -> JsStr<'host> {
         self.path
     }
 
-    pub const fn canonical_path(self) -> &'host Path {
+    pub const fn canonical_path(self) -> JsStr<'host> {
         self.canonical_path
     }
 
@@ -104,10 +105,10 @@ impl<'host> EmitSource<'host> {
 /// immutable parsed tree while its checker session remains alive.
 pub trait EmitHost {
     fn compiler_options(&self) -> &CompilerOptions;
-    fn current_directory(&self) -> &Path;
-    /// Absolute common source directory; the native Path may omit its trailing separator.
-    fn common_source_directory(&self) -> &Path;
-    fn config_file_path(&self) -> Option<&Path>;
+    fn current_directory(&self) -> JsStr<'_>;
+    /// Absolute common source directory; the caller may omit its trailing separator.
+    fn common_source_directory(&self) -> JsStr<'_>;
+    fn config_file_path(&self) -> Option<JsStr<'_>>;
     fn use_case_sensitive_file_names(&self) -> bool;
     fn source_file_ids(&self) -> &[SourceFileId];
     fn source_file(&self, id: SourceFileId) -> Option<EmitSource<'_>>;
@@ -126,11 +127,12 @@ pub trait EmitHost {
         reference: &FileReference,
     ) -> Option<EmitSource<'_>> {
         let referencing = self.source_file(referencing_file)?;
-        let directory = referencing.path().parent().unwrap_or_else(|| Path::new(""));
-        let target = self.canonical_output_path(&directory.join(&reference.file_name));
+        let directory = paths::directory_path(referencing.path());
+        let target = paths::combine_paths(&directory, &reference.file_name);
+        let target = self.canonical_output_path(target.as_js());
         self.source_file_ids().iter().find_map(|&id| {
             let candidate = self.source_file(id)?;
-            (candidate.canonical_path() == target).then_some(candidate)
+            (candidate.canonical_path() == target.as_js()).then_some(candidate)
         })
     }
 
@@ -150,20 +152,20 @@ pub trait EmitHost {
     /// `getSymlinkCache`, consumed by module specifier generation):
     /// `(real_path, symlink_path)` per aliased file. Hosts without
     /// resolutions expose none.
-    fn symlinked_files(&self) -> Vec<(String, String)> {
+    fn symlinked_files(&self) -> Vec<(JsString, JsString)> {
         Vec::new()
     }
 
     /// `(real_directory, symlink_directory)` per guessed directory link (see
     /// [`Self::symlinked_files`]).
-    fn symlinked_directories(&self) -> Vec<(String, String)> {
+    fn symlinked_directories(&self) -> Vec<(JsString, JsString)> {
         Vec::new()
     }
 
     /// Canonicalize one output spelling with the same case policy used for
     /// source identities. Implementations may override this when their path
     /// model is richer than the frozen POSIX H1 profile.
-    fn canonical_output_path(&self, path: &Path) -> PathBuf {
+    fn canonical_output_path(&self, path: JsStr<'_>) -> JsString {
         tsc_program::canonical_emit_path(
             path,
             self.current_directory(),

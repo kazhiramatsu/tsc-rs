@@ -119,7 +119,7 @@ fn native_filesystem_and_memory_hosts_build_the_same_small_program() {
             .map(|source| source
                 .path()
                 .display()
-                .to_str()
+                .as_str()
                 .expect("source path is Unicode"))
             .collect::<Vec<_>>(),
         [normalized_display(&child), normalized_display(&main)]

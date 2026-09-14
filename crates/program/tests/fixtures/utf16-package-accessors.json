@@ -1,0 +1,1605 @@
+{
+  "version": 1,
+  "scope": "readJson object view, inherited/own property access, Object.keys order, scoped package mangling and filename casing; no complete-command qualification",
+  "typescript": "6.0.3",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "observer_sha256": "b97e318a2b61a0a089b979c123625ab873f351449a47ab523d3feb344793b39f",
+  "repetitions": 2,
+  "packages": [
+    {
+      "text": "{\"name\":\" \\ud800 \",\"type\":\"\\ud801\",\"2\":\"two\",\"1\":\"one\",\"01\":\"padded\",\"\\u0000key\":\"nul\",\"\\ud800\":\"high\",\"\\ud801\":\"other\"}",
+      "entries": [
+        {
+          "key": [
+            49
+          ],
+          "value": {
+            "kind": "string",
+            "units": [
+              111,
+              110,
+              101
+            ]
+          }
+        },
+        {
+          "key": [
+            50
+          ],
+          "value": {
+            "kind": "string",
+            "units": [
+              116,
+              119,
+              111
+            ]
+          }
+        },
+        {
+          "key": [
+            110,
+            97,
+            109,
+            101
+          ],
+          "value": {
+            "kind": "string",
+            "units": [
+              32,
+              55296,
+              32
+            ]
+          }
+        },
+        {
+          "key": [
+            116,
+            121,
+            112,
+            101
+          ],
+          "value": {
+            "kind": "string",
+            "units": [
+              55297
+            ]
+          }
+        },
+        {
+          "key": [
+            48,
+            49
+          ],
+          "value": {
+            "kind": "string",
+            "units": [
+              112,
+              97,
+              100,
+              100,
+              101,
+              100
+            ]
+          }
+        },
+        {
+          "key": [
+            0,
+            107,
+            101,
+            121
+          ],
+          "value": {
+            "kind": "string",
+            "units": [
+              110,
+              117,
+              108
+            ]
+          }
+        },
+        {
+          "key": [
+            55296
+          ],
+          "value": {
+            "kind": "string",
+            "units": [
+              104,
+              105,
+              103,
+              104
+            ]
+          }
+        },
+        {
+          "key": [
+            55297
+          ],
+          "value": {
+            "kind": "string",
+            "units": [
+              111,
+              116,
+              104,
+              101,
+              114
+            ]
+          }
+        }
+      ],
+      "properties": [
+        {
+          "key": [
+            110,
+            97,
+            109,
+            101
+          ],
+          "inherited": {
+            "kind": "string",
+            "units": [
+              32,
+              55296,
+              32
+            ]
+          },
+          "own": {
+            "kind": "string",
+            "units": [
+              32,
+              55296,
+              32
+            ]
+          }
+        },
+        {
+          "key": [
+            116,
+            121,
+            112,
+            101
+          ],
+          "inherited": {
+            "kind": "string",
+            "units": [
+              55297
+            ]
+          },
+          "own": {
+            "kind": "string",
+            "units": [
+              55297
+            ]
+          }
+        },
+        {
+          "key": [
+            49
+          ],
+          "inherited": {
+            "kind": "string",
+            "units": [
+              111,
+              110,
+              101
+            ]
+          },
+          "own": {
+            "kind": "string",
+            "units": [
+              111,
+              110,
+              101
+            ]
+          }
+        },
+        {
+          "key": [
+            50
+          ],
+          "inherited": {
+            "kind": "string",
+            "units": [
+              116,
+              119,
+              111
+            ]
+          },
+          "own": {
+            "kind": "string",
+            "units": [
+              116,
+              119,
+              111
+            ]
+          }
+        },
+        {
+          "key": [
+            48,
+            49
+          ],
+          "inherited": {
+            "kind": "string",
+            "units": [
+              112,
+              97,
+              100,
+              100,
+              101,
+              100
+            ]
+          },
+          "own": {
+            "kind": "string",
+            "units": [
+              112,
+              97,
+              100,
+              100,
+              101,
+              100
+            ]
+          }
+        },
+        {
+          "key": [
+            0,
+            107,
+            101,
+            121
+          ],
+          "inherited": {
+            "kind": "string",
+            "units": [
+              110,
+              117,
+              108
+            ]
+          },
+          "own": {
+            "kind": "string",
+            "units": [
+              110,
+              117,
+              108
+            ]
+          }
+        },
+        {
+          "key": [
+            55296
+          ],
+          "inherited": {
+            "kind": "string",
+            "units": [
+              104,
+              105,
+              103,
+              104
+            ]
+          },
+          "own": {
+            "kind": "string",
+            "units": [
+              104,
+              105,
+              103,
+              104
+            ]
+          }
+        },
+        {
+          "key": [
+            55297
+          ],
+          "inherited": {
+            "kind": "string",
+            "units": [
+              111,
+              116,
+              104,
+              101,
+              114
+            ]
+          },
+          "own": {
+            "kind": "string",
+            "units": [
+              111,
+              116,
+              104,
+              101,
+              114
+            ]
+          }
+        },
+        {
+          "key": [
+            95,
+            95,
+            112,
+            114,
+            111,
+            116,
+            111,
+            95,
+            95
+          ],
+          "inherited": {
+            "kind": "object",
+            "null": false,
+            "array": false
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            105,
+            110,
+            104,
+            101,
+            114,
+            105,
+            116,
+            101,
+            100
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        }
+      ]
+    },
+    {
+      "text": "{/* JSONC */\"__proto__\":{\"name\":\" \\ud800 \",\"inherited\":\"\\ud801\"},\"2\":\"two\",\"1\":\"one\",\"\\u0000key\":\"nul\",\"\\ud800\":\"high\",}",
+      "entries": [
+        {
+          "key": [
+            49
+          ],
+          "value": {
+            "kind": "string",
+            "units": [
+              111,
+              110,
+              101
+            ]
+          }
+        },
+        {
+          "key": [
+            50
+          ],
+          "value": {
+            "kind": "string",
+            "units": [
+              116,
+              119,
+              111
+            ]
+          }
+        },
+        {
+          "key": [
+            0,
+            107,
+            101,
+            121
+          ],
+          "value": {
+            "kind": "string",
+            "units": [
+              110,
+              117,
+              108
+            ]
+          }
+        },
+        {
+          "key": [
+            55296
+          ],
+          "value": {
+            "kind": "string",
+            "units": [
+              104,
+              105,
+              103,
+              104
+            ]
+          }
+        }
+      ],
+      "properties": [
+        {
+          "key": [
+            110,
+            97,
+            109,
+            101
+          ],
+          "inherited": {
+            "kind": "string",
+            "units": [
+              32,
+              55296,
+              32
+            ]
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            116,
+            121,
+            112,
+            101
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            49
+          ],
+          "inherited": {
+            "kind": "string",
+            "units": [
+              111,
+              110,
+              101
+            ]
+          },
+          "own": {
+            "kind": "string",
+            "units": [
+              111,
+              110,
+              101
+            ]
+          }
+        },
+        {
+          "key": [
+            50
+          ],
+          "inherited": {
+            "kind": "string",
+            "units": [
+              116,
+              119,
+              111
+            ]
+          },
+          "own": {
+            "kind": "string",
+            "units": [
+              116,
+              119,
+              111
+            ]
+          }
+        },
+        {
+          "key": [
+            48,
+            49
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            0,
+            107,
+            101,
+            121
+          ],
+          "inherited": {
+            "kind": "string",
+            "units": [
+              110,
+              117,
+              108
+            ]
+          },
+          "own": {
+            "kind": "string",
+            "units": [
+              110,
+              117,
+              108
+            ]
+          }
+        },
+        {
+          "key": [
+            55296
+          ],
+          "inherited": {
+            "kind": "string",
+            "units": [
+              104,
+              105,
+              103,
+              104
+            ]
+          },
+          "own": {
+            "kind": "string",
+            "units": [
+              104,
+              105,
+              103,
+              104
+            ]
+          }
+        },
+        {
+          "key": [
+            55297
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            95,
+            95,
+            112,
+            114,
+            111,
+            116,
+            111,
+            95,
+            95
+          ],
+          "inherited": {
+            "kind": "object",
+            "null": false,
+            "array": false
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            105,
+            110,
+            104,
+            101,
+            114,
+            105,
+            116,
+            101,
+            100
+          ],
+          "inherited": {
+            "kind": "string",
+            "units": [
+              55297
+            ]
+          },
+          "own": {
+            "kind": "absent"
+          }
+        }
+      ]
+    },
+    {
+      "text": "{\"__proto__\":{\"inherited\":\"strict own prototype property\"},\"name\":\"  pkg  \"}",
+      "entries": [
+        {
+          "key": [
+            95,
+            95,
+            112,
+            114,
+            111,
+            116,
+            111,
+            95,
+            95
+          ],
+          "value": {
+            "kind": "object",
+            "null": false,
+            "array": false
+          }
+        },
+        {
+          "key": [
+            110,
+            97,
+            109,
+            101
+          ],
+          "value": {
+            "kind": "string",
+            "units": [
+              32,
+              32,
+              112,
+              107,
+              103,
+              32,
+              32
+            ]
+          }
+        }
+      ],
+      "properties": [
+        {
+          "key": [
+            110,
+            97,
+            109,
+            101
+          ],
+          "inherited": {
+            "kind": "string",
+            "units": [
+              32,
+              32,
+              112,
+              107,
+              103,
+              32,
+              32
+            ]
+          },
+          "own": {
+            "kind": "string",
+            "units": [
+              32,
+              32,
+              112,
+              107,
+              103,
+              32,
+              32
+            ]
+          }
+        },
+        {
+          "key": [
+            116,
+            121,
+            112,
+            101
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            49
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            50
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            48,
+            49
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            0,
+            107,
+            101,
+            121
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            55296
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            55297
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            95,
+            95,
+            112,
+            114,
+            111,
+            116,
+            111,
+            95,
+            95
+          ],
+          "inherited": {
+            "kind": "object",
+            "null": false,
+            "array": false
+          },
+          "own": {
+            "kind": "object",
+            "null": false,
+            "array": false
+          }
+        },
+        {
+          "key": [
+            105,
+            110,
+            104,
+            101,
+            114,
+            105,
+            116,
+            101,
+            100
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        }
+      ]
+    },
+    {
+      "text": "{\"name\":",
+      "entries": [],
+      "properties": [
+        {
+          "key": [
+            110,
+            97,
+            109,
+            101
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            116,
+            121,
+            112,
+            101
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            49
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            50
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            48,
+            49
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            0,
+            107,
+            101,
+            121
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            55296
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            55297
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            95,
+            95,
+            112,
+            114,
+            111,
+            116,
+            111,
+            95,
+            95
+          ],
+          "inherited": {
+            "kind": "object",
+            "null": false,
+            "array": false
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            105,
+            110,
+            104,
+            101,
+            114,
+            105,
+            116,
+            101,
+            100
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        }
+      ]
+    },
+    {
+      "text": "",
+      "entries": [],
+      "properties": [
+        {
+          "key": [
+            110,
+            97,
+            109,
+            101
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            116,
+            121,
+            112,
+            101
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            49
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            50
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            48,
+            49
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            0,
+            107,
+            101,
+            121
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            55296
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            55297
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            95,
+            95,
+            112,
+            114,
+            111,
+            116,
+            111,
+            95,
+            95
+          ],
+          "inherited": {
+            "kind": "object",
+            "null": false,
+            "array": false
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            105,
+            110,
+            104,
+            101,
+            114,
+            105,
+            116,
+            101,
+            100
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        }
+      ]
+    },
+    {
+      "text": "[]",
+      "entries": [],
+      "properties": [
+        {
+          "key": [
+            110,
+            97,
+            109,
+            101
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            116,
+            121,
+            112,
+            101
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            49
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            50
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            48,
+            49
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            0,
+            107,
+            101,
+            121
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            55296
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            55297
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            95,
+            95,
+            112,
+            114,
+            111,
+            116,
+            111,
+            95,
+            95
+          ],
+          "inherited": {
+            "kind": "object",
+            "null": false,
+            "array": false
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            105,
+            110,
+            104,
+            101,
+            114,
+            105,
+            116,
+            101,
+            100
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        }
+      ]
+    },
+    {
+      "text": "null",
+      "entries": [],
+      "properties": [
+        {
+          "key": [
+            110,
+            97,
+            109,
+            101
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            116,
+            121,
+            112,
+            101
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            49
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            50
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            48,
+            49
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            0,
+            107,
+            101,
+            121
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            55296
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            55297
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            95,
+            95,
+            112,
+            114,
+            111,
+            116,
+            111,
+            95,
+            95
+          ],
+          "inherited": {
+            "kind": "object",
+            "null": false,
+            "array": false
+          },
+          "own": {
+            "kind": "absent"
+          }
+        },
+        {
+          "key": [
+            105,
+            110,
+            104,
+            101,
+            114,
+            105,
+            116,
+            101,
+            100
+          ],
+          "inherited": {
+            "kind": "absent"
+          },
+          "own": {
+            "kind": "absent"
+          }
+        }
+      ]
+    }
+  ],
+  "scoped_names": [
+    {
+      "name": [
+        112,
+        107,
+        103
+      ],
+      "mangled": [
+        112,
+        107,
+        103
+      ]
+    },
+    {
+      "name": [
+        64,
+        115,
+        99,
+        111,
+        112,
+        101,
+        47,
+        112,
+        107,
+        103
+      ],
+      "mangled": [
+        115,
+        99,
+        111,
+        112,
+        101,
+        95,
+        95,
+        112,
+        107,
+        103
+      ]
+    },
+    {
+      "name": [
+        64,
+        115,
+        99,
+        111,
+        112,
+        101
+      ],
+      "mangled": [
+        64,
+        115,
+        99,
+        111,
+        112,
+        101
+      ]
+    },
+    {
+      "name": [
+        64,
+        115,
+        99,
+        111,
+        112,
+        101,
+        47,
+        112,
+        107,
+        103,
+        47,
+        115,
+        117,
+        98
+      ],
+      "mangled": [
+        115,
+        99,
+        111,
+        112,
+        101,
+        95,
+        95,
+        112,
+        107,
+        103,
+        47,
+        115,
+        117,
+        98
+      ]
+    },
+    {
+      "name": [
+        64,
+        64,
+        115,
+        99,
+        111,
+        112,
+        101,
+        47,
+        112,
+        107,
+        103
+      ],
+      "mangled": [
+        64,
+        115,
+        99,
+        111,
+        112,
+        101,
+        95,
+        95,
+        112,
+        107,
+        103
+      ]
+    },
+    {
+      "name": [
+        64,
+        55296,
+        47,
+        55297
+      ],
+      "mangled": [
+        55296,
+        95,
+        95,
+        55297
+      ]
+    },
+    {
+      "name": [
+        64,
+        55296
+      ],
+      "mangled": [
+        64,
+        55296
+      ]
+    }
+  ],
+  "file_names": [
+    {
+      "name": [
+        47,
+        65,
+        47,
+        55296,
+        47,
+        55297,
+        47,
+        70,
+        73,
+        76,
+        69,
+        46,
+        84,
+        83
+      ],
+      "folded": [
+        47,
+        97,
+        47,
+        55296,
+        47,
+        55297,
+        47,
+        102,
+        105,
+        108,
+        101,
+        46,
+        116,
+        115
+      ]
+    },
+    {
+      "name": [
+        47,
+        304,
+        305,
+        223,
+        47,
+        55297,
+        56320,
+        47,
+        931,
+        55296,
+        931,
+        46,
+        116,
+        115
+      ],
+      "folded": [
+        47,
+        304,
+        305,
+        223,
+        47,
+        55297,
+        56360,
+        47,
+        963,
+        55296,
+        963,
+        46,
+        116,
+        115
+      ]
+    }
+  ]
+}

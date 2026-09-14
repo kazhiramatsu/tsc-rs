@@ -66,7 +66,11 @@ fn routes_parse_order_arenas_without_changing_program_order() {
     assert_eq!(
         program
             .files()
-            .map(|binder| binder.source.file_name.as_str())
+            .map(|binder| binder
+                .source
+                .file_name
+                .as_str()
+                .expect("scalar filename observation"))
             .collect::<Vec<_>>(),
         ["/b.ts", "/a.ts"]
     );
@@ -112,7 +116,10 @@ fn routes_parse_order_arenas_without_changing_program_order() {
         ));
     }
 
-    let transient = program.create_symbol(SymbolFlags::PROPERTY, "temporary".to_owned());
+    let transient = program.create_symbol(
+        SymbolFlags::PROPERTY,
+        tsc_types::EscapedName::from_escaped_value(("temporary".to_owned()).into()),
+    );
     assert_ne!(transient.0 & tsc_types::TRANSIENT_SYMBOL_BIT, 0);
     assert!(program
         .symbol(transient)
@@ -207,12 +214,14 @@ fn snapshot_reuses_owned_handles_across_fresh_checker_sessions() {
     assert!(Arc::ptr_eq(snapshot.document(0), &document));
     assert!(std::ptr::eq(first.binder.source(0), source.as_ref()));
     assert!(std::ptr::eq(second.binder.source(0), source.as_ref()));
-    let first_transient = first
-        .binder
-        .create_symbol(SymbolFlags::PROPERTY, "first".to_owned());
-    let second_transient = second
-        .binder
-        .create_symbol(SymbolFlags::PROPERTY, "second".to_owned());
+    let first_transient = first.binder.create_symbol(
+        SymbolFlags::PROPERTY,
+        tsc_types::EscapedName::from_escaped_value(("first".to_owned()).into()),
+    );
+    let second_transient = second.binder.create_symbol(
+        SymbolFlags::PROPERTY,
+        tsc_types::EscapedName::from_escaped_value(("second".to_owned()).into()),
+    );
     assert_eq!(first_transient, second_transient);
     assert!(!std::ptr::eq(
         first.binder.symbol(first_transient),

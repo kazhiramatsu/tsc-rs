@@ -85,7 +85,12 @@ fn h2_1b_multifile_order_and_helper_dedup_are_exact() {
     assert_eq!(
         sink.writes()
             .iter()
-            .map(|write| write.path())
+            .map(|write| Path::new(
+                write
+                    .path()
+                    .as_str()
+                    .expect("scalar acceptance output path")
+            ))
             .collect::<Vec<_>>(),
         [Path::new("/.src/0.js"), Path::new("/.src/1.js")]
     );
