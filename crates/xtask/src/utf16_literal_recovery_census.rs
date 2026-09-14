@@ -510,13 +510,18 @@ impl Census {
                         .filter_map(Value::as_u64)
                         .map(|code| code as u32)
                         .collect::<Vec<_>>();
+                    // The oracle records a unit's codes as a Set: compare
+                    // presence, not multiplicity (the parser may report one
+                    // code twice at distinct positions, as tsc does).
                     codes.sort_unstable();
+                    codes.dedup();
                     expected.insert(string(unit, "path")?.to_owned(), codes);
                 }
                 let mut actual: BTreeMap<String, Vec<u32>> = BTreeMap::new();
                 for unit in row.units.iter().filter(|unit| unit.diagnostics > 0) {
                     let mut codes = unit.codes.clone();
                     codes.sort_unstable();
+                    codes.dedup();
                     actual.insert(unit.path.clone(), codes);
                 }
                 if expected != actual {
