@@ -6398,7 +6398,11 @@ fn transform_and_print_legacy_decorator_recovery_at_target(
         Default::default(),
         None,
     );
-    parsed.parse_diagnostics.clear();
+    // These inputs are deliberately erroneous TypeScript that upstream still
+    // emits (decorator placement rules, `this[#x]`); the production preflight
+    // defers such structural recovery to H2.9, so the harness discards the
+    // diagnostics and the recovery record explicitly instead of weakening it.
+    parsed.discard_parse_recovery_for_harness();
     let mut arena = TransformArena::new();
     let source_id = SourceFileId::from_raw(0);
     let source = arena.add_source(&parsed, Some(source_id));

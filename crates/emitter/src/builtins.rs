@@ -15708,6 +15708,7 @@ fn preflight_source(
     if !syntax.has_only_literal_recovery() {
         return Err(TransformError::ParseDiagnosticsDeferred {
             count: syntax.parse_diagnostics.len(),
+            recovery_events: syntax.parse_recovery().events().len(),
             owner_slice: "H2.9",
         });
     }

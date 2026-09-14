@@ -224,7 +224,11 @@ fn clearing_retained_messages_does_not_erase_structural_recovery() {
     let source = arena.add_source(&parsed, None);
     assert!(matches!(
         super::preflight_source(&arena, source, true, true, true),
-        Err(crate::TransformError::ParseDiagnosticsDeferred { count: 0, .. })
+        Err(crate::TransformError::ParseDiagnosticsDeferred {
+            count: 0,
+            recovery_events,
+            ..
+        }) if recovery_events > 0
     ));
 }
 

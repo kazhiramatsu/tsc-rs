@@ -173,6 +173,18 @@ impl SourceFile {
             .is_literal_only(self.parse_diagnostics.len())
     }
 
+    /// Harness only: drop every retained parse diagnostic together with the
+    /// committed recovery record, so a contract test can drive the transform
+    /// pipeline over a deliberately erroneous tree that upstream still emits.
+    /// Production never clears either field; the emit preflight reads the
+    /// recovery record, and clearing the diagnostic list alone is exactly the
+    /// mismatch it refuses. A tree emptied here is the caller's own claim.
+    #[doc(hidden)]
+    pub fn discard_parse_recovery_for_harness(&mut self) {
+        self.parse_diagnostics.clear();
+        self.parse_recovery = ParseRecovery::default();
+    }
+
     pub fn snapshot(&self) -> &Arc<TextSnapshot> {
         &self.snapshot
     }
